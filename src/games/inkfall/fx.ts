@@ -49,7 +49,6 @@ interface Blot {
 type Effect = NoteFlight | Scatter | Blot;
 
 export interface FxLayer {
-
 	launchNote: (
 		fromX: number,
 		fromY: number,
@@ -57,15 +56,10 @@ export interface FxLayer {
 		toY: number,
 		onArrive: () => void,
 	) => void;
-
 	tearWord: ( sprite: WordSprite ) => void;
-
 	splashBlot: ( x: number, y: number ) => void;
-
 	update: ( dt: number ) => void;
-
 	busy: () => boolean;
-
 	clear: () => void;
 }
 
@@ -182,7 +176,6 @@ export function createFxLayer(
 						1,
 						effect.age / NOTE_FLIGHT_SECONDS,
 					);
-
 					const eased = 1 - ( 1 - progress ) * ( 1 - progress );
 					effect.node.x =
 						effect.fromX + ( effect.toX - effect.fromX ) * eased;
@@ -211,7 +204,6 @@ export function createFxLayer(
 					}
 					continue;
 				}
-
 				const fadeStart = BLOT_LIFETIME * 0.4;
 				if ( effect.age <= fadeStart ) {
 					effect.node.alpha = 1;

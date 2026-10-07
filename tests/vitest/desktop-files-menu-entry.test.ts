@@ -119,7 +119,6 @@ describe( 'shortcut opener enrichment', () => {
 		const { installHooksStub, clearHooksStub } = await import(
 			'./helpers/hooks-stub'
 		);
-
 		installHooksStub();
 		( window.wp as unknown as Record< string, unknown > ).os = {
 			getMenuItems: () => [ POSTS_ITEM, TOOLS_ITEM ],

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-settings
+ */
 class Tests_OpenStation_OsSettingsMigration extends WP_UnitTestCase {
 
 	private $flags = array(
@@ -12,10 +15,12 @@ class Tests_OpenStation_OsSettingsMigration extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		delete_option( OPENSTATION_MIGRATION_OPTION );
 	}
 
+	/**
+	 * @covers ::openstation_migrate_os_settings_optin
+	 */
 	public function test_migration_clears_flags_but_preserves_other_settings() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings(
@@ -46,6 +51,9 @@ class Tests_OpenStation_OsSettingsMigration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_migrate_os_settings_optin
+	 */
 	public function test_migration_skips_users_without_meta() {
 		$user_id = self::factory()->user->create();
 
@@ -58,6 +66,9 @@ class Tests_OpenStation_OsSettingsMigration extends WP_UnitTestCase {
 		$this->assertFalse( $loaded['nativePostsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_maybe_run_migrations
+	 */
 	public function test_migration_is_guarded_and_does_not_re_run() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings(
@@ -87,6 +98,9 @@ class Tests_OpenStation_OsSettingsMigration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_maybe_run_migrations
+	 */
 	public function test_maybe_run_is_noop_when_already_current() {
 		update_option( OPENSTATION_MIGRATION_OPTION, OPENSTATION_MIGRATION_VERSION, false );
 

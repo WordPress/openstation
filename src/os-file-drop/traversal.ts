@@ -1,14 +1,11 @@
 export interface TreeFile {
 	file: File;
-
 	relativePath: string;
 }
 
 export interface TreeCollection {
 	files: TreeFile[];
-
 	emptyDirs: string[];
-
 	hadDirectory: boolean;
 }
 
@@ -84,11 +81,9 @@ async function collectEntry(
 			const file = await entryFile( entry as FileSystemFileEntry );
 			collection.files.push( {
 				file,
-
 				relativePath: prefix ? `${ prefix }${ file.name }` : '',
 			} );
 		} catch {
-
 		}
 		return;
 	}

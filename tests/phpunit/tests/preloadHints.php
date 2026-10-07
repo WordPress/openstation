@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-preload
+ */
 class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 
 	protected static $user_id;
@@ -11,11 +14,8 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$user_id );
-
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
-
 		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
-
 		openstation_register_assets();
 	}
 
@@ -31,6 +31,9 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 		return (string) ob_get_clean();
 	}
 
+	/**
+	 * @covers ::openstation_print_preload_hints
+	 */
 	public function test_lazy_bundles_use_prefetch_and_critical_use_preload() {
 		$html = $this->capture_hints();
 		$this->assertNotEmpty( $html );
@@ -51,6 +54,9 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'rel="prefetch"', $line_for( 'assets/js/shell-overlays' ) );
 	}
 
+	/**
+	 * @covers ::openstation_print_preload_hints
+	 */
 	public function test_desktop_css_preload_version_matches_registered_stylesheet() {
 		$css_path     = OPENSTATION_DIR . 'assets/css/desktop.css';
 		$expected_ver = file_exists( $css_path )
@@ -73,8 +79,10 @@ class Tests_OpenStation_PreloadHints extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_print_preload_hints
+	 */
 	public function test_no_hints_when_openstation_disabled() {
-
 		update_user_meta( self::$user_id, 'desktop_mode_mode', '' );
 
 		$this->assertSame( '', $this->capture_hints() );

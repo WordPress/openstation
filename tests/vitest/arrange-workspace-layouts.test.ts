@@ -105,7 +105,6 @@ describe( 'Arrange — columns + focus', () => {
 		const c = await manager.open( openConfig( 'c' ) );
 
 		manager.columns();
-
 		expect( [ px( wide.element, 'left' ), px( wide.element, 'width' ) ] ).toEqual( [ 16, 800 ] );
 		expect( [ px( b.element, 'left' ), px( b.element, 'width' ) ] ).toEqual( [ 828, 372 ] );
 		expect( [ px( c.element, 'left' ), px( c.element, 'width' ) ] ).toEqual( [ 1212, 372 ] );
@@ -146,7 +145,6 @@ describe( 'Arrange — columns + focus', () => {
 		const a = await manager.open( openConfig( 'a' ) );
 		const b = await manager.open( openConfig( 'b' ) );
 		const c = await manager.open( openConfig( 'c' ) );
-
 		manager.focus( a );
 		const log = recordActions( hooks, LAYOUT_HOOKS );
 
@@ -182,7 +180,6 @@ describe( 'Arrange — columns + focus', () => {
 	test( 'the focus split is filterable, and nonsense falls back', async () => {
 		const a = await manager.open( openConfig( 'a' ) );
 		await manager.open( openConfig( 'b' ) );
-
 		manager.focus( a );
 
 		hooks.addFilter(

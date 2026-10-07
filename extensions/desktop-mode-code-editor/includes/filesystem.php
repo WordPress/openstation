@@ -46,7 +46,6 @@ function openstation_code_editor_workspace_root() {
 }
 
 function openstation_code_editor_extension_allowlist() {
-
 	$exts = (array) apply_filters(
 		'openstation_code_editor_extension_allowlist',
 		OPENSTATION_CODE_EDITOR_DEFAULT_EXTENSIONS
@@ -154,7 +153,7 @@ function openstation_code_editor_write_file( $absolute_path, $content, $expected
 	$expected_mtime = (int) $expected_mtime;
 	$current_mtime  = (int) filemtime( $absolute_path );
 	if ( $expected_mtime > 0 && $current_mtime !== $expected_mtime ) {
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		$current = file_get_contents( $absolute_path );
 		return new WP_Error(
 			'openstation_code_editor_conflict',
@@ -198,7 +197,7 @@ function openstation_code_editor_write_file( $absolute_path, $content, $expected
 	}
 
 	if ( function_exists( 'opcache_invalidate' ) && '.php' === substr( strtolower( $absolute_path ), -4 ) ) {
-
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors
 		@opcache_invalidate( $absolute_path, true );
 	}
 

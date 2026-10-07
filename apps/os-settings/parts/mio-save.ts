@@ -45,7 +45,6 @@ export function saveForMio(
 							JSON.stringify( current[ key as keyof OsSettingsState ] ) ===
 							JSON.stringify( value ),
 					);
-
 				const saved = detail.savedSettings;
 				const confirmed = saved && Object.entries( expected ?? current ).every(
 					( [ key, value ] ) => JSON.stringify( saved[ key as keyof OsSettingsState ] ) === JSON.stringify( value ),

@@ -42,7 +42,6 @@ describe( 'createWindowElement — the title bar has no app icon', () => {
 	} );
 
 	test( 'the icon slot host is present and empty', () => {
-
 		const host = makeWindow( 'dashicons-admin-post' ).querySelector(
 			'.os-window__slot--icon',
 		);

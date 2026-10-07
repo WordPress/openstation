@@ -26,7 +26,6 @@ function bootedSession(): OsSettingsState {
 }
 
 beforeEach( async () => {
-
 	vi.resetModules();
 	state_ = await import( '../../src/settings/state' );
 	vi.useFakeTimers();
@@ -61,7 +60,6 @@ describe( 'OS Settings — partial saves', () => {
 	} );
 
 	test( 'an untouched field is absent, so it cannot overwrite another session', async () => {
-
 		const state = bootedSession();
 		const bootWallpaper = state.wallpaper;
 
@@ -72,7 +70,6 @@ describe( 'OS Settings — partial saves', () => {
 		const sent = sentSettings();
 		expect( sent.accent ).toBe( 'wp-midnight' );
 		expect( 'wallpaper' in sent ).toBe( false );
-
 		expect( state.wallpaper ).toBe( bootWallpaper );
 	} );
 
@@ -177,7 +174,6 @@ describe( 'OS Settings — partial saves', () => {
 	} );
 
 	test( 'a cache-loaded boot does NOT prime the baseline — the first save heals it', async () => {
-
 		window.localStorage.setItem(
 			'desktop-mode-os-settings',
 			JSON.stringify( { ...state_.structuredDefaults(), wallpaper: 'dark' } ),
@@ -201,7 +197,6 @@ describe( 'OS Settings — partial saves', () => {
 	} );
 
 	test( 'without a primed baseline the full snapshot is sent', async () => {
-
 		const fresh = state_.structuredDefaults();
 		fresh.accent = 'wp-midnight';
 		state_.saveState( fresh );

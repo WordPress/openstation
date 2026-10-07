@@ -174,7 +174,6 @@ export function openUsageFeedbackForm( opts: UsageFeedbackFormOptions ): void {
 		clearError();
 		send.setAttribute( 'busy', '' );
 		send.setAttribute( 'disabled', '' );
-
 		let failure: unknown = null;
 		try {
 			const res = await trackedFetch(

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-migrations
+ */
 class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 
 	const ROW_H = 110;
@@ -19,7 +22,7 @@ class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 	private function wipe_placements() {
 		global $wpdb;
 		$tables = openstation_files_table_names();
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
 		$wpdb->query( "DELETE FROM {$tables['placements']}" );
 	}
 
@@ -47,7 +50,7 @@ class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 		$tables = openstation_files_table_names();
 		$rows   = $wpdb->get_results(
 			$wpdb->prepare(
-
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				"SELECT file_ref, x, y FROM {$tables['placements']}
 				WHERE owner_id = %d AND parent_id = 0",
 				self::$owner_id
@@ -58,11 +61,13 @@ class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 		foreach ( $rows as $row ) {
 			$out[ $row['file_ref'] ] = array( (int) $row['x'], (int) $row['y'] );
 		}
-
 		ksort( $out );
 		return $out;
 	}
 
+	/**
+	 * @covers ::openstation_migrate_close_recycle_bin_icon_gap
+	 */
 	public function test_bin_placement_is_removed_and_the_column_closes_up() {
 		$this->place( 'desktop-mode-my-wordpress', 0 );
 		$this->place( 'desktop-mode-recycle-bin', 1 );
@@ -78,6 +83,9 @@ class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 		$this->assertSame( array( 16, 236 ), $coords['some-plugin-icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_migrate_close_recycle_bin_icon_gap
+	 */
 	public function test_other_columns_are_left_alone() {
 		$this->place( 'desktop-mode-recycle-bin', 1 );
 		$this->place( 'second-column', 2, 1 );
@@ -87,6 +95,9 @@ class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 		$this->assertSame( array( 112, 236 ), $this->coords()['second-column'] );
 	}
 
+	/**
+	 * @covers ::openstation_migrate_close_recycle_bin_icon_gap
+	 */
 	public function test_tiles_above_the_bin_do_not_move() {
 		$this->place( 'above', 0 );
 		$this->place( 'desktop-mode-recycle-bin', 2 );
@@ -96,6 +107,9 @@ class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 		$this->assertSame( array( 16, 16 ), $this->coords()['above'] );
 	}
 
+	/**
+	 * @covers ::openstation_migrate_close_recycle_bin_icon_gap
+	 */
 	public function test_no_bin_placement_means_no_change() {
 		$this->place( 'desktop-mode-my-wordpress', 0 );
 		$this->place( 'desktop-mode-content-graph', 1 );
@@ -111,6 +125,9 @@ class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_migrate_close_recycle_bin_icon_gap
+	 */
 	public function test_owners_are_independent() {
 		$other = self::factory()->user->create();
 		$this->place( 'desktop-mode-content-graph', 2, 0, $other );
@@ -122,7 +139,7 @@ class Tests_OpenStation_RecycleBinIconGapMigration extends WP_UnitTestCase {
 		$tables = openstation_files_table_names();
 		$y      = (int) $wpdb->get_var(
 			$wpdb->prepare(
-
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				"SELECT y FROM {$tables['placements']}
 				WHERE owner_id = %d AND parent_id = 0",
 				$other

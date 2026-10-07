@@ -137,7 +137,6 @@ describe( 'the profile form — role save flow', () => {
 		expect( formHost.querySelector( '[name="meta.rich_editing"]' ) ).not.toBeNull();
 		expect( formHost.querySelector( '[name="meta.syntax_highlighting"]' ) ).not.toBeNull();
 		expect( formHost.querySelector( '[name="meta.show_admin_bar_front"]' ) ).not.toBeNull();
-
 		expect( formHost.querySelector( '[name="meta.is_super_admin"]' ) ).toBeNull();
 	} );
 
@@ -217,7 +216,6 @@ describe( 'the profile form — role save flow', () => {
 			nickname: 'Q&A Helper',
 			description: 'R&D <em>lead</em>',
 		} );
-
 		expect( header() ).toContain( 'Q&A Helper' );
 	} );
 

@@ -7,13 +7,11 @@ export interface SoupCell {
 
 export interface PlacedWord {
 	word: string;
-
 	cells: SoupCell[];
 }
 
 export interface SoupGrid {
 	size: number;
-
 	letters: string[][];
 	words: PlacedWord[];
 }
@@ -68,7 +66,6 @@ export function generateSoup( opts: GenerateSoupOptions ): SoupGrid {
 			break;
 		}
 	}
-
 	chosen.sort( ( a, b ) => b.length - a.length || ( a < b ? -1 : 1 ) );
 
 	const placed: PlacedWord[] = [];
@@ -109,7 +106,6 @@ function tryPlaceWord(
 	for ( let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++ ) {
 		const dir = DIRECTIONS[ Math.floor( rng() * DIRECTIONS.length ) ];
 		const span = word.length - 1;
-
 		const rowMin = dir[ 0 ] < 0 ? span : 0;
 		const rowMax = dir[ 0 ] > 0 ? size - 1 - span : size - 1;
 		const colMin = dir[ 1 ] < 0 ? span : 0;
@@ -127,7 +123,6 @@ function tryPlaceWord(
 		for ( let i = 0; i < word.length; i++ ) {
 			const r = row + dir[ 0 ] * i;
 			const c = col + dir[ 1 ] * i;
-
 			if ( null !== letters[ r ][ c ] ) {
 				fits = false;
 				break;
@@ -155,7 +150,6 @@ export function lineCells(
 	if ( 0 === dRow && 0 === dCol ) {
 		return [ anchor ];
 	}
-
 	const angle = Math.atan2( dRow, dCol );
 	const spoke = Math.round( angle / ( Math.PI / 4 ) );
 	const stepRow = [ 0, 1, 1, 1, 0, -1, -1, -1 ][ ( spoke + 8 ) % 8 ];

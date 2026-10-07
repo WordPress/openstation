@@ -69,7 +69,6 @@ describe( 'text-entry guard', () => {
 
 		expect( shortcut.fired ).toBe( 0 );
 		expect( seenByDocument ).toEqual( [] );
-
 		expect( ev.defaultPrevented ).toBe( false );
 
 		document.removeEventListener( 'keydown', capture, true );
@@ -181,7 +180,6 @@ describe( 'text-entry guard', () => {
 		expect( shortcut.fired ).toBe( 1 );
 
 		shortcut.off();
-
 	} );
 
 	test( 'installing twice is one listener', () => {

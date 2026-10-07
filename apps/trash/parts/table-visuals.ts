@@ -1,6 +1,5 @@
 import { __ } from '../../../src/i18n';
 import { decodeHTML } from '../../../src/utils';
-
 import '../../../src/ui/components/os-relative-time/os-relative-time';
 import {
 	resolveThemedIcon,
@@ -18,7 +17,6 @@ export function mapRecycleTypeToFileType( recycleType: string ): string {
 	if ( recycleType === 'comment' ) {
 		return 'comment';
 	}
-
 	return 'post';
 }
 
@@ -27,7 +25,6 @@ const TYPE_BADGE_COLORS: Record< string, { bg: string; fg: string } > = {
 	page: { bg: '#e0f2fe', fg: '#075985' },
 	attachment: { bg: '#fef3c7', fg: '#92400e' },
 	comment: { bg: '#dcfce7', fg: '#166534' },
-
 	_default: {
 		bg: 'var( --os-ui-surface-sunken, #e5e7eb )',
 		fg: 'var( --os-ui-fg-muted, #374151 )',
@@ -76,7 +73,6 @@ export interface RowButtonOptions {
 	icon: string;
 	onClick: () => void;
 	variant?: string;
-
 	labelled?: boolean;
 }
 
@@ -94,7 +90,6 @@ export function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 			: DESKTOP_THEME_SLOTS.RECYCLE_DELETE;
 	const themed = resolveThemedIcon( themedSlot );
 	const themedFill = resolveThemedIconColor( themedSlot ) ?? 'currentColor';
-
 	const maskSafe =
 		themed !== null &&
 		! themed.startsWith( 'dashicons-' ) &&
@@ -143,7 +138,6 @@ export interface RowActionHandlers {
 }
 
 export interface ColumnOptions {
-
 	phone?: boolean;
 }
 
@@ -207,7 +201,6 @@ export function buildColumns(
 				return wrap;
 			},
 		},
-
 		{
 			key: 'deleted_at',
 			label: __( 'Deleted' ),

@@ -114,7 +114,6 @@ describe( 'dock-peek', () => {
 	} );
 
 	test( 'native-window (system) tile peek shows a thumbnail card without a Ghost Card', () => {
-
 		const tile = makeTile( false );
 		const win = makeWindowStub( 'OS Settings', 'os-settings' );
 		attachDockPeek(
@@ -417,7 +416,6 @@ describe( 'dock-peek', () => {
 		expect( card.dataset.preview ).toBe( '' );
 
 		card.click();
-
 		expect( win.restore ).toHaveBeenCalledTimes( 1 );
 		expect( focus ).toHaveBeenCalledTimes( 1 );
 		expect( focus ).toHaveBeenCalledWith( win );
@@ -633,7 +631,6 @@ describe( 'dock-peek', () => {
 	} );
 
 	test( 'a menu tile stands down while a constellation is mounted', () => {
-
 		document.body.setAttribute( CONSTELLATION_FLAG, '' );
 		const tile = makeTile( true );
 		attachDockPeek(

@@ -47,7 +47,6 @@ describe( 'the instance hop transition', () => {
 
 		stampArrival();
 		expect( shell.classList.contains( 'os-shell--arriving-prev' ) ).toBe( true );
-
 		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBeNull();
 
 		revealInstance();
@@ -62,7 +61,6 @@ describe( 'the instance hop transition', () => {
 		const shell = mountShell( true );
 		stampArrival( 'next' );
 		expect( shell.classList.contains( 'os-shell--arriving-next' ) ).toBe( true );
-
 		shell.className = 'os-shell os-shell--arriving';
 		sessionStorage.setItem( 'openstation-hop-direction', 'prev' );
 		stampArrival( 'next' );

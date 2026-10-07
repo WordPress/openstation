@@ -5,7 +5,6 @@ defined( 'ABSPATH' ) || exit;
 function openstation_stored_files_share_can_manage( $file_id, $user_id ) {
 	$file = openstation_stored_files_get( (int) $file_id );
 	$can  = $file && (int) $file['owner_id'] === (int) $user_id;
-
 	return (bool) apply_filters( 'openstation_stored_files_share_can_manage', $can, (int) $file_id, (int) $user_id, $file );
 }
 
@@ -136,7 +135,6 @@ function openstation_stored_file_share_accept( $share_id, $user_id ) {
 		return new WP_Error( 'openstation_files_share_not_recipient', __( 'This invite is not for you.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	if ( 'accepted' === $row['state'] ) {
-
 		$tables = openstation_files_table_names();
 		$placed = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$tables['placements']} WHERE owner_id = %d AND file_type = 'upload' AND file_ref = %s LIMIT 1", $user_id, (string) $row['folder_id'] ) );
 		if ( $placed ) {
@@ -160,7 +158,6 @@ function openstation_stored_file_share_accept( $share_id, $user_id ) {
 	);
 
 	$file_id = (int) $row['folder_id'];
-
 	$parent_id = (int) apply_filters( 'openstation_folder_share_accept_default_parent', 0, $file_id, $user_id, $row );
 	$placed    = openstation_files_place_at_next_free_slot( $user_id, $parent_id, 'upload', (string) $file_id );
 	if ( is_wp_error( $placed ) ) {
@@ -371,7 +368,6 @@ function openstation_files_shape_file_share( $row ) {
 		$shape['ownerName']   = $owner ? openstation_plain_text_title( $owner->display_name ) : '';
 		$shape['ownerAvatar'] = $owner ? get_avatar_url( $owner->ID, array( 'size' => 48 ) ) : '';
 	}
-
 	$principal            = get_userdata( (int) $row['principal_ref'] );
 	$shape['displayName'] = $principal ? openstation_plain_text_title( $principal->display_name ) : '';
 	$shape['avatarUrl']   = $principal ? get_avatar_url( $principal->ID, array( 'size' => 48 ) ) : '';

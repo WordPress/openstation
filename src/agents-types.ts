@@ -14,11 +14,8 @@ export interface Agent {
 	triggers: Trigger[];
 	model: string;
 	rateLimit: number;
-
 	vibes: string;
-
 	face: MioLook;
-
 	faceSeed: number;
 	avatarUrl: string;
 }
@@ -50,7 +47,6 @@ export interface TriggerKindDescriptor {
 	label: string;
 	description: string;
 	icon: string;
-
 	wired?: boolean;
 	config_schema?: Record< string, unknown >;
 }
@@ -88,9 +84,7 @@ export interface AgentInvokeResult {
 }
 
 export interface AgentsSectionConfig {
-
 	enabled: boolean;
-
 	canEnable: boolean;
 	canManage: boolean;
 	canInvoke: boolean;
@@ -98,7 +92,6 @@ export interface AgentsSectionConfig {
 	aiStatusUrl: string;
 	connectorsUrl: string;
 	runWindowId: string;
-
 	preview?: PreviewAgent[];
 }
 
@@ -107,7 +100,6 @@ export interface PreviewAgent {
 	vibes: string;
 	description: string;
 	role: string;
-
 	roleLabel: string;
 	face: MioLook;
 }

@@ -91,9 +91,7 @@ function frame( ctx: Ctx ) {
 			<p class="os-settings__search-empty" ?hidden=${ query === '' || visible > 0 }>
 				${ __( 'No settings match that.' ) }
 			</p>
-			${
-
-       '' }
+			${ '' }
 			<os-select
 				class="os-settings__page-select"
 				label=${ __( 'Settings section' ) }
@@ -116,7 +114,6 @@ function frame( ctx: Ctx ) {
 
 export default defineApp< AppState, AppData >( APP_ID, {
 	local: {
-
 		tab: ( state, args ) => {
 			const value = String( args.value ?? '' );
 			if ( value !== '' ) {
@@ -129,21 +126,16 @@ export default defineApp< AppState, AppData >( APP_ID, {
 
 	mounted: ( ctx ) => {
 		const ui = uiOf( ctx );
-
 		registerCustomGradient( settings, renderGradientEditor );
 		ui.previews = createWallpaperPreviewManager( ctx.root );
-
 		void hydrateAll();
-
 		void ensureWindowLinkVisuals().catch( () => undefined );
 
 		const repaint = (): void => ctx.repaint();
-
 		document.addEventListener( 'os-mode-changed', repaint );
 		const offs = [
 			() => document.removeEventListener( 'os-mode-changed', repaint ),
 			mountPreferencesMio( ctx ),
-
 			subscribe( repaint ),
 			wallpapers.subscribe( repaint ),
 			subscribeDockRailRenderers( repaint ),

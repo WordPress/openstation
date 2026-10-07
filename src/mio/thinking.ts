@@ -17,7 +17,6 @@ export function mioThinkingExpression( frame: RenderFrame, appearance: MioAppear
 	const scale = 1 + amount * breath * 0.055;
 	const cos = Math.cos( tilt );
 	const sin = Math.sin( tilt );
-
 	const rim = frame.rim.map( ( point ) => {
 		const x = ( point.x - frame.centre.x ) * scale;
 		const y = ( point.y - frame.centre.y ) * scale;
@@ -26,7 +25,6 @@ export function mioThinkingExpression( frame: RenderFrame, appearance: MioAppear
 			y: frame.centre.y + x * sin + y * cos,
 		};
 	} );
-
 	const gaze = frame.gaze ?? frame.centre;
 	const dx = gaze.x - frame.centre.x;
 	const dy = gaze.y - frame.centre.y;

@@ -138,7 +138,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 				width: 88, height: 96, x: 100, y: 100, toJSON: () => ( {} ),
 			} ) as DOMRect,
 		} );
-
 		Object.defineProperty( host, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1024, bottom: 768,
@@ -174,7 +173,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 	} );
 
 	test( 'pinned tile silently swallows pointerdown — no bump cue, no drag session', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -192,7 +190,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		const handle = layer.mountFilesLayer( host, 0 );
 		const tile = host.querySelector< HTMLElement >( '[data-placement-id="1"]' );
 		expect( tile?.classList.contains( 'os-file-tile--pinned' ) ).toBe( true );
-
 		expect( tile?.hasAttribute( 'aria-disabled' ) ).toBe( false );
 		expect( tile?.title ).toBe( '' );
 
@@ -268,7 +265,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 	} );
 
 	test( 'hovering a non-folder tile during a drag flips the chip to reject', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -317,7 +313,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 	} );
 
 	test( 'recycle-bin tile is NOT reject-claimed — its trash target survives', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -353,7 +348,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 	} );
 
 	test( 'drop into a column with a pinned tile (My WordPress) skips the pinned cell', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -373,7 +367,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 				pinned: true,
 			},
 		} );
-
 		const iconA = placement( 200, { x: 16, y: 236 } );
 		const iconB = placement( 201, { x: 16, y: 346 } );
 		store.setFolderPlacements( 0, [ myWp, iconA, iconB ] );
@@ -410,7 +403,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 
 		tileB!.dispatchEvent( pointerEvent( 'pointerdown', 60, 394, tileB! ) );
 		document.dispatchEvent( pointerEvent( 'pointermove', 60, 220 ) );
-
 		document.dispatchEvent( pointerEvent( 'pointerup', 60, 174 ) );
 
 		await Promise.resolve();
@@ -424,7 +416,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		const body = JSON.parse(
 			( patch![ 1 ] as RequestInit ).body as string,
 		) as { x: number; y: number; parentId: number };
-
 		expect( body.x ).toBe( GRID_PADDING );
 		expect( body.y ).toBe( GRID_PADDING + GRID_CELL_H );
 
@@ -432,7 +423,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 	} );
 
 	test( 'tile drag reads live placement from store, not closure — heartbeat-bumped updatedAtMs is honored', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -475,7 +465,6 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 	} );
 
 	test( 'drag-to-reposition keeps tile DOM identity — no full grid rebuild', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -529,14 +518,12 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		const peerAfter = host.querySelector< HTMLElement >( '[data-placement-id="2"]' );
 		expect( tileAfter ).toBe( tileBefore );
 		expect( peerAfter ).toBe( peerBefore );
-
 		expect( tileAfter!.style.left ).not.toBe( '100px' );
 
 		handle.dispose();
 	} );
 
 	test( 'synthetic dock-promoted placement: drag updates store but issues no PATCH', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );

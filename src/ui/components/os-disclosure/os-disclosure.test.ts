@@ -121,7 +121,6 @@ describe( '<os-disclosure>', () => {
 		const { OS_COMPONENT_TAGS } = await vi.importActual< {
 			OS_COMPONENT_TAGS: readonly string[];
 		} >( '../tags' );
-
 		expect( OS_COMPONENT_TAGS ).toContain( 'os-disclosure' );
 	} );
 } );

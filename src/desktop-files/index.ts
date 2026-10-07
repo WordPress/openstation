@@ -54,14 +54,12 @@ registerBuiltInFileTypes();
 registerBuiltInFileOpeners();
 installEmbedPersistence();
 registerFileAssociationsTab();
-
 seedBootFolders();
 installShareMenuItems();
 installUploadMenuItems();
 installMediaMenuItems();
 installMediaDrag();
 installMediaDropTargets();
-
 const seededPending = ( window as unknown as {
 	openStationConfig?: { serverPendingShares?: PendingInvite[] };
 } ).openStationConfig?.serverPendingShares;
@@ -87,7 +85,6 @@ export const filesApi = {
 	subscribeOpeners,
 	getUserAssociations,
 	open: openFile,
-
 	registerTilePayloadHandler,
 	rest: filesRest,
 	store: {

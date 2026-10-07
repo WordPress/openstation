@@ -146,7 +146,6 @@ export class OsStep extends Component {
 		if ( ! this.isInteractive() ) {
 			return;
 		}
-
 		const path = event.composedPath();
 		for ( const node of path ) {
 			if ( node === this ) {
@@ -171,7 +170,6 @@ export class OsStep extends Component {
 		if ( 'Enter' !== event.key && ' ' !== event.key ) {
 			return;
 		}
-
 		const target = event.target;
 		if (
 			target instanceof HTMLElement &&

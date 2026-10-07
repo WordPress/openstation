@@ -58,7 +58,6 @@ describe( 'installDockBehavior', () => {
 		body.appendChild( dock );
 		document.body.appendChild( body );
 		behaviors = { dock: 'dynamic', sidebar: 'dynamic' };
-
 		dock.getBoundingClientRect = () =>
 			fakeRect( 500, window.innerHeight - 12 - 64, 600, 64 );
 	} );
@@ -91,14 +90,11 @@ describe( 'installDockBehavior', () => {
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
-
 		move( 800, window.innerHeight - 12 - 60 );
 		expect( revealed() ).toBe( true );
-
 		const pillTop = window.innerHeight - 12 - 64;
 		move( 800, pillTop - 64 * KEEP_OUT_FACTOR + 1 );
 		expect( revealed() ).toBe( true );
-
 		move( 800, pillTop - 64 * KEEP_OUT_FACTOR - 1 );
 		expect( revealed() ).toBe( false );
 		ctl.destroy();
@@ -121,14 +117,12 @@ describe( 'installDockBehavior', () => {
 			new MouseEvent( 'pointerleave', { clientX: 800, clientY: window.innerHeight + 10 } ),
 		);
 		expect( revealed() ).toBe( true );
-
 		move( 300, 200 );
 		expect( revealed() ).toBe( false );
 		ctl.destroy();
 	} );
 
 	test( 'a park asked for while a pointer button is down waits for the release', () => {
-
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
@@ -146,7 +140,6 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a reveal never waits for the release', () => {
-
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		document.dispatchEvent(
 			new MouseEvent( 'pointerdown', { clientX: 800, clientY: window.innerHeight - 5, bubbles: true } ),
@@ -156,13 +149,11 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'the transition layer lets the pointer through', () => {
-
 		const css = readFileSync( join( __dirname, '../../assets/css/dock.css' ), 'utf8' );
 		expect( css ).toMatch( /html\.os-dock-vt::view-transition\s*\{[^}]*pointer-events:\s*none/ );
 	} );
 
 	test( 'the rail box does not reveal a parked rail on its own', () => {
-
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		move( 800, window.innerHeight - 12 - 60 );
 		expect( revealed() ).toBe( false );
@@ -189,7 +180,6 @@ describe( 'installDockBehavior', () => {
 		document.body.appendChild( flyout );
 		move( 800, window.innerHeight - 5 );
 		expect( revealed() ).toBe( true );
-
 		move( 800, 300, flyout );
 		expect( revealed() ).toBe( true );
 		move( 800, 300 );
@@ -198,7 +188,6 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( 'a flyout does not summon a parked rail', () => {
-
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		const flyout = document.createElement( 'div' );
 		flyout.className = 'os-constellation';
@@ -210,7 +199,6 @@ describe( 'installDockBehavior', () => {
 	} );
 
 	test( "a static rail's flyout leaves the dynamic rail parked (Split)", () => {
-
 		behaviors.sidebar = 'static';
 		const ctl = installDockBehavior( { shellBody: body, getBehaviors } );
 		const side = document.createElement( 'nav' );
@@ -231,7 +219,6 @@ describe( 'installDockBehavior', () => {
 		document.body.appendChild( panel );
 		move( 300, 400, panel );
 		expect( revealed() ).toBe( false );
-
 		move( 300, window.innerHeight - 5, panel );
 		expect( revealed() ).toBe( false );
 		expect( side.classList.contains( REVEALED_CLASS ) ).toBe( false );
@@ -304,11 +291,9 @@ describe( 'installDockBehavior', () => {
 			resolveFinished();
 			await Promise.resolve();
 			await Promise.resolve();
-
 			expect( start ).toHaveBeenCalledTimes( 2 );
 			expect( revealed() ).toBe( false );
 			expect( dock.style.getPropertyValue( 'view-transition-name' ) ).toBe( 'os-dock-os-dock' );
-
 			resolveFinished();
 			await Promise.resolve();
 			await Promise.resolve();

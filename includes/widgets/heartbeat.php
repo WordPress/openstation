@@ -56,14 +56,12 @@ function openstation_enqueue_heartbeat_widget_styles() {
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
 	}
-
 	if (
 		function_exists( 'openstation_is_chromeless_request' )
 		&& openstation_is_chromeless_request()
 	) {
 		return;
 	}
-
 	$eager = (bool) apply_filters( 'openstation_heartbeat_widget_eager_css', true );
 	if ( ! $eager ) {
 		return;

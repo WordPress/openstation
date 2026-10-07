@@ -16,7 +16,6 @@ interface BootArgs {
 	config?: DropConfig;
 	mediaUrl: string;
 	restNonce: string;
-
 	filesUrl?: string;
 	storage?: DesktopStorageConfig;
 }
@@ -26,7 +25,6 @@ export interface CapturedDrop {
 	clientX: number;
 	clientY: number;
 	target: EventTarget | null;
-
 	alreadyClaimed?: boolean;
 }
 
@@ -36,7 +34,6 @@ export function replayCapturedDrop( drop: CapturedDrop ): void {
 	if ( ! bootedOpts || drop.files.length === 0 ) {
 		return;
 	}
-
 	if ( drop.alreadyClaimed ) {
 		return;
 	}
@@ -122,7 +119,6 @@ export async function routePickedFiles(
 		file,
 		mime,
 		fields: defaultFields( file, mime ),
-
 		relativePath: directory
 			? ( file as { webkitRelativePath?: string } ).webkitRelativePath ??
 				''
@@ -131,14 +127,12 @@ export async function routePickedFiles(
 	const { openUploadDialog } = await import( './dialog' );
 	await openUploadDialog( {
 		entries,
-
 		context: { surface: 'folder', folderId: 0, x: 0, y: 0 },
 		mediaUrl: config?.mediaUrl ?? '',
 		restNonce: config?.restNonce ?? '',
 		filesUrl: config?.filesUrl,
 		storage: config?.desktopStorage,
 		forceDesktop: directory,
-
 		preferDesktop: true,
 		mediaMaxBytes: dropConfig.maxSize,
 	} );

@@ -5,7 +5,6 @@ import { styles } from './os-crumb-chain.styles';
 export interface OsCrumbSegment {
 	id?: number | string;
 	name: string;
-
 	color?: string;
 }
 
@@ -53,7 +52,6 @@ export class OsCrumbChain extends Component {
 					'{ index: number; id?: number | string; segment: OsCrumbSegment; segments: OsCrumbSegment[]; dragEvent: DragEvent }',
 			},
 		],
-
 		example: html`<os-crumb-chain removable></os-crumb-chain>`,
 		exampleInit: ( root: HTMLElement ) => {
 			const chain = root.querySelector( 'os-crumb-chain' );
@@ -89,7 +87,6 @@ export class OsCrumbChain extends Component {
 			<div class="os-crumb-chain" role="group">
 				${ segments.map( ( seg, idx ) => {
 					const variant = pickVariant( idx, segments.length );
-
 					const own = seg.color;
 					const styleStr = own
 						? `--os-ui-crumb-bg: ${ own }; --os-ui-crumb-fg: ${ pickForegroundColor( own ) };`
@@ -136,11 +133,9 @@ export class OsCrumbChain extends Component {
 			return;
 		}
 		const dragSegments = this._segments.slice( index );
-
 		if ( e.dataTransfer ) {
 			const ghost = buildDragGhost( dragSegments );
 			document.body.appendChild( ghost );
-
 			const rect = (
 				e.currentTarget as HTMLElement | null
 			)?.getBoundingClientRect();
@@ -149,7 +144,6 @@ export class OsCrumbChain extends Component {
 			e.dataTransfer.setDragImage( ghost, offsetX, offsetY );
 			requestAnimationFrame( () => ghost.remove() );
 		}
-
 		this.emit( 'os-chain-segment-dragstart', {
 			index,
 			id: segment.id,
@@ -199,7 +193,6 @@ function buildDragGhost( segments: readonly OsCrumbSegment[] ): HTMLElement {
 		'font-size: 12px',
 		'line-height: 1',
 		'font-weight: 500',
-
 		'position: fixed',
 		'top: -10000px',
 		'left: -10000px',
@@ -207,7 +200,6 @@ function buildDragGhost( segments: readonly OsCrumbSegment[] ): HTMLElement {
 		'z-index: 2147483647',
 	].join( '; ' );
 	const total = segments.length;
-
 	const neutral = neutralCrumbPaint();
 	segments.forEach( ( seg, idx ) => {
 		const span = document.createElement( 'span' );
@@ -290,7 +282,6 @@ function pickForegroundColor( bg: string ): string {
 		_readbackCanvas.width = 1;
 		_readbackCanvas.height = 1;
 	}
-
 	const ctx = _readbackCanvas.getContext( '2d', { willReadFrequently: true } );
 	if ( ! ctx ) {
 		return '#1d2327';
@@ -300,18 +291,15 @@ function pickForegroundColor( bg: string ): string {
 		ctx.fillStyle = bg;
 		ctx.fillRect( 0, 0, 1, 1 );
 		const data = ctx.getImageData( 0, 0, 1, 1 ).data;
-
 		const a = data[ 3 ] / 255;
 		const r = data[ 0 ] * a + 255 * ( 1 - a );
 		const g = data[ 1 ] * a + 255 * ( 1 - a );
 		const b = data[ 2 ] * a + 255 * ( 1 - a );
-
 		const lin = ( c: number ): number => {
 			const v = c / 255;
 			return v <= 0.03928 ? v / 12.92 : Math.pow( ( v + 0.055 ) / 1.055, 2.4 );
 		};
 		const L = 0.2126 * lin( r ) + 0.7152 * lin( g ) + 0.0722 * lin( b );
-
 		return L > 0.55 ? '#1d2327' : '#fff';
 	} catch {
 		return '#1d2327';

@@ -59,7 +59,6 @@ export function installSoloForwarder(
 	config: AdapterConfig,
 ): void {
 	if ( 'function' !== typeof frame.openWindow ) {
-
 		return;
 	}
 
@@ -86,7 +85,6 @@ export function installSoloForwarder(
 				{
 					id: win.id,
 					config: win.config,
-
 					getCurrentUrl: () =>
 						( win.getCurrentUrl ? win.getCurrentUrl() : '' ) ||
 						win.config.url ||
@@ -119,14 +117,12 @@ export function installSoloForwarder(
 				} )
 				.then( ( result ) => {
 					if ( ! result?.ok ) {
-
 						console.error(
 							'[openstation-electron] host refused to open a window:',
 							result?.error,
 						);
 						return;
 					}
-
 					win.close?.();
 				} )
 				.catch( ( err ) => {

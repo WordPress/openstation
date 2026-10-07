@@ -41,7 +41,6 @@ function openstation_plugins_window_caps( $user_id = null ) {
 		'install'  => $site_managed && $user_id > 0 && user_can( $user_id, 'install_plugins' ),
 		'delete'   => $site_managed && $user_id > 0 && user_can( $user_id, 'delete_plugins' ),
 		'upload'   => $site_managed && $user_id > 0 && user_can( $user_id, 'upload_plugins' ),
-
 		'update'   => $user_id > 0 && user_can( $user_id, 'update_plugins' ),
 	);
 }
@@ -64,7 +63,6 @@ function openstation_plugins_window_auto_updates_enabled( $user_id = null ) {
 		}
 		if ( wp_is_auto_update_enabled_for_type( 'plugin' ) ) {
 			if ( is_multisite() ) {
-
 				$enabled = user_can( $user_id, 'manage_network_plugins' );
 			} else {
 				$enabled = true;

@@ -51,7 +51,6 @@ describe( 'connecting', () => {
 	} );
 
 	test( 'returns null when the app is not running', async () => {
-
 		stubFetch( { '/ping': () => new Error( 'ECONNREFUSED' ) } );
 		expect( await connectToAgent( PAIRING ) ).toBeNull();
 	} );
@@ -89,7 +88,6 @@ describe( 'connecting', () => {
 } );
 
 describe( 'the bridge surface', () => {
-
 	async function connected( freedWindows: string[] = [] ) {
 		const state = { freed: [ ...freedWindows ] };
 		const impl = stubFetch( {
@@ -132,7 +130,6 @@ describe( 'the bridge surface', () => {
 	} );
 
 	test( 'the server-connection methods are inert', async () => {
-
 		const { bridge } = await connected();
 		expect( ( await bridge.handshake( { restUrl: 'x', nonce: 'y' } ) ).state ).toBe( 'idle' );
 		expect( ( await bridge.getConnection() ).state ).toBe( 'idle' );
@@ -144,7 +141,6 @@ describe( 'the bridge surface', () => {
 		const cb = vi.fn();
 		const off = bridge.onWindowDocked( cb );
 		off();
-
 		expect( cb ).not.toHaveBeenCalled();
 	} );
 } );
@@ -169,7 +165,6 @@ describe( 'the synthesised push channel', () => {
 	} );
 
 	test( 'treats the app going away as everything docking back', async () => {
-
 		vi.useFakeTimers();
 		let alive = true;
 		stubFetch( {

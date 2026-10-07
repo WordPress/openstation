@@ -59,7 +59,6 @@ const dense = snapshot( {
 } );
 
 function seededRng( s: TreeSnapshot ): () => number {
-
 	return mulberry32( hash32( `${ s.siteUrl }|${ s.siteName }|${ s.installEpoch }` ) );
 }
 
@@ -111,7 +110,6 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 	test( 'the envelope is seed-only: identical for any age or content shape', () => {
 		const hSparse = buildHormones( sparse );
 		const hDense = buildHormones( dense );
-
 		expect( hSparse.vigor01 ).not.toBe( hDense.vigor01 );
 		const old = snapshot( { siteAgeDays: 7300 } );
 		const envSparse = buildEnvelope( hSparse.age01, hSparse.vigor01, seededRng( sparse ) );
@@ -126,7 +124,6 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		const revealedDense = reveal( dense );
 		expect( revealedSparse.length ).toBeGreaterThan( 3 );
 		expect( revealedSparse.length ).toBe( revealedDense.length );
-
 		expect( revealedSparse.map( ( n ) => n.pos ) ).toEqual(
 			revealedDense.map( ( n ) => n.pos ),
 		);
@@ -136,7 +133,6 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		const budgetSparse = computeLeafBudget( buildHormones( sparse ).foliage01 );
 		const budgetDense = computeLeafBudget( buildHormones( dense ).foliage01 );
 		expect( budgetDense ).toBeGreaterThan( budgetSparse );
-
 		expect( computeFlowerCount( dense.totalCategories ) ).toBeGreaterThan(
 			computeFlowerCount( sparse.totalCategories ),
 		);
@@ -158,7 +154,6 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		expect( maxDepthForAge( ageCurve( 20 ) ) ).toBe( 2 );
 		expect( maxDepthForAge( ageCurve( 3 * 365 ) ) ).toBe( 8 );
 		expect( maxDepthForAge( ageCurve( 20 * 365 ) ) ).toBeGreaterThanOrEqual( 12 );
-
 		expect( trunkGirthForAge( 0.2 ) ).toBeLessThan( trunkGirthForAge( 0.9 ) );
 	} );
 
@@ -171,13 +166,11 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 	} );
 
 	test( 'two blogs on the SAME URL diverge by site name (seed + canopy hue)', () => {
-
 		const blogA = snapshot( { siteAgeDays: 365, siteName: 'Coffee Notes' } );
 		const blogB = snapshot( { siteAgeDays: 365, siteName: 'Trail Journal' } );
 		expect( reveal( blogA ).map( ( n ) => n.pos ) ).not.toEqual(
 			reveal( blogB ).map( ( n ) => n.pos ),
 		);
-
 		expect( canopyHue( `${ blogA.siteUrl }|${ blogA.siteName }` ) ).not.toBe(
 			canopyHue( `${ blogB.siteUrl }|${ blogB.siteName }` ),
 		);
@@ -187,7 +180,6 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		const revealed = reveal( snapshot() );
 		expect( revealed.length ).toBeGreaterThanOrEqual( 2 );
 		expect( revealed.length ).toBeLessThan( 40 );
-
 		expect( Math.min( ...revealed.map( ( n ) => n.pos.y ) ) ).toBeLessThan( 0 );
 	} );
 } );
@@ -197,7 +189,6 @@ describe( 'living-tree gradual growth (no daily reshuffle)', () => {
 		const today = reveal( snapshot( { siteAgeDays: 1000 } ) );
 		const tomorrow = reveal( snapshot( { siteAgeDays: 1001 } ) );
 		expect( tomorrow.length ).toBeGreaterThanOrEqual( today.length );
-
 		for ( let i = 0; i < today.length; i++ ) {
 			expect( tomorrow[ i ].pos ).toEqual( today[ i ].pos );
 			expect( tomorrow[ i ].parent ).toBe( today[ i ].parent );
@@ -214,12 +205,9 @@ describe( 'living-tree gradual growth (no daily reshuffle)', () => {
 	} );
 
 	test( 'the sapling regime: a first-month site is a sprout/sapling, not a tree', () => {
-
 		expect( ageCurve( 1 ) ).toBeLessThan( 0.005 );
-
 		expect( ageCurve( 30 ) ).toBeGreaterThan( 0.08 );
 		expect( ageCurve( 30 ) ).toBeLessThan( 0.16 );
-
 		expect( ageCurve( 365 ) ).toBeCloseTo(
 			Math.log1p( 365 ) / Math.log1p( 3650 ),
 			10,
@@ -227,7 +215,6 @@ describe( 'living-tree gradual growth (no daily reshuffle)', () => {
 	} );
 
 	test( 'the first days each visibly grow the seedling — no dead flatline', () => {
-
 		let prev = revealCountForAge( 800, ageCurve( 1 ) );
 		for ( const days of [ 3, 5, 7, 9, 11 ] ) {
 			const count = revealCountForAge( 800, ageCurve( days ) );

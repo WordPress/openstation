@@ -19,9 +19,7 @@ export function computeNav( input: NavInput ): NavResult {
 	const sidebar: NavItem[] = [];
 	const desktop: NavItem[] = [];
 	const ephemeral = new Set< string >();
-
 	const railed = new Set< string >();
-
 	const byWindow = new Map< string, NavItem >();
 	const known = new Set< string >();
 
@@ -63,7 +61,6 @@ export function computeNav( input: NavInput ): NavResult {
 			ephemeral.add( item.id );
 			continue;
 		}
-
 		if (
 			win.fromAdminUrl ||
 			ephemeral.has( win.id ) ||

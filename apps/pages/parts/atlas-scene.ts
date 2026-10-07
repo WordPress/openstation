@@ -96,7 +96,6 @@ export async function createAtlasScene( stage: HTMLElement, data: AtlasData, fro
 			card.classList.toggle( 'is-muted', search ? ! `${ pageTitle( node.page ) } ${ node.page.slug }`.toLocaleLowerCase().includes( search ) : selected !== null && node.page.id !== selected && ! neighbors.has( node.page.id ) );
 		}
 	};
-
 	const updatePreviews = (): void => {
 		if ( disposed ) {
 			return;
@@ -137,7 +136,6 @@ export async function createAtlasScene( stage: HTMLElement, data: AtlasData, fro
 			frame.title = `${ __( 'Page preview' ) }: ${ pageTitle( node.page ) }`;
 			frame.width = String( PREVIEW_WIDTH ); frame.height = String( PREVIEW_HEIGHT );
 			frame.tabIndex = -1; frame.setAttribute( 'aria-hidden', 'true' ); frame.setAttribute( 'inert', '' );
-
 			frame.setAttribute( 'sandbox', 'allow-scripts allow-same-origin' );
 			frame.src = url; viewport.append( frame ); frames.set( node.page.id, frame );
 		}

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -20,7 +23,6 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 
 	public function tear_down() {
 		global $wpdb;
-
 		$attachments = get_posts(
 			array(
 				'post_type'      => 'attachment',
@@ -86,6 +88,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_is_media
+	 */
 	public function test_is_media_follows_the_upload_allow_list() {
 		$this->assertTrue( openstation_stored_file_is_media( array( 'mime' => 'image/jpeg' ) ) );
 		$this->assertTrue( openstation_stored_file_is_media( array( 'mime' => 'application/pdf' ) ) );
@@ -95,11 +100,17 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertFalse( openstation_stored_file_is_media( null ) );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_is_media
+	 */
 	public function test_is_media_is_filterable() {
 		add_filter( 'openstation_stored_file_is_media', '__return_false' );
 		$this->assertFalse( openstation_stored_file_is_media( array( 'mime' => 'image/jpeg' ) ) );
 	}
 
+	/**
+	 * @covers OpenStation_Upload_File::serialize
+	 */
 	public function test_upload_shape_carries_is_media() {
 		$image = $this->make_stored_image( self::$admin_id );
 		$shape = openstation_resolve_file( 'upload', (string) $image )->serialize();
@@ -110,12 +121,18 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertFalse( $shape['isMedia'] );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_media_filename
+	 */
 	public function test_media_filename_derives_a_missing_extension() {
 		$this->assertSame( 'photo.jpg', openstation_stored_file_media_filename( array( 'display_name' => 'photo.jpg', 'mime' => 'image/jpeg' ) ) );
 		$this->assertSame( 'photo.jpg', openstation_stored_file_media_filename( array( 'display_name' => 'photo', 'mime' => 'image/jpeg' ) ) );
 		$this->assertSame( 'file.pdf', openstation_stored_file_media_filename( array( 'display_name' => '', 'mime' => 'application/pdf' ) ) );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_to_attachment
+	 */
 	public function test_add_to_media_copies_the_bytes_and_leaves_the_source_alone() {
 		$file_id = $this->make_stored_image( self::$admin_id );
 		$row     = openstation_stored_files_get( $file_id );
@@ -153,6 +170,10 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( array( array( $attachment_id, $file_id, self::$admin_id ) ), $fired );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_to_attachment
+	 * @covers ::openstation_stored_file_find_attachment
+	 */
 	public function test_add_to_media_is_idempotent_per_stored_file() {
 		$file_id = $this->make_stored_file( self::$admin_id, 'notes.txt', 'hello world', 'text/plain' );
 
@@ -178,6 +199,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertNotSame( $first['attachment_id'], $third['attachment_id'] );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_to_attachment
+	 */
 	public function test_add_to_media_masks_files_the_user_cannot_read() {
 		$file_id = $this->make_stored_image( self::$admin_id );
 		$result  = openstation_stored_file_to_attachment( $file_id, self::$author_id );
@@ -189,6 +213,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_files_not_found', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_to_attachment
+	 */
 	public function test_add_to_media_rejects_non_media() {
 		$file_id = $this->make_stored_file( self::$admin_id, 'setup.exe', 'MZ', 'application/x-msdownload' );
 		$result  = openstation_stored_file_to_attachment( $file_id, self::$admin_id );
@@ -197,6 +224,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( 415, $result->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_start_post
+	 */
 	public function test_start_post_creates_an_auto_draft_with_the_image_in_place() {
 		$file_id = $this->make_stored_image( self::$admin_id );
 
@@ -231,6 +261,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( array( array( $post->ID, $attachment_id, $file_id, self::$admin_id ) ), $fired );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_start_post
+	 */
 	public function test_start_post_reuses_the_attachment_and_can_make_pages() {
 		$file_id = $this->make_stored_image( self::$admin_id );
 
@@ -246,6 +279,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertNotSame( $post['post_id'], $page['post_id'] );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_start_post
+	 */
 	public function test_start_post_uses_the_file_block_for_non_images() {
 		$file_id = $this->make_stored_file( self::$admin_id, 'notes.txt', 'hello world', 'text/plain' );
 		$result  = openstation_stored_file_start_post( $file_id, 'post', self::$admin_id );
@@ -257,6 +293,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( 0, get_post_thumbnail_id( $post ) );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_start_post
+	 */
 	public function test_start_post_content_and_args_are_filterable() {
 		$file_id = $this->make_stored_image( self::$admin_id );
 		add_filter(
@@ -283,6 +322,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_stored_file_start_post_content' );
 	}
 
+	/**
+	 * @covers ::openstation_stored_file_start_post
+	 */
 	public function test_start_post_rejects_unknown_types_and_unauthorised_users() {
 		$file_id = $this->make_stored_image( self::$admin_id );
 
@@ -308,6 +350,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( $before, count( get_posts( array( 'post_type' => 'post', 'post_status' => 'auto-draft', 'fields' => 'ids' ) ) ) );
 	}
 
+	/**
+	 * @covers ::openstation_stored_files_attach_to_post
+	 */
 	public function test_attach_to_post_appends_blocks_attaches_and_sets_the_featured_image() {
 		$post_id = self::factory()->post->create(
 			array(
@@ -336,7 +381,6 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		list( $text_att, $image_att ) = $result['attachment_ids'];
 
 		$post = get_post( $post_id );
-
 		$this->assertStringStartsWith( '<!-- wp:paragraph --><p>Intro</p><!-- /wp:paragraph -->', $post->post_content );
 		$this->assertStringContainsString( '<!-- wp:file {"id":' . $text_att . ',', $post->post_content );
 		$this->assertStringContainsString( '<!-- wp:image {"id":' . $image_att . ',', $post->post_content );
@@ -350,6 +394,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( array( array( $post_id, array( $text_att, $image_att ), array( $text, $image ), self::$admin_id ) ), $fired );
 	}
 
+	/**
+	 * @covers ::openstation_stored_files_attach_to_post
+	 */
 	public function test_attach_to_post_keeps_an_existing_featured_image_and_parent() {
 		$post_id = self::factory()->post->create( array( 'post_author' => self::$admin_id ) );
 		$other   = self::factory()->post->create( array( 'post_author' => self::$admin_id ) );
@@ -369,6 +416,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'wp-image-' . $first['attachment_id'], get_post( $post_id )->post_content );
 	}
 
+	/**
+	 * @covers ::openstation_stored_files_attach_to_post
+	 */
 	public function test_attach_to_post_content_is_filterable_and_empty_content_gets_no_leading_gap() {
 		$post_id = self::factory()->post->create( array( 'post_author' => self::$admin_id, 'post_content' => '' ) );
 		$image   = $this->make_stored_image( self::$admin_id );
@@ -388,6 +438,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<!-- wp:image', $content );
 	}
 
+	/**
+	 * @covers ::openstation_stored_files_attach_to_post
+	 */
 	public function test_attach_to_post_refuses_bad_targets_and_touches_nothing_on_failure() {
 		$image = $this->make_stored_image( self::$admin_id );
 
@@ -419,6 +472,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertFalse( has_post_thumbnail( $admins ) );
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_attach_to_post
+	 */
 	public function test_rest_attach_to_post_returns_the_summary() {
 		$post_id = self::factory()->post->create( array( 'post_author' => self::$admin_id, 'post_title' => 'Drop zone' ) );
 		$image   = $this->make_stored_image( self::$admin_id );
@@ -438,6 +494,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'post.php?post=' . $post_id . '&action=edit', $data['editUrl'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_register_media_rest_routes
+	 */
 	public function test_rest_routes_are_registered() {
 		$routes = rest_get_server()->get_routes( 'desktop-mode/v1' );
 		$this->assertArrayHasKey( '/desktop-mode/v1/files/uploads/(?P<id>\d+)/media', $routes );
@@ -445,6 +504,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertArrayHasKey( '/desktop-mode/v1/files/posts/(?P<id>\d+)/uploads', $routes );
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_add_to_media
+	 */
 	public function test_rest_add_to_media_returns_the_attachment_summary() {
 		$file_id = $this->make_stored_image( self::$admin_id );
 		$req     = new WP_REST_Request( 'POST', '/desktop-mode/v1/files/uploads/' . $file_id . '/media' );
@@ -464,6 +526,9 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( $data['attachmentId'], $again['attachmentId'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_start_post
+	 */
 	public function test_rest_start_post_takes_the_post_type() {
 		$file_id = $this->make_stored_image( self::$admin_id );
 		$req     = new WP_REST_Request( 'POST', '/desktop-mode/v1/files/uploads/' . $file_id . '/post' );
@@ -484,8 +549,10 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_stored_file_bad_post_type', $res->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_media_permission
+	 */
 	public function test_permission_gate_requires_upload_files() {
-
 		update_user_meta( self::$subscriber_id, 'desktop_mode_mode', '1' );
 		wp_set_current_user( self::$subscriber_id );
 		$result = openstation_files_rest_media_permission();
@@ -497,12 +564,14 @@ class Tests_OpenStation_MediaLibrary extends WP_UnitTestCase {
 		$this->assertTrue( openstation_files_rest_media_permission() );
 	}
 
+	/**
+	 * @covers ::openstation_stored_files_inject_media_shell_config
+	 */
 	public function test_shell_config_carries_the_capability_flags() {
 		$config = apply_filters( 'openstation_shell_config', array() );
 		$this->assertTrue( $config['desktopStorage']['canAddToMedia'] );
 		$this->assertTrue( $config['desktopStorage']['canStartPost'] );
 		$this->assertTrue( $config['desktopStorage']['canStartPage'] );
-
 		$this->assertArrayHasKey( 'canUpload', $config['desktopStorage'] );
 
 		wp_set_current_user( self::$author_id );

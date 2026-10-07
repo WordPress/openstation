@@ -39,7 +39,6 @@ export function createWidgetRegistrySync(
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
 				after: entry.scriptAfter,
-
 				deps: entry.scriptDeps,
 			} );
 		} catch ( err ) {
@@ -48,7 +47,6 @@ export function createWidgetRegistrySync(
 				id: entry.id,
 				error: err,
 			} );
-
 			return;
 		}
 		loadedScripts.add( entry.scriptUrl );
@@ -111,7 +109,6 @@ export function createWidgetRegistrySync(
 			return;
 		}
 		registered.add( entry.id );
-
 		refreshWidgetPicker();
 		if ( layer ) {
 			layer.mountIfEnabled( entry.id );
@@ -122,7 +119,6 @@ export function createWidgetRegistrySync(
 		if ( ! registered.has( id ) ) {
 			return;
 		}
-
 		layer?.unmount( id );
 		registry.unregister( id );
 		registered.delete( id );

@@ -41,7 +41,6 @@ async function run( { dirty } ) {
 			);
 			await page.keyboard.type( ' EDIT-' + Date.now().toString().slice( -5 ) );
 			await sleep( 1500 );
-
 			const isDirty = await ef().evaluate(
 				() => !! window.tinymce?.get?.( 'content' )?.isDirty?.()
 			);
@@ -106,7 +105,6 @@ async function run( { dirty } ) {
 		await clickIn( previewId, 'PREVIEW' );
 		await sleep( 3000 );
 		await clickIn( EDITOR_WIN, 'EDITOR' );
-
 		await sleep( 20000 );
 
 		const { ev, refresh } = await page.evaluate( () => ( {

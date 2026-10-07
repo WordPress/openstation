@@ -30,7 +30,6 @@ export class OsContextMenu extends Component {
 				description: 'Bubbled from a non-disabled, non-heading option on activation. Detail: `{ id, value }`.',
 			},
 		],
-
 		example: html`
 			<os-context-menu open style="position: relative; z-index: 0">
 				<os-context-menu-option heading>Window</os-context-menu-option>
@@ -129,7 +128,6 @@ export class OsContextMenuOption extends Component {
 				description: 'Bubbled on click / Enter for non-heading non-disabled options. Detail: `{ id, value }`.',
 			},
 		],
-
 		example: html`
 			<os-context-menu open style="position: relative; z-index: 0">
 				<os-context-menu-option heading>Every variant</os-context-menu-option>
@@ -171,7 +169,6 @@ export class OsContextMenuOption extends Component {
 		if ( this.hasAttribute( 'disabled' ) || this.hasAttribute( 'heading' ) ) {
 			return;
 		}
-
 		const target = e.target as Element | null;
 		if (
 			target &&
@@ -197,7 +194,6 @@ export class OsContextMenuOption extends Component {
 		const icon = this.getAttribute( 'icon' );
 		const hasChildren = this.hasAttribute( 'has-children' );
 		const checked = this.hasAttribute( 'checked' );
-
 		return html`
 			${ checked
 				? html`<span class="check" aria-hidden="true">✓</span>`

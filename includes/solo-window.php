@@ -5,7 +5,7 @@ defined( 'ABSPATH' ) || exit;
 const OPENSTATION_SOLO_FLAG = 'openstation_solo';
 
 function openstation_solo_window_id() {
-
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only rendering mode, no state change.
 	$raw = ( isset( $_GET[ OPENSTATION_SOLO_FLAG ] ) && is_scalar( $_GET[ OPENSTATION_SOLO_FLAG ] ) )
 		? sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_SOLO_FLAG ] ) )
 		: '';

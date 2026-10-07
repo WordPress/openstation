@@ -48,7 +48,6 @@ describe( 'component kit bundle', () => {
 		expect( pkg.scripts[ 'build:components' ] ).toContain(
 			'OPENSTATION_TARGET=components',
 		);
-
 		expect( pkg.scripts.build ).toContain( 'npm run build:components' );
 	} );
 

@@ -1,27 +1,19 @@
 import { showConfirm } from './dialog';
 
 export interface OpenFileMeta {
-
 	path: string;
-
 	label: string;
-
 	icon: string;
 }
 
 export interface TabsStripOptions {
-
 	mount: HTMLElement;
-
 	onActivate: ( path: string ) => void;
-
 	onClose: ( path: string ) => void;
 }
 
 export interface TabsStripHandle {
-
 	open( file: OpenFileMeta ): string;
-
 	closeQuiet( path: string ): void;
 	setActive( path: string ): void;
 	getActive(): string | null;
@@ -63,7 +55,6 @@ export function mountTabsStrip(
 		if ( idx === -1 ) {
 			return null;
 		}
-
 		if ( order[ idx + 1 ] ) {
 			return order[ idx + 1 ];
 		}

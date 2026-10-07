@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { buildGithubIssueUrl, renderBugReport } from '../../src/bug-report';
 
 beforeEach( () => {
-
 	document.body.innerHTML = '';
 } );
 
@@ -53,7 +52,6 @@ describe( 'buildGithubIssueUrl', () => {
 	} );
 
 	test( 'truncates oversized bodies with a note', () => {
-
 		const huge = 'x'.repeat( 20_000 );
 		const url = buildGithubIssueUrl( {
 			type: 'bug',
@@ -107,7 +105,6 @@ describe( 'renderBugReport', () => {
 		const form = body.querySelector< HTMLFormElement >(
 			'.os-bug-report__form',
 		)!;
-
 		form.dispatchEvent( new Event( 'submit', { cancelable: true } ) );
 
 		expect( body.querySelector( '.os-bug-report__error' ) ).not.toBeNull();

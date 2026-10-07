@@ -42,7 +42,6 @@ describe( 'DragManager recovery', () => {
 	beforeEach( () => {
 		installHooksStub();
 		__resetRecoveryForTests();
-
 		document.elementFromPoint = () => null;
 	} );
 
@@ -85,7 +84,6 @@ describe( 'DragManager recovery', () => {
 		document.dispatchEvent( new Event( 'visibilitychange' ) );
 
 		expect( onCancel ).toHaveBeenCalledWith( 'visibility' );
-
 		Object.defineProperty( document, 'hidden', { value: false, configurable: true } );
 	} );
 
@@ -113,7 +111,6 @@ describe( 'DragManager recovery', () => {
 
 	test( 'Escape WITHOUT an active drag is a no-op', () => {
 		const manager = new DragManager();
-
 		expect( () => {
 			document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Escape' } ) );
 		} ).not.toThrow();

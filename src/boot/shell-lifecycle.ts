@@ -11,7 +11,6 @@ export function wireSessionEvents( save: () => void ): void {
 	addAction( HOOKS.DESKTOP_CLOSED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.DESKTOP_SWITCHED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.DESKTOP_RENAMED, 'desktop-mode/session-save', save );
-
 	addAction( HOOKS.WORKSPACE_UPDATED, 'desktop-mode/session-save', save );
 	addAction( HOOKS.WORKSPACE_PROVISIONED, 'desktop-mode/session-save', save );
 }

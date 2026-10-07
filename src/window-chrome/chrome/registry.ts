@@ -12,29 +12,20 @@ export interface ChromeRenderState {
 }
 
 export interface ChromeRenderContext {
-
 	window: DesktopWindow;
-
 	state: ChromeRenderState;
 }
 
 export interface ChromeRenderHandle {
-
 	update?: ( state: ChromeRenderState ) => void;
-
 	destroy: () => void;
 }
 
 export interface WindowChromeDef {
-
 	id: string;
-
 	label?: string;
-
 	match: ( window: DesktopWindow ) => boolean;
-
 	render: ( host: HTMLElement, ctx: ChromeRenderContext ) => ChromeRenderHandle;
-
 	owner?: string;
 }
 
@@ -126,6 +117,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] window-chrome registry listener threw:',
 					err,

@@ -3,7 +3,6 @@ import { trackedFetch } from './tracked-fetch';
 import { restErrorFromBody } from './core/api-client';
 
 export interface StartOAuthOptions {
-
 	width?: number;
 	height?: number;
 }
@@ -22,7 +21,6 @@ interface StartResponse {
 
 const POPUP_DEFAULT_WIDTH = 520;
 const POPUP_DEFAULT_HEIGHT = 720;
-
 const POPUP_CLOSE_POLL_MS = 500;
 
 export function startOAuth(
@@ -184,7 +182,6 @@ function readRestRoot(): string {
 	if ( typeof root === 'string' && root !== '' ) {
 		return root;
 	}
-
 	return `${ window.location.origin }/wp-json/`;
 }
 

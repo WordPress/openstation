@@ -58,7 +58,6 @@ function makeSession(
 
 function makeLayer(): NotesLayer {
 	const host = document.createElement( 'div' );
-
 	Object.defineProperty( host, 'clientWidth', { value: 1000 } );
 	Object.defineProperty( host, 'clientHeight', { value: 500 } );
 	host.getBoundingClientRect = () =>
@@ -122,7 +121,6 @@ describe( 'note drop handlers', () => {
 			color: 'lilac',
 			isPublic: true,
 		} );
-
 		const handled = canvasPayloadDrop(
 			session,
 			{ clientX: 304, clientY: 110 },
@@ -144,9 +142,7 @@ describe( 'note drop handlers', () => {
 		expect( body.public ).toBe( true );
 		expect( body.x ).toBeCloseTo( 0.2, 5 );
 		expect( body.y ).toBeCloseTo( 0.2, 5 );
-
 		expect( body.seed ).toBeGreaterThan( 0 );
-
 		expect( layer.has( 42 ) ).toBe( true );
 	} );
 
@@ -181,7 +177,6 @@ describe( 'note drop handlers', () => {
 			{ clientX: 604, clientY: 260 },
 			{ folderId: 0, host: layer.host },
 		);
-
 		expect( controller.note.x ).toBeCloseTo( 0.5, 5 );
 		expect( controller.note.y ).toBeCloseTo( 0.5, 5 );
 		expect( parseFloat( controller.element.style.left ) ).toBeCloseTo( 50, 3 );

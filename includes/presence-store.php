@@ -1,5 +1,4 @@
 <?php
-
 defined( 'ABSPATH' ) || exit;
 
 require_once __DIR__ . '/storage-primary.php';
@@ -74,18 +73,15 @@ function openstation_presence_migrate_storage() {
 	if ( wp_cache_get( $failure_key, 'openstation_presence_request' ) ) {
 		return false;
 	}
-
 	wp_cache_set( $failure_key, true, 'openstation_presence_request' );
 	openstation_storage_use_primary();
 	$table = openstation_presence_table();
 	$name  = 'os-presence-' . md5( $wpdb->dbname . ':' . $table );
 	$lock  = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $name ) );
-
 	if ( ! in_array( (string) $lock, array( '1', '1=1' ), true ) ) {
 		return false;
 	}
 	try {
-
 		wp_cache_delete( OPENSTATION_PRESENCE_STORAGE_OPTION, 'options' );
 		$notoptions = wp_cache_get( 'notoptions', 'options' );
 		if ( is_array( $notoptions ) && isset( $notoptions[ OPENSTATION_PRESENCE_STORAGE_OPTION ] ) ) {
@@ -121,7 +117,6 @@ function openstation_presence_migrate_storage() {
 				return false;
 			}
 		}
-
 		$rows = $wpdb->get_results( "SELECT user_id, last_seen_ms, last_active_ms, inactive_at_ms FROM $table", OBJECT_K );
 		if ( '' !== $wpdb->last_error ) {
 			return false;
@@ -167,7 +162,6 @@ function openstation_presence_migration_tick() {
 	}
 	foreach ( $records as $uid => $record ) {
 		if ( $record['last_seen_ms'] > $cut ) {
-
 			if ( ! openstation_presence_upsert( $uid, $record, false ) ) {
 				return;
 			}
@@ -197,7 +191,7 @@ function openstation_presence_read_records( $user_id = null ) {
 	openstation_storage_use_primary();
 	$table = openstation_presence_table();
 	$sql   = "SELECT user_id, last_seen_ms, last_active_ms, inactive_at_ms FROM $table";
-
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table is internal; reuse this request snapshot for user lists.
 	$rows = $wpdb->get_results( $sql, ARRAY_A );
 	if ( '' !== $wpdb->last_error ) {
 		return new WP_Error( 'openstation_presence_read_failed', __( 'Could not read presence.', 'desktop-mode' ) );

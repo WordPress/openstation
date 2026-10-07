@@ -53,7 +53,6 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'inline SVG data URI paints as a currentColor mask', () => {
-
 		const svg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
 		const { container } = mountDock( [ makeItem( { icon: `data:image/svg+xml;base64,${ svg }` } ) ] );
 		const icon = container.querySelector< HTMLElement >( '.os-dock__item-mask' );
@@ -65,7 +64,6 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'raw CSS url(...) value reaches the mask unwrapped (live-activation harvest path)', () => {
-
 		const { container } = mountDock( [
 			makeItem( {
 				icon: 'url("data:image/svg+xml;base64,PHN2Zy8+")',
@@ -79,7 +77,6 @@ describe( 'dock icon resolution', () => {
 		expect( icon?.style.getPropertyValue( 'mask' ) ).toContain(
 			'data:image/svg+xml;base64,PHN2Zy8+',
 		);
-
 		expect( container.querySelector( '.os-dock__item-letter' ) ).toBeNull();
 		expect(
 			container.querySelector( '.dashicons-admin-generic' ),
@@ -87,7 +84,6 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'raw CSS url(...) accepts a URL-encoded SVG data URI', () => {
-
 		const url = 'url("data:image/svg+xml,%3Csvg/%3E")';
 		const { container } = mountDock( [ makeItem( { icon: url } ) ] );
 		const icon = container.querySelector< HTMLElement >(
@@ -100,7 +96,6 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'an unmaskable URL still falls back to the filtered span', () => {
-
 		const { container } = mountDock( [
 			makeItem( { icon: 'url("data:image/svg+xml,<svg/>")' } ),
 		] );
@@ -113,7 +108,6 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'a gear item takes the ::before mask the hidden admin menu paints', () => {
-
 		const url = 'http://localhost/wp-admin/admin.php?page=elementor-home';
 		const menu = document.createElement( 'ul' );
 		menu.id = 'adminmenu';
@@ -155,7 +149,6 @@ describe( 'dock icon resolution', () => {
 		);
 		expect( badge ).not.toBeNull();
 		expect( badge?.textContent ).toBe( 'J' );
-
 		expect( badge?.style.background ).toContain( 'linear-gradient' );
 		expect( badge?.style.background ).toContain( 'hsl' );
 	} );
@@ -177,7 +170,6 @@ describe( 'dock icon resolution', () => {
 	} );
 
 	test( 'malformed SVG data URI falls back to the letter badge', () => {
-
 		const { container } = mountDock( [
 			makeItem( { icon: 'data:image/svg+xml;base64,not-b64!', title: 'Queue' } ),
 		] );
@@ -227,7 +219,6 @@ describe( 'hashTitleToHue', () => {
 	} );
 
 	test( 'tends to spread titles across the hue wheel', () => {
-
 		const titles = [
 			'Jetpack',
 			'Yoast',
@@ -244,7 +235,6 @@ describe( 'hashTitleToHue', () => {
 		];
 		const hues = titles.map( hashTitleToHue );
 		const unique = new Set( hues );
-
 		expect( unique.size ).toBeGreaterThanOrEqual( titles.length - 2 );
 	} );
 } );
@@ -319,7 +309,6 @@ describe( 'Dock.replaceItems', () => {
 		expect( sep ).not.toBeNull();
 		expect( sys ).not.toBeNull();
 		expect( menuTile ).not.toBeNull();
-
 		expect(
 			menuTile!.compareDocumentPosition( sep! ) & Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy();

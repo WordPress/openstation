@@ -28,7 +28,6 @@ function readMap(): Record< string, true > {
 			return parsed as Record< string, true >;
 		}
 	} catch {
-
 	}
 	return {};
 }
@@ -37,7 +36,6 @@ function writeMap( map: Record< string, true > ): void {
 	try {
 		window.localStorage.setItem( storageKey(), JSON.stringify( map ) );
 	} catch {
-
 	}
 }
 
@@ -72,6 +70,5 @@ export function _resetNoticeDismissalsForTests(): void {
 	try {
 		window.localStorage.removeItem( storageKey() );
 	} catch {
-
 	}
 }

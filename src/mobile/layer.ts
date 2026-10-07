@@ -152,7 +152,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 
 	const sync = (): void => {
 		syncScheduled = false;
-
 		const openCount = openWindows().length;
 		if ( switcher.isOpen() && lastState === 'switcher' && openCount === 0 && lastOpenCount > 0 ) {
 			switcher.close();
@@ -169,7 +168,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		if ( current === 'home' && lastState !== 'home' ) {
 			home.reset();
 		}
-
 		if ( app && app.id !== lastAppId && ! reducedMotion && ! heroTransition ) {
 			app.element.classList.add( ENTER_CLASS );
 			app.element.addEventListener(
@@ -183,7 +181,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 				history.pushState( HISTORY_MARK, '' );
 				historyPushed = true;
 			} catch {
-
 			}
 		}
 		if ( switcher.isOpen() ) {
@@ -261,7 +258,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		home.el.querySelector< HTMLElement >(
 			`.os-mobile-tile[data-nav-id="${ escapeAttr( id ) }"] .os-mobile-tile__icon`,
 		);
-
 	const tileIconFor = ( win: DesktopWindow ): HTMLElement | null => {
 		const baseId = win.config.baseId || win.id;
 		const nav = deps.getNav();
@@ -274,7 +270,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		);
 		return item ? tileIconForItem( item.id ) : null;
 	};
-
 	const nextWindowEvent = (
 		names: readonly string[] = [ 'os-window-opened', 'os-window-reopened', 'os-window-focused' ],
 	): Promise< void > =>
@@ -292,7 +287,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 			}
 			timer = window.setTimeout( done, OPEN_SETTLE_MS );
 		} );
-
 	const transition = (
 		oldHero: HTMLElement | null,
 		update: () => Promise< void > | void,
@@ -360,7 +354,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 		}
 		goHome();
 	};
-
 	const cards = (): SwitcherCard[] => {
 		const current = appWindow();
 		return openWindows()
@@ -414,7 +407,6 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	};
 	const closeCard = ( card: SwitcherCard ): void => {
 		manager.getById( card.id )?.close();
-
 		scheduleSync();
 	};
 	const closeAll = async (): Promise< void > => {
@@ -494,10 +486,8 @@ export function mountMobileLayer( deps: MobileLayerDeps ): MobileLayerHandle {
 	} );
 	const unbindGuards = [ bindHistorySwipeGuard( edge ), bindHistorySwipeGuard( edgeEnd ) ];
 	const unbindSwipeUp = bindSwipeUp( tabBar.el, { onCommit: () => openSwitcher() } );
-
 	const unbindSwipeDown = bindSwipeDown( topBar.el, { onCommit: () => goHome() } );
 	const unsubscribeNav = deps.subscribeNav( refreshNav );
-
 	const unsubscribeArt = deps.subscribeArt?.( refreshNav ) ?? ( () => undefined );
 
 	refreshNav();

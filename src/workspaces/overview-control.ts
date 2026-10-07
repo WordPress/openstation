@@ -3,9 +3,7 @@ import type { WorkspaceDeps } from './manager';
 import { applyWorkspaceView, provisionWorkspace } from './manager';
 
 export interface WorkspaceOverviewDeps extends WorkspaceDeps {
-
 	openCreator: ( desktopId: string ) => void;
-
 	openEditor: ( desktopId: string ) => void;
 }
 
@@ -58,7 +56,6 @@ export function restoreWorkspace( desktopId: string ): boolean {
 	if ( ! deps ) {
 		return false;
 	}
-
 	deps.manager.switchDesktop( desktopId );
 	applyWorkspaceView( deps, desktopId );
 	provisionWorkspace( deps, desktopId, { force: true } );

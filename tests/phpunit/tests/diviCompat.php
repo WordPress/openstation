@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_compat_divi_fix_gutenberg_deps
+ */
 class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 
 	private $chromeless_user_id = 0;
@@ -36,7 +39,6 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 
 		$this->assertContains( 'wp-data', $deps, 'wp-data must be injected so core/editor store registers first.' );
 		$this->assertContains( 'wp-editor', $deps, 'wp-editor must be injected so the data store is populated before Divi runs.' );
-
 		$this->assertContains( 'jquery', $deps );
 		$this->assertContains( 'wp-hooks', $deps );
 	}
@@ -86,7 +88,6 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 	}
 
 	public function test_classic_request_does_not_append_et_gb_override() {
-
 		wp_set_current_user( 0 );
 		wp_register_script(
 			'et-builder-gutenberg',
@@ -213,10 +214,8 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'os-compat-divi-vb-handoff', $out );
 		$this->assertStringContainsString( 'os-divi-vb-handoff', $out );
-
 		$this->assertStringContainsString( 'use divi builder', $out );
 		$this->assertStringContainsString( 'edit with the divi builder', $out );
-
 		$this->assertStringContainsString( "addEventListener( 'click'", $out );
 	}
 
@@ -249,15 +248,11 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'os-compat-divi-vb-handoff-parent', $out );
 		$this->assertStringContainsString( 'os-divi-vb-handoff', $out );
 		$this->assertStringContainsString( 'window.top.location.href', $out );
-
 		$this->assertStringContainsString( 'ev.origin !== window.location.origin', $out );
-
 		$this->assertStringContainsString( 'wp.os.confirm', $out );
 		$this->assertStringContainsString( 'Open Divi in this tab', $out );
-
 		$this->assertStringContainsString( 'hideCancel: true', $out );
 		$this->assertStringContainsString( 'dismissable: true', $out );
-
 		$this->assertStringContainsString( "searchParams.delete( 'openstation_chromeless' )", $out );
 		$this->assertStringContainsString( "searchParams.set( 'desktop_mode_classic', '1' )", $out );
 	}

@@ -4,22 +4,15 @@ import { fetchPlaytime } from './rest';
 import type { GameChallengeContext, GameRegistryEntry } from './types';
 
 export interface GamesApi {
-
 	register: ( entry: GameRegistryEntry ) => void;
-
 	unregister: ( id: string ) => void;
-
 	list: () => GameRegistryEntry[];
-
 	get: ( id: string ) => GameRegistryEntry | undefined;
-
 	subscribe: ( cb: () => void ) => () => void;
-
 	launch: (
 		id: string,
 		opts?: { challenge?: GameChallengeContext },
 	) => Promise< void >;
-
 	getPlaytime: () => Promise< Record< string, number > >;
 }
 

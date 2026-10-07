@@ -1,35 +1,23 @@
 export const HOST_PROTOCOL_VERSION = 1;
 
 export const CHANNELS = {
-
 	INVOKE_HOST_INFO: 'openstation:host-info',
-
 	INVOKE_FREE_WINDOW: 'openstation:free-window',
-
 	INVOKE_DOCK_WINDOW: 'openstation:dock-window',
-
 	INVOKE_FOCUS_WINDOW: 'openstation:focus-free-window',
-
 	INVOKE_LIST_WINDOWS: 'openstation:list-free-windows',
-
 	INVOKE_HANDSHAKE: 'openstation:handshake',
-
 	INVOKE_CONNECTION: 'openstation:connection',
-
 	INVOKE_DISCONNECT: 'openstation:disconnect',
 
 	INVOKE_OPEN_WINDOW: 'openstation:open-window',
 
 	INVOKE_CONNECT_SITE: 'openstation:connect-site',
-
 	INVOKE_CONNECT_STATE: 'openstation:connect-state',
 
 	EVENT_WINDOW_DOCKED: 'openstation:free-window-docked',
-
 	EVENT_WINDOW_FREED: 'openstation:free-window-freed',
-
 	EVENT_CONNECTION: 'openstation:connection-changed',
-
 	EVENT_FRAME_INIT: 'openstation:frame-init',
 } as const;
 
@@ -57,7 +45,6 @@ export interface HostInfo {
 	appVersion: string;
 	electronVersion: string;
 	hostId: string;
-
 	freedWindows: string[];
 }
 

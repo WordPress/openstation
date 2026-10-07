@@ -7,9 +7,7 @@ use OpenStation\App\State;
 
 function openstation_posts_window_default_query_args() {
 	$args = array(
-
 		'_embed'  => 'author,wp:term,wp:featuredmedia',
-
 		'_fields' =>
 			'id,title,status,date,date_gmt,modified,modified_gmt,author,categories,tags,comment_status,excerpt,openstation_lock,_links,_embedded',
 	);
@@ -23,11 +21,9 @@ function openstation_posts_app_state( $orderby = 'date', $order = 'desc' ) {
 		'feedAppend' => false,
 		'perPage'    => 20,
 		'search'     => '',
-
 		'status'     => '',
 		'orderby'    => (string) $orderby,
 		'order'      => (string) $order,
-
 		'author'     => array(),
 		'tag'        => array(),
 	);
@@ -62,7 +58,6 @@ function openstation_posts_app_ids( $value ) {
 
 function openstation_posts_app_query( array $defaults, State $state ) {
 	$query = array();
-
 	foreach ( $defaults as $key => $value ) {
 		if ( is_string( $value ) && '' !== $value ) {
 			$query[ (string) $key ] = $value;
@@ -74,7 +69,6 @@ function openstation_posts_app_query( array $defaults, State $state ) {
 	if ( '' !== $search ) {
 		$query['search'] = $search;
 	}
-
 	$status          = (string) $state->get( 'status' );
 	$query['status'] = '' !== $status ? $status : 'any';
 	$orderby         = (string) $state->get( 'orderby' );
@@ -85,7 +79,6 @@ function openstation_posts_app_query( array $defaults, State $state ) {
 	if ( in_array( $order, array( 'asc', 'desc' ), true ) ) {
 		$query['order'] = $order;
 	}
-
 	$author = openstation_posts_app_ids( $state->get( 'author' ) );
 	if ( array() !== $author ) {
 		$query['author'] = $author;
@@ -101,7 +94,6 @@ function openstation_posts_app_data( $route, array $defaults, State $state ) {
 	$query  = openstation_posts_app_query( $defaults, $state );
 	$append = (bool) $state->get( 'feedAppend' );
 	$state->set( 'feedAppend', false );
-
 	if ( ! $append && $query['page'] > 1 ) {
 		$wanted              = $query['page'] * $query['per_page'];
 		$refresh             = $query;
@@ -132,14 +124,12 @@ function openstation_posts_app_data( $route, array $defaults, State $state ) {
 	} else {
 		$list = openstation_app_rest_page( $route, $query );
 	}
-
 	if ( openstation_app_rest_page_is_out_of_range( $list ) ) {
 		$state->set( 'page', 1 );
 		$query['page'] = 1;
 		$list          = openstation_app_rest_page( $route, $query );
 	}
 	if ( 0 === $list['total'] ) {
-
 		$list['pages'] = 0;
 	}
 	$identity = array();
@@ -193,7 +183,7 @@ function openstation_posts_app_trash( Os $os, array $args, $type ) {
 	if ( $failed > 0 ) {
 		$os->toast(
 			sprintf(
-
+				/* translators: %d: number of rows that could not be trashed. */
 				_n( '%d item could not be moved to the trash.', '%d items could not be moved to the trash.', $failed, 'desktop-mode' ),
 				$failed
 			)

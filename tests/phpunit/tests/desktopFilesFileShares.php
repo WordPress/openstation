@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -81,7 +84,6 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		$this->assertCount( 1, $uploads );
 
 		$this->assertTrue( openstation_stored_file_user_can_read( $file_id, self::$recipient_id ) );
-
 		$this->assertCount( 0, openstation_files_get_pending_file_shares_for_user( self::$recipient_id ) );
 	}
 
@@ -286,7 +288,7 @@ class Tests_OpenStation_FileShares extends WP_UnitTestCase {
 		$this->assertSame( $share_id, $again );
 		$this->assertSame( 'pending', openstation_files_get_share( $share_id )['state'] );
 	}
-
+	/** @covers ::openstation_stored_file_share_accept */
 	public function test_accept_can_retry_when_placement_lock_was_busy() {
 		$file_id = $this->make_stored_file( self::$owner_id );
 		$share_id = openstation_stored_file_share_invite( $file_id, self::$owner_id, self::$recipient_id );

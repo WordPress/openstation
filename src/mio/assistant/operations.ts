@@ -50,7 +50,6 @@ export class MioOperations {
 
 	public record( call: MioCallContext, ability: string, status: MioOperation['status'], receipt?: string ): MioOperation {
 		const existing = this.records.get( call.callId );
-
 		if ( existing?.status === 'confirmed' && status !== 'confirmed' ) {
 			return structuredClone( existing );
 		}

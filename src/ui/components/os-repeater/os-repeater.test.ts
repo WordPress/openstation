@@ -52,7 +52,6 @@ describe( '<os-repeater>', () => {
 			index: 1,
 			keys: [ 'a', 'c' ],
 		} );
-
 		expect( el.keys ).toEqual( [ 'a', 'b', 'c' ] );
 	} );
 

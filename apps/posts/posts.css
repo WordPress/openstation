@@ -79,7 +79,6 @@
 	border-bottom: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	background: var( --os-ui-surface, rgba( 255, 255, 255, 0.6 ) );
 	backdrop-filter: blur( 8px );
-
 	position: relative;
 	z-index: 2;
 }
@@ -239,7 +238,6 @@
 	min-height: 0;
 	min-width: 0;
 	overflow: hidden;
-
 	transition: opacity 200ms ease;
 }
 

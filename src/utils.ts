@@ -9,17 +9,11 @@ const IDENTITY_PARAMS: readonly string[] = [
 	'post_type',
 	'page',
 	'taxonomy',
-
 	'path',
-
 	'post',
-
 	'c',
-
 	'tag_ID',
-
 	'item',
-
 	'p',
 ];
 
@@ -179,7 +173,6 @@ export function sanitizeIconSvg( svg: string ): string {
 	if ( ! root || root.nodeName.toLowerCase() !== 'svg' ) {
 		return '';
 	}
-
 	if ( doc.getElementsByTagName( 'parsererror' ).length > 0 ) {
 		return '';
 	}
@@ -192,7 +185,6 @@ export function sanitizeIconSvg( svg: string ): string {
 				child.remove();
 				continue;
 			}
-
 			for ( const attr of Array.from( child.attributes ) ) {
 				const name = attr.name.toLowerCase();
 				const value = attr.value.trim().toLowerCase();
@@ -276,3 +268,4 @@ export function decodeHTML( raw: string ): string {
 	ta.innerHTML = raw;
 	return ta.value;
 }
+

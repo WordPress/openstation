@@ -7,7 +7,6 @@ export interface SwitcherCard {
 	title: string;
 	icon: string;
 	subtitle: string;
-
 	active?: boolean;
 }
 
@@ -16,14 +15,12 @@ export interface SwitcherDeps {
 	onPick: ( card: SwitcherCard ) => void;
 	onClose: ( card: SwitcherCard ) => void;
 	onCloseAll: () => void;
-
 	onDismiss: () => void;
 }
 
 export interface SwitcherSurface {
 	el: HTMLElement;
 	open( cards: readonly SwitcherCard[] ): void;
-
 	update( cards: readonly SwitcherCard[] ): void;
 	close(): void;
 	isOpen(): boolean;
@@ -117,7 +114,6 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			chip.textContent = __( 'Active' );
 			title.appendChild( chip );
 		}
-
 		const bar = document.createElement( 'span' );
 		bar.className = 'os-mobile-card__bar';
 		bar.append( icon, text );
@@ -133,7 +129,7 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 		close.setAttribute(
 			'aria-label',
 			sprintf(
-
+				/* translators: %s: window title. */
 				__( 'Close %s' ),
 				c.title,
 			),
@@ -218,7 +214,6 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 				try {
 					wrap.setPointerCapture( e.pointerId );
 				} catch {
-
 				}
 			}
 			const dt = Math.max( 1, e.timeStamp - lastT );
@@ -239,7 +234,6 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			const dx = e.clientX - startX;
 			const dy = e.clientY - startY;
 			const outcome = swipeOutcome( { dx, dy, velocity, width: wrap.offsetWidth } );
-
 			const swallow = ( ev: Event ): void => {
 				ev.stopPropagation();
 				ev.preventDefault();
@@ -306,7 +300,6 @@ export function createSwitcher( host: HTMLElement, deps: SwitcherDeps ): Switche
 			paint( cards );
 			el.hidden = false;
 			document.addEventListener( 'keydown', onKey );
-
 			const first = list.querySelector< HTMLElement >( '.os-mobile-card__body' );
 			( first ?? closeButton ).focus();
 		},

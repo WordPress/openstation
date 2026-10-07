@@ -16,19 +16,12 @@ export interface RimPoint extends Particle {
 }
 
 export interface SoftBody {
-
 	core: Particle;
-
 	rim: RimPoint[];
-
 	radius: number;
-
 	profile?: ( angle: number ) => number;
-
 	restArea: number;
-
 	elapsed: number;
-
 	accumulator: number;
 }
 
@@ -61,7 +54,6 @@ export function createSoftBody(
 		rim,
 		radius,
 		profile,
-
 		restArea: 0.5 * n * radius * radius * Math.sin( ( 2 * Math.PI ) / n ),
 		elapsed: 0,
 		accumulator: 0,
@@ -90,7 +82,6 @@ export function resampleBody( body: SoftBody, count: number ): void {
 		const b = old[ ( lo + 1 ) % from ];
 		let x = a.x + ( b.x - a.x ) * t;
 		let y = a.y + ( b.y - a.y ) * t;
-
 		const dist = Math.hypot( x - cx, y - cy );
 		if ( dist > 1e-6 ) {
 			const want = radius( a ) + ( radius( b ) - radius( a ) ) * t;
@@ -107,7 +98,6 @@ export function resampleBody( body: SoftBody, count: number ): void {
 	}
 
 	body.rim = rim;
-
 	body.restArea =
 		0.5 * n * body.radius * body.radius * Math.sin( ( 2 * Math.PI ) / n );
 	syncCore( body );
@@ -187,15 +177,10 @@ export function resetBody( body: SoftBody, x: number, y: number ): void {
 
 export interface StepInput {
 	physics: MioPhysics;
-
 	magnet: MagnetPull | null;
-
 	obstacles: readonly Obstacle[];
-
 	bounds: { width: number; height: number };
-
 	dragTarget: { x: number; y: number } | null;
-
 	anchor?: { x: number; y: number } | null;
 }
 
@@ -206,7 +191,6 @@ export function stepSoftBody(
 ): void {
 	const { physics } = input;
 	const dt = physics.subStep;
-
 	const safe = Number.isFinite( frameSeconds ) ? frameSeconds : 0;
 	const frame = Math.min( Math.max( safe, 0 ), dt * physics.maxSubSteps );
 	body.accumulator += frame;
@@ -217,7 +201,6 @@ export function stepSoftBody(
 		steps++;
 		substep( body, dt, input );
 	}
-
 	if ( body.accumulator > dt * physics.maxSubSteps ) {
 		body.accumulator = 0;
 	}
@@ -236,7 +219,6 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 	const pull = input.magnet;
 	const strength = pull ? Math.min( 1, Math.max( 0, pull.strength ) ) : 0;
 	const float = 1 - strength;
-
 	const wobbleFade = input.dragTarget ? 0 : float;
 
 	const ix = new Float64Array( n );
@@ -273,10 +255,8 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 			const dirY = centre.vy / speed;
 			for ( let i = 0; i < n; i++ ) {
 				const angle = rim[ i ].angle;
-
 				const a = Math.cos( angle ) * dirX + Math.sin( angle ) * dirY;
 				const aa = a * a;
-
 				restR[ i ] /= Math.sqrt( aa / kk + kk * ( 1 - aa ) );
 			}
 		}
@@ -335,7 +315,6 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 		);
 		if ( deficit !== 0 ) {
 			const wind = signed < 0 ? -1 : 1;
-
 			const nominalEdge = 2 * body.radius * Math.sin( Math.PI / n );
 			const push =
 				( physics.pressure * deficit * wind ) / ( 2 * nominalEdge );
@@ -344,7 +323,6 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 				const b = rim[ ( i + 1 ) % n ];
 				const dx = b.x - a.x;
 				const dy = b.y - a.y;
-
 				const fx = dy * push;
 				const fy = -dx * push;
 				ix[ i ] += fx;
@@ -424,7 +402,6 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 		const p = rim[ i ];
 		let vx = p.vx + ( ix[ i ] - meanIx + extX ) * dt;
 		let vy = p.vy + ( iy[ i ] - meanIy + extY ) * dt;
-
 		vx = meanVx + ( vx - meanVx ) / internalDamp;
 		vy = meanVy + ( vy - meanVy ) / internalDamp;
 		p.vx = vx / airDamp;
@@ -466,7 +443,6 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 		contactPass();
 		enforceLimits( body, restR, physics, contacting );
 	}
-
 	enforceAngularOrder( body, physics.minAngularGap );
 }
 
@@ -507,7 +483,6 @@ function enforceAngularOrder( body: SoftBody, minGapFraction: number ): void {
 			healthy = false;
 		}
 	}
-
 	if ( healthy && Math.abs( total - 2 * Math.PI ) < 1e-6 ) {
 		return;
 	}
@@ -572,7 +547,6 @@ function rotateAbout(
 	const dy = p.y - cy;
 	p.x = cx + dx * cos - dy * sin;
 	p.y = cy + dx * sin + dy * cos;
-
 	const vx = p.vx;
 	const vy = p.vy;
 	p.vx = vx * cos - vy * sin;

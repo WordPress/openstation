@@ -40,7 +40,7 @@ function openstation_site_views_jetpack_callback() {
 }
 
 function openstation_site_views_user_can_read_jetpack() {
-	return current_user_can( 'manage_options' ) || current_user_can( 'view_stats' );
+	return current_user_can( 'manage_options' ) || current_user_can( 'view_stats' ); // phpcs:ignore WordPress.WP.Capabilities.Unknown -- Jetpack's stats capability, mapped by its Stats package.
 }
 
 function openstation_site_views_jetpack_stats_active() {

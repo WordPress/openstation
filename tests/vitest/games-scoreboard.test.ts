@@ -67,7 +67,6 @@ describe( 'games/scoreboard.ts', () => {
 		expect( scoreboard.formatTimeValue( 0 ) ).toBe( '0:00' );
 		expect( scoreboard.formatTimeValue( 9 ) ).toBe( '0:09' );
 		expect( scoreboard.formatTimeValue( 125 ) ).toBe( '2:05' );
-
 		expect( scoreboard.formatTimeValue( -5 ) ).toBe( '0:00' );
 		expect( scoreboard.formatTimeValue( 'nope' ) ).toBe( '0:00' );
 	} );
@@ -113,7 +112,6 @@ describe( 'games/scoreboard.ts', () => {
 
 	test( 'the refresh reloads the page being viewed, not page 1', async () => {
 		const { activity, scoreboard } = await loadModules();
-
 		fetchScoresSpy.mockResolvedValue( page( 60 ) );
 		const teardown = scoreboard.renderScoreboard( container, GAME );
 		await vi.waitFor( () =>

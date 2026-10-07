@@ -32,7 +32,6 @@ function buildWindowWithSlots( id: string ): {
 		host.className = `os-window__slot os-window__slot--${ name }`;
 		element.appendChild( host );
 	}
-
 	const iconHost = element.querySelector< HTMLElement >( '[data-slot="icon"]' )!;
 	const iconEl = document.createElement( 'span' );
 	iconEl.className = 'os-window__icon dashicons dashicons-admin-generic';
@@ -73,7 +72,6 @@ describe( 'paintWindowSlots', () => {
 		const titleHost = win.element.querySelector< HTMLElement >(
 			'[data-slot="title"]',
 		)!;
-
 		expect( titleHost.textContent ).toBe( '<script>alert(1)</script>Hello' );
 		expect( titleHost.querySelector( 'script' ) ).toBeNull();
 	} );
@@ -116,7 +114,6 @@ describe( 'paintWindowSlots', () => {
 			slots: { 'after-title': { render: renderSpy } },
 		};
 		const t1 = paintWindowSlots( win as Parameters< typeof paintWindowSlots >[ 0 ] );
-
 		t1();
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
 
@@ -146,7 +143,6 @@ describe( 'paintWindowSlots', () => {
 		expect( titleHost.querySelector( '.plug-prefix' )?.textContent ).toBe(
 			'★ ',
 		);
-
 		expect( titleHost.querySelector( '.os-window__title' ) ).not.toBeNull();
 	} );
 
@@ -169,7 +165,6 @@ describe( 'paintWindowSlots', () => {
 
 	test( 'clearing override restores the slot default content', () => {
 		const win = buildWindowWithSlots( 'edit-post' );
-
 		win.config.appearance = { slots: { icon: { html: 'X' } } };
 		paintWindowSlots( win as Parameters< typeof paintWindowSlots >[ 0 ] );
 		const iconHost = win.element.querySelector< HTMLElement >(

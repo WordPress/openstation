@@ -13,7 +13,6 @@ export function doAction< TArgs extends unknown[] = unknown[] >(
 			new CustomEvent( name, { detail: args[ 0 ] ?? {} } ),
 		);
 	} catch {
-
 	}
 }
 
@@ -25,11 +24,9 @@ export function applyFilters< TValue >(
 }
 
 export function addAction(): void {
-
 }
 
 export function addFilter(): void {
-
 }
 
 export const HOOKS: Record< string, string > = {};

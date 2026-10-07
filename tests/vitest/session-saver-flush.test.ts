@@ -141,12 +141,10 @@ describe( 'session saver — flush()', () => {
 		const retry = save.flush().then( () => {
 			settled = true;
 		} );
-
 		for ( let i = 0; i < 20; i++ ) {
 			await Promise.resolve();
 		}
 		const settledWithoutAnotherSave = settled;
-
 		if ( ! settled ) {
 			save();
 			vi.advanceTimersByTime( 1500 );

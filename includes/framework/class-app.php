@@ -84,7 +84,7 @@ final class App {
 	private function __construct( $id ) {
 		$id = strtolower( trim( (string) $id ) );
 		if ( ! preg_match( '/^[a-z0-9][a-z0-9_-]*$/', $id ) ) {
-
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; the host-agnostic core cannot call `esc_html()`, and Plugin Check runs its own ruleset without our `customEscapingFunctions`.
 			throw new \InvalidArgumentException( sprintf( 'Invalid app id "%s": use lowercase letters, digits, "-" and "_".', esc( $id ) ) );
 		}
 		$this->id = $id;
@@ -103,7 +103,7 @@ final class App {
 		$icon = trim( (string) $icon );
 		if ( 0 === strpos( $icon, '<svg' ) ) {
 			$this->icon_svg = $icon;
-
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Building a data: URI for an inline SVG icon, not obfuscating anything.
 			$this->icon = 'data:image/svg+xml;base64,' . base64_encode( $icon );
 		} else {
 			$this->icon_svg = '';
@@ -253,7 +253,6 @@ final class App {
 			$out[] = array(
 				'id'    => $id,
 				'label' => $label,
-
 				'page'  => is_array( $tab ) ? (string) ( $tab['page'] ?? '' ) : '',
 			);
 		}
@@ -279,7 +278,7 @@ final class App {
 	public function action( $name, callable $handler ) {
 		$name = strtolower( trim( (string) $name ) );
 		if ( ! preg_match( '/^[a-z0-9_-]+$/', $name ) || App\Runtime::ACTION_MOUNT === $name ) {
-
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
 			throw new \InvalidArgumentException( sprintf( 'Invalid action name "%s".', esc( $name ) ) );
 		}
 		$this->actions[ $name ] = $handler;
@@ -384,7 +383,6 @@ final class App {
 		foreach ( $this->config_lazy as $callable ) {
 			$config = array_merge( $config, (array) call_user_func( $callable, $this ) );
 		}
-
 		$tabs = $this->menu_tabs();
 		if ( $tabs ) {
 			$config['menuTabs'] = $tabs;
@@ -400,7 +398,6 @@ final class App {
 		if ( ! $this->menu || array_key_exists( 'tab', $this->defaults ) ) {
 			return $this->defaults;
 		}
-
 		$tabs = $this->menu_tabs();
 		return array_merge(
 			array( 'tab' => $tabs ? $tabs[0]['id'] : '' ),
@@ -433,7 +430,7 @@ final class App {
 	public function run_action( $name, State $state, Os $os, array $args = array(), $required = true ) {
 		if ( ! isset( $this->actions[ $name ] ) ) {
 			if ( $required ) {
-
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
 				throw new \RuntimeException( sprintf( 'Unknown action "%s".', esc( $name ) ) );
 			}
 			return;
@@ -555,7 +552,7 @@ final class App {
 			throw new \InvalidArgumentException( 'A title-bar button or window action needs an id.' );
 		}
 		if ( empty( $args['label'] ) || empty( $args['action'] ) ) {
-
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Escaped by `Html\esc()`; see the note on the id exception above.
 			throw new \InvalidArgumentException( sprintf( 'Control "%s" needs both a label and an action.', esc( $id ) ) );
 		}
 

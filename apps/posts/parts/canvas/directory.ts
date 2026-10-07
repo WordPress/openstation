@@ -48,10 +48,10 @@ export function mountTermDirectory( chrome: CanvasChrome, terms: () => TermRow[]
 } }>
 				<os-option value="all">${ __( 'All topics' ) }</os-option><os-option value="unused">${ __( 'No posts yet' ) }</os-option>
 			</os-select>
-			<p class="os-term-directory__count" role="status">${ sprintf( _n( '%d topic', '%d topics', matches.length ), matches.length ) }</p>
+			<p class="os-term-directory__count" role="status">${ sprintf( /* translators: %d: matching topics. */ _n( '%d topic', '%d topics', matches.length ), matches.length ) }</p>
 			<div class="os-term-directory__items">${ matches.slice( 0, limit ).map( ( term ) => html`<os-button variant="ghost" data-topic-id=${ term.id } @click=${ () => {
  close(); select( term.id );
-} }><span>${ decodeHTML( term.name ) }</span><small>${ sprintf( _n( '%d post', '%d posts', term.count ), term.count ) }</small></os-button>` ) }
+} }><span>${ decodeHTML( term.name ) }</span><small>${ sprintf( /* translators: %d: posts assigned to the topic. */ _n( '%d post', '%d posts', term.count ), term.count ) }</small></os-button>` ) }
 				${ matches.length === 0 ? html`<p>${ __( 'No matching topics. Try another search or filter.' ) }</p>` : '' }
 				${ matches.length > limit ? html`<os-button variant="secondary" @click=${ () => {
  limit += 50; paint();

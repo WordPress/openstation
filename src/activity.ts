@@ -6,7 +6,6 @@ import {
 } from './hooks';
 
 export interface ActivityChannelMap {
-
 	'os/toast-requested': {
 		message: string;
 		action?: { label: string; onClick: () => void };
@@ -15,7 +14,6 @@ export interface ActivityChannelMap {
 		meta?: Record< string, unknown >;
 		cancel?: boolean;
 	};
-
 	'os/toast-shown': {
 		message: string;
 		action?: { label: string; onClick: () => void };
@@ -24,7 +22,6 @@ export interface ActivityChannelMap {
 		meta?: Record< string, unknown >;
 		cancel?: boolean;
 	};
-
 	'os/notification-requested': {
 		title: string;
 		body?: string;
@@ -35,7 +32,6 @@ export interface ActivityChannelMap {
 		meta?: Record< string, unknown >;
 		cancel?: boolean;
 	};
-
 	'os/notification-shown': {
 		title: string;
 		body?: string;
@@ -46,7 +42,6 @@ export interface ActivityChannelMap {
 		meta?: Record< string, unknown >;
 		fallback: 'toast' | null;
 	};
-
 	'os/window-attention-requested': {
 		windowId: string;
 		mode: 'pulse' | 'shake' | 'bounce' | null;
@@ -55,19 +50,15 @@ export interface ActivityChannelMap {
 		source?: string;
 		cancel?: boolean;
 	};
-
 	'os/badge-changed': {
 		itemId: string;
 		count: number;
-
 		rail: 'dock' | 'taskbar' | 'icon';
 	};
-
 	'os/open-requested': {
 		windowId: string;
 		source: string;
 	};
-
 	'os/presence-changed': {
 		userId: number;
 		oldStatus: 'online' | 'inactive' | 'offline' | null;
@@ -75,12 +66,10 @@ export interface ActivityChannelMap {
 		lastSeenMs: number;
 		lastActiveMs: number;
 	};
-
 	'os/presence-snapshot-applied': {
 		applied: number;
 		transitions: number;
 	};
-
 	'os/game-score-recorded': {
 		game: string;
 		score: number;
@@ -88,12 +77,10 @@ export interface ActivityChannelMap {
 		windowId: string;
 		challengeId?: number;
 	};
-
 	'os/upload-hud-complete': {
 		filename: string;
 		attachmentId: number;
 	};
-
 	'os/request-settled': {
 		url: string;
 		method: string;
@@ -105,7 +92,6 @@ export interface ActivityChannelMap {
 		source?: string;
 		silent: boolean;
 	};
-
 	[ key: `${ string }/${ string }` ]: unknown;
 }
 
@@ -118,7 +104,6 @@ function hookName< K extends keyof ActivityChannelMap >( channel: K ): string {
 let subscribeSeq = 0;
 
 export interface ActivityApi {
-
 	publish< K extends keyof ActivityChannelMap >(
 		channel: K,
 		payload?: ActivityChannelMap[ K ],

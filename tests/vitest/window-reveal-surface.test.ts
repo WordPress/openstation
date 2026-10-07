@@ -140,7 +140,6 @@ function stubStyles(
 beforeEach( () => {
 	installHooksStub();
 	document.body.innerHTML = '';
-
 	stubStyles();
 } );
 
@@ -160,7 +159,6 @@ describe( 'reveals/surface.ts — createRevealLayers', () => {
 
 	test( 'returns nothing when the selected id is not registered', async () => {
 		const { surface, engine } = await load();
-
 		engine.setActiveWindowRevealId( 'ghost/plugin-gone' );
 		expect( surface.createRevealLayers() ).toEqual( [] );
 	} );
@@ -172,7 +170,6 @@ describe( 'reveals/surface.ts — createRevealLayers', () => {
 		const from = registry.getWindowReveal( 'iris' )!.from;
 
 		expect( layers ).toHaveLength( 2 );
-
 		expect( layers[ 0 ].classList.contains( surface.REVEAL_EDGE_CLASS ) ).toBe(
 			true,
 		);
@@ -276,7 +273,6 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 
 		surface.armWindowReveal( win );
 		vi.advanceTimersByTime( 40 );
-
 		surface.playWindowReveal( win );
 
 		expect( calls.every( ( c ) => c.options.delay === 0 ) ).toBe( true );
@@ -306,7 +302,6 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 		const win = makeWindow();
 
 		surface.armWindowReveal( win );
-
 		surface.playWindowReveal( win );
 
 		expect( calls ).toHaveLength( 2 );
@@ -338,7 +333,6 @@ describe( 'reveals/surface.ts — playWindowReveal timing', () => {
 			registry.MAX_REVEAL_DURATION_MS,
 		);
 		expect( calls[ 0 ].options.easing ).toBe( 'linear' );
-
 		expect( calls[ 0 ].options.fill ).toBe( 'both' );
 	} );
 
@@ -461,7 +455,6 @@ describe( 'reveals/surface.ts — the leading edge', () => {
 	} );
 
 	test( 'is dropped entirely while the edge colour is transparent', async () => {
-
 		const { calls } = installAnimateStub();
 		const { surface, engine } = await load();
 		engine.setActiveWindowRevealId( 'iris' );
@@ -476,7 +469,6 @@ describe( 'reveals/surface.ts — the leading edge', () => {
 	} );
 
 	test( 'a gradient edge counts as visible even with no colour', async () => {
-
 		const { calls } = installAnimateStub();
 		vi.stubGlobal(
 			'getComputedStyle',
@@ -537,7 +529,6 @@ describe( 'reveals/surface.ts — the leading edge', () => {
 } );
 
 describe( 'reveals/surface.ts — custom-rendered reveals', () => {
-
 	function stubRenderer(): {
 		id: string;
 		label: string;
@@ -563,7 +554,6 @@ describe( 'reveals/surface.ts — custom-rendered reveals', () => {
 	}
 
 	test( 'the host suppresses the surface token’s paint', async () => {
-
 		const { surface, engine, registry } = await load();
 		registry.registerWindowReveal( stubRenderer() );
 		engine.setActiveWindowRevealId( 'acme/rendered' );
@@ -577,7 +567,6 @@ describe( 'reveals/surface.ts — custom-rendered reveals', () => {
 	} );
 
 	test( 'a renderer armed in one bundle still plays from another', async () => {
-
 		installAnimateStub();
 		const armSide = await load();
 		armSide.registry.registerWindowReveal( stubRenderer() );
@@ -637,7 +626,6 @@ describe( 'reveals/surface.ts — surface paint', () => {
 	} );
 
 	test( 'surfaceColor never leaks onto the edge layer', async () => {
-
 		const { surface, engine, registry } = await load();
 		registry.registerWindowReveal( {
 			id: 'acme/painted2',
@@ -654,7 +642,6 @@ describe( 'reveals/surface.ts — surface paint', () => {
 	} );
 
 	test( 'a per-layer colour beats the def’s surfaceColor', async () => {
-
 		const { surface, engine, registry } = await load();
 		registry.registerWindowReveal( {
 			id: 'acme/shaded',
@@ -670,12 +657,10 @@ describe( 'reveals/surface.ts — surface paint', () => {
 		const layers = surface.createRevealLayers();
 		expect( layers ).toHaveLength( 2 );
 		expect( layers[ 0 ].style.background ).toBe( 'rgb(255, 0, 0)' );
-
 		expect( layers[ 1 ].style.background ).toBe( 'rgb(17, 17, 17)' );
 	} );
 
 	test( 'a transparent surface AND edge means no reveal at all', async () => {
-
 		const { calls } = installAnimateStub();
 		stubStyles( { surface: false } );
 		const { surface, engine } = await load();
@@ -693,7 +678,6 @@ describe( 'reveals/surface.ts — surface paint', () => {
 	} );
 
 	test( 'a transparent surface with a painted edge still plays the edge', async () => {
-
 		const { calls } = installAnimateStub();
 		stubStyles( { surface: false, edge: true } );
 		const { surface, engine } = await load();
@@ -747,7 +731,6 @@ describe( 'reveals/surface.ts — edge thickness token', () => {
 		const { mods, win } = await withReveal();
 		mods.surface.armWindowReveal( win );
 		mods.surface.playWindowReveal( win );
-
 		expect( calls[ 1 ].options.duration ).toBe( 500 );
 	} );
 
@@ -770,7 +753,6 @@ describe( 'reveals/surface.ts — edge thickness token', () => {
 	} );
 
 	test( 'the token beats the def’s own edgeLag outright', async () => {
-
 		const { calls } = installAnimateStub();
 		stubStyles( { thickness: '10%', edge: true } );
 		const { mods, win } = await withReveal();
@@ -819,13 +801,11 @@ describe( 'reveals/surface.ts — edge thickness token', () => {
 		mods.engine.setActiveWindowRevealDuration( 800 );
 		mods.surface.armWindowReveal( win );
 		mods.surface.playWindowReveal( win );
-
 		expect( calls[ 1 ].options.duration ).toBe( 1000 );
 	} );
 } );
 
 describe( 'reveals/surface.ts — duration resolution', () => {
-
 	function stubThemeToken( value: string ): void {
 		stubStyles( { duration: value, edge: true } );
 	}
@@ -871,7 +851,6 @@ describe( 'reveals/surface.ts — duration resolution', () => {
 		const { calls } = installAnimateStub();
 		stubStyles( { edge: true } );
 		const { mods, win } = await withReveal();
-
 		mods.engine.setActiveWindowRevealDuration( 800 );
 		mods.surface.armWindowReveal( win );
 		mods.surface.playWindowReveal( win );
@@ -1038,7 +1017,6 @@ describe( 'reveals/surface.ts — playWindowReveal lifecycle', () => {
 
 describe( 'reveals/surface.ts — failure containment', () => {
 	test( 'uncovers the window instead of throwing when `animate()` refuses its input', async () => {
-
 		( Element.prototype as unknown as { animate: unknown } ).animate =
 			() => {
 				throw new TypeError( 'unparsable easing' );
@@ -1061,7 +1039,6 @@ describe( 'reveals/surface.ts — failure containment', () => {
 	} );
 
 	test( 'uncovers the window when the reveals filter throws at play time', async () => {
-
 		const hooks = installHooksStub();
 		const errorSpy = vi
 			.spyOn( console, 'error' )

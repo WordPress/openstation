@@ -7,13 +7,9 @@ export const ATTACHMENT_DROP_MIME = 'application/x-wp-media-attachment';
 const CANVAS_ACTIVE_ATTR = 'data-files-drop-active';
 
 export interface CrossFrameDropContext {
-
 	host: HTMLElement;
-
 	container: HTMLElement;
-
 	folderId: number;
-
 	fileEntities: (
 		entities: ReadonlyArray< ShortcutDragItem >,
 		parentId: number,
@@ -42,7 +38,6 @@ function payloadToEntity(
 	if ( ! payload ) {
 		return null;
 	}
-
 	switch ( payload.kind ) {
 		case 'attachment':
 		case 'post':
@@ -94,7 +89,6 @@ function entityFromDataTransfer(
 function dragCarriesEntity( ev: DragEvent ): boolean {
 	const types = ev.dataTransfer?.types;
 	const list = types ? Array.from( types ) : [];
-
 	if ( list.includes( 'Files' ) ) {
 		return false;
 	}
@@ -159,7 +153,6 @@ export function attachCrossFrameDrop( ctx: CrossFrameDropContext ): () => void {
 			clearHover();
 			return;
 		}
-
 		ev.preventDefault();
 		if ( ev.dataTransfer ) {
 			ev.dataTransfer.dropEffect = 'copy';

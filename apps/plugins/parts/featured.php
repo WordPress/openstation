@@ -6,7 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 function openstation_plugins_window_featured_slugs() {
 	$slugs = array(
-
 		'odd-outlandish-desktop-decorator',
 		'allterrain-forms',
 		'allterrain-photo-editor',
@@ -83,7 +82,6 @@ function openstation_plugins_window_ajax_featured() {
 			)
 		);
 		if ( is_wp_error( $info ) || ! is_object( $info ) ) {
-
 			continue;
 		}
 		$row                 = (array) $info;
@@ -109,7 +107,6 @@ function openstation_plugins_window_ajax_featured() {
 				continue;
 			}
 			$requires = isset( $candidate['requires_plugins'] ) ? (array) $candidate['requires_plugins'] : array();
-
 			if ( ! in_array( 'desktop-mode', $requires, true ) ) {
 				continue;
 			}

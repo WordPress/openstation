@@ -28,7 +28,7 @@ import type {
 } from './types';
 
 function __( text: string ): string {
-
+	// eslint-disable-next-line @wordpress/i18n-no-variables, @wordpress/i18n-text-domain
 	return window.wp?.i18n?.__( text, 'desktop-mode-feed-buddy' ) ?? text;
 }
 
@@ -212,7 +212,7 @@ function renderWidget( root: HTMLElement, state: Readonly< FeedBuddyClientState 
 	let identityDetail: string;
 	if ( state.presenceMode === 'away' ) {
 		identityDetail = sprintf(
-
+			/* translators: %d: number of unread feed items. */
 			__( 'idle — %d unread' ),
 			totalUnread( state.server ),
 		);
@@ -220,7 +220,7 @@ function renderWidget( root: HTMLElement, state: Readonly< FeedBuddyClientState 
 		identityDetail = __( 'Screen name: SOL_Online :-)' );
 	} else {
 		identityDetail = sprintf(
-
+			/* translators: %d: number of subscribed feeds. */
 			__( 'Feeds online: %d' ),
 			state.server?.subscriptions.length ?? 0,
 		);
@@ -306,7 +306,7 @@ function renderWidget( root: HTMLElement, state: Readonly< FeedBuddyClientState 
 				);
 				badge.setAttribute(
 					'aria-label',
-
+					/* translators: %d: number of unread feed items. */
 					sprintf( __( '%d unread items' ), summary?.unread ?? 0 ),
 				);
 				feed.replaceChildren( dot, label, hiddenStatus, badge );
@@ -897,7 +897,7 @@ function renderReader( root: HTMLElement, state: Readonly< FeedBuddyClientState 
 	if ( presenceCopy ) {
 		if ( state.presenceMode === 'away' ) {
 			presenceCopy.textContent = sprintf(
-
+				/* translators: %d: number of unread feed items. */
 				__( 'idle — %d unread' ),
 				totalUnread( state.server ),
 			);
@@ -977,7 +977,7 @@ async function handleManagerAction(
 		const confirmed = await desktop().confirm( {
 			title: __( 'Remove feed?' ),
 			message: sprintf(
-
+				/* translators: %s: feed title. */
 				__( 'Remove “%s” from your buddy list?' ),
 				subscription?.title ?? __( 'this feed' ),
 			),

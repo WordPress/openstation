@@ -69,7 +69,6 @@ export class OsAvatar extends Component {
 	private _onPointerMove: ( ( e: PointerEvent ) => void ) | null = null;
 	private _onPointerEnter: ( ( e: PointerEvent ) => void ) | null = null;
 	private _onPointerLeave: ( ( e: PointerEvent ) => void ) | null = null;
-
 	private _tiltRaf = 0;
 	private _pendingTiltX = '0deg';
 	private _pendingTiltY = '0deg';
@@ -115,7 +114,6 @@ export class OsAvatar extends Component {
 		const sizeRaw = this._attr( 'size' );
 		const size = this._resolveSize( sizeRaw );
 		const presence = this._presenceForRender();
-
 		const clickable = this._attr( 'clickable' ) !== null;
 
 		this.style.setProperty( '--os-ui-avatar-size', `${ size }px` );
@@ -181,7 +179,6 @@ export class OsAvatar extends Component {
 		if ( ! trimmed ) {
 			return '?';
 		}
-
 		return Array.from( trimmed )[ 0 ]?.toUpperCase() ?? '?';
 	}
 
@@ -238,7 +235,6 @@ export class OsAvatar extends Component {
 		};
 		this._onPointerLeave = (): void => {
 			this.style.setProperty( '--os-ui-avatar-hover', '0' );
-
 			this._pendingTiltX = '0deg';
 			this._pendingTiltY = '0deg';
 			this._pendingGlareX = '50%';
@@ -250,14 +246,12 @@ export class OsAvatar extends Component {
 			if ( rect.width === 0 || rect.height === 0 ) {
 				return;
 			}
-
 			const nx = ( e.clientX - rect.left ) / rect.width - 0.5;
 			const ny = ( e.clientY - rect.top ) / rect.height - 0.5;
 
 			const MAX = 14;
 			this._pendingTiltY = `${ ( nx * MAX ).toFixed( 2 ) }deg`;
 			this._pendingTiltX = `${ ( -ny * MAX ).toFixed( 2 ) }deg`;
-
 			const gx = Math.max( 0, Math.min( 100, ( nx + 0.5 ) * 100 ) );
 			const gy = Math.max( 0, Math.min( 100, ( ny + 0.5 ) * 100 ) );
 			this._pendingGlareX = `${ gx.toFixed( 1 ) }%`;

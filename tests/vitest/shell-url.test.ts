@@ -54,7 +54,6 @@ describe( 'consumers refuse the shell screen', () => {
 		expect(
 			isSpeculatableDocument( new URL( `${ SHELL }&openstation_chromeless=1` ) ),
 		).toBe( false );
-
 		expect(
 			isSpeculatableDocument(
 				new URL( `${ ADMIN }admin.php?page=acme-crm&openstation_chromeless=1` ),

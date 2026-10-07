@@ -30,7 +30,6 @@ describe( '<os-facts>', () => {
 		expect(
 			rows[ 0 ].shadowRoot!.querySelector( 'dd' )!.textContent,
 		).toBe( '' );
-
 		expect( rows[ 0 ].textContent ).toContain( 'class-foo.php' );
 	} );
 

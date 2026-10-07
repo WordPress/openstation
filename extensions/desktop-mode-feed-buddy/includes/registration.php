@@ -75,7 +75,7 @@ function feed_buddy_register_surfaces() {
 		)
 	);
 	if ( is_wp_error( $window ) ) {
-		error_log( '[feed-buddy] reader registration failed: ' . $window->get_error_message() );
+		error_log( '[feed-buddy] reader registration failed: ' . $window->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 
 	$widget = openstation_register_widget(
@@ -97,7 +97,7 @@ function feed_buddy_register_surfaces() {
 		)
 	);
 	if ( is_wp_error( $widget ) ) {
-		error_log( '[feed-buddy] widget registration failed: ' . $widget->get_error_message() );
+		error_log( '[feed-buddy] widget registration failed: ' . $widget->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 
 	if ( ! function_exists( 'openstation_register_icon' ) ) {
@@ -115,7 +115,7 @@ function feed_buddy_register_surfaces() {
 		)
 	);
 	if ( is_wp_error( $icon ) ) {
-		error_log( '[feed-buddy] icon registration failed: ' . $icon->get_error_message() );
+		error_log( '[feed-buddy] icon registration failed: ' . $icon->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 }
 

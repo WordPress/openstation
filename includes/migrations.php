@@ -19,7 +19,6 @@ function openstation_maybe_run_migrations() {
 add_action( 'admin_init', 'openstation_maybe_run_migrations' );
 
 function openstation_run_migrations_on_activation() {
-
 	if ( false !== get_option( OPENSTATION_MIGRATION_OPTION, false ) ) {
 		return;
 	}
@@ -86,7 +85,7 @@ function openstation_migrate_agent_ability_slugs() {
 	$user_ids = get_users(
 		array(
 			'fields'       => 'ID',
-			'meta_key'     => $meta_key,
+			'meta_key'     => $meta_key, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
 			'meta_compare' => 'EXISTS',
 		)
 	);
@@ -141,7 +140,6 @@ function openstation_migrate_first_run_stamps() {
 }
 
 function openstation_migrate_seed_agent_faces() {
-
 	if (
 		! function_exists( 'openstation_agent_get_agents' )
 		|| ! function_exists( 'openstation_agent_get_face_seed' )
@@ -190,7 +188,7 @@ function openstation_migrate_close_recycle_bin_icon_gap() {
 
 	$wpdb->query(
 		$wpdb->prepare(
-
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name, not user input.
 			"UPDATE `{$tbl}` AS p
 			INNER JOIN (
 				SELECT owner_id, x, y FROM `{$tbl}`
@@ -232,14 +230,14 @@ function openstation_users_with_prior_desktop_use() {
 				get_users(
 					array(
 						'fields'       => 'ID',
-						'meta_key'     => 'desktop_mode_mode',
+						'meta_key'     => 'desktop_mode_mode', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- the key is indexed in usermeta; the migration callers run once per install, and the deactivation feedback route once per admin submission.
 						'meta_compare' => 'EXISTS',
 					)
 				),
 				get_users(
 					array(
 						'fields'       => 'ID',
-						'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY,
+						'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- see above.
 						'meta_compare' => 'EXISTS',
 					)
 				)
@@ -272,7 +270,6 @@ function openstation_should_show_rebrand_notice() {
 }
 
 function openstation_migrate_brand_defaults() {
-
 	$map = array(
 		'accent'    => array(
 			'from' => 'wp-blue',
@@ -287,7 +284,7 @@ function openstation_migrate_brand_defaults() {
 	$user_ids = get_users(
 		array(
 			'fields'       => 'ID',
-			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY,
+			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
 			'meta_compare' => 'EXISTS',
 		)
 	);
@@ -303,7 +300,6 @@ function openstation_migrate_brand_defaults() {
 			if ( ! isset( $move['from'], $move['to'] ) ) {
 				continue;
 			}
-
 			if ( isset( $raw[ $key ] ) && $move['from'] === $raw[ $key ] ) {
 				$raw[ $key ] = $move['to'];
 				$changed     = true;
@@ -328,7 +324,7 @@ function openstation_migrate_os_settings_optin() {
 	$user_ids = get_users(
 		array(
 			'fields'       => 'ID',
-			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY,
+			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
 			'meta_compare' => 'EXISTS',
 		)
 	);
@@ -366,13 +362,12 @@ function openstation_migrate_remove_comments_ai() {
 }
 
 function openstation_migrate_delete_ai_keys() {
-
 	delete_option( 'desktop_mode_ai_platform' );
 
 	$user_ids = get_users(
 		array(
 			'fields'       => 'ID',
-			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY,
+			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; guarded to run once.
 			'meta_compare' => 'EXISTS',
 		)
 	);

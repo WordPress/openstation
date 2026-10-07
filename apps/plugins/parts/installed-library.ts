@@ -178,7 +178,7 @@ function pluginCard( ctx: Ctx, host: PluginsHost, ui: InstalledUi, row: Installe
 			<os-checkbox
 				class="os-plugins__pick"
 				?checked=${ ui.selected.includes( row.plugin ) }
-				aria-label=${ sprintf( __( 'Select %s', 'desktop-mode' ), name ) }
+				aria-label=${ sprintf( /* translators: %s: plugin name */ __( 'Select %s', 'desktop-mode' ), name ) }
 				@os-checkbox-change=${ select }
 			></os-checkbox>
 		</div>
@@ -203,7 +203,7 @@ function pluginCard( ctx: Ctx, host: PluginsHost, ui: InstalledUi, row: Installe
 				variant="ghost"
 				size="small"
 				data-plugin-details
-				aria-label=${ sprintf( __( 'Details for %s', 'desktop-mode' ), name ) }
+				aria-label=${ sprintf( /* translators: %s: plugin name */ __( 'Details for %s', 'desktop-mode' ), name ) }
 				@click=${ open }
 				>${ __( 'Details', 'desktop-mode' ) }<span aria-hidden="true"> ↗</span></os-button
 			>
@@ -274,7 +274,7 @@ function selectionBar( ctx: Ctx, host: PluginsHost, ui: InstalledUi, rows: Insta
 		></os-checkbox>
 		<span class="os-plugins__selection-count" role="status"
 			>${ sprintf(
-				                                        __( '%d selected', 'desktop-mode' ),
+				/* translators: %d: selected plugins */ __( '%d selected', 'desktop-mode' ),
 				ui.selected.length,
 			) }</span
 		>
@@ -323,7 +323,6 @@ export function installedPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): 
 			? ( b.openstation_size_kb ?? 0 ) - ( a.openstation_size_kb ?? 0 ) || a.name.localeCompare( b.name )
 			: a.name.localeCompare( b.name ),
 	);
-
 	const layoutKey = JSON.stringify( [ state.installedView, state.status, state.search, ui.sort, rows.map( ( row ) => [ row.plugin, pluginLane( row ) ] ) ] );
 	if ( ui.layoutKey !== layoutKey ) {
 		ui.layoutKey = layoutKey;
@@ -456,7 +455,7 @@ export function installedPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): 
 				${ data.error
 					? html`<os-notice tone="error"
 							>${ sprintf(
-								                                     __( 'Could not load plugins: %s', 'desktop-mode' ),
+								/* translators: %s: error message */ __( 'Could not load plugins: %s', 'desktop-mode' ),
 								data.error,
 							) }</os-notice
 						>`

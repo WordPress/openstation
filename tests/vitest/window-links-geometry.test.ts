@@ -83,12 +83,10 @@ describe( 'visibleBorderAnchor', () => {
 			x: 500,
 			y: 150,
 		} );
-
 		expect( anchor ).toEqual( { x: 300, y: 150, side: 'right' } );
 	} );
 
 	test( 'a sibling covering part of the right edge shifts the anchor to the visible stretch', () => {
-
 		const obstacles = [ obstacle( 'sibling', 250, 80, 100, 80, 5 ) ];
 		const anchor = visibleBorderAnchor( RECT, 1, obstacles, 'me', {
 			x: 500,
@@ -98,7 +96,6 @@ describe( 'visibleBorderAnchor', () => {
 	} );
 
 	test( 'stretches shorter than the minimum are skipped', () => {
-
 		const obstacles = [
 			obstacle( 'sibling', 250, 80, 100, 200 - 80 - 10, 5 ),
 		];

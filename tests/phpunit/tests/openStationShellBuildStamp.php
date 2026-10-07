@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 
 	private $dir;
@@ -26,9 +28,12 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 	}
 
 	private function write( $relative, $contents ) {
-		file_put_contents( $this->dir . $relative, $contents );
+		file_put_contents( $this->dir . $relative, $contents ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 	}
 
+	/**
+	 * @covers ::openstation_shell_build_stamp
+	 */
 	public function test_is_sixteen_hex_characters_and_stable() {
 		$this->write( 'assets/css/desktop.css', 'body { color: red; }' );
 		$this->write( 'assets/js/desktop.min.js', 'console.log( 1 );' );
@@ -39,6 +44,9 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 		$this->assertSame( $stamp, openstation_shell_build_stamp( $this->dir ) );
 	}
 
+	/**
+	 * @covers ::openstation_shell_build_stamp
+	 */
 	public function test_a_changed_mtime_with_the_same_bytes_is_the_same_stamp() {
 		$this->write( 'assets/css/desktop.css', 'body { color: red; }' );
 		$this->write( 'assets/js/desktop.min.js', 'console.log( 1 );' );
@@ -51,6 +59,9 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 		$this->assertSame( $before, openstation_shell_build_stamp( $this->dir ) );
 	}
 
+	/**
+	 * @covers ::openstation_shell_build_stamp
+	 */
 	public function test_changed_bytes_are_a_different_stamp() {
 		$this->write( 'assets/css/desktop.css', 'body { color: red; }' );
 		$this->write( 'assets/js/desktop.min.js', 'console.log( 1 );' );
@@ -62,6 +73,9 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 		$this->assertNotSame( $before, openstation_shell_build_stamp( $this->dir ) );
 	}
 
+	/**
+	 * @covers ::openstation_shell_build_stamp
+	 */
 	public function test_an_added_file_is_a_different_stamp() {
 		$this->write( 'assets/css/desktop.css', 'body { color: red; }' );
 		$before = openstation_shell_build_stamp( $this->dir );
@@ -72,10 +86,16 @@ class Tests_OpenStation_ShellBuildStamp extends WP_UnitTestCase {
 		$this->assertNotSame( $before, openstation_shell_build_stamp( $this->dir ) );
 	}
 
+	/**
+	 * @covers ::openstation_shell_build_stamp
+	 */
 	public function test_nothing_built_is_the_empty_string() {
 		$this->assertSame( '', openstation_shell_build_stamp( $this->dir ) );
 	}
 
+	/**
+	 * @covers ::openstation_shell_build_stamp
+	 */
 	public function test_default_directory_is_the_plugin() {
 		$stamp = openstation_shell_build_stamp();
 		if ( '' === $stamp ) {

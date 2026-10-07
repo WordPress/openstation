@@ -62,7 +62,6 @@ export class OsConfirmDialog extends Component {
 				description: 'Fires on cancel (Cancel button, Escape, backdrop click). Detail: `{ confirmed: false }`.',
 			},
 		],
-
 		example: html`
 			<os-cluster gap="8">
 				<os-button data-demo="ask">Ask me something</os-button>
@@ -85,7 +84,6 @@ export class OsConfirmDialog extends Component {
 			const danger = root.querySelector< HTMLElement >(
 				'[data-demo="danger"]',
 			);
-
 			if ( ask ) {
 				ask.onclick = () => {
 					dialog.removeAttribute( 'danger' );
@@ -121,7 +119,6 @@ export class OsConfirmDialog extends Component {
 		super.connectedCallback();
 		this.setAttribute( 'role', 'dialog' );
 		this.setAttribute( 'aria-modal', 'true' );
-
 		if ( ! this.hasAttribute( 'tabindex' ) ) {
 			this.setAttribute( 'tabindex', '-1' );
 		}
@@ -132,7 +129,6 @@ export class OsConfirmDialog extends Component {
 	disconnectedCallback() {
 		this.removeEventListener( 'keydown', this._onKey );
 		this.removeEventListener( 'click', this._onBackdrop );
-
 		this._restoreFocus();
 	}
 
@@ -168,7 +164,6 @@ export class OsConfirmDialog extends Component {
 			if ( isControl( eventSource( e ) ) ) {
 				return;
 			}
-
 			if ( this.hasAttribute( 'danger' ) ) {
 				return;
 			}
@@ -216,7 +211,6 @@ export class OsConfirmDialog extends Component {
 			queueMicrotask( this._focusInitial );
 			return;
 		}
-
 		if ( this.isConnected ) {
 			this.focus();
 		}
@@ -228,7 +222,6 @@ export class OsConfirmDialog extends Component {
 			return null;
 		}
 		const cancel = root.querySelector< HTMLElement >( '.btn--secondary' );
-
 		const container = root.querySelector< HTMLElement >( '.dialog' );
 		if ( this.hasAttribute( 'danger' ) ) {
 			return (
@@ -343,13 +336,9 @@ export interface OsConfirmOptions {
 	confirmLabel?: string;
 	cancelLabel?: string;
 	danger?: boolean;
-
 	hideCancel?: boolean;
-
 	dismissable?: boolean;
-
 	rememberLabel?: string;
-
 	onRemember?: ( remember: boolean ) => void;
 }
 

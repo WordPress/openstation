@@ -27,7 +27,6 @@ export class OsSegment extends Component {
 				detail: '{ value: string }',
 			},
 		],
-
 		example: html`
 			<os-segmented value="md" label="Dock size">
 				<os-segment value="sm">Small</os-segment>
@@ -107,14 +106,12 @@ export class OsSegmented extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
 		this.addEventListener( 'os-segment-pick', ( e: Event ) => {
 			const detail = ( e as CustomEvent ).detail as { value: string };
 			e.stopPropagation();
 			( this as unknown as { value: string } ).value = detail.value;
 			this.emit( 'os-pick', { value: detail.value } );
 		} );
-
 		if ( typeof ResizeObserver !== 'undefined' ) {
 			this._resizeObserver = new ResizeObserver( () => this._placeThumb() );
 			this._resizeObserver.observe( this );
@@ -142,20 +139,16 @@ export class OsSegmented extends Component {
 			return;
 		}
 		const host = this.getBoundingClientRect();
-
 		const raw = host.width / this.offsetWidth;
-
 		const scale = Math.abs( raw - 1 ) < 0.02 ? 1 : raw;
 		if ( ! ( scale > 0 ) ) {
 			return;
 		}
 		const box = selected.getBoundingClientRect();
-
 		const px = ( v: number ) => `${ Math.round( v * 100 ) / 100 }px`;
 		this.style.setProperty( '--_thumb-x', px( ( box.left - host.left ) / scale ) );
 		this.style.setProperty( '--_thumb-w', px( box.width / scale ) );
 		this.setAttribute( 'data-thumb', '' );
-
 		if ( ! this.hasAttribute( 'data-thumb-ready' ) ) {
 			requestAnimationFrame( () =>
 				this.setAttribute( 'data-thumb-ready', '' ),
@@ -191,7 +184,6 @@ export class OsSegmented extends Component {
 			this.setAttribute( 'aria-label', label );
 		}
 		this.setAttribute( 'role', 'radiogroup' );
-
 		const current = ( this as unknown as { value: string | null } ).value;
 		queueMicrotask( () => {
 			const segs = this.querySelectorAll( 'os-segment' );
@@ -204,7 +196,6 @@ export class OsSegmented extends Component {
 			}
 			this._placeThumb();
 		} );
-
 		return html`<span class="os-segmented__thumb" aria-hidden="true"></span
 			><slot></slot>`;
 	}

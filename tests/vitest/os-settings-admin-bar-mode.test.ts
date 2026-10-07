@@ -62,7 +62,6 @@ describe( 'apply() — admin bar mode', () => {
 	} );
 
 	test( 'defaults to hidden with nothing persisted', () => {
-
 		makeSettings().apply();
 
 		expect( modeClasses() ).toEqual( [ 'hidden' ] );

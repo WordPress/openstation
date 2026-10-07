@@ -1,17 +1,10 @@
 export interface DesktopFileShape {
-
 	type: string;
-
 	ref: string;
-
 	title: string;
-
 	icon: string;
-
 	previewUrl: string;
-
 	exists: boolean;
-
 	[ key: string ]: unknown;
 }
 

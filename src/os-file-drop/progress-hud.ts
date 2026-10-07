@@ -301,3 +301,4 @@ function updateHeader(): void {
 		title.textContent = 'Uploads';
 	}
 }
+

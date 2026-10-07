@@ -9,7 +9,6 @@ const MOUNT_DELAY_MS = 1200;
 const FOCUSABLE = 'a[href], button:not([disabled])';
 
 export interface RebrandNoticeDeps {
-
 	config: DesktopConfig;
 }
 
@@ -32,7 +31,6 @@ async function markSeen( config: DesktopConfig ): Promise< void > {
 			{ source: 'desktop-mode/rebrand-notice', silent: true },
 		);
 	} catch {
-
 	}
 }
 
@@ -117,7 +115,6 @@ export async function maybeShowRebrandNotice(
 	if ( ! config.rebrandNotice ) {
 		return;
 	}
-
 	if ( config.seenIntros?.includes( REBRAND_INTRO_SLUG ) ) {
 		return;
 	}
@@ -139,7 +136,6 @@ export async function maybeShowRebrandNotice(
 		closed = true;
 		document.removeEventListener( 'keydown', onKeyDown, true );
 		scrim.remove();
-
 		returnFocusTo?.focus?.();
 		void markSeen( config );
 	};
@@ -157,7 +153,6 @@ export async function maybeShowRebrandNotice(
 		if ( e.key !== 'Tab' ) {
 			return;
 		}
-
 		const items = Array.from(
 			scrim.querySelectorAll< HTMLElement >( FOCUSABLE ),
 		);
@@ -189,7 +184,6 @@ export async function maybeShowRebrandNotice(
 	) ) {
 		el.addEventListener( 'click', close );
 	}
-
 	document.addEventListener( 'keydown', onKeyDown, true );
 
 	document.body.appendChild( scrim );

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-games
+ */
 class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 
 	public function set_up() {
@@ -7,6 +10,9 @@ class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 		openstation_games_install_schema();
 	}
 
+	/**
+	 * @covers ::openstation_games_install_schema
+	 */
 	public function test_schema_creates_both_tables() {
 		global $wpdb;
 		$tables = openstation_games_table_names();
@@ -17,6 +23,9 @@ class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_games_install_schema
+	 */
 	public function test_schema_stamps_version_option() {
 		$this->assertSame(
 			OPENSTATION_GAMES_SCHEMA_VERSION,
@@ -24,8 +33,10 @@ class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_games_install_schema
+	 */
 	public function test_install_is_idempotent() {
-
 		global $wpdb;
 		$tables = openstation_games_table_names();
 		$wpdb->insert(
@@ -43,6 +54,9 @@ class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 		$this->assertSame( 1, $count );
 	}
 
+	/**
+	 * @covers ::openstation_games_maybe_install_schema
+	 */
 	public function test_maybe_install_noops_on_matching_version() {
 		$fired = 0;
 		add_action(
@@ -59,6 +73,9 @@ class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 		$this->assertSame( 1, $fired );
 	}
 
+	/**
+	 * @covers ::openstation_games_now_ms
+	 */
 	public function test_now_ms_is_epoch_milliseconds() {
 		$now = openstation_games_now_ms();
 		$this->assertIsInt( $now );

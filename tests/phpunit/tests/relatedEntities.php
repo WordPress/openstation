@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -37,6 +39,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_for_post
+	 */
 	public function test_comments_item_carries_count_and_filtered_url() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create_many( 3, array( 'comment_post_ID' => $post_id ) );
@@ -50,6 +55,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'edit-comments.php?p=' . $post_id, $comments[0]['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_for_post
+	 */
 	public function test_comments_item_counts_pending_comments() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create_many(
@@ -68,6 +76,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame( 3, $comments[0]['count'] );
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_for_post
+	 */
 	public function test_no_comments_item_when_post_has_no_comments() {
 		$post_id = self::factory()->post->create();
 
@@ -76,6 +87,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame( array(), $this->items_in_group( $related, 'comments' ) );
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_for_post
+	 */
 	public function test_no_comments_item_when_post_type_support_is_removed() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create_many( 2, array( 'comment_post_ID' => $post_id ) );
@@ -87,6 +101,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame( array(), $this->items_in_group( $related, 'comments' ) );
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_for_post
+	 */
 	public function test_assigned_terms_yield_per_taxonomy_groups_with_term_edit_urls() {
 		$cat_id  = self::factory()->category->create( array( 'name' => 'Consoles' ) );
 		$tag_id  = self::factory()->tag->create( array( 'name' => 'retro' ) );
@@ -111,6 +128,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-tag', $tags[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_for_post
+	 */
 	public function test_media_items_cover_featured_attached_and_embedded_deduped() {
 		$post_id     = self::factory()->post->create();
 		$featured_id = self::factory()->attachment->create_object(
@@ -127,7 +147,6 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 			)
 		);
 		set_post_thumbnail( $post_id, $featured_id );
-
 		wp_update_post(
 			array(
 				'ID'           => $post_id,
@@ -147,6 +166,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_for_post
+	 */
 	public function test_internal_links_yield_linked_posts_items() {
 		$target_id = self::factory()->post->create( array( 'post_title' => 'Target Post' ) );
 		$source_id = self::factory()->post->create();
@@ -169,6 +191,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'post.php?post=' . $target_id . '&action=edit', $links[0]['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_for_post
+	 */
 	public function test_custom_post_types_get_no_builtin_items() {
 		register_post_type( 'acme_order', array( 'public' => true ) );
 		$order_id = self::factory()->post->create( array( 'post_type' => 'acme_order' ) );
@@ -180,6 +205,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame( array(), $related );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_identity_carries_related_for_a_post_edit_screen() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
@@ -191,6 +219,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertNotEmpty( $this->items_in_group( $identity['related'], 'comments' ) );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_identity_omits_related_when_nothing_applies() {
 		$page_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
 		$this->fake_post_edit_screen( get_post( $page_id ) );
@@ -201,6 +232,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'related', $identity );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_related_filter_receives_related_identity_and_screen() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
@@ -224,6 +258,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertInstanceOf( 'WP_Screen', $captured[2] );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_related_filter_can_add_and_remove_items() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
@@ -249,6 +286,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame( 'acme/report', $identity['related'][0]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_related_filter_applies_to_plugin_injected_identities() {
 		set_current_screen( 'dashboard' );
 
@@ -283,6 +323,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame( 'acme/customer-12', $identity['related'][0]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_rewritten_identity_suppresses_builtin_related_items() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
@@ -304,6 +347,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'related', $identity );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_same_object_identity_rewrite_keeps_builtin_related_items() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
@@ -322,6 +368,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertNotEmpty( $this->items_in_group( $identity['related'], 'comments' ) );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_related_filter_is_not_applied_without_an_identity() {
 		set_current_screen( 'dashboard' );
 
@@ -338,6 +387,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertFalse( $called );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_filtered_comments_list_roots_at_the_post() {
 		$post_id = self::factory()->post->create( array( 'post_title' => 'Discussed' ) );
 
@@ -360,6 +412,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Discussed', $identity['label'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_content_identity
+	 */
 	public function test_unfiltered_comments_list_yields_null() {
 		$GLOBALS['pagenow'] = 'edit-comments.php';
 		set_current_screen( 'edit-comments' );
@@ -367,10 +422,12 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertNull( openstation_build_content_identity() );
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_sanitize
+	 */
 	public function test_sanitizer_drops_malformed_items_and_whitelists_fields() {
 		$sanitized = openstation_window_related_entities_sanitize(
 			array(
-
 				array(
 					'id'         => 'good',
 					'group'      => 'acme/things',
@@ -380,7 +437,6 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 					'count'      => '5',
 					'extra'      => 'dropped',
 				),
-
 				array(
 					'id'    => 'markup',
 					'group' => 'acme/things',
@@ -393,14 +449,12 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 					'label' => 'Missing id',
 					'url'   => 'https://example.test/',
 				),
-
 				array(
 					'id'    => 'ws',
 					'group' => 'acme/things',
 					'label' => '   ',
 					'url'   => 'https://example.test/',
 				),
-
 				array(
 					'id'    => 'zero',
 					'group' => 'acme/things',
@@ -433,11 +487,17 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_window_related_entities_sanitize
+	 */
 	public function test_sanitizer_returns_empty_array_for_non_arrays() {
 		$this->assertSame( array(), openstation_window_related_entities_sanitize( null ) );
 		$this->assertSame( array(), openstation_window_related_entities_sanitize( 'nope' ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_content_identity
+	 */
 	public function test_rest_content_identity_returns_fresh_identity_with_related() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$post_id = self::factory()->post->create( array( 'post_title' => "It's fresh" ) );
@@ -452,11 +512,13 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$identity = $response->get_data()['identity'];
 		$this->assertSame( 'post', $identity['type'] );
 		$this->assertSame( $post_id, $identity['id'] );
-
 		$this->assertSame( 'It’s fresh', $identity['label'] );
 		$this->assertNotEmpty( $this->items_in_group( $identity['related'], 'comments' ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_content_identity
+	 */
 	public function test_rest_content_identity_applies_both_filters_with_null_screen() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$post_id = self::factory()->post->create();
@@ -488,6 +550,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertContains( 'acme/from-rest', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_rest_content_identity_permission
+	 */
 	public function test_rest_content_identity_requires_auth_and_edit_cap() {
 		$post_id = self::factory()->post->create();
 
@@ -502,6 +567,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame( 403, rest_get_server()->dispatch( $request )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_rest_content_identity
+	 */
 	public function test_rest_content_identity_rejects_attachments_and_missing_posts() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$attachment_id = self::factory()->attachment->create_object(
@@ -520,6 +588,9 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_contains_the_save_watcher() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -529,7 +600,6 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 
 		ob_start();
 		openstation_chromeless_bridge_script();
-
 		$inline = wp_scripts()->get_data( 'os-chromeless-bridge', 'before' );
 		$output = (string) ob_get_clean()
 			. ( is_array( $inline ) ? implode( "\n", $inline ) : (string) $inline )

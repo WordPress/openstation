@@ -9,7 +9,6 @@ export const styles = css`
 		align-items: center;
 		min-width: 0;
 		font-family: var( --os-ui-font, system-ui, sans-serif );
-
 		font-size: 12px;
 		line-height: 1;
 		font-weight: 500;
@@ -22,7 +21,6 @@ export const styles = css`
 		max-width: 100%;
 		min-width: 0;
 		min-height: 22px;
-
 		border-radius: 999px;
 		overflow: hidden;
 		filter: drop-shadow( 0 1px 1px rgba( 0, 0, 0, 0.06 ) );
@@ -45,7 +43,6 @@ export const styles = css`
 		font-weight: 500;
 		letter-spacing: 0.01em;
 		white-space: nowrap;
-
 		cursor: grab;
 		transition: filter 0.15s ease, transform 0.15s ease, background-color 0.12s ease;
 	}
@@ -55,7 +52,6 @@ export const styles = css`
 	.os-crumb:hover {
 		filter: brightness( 1.06 );
 	}
-
 	.os-crumb__remove {
 		cursor: pointer;
 	}
@@ -94,7 +90,6 @@ export const styles = css`
 			0 50%
 		);
 	}
-
 	.os-crumb--solo {
 		padding: 2px 12px;
 		border-radius: 999px;
@@ -105,7 +100,6 @@ export const styles = css`
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-
 		line-height: 1.4;
 	}
 
@@ -133,7 +127,6 @@ export const styles = css`
 		outline: none;
 		transform: scale( 1.1 );
 	}
-
 	.os-crumb__remove svg {
 		display: block;
 		width: 100%;

@@ -7,14 +7,12 @@ const OPENSTATION_AGENT_FACE_SIZE = 96;
 function openstation_agent_faces_dir() {
 	$uploads = wp_get_upload_dir();
 	$base    = trailingslashit( $uploads['basedir'] ) . 'desktop-mode-agent-faces';
-
 	return (string) apply_filters( 'openstation_agent_faces_base_dir', $base );
 }
 
 function openstation_agent_faces_url() {
 	$uploads = wp_get_upload_dir();
 	$url     = untrailingslashit( $uploads['baseurl'] ) . '/desktop-mode-agent-faces';
-
 	return (string) apply_filters( 'openstation_agent_faces_base_url', $url );
 }
 
@@ -30,7 +28,7 @@ function openstation_agent_faces_ensure_dir() {
 
 	$index = $base . '/index.php';
 	if ( ! file_exists( $index ) ) {
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		file_put_contents( $index, "<?php // Silence is golden.\n" );
 	}
 
@@ -43,7 +41,7 @@ function openstation_agent_faces_ensure_dir() {
 			. "\t<IfModule mod_authz_core.c>\n\t\tRequire all denied\n\t</IfModule>\n"
 			. "\t<IfModule !mod_authz_core.c>\n\t\tOrder deny,allow\n\t\tDeny from all\n\t</IfModule>\n"
 			. "</FilesMatch>\n";
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		file_put_contents( $htaccess, $rules );
 	}
 
@@ -90,6 +88,7 @@ function openstation_agent_face_write( $user_id ) {
 	$look = openstation_mio_clamp_look( openstation_agent_get_face( $user_id ) );
 	$svg  = openstation_mio_portrait_svg( $look, OPENSTATION_AGENT_FACE_SIZE );
 
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 	$written = file_put_contents( $path, $svg );
 	if ( false === $written ) {
 		return new WP_Error(

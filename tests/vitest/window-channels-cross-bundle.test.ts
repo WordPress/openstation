@@ -90,7 +90,6 @@ describe( 'window-channels across a bundle seam', () => {
 		const [ windowSystem, shell ] = await loadCopies();
 
 		const seen: unknown[] = [];
-
 		windowSystem.addParentSubscriber( 'probe', 'ping', ( payload ) => {
 			seen.push( payload );
 		} );

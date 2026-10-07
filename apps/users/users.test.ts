@@ -68,7 +68,6 @@ function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = 
 		},
 		data: { list: { items: [ user() ], total: 1, pages: 1, page: 1, perPage: 20 }, ...data },
 		root,
-
 		extra: { menuTabs: usersTabs( { ...facts, ...extra } ), ...facts, ...extra } as Record< string, unknown >,
 	} );
 	ctx.repaint = () => app.render( ctx );
@@ -223,7 +222,6 @@ describe( 'the users app view', () => {
 		expect( bar?.hasAttribute( 'hidden' ) ).toBe( true );
 		expect( bar?.classList.contains( 'os-app-list__bulk--footer' ) ).toBe( true );
 		expect( bar?.closest( 'header' ) ).toBeNull();
-
 		table!.selection = [ '2', '3' ];
 		table!.dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
 		expect( bar?.hasAttribute( 'hidden' ) ).toBe( false );
@@ -341,7 +339,6 @@ describe( 'the table parts', () => {
 		expect( cell( 'identity' ).querySelector( 'os-avatar' )?.getAttribute( 'presence' ) ).toBe( 'offline' );
 		const buttons = cell( 'actions' ).querySelectorAll( 'button' );
 		expect( buttons.length ).toBe( 2 );
-
 		for ( const btn of Array.from( buttons ) ) {
 			expect( btn.hasAttribute( 'data-noclick' ) ).toBe( true );
 			expect( btn.style.background ).toContain( '--os-ui-surface' );

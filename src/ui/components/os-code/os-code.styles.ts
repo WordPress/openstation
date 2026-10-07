@@ -26,11 +26,9 @@ export const styles = css`
 		white-space: var( --os-ui-code-white-space, nowrap );
 		overflow-wrap: anywhere;
 	}
-
 	:host( [ block ] ) {
 		display: block;
 	}
-
 	:host( [ block ] ) code {
 		display: block;
 		padding: var( --os-ui-code-block-padding, 10px 12px );
@@ -52,7 +50,6 @@ export const styles = css`
 		align-items: center;
 		gap: var( --os-ui-code-copy-gap, 8px );
 	}
-
 	.copy {
 		appearance: none;
 		display: inline-flex;
@@ -80,7 +77,6 @@ export const styles = css`
 		color: var( --os-ui-code-copy-color-hover, var( --wp-admin-theme-color, #007cba ) );
 		background: var( --os-ui-code-copy-bg, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 	}
-
 	:host( [ block ] ) .copy {
 		position: absolute;
 		top: 6px;
@@ -92,7 +88,6 @@ export const styles = css`
 	:host( [ block ] ):focus-within .copy {
 		opacity: 1;
 	}
-
 	:host( [ block ][ copy ] ) code {
 		padding-inline-end: var( --os-ui-code-copy-inset, 42px );
 	}

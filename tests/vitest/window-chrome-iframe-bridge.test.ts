@@ -15,7 +15,6 @@ function buildFakeWindow() {
 			setAppearanceTheme,
 			setAppearanceControls,
 			setAppearanceSlot,
-
 			setTitle: vi.fn(),
 		},
 		fakeContentWindow,

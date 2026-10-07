@@ -92,7 +92,6 @@
 				try {
 					disposer();
 				} catch ( error ) {
-
 				}
 			}
 		}

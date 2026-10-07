@@ -30,7 +30,6 @@ describe( 'virtual desktops — overview tiles', () => {
 
 		dockEl = document.createElement( 'nav' );
 		document.body.appendChild( dockEl );
-
 		const overview: SystemDockItem = {
 			id: 'os-overview',
 			title: 'Workspaces',
@@ -90,7 +89,6 @@ describe( 'virtual desktops — overview tiles', () => {
 		expect( manager.getDesktops()[ 0 ].label ).toBe( 'Writing' );
 		expect( labelEl().textContent ).toBe( 'Writing' );
 		expect( editing() ).toBe( false );
-
 		expect( manager._overviewActive ).toBe( true );
 
 		renameButton().click();
@@ -113,7 +111,6 @@ describe( 'virtual desktops — overview tiles', () => {
 			)!;
 		renameButton().click();
 		expect( editing() ).toBe( true );
-
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
 
 		firstTile().click();
@@ -180,7 +177,6 @@ describe( 'virtual desktops — overview tiles', () => {
 		expect( layer( 'os-z-desktop-name' ) ).toBeGreaterThan(
 			layer( 'os-z-base' ),
 		);
-
 		expect( layer( 'os-z-desktop-name' ) ).toBeLessThan(
 			layer( 'os-z-dock' ),
 		);
@@ -188,7 +184,6 @@ describe( 'virtual desktops — overview tiles', () => {
 		hud()!.remove();
 		manager.enterOverview();
 		manager.switchDesktop( 'desktop-1' );
-
 		expect( hud() ).toBeNull();
 	} );
 

@@ -155,7 +155,6 @@ describe( 'agents helpers', () => {
 		expect( cast.stripSeed ).toBe( 42 );
 		expect( cast.triggers ).toEqual( [ { kind: 'chat', config: {} } ] );
 		expect( Object.keys( cast.face.appearance ).length ).toBeGreaterThan( 0 );
-
 		expect( emptyCast( 'author', 42 ).face ).toEqual( cast.face );
 	} );
 
@@ -169,7 +168,6 @@ describe( 'agents helpers', () => {
 		expect( agentFaceSrc( agent(), 88 ) ).toBe( 'https://example.test/face-7.svg' );
 		const rolled = agentFaceSrc( agent( { face: { appearance: {}, physics: {} } } ), 88 );
 		expect( rolled.startsWith( 'data:image/svg+xml' ) ).toBe( true );
-
 		expect(
 			agentFaceSrc( agent( { face: { appearance: {}, physics: {} }, faceSeed: 0 } ), 88 ),
 		).toBe( 'https://example.test/face-7.svg' );
@@ -214,9 +212,7 @@ describe( 'agents helpers', () => {
 		};
 		expect( cast.name ).toContain( 'Indexer' );
 		expect( cast.copiedFrom ).toBe( 'Indexer' );
-
 		expect( cast.faceSeed ).not.toBe( 9 );
-
 		expect( cast.brief ).toBe( 'Index things.' );
 
 		const stepped = app.runLocal( 'agent-step', copied, { step: 3 }, data() ) as AppState;
@@ -265,7 +261,6 @@ describe( 'agents view', () => {
 		expect( root.querySelector( '.dm-agents__cast-card[data-agent-id="7"]' ) ).not.toBeNull();
 		expect( root.querySelector( '.dm-agents__cast-new' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'Cast a new agent' );
-
 		expect( root.textContent ).toContain( '1 agent' );
 		expect( root.querySelector( '.os-mywp__search' ) ).toBeNull();
 	} );
@@ -296,7 +291,6 @@ describe( 'agents view', () => {
 		expect( root.textContent ).toContain( 'Localizer' );
 		expect( root.querySelector( '.dm-agents__cast--preview' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'Turn on Agents' );
-
 		expect( root.querySelector( '.dm-agents__cast--preview [data-agent-id]' ) ).toBeNull();
 	} );
 
@@ -306,7 +300,6 @@ describe( 'agents view', () => {
 		expect( root.textContent ).toContain( 'Open profile' );
 		expect( root.textContent ).toContain( 'Chat' );
 		expect( root.querySelector( '[os-action="agent-delete"]' ) ).not.toBeNull();
-
 		expect( root.querySelector( 'os-checkbox-label[label="Search posts"]' ) ).not.toBeNull();
 		expect( root.querySelector( 'os-checkbox-label[label="Update a post"]' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'read-only' );
@@ -321,7 +314,6 @@ describe( 'agents view', () => {
 		expect( root.textContent ).toContain( 'New agent' );
 		const steps = root.querySelectorAll( 'os-step' );
 		expect( steps ).toHaveLength( 5 );
-
 		expect( steps[ 0 ].hasAttribute( 'interactive' ) ).toBe( false );
 		expect( steps[ 0 ].hasAttribute( 'current' ) ).toBe( true );
 		expect( Array.from( steps ).slice( 1 ).every( ( s ) => s.hasAttribute( 'interactive' ) ) ).toBe(
@@ -342,7 +334,6 @@ describe( 'agents view', () => {
 		expect( root.querySelector( '.dm-agents__face-pick.is-picked' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'Surprise me' );
 		expect( root.querySelector( 'os-text-field[label="Vibes"]' ) ).not.toBeNull();
-
 		expect( root.querySelectorAll( '.dm-agents__portrait-chips os-chip' ) ).toHaveLength( 2 );
 	} );
 

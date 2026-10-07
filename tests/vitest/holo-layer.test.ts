@@ -52,19 +52,16 @@ describe( 'the meshes are the brand’s own', () => {
 		expect( declared( '--os-mesh-pulse' ) ).toContain( '#c878f0' );
 		expect( declared( '--os-mesh-auro' ) ).toContain( '#cefada' );
 		expect( declared( '--os-mesh-star' ) ).toContain( '#fffbff' );
-
 		expect( declared( '--os-mesh-mio' ) ).toContain( '#f252fc' );
 		expect( declared( '--os-mesh-mio' ) ).toContain( '#4b3eff' );
 	} );
 
 	test( 'the default holographic fill IS Holomesh, and its ink is Void', () => {
 		expect( declared( '--os-ui-holo-fill' ) ).toBe( 'var(--os-mesh-holo)' );
-
 		expect( declared( '--os-ui-holo-ink' ) ).toBe( '#0c0b0f' );
 	} );
 
 	test( 'the surfaces that took the mesh are the bounded ones', () => {
-
 		expect( declared( '--os-ui-progress-fill' ) ).toBe( 'var(--os-mesh-holo)' );
 		expect( declared( '--os-ui-step-chip-bg' ) ).toBe( 'var(--os-mesh-holo)' );
 	} );
@@ -72,7 +69,6 @@ describe( 'the meshes are the brand’s own', () => {
 
 describe( 'the holo fragments keep the palette reachable', () => {
 	test( 'every custom property declared on :host is private', () => {
-
 		const declarations =
 			holoTokens.cssText.match( /--[a-z0-9_-]+\s*:/g ) ?? [];
 		const publicNames = declarations
@@ -84,7 +80,6 @@ describe( 'the holo fragments keep the palette reachable', () => {
 	} );
 
 	test( 'every alias reads its public token with a literal fallback', () => {
-
 		const flat = holoTokens.cssText.replace( /\s+/g, ' ' );
 		for ( const token of [
 			'--os-ui-holo-fill',
@@ -130,7 +125,6 @@ describe( 'the holo fragments keep the palette reachable', () => {
 	} );
 
 	test( 'the palette is on body.os-active, never :root', () => {
-
 		const holoBlock = CSS.slice( CSS.indexOf( '--os-mesh-holo' ) );
 		expect( CSS ).toContain( 'body.os-active {' );
 		expect( holoBlock.slice( 0, holoBlock.indexOf( '}' ) ) ).not.toContain(
@@ -141,7 +135,6 @@ describe( 'the holo fragments keep the palette reachable', () => {
 
 describe( 'the shared field chrome cannot outrank a component', () => {
 	test( 'the type exclusions are wrapped in :where()', () => {
-
 		const bare = holoField.cssText.match(
 			/input:not\(\s*\[\s*type='checkbox'/g,
 		);
@@ -152,7 +145,6 @@ describe( 'the shared field chrome cannot outrank a component', () => {
 	} );
 
 	test( 'checkboxes and radios are excluded from the field ring', () => {
-
 		expect( holoCheck.cssText ).toContain( 'var( --_holo-focus )' );
 		expect( holoField.cssText ).toContain( 'var( --_holo-focus-field )' );
 	} );
@@ -160,13 +152,11 @@ describe( 'the shared field chrome cannot outrank a component', () => {
 
 describe( 'Pulse is spent where it is stated, not where it is spread', () => {
 	test( 'the identity colour is untouched and the dim is its neighbour', () => {
-
 		expect( declared( '--os-ui-accent' ) ).toBe( '#f252fc' );
 		expect( declared( '--os-ui-accent-dim' ) ).toBe( '#d92ee3' );
 	} );
 
 	test( 'every ambient use of Pulse resolves through the dim', () => {
-
 		for ( const token of [
 			'--os-ui-accent-soft',
 			'--os-ui-holo-glow',
@@ -178,7 +168,6 @@ describe( 'Pulse is spent where it is stated, not where it is spread', () => {
 	} );
 
 	test( 'the focus RING itself stays at full strength, with no bloom', () => {
-
 		const ring = declared( '--os-ui-focus-ring' ) ?? '';
 		expect( ring ).toContain( '0 0 0 4px var(--os-ui-accent, #f252fc)' );
 		expect( ring ).not.toContain( '--os-ui-accent-dim' );
@@ -187,14 +176,12 @@ describe( 'Pulse is spent where it is stated, not where it is spread', () => {
 
 describe( 'the unlit half is visible, and the selection is legible', () => {
 	test( 'the off-state track is a LIFTED wash, not a sunken well', () => {
-
 		const track = declared( '--os-ui-holo-track' ) ?? '';
 		expect( track ).toContain( '255, 251, 255' );
 		expect( track ).not.toContain( '12, 11, 15' );
 	} );
 
 	test( 'the track carries a 3:1 boundary of its own', () => {
-
 		expect( declared( '--os-ui-holo-track-edge' ) ).toBe( '#66636b' );
 		expect( holoTokens.cssText.replace( /\s+/g, ' ' ) ).toContain(
 			'var( --os-ui-holo-track-edge,'
@@ -202,22 +189,18 @@ describe( 'the unlit half is visible, and the selection is legible', () => {
 	} );
 
 	test( 'the selection sets BOTH halves, and keeps the text its own colour', () => {
-
 		expect( declared( '--os-ui-selection-bg' ) ).toBe(
 			'rgba(159, 152, 255, 0.6)'
 		);
-
 		expect( declared( '--os-ui-selection-fg' ) ).toBe( '#fffbff' );
 	} );
 
 	test( 'the selection reaches the shell AND every shadow root', () => {
-
 		const shell = readFileSync(
 			resolve( ROOT, 'assets/css/desktop.css' ),
 			'utf8'
 		);
 		expect( shell ).toContain( 'body.os-active ::selection' );
-
 		expect( shell ).toContain( 'body.os-active ::-moz-selection' );
 		expect( shell ).toContain( '--os-ui-selection-bg' );
 		expect( holoField.cssText ).toContain( '--os-ui-selection-bg' );
@@ -225,7 +208,6 @@ describe( 'the unlit half is visible, and the selection is legible', () => {
 	} );
 
 	test( 'the shell selection rule does NOT reach inside iframe windows', () => {
-
 		const chromeless = readFileSync(
 			resolve( ROOT, 'assets/css/chromeless.css' ),
 			'utf8'
@@ -251,7 +233,6 @@ describe( 'motion is optional everywhere', () => {
 	} );
 
 	test( 'every duration and curve comes from the shared scale', () => {
-
 		for ( const fragment of [ holoGlint, holoRing, holoEnter ] ) {
 			expect( fragment.cssText ).toMatch( /var\( --_holo-t/ );
 			expect( fragment.cssText ).toMatch(
@@ -261,20 +242,17 @@ describe( 'motion is optional everywhere', () => {
 	} );
 
 	test( 'the two motion fragments are element-based, not pseudo-based', () => {
-
 		expect( holoGlint.cssText ).toContain( '.os-holo-glint {' );
 		expect( holoRing.cssText ).toContain( '.os-holo-ring {' );
 	} );
 
 	test( 'both motions are driven by the CHILD combinator', () => {
-
 		expect( holoRing.cssText ).toContain( '> .os-holo-ring' );
 		expect( holoRing.cssText ).not.toMatch( /:active[^>{]*\s\.os-holo-ring/ );
 		expect( holoGlint.cssText ).toContain( '> .os-holo-glint' );
 	} );
 
 	test( 'reduced motion stops the tilt without removing the fill', () => {
-
 		const reduced = holoFill.cssText.slice(
 			holoFill.cssText.indexOf( 'prefers-reduced-motion' ),
 		);
@@ -298,7 +276,6 @@ describe( 'the barrel', () => {
 			holoCheck,
 			holoDrift,
 		] ) {
-
 			const probe = fragment.cssText.trim().slice( 0, 60 );
 			expect( holo.cssText ).toContain( probe );
 		}
@@ -306,7 +283,6 @@ describe( 'the barrel', () => {
 } );
 
 describe( 'a mesh is reached through the kit’s name, never directly', () => {
-
 	const sheets = readdirSync( resolve( ROOT, 'assets/css' ) ).filter(
 		( name ) => name.endsWith( '.css' ) && 'variables.css' !== name
 	);
@@ -320,7 +296,6 @@ describe( 'a mesh is reached through the kit’s name, never directly', () => {
 	} );
 
 	test( 'Legacy suppresses the meshes but still answers the fill', () => {
-
 		const legacy = JSON.parse(
 			readFileSync(
 				resolve( ROOT, 'assets/desktop-themes/legacy/theme.json' ),
@@ -336,7 +311,6 @@ describe( 'a mesh is reached through the kit’s name, never directly', () => {
 		expect( legacy.tokens[ '--os-ui-holo-fill' ] ).toMatch(
 			/^linear-gradient\(/
 		);
-
 		expect( legacy.tokens[ '--os-ui-hero-mesh' ] ).toMatch(
 			/^linear-gradient\(/
 		);

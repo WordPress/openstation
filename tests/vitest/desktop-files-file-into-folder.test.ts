@@ -231,7 +231,6 @@ describe( 'filing a desktop tile into a folder', () => {
 
 		expect( patches.length ).toBe( 1 );
 		expect( patches[ 0 ].parentId ).toBe( 19 );
-
 		expect( patches[ 0 ].y ).toBe( 16 );
 		expect( patches[ 0 ].x ).toBe( 16 );
 
@@ -285,7 +284,6 @@ describe( 'filing a desktop tile into a folder', () => {
 			'[data-placement-id="158"]',
 		);
 		expect( tile ).not.toBeNull();
-
 		const top = parseInt( tile!.style.top || '0', 10 );
 		expect( top ).toBeLessThan( 400 );
 		expect(

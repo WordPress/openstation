@@ -74,7 +74,7 @@ function openstation_apps_directories() {
 }
 
 function openstation_apps_is_dispatch_request() {
-	$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Substring probe only; never stored or echoed.
 	return false !== strpos( $uri, 'desktop-mode/v1/apps/' );
 }
 
@@ -173,7 +173,6 @@ function openstation_apps_client_base( array $manifest ) {
 function openstation_apps_client_config( array $manifest, $bundle = '', $app = null ) {
 	$prefetched = array();
 	if ( $app instanceof App && ! empty( $manifest['prefetch'] ) && '' !== $bundle ) {
-
 		$prefetched['data'] = $app->compute_data( new App\State( $app->defaults() ), openstation_apps_os() );
 	}
 	return $prefetched + array(
@@ -266,7 +265,6 @@ function openstation_apps_register_windows() {
 			},
 			'script'     => OPENSTATION_APP_RUNTIME_HANDLE,
 			'scripts'    => $scripts,
-
 			'styles'     => array_merge( array( OPENSTATION_APP_RUNTIME_HANDLE ), $styles ),
 			'width'      => $manifest['width'],
 			'height'     => $manifest['height'],
@@ -286,7 +284,7 @@ function openstation_apps_register_windows() {
 
 		$registered = openstation_register_window( $id, $window_args );
 		if ( is_wp_error( $registered ) ) {
-
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( sprintf( '[openstation] App "%s" failed to register: %s', $id, $registered->get_error_message() ) );
 			continue;
 		}
@@ -365,8 +363,7 @@ function openstation_app_rest( $method, $route, array $query = array(), array $b
 
 	$server   = rest_get_server();
 	$response = rest_do_request( $request );
-
-	$response = apply_filters( 'rest_post_dispatch', rest_ensure_response( $response ), $server, $request );
+	$response = apply_filters( 'rest_post_dispatch', rest_ensure_response( $response ), $server, $request ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own post-dispatch pass (`_fields`), replayed for an in-process request.
 
 	if ( $response->is_error() ) {
 		$error = $response->as_error();
@@ -388,7 +385,6 @@ function openstation_app_rest( $method, $route, array $query = array(), array $b
 		'ok'     => true,
 		'status' => (int) $response->get_status(),
 		'data'   => $data,
-
 		'total'  => isset( $headers['X-WP-Total'] ) ? (int) $headers['X-WP-Total'] : ( wp_is_numeric_array( $data ) ? count( $data ) : 1 ),
 		'pages'  => isset( $headers['X-WP-TotalPages'] ) ? (int) $headers['X-WP-TotalPages'] : 1,
 		'error'  => '',

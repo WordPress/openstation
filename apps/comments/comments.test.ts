@@ -369,7 +369,6 @@ describe( 'conversation', () => {
 		expect( ui.draft ).toBe( '' );
 		expect( ui.replyTo ).toBe( 0 );
 		expect( clear ).toHaveBeenCalledTimes( 1 );
-
 		app.render( ctx );
 		expect( clear ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -427,10 +426,8 @@ describe( 'live region and identity', () => {
 		approve.click();
 		await Promise.resolve();
 		await Promise.resolve();
-
 		expect( ui.status ).toBe( '' );
 		vi.runAllTimers();
-
 		expect( ui.status ).toBe( 'Comment approved.' );
 		expect( status.textContent ).toBe( 'Comment approved.' );
 		expect( ctx.dispatch ).toHaveBeenCalledTimes( 1 );

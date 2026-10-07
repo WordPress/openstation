@@ -2,6 +2,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
+
 function openstation_chromeless_offset_neutralizer_script() {
 	if ( ! openstation_is_chromeless_request() ) {
 		return;
@@ -37,7 +38,6 @@ function openstation_chromeless_offset_neutralizer_script() {
 	$js .= "var els=root.querySelectorAll?root.querySelectorAll('*'):[];";
 	$js .= 'for(var i=0;i<els.length;i++){fixOne(els[i]);}';
 	$js .= '}';
-
 	$js .= 'var queue=[];';
 	$js .= 'var scheduled=false;';
 	$js .= 'function flush(){';
@@ -45,7 +45,6 @@ function openstation_chromeless_offset_neutralizer_script() {
 	$js .= 'var batch=queue;';
 	$js .= 'queue=[];';
 	$js .= 'for(var i=0;i<batch.length;i++){';
-
 	$js .= 'if(batch[i].isConnected===false)continue;';
 	$js .= 'walkSubtree(batch[i]);';
 	$js .= '}';
@@ -70,7 +69,6 @@ function openstation_chromeless_offset_neutralizer_script() {
 	$js .= "if(rec.type!=='childList')continue;";
 	$js .= 'var added=rec.addedNodes;';
 	$js .= 'for(var n=0;n<added.length;n++){';
-
 	$js .= 'if(added[n].nodeType===1){queue.push(added[n]);found=true;}';
 	$js .= '}';
 	$js .= '}';
@@ -79,7 +77,6 @@ function openstation_chromeless_offset_neutralizer_script() {
 	$js .= 'observer.observe(document.body,{childList:true,subtree:true});';
 	$js .= '}';
 	$js .= 'walkSubtree(document.body);';
-
 	$js .= 'if(!MO){';
 	$js .= "window.addEventListener('load',function(){walkSubtree(document.body);},{once:true});";
 	$js .= '}';
@@ -107,14 +104,13 @@ function openstation_chromeless_navigation_ping_script() {
 add_action( 'admin_head', 'openstation_chromeless_navigation_ping_script', 1 );
 
 function openstation_emit_menu_refresh_probe() {
-
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest; capability-gated by chromeless gate below.
 	if ( empty( $_GET['openstation_menu_refresh'] ) ) {
 		return;
 	}
 	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
-
 	$pagenow = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
 	if ( 'admin.php' !== $pagenow ) {
 		return;
@@ -132,7 +128,7 @@ function openstation_emit_menu_refresh_probe() {
 	echo '<!doctype html><html><head><meta charset="utf-8"><title></title></head><body>';
 	echo '<script>';
 	echo '(function(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"os-plugins-changed",payload:';
-	echo $encoded;
+	echo $encoded; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode produces JSON-safe output.
 	echo '},window.location.origin);}}catch(e){}})();';
 	echo '</script>';
 	echo '</body></html>';
@@ -142,12 +138,11 @@ add_action( 'admin_init', 'openstation_emit_menu_refresh_probe', 99 );
 
 function openstation_menu_refresh_probe_payload() {
 	if ( ! did_action( 'admin_enqueue_scripts' ) ) {
-
 		if ( function_exists( 'set_current_screen' ) && function_exists( 'get_current_screen' ) && ! get_current_screen() ) {
 			set_current_screen( openstation_menu_refresh_probe_screen_id() );
 		}
 		ob_start();
-
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberate replay of Core's own hook so handle-attached script data exists before the harvest below.
 		do_action( 'admin_enqueue_scripts', 'admin.php' );
 		ob_end_clean();
 	}
@@ -174,7 +169,7 @@ function openstation_chromeless_bridge_script() {
 
 	$menu_payload_json = 'null';
 	$pagenow           = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
-	$is_refresh_probe  = ! empty( $_GET['openstation_menu_refresh'] );
+	$is_refresh_probe  = ! empty( $_GET['openstation_menu_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest, capability-gated by the host admin page.
 	if (
 		$is_refresh_probe
 		|| in_array(
@@ -259,6 +254,7 @@ function openstation_chromeless_hand_off_plugins_redirect( $location ) {
 	}
 	set_transient( $key, $destination, MINUTE_IN_SECONDS );
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only asks whether this is an action request.
 	if ( empty( $_REQUEST['action'] ) && isset( $_SERVER['REQUEST_URI'] ) ) {
 		return esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 	}

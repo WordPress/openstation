@@ -114,7 +114,6 @@ export class OsToast extends Component {
 		if ( ! this.hasAttribute( 'role' ) ) {
 			this.setAttribute( 'role', 'status' );
 		}
-
 		this.addEventListener( 'mouseenter', this._onEnter );
 		this.addEventListener( 'mouseleave', this._onLeave );
 		this.addEventListener( 'focusin', this._onFocusIn );
@@ -158,7 +157,6 @@ export class OsToast extends Component {
 			if ( n === this ) {
 				return true;
 			}
-
 			const parent: ParentNode | null = n.parentNode;
 			n = parent instanceof ShadowRoot ? parent.host : parent;
 		}
@@ -182,7 +180,6 @@ export class OsToast extends Component {
 		const action =
 			( this as unknown as { action: string | null } ).action || '';
 		const dismissible = this.hasAttribute( 'dismissible' );
-
 		const tone = ( this as unknown as { tone: string | null } ).tone || '';
 		return html`
 			<span class="os-toast__icon" ?hidden=${ ! tone } aria-hidden="true">

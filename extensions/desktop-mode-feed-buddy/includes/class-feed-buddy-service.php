@@ -414,12 +414,12 @@ class Feed_Buddy_Service {
 		$feed->enable_cache( false );
 		$feed->set_raw_data( $body );
 		$feed->set_stupidly_fast( true );
-		$previous_error_reporting = error_reporting();
-		error_reporting( $previous_error_reporting & ~E_USER_NOTICE );
+		$previous_error_reporting = error_reporting(); // phpcs:ignore -- Preserve the exact site setting during bounded third-party parsing.
+		error_reporting( $previous_error_reporting & ~E_USER_NOTICE ); // phpcs:ignore -- Invalid remote feeds must not write parser notices to the site log.
 		try {
 			$initialized = $feed->init();
 		} finally {
-			error_reporting( $previous_error_reporting );
+			error_reporting( $previous_error_reporting ); // phpcs:ignore -- Restore the exact site setting after bounded parsing.
 		}
 		if ( ! $initialized ) {
 			return new WP_Error( 'feed_buddy_parse_failed', 'Invalid feed.' );

@@ -1,5 +1,4 @@
 export interface VisibilityAwarePoller {
-
 	stop: () => void;
 }
 

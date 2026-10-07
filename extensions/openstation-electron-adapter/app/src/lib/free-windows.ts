@@ -1,7 +1,6 @@
 import type { Bounds, FreeWindowRequest, FreeWindowResult } from './protocol';
 
 export const DEFAULT_SIZE = { width: 1100, height: 760 };
-
 export const MIN_SIZE = { width: 420, height: 320 };
 
 export function screenNameFrom( pageTitle: string, fallback: string ): string {
@@ -40,25 +39,17 @@ export interface CreateWindowOptions {
 }
 
 export interface FreeWindowsDeps {
-
 	createWindow: ( opts: CreateWindowOptions ) => FreeWindowHandle;
-
 	getBounds: ( windowId: string ) => Bounds | null;
-
 	saveBounds: ( windowId: string, bounds: Bounds ) => void;
-
 	onDocked: ( windowId: string ) => void;
-
 	onFreed: ( windowId: string ) => void;
-
 	onActivity?: () => void;
-
 	isAllowedUrl?: ( url: string ) => boolean;
 }
 
 export class FreeWindows {
 	private readonly windows = new Map< string, FreeWindowHandle >();
-
 	private quitting = false;
 
 	constructor( private readonly deps: FreeWindowsDeps ) {}
@@ -82,7 +73,6 @@ export class FreeWindows {
 				error: 'windowId and url are required',
 			};
 		}
-
 		if ( this.deps.isAllowedUrl && ! this.deps.isAllowedUrl( url ) ) {
 			return {
 				ok: false,
@@ -128,7 +118,6 @@ export class FreeWindows {
 
 		win.on( 'page-title-updated', ( ...args: unknown[] ) => {
 			const event = args[ 0 ] as { preventDefault?: () => void } | undefined;
-
 			event?.preventDefault?.();
 			if ( req.native ) {
 				win.setTitle( title );
@@ -153,7 +142,6 @@ export class FreeWindows {
 		win.on( 'closed', () => {
 			this.windows.delete( windowId );
 			if ( ! this.quitting ) {
-
 				this.deps.onDocked( windowId );
 			}
 		} );

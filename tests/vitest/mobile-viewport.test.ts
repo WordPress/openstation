@@ -111,7 +111,6 @@ describe( 'the phone wears the palette', () => {
 	} );
 
 	test( 'every --os-mobile-* token it reads is declared in variables.css', () => {
-
 		const wanted = new Set( tokens.match( /--os-mobile-[a-z-]+/g ) ?? [] );
 		expect( wanted.size ).toBeGreaterThan( 5 );
 		for ( const name of wanted ) {
@@ -143,7 +142,6 @@ describe( 'the apps fold under a narrow container', () => {
 		const narrow = css.slice( css.indexOf( '@container ( max-width: 640px )' ) );
 		expect( narrow ).toMatch( /\.os-mywp__split \{[^}]*grid-template-rows:\s*minmax\(\s*0,\s*1fr\s*\)\s*auto/ );
 		expect( narrow ).toMatch( /\.os-mywp__detail-pane \{[^}]*max-block-size:\s*45%/ );
-
 		expect( css ).toMatch( /\.os-mywp__split--solo \{[^}]*grid-template-columns:\s*minmax\(\s*0,\s*1fr\s*\)/ );
 		expect( css ).not.toMatch( /os-mywp__pane-empty/ );
 	} );

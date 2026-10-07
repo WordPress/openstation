@@ -54,15 +54,11 @@ function _installSubscriptions(): void {
 			if ( ! body ) {
 				return;
 			}
-
 			el.setAttribute( 'aria-busy', 'true' );
-
 			body.classList.remove( LOADING_HANDOFF_BODY_CLASS );
 			body.classList.add( LOADING_BODY_CLASS );
-
 			stampLoadingStart( body );
 			ensureLoadingOverlay( el );
-
 			armWindowReveal( el );
 		},
 	);
@@ -81,7 +77,6 @@ function _installSubscriptions(): void {
 			if ( ! body ) {
 				return;
 			}
-
 			el.removeAttribute( 'aria-busy' );
 
 			const spinnerWasVisible = !! body
@@ -93,27 +88,21 @@ function _installSubscriptions(): void {
 
 			if ( ! spinnerWasVisible ) {
 				removeLoadingOverlay( el );
-
 				playWindowReveal( el );
 				return;
 			}
 
 			body.classList.add( LOADING_HANDOFF_BODY_CLASS );
-
 			const cycle = loadingCycle( body );
-
 			playWindowReveal( el );
-
 			window.setTimeout( () => {
 				if ( loadingCycle( body ) !== cycle ) {
 					return;
 				}
-
 				if ( ! body.classList.contains( LOADING_BODY_CLASS ) ) {
 					removeLoadingOverlay( el );
 				}
 			}, FADE_OUT_MS );
-
 			window.setTimeout( () => {
 				if ( loadingCycle( body ) !== cycle ) {
 					return;

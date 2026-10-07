@@ -52,17 +52,11 @@ interface Confetti {
 type Effect = Burst | FloatScore | Banner | Confetti;
 
 export interface SoupFx {
-
 	burstAt: ( x: number, y: number, color: number ) => void;
-
 	floatScore: ( x: number, y: number, text: string, color: number ) => void;
-
 	banner: ( text: string, centerX: number, centerY: number ) => void;
-
 	confetti: ( width: number, colors: readonly number[] ) => void;
-
 	update: ( dt: number ) => void;
-
 	clear: () => void;
 }
 
@@ -201,7 +195,6 @@ export function createSoupFx(
 				}
 				if ( 'banner' === effect.kind ) {
 					const progress = Math.min( 1, effect.age / BANNER_LIFETIME );
-
 					const inT = Math.min( 1, progress / 0.18 );
 					const eased = 1 - ( 1 - inT ) * ( 1 - inT );
 					effect.node.scale.set( 0.6 + 0.4 * eased );
@@ -214,7 +207,6 @@ export function createSoupFx(
 					}
 					continue;
 				}
-
 				for ( const part of effect.parts ) {
 					part.node.x += part.vx * dt;
 					part.node.y += part.vy * dt;

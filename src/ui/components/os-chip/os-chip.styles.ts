@@ -112,7 +112,6 @@ export const styles = css`
 		opacity: 0.35;
 		cursor: not-allowed;
 	}
-
 	.os-chip__dismiss svg {
 		display: block;
 		width: 14px;

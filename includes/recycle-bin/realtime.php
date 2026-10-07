@@ -54,7 +54,6 @@ function openstation_recycle_bin_emit_footer_signal() {
 	$ts = (int) get_option( OPENSTATION_RECYCLE_BIN_CHANGE_OPTION, 0 );
 
 	if ( $ts <= 0 ) {
-
 		return;
 	}
 
@@ -73,7 +72,7 @@ function openstation_recycle_bin_emit_footer_signal() {
 					},
 					window.location.origin
 				);
-			} catch ( _err ) {               }
+			} catch ( _err ) { /* swallow */ }
 		} )();
 	</script>
 	<?php

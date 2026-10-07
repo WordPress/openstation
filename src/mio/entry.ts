@@ -1,5 +1,4 @@
 import { mountMio } from './mio';
-
 import './types';
 
 window.openStationMountMio = mountMio;

@@ -43,13 +43,11 @@ const settings: DockItem = {
 };
 
 const opened: Array< Record< string, unknown > > = [];
-
 const doors: string[] = [];
 
 function makeManagerStub(): WindowManager {
 	return {
 		getAllByBaseIdOnActiveDesktop: () => [],
-
 		getAll: () => [],
 		getActiveDesktopId: () => 'default-1',
 		getFocused: () => null,
@@ -98,9 +96,7 @@ function pointerOver(): Event {
 
 function hover( tile: HTMLElement ): void {
 	tile.dispatchEvent( pointerOver() );
-
 	vi.advanceTimersByTime( 140 );
-
 	vi.advanceTimersByTime( 5 );
 }
 
@@ -142,7 +138,6 @@ describe( 'dock constellation', () => {
 		doors.length = 0;
 		installHooksStub();
 		vi.useFakeTimers();
-
 		vi.stubGlobal( 'requestAnimationFrame', ( cb: FrameRequestCallback ) =>
 			setTimeout( () => cb( 0 ), 0 ) as unknown as number,
 		);
@@ -215,7 +210,6 @@ describe( 'dock constellation', () => {
 	} );
 
 	test( 'fans away from the edge its rail is parked on', () => {
-
 		for ( const [ placement, side ] of [
 			[ 'bottom', 'top' ],
 			[ 'left', 'right' ],
@@ -229,7 +223,6 @@ describe( 'dock constellation', () => {
 	} );
 
 	test( 'the open key is the arrow pointing at the panel', () => {
-
 		const tile = setupShell( 'unified', 'left' );
 		mount();
 		const primary = tile.querySelector( '.os-dock__item-primary' )!;
@@ -256,7 +249,6 @@ describe( 'dock constellation', () => {
 		expect( panel()?.getAttribute( 'aria-label' ) ).toContain(
 			'Appearance',
 		);
-
 		expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe( true );
 		expect(
 			document.body.classList.contains( 'os-constellation-open' ),
@@ -287,13 +279,11 @@ describe( 'dock constellation', () => {
 		expect(
 			docs.querySelector( '.os-constellation__row-offsite' ),
 		).not.toBeNull();
-
 		expect( docs.getAttribute( 'aria-label' ) ).toBeNull();
 		expect( docs.textContent ).toContain( 'Docs' );
 		expect( docs.textContent ).toContain( '(opens in a new tab)' );
 
 		docs.click();
-
 		expect( opened ).toHaveLength( 0 );
 		expect( openSpy ).toHaveBeenCalledWith(
 			'https://example.org/docs',
@@ -309,17 +299,14 @@ describe( 'dock constellation', () => {
 
 		rows( '.os-constellation__head' )[ 0 ].click();
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/themes.php' );
-
 		expect( doors.at( -1 ) ).toBe( 'open' );
 		expect( panel() ).toBeNull();
 
 		flushExit();
 		hover( tile );
 		rows( '.os-constellation__row--sub' )[ 1 ].click();
-
 		expect( opened.at( -1 )?.url ).toBe( '/wp-admin/site-editor.php' );
 		expect( opened.at( -1 )?.parentUrl ).toBe( '/wp-admin/themes.php' );
-
 		expect( doors.at( -1 ) ).toBe( 'openNew' );
 	} );
 
@@ -437,7 +424,6 @@ describe( 'dock constellation', () => {
 			expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe(
 				false,
 			);
-
 			expect(
 				document.body.classList.contains( 'os-constellation-open' ),
 			).toBe( true );
@@ -454,7 +440,6 @@ describe( 'dock constellation', () => {
 			mount();
 			hover( tile );
 			rows( '.os-constellation__head' )[ 0 ].click();
-
 			const dying = ghost()!;
 			expect( dying.classList.contains( 'os-constellation--open' ) ).toBe(
 				false,
@@ -511,7 +496,6 @@ describe( 'dock constellation', () => {
 			);
 
 			hover( other );
-
 			expect( tile.hasAttribute( 'data-constellation-open' ) ).toBe(
 				false,
 			);
@@ -525,13 +509,11 @@ describe( 'dock constellation', () => {
 			mount();
 			hover( tile );
 			document.dispatchEvent( new Event( 'scroll', { bubbles: true } ) );
-
 			expect( ghost() ).toBeNull();
 			expect( panel() ).toBeNull();
 		} );
 
 		test( 'a tile menu opening cuts it, so the two never stack', () => {
-
 			const tile = setupShell( 'openstation' );
 			mount();
 			hover( tile );
@@ -581,7 +563,6 @@ describe( 'dock constellation', () => {
 		const tile = setupShell( 'openstation' );
 		mount();
 		hover( tile );
-
 		const all = rows( '.os-constellation__row' );
 		expect( all.length ).toBeGreaterThan( 1 );
 		expect( all.every( ( r ) => r.tabIndex === -1 ) ).toBe( true );
@@ -601,7 +582,6 @@ describe( 'dock constellation', () => {
 		row.dispatchEvent( ev );
 
 		expect( panel() ).toBeNull();
-
 		expect( document.activeElement ).toBe(
 			tile.querySelector( '.os-dock__item-primary' ),
 		);
@@ -610,11 +590,9 @@ describe( 'dock constellation', () => {
 
 	test( 'caps its height to the room above the tile', () => {
 		const tile = setupShell( 'openstation' );
-
 		placeTile( tile, 100, 700 );
 		mount();
 		hover( tile );
-
 		expect(
 			panel()!.style.getPropertyValue( '--os-cn-max-h' ),
 		).toBe( '674px' );
@@ -622,7 +600,6 @@ describe( 'dock constellation', () => {
 
 	test( 'never caps below a usable height on a short viewport', () => {
 		const tile = setupShell( 'openstation' );
-
 		placeTile( tile, 100, 60 );
 		mount();
 		hover( tile );
@@ -634,7 +611,6 @@ describe( 'dock constellation', () => {
 	test( 'survives a tile rebuilt under it — the listener is delegated', () => {
 		setupShell( 'openstation' );
 		mount();
-
 		const dock = document.querySelector( '.os-dock' )!;
 		dock.innerHTML = '';
 		const rebuilt = document.createElement( 'div' );
@@ -804,7 +780,6 @@ describe( 'dock constellation', () => {
 		rows( '.os-constellation__row--sub' )[ 0 ].click();
 
 		expect( onSelect ).toHaveBeenCalledTimes( 1 );
-
 		expect( opened ).toHaveLength( 0 );
 	} );
 
@@ -833,7 +808,6 @@ describe( 'dock constellation', () => {
 						windowId: 'os-settings',
 						onSelect: () => {},
 					},
-
 					{ title: 'Log out', url: '', onSelect: () => {} },
 				] ),
 		} );
@@ -855,7 +829,6 @@ describe( 'dock constellation', () => {
 		bindNativeUrlRemap( {
 			getSnapshot: () => ( {} ) as never,
 			openById: () => true,
-
 			adminUrl: `${ window.location.origin }/wp-admin/`,
 		} );
 		registerNativeUrlRemap( {
@@ -872,7 +845,6 @@ describe( 'dock constellation', () => {
 					id === 'desktop-mode-posts' ? [ live ] : [],
 			} as unknown as WindowManager,
 			adminUrl: '/wp-admin/',
-
 			getMenuItems: () => [ { ...appearance, url: '/wp-admin/edit.php' } ],
 			getSystemItem: () => undefined,
 		} );
@@ -916,7 +888,6 @@ describe( 'dock constellation', () => {
 		mountWith( [ appearance ], [] );
 
 		hover( tile );
-
 		expect( panel() ).toBeNull();
 	} );
 } );

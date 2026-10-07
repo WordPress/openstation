@@ -28,7 +28,7 @@ function openstation_register_window_tab( $window_id, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this window tab.', 'desktop-mode' ),
 					(string) $cap
 				),
@@ -52,7 +52,7 @@ function openstation_register_window_tab( $window_id, $args = array() ) {
 		return openstation_registration_error(
 			'openstation_invalid_tab_value',
 			sprintf(
-
+				/* translators: %s: the invalid value. */
 				__( 'Window tab `value` "%s" must match /^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/ — lowercase alphanum + hyphen/underscore, with at most one `vendor/sub-id` slash.', 'desktop-mode' ),
 				$value_raw
 			),
@@ -67,7 +67,7 @@ function openstation_register_window_tab( $window_id, $args = array() ) {
 		return openstation_registration_error(
 			'openstation_reserved_tab_value',
 			sprintf(
-
+				/* translators: %s: the reserved value. */
 				__( 'The tab value "%s" is reserved for the window\'s own template tab.', 'desktop-mode' ),
 				OPENSTATION_NATIVE_WINDOW_MAIN_TAB
 			),

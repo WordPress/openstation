@@ -41,7 +41,6 @@ describe( 'palette token reachability in feature stylesheets', () => {
 				if ( ! palette.has( name ) ) {
 					continue;
 				}
-
 				if ( /\bvar\(/.test( value ) || ! isColourLiteral( value ) ) {
 					continue;
 				}

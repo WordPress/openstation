@@ -11,14 +11,12 @@
 .os-window__resize-handle--sw::after {
 	content: "";
 	position: absolute;
-
 	--_dm-corner-inset: var(
 		--os-window-corner-inset,
 		calc( 3px + var( --os-window-radius, 8px ) * 0.4 )
 	);
 	width: var( --os-window-corner-size, 16px );
 	height: var( --os-window-corner-size, 16px );
-
 	pointer-events: none;
 	background-repeat: no-repeat;
 	background-position: center;
@@ -283,7 +281,6 @@
 		0 12px 36px rgba( 0, 0, 0, 0.22 );
 	pointer-events: none;
 	z-index: 99;
-
 	opacity: 0;
 	transition:
 		opacity 0.15s ease,
@@ -299,7 +296,6 @@
 
 .os-grid-snap {
 	position: absolute;
-
 	z-index: 99;
 	pointer-events: none;
 	opacity: 0;
@@ -317,7 +313,6 @@
 	background-size:
 		calc( 100% / var( --os-grid-snap-cols ) ) 100%,
 		100% calc( 100% / var( --os-grid-snap-rows ) );
-
 	box-shadow: inset 0 0 0 1px var( --os-grid-snap-line );
 }
 
@@ -337,7 +332,6 @@
 	box-shadow:
 		0 0 0 1px rgba( 255, 255, 255, 0.15 ) inset,
 		0 12px 36px rgba( 0, 0, 0, 0.22 );
-
 	transition:
 		left 0.12s cubic-bezier( 0.2, 0, 0.2, 1 ),
 		top 0.12s cubic-bezier( 0.2, 0, 0.2, 1 ),
@@ -409,7 +403,6 @@
 }
 
 .os-window--snapped-left {
-
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }

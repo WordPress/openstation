@@ -15,7 +15,6 @@ describe( 'computeResize', () => {
 		const r = computeResize(
 			'ne', 100, -100, 40, 40, 800, 600, 320, 200, NO_SNAP,
 		);
-
 		expect( r.width ).toBe( 900 );
 		expect( r.height ).toBe( 640 );
 		expect( r.x ).toBe( 40 );
@@ -57,7 +56,6 @@ describe( 'computeResize', () => {
 	} );
 
 	test( 'minimums clamp width + height; the pinned edge stays put', () => {
-
 		const r = computeResize(
 			'sw', 10_000, 10_000, 40, 40, 800, 600, 320, 200, NO_SNAP,
 		);
@@ -71,7 +69,6 @@ describe( 'computeResize', () => {
 			'nw', -47, -33, 100, 100, 800, 600, 320, 200,
 			{ enabled: true, cellWidth: 50, cellHeight: 50 },
 		);
-
 		expect( r.width % 50 ).toBe( 0 );
 		expect( r.height % 50 ).toBe( 0 );
 	} );

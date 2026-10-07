@@ -78,11 +78,8 @@
 .os-station-home__mesh {
 	position: absolute;
 	z-index: 0;
-
 	inset: 0;
-
 	background: var( --os-ui-hero-mesh, radial-gradient( ellipse 38% 26% at 24% 20%, rgba( 170, 103, 255, 0.55 ) 0%, rgba( 170, 103, 255, 0 ) 72% ) );
-
 	mask-image: linear-gradient( to bottom, transparent, #000 9%, #000 88%, transparent );
 }
 
@@ -130,7 +127,6 @@ os-button.os-station-home__action {
 	--os-ui-button-fg: var( --os-ui-fg, #fffbff );
 	--os-ui-button-bg-hover: var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) );
 	--os-ui-button-border-radius: 8px;
-
 	--os-ui-holo-edge: none;
 	--os-ui-holo-edge-quiet: none;
 	--os-ui-holo-sheen: none;
@@ -266,7 +262,6 @@ os-button.os-station-home__action:hover {
 	overflow: hidden;
 	font-size: clamp( 17px, 1.7vw, 22px );
 	font-weight: 620;
-
 	line-height: 1.35;
 	letter-spacing: -0.025em;
 	text-overflow: ellipsis;
@@ -315,7 +310,6 @@ os-button.os-station-home__action:hover {
 
 .os-station-home__metric-label span:last-child {
 	overflow: hidden;
-
 	line-height: 1.35;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -465,7 +459,6 @@ a.os-station-home__card:focus-visible {
 .os-station-home__card-head strong {
 	overflow: hidden;
 	font-size: 15px;
-
 	line-height: 1.35;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -576,7 +569,6 @@ a.os-station-home__card:focus-visible {
 	}
 
 	.os-station-home__mesh {
-
 		inset: 0;
 		mask-image: linear-gradient( 90deg, transparent, #000 24%, #000 76%, transparent );
 	}

@@ -101,7 +101,6 @@ function openstation_code_editor_register_rest_routes() {
 
 	register_rest_route(
 		OPENSTATION_CODE_EDITOR_REST_NAMESPACE,
-
 		'/php-symbols/(?P<name>[A-Za-z0-9_\\\\/.-]+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
@@ -132,7 +131,6 @@ function openstation_code_editor_register_rest_routes() {
 				),
 			),
 			array(
-
 				'methods'             => 'PUT, POST',
 				'callback'            => openstation_code_editor_rest_handler( 'openstation_code_editor_rest_write_file' ),
 				'permission_callback' => 'openstation_code_editor_rest_permission',
@@ -173,7 +171,7 @@ function openstation_code_editor_rest_tree( WP_REST_Request $request ) {
 	}
 
 	$entries = array();
-
+	// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	$dh = @opendir( $abs );
 	if ( false === $dh ) {
 		return new WP_Error(
@@ -223,9 +221,9 @@ function openstation_code_editor_rest_tree( WP_REST_Request $request ) {
 			'name'    => (string) $name,
 			'path'    => openstation_code_editor_path_to_relative( $child_abs ),
 			'type'    => $is_dir ? 'dir' : 'file',
-
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			'size'    => $is_dir ? 0 : (int) @filesize( $child_abs ),
-
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			'mtime'   => (int) @filemtime( $child_abs ),
 			'allowed' => $allowed,
 		);
@@ -272,7 +270,7 @@ function openstation_code_editor_rest_read_file( WP_REST_Request $request ) {
 		return new WP_Error(
 			'openstation_code_editor_file_too_large',
 			sprintf(
-
+				/* translators: 1: file size, 2: limit. */
 				__( 'File is too large to open in the editor (%1$s bytes; limit %2$s).', 'desktop-mode-code-editor' ),
 				number_format_i18n( $size ),
 				number_format_i18n( $max_bytes )
@@ -285,6 +283,7 @@ function openstation_code_editor_rest_read_file( WP_REST_Request $request ) {
 		);
 	}
 
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	$content = file_get_contents( $abs );
 	if ( false === $content ) {
 		return new WP_Error(
@@ -349,7 +348,7 @@ function openstation_code_editor_rest_write_file( WP_REST_Request $request ) {
 		return new WP_Error(
 			'openstation_code_editor_payload_too_large',
 			sprintf(
-
+				/* translators: 1: payload size, 2: limit. */
 				__( 'Save payload too large (%1$s bytes; limit %2$s).', 'desktop-mode-code-editor' ),
 				number_format_i18n( strlen( $content ) ),
 				number_format_i18n( $max_bytes )
@@ -425,7 +424,7 @@ function openstation_code_editor_rest_php_symbol_detail( WP_REST_Request $reques
 		return new WP_Error(
 			'openstation_code_editor_symbol_not_found',
 			sprintf(
-
+				/* translators: %s: symbol name. */
 				__( 'No PHP symbol matches "%s".', 'desktop-mode-code-editor' ),
 				$name
 			),

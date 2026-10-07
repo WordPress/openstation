@@ -1,9 +1,8 @@
 import { OS_COMPONENT_TAGS } from './tags';
 
 declare global {
-
+	// eslint-disable-next-line @typescript-eslint/no-shadow
 	interface Window {
-
 		openStationComponents?: boolean;
 	}
 }

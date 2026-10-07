@@ -4,28 +4,18 @@ import { createSharedStore } from '../shared-store';
 import type { Window as DesktopWindow } from '../window';
 
 export interface TitleBarButtonRenderCtx {
-
 	window: DesktopWindow;
 }
 
 export interface TitleBarButtonDef {
-
 	id: string;
-
 	label: string;
-
 	icon: string;
-
 	placement?: 'left' | 'right';
-
 	order?: number;
-
 	match: ( window: DesktopWindow ) => boolean;
-
 	onClick?: ( window: DesktopWindow, ev: MouseEvent ) => void;
-
 	render?: ( host: HTMLElement, window: DesktopWindow ) => void;
-
 	owner?: string;
 }
 
@@ -161,3 +151,4 @@ if ( typeof document !== 'undefined' ) {
 		}
 	} );
 }
+

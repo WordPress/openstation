@@ -12,7 +12,6 @@ function openstation_files_sharing_enabled_for( $user_id ) {
 		$settings = openstation_get_os_settings( $user_id );
 		$enabled  = ! empty( $settings['foldersSharingEnabled'] );
 	}
-
 	return (bool) apply_filters( 'openstation_files_sharing_enabled_for', $enabled, $user_id );
 }
 
@@ -21,7 +20,6 @@ function openstation_files_share_principal_types() {
 }
 
 function openstation_files_shareable_types() {
-
 	$types = (array) apply_filters( 'openstation_files_shareable_types', array( 'folder', 'file' ) );
 	return array_values( array_unique( array_filter( array_map( 'strval', $types ) ) ) );
 }
@@ -39,7 +37,6 @@ function openstation_files_share_target_owner( $target_type, $target_id ) {
 			$owner = (int) $file['owner_id'];
 		}
 	}
-
 	return (int) apply_filters( 'openstation_files_share_target_owner', $owner, (string) $target_type, (string) $target_id );
 }
 
@@ -65,7 +62,6 @@ function openstation_files_share_eligible_roles() {
 			}
 		}
 	}
-
 	$out = (array) apply_filters( 'openstation_files_share_eligible_roles', $out );
 	return $out;
 }
@@ -80,14 +76,12 @@ function openstation_files_share_user_is_eligible( $user ) {
 function openstation_files_share_can_manage( $folder_id, $user_id ) {
 	$folder = openstation_files_get_folder( (int) $folder_id );
 	$can    = $folder && (int) $folder['owner_id'] === (int) $user_id;
-
 	return (bool) apply_filters( 'openstation_files_share_can_manage', $can, (int) $folder_id, (int) $user_id, $folder );
 }
 
 function openstation_files_normalize_share_row( $row ) {
 	return array(
 		'id'             => (int) $row['id'],
-
 		'target_type'    => isset( $row['target_type'] ) && '' !== (string) $row['target_type']
 			? (string) $row['target_type']
 			: 'folder',
@@ -138,7 +132,6 @@ function openstation_files_folder_share_summary( $folder_row, $viewer_id = null 
 	}
 
 	$summary['shared'] = $has_all || $accepted > 0;
-
 	if ( $summary['shared'] && openstation_files_share_can_manage( $folder_id, $viewer_id ) ) {
 		$summary['recipientCount'] = $accepted + ( $has_all ? 1 : 0 );
 	}
@@ -278,7 +271,6 @@ function openstation_folder_share_revoke( $share_id, $actor_id ) {
 
 	$tables = openstation_files_table_names();
 	$wpdb->delete( $tables['shares'], array( 'id' => $share_id ), array( '%d' ) );
-
 	$wpdb->delete( $tables['decisions'], array( 'share_id' => $share_id ), array( '%d' ) );
 
 	openstation_files_bump_folder_updated_at( $row['folder_id'] );
@@ -469,7 +461,6 @@ function openstation_folder_share_deny( $share_id, $user_id ) {
 			array( '%d' )
 		);
 	} else {
-
 		openstation_files_upsert_user_decision( $share_id, $user_id, 'denied' );
 	}
 
@@ -533,7 +524,6 @@ function openstation_folder_share_leave( $folder_id, $user_id ) {
 			openstation_files_upsert_user_decision( $row['id'], $user_id, 'denied' );
 		}
 		++$touched;
-
 		do_action( 'openstation_files_share_left', $row['id'], $row, $user_id );
 	}
 
@@ -586,7 +576,6 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 
 	$cap = 'none';
 	if ( 'all' === $folder['share_mode'] ) {
-
 		$cap = (string) apply_filters( 'openstation_files_share_all_default_capability', 'read', $folder_id, $user_id );
 	}
 
@@ -598,7 +587,6 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 
 	global $wpdb;
 	$tables = openstation_files_table_names();
-
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, principal_type, principal_ref, capability FROM {$tables['shares']}
@@ -607,7 +595,6 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 		),
 		ARRAY_A
 	);
-
 	$role_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT s.id, s.principal_type, s.principal_ref, s.capability
@@ -659,6 +646,7 @@ function openstation_folder_share_user_capability_cascade( $folder_id, $user_id 
 	$ancestor_ids = array_values( array_unique( array_map( 'intval', $ancestors ) ) );
 	$ids_csv      = implode( ',', $ancestor_ids );
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ids are intval'd above.
 	$folder_rows = $wpdb->get_results(
 		"SELECT id, owner_id, share_mode FROM {$tables['folders']} WHERE id IN ($ids_csv)",
 		ARRAY_A
@@ -685,6 +673,7 @@ function openstation_folder_share_user_capability_cascade( $folder_id, $user_id 
 		}
 	}
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- ids cast above.
 	$user_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT folder_id, capability FROM {$tables['shares']}
@@ -712,7 +701,7 @@ function openstation_folder_share_user_capability_cascade( $folder_id, $user_id 
 	if ( ! empty( $user_roles ) ) {
 		$role_placeholders = implode( ',', array_fill( 0, count( $user_roles ), '%s' ) );
 		$args              = array_merge( array( $user_id ), $user_roles );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- placeholders generated above; ids intval'd.
 		$role_rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT s.folder_id, s.capability
@@ -889,7 +878,7 @@ function openstation_files_get_pending_shares_for_user( $user_id, $since_ms = 0 
 	if ( ! empty( $roles ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $roles ), '%s' ) );
 		$prepare      = array_merge( array( $user_id, $since_ms ), $roles );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$role_pending = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT s.* FROM {$tables['shares']} s
@@ -964,7 +953,6 @@ function openstation_files_trash_folder_for_user( $folder_id, $user_id ) {
 			array( '%d', '%d' ),
 			array( '%d' )
 		);
-
 		++$count;
 	}
 	return $count;
@@ -987,7 +975,6 @@ function openstation_files_share_gate_trash( $can, $user_id, $row ) {
 				$folder_row &&
 				(int) $folder_row['owner_id'] !== $user_id
 			) {
-
 				$root_cap = openstation_folder_share_user_capability( $folder_ref, $user_id );
 				if ( 'none' !== $root_cap ) {
 					return false;
@@ -998,7 +985,6 @@ function openstation_files_share_gate_trash( $can, $user_id, $row ) {
 	}
 
 	if ( $parent_id <= 0 ) {
-
 		return $can;
 	}
 	$folder = openstation_files_get_folder( $parent_id );
@@ -1011,7 +997,6 @@ function openstation_files_share_gate_trash( $can, $user_id, $row ) {
 	if ( $is_owner ) {
 		return true;
 	}
-
 	return 'write' === $cap;
 }
 add_filter( 'openstation_files_user_can_trash_placement', 'openstation_files_share_gate_trash', 10, 3 );

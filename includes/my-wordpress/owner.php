@@ -47,7 +47,6 @@ function openstation_my_wordpress_group_for_path( $file ) {
 			$rel    = ltrim( substr( $path, strlen( $plugins_dir ) ), '/' );
 			$folder = ( false !== strpos( $rel, '/' ) ) ? strtok( $rel, '/' ) : '';
 			if ( '' === $folder ) {
-
 				$name = openstation_my_wordpress_plugin_header_name( $plugins_dir . $rel );
 				return array(
 					'id'    => 'plugin:' . $rel,

@@ -141,33 +141,27 @@ describe( 'the activity footprint', () => {
 		app.render( ctx );
 
 		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
-
 		expect( String( fetchMock.mock.calls[ 0 ][ 0 ] ) ).toBe(
 			'desktop-mode/v1/user-footprint/12',
 		);
 
 		const text = root.textContent ?? '';
-
 		expect( text ).toContain( 'Sofia Ramirez' );
 		expect( text ).toContain( 'Author archive' );
 		expect( text ).toContain( 'Member since' );
-
 		expect( text ).toContain( 'Total content' );
 		expect( text ).toContain( '104 posts · 2 pages' );
 		expect( text ).toContain( 'Longest streak' );
 		expect( text ).toContain( '9 days' );
-
 		expect( text ).toContain( 'A year of activity' );
 		expect(
 			root.querySelectorAll( '.os-my-wordpress__footprint-cell--l4' ).length,
 		).toBeGreaterThan( 0 );
 		expect( text ).toContain( 'Less' );
-
 		const row = ( el: Element | null ) => el?.getAttribute( 'style' )?.match( /grid-row:(\d+)/ )?.[ 1 ];
 		expect( row( root.querySelector( '.os-my-wordpress__footprint-weekday' ) ) ).toBe(
 			row( root.querySelector( '[data-date="2026-08-31"]' ) ),
 		);
-
 		expect( text ).toContain( 'Publishing rhythm' );
 		expect( text ).toContain( 'Most prolific month' );
 		expect( text ).toContain( 'Commented on “A post”' );
@@ -198,7 +192,6 @@ describe( 'the activity footprint', () => {
 		const { root } = mount();
 		const crumbs = root.querySelector( '.os-mywp__crumbs' );
 		expect( crumbs?.textContent ).toContain( 'Sofia Ramirez' );
-
 		const links = Array.from( crumbs?.querySelectorAll( 'button' ) ?? [] ).map(
 			( b ) => b.textContent,
 		);

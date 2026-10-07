@@ -7,7 +7,6 @@ function buildCandidates( initialUrl: string ): string[] {
 		return [ initialUrl ];
 	}
 	const base = match[ 1 ];
-
 	return [
 		initialUrl,
 		base + 'icon-256x256.png',

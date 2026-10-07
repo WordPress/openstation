@@ -38,39 +38,31 @@ async function loadReleaseCardApi(): Promise< ReleaseCardApi | null > {
 }
 
 export interface CoreUpdateInfo {
-
 	version: string;
-
 	available?: string;
-
 	branch?: string;
 	url: string;
-
 	crossing?: boolean;
 }
 
 export interface UpdateNoticeDeps {
-
 	update: CoreUpdateInfo | null | undefined;
-
 	openUrl: ( args: { url: string; title: string } ) => void;
-
 	resolveArt?: (
 		branch: string,
 		announcementPending?: boolean,
 	) => Promise< ReleaseArt | null >;
-
 	loadImage?: ( url: string ) => Promise< boolean >;
-
 	showCard?: ( opts: ReleaseCardOptions ) => void;
 }
 
 export function updateMessage( version: string, name: string ): string {
 	if ( name ) {
+		/* translators: 1: WordPress version, 2: release codename. */
 		const withName = __( 'WordPress %1$s "%2$s" is available.' );
 		return sprintf( withName, version, name );
 	}
-
+	/* translators: %s: WordPress version. */
 	const versionOnly = __( 'WordPress %s is available.' );
 	return sprintf( versionOnly, version );
 }
@@ -93,7 +85,6 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< boolea
 			? update.branch
 			: version;
 	const crossing = update.crossing === true;
-
 	const exact =
 		typeof update.available === 'string' && update.available
 			? update.available
@@ -102,7 +93,6 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< boolea
 	if ( isNoticeDismissed( dismissKey ) ) {
 		return false;
 	}
-
 	const toastDismissKey = `${ dismissKey }:no-art`;
 
 	const openUpdateScreen = (): void =>

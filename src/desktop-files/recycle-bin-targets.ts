@@ -38,7 +38,6 @@ interface BinRegistration {
 	el: HTMLElement;
 	deregister: () => void;
 }
-
 const _surfaceRegistrations = new Map< string, BinRegistration >();
 let _binMutationObserver: MutationObserver | null = null;
 
@@ -77,9 +76,7 @@ function registerOn(
 	return dragManager.registerDropTarget( {
 		id,
 		element: el,
-
 		acceptLabel: __( 'Move to Trash', 'desktop-mode' ),
-
 		accept: ( payload ) => {
 			if ( payload.type === 'desktop-file' ) {
 				const data = payload.data as Partial< DesktopFilePayloadData >;
@@ -87,7 +84,6 @@ function registerOn(
 				if ( ! placement ) {
 					return false;
 				}
-
 				const set = dragPlacements(
 					data as unknown as DesktopFileDragData,
 				);
@@ -98,14 +94,11 @@ function registerOn(
 							p.canTrash !== false,
 					);
 				}
-
 				if ( placement.file?.ref === RECYCLE_BIN_WINDOW_ID ) {
 					return false;
 				}
-
 				return placement.canTrash !== false;
 			}
-
 			if ( payload.type === 'shortcut' ) {
 				const data = payload.data as Partial< ShortcutDragData >;
 				const set = dragShortcutItems( data as ShortcutDragData );
@@ -113,7 +106,6 @@ function registerOn(
 					set.length > 0 && set.every( ( i ) => isTrashableShortcut( i ) )
 				);
 			}
-
 			return recycleBinPayloadAccepts( payload );
 		},
 		onEnter: () => {
@@ -167,12 +159,12 @@ function registerOn(
 						( r ) => r.status === 'rejected',
 					);
 					for ( const failure of failed ) {
+						// eslint-disable-next-line no-console
 						console.error(
 							'[openstation] recycle-bin: shortcut trash failed:',
 							( failure as PromiseRejectedResult ).reason,
 						);
 					}
-
 					const trashed = trashing
 						.filter( ( _t, i ) => results[ i ]?.status === 'fulfilled' )
 						.reduce< Record< string, number[] > >( ( acc, t ) => {

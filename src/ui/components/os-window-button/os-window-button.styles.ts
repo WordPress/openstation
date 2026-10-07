@@ -13,7 +13,6 @@ export const styles = css`
 		padding: 0;
 		border: none;
 		border-radius: var( --os-ui-btn-radius, 5px );
-
 		background-color: var( --os-ui-btn-bg, transparent );
 		background-image: var( --os-ui-btn-bg-image, none );
 		background-repeat: var( --os-ui-btn-bg-image-repeat, no-repeat );
@@ -24,7 +23,6 @@ export const styles = css`
 		transition: background-color 0.15s ease, color 0.15s ease,
 			transform 80ms ease;
 	}
-
 	button:active:not(:disabled) {
 		transform: scale( 0.9 );
 	}
@@ -60,11 +58,9 @@ export const styles = css`
 		pointer-events: none;
 		flex-shrink: 0;
 	}
-
 	svg:empty {
 		display: none;
 	}
-
 	.themed-icon {
 		display: block;
 		width: 14px;
@@ -73,7 +69,6 @@ export const styles = css`
 		pointer-events: none;
 		background-color: var( --os-ui-btn-icon-color, currentColor );
 	}
-
 	::slotted( span ) {
 		line-height: 1;
 	}

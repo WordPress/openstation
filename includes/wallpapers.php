@@ -3,7 +3,6 @@
 defined( 'ABSPATH' ) || exit;
 
 function openstation_register_builtin_wallpapers() {
-
 	$brand = array(
 		array(
 			'id'          => 'galaxy',
@@ -21,7 +20,6 @@ function openstation_register_builtin_wallpapers() {
 			'id'          => 'holomesh',
 			'label'       => __( 'Holomesh', 'desktop-mode' ),
 			'file'        => 'holomesh.svg',
-
 			'tone'        => 'light',
 			'description' => __( 'The holographic mesh: lavender, pink, cyan and mint pooling into each other like light through a prism.', 'desktop-mode' ),
 		),
@@ -41,7 +39,6 @@ function openstation_register_builtin_wallpapers() {
 			array(
 				'label'       => $wallpaper['label'],
 				'type'        => 'css',
-
 				'preview'     => 'url( ' . OPENSTATION_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat',
 				'value'       => $css,
 				'tone'        => isset( $wallpaper['tone'] ) ? $wallpaper['tone'] : '',

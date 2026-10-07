@@ -11,8 +11,10 @@ function openstation_plugins_window_ajax_upload() {
 		return;
 	}
 
-	$file      = isset( $_FILES['pluginzip'] ) && is_array( $_FILES['pluginzip'] ) ? $_FILES['pluginzip'] : null;
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified in openstation_plugins_window_ajax_guard() above.
+	$file      = isset( $_FILES['pluginzip'] ) && is_array( $_FILES['pluginzip'] ) ? $_FILES['pluginzip'] : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read raw, validated below.
 	$overwrite = ! empty( $_POST['overwrite'] );
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 	$rejected = openstation_plugins_window_validate_upload( $file );
 	if ( is_wp_error( $rejected ) ) {
@@ -133,7 +135,7 @@ function openstation_plugins_window_validate_upload( $file ) {
 		return new WP_Error(
 			'openstation_plugins_upload_error',
 			sprintf(
-
+				/* translators: %d: PHP UPLOAD_ERR_* code. */
 				__( 'Upload failed (error %d). Try again.', 'desktop-mode' ),
 				(int) $file['error']
 			),
@@ -149,7 +151,6 @@ function openstation_plugins_window_validate_upload( $file ) {
 		);
 	}
 	if ( ! is_uploaded_file( (string) $file['tmp_name'] ) ) {
-
 		return new WP_Error(
 			'openstation_plugins_bad_tmp',
 			__( 'Refused: temporary upload path is not trusted.', 'desktop-mode' ),

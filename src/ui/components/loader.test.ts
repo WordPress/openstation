@@ -85,7 +85,6 @@ describe( 'loadComponents', () => {
 
 		expect( error ).toHaveBeenCalledTimes( 1 );
 		expect( String( error.mock.calls[ 0 ][ 0 ] ) ).toContain( '<os-buton>' );
-
 		expect( injectedScripts() ).toHaveLength( 0 );
 	} );
 

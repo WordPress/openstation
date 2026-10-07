@@ -23,7 +23,6 @@ import { matchesStationHomeUrl } from './open-targets/station-home-url';
 import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import { syncOpenWindowSubmenus } from './window/submenu-sync';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
-
 import { OsSettings } from './settings';
 import { OS_SETTINGS_WINDOW_ID } from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
@@ -130,7 +129,6 @@ import {
 	createLayoutDispatcher,
 	type LayoutDispatcher,
 } from './desktop-layout';
-
 import { AiAssistantStub, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
 import {
@@ -285,7 +283,6 @@ import { createNavItemOpener } from './mobile/open-nav-item';
 import type { MobileLayerHandle } from './mobile/types';
 import { preloadWindowSystem } from './window-system/loader';
 import type { WallpaperDef } from './wallpapers/types';
-
 import {
 	filesApi,
 	filesRest,
@@ -354,7 +351,6 @@ let _earlyReady = false;
 			return _earlyReady;
 		},
 	};
-
 	w.wp.os = shim as unknown;
 }() );
 
@@ -382,6 +378,7 @@ function scheduleIdleBoot( cb: () => void, timeout = 1500 ): void {
 				fn();
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
+					// eslint-disable-next-line no-console
 					console.error(
 						'[openstation] scheduleIdleBoot callback threw:',
 						err,
@@ -399,71 +396,41 @@ function scheduleIdleBoot( cb: () => void, timeout = 1500 ): void {
 
 export interface OpenStationPublicApi {
 	windowManager: WindowManager;
-
 	dock: Dock | null;
-
 	sideDock: Dock | null;
-
 	desktopLayout: 'classic' | 'unified';
-
 	dockPlacement: 'bottom' | 'left' | 'right';
-
 	icons: IconsApi;
-
 	iconSet: OsIconSetApi;
-
 	files: FilesApi;
-
 	confirm: ( options: import( './ui/components/os-confirm-dialog/os-confirm-dialog' ).OsConfirmOptions ) => Promise< boolean >;
 	saveSession: () => void;
-
 	hooks: WpHooks;
-
 	HOOKS: typeof import( './hooks' ).HOOKS;
-
 	isActive: () => boolean;
-
 	registerWallpaper: ( def: WallpaperDef ) => void;
-
 	wallpaper: WallpaperSuspendApi;
-
 	mio: MioApi;
-
 	mode: OsModeApi;
-
 	games: GamesApi;
-
 	deactivationFeedback?: import( './deactivation-feedback' ).DeactivationFeedbackApi;
-
 	registerWidget: ( def: import( './widgets/types' ).WidgetDef ) => void;
-
 	widgetLayer: WidgetLayer | null;
-
 	widgets: {
-
 		redock: ( id: string ) => void;
 	};
-
 	registerSystemTile: ( item: SystemDockItem ) => void;
-
 	registerWindow: ( def: NativeWindowDef ) => Promise< DesktopWindow >;
-
 	openWindow: ( id: string, opts?: { source?: string } ) => boolean;
-
 	openNewWindow: ( id: string, opts?: { source?: string } ) => boolean;
-
 	embedAdminPage: (
 		host: HTMLElement,
 		url: string,
 		opts?: { windowId?: string },
 	) => () => void;
-
 	loadWindowScript: ( id: string ) => Promise< boolean >;
-
 	prewarmWindow: ( id: string ) => Promise< boolean >;
-
 	loadComponents: ( tags?: readonly string[] ) => Promise< void >;
-
 	fetch: (
 		input: RequestInfo | URL,
 		requestInit?: RequestInit,
@@ -471,241 +438,144 @@ export interface OpenStationPublicApi {
 			windowId?: string;
 			window?: DesktopWindow;
 			silent?: boolean;
-
 			source?: string;
 		},
 	) => Promise< Response >;
-
 	cloneTemplate: ( template: string | HTMLTemplateElement ) => DocumentFragment;
-
 	onWindow: (
 		id: string,
 		handlers: WindowLifecycleHandlers,
 		options?: { persistent?: boolean },
 	) => () => void;
-
 	createInfiniteList: < TItem >(
 		options: import( './infinite-list' ).InfiniteListOptions< TItem >,
 	) => import( './infinite-list' ).InfiniteList;
-
 	startOAuth: (
 		service: string,
 		options?: import( './oauth-relay' ).StartOAuthOptions,
 	) => Promise< import( './oauth-relay' ).OAuthCallbackPayload >;
-
 	loadVendorScript: ( url: string, extras?: ScriptExtras ) => Promise<void>;
-
 	getWallpaperSurfaces: () => WallpaperSurface[];
-
 	registerModule: ( def: ModuleDef ) => void;
-
 	loadModules: ( ids: string[] ) => Promise<void>;
-
 	whenReady: ( cb: () => void ) => void;
-
 	ready: ( cb: () => void ) => void;
-
 	isReady: () => boolean;
-
 	setDefaultWindow: ( url: string | null ) => Promise<void>;
-
 	refreshMenu: () => Promise<void>;
-
 	config: DesktopConfig;
-
 	ai: AiAssistantApi;
-
 	dragBridge: DragBridgeApi;
-
 	dragManager: DragManagerApi;
-
 	registerCommand: ( cmd: DesktopCommand ) => void;
-
 	unregisterCommand: ( slug: string ) => void;
-
 	listCommands: () => DesktopCommand[];
-
 	registerDestructiveAdminAction: (
 		entry: DestructiveAdminActionEntry,
 	) => () => void;
-
 	unregisterDestructiveAdminAction: ( id: string ) => void;
-
 	listDestructiveAdminActions: () => DestructiveAdminActionEntry[];
-
 	registerSettingsTab: ( tab: DesktopSettingsTab ) => void;
-
 	unregisterSettingsTab: ( id: string ) => void;
-
 	listSettingsTabs: () => DesktopSettingsTab[];
-
 	registerDockRailRenderer: ( renderer: DockRailRenderer ) => void;
-
 	unregisterDockRailRenderer: ( id: string ) => void;
-
 	listDockRailRenderers: () => DockRailRenderer[];
-
 	openOsSettings: ( opts?: { tabId?: string } ) => void;
-
 	getOsSettings: () => OsSettingsSnapshot;
-
 	subscribeOsSettings: (
 		cb: ( snapshot: OsSettingsSnapshot ) => void,
 	) => () => void;
-
 	updateOsSettings: (
 		patch: Partial< OsSettingsSnapshot >,
 		opts?: { windowId?: string },
 	) => void;
-
 	resetOsSettings: ( opts?: { windowId?: string } ) => void;
-
 	deriveWindowId: ( url: string, adminUrl?: string ) => string;
-
 	listSystemTiles: () => Array< {
 		id: string;
 		title: string;
 		icon: string;
-
 		navKind: 'core' | 'app' | 'control';
-
 		placeable: boolean;
-
 		locked: boolean;
 	} >;
-
 	getNavItems: () => import( './nav' ).NavItem[];
-
 	getNav: () => import( './nav' ).NavResult | null;
-
 	getSystemTile: ( id: string ) => SystemDockItem | null;
-
 	getMenuItems: () => DockItem[];
-
 	renderIcon: (
 		icon: string,
 		opts: { title: string; className?: string },
 	) => HTMLElement;
-
 	applyTileClasses: typeof import( './dock-helpers' ).applyTileClasses;
-
 	applyTileElement: typeof import( './dock-helpers' ).applyTileElement;
-
 	applyTileTooltip: typeof import( './dock-helpers' ).applyTileTooltip;
-
 	dispatchTileRendered: typeof import( './dock-helpers' ).dispatchTileRendered;
-
 	isDockElement: ( target: EventTarget | null ) => boolean;
-
 	registerDockSelector: ( selector: string ) => () => void;
-
 	registerTitleBarButton: ( def: TitleBarButtonDef ) => void;
-
 	unregisterTitleBarButton: ( id: string ) => void;
-
 	listTitleBarButtons: () => TitleBarButtonDef[];
-
 	registerWindowAction: ( def: WindowActionDef ) => void;
-
 	unregisterWindowAction: ( id: string ) => void;
-
 	listWindowActions: () => WindowActionDef[];
-
 	registerUnfocusEffect: ( def: UnfocusEffectDef ) => void;
-
 	unregisterUnfocusEffect: ( id: string ) => void;
-
 	listUnfocusEffects: () => UnfocusEffectDef[];
-
 	registerWindowReveal: ( def: WindowRevealDef ) => void;
-
 	unregisterWindowReveal: ( id: string ) => void;
-
 	listWindowReveals: () => WindowRevealDef[];
-
 	relations: WindowRelationsApi;
-
 	registerWindowLinkRenderer: ( def: WindowLinkRendererDef ) => void;
-
 	unregisterWindowLinkRenderer: ( id: string ) => void;
-
 	listWindowLinkRenderers: () => WindowLinkRendererDef[];
-
 	registerWindowTheme: ( def: WindowThemeDef ) => void;
-
 	unregisterWindowTheme: ( id: string ) => void;
-
 	listWindowThemes: () => WindowThemeDef[];
-
 	desktopThemes: {
-
 		list: () => DesktopThemeEntry[];
-
 		getActive: () => string | null;
-
 		setActive: ( themeId: string ) => void;
-
 		ensureFull: () => Promise< void >;
-
 		subscribe: (
 			cb: ( state: Readonly< DesktopThemeState > ) => void,
 		) => () => void;
-
 		resolveIcon: ( slot: string ) => string | null;
-
 		resolveIconColor: ( slot: string ) => string | null;
-
 		applyRecommendedOsSettings: (
 			themeId?: string,
 		) => RecommendedOsSettings;
 	};
-
 	registerWindowControl: ( def: WindowControlDef ) => void;
-
 	unregisterWindowControl: ( id: string ) => void;
-
 	listWindowControls: () => WindowControlDef[];
-
 	applyWindowControls: (
 		windowId: string,
 		override: import( './types' ).WindowControlsConfig | null | undefined,
 	) => void;
-
 	registerWindowSlot: ( def: WindowSlotDef ) => void;
-
 	unregisterWindowSlot: ( id: string ) => void;
-
 	listWindowSlots: () => WindowSlotDef[];
-
 	applyWindowSlot: (
 		windowId: string,
 		slot: import( './types' ).WindowSlotName,
 		config: import( './types' ).WindowSlotConfig | undefined,
 	) => void;
-
 	registerWindowNotice: (
 		entry: import( './window-notices' ).WindowNoticeEntry,
 	) => () => void;
-
 	unregisterWindowNotice: ( id: string ) => void;
-
 	listWindowNotices: () => import( './window-notices' ).WindowNoticeEntry[];
-
 	dismissWindowNotice: ( id: string ) => void;
-
 	undismissWindowNotice: ( id: string ) => void;
-
 	registerWindowChrome: ( def: WindowChromeDef ) => void;
-
 	unregisterWindowChrome: ( id: string ) => void;
-
 	listWindowChromes: () => WindowChromeDef[];
-
 	applyWindowChrome: (
 		windowId: string,
 		chromeId: string | null | undefined,
 	) => void;
-
 	applyWindowTheme: (
 		windowId: string,
 		override:
@@ -715,92 +585,59 @@ export interface OpenStationPublicApi {
 			| null
 			| undefined,
 	) => void;
-
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
-
 	getConnection: ( connectionId: string ) => WindowConnection | null;
-
 	broadcast: < T = unknown >( topic: string, payload: T ) => void;
-
 	announceContentChange: (
 		type: string,
 		action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
 		ids: number | number[],
 		source?: string,
 	) => void;
-
 	subscribe: < T = unknown >(
 		topic: string,
 		cb: ( payload: T, meta: { topic: string } ) => void,
 	) => () => void;
-
 	registerPalette: ( p: Palette ) => () => void;
-
 	unregisterPalette: ( id: string ) => void;
-
 	listPalettes: () => Palette[];
-
 	openPalette: ( id: string ) => void;
-
 	devtools: import( './devtools' ).DevtoolsApi;
-
 	createSharedStore: < T >(
 		key: string,
 		initialState: () => T,
 	) => SharedStore< T >;
-
 	presence: PresenceApi;
-
 	workArea: WorkAreaApi;
-
 	workspaces: WorkspacesApi;
-
 	selection: SelectionApi;
-
 	activity: ActivityApi;
-
 	heartbeat: HeartbeatBus;
-
 	showToast: ( opts: ToastOptions ) => () => void;
-
 	repaintLoadingOverlays: () => void;
-
 	renderKeyedList: < T >(
 		host: HTMLElement,
 		items: readonly T[],
 		opts: KeyedListOptions< T >,
 	) => void;
-
 	clearKeyedList: ( host: HTMLElement ) => void;
-
 	registerNamespace: ( name: string, api: object ) => void;
-
 	getWindowConfig: < T = Record< string, unknown > >( id: string ) => T | undefined;
-
 	getWindowParams: (
 		id: string,
 	) => Record< string, string | number | boolean > | undefined;
-
 	registerNativeUrlRemap: ( entry: NativeUrlRemap ) => () => void;
-
 	notify: ( opts: NotifyOptions ) => () => void;
-
 	pwa: {
-
 		promptInstall: () => Promise< 'accepted' | 'dismissed' | 'unavailable' >;
-
 		undismissInstallHint: () => void;
-
 		getState: () => import( './types' ).PwaUserState;
-
 		subscribe: (
 			cb: ( s: import( './types' ).PwaUserState ) => void,
 		) => () => void;
-
 		requestNotificationPermission: () => Promise<
 			'granted' | 'denied' | 'default' | 'unsupported'
 		>;
-
 		getNotificationPermission: () =>
 			| 'granted'
 			| 'denied'
@@ -808,7 +645,6 @@ export interface OpenStationPublicApi {
 			| 'unsupported';
 	};
 	debug: {
-
 		window: ( id: string ) => DesktopDebugWindow | null;
 	};
 }
@@ -817,7 +653,6 @@ export interface DesktopDebugWindow {
 	id: string;
 	scriptHandle: string;
 	scriptUrl: string;
-
 	loadPath: 'eager' | 'lazy' | 'unknown';
 	tagInDom: boolean;
 	configPresent: boolean;
@@ -832,10 +667,8 @@ export interface DesktopDebugWindow {
 declare global {
 	interface Window {
 		openStationConfig?: DesktopConfig;
-
 		openStationWindowConfig?: Record< string, unknown >;
 	}
-
 	interface WpGlobal {
 		os?: OpenStationPublicApi;
 	}
@@ -846,7 +679,6 @@ function init(): void {
 	if ( ! config ) {
 		return;
 	}
-
 	hydrateScriptDeps( config );
 
 	const desktopArea = document.getElementById( 'os-area' );
@@ -859,7 +691,6 @@ function init(): void {
 		try {
 			window.history.replaceState( window.history.state, '', cleanUrl );
 		} catch {
-
 		}
 	}
 
@@ -881,7 +712,6 @@ function init(): void {
 	const widgetsEl = document.getElementById( 'os-widgets' );
 	let widgetLayer: WidgetLayer | null = null;
 	registerBuiltInWidgets();
-
 	installDefaultDockRailRenderer();
 	if ( widgetsEl ) {
 		widgetLayer = new WidgetLayer( widgetsEl, pluginUrl );
@@ -909,12 +739,10 @@ function init(): void {
 	osSettings.subscribeOsSettings( ( snap ) => {
 		modeController.setPreference( sanitizeModePreference( snap.mobileLayout ) );
 	} );
-
 	installZoomGuard();
 	const mobileConstraints = installMobileConstraints( {
 		manager,
 		mode: modeController.api,
-
 		openNative: ( id, baseId, state ) =>
 			openNativeWindowById( id, baseId, state ),
 	} );
@@ -936,7 +764,6 @@ function init(): void {
 			osSettings.state.mioApiEnabled = enabled;
 			osSettings.save();
 		},
-
 		savedLook: osSettings.state.mioStyle,
 		persistLook: ( look ) => {
 			osSettings.state.mioStyle = look;
@@ -946,7 +773,6 @@ function init(): void {
 	const mioApi: MioApi = mio.api();
 	osSettings.subscribeOsSettings( ( snapshot ) => mio.syncEnabled( snapshot.mioEnabled ) );
 	document.addEventListener( 'os-ai-status-changed', () => mio.refreshWindowAvailability() );
-
 	if ( ! modeController.api.isMobile() ) {
 		mio.boot();
 	} else {
@@ -967,9 +793,7 @@ function init(): void {
 			aiSearchUrl: config.aiSearchUrl ?? '',
 			restNonce: config.restNonce,
 			adminUrl: config.adminUrl,
-
 			isAiSupported: () => config.aiAssistant?.available === true,
-
 			canConnectProvider: () => Boolean( config.currentUserIsAdmin ),
 			isAiAvailable: () =>
 				config.aiAssistant?.available === true &&
@@ -1006,7 +830,6 @@ function init(): void {
 	);
 
 	const dragBridge = new DragBridge();
-
 	const dragManager: DragManagerApi = new DragManager();
 
 	document.addEventListener( DRAG_EVENTS.START, ( e ) => {
@@ -1019,7 +842,6 @@ function init(): void {
 				}
 			| undefined;
 		const payload = detail?.payload;
-
 		if ( ! payload ) {
 			return;
 		}
@@ -1061,7 +883,6 @@ function init(): void {
 		close: () => aiAssistant.close(),
 		isOpen: () => aiAssistant.isOpen,
 	} );
-
 	installTextEntryGuard();
 	installPaletteShortcut();
 	installWindowSwitcherShortcut( manager );
@@ -1122,7 +943,6 @@ function init(): void {
 		'.os-shell__body',
 	);
 	let layoutDispatcher: LayoutDispatcher | null = null;
-
 	let workspaceDeps: WorkspaceDeps | null = null;
 
 	const applyWorkspaceViewForMode = (
@@ -1145,7 +965,6 @@ function init(): void {
 		}
 		provisionWorkspace( deps, desktopId );
 	};
-
 	let pwaAlreadyInstalled = false;
 
 	const currentWorkspaceLook = (): ReturnType<
@@ -1165,7 +984,6 @@ function init(): void {
 			title: item.title,
 			kind: item.kind,
 			locked: item.locked,
-
 			url: item.menu?.url || item.entry?.url || undefined,
 			windowId: item.windowId,
 		} ) ),
@@ -1175,7 +993,6 @@ function init(): void {
 			description: def.description,
 		} ) ),
 		enabledWidgetIds: widgetLayer?.getEnabledIds() ?? [],
-
 		wallpapers: listWallpaperDefs().map( ( def ) => ( {
 			id: def.id,
 			label: def.label,
@@ -1208,7 +1025,6 @@ function init(): void {
 						? { preset: result.preset }
 						: { profile: result.profile ?? undefined } ),
 				} );
-
 				applyWorkspaceViewForMode( deps, target );
 				provisionWorkspaceForMode( deps, target );
 			},
@@ -1229,7 +1045,6 @@ function init(): void {
 				...nav.sidebar,
 				...nav.desktop,
 			];
-
 			visibleAppIds = onScreen
 				.filter( ( item ) => ! nav.ephemeral.has( item.id ) )
 				.map( ( item ) => item.id );
@@ -1243,7 +1058,6 @@ function init(): void {
 		}
 		const label =
 			manager.getDesktops().find( ( d ) => d.id === desktopId )?.label ?? '';
-
 		const onDesk = manager
 			.getAll()
 			.filter( ( w ) => ( w.config.desktopId || desktopId ) === desktopId ).length;
@@ -1251,7 +1065,7 @@ function init(): void {
 		let message: string;
 		if ( onDesk > kept ) {
 			message = sprintf(
-
+				// translators: %1$s is the workspace name, %2$d the windows kept, %3$d the windows on the desk.
 				__( '%1$s will open like this — the top %2$d of %3$d windows, where they are.' ),
 				label,
 				kept,
@@ -1259,7 +1073,7 @@ function init(): void {
 			);
 		} else {
 			message = sprintf(
-
+				// translators: %1$s is the workspace name, %2$d a number of windows.
 				__( '%1$s will open like this — %2$d windows, where they are.' ),
 				label,
 				kept,
@@ -1284,18 +1098,15 @@ function init(): void {
 			mode: 'edit',
 			desktopId,
 			label: desktop.label,
-
 			profile: desktop.profile ?? blankWorkspaceProfile(),
 			...wizardWorld( deps ),
 			onSave: ( result ) => {
 				if ( result.label ) {
 					manager.renameDesktop( desktopId, result.label );
 				}
-
 				setWorkspaceProfile( deps, desktopId, result.profile );
 			},
 			captureWindows: () => captureWorkspaceWindows( manager, desktopId ),
-
 			onDelete:
 				manager.getDesktops().length > 1
 					? () => manager.closeDesktop( desktopId )
@@ -1351,9 +1162,7 @@ function init(): void {
 				) {
 					return {
 						title: sub.title,
-
 						icon: item.icon,
-
 						url: item.url,
 						multi: item.multi,
 					};
@@ -1362,7 +1171,6 @@ function init(): void {
 		}
 		return null;
 	};
-
 	const openOtherAdmin = hopToAdmin;
 
 	const hopMinter: HopMinter = ( target, direction ) => {
@@ -1376,7 +1184,6 @@ function init(): void {
 			? buildSiteSwitcher( config.multisite, { mint: hopMinter } )
 			: null,
 	);
-
 	document.addEventListener( 'os-app-effect', ( e: Event ) => {
 		const effect = ( e as CustomEvent< { effect?: { type?: string; site?: unknown } } > )
 			.detail?.effect;
@@ -1384,13 +1191,11 @@ function init(): void {
 			switchToSite( config.multisite, effect.site, { mint: hopMinter } );
 		}
 	} );
-
 	installSiteSwitcherKeys( {
 		multisite: () => config.multisite,
 		isShown: () => !! document.querySelector( '.os-area--overview .os-site-switcher' ),
 		mint: hopMinter,
 	} );
-
 	if ( config.hopLinkOffer ) {
 		void offerAccountLink( config.hopLinkOffer, {
 			confirm: ( options ) => osConfirm( options ),
@@ -1496,7 +1301,6 @@ function init(): void {
 			);
 		},
 		enabled: ( snapshot ) => snapshot.nativePluginsEnabled === true,
-
 		params: ( _url, parsed ) => ( {
 			tab: parsed.pathname.endsWith( '/plugin-install.php' )
 				? 'browse'
@@ -1535,7 +1339,6 @@ function init(): void {
 						navOrder: snap.navOrder,
 					};
 				},
-
 				getWorkspaceProfile: () =>
 					modeController.api.isMobile()
 						? null
@@ -1546,17 +1349,13 @@ function init(): void {
 			config.desktopIcons,
 			initialPlacement,
 		);
-
 		installAdminBarHeight();
-
 		installWorkArea( {
 			shell: shellEl,
 			shellBody,
 			area: desktopArea,
 		} );
-
 		installGridSpanReflow( manager );
-
 		installDockBehavior( {
 			shellBody,
 			getBehaviors: () => ( {
@@ -1564,7 +1363,6 @@ function init(): void {
 				sidebar: osSettings.state.sideDockBehavior,
 			} ),
 		} );
-
 		installDockConstellationSentinel( {
 			bundleUrl: config.dockConstellationBundleUrl ?? '',
 			deps: {
@@ -1584,18 +1382,14 @@ function init(): void {
 				deriveWindowId( url, config.adminUrl ),
 			openNative: nativeWindows.openById,
 			refreshLayout: () => layoutDispatcher?.refresh(),
-
 			setVisibleWidgets: ( ids ) => widgetLayer?.setVisibleIds( ids ),
-
 			setAppearance: ( patch ) =>
 				osSettings.setWorkspaceAppearance(
 					patch as Partial< typeof osSettings.state > | null,
 				),
 		};
-
 		installWorkspacePresetSync();
 		applyServerWorkspacePresets( config.workspacePresets );
-
 		registerWorkspaceCommand(
 			workspaceDeps,
 			editWorkspace,
@@ -1616,12 +1410,10 @@ function init(): void {
 				if ( ! workspaceDeps || ! payload?.to ) {
 					return;
 				}
-
 				applyWorkspaceViewForMode( workspaceDeps, payload.to );
 				provisionWorkspaceForMode( workspaceDeps, payload.to );
 			},
 		);
-
 		const recordWidgetChange = ( id: string, visible: boolean ): void => {
 			if ( ! workspaceDeps || ! visible ) {
 				return;
@@ -1645,7 +1437,6 @@ function init(): void {
 			applyWorkspaceViewForMode( workspaceDeps, bootDesktop );
 			provisionWorkspaceForMode( workspaceDeps, bootDesktop );
 		}
-
 		const installTile = getInstallTileDef(
 			config.pwa?.appName || 'WordPress',
 			showToast,
@@ -1655,10 +1446,8 @@ function init(): void {
 			title: 'System',
 			icon: OS_SYSTEM_ICON,
 			navKind: 'control',
-
 			placeable: true,
 			order: SYSTEM_TILE_ORDER.system,
-
 			onOpen: () => openOsSettings(),
 			get submenu() {
 				const rows: SubmenuItem[] = [
@@ -1672,7 +1461,6 @@ function init(): void {
 				if ( config.homeUrl ) {
 					rows.push( {
 						title: 'View site',
-
 						url: config.homeUrl,
 					} );
 				}
@@ -1698,7 +1486,6 @@ function init(): void {
 						onSelect: () => openBugReport(),
 					},
 				);
-
 				if ( ! isStandaloneDisplay() && ! pwaAlreadyInstalled ) {
 					rows.push( {
 						title: installTile.title,
@@ -1719,7 +1506,6 @@ function init(): void {
 				}
 				return rows;
 			},
-
 			isOpen: () => anyRowOpen( systemTile.submenu ?? [] ),
 		};
 		layoutDispatcher.appendSystemTile( systemTile );
@@ -1754,16 +1540,13 @@ function init(): void {
 
 	function openOsSettings( opts: { tabId?: string } = {} ): void {
 		const MERGED_TABS: Readonly< Record< string, string > > = {
-
 			extended: 'features',
-
 			effects: 'windows',
 		};
 		const merged = opts.tabId ? MERGED_TABS[ opts.tabId ] : undefined;
 		if ( merged ) {
 			opts = { ...opts, tabId: merged };
 		}
-
 		const alreadyOpen = !! manager.getById( OS_SETTINGS_WINDOW_ID );
 		nativeWindows.openById( OS_SETTINGS_WINDOW_ID, {
 			source: 'os-settings',
@@ -1870,14 +1653,12 @@ function init(): void {
 	);
 
 	const hasSession = hasRestorableSession( config.session );
-
 	function openNativeWindowById(
 		nativeId: string,
 		baseId?: string,
 		state?: NativeWindowRestoreState,
 	): boolean {
 		const registeredId = baseId || nativeId;
-
 		if (
 			registeredId === 'desktop-mode-dashboard' &&
 			osSettings.getOsSettingsSnapshot().stationHomeEnabled !== true
@@ -1946,7 +1727,6 @@ function init(): void {
 	const isNativeDefault =
 		typeof defaultUrlEarly === 'string' &&
 		defaultUrlEarly.startsWith( 'native:' );
-
 	let bootWindowsSettled: Promise< unknown > = sessionRestore;
 	if ( ! soloWindowId && shouldAutoOpenCurrentPage( {
 		fromPortal: config.fromPortal,
@@ -1975,7 +1755,6 @@ function init(): void {
 		const deps = workspaceDeps;
 		void sessionRestore.then( () => {
 			const bootDesktop = manager.getActiveDesktopId();
-
 			if ( ! modeController.api.isMobile() ) {
 				reopenWorkspaceWindows( deps, bootDesktop );
 			}
@@ -2045,7 +1824,6 @@ function init(): void {
 		isNativeDefault
 	) {
 		const nativeId = defaultUrlEarly.slice( 'native:'.length );
-
 		queueMicrotask( () => {
 			openNativeWindowById( nativeId );
 		} );
@@ -2152,7 +1930,6 @@ function init(): void {
 					return;
 				}
 				visualsRequested = true;
-
 				void ensureWindowLinkVisuals()
 					.then( ( loaded ) => {
 						if ( ! loaded ) {
@@ -2185,7 +1962,6 @@ function init(): void {
 			if ( ! item.url ) {
 				return;
 			}
-
 			if ( tryNativeUrlRemap( item.url ) ) {
 				return;
 			}
@@ -2308,13 +2084,11 @@ function init(): void {
 			__openStationConnectionBridge?: ReturnType< typeof createConnectionBridge >;
 		}
 	).__openStationConnectionBridge = connectionBridge;
-
 	addAction( HOOKS.WINDOW_CLOSED, 'desktop-mode/connection-cleanup', ( e: { windowId?: string } ) => {
 		if ( e?.windowId ) {
 			connectionBridge.onWindowClosed( e.windowId );
 		}
 	} );
-
 	addAction( HOOKS.IFRAME_READY, 'desktop-mode/connection-rearm', ( e: { windowId?: string } ) => {
 		if ( e?.windowId ) {
 			connectionBridge.onIframeReady( e.windowId );
@@ -2330,7 +2104,6 @@ function init(): void {
 			layoutDispatcher.applyDesktopIcons( icons );
 			return;
 		}
-
 		renderDesktopIcons( desktopArea, icons, {
 			openWindow: nativeWindows.openById,
 			manager,
@@ -2354,7 +2127,6 @@ function init(): void {
 		layoutDispatcher,
 		desktopArea,
 		config,
-
 		applyMultisite: ( block ) => {
 			const was = config.multisite;
 			config.multisite =
@@ -2376,7 +2148,6 @@ function init(): void {
 		syncServerGames,
 		syncServerDesktopThemes,
 		renderIcons,
-
 		refreshRootPlacements: ( addedIconIds ) => {
 			void listPlacements( 0 )
 				.then( ( res ) => {
@@ -2384,7 +2155,6 @@ function init(): void {
 					settleArrivedShortcuts( desktopArea, addedIconIds );
 				} )
 				.catch( () => {
-
 				} );
 		},
 		syncShortcuts: syncShortcutsNow,
@@ -2415,23 +2185,19 @@ function init(): void {
 		}
 		const prevLayout = layoutDispatcher.getLayout();
 		const prevPlacement = layoutDispatcher.getDockPlacement();
-
 		layoutDispatcher.setDockPlacement( snapshot.dockPlacement );
 		layoutDispatcher.setLayout( snapshot.desktopLayout );
 		desktopApi.dock = layoutDispatcher.getPrimary();
 		desktopApi.sideDock = layoutDispatcher.getSide();
 		desktopApi.desktopLayout = snapshot.desktopLayout;
 		desktopApi.dockPlacement = layoutDispatcher.getDockPlacement();
-
 		if (
 			prevLayout === snapshot.desktopLayout &&
 			prevPlacement === snapshot.dockPlacement
 		) {
 			layoutDispatcher.refresh();
 		}
-
 		syncShortcutsNow();
-
 		setCurrentLayout( snapshot.desktopLayout );
 	} );
 
@@ -2464,7 +2230,6 @@ function init(): void {
 		getConnection: connectionBridge.getConnection,
 		mio: mioApi,
 		mode: modeController.api,
-
 		workspaces: createWorkspacesApi(
 			workspaceDeps ?? {
 				manager,
@@ -2548,7 +2313,6 @@ function init(): void {
 					},
 					adminUrl: config.adminUrl,
 					renderIcon: ( icon, opts ) => renderIcon( icon, opts ),
-
 					getArt: ( item ) => iconsApi.getArt( item.id ) || dock?.getArt( item.id ) || '',
 					subscribeArt: ( cb ) => activity.subscribe( 'os/art-changed', () => cb() ),
 				} );
@@ -2576,7 +2340,6 @@ function init(): void {
 	} );
 
 	scheduleIdleBoot( () => installRecycleBinDropTargets( dragManager ) );
-
 	scheduleIdleBoot( () => installAgentTileDropHandlers() );
 
 	bootHeartbeatBus();
@@ -2601,7 +2364,6 @@ function init(): void {
 
 	installNotesSentinel( {
 		bundleUrl: config.notesBundleUrl ?? '',
-
 		hasNotes: Boolean( config.hasNotes ),
 		host: desktopArea,
 		config,
@@ -2615,7 +2377,6 @@ function init(): void {
 			if ( tryNativeUrlRemap( url ) ) {
 				return true;
 			}
-
 			void manager.open( { id, baseId: id, url, title, icon } );
 			return true;
 		},
@@ -2641,12 +2402,10 @@ function init(): void {
 			} );
 		},
 	} );
-
 	const openNoticeUrl = ( { url, title }: { url: string; title: string } ): void => {
 		if ( tryNativeUrlRemap( url ) ) {
 			return;
 		}
-
 		const baseId = deriveWindowId( url, config.adminUrl );
 		void manager.open( {
 			id: baseId,
@@ -2662,9 +2421,7 @@ function init(): void {
 		openUrl: openNoticeUrl,
 		keyPrefix: 'plugin-notice',
 	} );
-
 	void maybeShowRebrandNotice( { config } );
-
 	installShellTour( {
 		config,
 		windowManager: manager,
@@ -2677,7 +2434,6 @@ function init(): void {
 			revealSettingsSection( LAYOUT_SECTION_ID );
 			return { windowId: OS_SETTINGS_WINDOW_ID, wasAlreadyOpen };
 		},
-
 		findLayoutTarget: () =>
 			visibleSettingsSection( LAYOUT_SECTION_ID ) ??
 			document.querySelector(
@@ -2693,10 +2449,8 @@ function init(): void {
 				notifyPaletteVisibility( palette.id, false );
 			}
 		},
-
 		mio: true,
 		refreshDesktopIcons: spendMenuRefresh,
-
 		findAssistant: () =>
 			document.querySelector(
 				'#desktop-mode-ai-assistant:not([hidden]) .os-ai__panel',
@@ -2713,14 +2467,12 @@ function init(): void {
 			} );
 		},
 	} );
-
 	void maybeAskForUsageFeedback( { config } );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {
 			baseUrl: config.filesUrl,
 			nonce: config.restNonce,
 		} );
-
 		const rootHost = document.getElementById( 'os-area' );
 		if ( rootHost ) {
 			const layerHandle = mountFilesLayer( rootHost, 0 );
@@ -2757,7 +2509,6 @@ function init(): void {
 
 	const overlayPreload = (): void => {
 		preloadShellOverlays( config.shellOverlaysBundleUrl ?? '' );
-
 		preloadWindowSystem( config.windowSystemBundleUrl ?? '' );
 	};
 	if ( typeof window.requestIdleCallback === 'function' ) {
@@ -2779,6 +2530,7 @@ function init(): void {
 				error: err,
 			} );
 			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] whenReady cb threw:', err );
 			}
 		}
@@ -2814,7 +2566,6 @@ function init(): void {
 	): void => {
 		const root = filesApi.store.getState().placementsByFolder.get( 0 ) ?? [];
 		const ordered = transform( root );
-
 		const canvas = workAreaRectOf( desktopArea );
 		const rowsPerCol = Math.max(
 			1,
@@ -2840,7 +2591,6 @@ function init(): void {
 				y: cell.y,
 				sortOrder: i,
 			} );
-
 			if ( ! persist || isSyntheticPlacement( p ) ) {
 				continue;
 			}
@@ -2851,6 +2601,7 @@ function init(): void {
 					sortOrder: i,
 				} )
 				.catch( ( err: unknown ) => {
+					// eslint-disable-next-line no-console
 					console.error( '[openstation] relayout persist failed', err );
 				} );
 		}
@@ -2904,7 +2655,6 @@ function init(): void {
 				window.localStorage.removeItem( ROOT_SORT_MODE_KEY );
 			}
 		} catch {
-
 		}
 	};
 
@@ -2951,27 +2701,21 @@ function init(): void {
 		if ( ! osSettings.state.showDesktopOnWallpaperClick ) {
 			return;
 		}
-
 		if ( e.target !== desktopArea ) {
 			return;
 		}
-
 		if ( ! pointerdownOnWallpaper ) {
 			return;
 		}
-
 		if ( desktopArea.classList.contains( 'os-area--overview' ) ) {
 			return;
 		}
-
 		if ( isWallpaperMenuOpen() ) {
 			return;
 		}
-
 		if ( dragManager.recentlyEndedDrag() ) {
 			return;
 		}
-
 		if ( recentlyMarqueed() ) {
 			return;
 		}
@@ -2989,14 +2733,11 @@ function init(): void {
 			if ( desktopArea.classList.contains( 'os-area--overview' ) ) {
 				return;
 			}
-
 			if ( isWallpaperMenuOpen() ) {
 				closeWallpaperMenu();
 				return;
 			}
-
 			const dropClient = { x: clientX, y: clientY };
-
 			const cellAtClick = (): { x: number; y: number } => {
 				const rect = desktopArea.getBoundingClientRect();
 				const rawX = Math.max( 0, dropClient.x - rect.left );
@@ -3085,7 +2826,6 @@ function init(): void {
 				| ServerWallpaperMenuItem[]
 				| undefined ) ?? [],
 			} );
-
 			openWallpaperMenu(
 				document.body,
 				{ x: clientX, y: clientY },

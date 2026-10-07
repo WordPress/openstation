@@ -24,7 +24,6 @@ function pinnable( items: readonly NavItem[] ): NavItem[] {
 
 export const renderMobile: Section = ( s, _ctx: Ctx ) => {
 	const items = pinnable( readNavItems() );
-
 	const known = new Set( items.map( ( i ) => i.id ) );
 	const fallback = ( shellConfig().mode?.tabBar ?? [] ).filter( ( id ) => known.has( id ) );
 	const pinned = ( s.mobileTabs.length > 0 ? s.mobileTabs : fallback ).slice( 0, TAB_BAR_MAX_PINS );
@@ -59,7 +58,7 @@ export const renderMobile: Section = ( s, _ctx: Ctx ) => {
 		<os-section
 			heading=${ __( 'Tab bar' ) }
 			description=${ sprintf(
-
+				/* translators: %d: number of pinnable slots. */
 				__( 'Home and the app switcher are always there. Pin up to %d apps between them; leave it empty for the default set.' ),
 				TAB_BAR_MAX_PINS,
 			) }

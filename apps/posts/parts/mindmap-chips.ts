@@ -19,10 +19,8 @@ interface CategoryChip {
 }
 
 export interface ChipStore {
-
 	relayout( node: MindNode ): void;
 	destroy( id: number ): void;
-
 	sync( nodes: Map< number, MindNode >, counterScale: number, focusId: number | null ): void;
 }
 
@@ -39,7 +37,6 @@ export function createChipStore(
 		const focused = opts.isFocused( node.id );
 		const displayName = truncate( node.name, CHIP_NAME_MAX_CHARS );
 		const countStr = String( node.count );
-
 		if ( chip.nameText.text !== displayName ) {
 			chip.nameText.text = displayName;
 		}
@@ -64,7 +61,6 @@ export function createChipStore(
 		const badgeH = countH + countPadY * 2;
 		const totalW = padX + nameW + gap + badgeW + padX;
 		const totalH = Math.max( nameH, badgeH ) + padY * 2;
-
 		const left = -totalW / 2;
 		chip.bg.clear();
 		chip.bg.roundRect( left, 0, totalW, totalH, totalH / 2 );

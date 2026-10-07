@@ -155,7 +155,6 @@ test( 'action labels and errors are text; state changes preserve button nodes an
 	expect( document.querySelector( '.os-mio-chat__action-status' )?.textContent ).toBe( '<script>bad</script>' );
 	expect( document.querySelector( '.os-mio-chat__actions' )?.getAttribute( 'aria-label' ) ).toBe( 'Suggested actions' );
 	expect( button.textContent ).toContain( 'Preview saved form' );
-
 	const input = document.querySelector( 'os-textarea' )!;
 	input.dispatchEvent( new CustomEvent( 'os-input-change', { detail: { value: 'Explain more' } } ) ); input.dispatchEvent( new CustomEvent( 'os-submit' ) ); await flush();
 	expect( document.querySelector( '[data-mio-action]' ) ).toBe( button ); chat.destroy();

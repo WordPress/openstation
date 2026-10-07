@@ -201,7 +201,6 @@ describe( 'os.wallpaper.surfaces', async () => {
 	test( 'seeds window tops + shell floor + dock edge', async () => {
 		const w = await manager.open( openConfig( 'w1' ) );
 		stubRect( w.element, { left: 200, top: 100, width: 800, height: 600 } );
-
 		Object.defineProperty( w.element, 'offsetParent', {
 			configurable: true,
 			get: () => desktop,

@@ -146,7 +146,6 @@ describe( '<os-segmented> + <os-segment>', () => {
 		`;
 		await tick();
 		const group = host.querySelector( 'os-segmented' ) as HTMLElement;
-
 		layOut( group, { hostWidth: 189.4, offsetWidth: 189 } );
 
 		group.setAttribute( 'value', 'c' );

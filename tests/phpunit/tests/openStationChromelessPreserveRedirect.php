@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -30,6 +32,9 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$_GET['openstation_chromeless'] = '1';
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 */
 	public function test_appends_flag_to_admin_redirect_in_chromeless() {
 		$this->enter_chromeless();
 
@@ -38,12 +43,18 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'openstation_chromeless=1', $filtered );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 */
 	public function test_leaves_admin_redirect_alone_when_not_chromeless() {
 		$location = admin_url( 'edit.php' );
 
 		$this->assertSame( $location, openstation_chromeless_preserve_redirect( $location ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 */
 	public function test_leaves_non_admin_redirect_alone() {
 		$this->enter_chromeless();
 
@@ -52,6 +63,9 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertSame( $location, openstation_chromeless_preserve_redirect( $location ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 */
 	public function test_does_not_double_append_when_flag_already_present() {
 		$this->enter_chromeless();
 
@@ -62,12 +76,18 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertSame( 1, substr_count( $filtered, 'openstation_chromeless=' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 */
 	public function test_leaves_empty_location_alone() {
 		$this->enter_chromeless();
 
 		$this->assertSame( '', openstation_chromeless_preserve_redirect( '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 */
 	public function test_preserves_existing_query_args() {
 		$this->enter_chromeless();
 
@@ -81,6 +101,9 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'openstation_chromeless=1', $filtered );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 */
 	public function test_filter_is_registered_on_wp_redirect() {
 		$this->assertSame(
 			999,
@@ -88,6 +111,10 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 * @covers ::openstation_is_admin_redirect_target
+	 */
 	public function test_appends_flag_to_relative_admin_redirect_in_chromeless() {
 		set_current_screen( 'user-new' );
 		$this->enter_chromeless();
@@ -99,6 +126,10 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'id=42', $filtered );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 * @covers ::openstation_is_admin_redirect_target
+	 */
 	public function test_appends_flag_to_absolute_path_admin_redirect() {
 		$this->enter_chromeless();
 
@@ -107,6 +138,10 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'openstation_chromeless=1', $filtered );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_preserve_redirect
+	 * @covers ::openstation_is_admin_redirect_target
+	 */
 	public function test_leaves_external_redirect_alone() {
 		$this->enter_chromeless();
 
@@ -114,6 +149,10 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertSame( $location, openstation_chromeless_preserve_redirect( $location ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_hand_off_plugins_redirect
+	 * @covers ::openstation_chromeless_open_handed_off_redirect
+	 */
 	public function test_a_plugin_redirect_off_the_plugins_screen_opens_in_its_own_window() {
 		$this->enter_chromeless();
 		$GLOBALS['pagenow']     = 'plugins.php';
@@ -133,6 +172,9 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( '"newContext":true', $markup );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_hand_off_plugins_redirect
+	 */
 	public function test_a_plugin_that_redirects_again_is_let_through() {
 		$this->enter_chromeless();
 		$GLOBALS['pagenow']     = 'plugins.php';

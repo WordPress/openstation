@@ -57,16 +57,11 @@ export interface MenuRefreshDeps {
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
 	syncServerGames: ( list: DesktopGameServerEntry[] ) => Promise< void >;
-
 	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
-
 	applyMultisite?: ( block: MultisiteConfig | null ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
-
 	refreshRootPlacements?: ( addedIconIds: string[] ) => void;
-
 	syncShortcuts?: () => void;
-
 	syncWindowSubmenus?: () => void;
 }
 
@@ -112,7 +107,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerDesktopThemes,
 		applyMultisite,
 		renderIcons,
-
 		applyDesktopIcons: ( icons ) =>
 			layoutDispatcher?.applyDesktopIcons( icons ),
 		refreshRootPlacements,
@@ -122,7 +116,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 
 	let lastMenuSig: string =
 		typeof config.menuSig === 'string' ? config.menuSig : '';
-
 	let sigRefreshInFlight = false;
 
 	let updatesRefreshTimer: number | null = null;
@@ -149,7 +142,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 
 		return new Promise< void >( ( resolve ) => {
 			const iframe = document.createElement( 'iframe' );
-
 			iframe.setAttribute( 'aria-hidden', 'true' );
 			iframe.tabIndex = -1;
 			iframe.style.cssText =
@@ -178,7 +170,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 				if ( ! data || data.type !== 'os-plugins-changed' ) {
 					return;
 				}
-
 				cleanup();
 			};
 
@@ -244,7 +235,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 				serverGames?: unknown;
 				serverDesktopThemes?: unknown;
 				desktopIcons?: unknown;
-
 				scriptDepPayloads?: unknown;
 				menuSig?: unknown;
 			};
@@ -256,7 +246,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		if ( data.type === 'os-plugins-changed' ) {
 			if ( data.payload ) {
 				applyPayload( data.payload );
-
 				if ( typeof data.payload.menuSig === 'string' ) {
 					lastMenuSig = data.payload.menuSig;
 				}

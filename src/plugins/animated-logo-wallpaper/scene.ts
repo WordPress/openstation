@@ -7,9 +7,7 @@ declare global {
 }
 
 export interface SceneHandle {
-
 	destroy(): void;
-
 	setAnimating( playing: boolean ): void;
 }
 
@@ -20,55 +18,36 @@ interface SceneOptions {
 }
 
 const CONFIG = {
-
 	sampleStride: 7,
-
 	alphaThreshold: 128,
-
 	targetLogoWidth: 1000,
-
 	logoShellFraction: 0.72,
-
 	spriteReferenceWidth: 700,
-
 	springK: 0.015,
-
 	damping: 0.86,
-
 	restVelocityEpsilon: 0.02,
-
 	dragRadius: 150,
-
 	dragStrength: 0.22,
-
 	dragBoost: 0.3,
-
 	dragBoostRefSpeed: 40,
-
 	maxMouseDelta: 80,
-
 	brushSize: 128,
-
 	spriteScaleMin: 0.1,
 	spriteScaleMax: 0.26,
-
 	spriteAlphaMin: 0.55,
 	spriteAlphaMax: 0.92,
 };
 
 const PARTICLE_PALETTE = [
-
 	0xff3b3b, 0xff3b3b,
 	0xff8c2a, 0xff8c2a,
 	0xffd93d, 0xffd93d,
 	0x4cd964, 0x4cd964,
 	0x3ea0ff, 0x3ea0ff,
 	0xa86bff, 0xa86bff,
-
 	0xffb3c7,
 	0x7fdfff,
 	0xffffff,
-
 	0xc8804a,
 ];
 
@@ -118,7 +97,6 @@ export async function mountScene(
 	const vy = new Float32Array( n );
 
 	const sprites: Sprite[] = new Array( n );
-
 	const baseScale = new Float32Array( n );
 	for ( let i = 0; i < n; i++ ) {
 		const sprite: Sprite = new pixi.Sprite( brushTexture );
@@ -162,7 +140,6 @@ export async function mountScene(
 			sprites[ i ].scale.set( baseScale[ i ] * spriteFactor );
 			homeX[ i ] = logoOffsetX + homes[ i ][ 0 ] * logoScale;
 			homeY[ i ] = logoOffsetY + homes[ i ][ 1 ] * logoScale;
-
 			if ( x[ i ] === 0 && y[ i ] === 0 ) {
 				x[ i ] = homeX[ i ];
 				y[ i ] = homeY[ i ];
@@ -203,7 +180,6 @@ export async function mountScene(
 		mouseDx = 0;
 		mouseDy = 0;
 	};
-
 	window.addEventListener( 'pointermove', onPointerMove, { passive: true } );
 	window.addEventListener( 'pointerleave', onPointerLeave );
 
@@ -232,14 +208,12 @@ export async function mountScene(
 				pointerActive ? mouseDy : 0,
 			);
 		}
-
 		mouseDx = 0;
 		mouseDy = 0;
 		syncSprites();
 	};
 
 	app.ticker.add( tick );
-
 	syncSprites();
 	if ( ! animating ) {
 		app.renderer.render( app.stage );
@@ -251,7 +225,6 @@ export async function mountScene(
 			resizeObserver.disconnect();
 			window.removeEventListener( 'pointermove', onPointerMove );
 			window.removeEventListener( 'pointerleave', onPointerLeave );
-
 			app.destroy( { removeView: true }, {
 				children: true,
 				texture: true,
@@ -261,9 +234,7 @@ export async function mountScene(
 			try {
 				brushTexture.destroy( true );
 			} catch {
-
 			}
-
 			container.style.background = priorBackground;
 		},
 		setAnimating( playing: boolean ): void {
@@ -369,7 +340,6 @@ function buildBrushTexture( pixi: typeof import( 'pixi.js' ) ): Texture {
 		center,
 		center,
 	);
-
 	gradient.addColorStop( 0, 'rgba(255, 255, 255, 1)' );
 	gradient.addColorStop( 0.18, 'rgba(255, 255, 255, 0.85)' );
 	gradient.addColorStop( 0.42, 'rgba(255, 255, 255, 0.28)' );
@@ -422,7 +392,6 @@ async function sampleLogoHomes( url: string ): Promise<Array<[ number, number ]>
 function loadImage( url: string ): Promise<HTMLImageElement> {
 	return new Promise( ( resolve, reject ) => {
 		const img = new Image();
-
 		img.crossOrigin = 'anonymous';
 		img.onload = () => resolve( img );
 		img.onerror = () => reject( new Error( `Failed to load logo: ${ url }` ) );
@@ -435,3 +404,4 @@ function applyCanvasLayout( canvas: HTMLCanvasElement ): void {
 	canvas.style.width = '100%';
 	canvas.style.height = '100%';
 }
+

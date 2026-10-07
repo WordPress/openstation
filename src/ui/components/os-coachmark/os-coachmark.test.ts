@@ -17,7 +17,6 @@ describe( '<os-coachmark>', () => {
 	beforeEach( () => {
 		host = document.createElement( 'div' );
 		document.body.appendChild( host );
-
 		show = vi.fn();
 		hide = vi.fn();
 		( HTMLElement.prototype as unknown as { showPopover: unknown } ).showPopover = show;
@@ -47,14 +46,12 @@ describe( '<os-coachmark>', () => {
 		expect( show ).toHaveBeenCalledTimes( 1 );
 		const layer = mark.shadowRoot!.querySelector< HTMLElement >( '.layer' )!;
 		expect( layer.hidden ).toBe( false );
-
 		expect( host.ownerDocument.activeElement ).toBe( mark );
 		expect( mark.shadowRoot!.activeElement?.classList.contains( 'primary' ) ).toBe( true );
 
 		vi.useFakeTimers( { toFake: [ 'setTimeout', 'clearTimeout' ] } );
 		mark.removeAttribute( 'open' );
 		await settle();
-
 		expect( host.ownerDocument.activeElement ).toBe( before );
 		expect( hide ).not.toHaveBeenCalled();
 		expect( layer.hidden ).toBe( false );
@@ -94,7 +91,6 @@ describe( '<os-coachmark>', () => {
 
 		const root = mark.shadowRoot!;
 		expect( root.querySelector( '.meta' )!.textContent ).toBe( '1 of 3' );
-
 		mark.setAttribute( 'counter-label', '1 de 3' );
 		await settle();
 		expect( root.querySelector( '.meta' )!.textContent ).toBe( '1 de 3' );
@@ -108,7 +104,6 @@ describe( '<os-coachmark>', () => {
 		expect( ( primary.mock.calls[ 0 ][ 0 ] as CustomEvent ).detail ).toEqual( { step: 1 } );
 		expect( secondary ).toHaveBeenCalledTimes( 1 );
 		expect( dismiss ).toHaveBeenCalledTimes( 1 );
-
 		expect( mark.hasAttribute( 'open' ) ).toBe( true );
 	} );
 
@@ -151,7 +146,6 @@ describe( '<os-coachmark>', () => {
 			( visible
 				? { left: 100, top: 200, width: 50, height: 40, right: 150, bottom: 240 }
 				: { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 } ) as DOMRect;
-
 		( target as unknown as { checkVisibility: () => boolean } ).checkVisibility = () => visible;
 		mark.anchor = target;
 		expect( outline.hidden ).toBe( false );
@@ -179,7 +173,6 @@ describe( '<os-coachmark>', () => {
 		expect( layer.classList.contains( 'stepping' ) ).toBe( true );
 
 		layer.classList.remove( 'stepping' );
-
 		( mark as unknown as { _position(): void } )._position();
 		expect( layer.classList.contains( 'stepping' ) ).toBe( false );
 	} );

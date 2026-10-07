@@ -148,7 +148,6 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 
 		expect( el?.getAttribute( 'role' ) ).toBe( 'dialog' );
 		expect( el?.getAttribute( 'aria-modal' ) ).toBe( 'true' );
-
 		const labelledBy = el?.getAttribute( 'aria-labelledby' ) ?? '';
 		const describedBy = el?.getAttribute( 'aria-describedby' ) ?? '';
 		expect( el?.querySelector( `#${ labelledBy }` ) ).not.toBeNull();
@@ -164,7 +163,6 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 		expect( focused() ).toBe( primary() );
 
 		primary()?.click();
-
 		expect( focused() ).toBe( opener );
 	} );
 
@@ -173,7 +171,6 @@ describe( 'maybeShowRebrandNotice — the dialog', () => {
 		const items = Array.from(
 			document.querySelectorAll< HTMLElement >( '.os-announce button' ),
 		);
-
 		expect( items ).toHaveLength( 1 );
 		items[ 0 ].focus();
 
@@ -206,7 +203,6 @@ describe( 'the announcement copy', () => {
 
 		expect( paras ).toHaveLength( 3 );
 		expect( paras[ 0 ] ).toContain( 'Why OpenStation?' );
-
 		expect( paras[ 0 ] ).not.toContain( 'default theme' );
 		expect( paras[ 1 ] ).toContain( 'new default theme' );
 	} );

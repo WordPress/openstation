@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_Render extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -42,6 +44,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_body_class_carries_default_admin_bar_mode() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -51,6 +56,10 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 * @covers ::openstation_get_admin_bar_mode
+	 */
 	public function test_body_class_reflects_saved_admin_bar_mode() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		openstation_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
@@ -61,6 +70,10 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'os-admin-bar-static', $classes );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 * @covers ::openstation_get_dock_behavior
+	 */
 	public function test_shell_stamps_default_dock_behavior_on_the_dock() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -71,6 +84,10 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'data-os-dock-behavior="static"', $output );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 * @covers ::openstation_get_dock_behavior
+	 */
 	public function test_shell_stamps_saved_dock_behavior_on_the_dock() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		openstation_save_os_settings( self::$admin_id, array( 'dockBehavior' => 'dynamic' ) );
@@ -83,6 +100,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'data-os-dock-behavior="static"', $output );
 	}
 
+	/**
+	 * @covers ::openstation_get_dock_behavior
+	 */
 	public function test_dock_behavior_filter_overrides_the_user_pick() {
 		openstation_save_os_settings( self::$admin_id, array( 'dockBehavior' => 'dynamic' ) );
 		add_filter( 'openstation_dock_behavior', static fn () => 'static' );
@@ -90,12 +110,18 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( 'static', openstation_get_dock_behavior() );
 	}
 
+	/**
+	 * @covers ::openstation_get_dock_behavior
+	 */
 	public function test_dock_behavior_filter_returning_junk_fails_closed() {
 		add_filter( 'openstation_dock_behavior', static fn () => array( 'nope' ) );
 
 		$this->assertSame( 'static', openstation_get_dock_behavior() );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_body_class_omits_admin_bar_mode_when_openstation_off() {
 		openstation_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
 
@@ -105,6 +131,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_get_admin_bar_mode
+	 */
 	public function test_admin_bar_mode_filter_overrides_the_user_pick() {
 		openstation_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
 		add_filter( 'openstation_admin_bar_mode', static fn () => 'static' );
@@ -112,6 +141,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( 'static', openstation_get_admin_bar_mode() );
 	}
 
+	/**
+	 * @covers ::openstation_get_admin_bar_mode
+	 */
 	public function test_admin_bar_mode_filter_result_is_validated() {
 		openstation_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
 		add_filter( 'openstation_admin_bar_mode', static fn () => 'peekaboo' );
@@ -119,21 +151,33 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( 'static', openstation_get_admin_bar_mode() );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_body_class_unchanged_when_mode_off() {
 		$this->assertSame( 'foo', openstation_admin_body_classes( 'foo' ) );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_body_class_adds_active_when_mode_on() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$this->assertStringContainsString( 'os-active', openstation_admin_body_classes( '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_body_class_adds_chromeless_when_iframed() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
 		$this->assertStringContainsString( 'os-chromeless', openstation_admin_body_classes( '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_body_class_omits_active_when_classic_flag_present() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
@@ -144,6 +188,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'os-active', $classes );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_chromeless_class_wins_over_classic_flag() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless']              = '1';
@@ -155,6 +202,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'os-active', $classes );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_chromeless_class_wins_over_active() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -164,6 +214,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'os-active', $classes );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_render_shell_emits_nothing_when_mode_off() {
 		ob_start();
 		openstation_render_shell();
@@ -172,6 +225,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( '', $output );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_render_shell_emits_nothing_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -183,6 +239,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( '', $output );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_render_shell_emits_nothing_on_classic_request() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
@@ -194,6 +253,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( '', $output );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_render_shell_emits_markup_when_mode_on() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -206,6 +268,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'os-area', $output );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_shell_before_and_after_actions_fire() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -233,6 +298,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		remove_all_actions( 'openstation_shell_after' );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_render_shell_is_wired_to_in_admin_header() {
 		$this->assertSame(
 			5,
@@ -240,6 +308,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_admin_bar
+	 */
 	public function test_chromeless_detaches_admin_bar_render_action() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -250,6 +321,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertFalse( has_action( 'in_admin_header', 'wp_admin_bar_render' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_admin_bar
+	 */
 	public function test_non_chromeless_leaves_admin_bar_render_wired() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -260,6 +334,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_auth_check
+	 */
 	public function test_chromeless_suppresses_wp_auth_check_load() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -270,6 +347,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_auth_check
+	 */
 	public function test_shell_keeps_wp_auth_check_load() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -283,6 +363,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_auth_check
+	 */
 	public function test_auth_check_suppression_is_registered() {
 		$this->assertNotFalse(
 			has_filter(
@@ -293,6 +376,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_emits_nothing_outside_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -301,6 +387,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( '', $output );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_emits_postmessage_glue_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -311,6 +400,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'postMessage', $output );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_soft_reload_matcher_matches_emitted_topic_prefix() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -318,10 +410,12 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$output = $this->bridge_output();
 
 		$this->assertStringContainsString( '/^os\.(.+)\.changed$/', $output );
-
 		$this->assertStringContainsString( "'os.' +", $output );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_reinits_list_tables_after_soft_reload() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -344,6 +438,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_emits_link_interceptor_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -356,6 +453,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( "'openstation_chromeless'", $output );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_prevents_default_on_admin_links() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -370,6 +470,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_escalates_focus_from_nested_frames() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -384,6 +487,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_nested_frame_sweep_is_scoped_to_added_nodes() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -401,6 +507,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_skips_wp_core_ajax_update_buttons() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -434,6 +543,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_bridge_script_skips_core_js_button_links() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -457,13 +569,15 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_strip_chromeless_flag_from_media_grid
+	 */
 	public function test_media_grid_query_vars_drop_the_chromeless_flag() {
 		set_current_screen( 'upload' );
 
 		if ( ! wp_script_is( 'media-grid', 'registered' ) ) {
 			wp_register_script( 'media-grid', '/media-grid.js', array(), '1.0', true );
 		}
-
 		wp_scripts()->add_data( 'media-grid', 'data', '' );
 
 		wp_localize_script(
@@ -497,6 +611,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( '"queryVars":{', end( $matches[1] ) );
 	}
 
+	/**
+	 * @covers ::openstation_strip_chromeless_flag_from_media_grid
+	 */
 	public function test_media_grid_cleanup_skips_other_screens() {
 		set_current_screen( 'edit-post' );
 
@@ -524,6 +641,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_classic_link_interceptor
+	 */
 	public function test_classic_interceptor_emits_nothing_without_flag() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -534,6 +654,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( '', $output );
 	}
 
+	/**
+	 * @covers ::openstation_classic_link_interceptor
+	 */
 	public function test_classic_interceptor_emits_script_when_flag_present() {
 		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 
@@ -545,28 +668,39 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'rewriteAdminUrl', $output );
 		$this->assertStringContainsString( "addEventListener( 'click'", $output );
 		$this->assertStringContainsString( "addEventListener( 'submit'", $output );
-
 		$this->assertStringContainsString( '"' . OPENSTATION_CLASSIC_FLAG . '"', $output );
 	}
 
+	/**
+	 * @covers ::openstation_classic_link_interceptor
+	 */
 	public function test_classic_interceptor_is_wired_on_admin_footer() {
 		$this->assertNotFalse(
 			has_action( 'admin_footer', 'openstation_classic_link_interceptor' )
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_chromeless_bridge_is_wired_on_admin_footer() {
 		$this->assertNotFalse(
 			has_action( 'admin_footer', 'openstation_chromeless_bridge_script' )
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_offset_neutralizer_script
+	 */
 	public function test_chromeless_offset_neutralizer_is_wired_on_admin_head() {
 		$this->assertNotFalse(
 			has_action( 'admin_head', 'openstation_chromeless_offset_neutralizer_script' )
 		);
 	}
 
+	/**
+	 * @covers ::openstation_emit_menu_refresh_probe
+	 */
 	public function test_menu_refresh_probe_is_wired_on_admin_init() {
 		$this->assertSame(
 			99,
@@ -574,6 +708,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_emit_menu_refresh_probe
+	 */
 	public function test_menu_refresh_probe_skips_when_flag_missing() {
 		unset( $_GET['openstation_menu_refresh'] );
 
@@ -584,6 +721,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertSame( '', $output );
 	}
 
+	/**
+	 * @covers ::openstation_emit_menu_refresh_probe
+	 */
 	public function test_menu_refresh_probe_skips_without_chromeless() {
 		unset( $_GET['openstation_chromeless'] );
 		$_GET['openstation_menu_refresh'] = '1';
@@ -597,6 +737,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		unset( $_GET['openstation_menu_refresh'] );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_chromeless_after_action_fires_in_iframes() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';

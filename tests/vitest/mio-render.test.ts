@@ -26,13 +26,11 @@ const CENTRE = { x: 0, y: 0 };
 
 describe( 'buildRibbon', () => {
 	test( 'hits the requested total, rounded up to an even per-segment', () => {
-
 		expect( buildRibbon( ring( 12 ), CENTRE, 100 ) ).toHaveLength( 120 );
 		expect( buildRibbon( ring( 10 ), CENTRE, 40 ) ).toHaveLength( 40 );
 	} );
 
 	test( 'the ring keeps its resolution when the rim is coarsened', () => {
-
 		const coarse = buildRibbon( ring( 9 ), CENTRE, 144 );
 		const fine = buildRibbon( ring( 36 ), CENTRE, 144 );
 		expect( coarse.length ).toBeGreaterThanOrEqual( 144 );
@@ -40,7 +38,6 @@ describe( 'buildRibbon', () => {
 	} );
 
 	test( 'always yields an even count per segment, for the curve midpoints', () => {
-
 		for ( const n of [ 7, 9, 11, 13 ] ) {
 			expect( buildRibbon( ring( n ), CENTRE, 50 ).length % 2 ).toBe( 0 );
 		}
@@ -53,13 +50,11 @@ describe( 'buildRibbon', () => {
 	test( 'normals are unit length and point outward', () => {
 		for ( const s of buildRibbon( ring( 16 ), CENTRE ) ) {
 			expect( Math.hypot( s.nx, s.ny ) ).toBeCloseTo( 1, 6 );
-
 			expect( s.nx * s.x + s.ny * s.y ).toBeGreaterThan( 0 );
 		}
 	} );
 
 	test( 'a degenerate rim still yields usable normals', () => {
-
 		const collapsed: Particle[] = [
 			{ x: 10, y: 0, vx: 0, vy: 0 },
 			{ x: 10, y: 0, vx: 0, vy: 0 },
@@ -72,12 +67,10 @@ describe( 'buildRibbon', () => {
 	} );
 
 	test( 'smoothing beats the polygon it came from', () => {
-
 		const rim = ring( 8 );
 		const samples = buildRibbon( rim, CENTRE, 4 );
 		const spread = ( radii: number[] ): number =>
 			Math.max( ...radii ) - Math.min( ...radii );
-
 		const smoothed = samples.map( ( s ) => Math.hypot( s.x, s.y ) );
 		const chords: number[] = [];
 		for ( let i = 0; i < rim.length; i++ ) {
@@ -130,7 +123,6 @@ function recorder(): {
 
 	return {
 		cmds,
-
 		get cells(): Cmd[][] {
 			const out: Cmd[][] = [];
 			let current: Cmd[] = [];
@@ -153,13 +145,11 @@ function outerEdge( cell: Cmd[] ): { start: number[]; end: number[] } {
 	const curve = cell.find( ( c ) => 'quadraticCurveTo' === c.op );
 	return {
 		start: move ? move.args : [],
-
 		end: curve ? curve.args.slice( 2, 4 ) : [],
 	};
 }
 
 describe( 'fillBand', () => {
-
 	const samples: RibbonSample[] = buildRibbon( ring( 10 ), CENTRE, 40 );
 	const colors = samples.map( ( _, i ) => i );
 
@@ -167,7 +157,6 @@ describe( 'fillBand', () => {
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
 		expect( rec.cells ).toHaveLength( samples.length / 2 );
-
 		for ( const cell of rec.cells ) {
 			expect(
 				cell.filter( ( c ) => 'quadraticCurveTo' === c.op ),
@@ -176,7 +165,6 @@ describe( 'fillBand', () => {
 	} );
 
 	test( 'the curve passes through the halfway sample', () => {
-
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
 		const cell = rec.cells[ 0 ];
@@ -191,7 +179,6 @@ describe( 'fillBand', () => {
 	} );
 
 	test( 'consecutive cells share their edge exactly', () => {
-
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
 		const cells = rec.cells;
@@ -213,7 +200,6 @@ describe( 'fillBand', () => {
 	} );
 
 	test( 'an odd stride falls back to straight edges', () => {
-
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 1, 3 );
 		expect( rec.cmds.every( ( c ) => 'poly' === c.op ) ).toBe( true );
@@ -256,7 +242,6 @@ describe( 'fillSheen', () => {
 		expect( cells.length ).toBeGreaterThan( 0 );
 		expect( cells.every( ( c ) => c.some( ( x ) => 'quadraticCurveTo' === x.op ) ) )
 			.toBe( true );
-
 		const last = cells[ cells.length - 1 ];
 		expect( last.filter( ( c ) => 'quadraticCurveTo' === c.op ) ).toHaveLength(
 			1,
@@ -265,7 +250,6 @@ describe( 'fillSheen', () => {
 	} );
 
 	function shells(): number[] {
-
 		return [ ...new Set( alphas() ) ];
 	}
 
@@ -278,7 +262,6 @@ describe( 'fillSheen', () => {
 	} );
 
 	test( 'the body still reads as black', () => {
-
 		expect( Math.max( ...shells() ) ).toBeLessThan( 0.4 );
 	} );
 
@@ -292,7 +275,6 @@ describe( 'fillSheen', () => {
 } );
 
 describe( 'the inner line', () => {
-
 	const NAMES = [
 		'halo',
 		'bloom',
@@ -312,7 +294,6 @@ describe( 'the inner line', () => {
 		const layers = Object.fromEntries(
 			NAMES.map( ( name ) => {
 				const g = recs[ name ].g;
-
 				Object.assign( g, { clear: () => g, roundRect: () => g } );
 				return [ name, g ];
 			} ),
@@ -335,7 +316,6 @@ describe( 'the inner line', () => {
 	}
 
 	test( 'the shipped Mio wears one, in one flat colour', () => {
-
 		const { liner } = draw();
 		expect( liner.cells.length ).toBeGreaterThan( 0 );
 		expect( new Set( liner.colors ) ).toEqual(
@@ -344,19 +324,16 @@ describe( 'the inner line', () => {
 	} );
 
 	test( 'meets the ring exactly — no seam, no overlap', () => {
-
 		const { liner, core } = draw();
 		expect( liner.cells ).toHaveLength( core.cells.length );
 
 		for ( let i = 0; i < liner.cells.length; i++ ) {
 			const inner = core.cells[ i ];
 			const outer = liner.cells[ i ];
-
 			const innerB = inner.find( ( c ) => 'lineTo' === c.op )!.args;
 			const backToA = inner.filter(
 				( c ) => 'quadraticCurveTo' === c.op,
 			)[ 1 ].args;
-
 			const outerA = outer.find( ( c ) => 'moveTo' === c.op )!.args;
 			const toOuterB = outer.find(
 				( c ) => 'quadraticCurveTo' === c.op,
@@ -364,13 +341,11 @@ describe( 'the inner line', () => {
 
 			expect( outerA ).toEqual( backToA.slice( 2, 4 ) );
 			expect( toOuterB.slice( 2, 4 ) ).toEqual( innerB );
-
 			expect( toOuterB.slice( 0, 2 ) ).toEqual( backToA.slice( 0, 2 ) );
 		}
 	} );
 
 	test( 'reaches inward, so the ring keeps its own width', () => {
-
 		const thin = draw( { linerWidth: 1 } );
 		const fat = draw( { linerWidth: 9 } );
 		expect( fat.core.cmds ).toEqual( thin.core.cmds );

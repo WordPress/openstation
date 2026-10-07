@@ -66,7 +66,6 @@ function openstation_build_dock_rail_renderer_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;

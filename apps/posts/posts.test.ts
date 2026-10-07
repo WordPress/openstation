@@ -89,7 +89,6 @@ function mount( s: Partial< ListState > = {}, d: ListData = data( [ row( 1 ), ro
 		data: d,
 		loading,
 		root,
-
 		extra: { mode: 'posts', editPostUrlBase: 'http://x.test/wp-admin/post.php', newPostUrl: 'http://x.test/wp-admin/post-new.php', defaultOrderby: 'date', defaultOrder: 'desc', menuTabs: POSTS_TABS, ...extra },
 		dispatch,
 		fetch,
@@ -238,7 +237,6 @@ describe( 'the frame', () => {
 	it( 'paints the tabs, the toolbar bound to filter, the table and the pager', () => {
 		const { root } = mount();
 		expect( root.querySelector( '[data-os-posts-root]' )!.classList.contains( 'desktop-mode-posts' ) ).toBe( true );
-
 		expect( Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( t ) => t.getAttribute( 'value' ) ) ).toEqual( [ 'posts', 'new', 'categories', 'tags' ] );
 		const status = root.querySelector( 'os-segmented' )!;
 		expect( status.getAttribute( 'os-bind' ) ).toBe( 'status' );
@@ -468,7 +466,6 @@ describe( 'mounted and updated', () => {
 		root.querySelector( 'os-tabs' )!.dispatchEvent( new CustomEvent( 'os-tab-change', { detail: { value: 'categories' } } ) );
 		expect( mountCanvas ).toHaveBeenCalledTimes( 1 );
 		expect( ( mountCanvas.mock.calls[ 0 ] as unknown as [ HTMLElement ] )[ 0 ] ).toBe( root.querySelector( '[data-os-posts-cats-host]' ) );
-
 		root.querySelector( 'os-tabs' )!.dispatchEvent( new CustomEvent( 'os-tab-change', { detail: { value: 'categories' } } ) );
 		expect( mountCanvas ).toHaveBeenCalledTimes( 1 );
 		teardown();
@@ -575,7 +572,6 @@ describe( 'the registries', () => {
 		expect( buildColumns( env, new Map(), undefined, false, new Set( [ 'title', 'tags' ] ) ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'categories', 'date' ] );
 		expect( buildColumns( env, new Map(), undefined, true, new Set() ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'date' ] );
 		expect( columnLabels( env ).map( ( c ) => c.key ) ).toEqual( [ 'author', 'categories', 'tags', 'date' ] );
-
 		expect( buildAllColumns( cellEnv(), new Map() ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'date' ] );
 		const pages = cellEnv( { extra: { mode: 'pages' } } );
 		expect( buildColumns( pages, new Map(), undefined, false, new Set() ).map( ( c ) => c.key ) ).toEqual( [ 'title', 'author', 'parent', 'template', 'slug', 'comments', 'date' ] );
@@ -637,7 +633,6 @@ describe( 'the cells', () => {
 	it( 'the author cell paints the name as text, and nothing for an author core could not embed', () => {
 		const named = buildAuthorCell( row( 1, { _embedded: { author: [ { id: 2, name: 'Q&amp;A Helper' } ] } } ) );
 		expect( named.textContent ).toBe( 'Q&A Helper' );
-
 		const orphan = buildAuthorCell( row( 1, { _embedded: { author: [ { code: 'rest_user_invalid_id' } as never ] } } ) );
 		expect( orphan.textContent ).toBe( '' );
 	} );

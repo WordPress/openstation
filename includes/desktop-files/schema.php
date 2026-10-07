@@ -3,7 +3,6 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'OPENSTATION_FILES_SCHEMA_VERSION', '13' );
-
 define( 'OPENSTATION_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 function openstation_files_table_names() {
@@ -132,12 +131,11 @@ function openstation_files_ensure_trash_columns() {
 			return;
 		}
 		$prev_suppress = $wpdb->suppress_errors( true );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}" );
 		$wpdb->suppress_errors( $prev_suppress );
-
 		if ( $col_exists() === 0 ) {
-
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}" );
 		}
 	};
@@ -145,7 +143,6 @@ function openstation_files_ensure_trash_columns() {
 	$ensure( $tables['placements'], 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
 	$ensure( $tables['placements'], 'trashed_by', 'BIGINT UNSIGNED NULL' );
 	$ensure( $tables['placements'], 'trashed_via_folder', 'BIGINT UNSIGNED NULL' );
-
 	$ensure( $tables['placements'], 'trashed_meta', 'LONGTEXT NULL' );
 	$ensure( $tables['folders'], 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
 	$ensure( $tables['folders'], 'trashed_by', 'BIGINT UNSIGNED NULL' );
@@ -171,6 +168,7 @@ function openstation_files_dedupe_placements() {
 		return;
 	}
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	$wpdb->query(
 		"DELETE p1 FROM `{$tbl}` p1
 		INNER JOIN `{$tbl}` p2
@@ -199,9 +197,8 @@ function openstation_files_ensure_unique_placement_index() {
 		)
 	);
 	if ( 0 === $exists ) {
-
 		$prev_suppress = $wpdb->suppress_errors( true );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query(
 			"ALTER TABLE `{$tbl}`
 			ADD UNIQUE KEY `placement_unique`
@@ -226,9 +223,8 @@ function openstation_files_ensure_updated_by_column() {
 		)
 	);
 	if ( 0 === $exists ) {
-
 		$prev_suppress = $wpdb->suppress_errors( true );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `updated_by` BIGINT UNSIGNED NULL AFTER `owner_id`" );
 		$wpdb->suppress_errors( $prev_suppress );
 	}
@@ -263,6 +259,7 @@ function openstation_files_rename_user_id_to_owner_id() {
 		return;
 	}
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	$wpdb->query(
 		"ALTER TABLE `{$tbl}` CHANGE COLUMN `user_id` `owner_id` BIGINT UNSIGNED NOT NULL"
 	);
@@ -277,7 +274,7 @@ function openstation_files_rename_user_id_to_owner_id() {
 		)
 	);
 	if ( 0 < $has_user_parent ) {
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "ALTER TABLE `{$tbl}` RENAME INDEX `user_parent` TO `owner_parent`" );
 	}
 }
@@ -297,7 +294,7 @@ function openstation_files_ensure_shares_table() {
 		)
 	);
 	if ( 0 === $exists ) {
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query(
 			"CREATE TABLE IF NOT EXISTS `{$tbl}` (
 				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -317,7 +314,6 @@ function openstation_files_ensure_shares_table() {
 			) $charset_collate"
 		);
 	} else {
-
 		$has_col = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
@@ -329,9 +325,8 @@ function openstation_files_ensure_shares_table() {
 			)
 		);
 		if ( 0 === $has_col ) {
-
 			$prev_suppress = $wpdb->suppress_errors( true );
-
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `target_type` VARCHAR(32) NOT NULL DEFAULT 'folder' AFTER `id`" );
 			$wpdb->suppress_errors( $prev_suppress );
 		}
@@ -353,7 +348,7 @@ function openstation_files_ensure_decisions_table() {
 		)
 	);
 	if ( 0 === $exists ) {
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query(
 			"CREATE TABLE IF NOT EXISTS `{$tbl}` (
 				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -377,7 +372,6 @@ function openstation_files_maybe_install_schema() {
 	openstation_files_install_schema();
 }
 add_action( 'admin_init', 'openstation_files_maybe_install_schema' );
-
 add_action( 'rest_api_init', 'openstation_files_maybe_install_schema' );
 add_action( 'init', 'openstation_files_maybe_install_schema', 1 );
 register_activation_hook( OPENSTATION_FILE, 'openstation_files_install_schema' );

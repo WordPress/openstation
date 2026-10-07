@@ -1,3 +1,7 @@
+/* eslint-disable no-bitwise -- Pixi takes colours as packed 24-bit
+ * ints; shifting channels in and out is the native representation,
+ * not a clever trick. */
+
 import type { MioAppearance } from './types';
 
 export function hslToRgbInt( h: number, s: number, l: number ): number {
@@ -50,16 +54,12 @@ export interface HoloNormal {
 }
 
 export interface HoloView {
-
 	normals: readonly HoloNormal[];
-
 	tilt: { x: number; y: number };
 }
 
 const HOLO_HUE_SWING = 82;
-
 const HOLO_GRATING_SWING = 36;
-
 const HOLO_GLINT_EXPONENT = 6;
 
 const TAU = Math.PI * 2;
@@ -92,14 +92,12 @@ export function chromaRing(
 	const out: number[] = new Array( n );
 	for ( let i = 0; i < n; i++ ) {
 		const t = i / n;
-
 		const shifted =
 			( ( ( t - ( appearance.hueAngle + spin ) / 360 ) % 1 ) + 1 ) % 1;
 		const ramp = appearance.hueLoop
 			? 0.5 - 0.5 * Math.cos( shifted * TAU )
 			: shifted;
 		let hue = appearance.hueStart + appearance.hueSpan * ramp + phase;
-
 		const lift = 0.5 + 0.5 * Math.cos( ( t - 1 / 3 ) * Math.PI * 2 );
 		let lightness = appearance.lightness * ( 0.72 + 0.28 * lift );
 		let saturation = appearance.saturation;
@@ -108,7 +106,6 @@ export function chromaRing(
 			const d = rake( view, i );
 			const ripple = grating( t, phase );
 			hue += holo * ( HOLO_HUE_SWING * d + HOLO_GRATING_SWING * ripple );
-
 			const glint = Math.pow( Math.max( 0, d ), HOLO_GLINT_EXPONENT );
 			lightness += holo * ( 0.32 * glint + 0.07 * ripple );
 			saturation *= 1 - Math.min( 1, holo ) * 0.45 * glint;

@@ -11,7 +11,6 @@ export const dialogStyles = css`
 		align-items: center;
 		justify-content: center;
 		background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
-
 		background-image: var( --os-ui-scrim-image, none );
 		background-repeat: var( --os-ui-scrim-image-repeat, repeat );
 		background-size: var( --os-ui-scrim-image-size, auto );
@@ -51,9 +50,7 @@ export const dialogStyles = css`
 
 	.dialog {
 		width: min( 420px, 92vw );
-
 		background-color: var( --os-ui-confirm-dialog-bg, #1d2327 );
-
 		background-image: var( --os-ui-dialog-bg-image, none );
 		background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
 		background-size: var( --os-ui-dialog-bg-image-size, auto );

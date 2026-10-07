@@ -41,7 +41,6 @@ function renameFolder( placement: RestPlacementShape ): void {
 	if ( ! folderId ) {
 		return;
 	}
-
 	openCreateFolderDialog( {
 		title: 'Rename folder',
 		label: 'New name',
@@ -52,7 +51,6 @@ function renameFolder( placement: RestPlacementShape ): void {
 			if ( ! trimmed || trimmed === placement.file.title ) {
 				return;
 			}
-
 			const previousTitle = placement.file.title;
 			const optimistic: RestPlacementShape = {
 				...placement,
@@ -69,13 +67,13 @@ function renameFolder( placement: RestPlacementShape ): void {
 					folderUpdatedAtMs,
 				);
 				filesStoreApi.upsertFolder( updated );
-
 				const refreshed = await rest.listPlacements( placement.parentId );
 				filesStoreApi.setFolderPlacements(
 					placement.parentId,
 					refreshed.placements,
 				);
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] rename folder failed:', err );
 				filesStoreApi.upsertPlacement( {
 					...placement,
@@ -91,7 +89,6 @@ function navigateIntoPost( placement: RestPlacementShape ): void {
 	if ( ! postId ) {
 		return;
 	}
-
 	const postType =
 		typeof placement.file.postType === 'string'
 			? ( placement.file.postType as string )
@@ -140,7 +137,6 @@ export function buildPlacementActions(
 			sort: 30,
 			onClick: () => renameFolder( placement ),
 		} );
-
 		if ( placement.canTrash !== false ) {
 			items.push( {
 				id: 'delete-folder',

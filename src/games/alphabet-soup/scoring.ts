@@ -1,13 +1,9 @@
 export interface SoupScoreState {
 	score: number;
 	wordsFound: number;
-
 	streak: number;
-
 	bestStreak: number;
-
 	correctSelections: number;
-
 	totalSelections: number;
 }
 
@@ -79,7 +75,6 @@ export function buildSoupScoreRow(
 	state: SoupScoreState,
 	opts: {
 		mode: string;
-
 		size: string;
 		wave: number;
 		elapsedSeconds: number;

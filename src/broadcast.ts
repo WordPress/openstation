@@ -111,7 +111,6 @@ export function installBroadcastReceiver(): void {
 		if ( ! data || data.type !== POSTMESSAGE_TYPE ) {
 			return;
 		}
-
 		if ( data._fromParent ) {
 			return;
 		}

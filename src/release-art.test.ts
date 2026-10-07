@@ -52,7 +52,6 @@ describe( 'resolveReleaseArt', () => {
 		const first = await resolveReleaseArt( '7.0' );
 		expect( first ).toEqual( { name: 'Armstrong', artUrl: 'https://i0.wp.com/7.0.png' } );
 		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
-
 		const url = fetchMock.mock.calls[ 0 ][ 0 ] as string;
 		expect( url ).toContain( '_fields=title,_links,_embedded' );
 		expect( url ).toContain( '_embed=wp:featuredmedia' );
@@ -66,14 +65,12 @@ describe( 'resolveReleaseArt', () => {
 		fetchMock.mockResolvedValue( { ok: true, json: async () => [ post( 'Unrelated', '' ) ] } );
 
 		expect( await resolveReleaseArt( '9.9' ) ).toBeNull();
-
 		expect( await resolveReleaseArt( '9.9' ) ).toBeNull();
 		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'retries a miss sooner while the announcement is still pending', async () => {
 		fetchMock.mockResolvedValue( { ok: true, json: async () => [ post( 'Unrelated', '' ) ] } );
-
 		localStorage.setItem(
 			'desktop-mode/release-art:v1:7.1',
 			JSON.stringify( { ok: false, ts: Date.now() - 45 * 60 * 1000 } ),

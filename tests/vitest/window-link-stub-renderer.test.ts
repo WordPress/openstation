@@ -19,7 +19,6 @@ function builtIn() {
 
 describe( 'built-in link renderer stub', () => {
 	beforeEach( () => {
-
 		installHooksStub();
 		unregisterWindowLinkRenderer( BUILT_IN_LINK_RENDERER );
 	} );
@@ -52,7 +51,6 @@ describe( 'built-in link renderer stub', () => {
 	} );
 
 	it( 'yields to the real registration rather than overwriting it', () => {
-
 		const realMount = vi.fn();
 		registerWindowLinkRenderer( {
 			id: BUILT_IN_LINK_RENDERER,
@@ -69,7 +67,6 @@ describe( 'built-in link renderer stub', () => {
 		const realMount = vi.fn().mockReturnValue( undefined );
 		vi.spyOn( ensureVisuals, 'ensureWindowLinkVisuals' ).mockImplementation(
 			() => {
-
 				registerWindowLinkRenderer( {
 					id: BUILT_IN_LINK_RENDERER,
 					label: 'Splines',
@@ -87,7 +84,6 @@ describe( 'built-in link renderer stub', () => {
 	} );
 
 	it( 'a bundle that never arrives is a no-op, not a recursion', async () => {
-
 		vi.spyOn( ensureVisuals, 'ensureWindowLinkVisuals' ).mockResolvedValue(
 			true,
 		);

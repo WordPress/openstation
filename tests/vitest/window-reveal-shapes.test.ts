@@ -110,14 +110,12 @@ describe( 'reveals/shapes.ts — the interpolation contract', () => {
 	test.each( Object.entries( PAIRS ) )(
 		'%s: neither endpoint carries an explicit fill rule',
 		( _name, pair ) => {
-
 			expect( pair.from ).not.toMatch( /evenodd|nonzero/ );
 			expect( pair.to ).not.toMatch( /evenodd|nonzero/ );
 		},
 	);
 
 	test( 'vertex count is independent of the animated dimension', () => {
-
 		for ( const r of [ 0, 1, 12.5, 40, 80 ] ) {
 			expect( vertexCount( irisSurface( r ) ) ).toBe(
 				vertexCount( irisSurface( 0 ) ),
@@ -143,7 +141,6 @@ describe( 'reveals/shapes.ts — coverage at the endpoints', () => {
 	} );
 
 	test( 'iris starts with a zero-radius hole', () => {
-
 		const hole = coords( irisSurface( 0 ) ).slice( 10 );
 		expect( hole.every( ( n ) => n === 50 || n === 0 || n === 100 ) ).toBe(
 			true,
@@ -151,21 +148,18 @@ describe( 'reveals/shapes.ts — coverage at the endpoints', () => {
 	} );
 
 	test( 'iris ends with a hole that clears the corners', () => {
-
 		const all = coords( irisPair().to );
 		const maxima = Math.max( ...all.map( ( n ) => Math.abs( n - 50 ) ) );
 		expect( maxima ).toBeGreaterThan( 70.71 );
 	} );
 
 	test( 'curtain ends with panels fully off the box', () => {
-
 		const xs = coords( curtainPair().to ).filter( ( _n, i ) => i % 2 === 0 );
 		expect( Math.min( ...xs ) ).toBeLessThan( 0 );
 		expect( Math.max( ...xs ) ).toBeGreaterThan( 100 );
 	} );
 
 	test( 'blinds slats overlap at the end so no hairline survives', () => {
-
 		expect( blindsPair().to ).toBe( blindsSurface( 100 / 6 + 0.5 ) );
 	} );
 
@@ -184,7 +178,6 @@ describe( 'reveals/shapes.ts — coverage at the endpoints', () => {
 	}
 
 	test( 'diagonal starts covering the box at both extremes of y', () => {
-
 		const from = diagonalPair().from;
 		expect( from ).toContain( '-60% 0%' );
 		expect( from ).toContain( '0% 100%' );
@@ -206,7 +199,6 @@ describe( 'reveals/shapes.ts — polygonWithHoles', () => {
 	} );
 
 	test( 'bridges each hole back to the outer ring start', () => {
-
 		const withHole = polygonWithHoles( OUTER, [
 			[
 				[ 10, 10 ],

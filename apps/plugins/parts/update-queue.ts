@@ -55,7 +55,6 @@ async function drain(): Promise< void > {
 			clearTimeout( timer );
 		}
 		inFlight = false;
-
 		void Promise.resolve().then( drain );
 	}
 }

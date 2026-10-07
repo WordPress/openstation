@@ -90,7 +90,6 @@ export function createWallpaperRegistrySync(
 		registry.unregister( id );
 		clearPending( id );
 		registered.delete( id );
-
 		osSettings.apply();
 	};
 

@@ -37,7 +37,7 @@ function openstation_register_file_type( $type, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this file type.', 'desktop-mode' ),
 					(string) $cap
 				),
@@ -165,7 +165,6 @@ function openstation_build_file_types_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}

@@ -2,22 +2,15 @@ import { Component, defineComponent, html, render as renderTemplate, type Templa
 import { styles } from './os-table.styles';
 
 export interface OsTableColumnFilterOption {
-
 	value: string;
-
 	label: string;
 }
 
 export interface OsTableColumn< T = Record< string, unknown > > {
-
 	key: string;
-
 	label?: string;
-
 	filter?: boolean | 'text' | 'select';
-
 	filterOptions?: OsTableColumnFilterOption[];
-
 	filterRender?: (
 		host: HTMLTableCellElement,
 		ctx: {
@@ -26,21 +19,13 @@ export interface OsTableColumn< T = Record< string, unknown > > {
 			col: OsTableColumn< T >;
 		},
 	) => void;
-
 	sortable?: boolean;
-
 	sortValue?: ( row: T, value: unknown ) => unknown;
-
 	sticky?: boolean;
-
 	align?: 'start' | 'center' | 'end';
-
 	width?: string;
-
 	minWidth?: string;
-
 	render?: ( value: unknown, row: T, index: number ) => string | Node | TemplateResult;
-
 	stack?: OsTableStackRole;
 }
 
@@ -54,7 +39,6 @@ export type OsTableSubTableResult =
 	| {
 		columns: OsTableColumn< Record< string, unknown > >[];
 		data: Record< string, unknown >[];
-
 		subTable?: OsTableSubTableFn;
 	};
 
@@ -80,13 +64,9 @@ const EXPANDER_KEY = '__wpd_expander__';
 const SELECT_KEY = '__wpd_select__';
 
 interface FilterInputCache {
-
 	th: HTMLTableCellElement;
-
 	control: HTMLInputElement | HTMLSelectElement | null;
-
 	optionsKey: string;
-
 	kind: 'text' | 'select' | 'custom' | 'none';
 }
 
@@ -180,7 +160,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			{ name: '--os-ui-table-max-height' },
 			{ name: '--os-ui-table-skeleton-color' },
 		],
-
 		example: html`<os-table striped hover></os-table>`,
 		exampleInit: ( root: HTMLElement ) => {
 			const table = root.querySelector( 'os-table' );
@@ -215,7 +194,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	private _filterCache = new Map< string, FilterInputCache >();
 
 	private _paintScheduled = false;
-
 	private _stacked = false;
 	private _stickyHeaderWarned = false;
 	private _stickyRaceWarned = false;
@@ -229,7 +207,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	set data( next: readonly T[] | null | undefined ) {
 		this._data = Array.isArray( next ) ? next.slice() : [];
 		this._expanded.clear();
-
 		this._schedulePaint();
 	}
 
@@ -238,7 +215,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	}
 	set columns( next: readonly OsTableColumn< T >[] | null | undefined ) {
 		this._columns = Array.isArray( next ) ? next.slice() : [];
-
 		const keys = new Set( this._columns.map( ( c ) => c.key ) );
 		for ( const k of Object.keys( this._filters ) ) {
 			if ( ! keys.has( k ) ) {
@@ -424,7 +400,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( this._readSelectable() !== 'multi' ) {
 			return;
 		}
-
 		for ( const { row, index } of this._filteredRows() ) {
 			this._selection.add( this._getRowId( row, index ) );
 		}
@@ -452,7 +427,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( ! tbody ) {
 			return;
 		}
-
 		let needle: Set< string > | null = null;
 		if ( ids !== 'all' ) {
 			needle = new Set< string >();
@@ -489,7 +463,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 				cb.checked = isSelected;
 			}
 		}
-
 		const headerCb = root.querySelector< HTMLInputElement >(
 			'thead .select-all-checkbox',
 		);
@@ -598,7 +571,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	}
 
 	private _loadingDesyncWarned = false;
-
 	private _maybeWarnLoadingDesync( tbody: Element ): void {
 		if ( this._loadingDesyncWarned ) {
 			return;
@@ -610,7 +582,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			return;
 		}
 		this._loadingDesyncWarned = true;
-
+		// eslint-disable-next-line no-console
 		console.warn(
 			'[os-table] `loading` attribute is set but no skeleton rows ' +
 				'rendered. Either attributeChangedCallback didn\'t route through ' +
@@ -663,12 +635,10 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			}
 			this._applyStickyOffsets();
 			this._measureHeaderHeight();
-
 			this._stickyHeaderWarned = false;
 			this._maybeWarnStickyHeader();
 		} );
 		this._resizeObserver.observe( scroll );
-
 		this._resizeObserver.observe( this );
 	}
 
@@ -1009,7 +979,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		tr.classList.add( 'empty' );
 		const td = document.createElement( 'td' );
 		td.colSpan = colspan;
-
 		const slot = document.createElement( 'slot' );
 		slot.name = 'empty';
 		slot.textContent = this.getAttribute( 'empty' ) || 'No data';
@@ -1043,7 +1012,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			const td = document.createElement( 'td' );
 			const bar = document.createElement( 'span' );
 			bar.className = 'skeleton-bar';
-
 			const widthPct = 50 + ( ( seed * 7 + tr.children.length * 13 ) % 40 );
 			bar.style.width = `${ widthPct }%`;
 			td.appendChild( bar );
@@ -1278,7 +1246,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			this._filters[ key ] = value;
 		}
 		this.emit( 'os-table-filter-change', { filters: { ...this._filters } } );
-
 		const root = this.shadowRoot;
 		const tbody = root?.querySelector( 'tbody' );
 		if ( tbody ) {
@@ -1350,7 +1317,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			let pass = true;
 			for ( const key of active ) {
 				const col = this._columns.find( ( c ) => c.key === key );
-
 				if ( col && typeof col.filterRender === 'function' ) {
 					continue;
 				}
@@ -1502,7 +1468,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			out.push( {
 				key: SELECT_KEY,
 				label: '',
-
 				width: '40px',
 				align: 'center',
 			} );
@@ -1511,7 +1476,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			out.push( {
 				key: EXPANDER_KEY,
 				label: '',
-
 				width: '36px',
 				align: 'center',
 			} );
@@ -1571,13 +1535,12 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( offsets[ lastIdx ] !== 0 ) {
 			return;
 		}
-
 		if ( this.offsetWidth === 0 ) {
 			return;
 		}
 		this._stickyRaceWarned = true;
 		const w0 = ths[ 0 ]?.offsetWidth ?? 0;
-
+		// eslint-disable-next-line no-console
 		console.warn(
 			`[os-table] sticky-columns: column ${ lastIdx } resolved to ` +
 				`inset-inline-start: 0px while the host is visible. ` +
@@ -1610,7 +1573,6 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( ! this.hasAttribute( 'sticky-header' ) ) {
 			return;
 		}
-
 		if ( this.hasAttribute( 'loading' ) || this._data.length < 8 ) {
 			return;
 		}
@@ -1620,13 +1582,12 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		if ( ! scroll ) {
 			return;
 		}
-
 		if ( scroll.offsetWidth === 0 ) {
 			return;
 		}
 		if ( scroll.scrollHeight <= scroll.clientHeight + 1 ) {
 			this._stickyHeaderWarned = true;
-
+			// eslint-disable-next-line no-console
 			console.warn(
 				'[os-table] sticky-header is set but the table has no scroll container. ' +
 					'Set --os-ui-table-max-height on the host (or wrap it in a scrolling parent) so the header has something to stick to.',

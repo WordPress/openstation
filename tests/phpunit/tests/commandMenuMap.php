@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_build_command_menu_map
+ */
 class Tests_OpenStation_CommandMenuMap extends WP_UnitTestCase {
 
 	public function test_registered_file_path_slug_routes_through_parent() {

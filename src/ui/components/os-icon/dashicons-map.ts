@@ -5,19 +5,16 @@ function parseCssContentToChar( raw: string ): string | null {
 	if ( value === '' ) {
 		return null;
 	}
-
 	if (
 		( value.startsWith( '"' ) && value.endsWith( '"' ) ) ||
 		( value.startsWith( "'" ) && value.endsWith( "'" ) )
 	) {
 		value = value.slice( 1, -1 );
 	}
-
 	const escaped = value.match( /^\\([0-9a-f]{1,6})\s?$/i );
 	if ( escaped ) {
 		return String.fromCodePoint( parseInt( escaped[ 1 ], 16 ) );
 	}
-
 	return value || null;
 }
 

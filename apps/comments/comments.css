@@ -2,7 +2,6 @@
 	box-sizing: border-box;
 	inline-size: 100%;
 	position: relative;
-
 	container-type: inline-size;
 	color: var( --os-ui-fg, #1d2327 );
 }

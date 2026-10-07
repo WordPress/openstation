@@ -82,7 +82,6 @@ describe( '<os-tabs> + <os-tab>', () => {
 		expect(
 			host.querySelector( 'os-tabs' )!.getAttribute( 'aria-orientation' ),
 		).toBe( 'vertical' );
-
 		for ( const tab of Array.from( host.querySelectorAll( 'os-tab' ) ) ) {
 			expect( tab.getAttribute( 'data-orientation' ) ).toBe( 'vertical' );
 		}
@@ -109,14 +108,12 @@ describe( '<os-tabs> + <os-tab>', () => {
 		expect( value() ).toBe( 'b' );
 		key( 'ArrowUp' );
 		expect( value() ).toBe( 'a' );
-
 		key( 'ArrowUp' );
 		expect( value() ).toBe( 'c' );
 		key( 'Home' );
 		expect( value() ).toBe( 'a' );
 		key( 'End' );
 		expect( value() ).toBe( 'c' );
-
 		key( 'ArrowRight' );
 		expect( value() ).toBe( 'c' );
 	} );
@@ -131,7 +128,6 @@ describe( '<os-tabs> + <os-tab>', () => {
 		const late = document.createElement( 'os-tab' );
 		late.setAttribute( 'value', 'b' );
 		host.querySelector( 'os-tabs' )!.appendChild( late );
-
 		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 		await tick();
 		expect( late.getAttribute( 'data-orientation' ) ).toBe( 'vertical' );

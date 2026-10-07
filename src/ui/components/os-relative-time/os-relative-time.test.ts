@@ -47,7 +47,6 @@ describe( '<os-relative-time>', () => {
 		const time = host
 			.querySelector( 'os-relative-time' )!
 			.shadowRoot!.querySelector( 'time' )!;
-
 		expect( time.getAttribute( 'datetime' ) ).toBe( gmt + '.000Z' );
 	} );
 
@@ -85,7 +84,6 @@ describe( '<os-relative-time>', () => {
 			host.querySelectorAll( 'os-relative-time' ),
 		).map( ( el ) => el.shadowRoot!.textContent!.trim() );
 		expect( short.length ).toBeLessThan( long.length );
-
 		expect( short ).toMatch( /5/ );
 	} );
 
@@ -95,7 +93,6 @@ describe( '<os-relative-time>', () => {
 		await tick();
 		const text = host.querySelector( 'os-relative-time' )!.shadowRoot!
 			.textContent!;
-
 		expect( text ).not.toMatch( /ago/i );
 		expect( text.trim().length ).toBeGreaterThan( 0 );
 	} );

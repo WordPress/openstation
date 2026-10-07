@@ -58,7 +58,6 @@ export function accentWantsDarkInk( hex: string ): boolean {
 }
 
 export interface OsSettingsUpdateOptions {
-
 	windowId?: string;
 }
 
@@ -84,7 +83,6 @@ export class OsSettings {
 
 	constructor( layer: WallpaperLayer ) {
 		this.layer = layer;
-
 		this.state = loadState();
 
 		document.addEventListener(
@@ -144,7 +142,6 @@ export class OsSettings {
 		}
 
 		const accents = getAccents();
-
 		const preset =
 			accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
 		const accentValue =
@@ -159,12 +156,9 @@ export class OsSettings {
 
 		const root = document.body;
 		root.style.setProperty( '--wp-admin-theme-color', accentValue );
-
 		root.style.setProperty( '--os-ui-accent', accentValue );
-
 		const accentInk = accentWantsDarkInk( accentValue ) ? '#0c0b0f' : '#fffbff';
 		root.style.setProperty( '--os-ui-accent-ink', accentInk );
-
 		const BRAND_ACCENT = '#f252fc';
 		const accentDim =
 			accentValue.toLowerCase() === BRAND_ACCENT
@@ -175,7 +169,6 @@ export class OsSettings {
 		} else {
 			root.style.setProperty( '--os-ui-accent-dim', accentDim );
 		}
-
 		shell.style.setProperty( '--os-ui-accent', accentValue );
 		shell.style.setProperty( '--os-ui-accent-ink', accentInk );
 		if ( accentDim === null ) {
@@ -185,14 +178,12 @@ export class OsSettings {
 		}
 		root.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
-
 		shell.style.setProperty( '--os-dock-width', `${ dockSize.width }px` );
 		shell.style.setProperty( '--os-dock-icon-size', `${ dockSize.icon }px` );
 		root.style.setProperty(
 			'--os-window-radius',
 			`${ windowRadius.value }px`,
 		);
-
 		shell.style.setProperty(
 			'--os-window-radius',
 			`${ windowRadius.value }px`,
@@ -247,18 +238,15 @@ export class OsSettings {
 			this.overridePatch = null;
 		} else {
 			this.baseState = base;
-
 			this.overridePatch = cloneSettingsPatch( patch );
 			this.state = { ...base, ...cloneSettingsPatch( patch ) };
 		}
 		this.apply();
-
 		this.notify();
 	}
 
 	public save( opts: OsSettingsUpdateOptions = {} ): void {
 		const persistable = this._persistableState();
-
 		if ( this.baseState ) {
 			this.baseState = cloneState( persistable );
 		}
@@ -272,7 +260,6 @@ export class OsSettings {
 		if ( ! base || ! patch ) {
 			return this.state;
 		}
-
 		const out = { ...this.state } as unknown as Record< string, unknown >;
 		const source = patch as Record< string, unknown >;
 		const original = base as unknown as Record< string, unknown >;
@@ -290,7 +277,6 @@ export class OsSettings {
 	): void {
 		const incoming: Record< string, unknown > = { ...patch };
 		delete incoming.appliedThemeRecommendations;
-
 		delete incoming.adminAssetCacheEnabled;
 		delete incoming.windowPrewarmEnabled;
 

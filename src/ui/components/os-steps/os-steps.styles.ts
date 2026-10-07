@@ -16,10 +16,8 @@ export const stepsStyles = css`
 		padding: 0;
 		list-style: none;
 	}
-
 	:host( [ horizontal ] ) {
 		--os-ui-step-connector-width: 20px;
-
 		--os-ui-step-title-color: var( --os-ui-fg-muted, #646970 );
 		--os-ui-step-title-weight: 400;
 	}
@@ -44,7 +42,6 @@ export const stepStyles = css`
 	:host( [ hidden ] ) {
 		display: none;
 	}
-
 	:host::before {
 		content: counter( os-step );
 		display: inline-flex;
@@ -52,10 +49,8 @@ export const stepStyles = css`
 		justify-content: center;
 		width: var( --os-ui-step-chip-size, 28px );
 		height: var( --os-ui-step-chip-size, 28px );
-
 		box-sizing: border-box;
 		border-radius: 50%;
-
 		background: var(
 			--os-ui-step-chip-bg,
 			var( --wp-admin-theme-color, #2271b1 )
@@ -63,7 +58,6 @@ export const stepStyles = css`
 		background-size: 200% 200%;
 		background-position: 30% 40%;
 		color: var( --os-ui-step-chip-fg, var( --os-ui-fg-on-accent, #fff ) );
-
 		border: var( --os-ui-step-chip-border, 0 );
 		font-family: var( --os-ui-step-chip-family, inherit );
 		font-size: var( --os-ui-step-chip-font-size, 13px );
@@ -71,7 +65,6 @@ export const stepStyles = css`
 		line-height: 1;
 		flex-shrink: 0;
 	}
-
 	:host( [ done ] )::before {
 		content: '✓';
 		background: var(
@@ -79,12 +72,10 @@ export const stepStyles = css`
 			var( --os-ui-fg-muted, #646970 )
 		);
 	}
-
 	:host( [ current ] ) .os-step__title {
 		color: var( --os-ui-fg, #1d2327 );
 		font-weight: 600;
 	}
-
 	:host( [ interactive ] ) {
 		cursor: pointer;
 	}
@@ -105,7 +96,6 @@ export const stepStyles = css`
 		outline-offset: 2px;
 		border-radius: var( --os-ui-radius, 4px );
 	}
-
 	:host::after {
 		content: '';
 		inline-size: var( --os-ui-step-connector-width, 0 );
@@ -119,7 +109,6 @@ export const stepStyles = css`
 	.os-step__body {
 		min-width: 0;
 	}
-
 	:host( [ trail ] ) {
 		align-items: center;
 	}

@@ -15,7 +15,6 @@ export async function launch( { headless = true } = {} ) {
 }
 
 export async function login( page ) {
-
 	await page.goto( `${ BASE }/wp-login.php`, { waitUntil: 'domcontentloaded' } );
 	if ( ! page.url().includes( 'wp-login.php' ) ) {
 		return;

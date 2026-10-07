@@ -89,7 +89,6 @@ export function bindTopWindowLinkInterceptor(
 			) {
 				return;
 			}
-
 			if ( url.searchParams.has( 'desktop_mode_classic' ) ) {
 				return;
 			}
@@ -103,7 +102,6 @@ export function bindTopWindowLinkInterceptor(
 
 			const windowId = deriveWindowId( url.href, config.adminUrl );
 			const dockEntry = findDockEntryForUrl( url.href, config );
-
 			const declaredTitle = ( anchor.dataset.osWindowTitle || '' ).trim();
 			const fallbackTitle =
 				( anchor.textContent || '' ).trim() || dockEntry?.title || '';
@@ -116,7 +114,6 @@ export function bindTopWindowLinkInterceptor(
 				multi: !! dockEntry?.multi || isAdminBarNew,
 				url: url.href,
 				parentUrl: dockEntry?.url ?? url.href,
-
 				title: declaredTitle || dockEntry?.title || fallbackTitle,
 				icon: dockEntry?.icon || 'dashicons-admin-generic',
 				submenu: dockEntry?.submenu,

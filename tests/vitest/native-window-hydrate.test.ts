@@ -51,7 +51,6 @@ describe( 'WindowManager — native-window hydration order', async () => {
 			native: true,
 			render: ( body ) => {
 				isConnectedAtRenderTime = body.isConnected;
-
 				isDesktopAncestorAtRenderTime = desktop.contains( body );
 			},
 		} );
@@ -72,7 +71,6 @@ describe( 'WindowManager — native-window hydration order', async () => {
 			native: true,
 			render: ( body ) => {
 				body.innerHTML = `<os-select></os-select>`;
-
 				const sel = body.querySelector( 'os-select' ) as HTMLElement & {
 					items: ReadonlyArray<{ value: string; label: string }>;
 				};

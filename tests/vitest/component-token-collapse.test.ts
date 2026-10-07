@@ -45,7 +45,6 @@ describe( 'component private aliases do not collapse onto one palette value', ()
 			for ( const m of css.matchAll(
 				/(--_[a-z0-9-]+):\s*var\(([\s\S]*?)\);/g,
 			) ) {
-
 				const chain = [ ...m[ 2 ].matchAll( /--[a-z0-9-]+/g ) ]
 					.map( ( t ) => t[ 0 ] )
 					.filter( ( t ) => pal.has( t ) );

@@ -51,15 +51,10 @@ interface UiState {
 	options: boolean;
 	cache: UserCellCache;
 	sync: ListTableSync< UserListItem >;
-
 	selected: number[];
-
 	rows: Map< number, string >;
-
 	bulkRole: string;
-
 	reassign: { id: number; name: string } | null;
-
 	addForm: AddUserFormSync;
 	profileWired: boolean;
 }
@@ -110,7 +105,7 @@ async function applyBulkRole( ctx: Ctx ): Promise< void > {
 		confirm: {
 			title: __( 'Change role for selected users?' ),
 			message: sprintf(
-
+				// translators: %1$d is a user count, %2$s is a role label.
 				__( "Set %1$d user(s)' role to %2$s?" ),
 				ids.length,
 				cfgOf( ctx ).assignableRoles?.[ role ] ?? role,
@@ -134,10 +129,13 @@ async function deleteSelected( ctx: Ctx ): Promise< void > {
 	const reassign = multisite ? null : ui.reassign ?? viewerAsReassign( cfg );
 	let message: string;
 	if ( multisite ) {
+		// translators: %d is a user count.
 		message = sprintf( __( 'Remove %d user(s) from this site? Their network account stays.' ), ids.length );
 	} else if ( reassign ) {
+		// translators: %1$d is a user count, %2$s is a user name.
 		message = sprintf( __( 'Permanently delete %1$d user(s)? Their content is attributed to %2$s. This cannot be undone.' ), ids.length, reassign.name );
 	} else {
+		// translators: %d is a user count.
 		message = sprintf( __( 'Permanently delete %d user(s)? Their content is deleted too. This cannot be undone.' ), ids.length );
 	}
 	const ok = await ctx.dispatch( 'bulk-delete', { ids, reassign: reassign?.id ?? 0 }, {
@@ -161,7 +159,7 @@ function sendReset( ctx: Ctx, row: UserListItem ): void {
 	void ctx.dispatch( 'send-reset', { id: row.id }, {
 		confirm: {
 			title: __( 'Send password reset email?' ),
-
+			// translators: %s is a user name.
 			message: sprintf( __( 'WordPress will email %s a password-reset link.' ), row.name ),
 			label: __( 'Send reset email' ),
 		},
@@ -172,7 +170,7 @@ function resendWelcome( ctx: Ctx, row: UserListItem ): void {
 	void ctx.dispatch( 'resend-welcome', { id: row.id }, {
 		confirm: {
 			title: __( 'Resend welcome email?' ),
-
+			// translators: %s is a user name.
 			message: sprintf( __( 'WordPress will resend the original welcome email to %s.' ), row.name ),
 			label: __( 'Resend' ),
 		},
@@ -209,7 +207,7 @@ function bulkActions( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 		?hidden=${ ! selecting }
 	>
 		<span class="os-app-list__count" data-os-users-count>${ sprintf(
-
+			// translators: %d is a count of selected users.
 			__( '%d selected' ),
 			ui.selected.length,
 		) }</span>
@@ -285,7 +283,7 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean, rows: UserListItem[] 
 			<os-button class="os-people__extra" variant="ghost" os-action="refresh" data-os-users-refresh>${ __( 'Refresh' ) }</os-button>
 		</div>
 		${ data.list.error ? html`<os-notice tone="danger">${ __( 'Could not load users. Try Refresh.' ) } ${ data.list.error }</os-notice>` : '' }
-		<div class="os-people__scope"><span>${ sprintf( __( '%1$d of %2$d people loaded' ), ui.feed.items.length, data.list.total ) }${ state.status || state.role ? ` · ${ rows.length } ${ __( 'match filters' ) }` : '' }</span>${ state.role ? html`<os-button variant="ghost" data-os-users-clear-role @click=${ () => {
+		<div class="os-people__scope"><span>${ sprintf( /* translators: 1: loaded users, 2: total search results. */ __( '%1$d of %2$d people loaded' ), ui.feed.items.length, data.list.total ) }${ state.status || state.role ? ` · ${ rows.length } ${ __( 'match filters' ) }` : '' }</span>${ state.role ? html`<os-button variant="ghost" data-os-users-clear-role @click=${ () => {
  ctx.state.role = ''; void ctx.dispatch( 'filter', {} );
 } }>${ __( 'Clear role' ) }</os-button>` : '' }</div>
 		<div class="os-people__card-host" ?hidden=${ ui.view !== 'people' } style="display:flex;flex:1;min-height:0;">${ peopleCards( state.tab === 'all' ? rows : [], { cfg, actions: actionsOf( ctx ), selected: ui.selected, select: ( id, checked ) => {
@@ -307,13 +305,13 @@ function insightsPanel( ctx: Ctx, ui: UiState, tab: 'roles' | 'activity' ): Temp
 	let scope: string;
 	let content: TemplateResult;
 	if ( isRoles ) {
-		scope = summary.data ? sprintf( __( '%d people across this site. Up to 8 faces per role; people can belong to more than one group.' ), summary.data.total ) : __( 'Gathering your role groups…' );
+		scope = summary.data ? sprintf( /* translators: %d: total unique site members. */ __( '%d people across this site. Up to 8 faces per role; people can belong to more than one group.' ), summary.data.total ) : __( 'Gathering your role groups…' );
 		content = summary.data ? rolesView( summary.data.groups, ( role ) => {
 			ctx.local( 'tab', { value: 'all' } ); filterByRole( ctx, role );
 		} ) : html`<p class="os-people__empty" role="status">${ summary.error ? __( 'Role groups are unavailable.' ) : __( 'Loading all roles…' ) }</p>`;
 	} else {
 		const snapshot = ui.activity.data;
-		scope = snapshot ? sprintf( __( '%d people across this site.' ), snapshot.total ) : __( 'Gathering the complete community overview' );
+		scope = snapshot ? sprintf( /* translators: %d: all site users. */ __( '%d people across this site.' ), snapshot.total ) : __( 'Gathering the complete community overview' );
 		content = snapshot ? activityView( snapshot, actionsOf( ctx ), cfgOf( ctx ), ui.contribution, ( kind ) => {
 			ui.contribution = kind; ctx.repaint();
 		} ) : html`<section class="os-community__loading" role="status"><h3>${ ui.activity.error ? __( 'The overview could not load. Use Refresh to retry.' ) : __( 'Bringing everyone together…' ) }</h3></section>`;
@@ -329,7 +327,6 @@ function insightsPanel( ctx: Ctx, ui: UiState, tab: 'roles' | 'activity' ): Temp
 
 export default defineApp< UsersState, UsersData >( APP_ID, {
 	local: {
-
 		tab: ( state, args ) => {
 			state.tab = String( args.value ?? 'all' );
 		},
@@ -406,7 +403,6 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 			return;
 		}
 		const rows = visiblePeople( ctx, ui );
-
 		const next = new Map( rows.map( ( row ) => [ row.id, rowKey( row ) ] ) );
 		for ( const [ id, key ] of next ) {
 			if ( ui.rows.get( id ) !== key ) {
@@ -425,7 +421,6 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 			onResendWelcome: ( row ) => resendWelcome( ctx, row ),
 			toast: ( message ) => say( ctx, message ),
 		};
-
 		table( ctx )?.toggleAttribute( 'loading', ctx.loading );
 		ui.sync.sync( {
 			table: table( ctx ) as unknown as ListTableLike< UserListItem > | null,
@@ -441,7 +436,6 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 					ui.selected = selectedIds( ctx );
 					ctx.repaint();
 				} );
-
 				t.addEventListener( 'os-table-sort-change', ( e: Event ) => {
 					const sort = ( e as CustomEvent< { sort: { key: string; direction: 'asc' | 'desc' } | null } > ).detail?.sort;
 					void ctx.dispatch( 'sort', {
@@ -449,7 +443,6 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 						order: sort?.direction ?? 'asc',
 					} );
 				} );
-
 				t.addEventListener( 'os-table-row-click', ( e: Event ) => {
 					const id = ( e as CustomEvent< { row?: UserListItem } > ).detail?.row?.id;
 					if ( typeof id === 'number' && id > 0 ) {

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-tile-styles
+ */
 class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 
 	const TILE_CHROME_HANDLE = 'os-files';
@@ -52,7 +55,7 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 	}
 
 	private function css_without_comments( $path ) {
-		$css = (string) file_get_contents( $path );
+		$css = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local test fixture read, not an HTTP request.
 		return (string) preg_replace( '#/\*.*?\*/#s', '', $css );
 	}
 
@@ -72,6 +75,9 @@ class Tests_OpenStation_TileStylesheetOrder extends WP_UnitTestCase {
 		return $order;
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_assets
+	 */
 	public function test_my_wordpress_style_declares_the_tile_chrome_dependency() {
 		$this->assertContains(
 			self::TILE_CHROME_HANDLE,

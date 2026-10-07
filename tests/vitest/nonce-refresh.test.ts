@@ -136,7 +136,6 @@ describe( 'nonce-refresh', () => {
 			'desktop-mode-plugins'
 		] as { restNonce: string; extra: Record< string, string >; ajaxNonce?: string };
 		expect( cfg.restNonce ).toBe( 'fresh-rest' );
-
 		expect( extra.ajaxNonce ).toBe( 'fresh-ajax' );
 		expect( extra.updatesNonce ).toBe( 'fresh-updates' );
 		expect( cfg.ajaxNonce ).toBeUndefined();
@@ -165,7 +164,6 @@ describe( 'nonce-refresh', () => {
 			'desktop-mode-plugins': { restNonce: 'stale' },
 			'desktop-mode-posts':   { restNonce: 'stale' },
 			'desktop-mode-users':   { restNonce: 'stale' },
-
 			'os-other':   { something: 'else' },
 		};
 
@@ -205,7 +203,6 @@ describe( 'nonce-refresh', () => {
 
 	test( 'tolerates a missing openStationConfig and missing window-config blob', () => {
 		const handlers = installFakeJQuery();
-
 		bootHeartbeatBus();
 		bootNonceRefresh();
 
@@ -269,7 +266,6 @@ describe( 'nonce-refresh', () => {
 			{},
 			{ desktop_mode_nonces: { wp_rest: 'fresh' } },
 		);
-
 		expect( calls ).toEqual( [ 'fresh' ] );
 		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh' );
 	} );
@@ -289,7 +285,6 @@ describe( 'nonce-refresh', () => {
 			{},
 			{ desktop_mode_nonces: { wp_rest: 'fresh' } },
 		);
-
 		expect( shellWindow().openStationConfig?.restNonce ).toBe( 'fresh' );
 		errSpy.mockRestore();
 	} );

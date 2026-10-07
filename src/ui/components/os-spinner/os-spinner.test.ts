@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-spinner';
-
+// eslint-disable-next-line no-duplicate-imports
 import { OS_SPINNER_PRESETS } from './os-spinner';
 
 const tick = (): Promise< void > =>
@@ -39,7 +39,6 @@ describe( '<os-spinner>', () => {
 		const classic = host
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
-
 		expect( classic.querySelectorAll( 'circle' ).length ).toBe( 7 );
 
 		host.innerHTML = `<os-spinner preset="comet"></os-spinner>`;
@@ -47,7 +46,6 @@ describe( '<os-spinner>', () => {
 		const comet = host
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
-
 		expect( comet.querySelectorAll( 'circle' ).length ).toBe(
 			7 + OS_SPINNER_PRESETS.comet.dots,
 		);
@@ -68,7 +66,6 @@ describe( '<os-spinner>', () => {
 		const svg = host
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
-
 		expect( svg.querySelectorAll( 'circle' ).length ).toBe( 7 );
 	} );
 
@@ -86,7 +83,6 @@ describe( '<os-spinner>', () => {
 		expect(
 			spinner.style.getPropertyValue( '--os-ui-spinner-accent' ).trim(),
 		).toBe( '#fff8e7' );
-
 		expect( spinner.style.getPropertyValue( '--os-ui-spinner-size' ).trim() ).toBe(
 			'80px',
 		);
@@ -137,11 +133,9 @@ describe( '<os-spinner>', () => {
 		const svg = host
 			.querySelector( 'os-spinner' )!
 			.shadowRoot!.querySelector( 'svg' )!;
-
 		const activeRings = svg.querySelectorAll(
 			'circle[stroke-dasharray]',
 		);
-
 		const ring2Style = ( activeRings[ 1 ] as SVGCircleElement ).getAttribute(
 			'style',
 		);
@@ -156,10 +150,8 @@ describe( '<os-spinner>', () => {
 			.shadowRoot!.querySelector( 'svg' )!;
 
 		expect( svg.querySelectorAll( 'circle' ).length ).toBe( 2 );
-
 		expect( svg.querySelector( '.mark' ) ).toBeNull();
 		expect( svg.querySelectorAll( 'path' ).length ).toBe( 0 );
-
 		expect( svg.getAttribute( 'viewBox' ) ).toBe( '0 0 24 24' );
 	} );
 
@@ -172,7 +164,6 @@ describe( '<os-spinner>', () => {
 
 		expect( svg.getAttribute( 'role' ) ).toBe( 'img' );
 		expect( svg.getAttribute( 'aria-label' ) ).toBe( 'Thinking' );
-
 		expect(
 			svg.querySelectorAll( 'circle' )[ 1 ].getAttribute( 'style' ),
 		).toMatch( /2\.00s/ );

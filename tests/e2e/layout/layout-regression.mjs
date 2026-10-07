@@ -136,7 +136,6 @@ try {
 	await page.waitForFunction( () => document.querySelector( '#split' ).shadowRoot.querySelector( '.compact' ) );
 	assert.equal( await page.evaluate( () => document.documentElement.scrollWidth > innerWidth ), false );
 	await page.screenshot( { path: '/tmp/os-layout-mobile.png', fullPage: true } );
-
 	await page.setViewportSize( { width: 1200, height: 900 } );
 	await page.goto( `${ server.resolvedUrls.local[ 0 ] }tests/e2e/layout/comments-fixture.html` );
 	await page.waitForFunction( () => window.ready );

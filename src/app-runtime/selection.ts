@@ -21,13 +21,9 @@ export function applySelection(
 }
 
 export function createMarquee( opts: {
-
 	root: HTMLElement;
-
 	canvas: string;
-
 	item?: string;
-
 	select: ( ids: number[] ) => void;
 	className?: string;
 } ): () => void {

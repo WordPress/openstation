@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 
 	private function manifest( $overrides = array() ) {
@@ -17,6 +20,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_empty_manifest_compiles_to_nothing() {
 		$this->assertSame(
 			'',
@@ -24,6 +30,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_output_is_double_scoped() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array( 'tokens' => array( '--os-window-radius' => '14px' ) ) ),
@@ -37,6 +46,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'body.os-desktop-theme-acme-neon', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_tokens_become_declarations() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -52,6 +64,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--wp-admin-theme-color: #7c5cff;', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_output_is_deterministic_regardless_of_authoring_order() {
 		$a = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -70,6 +85,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertSame( $a, $b );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_textures_become_url_declarations() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -93,6 +111,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--os-titlebar-image-size: auto 100%;', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_border_image_textures() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -115,6 +136,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--os-window-border-image-repeat: round;', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_corner_slots_share_one_size_token() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -135,6 +159,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_asset_url
+	 */
 	public function test_asset_paths_are_url_encoded() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -150,6 +177,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '%22', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_asset_url
+	 */
 	public function test_absolute_asset_urls_pass_through() {
 		$this->assertSame(
 			'https://cdn.test/x.png',
@@ -157,6 +187,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_only_custom_property_declarations_are_emitted() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -193,6 +226,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_every_registered_slot_emits_its_property() {
 		$slots = openstation_desktop_theme_texture_slots();
 
@@ -216,6 +252,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_a_filter_added_slot_compiles() {
 		$add = static function ( $slots ) {
 			$slots['ACME_SIDEBAR'] = array(
@@ -251,6 +290,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--acme-sidebar-image-repeat: repeat-y;', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_slot_without_a_prop_emits_nothing() {
 		$add = static function ( $slots ) {
 			$slots['ACME_PROPLESS'] = array( 'type' => 'image' );
@@ -273,6 +315,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertSame( '', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_variant_slot_emits_no_companions() {
 		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
@@ -294,6 +339,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '-focused-size:', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_empty_slug_compiles_to_nothing() {
 		$this->assertSame(
 			'',

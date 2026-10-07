@@ -31,7 +31,6 @@ async function makeSettings() {
 		},
 		{ apply: () => undefined } as never,
 	);
-
 	settings.apply = () => undefined;
 	return { settings, shell };
 }
@@ -46,7 +45,6 @@ describe( 'workspace appearance — a view, never a write', () => {
 		try {
 			window.localStorage.clear();
 		} catch {
-
 		}
 		( { settings, shell } = await makeSettings() );
 	} );
@@ -81,7 +79,6 @@ describe( 'workspace appearance — a view, never a write', () => {
 			wallpaper: 'mono',
 			accent: 'rose',
 		} );
-
 		settings.setWorkspaceAppearance( { wallpaper: 'aurora' } );
 
 		expect( settings.state.wallpaper ).toBe( 'aurora' );
@@ -108,7 +105,6 @@ describe( 'workspace appearance — a view, never a write', () => {
 
 		expect( saved?.wallpaper ).toBe( 'galaxy' );
 		expect( saved?.accent ).toBe( 'pulse' );
-
 		expect( settings.state.wallpaper ).toBe( 'mono' );
 	} );
 
@@ -141,7 +137,6 @@ describe( 'workspace appearance — a view, never a write', () => {
 	} );
 
 	test( 'an edit made IN PLACE on an overridden object key is still the user’s', () => {
-
 		settings.state.wallpaperSettings = { 'living-tree': { density: 1 } };
 		settings.setWorkspaceAppearance( {
 			wallpaperSettings: { 'living-tree': { density: 3 } },
@@ -163,7 +158,6 @@ describe( 'workspace appearance — a view, never a write', () => {
 		} );
 		settings.save();
 		expect( saved?.wallpaperSettings ).toEqual( { 'living-tree': { density: 1 } } );
-
 		expect( settings.state.wallpaperSettings ).toEqual( { 'living-tree': { density: 3 } } );
 	} );
 

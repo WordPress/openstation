@@ -122,10 +122,8 @@ describe( 'svg-splines renderer', () => {
 		).toHaveLength( 2 );
 		const path = svg!.querySelector( '.os-window-link__path' )!;
 		expect( path.getAttribute( 'd' ) ).toMatch( /^M .+ C .+/ );
-
 		expect( path.getAttribute( 'marker-end' ) ).toMatch( /-dot\)$/ );
 		expect( path.getAttribute( 'marker-start' ) ).toMatch( /-port\)$/ );
-
 		const markers = svg!.querySelectorAll( 'defs marker' );
 		expect( markers ).toHaveLength( 4 );
 		for ( const marker of Array.from( markers ) ) {
@@ -225,7 +223,6 @@ describe( 'svg-splines renderer', () => {
 	} );
 
 	test( 'an occluded anchor relocates to the visible border stretch', async () => {
-
 		const from = { x: 300, y: 300, width: 100, height: 100 };
 		const to = { x: 600, y: 300, width: 100, height: 100 };
 		const sibling = {
@@ -243,12 +240,10 @@ describe( 'svg-splines renderer', () => {
 		const d = h.container
 			.querySelector( '.os-window-link__path' )!
 			.getAttribute( 'd' )!;
-
 		expect( d.startsWith( 'M 400 385' ) ).toBe( true );
 	} );
 
 	test( 'the shortest edge-to-edge connection wins when visible', async () => {
-
 		const from = { x: 300, y: 300, width: 100, height: 100 };
 		const to = { x: 600, y: 340, width: 100, height: 100 };
 		const h = await mount(
@@ -268,7 +263,6 @@ describe( 'svg-splines renderer', () => {
 	test( 'an occluded shortest anchor falls back to the previous rules per endpoint', async () => {
 		const from = { x: 300, y: 300, width: 100, height: 100 };
 		const to = { x: 600, y: 300, width: 100, height: 100 };
-
 		const sibling = {
 			windowId: 'sibling',
 			rect: { x: 380, y: 280, width: 100, height: 90 },
@@ -284,7 +278,6 @@ describe( 'svg-splines renderer', () => {
 		const d = h.container
 			.querySelector( '.os-window-link__path' )!
 			.getAttribute( 'd' )!;
-
 		expect( d.startsWith( 'M 400 385' ) ).toBe( true );
 		expect( d.endsWith( '600 350' ) ).toBe( true );
 	} );

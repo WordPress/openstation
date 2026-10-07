@@ -38,9 +38,7 @@ export interface WorkAreaSnapshot {
 
 interface WorkAreaState {
 	snapshot: WorkAreaSnapshot;
-
 	installed: boolean;
-
 	areaEl: HTMLElement | null;
 }
 
@@ -62,20 +60,14 @@ const store = createSharedStore< WorkAreaState >( WORK_AREA_STORE_KEY, () => ( {
 } ) );
 
 export interface WorkAreaInstallDeps {
-
 	shell: HTMLElement;
-
 	shellBody: HTMLElement;
-
 	area: HTMLElement;
-
 	chromeSelector?: string;
 }
 
 export interface WorkAreaController {
-
 	refresh(): void;
-
 	destroy(): void;
 }
 
@@ -110,7 +102,6 @@ export function workAreaRectOf( areaEl?: HTMLElement | null ): WorkAreaRect {
 	if ( ! el ) {
 		return { ...store.state.snapshot.rect };
 	}
-
 	const width = el.clientWidth || el.getBoundingClientRect().width;
 	const height = el.clientHeight || el.getBoundingClientRect().height;
 	return rectFromInsets( width, height, store.state.snapshot.insets );
@@ -139,7 +130,6 @@ export function subscribeWorkArea(
 export function measureWorkArea( deps: WorkAreaInstallDeps ): WorkAreaSnapshot {
 	const areaRect = areaViewportRect( deps );
 	const chrome: RectLike[] = [];
-
 	const nodes = deps.shellBody.querySelectorAll< HTMLElement >(
 		deps.chromeSelector ?? '.os-dock',
 	);
@@ -150,7 +140,6 @@ export function measureWorkArea( deps: WorkAreaInstallDeps ): WorkAreaSnapshot {
 		chrome.push( node.getBoundingClientRect() );
 	}
 	const insets = computeInsets( areaRect, chrome );
-
 	const width = deps.area.clientWidth || areaRect.width;
 	const height = deps.area.clientHeight || areaRect.height;
 	const rect = rectFromInsets( width, height, insets );
@@ -251,7 +240,6 @@ export function installWorkArea( deps: WorkAreaInstallDeps ): WorkAreaController
 				continue;
 			}
 			const ro = new ResizeObserver( measure );
-
 			ro.observe( el, { box: 'border-box' } );
 			railObservers.set( el, ro );
 		}
@@ -324,13 +312,9 @@ export function _resetWorkAreaForTests(): void {
 }
 
 export interface WorkAreaApi {
-
 	get(): WorkAreaSnapshot;
-
 	rectOf( areaEl?: HTMLElement | null ): WorkAreaRect;
-
 	insetsOf( element: Element ): WorkAreaInsets;
-
 	subscribe( cb: ( snapshot: WorkAreaSnapshot ) => void ): () => void;
 }
 

@@ -26,7 +26,6 @@ function baseConfig( overrides: Partial< WindowConfig > = {} ): WindowConfig {
 
 let win: Window;
 let parent: HTMLElement;
-
 let asked: { type?: string; requestId?: string }[];
 
 function stubContentWindow(): void {
@@ -58,7 +57,6 @@ describe( 'a navigation the page inside can refuse', () => {
 	beforeEach( () => {
 		installHooksStub();
 		_resetWindowChannelsForTests();
-
 		_resetWindowLoadingTransitionsForTests();
 		installWindowLoadingTransitions();
 		parent = document.createElement( 'div' );
@@ -66,9 +64,7 @@ describe( 'a navigation the page inside can refuse', () => {
 		win = new Window( baseConfig() );
 		parent.appendChild( win.element );
 		stubContentWindow();
-
 		win._iframeBridgeReady = true;
-
 		win.markContentLoaded();
 	} );
 

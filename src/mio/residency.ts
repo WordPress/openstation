@@ -197,7 +197,6 @@ export class MioResidency {
 			resident.toggle?.dispose();
 			observer.disconnect();
 			this.refresh();
-
 			const layer = this.options.layer();
 			if ( layer && frame.contains( layer ) ) {
 				this.options.shell.appendChild( layer );
@@ -373,11 +372,9 @@ export class MioResidency {
 					windowId: next?.id ?? null,
 					previousWindowId: previous?.id ?? null,
 				} );
-
 				this.options.handle()?.setAnimating( ! document.hidden );
 				await animate( 0, 1 );
 			} catch {
-
 			} finally {
 				if ( revision === this.revision ) {
 					this.animation?.cancel();

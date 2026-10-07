@@ -4,7 +4,6 @@ defined( 'ABSPATH' ) || exit;
 
 function openstation_files_share_modes() {
 	$modes = array( 'private', 'users', 'roles', 'all' );
-
 	return (array) apply_filters( 'openstation_files_share_modes', $modes );
 }
 
@@ -118,7 +117,6 @@ function openstation_files_update_folder( $folder_id, $user_id, $changes = array
 	}
 
 	if ( isset( $changes['name'] ) ) {
-
 		$where = (string) apply_filters(
 			'openstation_folder_rename_bump_where',
 			$wpdb->prepare(
@@ -129,7 +127,7 @@ function openstation_files_update_folder( $folder_id, $user_id, $changes = array
 			$user_id
 		);
 		if ( '' !== $where ) {
-
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query(
 				$wpdb->prepare(
 					"UPDATE {$tables['placements']} SET updated_at_ms = %d WHERE {$where}",
@@ -152,7 +150,6 @@ function openstation_files_update_folder( $folder_id, $user_id, $changes = array
 	do_action( 'openstation_folder_updated', $folder_id, $next, $prev );
 
 	if ( isset( $changes['share_mode'] ) || array_key_exists( 'share_meta', $changes ) ) {
-
 		do_action( 'openstation_folder_shared', $folder_id, $next, $prev );
 	}
 
@@ -266,23 +263,21 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	}
 	if ( ! empty( $share_ids ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $share_ids ), '%d' ) );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['decisions']} WHERE share_id IN ($placeholders)",
 				$share_ids
 			)
 		);
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['shares']} WHERE id IN ($placeholders)",
 				$share_ids
 			)
 		);
-
 		foreach ( $share_rows as $share_row ) {
-
 			do_action(
 				'openstation_files_share_revoked',
 				(int) $share_row['id'],
@@ -308,7 +303,7 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	}
 	if ( ! empty( $pointing_ids ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['placements']} WHERE id IN ($placeholders)",
@@ -335,7 +330,6 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	}
 	if ( ! empty( $inside_ids ) ) {
 		$wpdb->delete( $tables['placements'], array( 'parent_id' => $folder_id ), array( '%d' ) );
-
 		if ( function_exists( 'openstation_stored_files_handle_unplaced' ) ) {
 			foreach ( $inside_rows as $inside_row ) {
 				if ( 'upload' === (string) $inside_row['file_type'] ) {
@@ -374,7 +368,6 @@ function openstation_files_get_folder( $folder_id, $include_trashed = false ) {
 	if ( ! $row ) {
 		return null;
 	}
-
 	if ( ! $include_trashed && ! empty( $row['trashed_at_ms'] ) ) {
 		return null;
 	}

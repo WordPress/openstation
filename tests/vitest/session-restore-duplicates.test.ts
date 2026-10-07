@@ -104,7 +104,6 @@ describe( 'restoreSession — duplicate instances', () => {
 			'edit-php',
 			'edit-php-2',
 		] );
-
 		expect( manager.getAllByBaseId( 'edit-php' ) ).toHaveLength( 2 );
 	} );
 
@@ -284,7 +283,6 @@ describe( 'restoreSession — native windows', () => {
 			desktop,
 			opener( [ 'desktop-mode-os-settings' ] ),
 		);
-
 		await new Promise< void >( ( resolve ) =>
 			requestAnimationFrame( () => resolve() ),
 		);

@@ -33,7 +33,6 @@ describe( 'deriveBoardNotice', () => {
 				activeTypes: [ 'post' ],
 			} ),
 		).toEqual( { kind: 'no-threads' } );
-
 		expect(
 			deriveBoardNotice( {
 				nodes: 1,
@@ -81,7 +80,6 @@ describe( 'deriveBoardNotice', () => {
 	} );
 
 	test( 'unknown counts (the config list) assume a hidden type has content', () => {
-
 		expect(
 			deriveBoardNotice( {
 				nodes: 0,
@@ -90,7 +88,6 @@ describe( 'deriveBoardNotice', () => {
 				activeTypes: [ 'post' ],
 			} ),
 		).toEqual( { kind: 'filtered-out' } );
-
 		expect(
 			deriveBoardNotice( {
 				nodes: 0,
@@ -168,7 +165,6 @@ describe( 'renderBoardNotice', () => {
 		const text = el?.textContent ?? '';
 		expect( text ).toMatch( /thread/i );
 		expect( text ).toMatch( /links/i );
-
 		expect( text ).toMatch( /author/i );
 		expect( text ).toMatch( /categor/i );
 		expect( text ).toMatch( /year/i );
@@ -197,12 +193,10 @@ describe( 'renderBoardNotice', () => {
 		handle.set( { kind: 'no-threads' } );
 		handle.setSuppressed( true );
 		expect( host.children ).toHaveLength( 0 );
-
 		handle.set( { kind: 'no-threads' } );
 		expect( host.children ).toHaveLength( 0 );
 		handle.setSuppressed( false );
 		expect( host.querySelector( `.${ BOARD_HINT_CLASS }` ) ).not.toBeNull();
-
 		handle.setSuppressed( true );
 		handle.set( { kind: 'no-content' } );
 		expect( host.querySelector( `.${ BOARD_EMPTY_CLASS }` ) ).not.toBeNull();

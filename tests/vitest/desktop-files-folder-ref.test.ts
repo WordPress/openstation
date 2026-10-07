@@ -73,7 +73,6 @@ describe( 'folderFileById — resolution order', () => {
 
 	test( "prefers the server's own shape from a loaded placement", async () => {
 		const { folderRef, store } = await load();
-
 		store.setFolderPlacements( 0, [
 			folderPlacement( 12, 'Q3 Campaign', 'dashicons-megaphone' ),
 		] );
@@ -88,7 +87,6 @@ describe( 'folderFileById — resolution order', () => {
 
 	test( 'finds the placement wherever in the tree it is loaded', async () => {
 		const { folderRef, store } = await load();
-
 		store.setFolderPlacements( 7, [
 			folderPlacement( 12, 'Nested', 'dashicons-portfolio' ),
 		] );
@@ -135,7 +133,6 @@ describe( 'folderFileById — resolution order', () => {
 
 	test( 'ignores a placement of a different type with the same ref', async () => {
 		const { folderRef, store } = await load();
-
 		store.setFolderPlacements( 0, [
 			{
 				...folderPlacement( 12, 'A post', 'dashicons-admin-post' ),

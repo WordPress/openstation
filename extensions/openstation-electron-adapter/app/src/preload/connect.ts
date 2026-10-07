@@ -6,7 +6,6 @@ export interface ConnectState {
 	siteUrl: string;
 	appVersion: string;
 	osLabel: string;
-
 	error?: string;
 }
 
@@ -17,7 +16,6 @@ export interface ConnectResult {
 }
 
 contextBridge.exposeInMainWorld( 'openStationConnect', {
-
 	getState: (): Promise< ConnectState > =>
 		ipcRenderer.invoke( CHANNELS.INVOKE_CONNECT_STATE ),
 

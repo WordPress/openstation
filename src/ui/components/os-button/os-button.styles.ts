@@ -37,9 +37,7 @@ export const styles = css`
 		transition: background-color var( --_holo-t ) ease, color var( --_holo-t ) ease,
 			border-color var( --_holo-t ) ease, box-shadow var( --_holo-t ) ease,
 			transform 80ms ease;
-
 		background: var( --os-ui-button-bg, transparent );
-
 		background-image: var( --os-ui-button-bg-image, none );
 		background-repeat: var( --os-ui-button-bg-image-repeat, repeat );
 		background-size: var( --os-ui-button-bg-image-size, auto );
@@ -58,28 +56,23 @@ export const styles = css`
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
-
 	button:active:not( :disabled ) {
 		transform: translateY( 1px );
 	}
 	button:hover:not( :disabled ) {
 		background-color: var( --os-ui-button-bg-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) ) );
 	}
-
 	button:focus-visible {
 		outline: none;
 		box-shadow: var( --_holo-focus );
 	}
-
 	button:disabled::before,
 	button:disabled::after,
 	button:disabled .os-holo-glint {
 		opacity: 0 !important;
 	}
-
 	:host( [ variant='primary' ] ) button {
 		background-color: var( --os-ui-button-bg, var( --wp-admin-theme-color, #2271b1 ) );
-
 		color: var( --os-ui-button-fg, var( --os-ui-accent-ink, var( --os-ui-fg-on-accent, #fff ) ) );
 		border: var( --os-ui-button-border, 1px solid transparent );
 	}
@@ -88,7 +81,6 @@ export const styles = css`
 		background-color: var( --os-ui-button-bg, var( --wp-admin-theme-color, #2271b1 ) );
 		box-shadow: var( --_holo-glow );
 	}
-
 	:host( [ variant='holo' ] ) button {
 		background-color: transparent;
 		background-image: var( --_holo-fill );
@@ -112,7 +104,6 @@ export const styles = css`
 		background-position: 88% 82%;
 		filter: brightness( 0.94 );
 	}
-
 	:host( [ variant='holo' ] ) button::before {
 		display: none;
 	}
@@ -122,7 +113,6 @@ export const styles = css`
 			background-position: 22% 28%;
 		}
 	}
-
 	:host( [ variant='secondary' ] ) button {
 		background-color: var( --os-ui-button-bg, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 		color: var( --os-ui-button-fg, var( --os-ui-fg, #1d2327 ) );
@@ -131,7 +121,6 @@ export const styles = css`
 	:host( [ variant='secondary' ] ) button:hover:not( :disabled ) {
 		background-color: var( --os-ui-button-bg-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.1 ) ) );
 	}
-
 	:host( [ variant='danger' ] ) button {
 		background-color: var( --os-ui-button-bg, transparent );
 		color: var( --os-ui-button-fg, var( --os-ui-danger, #d63638 ) );
@@ -141,11 +130,9 @@ export const styles = css`
 		background-color: var( --os-ui-danger, #d63638 );
 		color: var( --os-ui-fg-on-accent, #fff );
 	}
-
 	:host( [ variant='danger' ] ) button::after {
 		display: none;
 	}
-
 	:host( [ variant='link' ] ) button {
 		background-color: transparent;
 		background-image: none;
@@ -154,7 +141,6 @@ export const styles = css`
 		padding: 0;
 		text-decoration: underline;
 	}
-
 	:host( [ variant='link' ] ) button::before,
 	:host( [ variant='link' ] ) button::after,
 	:host( [ variant='link' ] ) .os-holo-glint,
@@ -168,7 +154,6 @@ export const styles = css`
 		pointer-events: none;
 		opacity: 0.75;
 	}
-
 	:host( [ variant='holo' ][ busy ] ) button {
 		animation: os-holo-drift 12s ease-in-out infinite;
 	}

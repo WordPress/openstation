@@ -20,7 +20,6 @@ export function setSnapEnabled( mgr: WindowManager, enabled: boolean ): void {
 	try {
 		window.localStorage.setItem( SNAP_STORAGE_KEY, enabled ? '1' : '0' );
 	} catch {
-
 	}
 	doAction( HOOKS.ARRANGE_SNAP_CHANGED, { enabled } );
 }
@@ -32,7 +31,6 @@ export function getSnapConfig(
 		return { enabled: false, cellWidth: 0, cellHeight: 0 };
 	}
 	const rect = mgr._desktop.getBoundingClientRect();
-
 	const targetCols = rect.width >= rect.height ? 12 : 8;
 	const auto = {
 		cellWidth: Math.max( 40, Math.round( rect.width / targetCols ) ),

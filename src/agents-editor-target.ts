@@ -5,9 +5,7 @@ const MY_WORDPRESS_WINDOW_ID = 'my-wordpress';
 export const AGENTS_ENTITY_ID = 'agents';
 
 export interface AgentEditorTarget {
-
 	agentId: number | null;
-
 	requestedAt: number;
 }
 
@@ -38,7 +36,6 @@ export function openAgentEditor( agentId: number ): void {
 	}
 	agentEditorTarget.state.agentId = agentId;
 	agentEditorTarget.state.requestedAt = Date.now();
-
 	agentEditorTarget.notify();
 
 	const openWindow = (

@@ -115,7 +115,6 @@ export const styles = css`
 	}
 
 	.os-range-field__value {
-
 		width: var( --os-ui-range-readout-width, 3ch );
 		flex: none;
 		text-align: end;

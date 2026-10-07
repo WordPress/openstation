@@ -101,7 +101,6 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 	} );
 
 	test( 'keys outside the schema are dropped', () => {
-
 		expect(
 			sanitizeRecommendedOsSettings( {
 				dockSize: 'compact',
@@ -139,7 +138,6 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 			'adminBarMode',
 			'dockRailRenderer',
 			'windowReveal',
-
 			'accent',
 			'windowRevealDuration',
 		] );
@@ -152,7 +150,6 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 	} );
 
 	test( 'clamps a reveal duration instead of dropping it', () => {
-
 		expect(
 			sanitizeRecommendedOsSettings( { windowRevealDuration: 99_999 } ),
 		).toEqual( { windowRevealDuration: 4000 } );
@@ -181,7 +178,6 @@ describe( 'resolveRecommendedOsSettings', () => {
 	} );
 
 	test( 'drops an unregistered renderer, keeping every other key', () => {
-
 		expect(
 			resolveRecommendedOsSettings( {
 				dockSize: 'large',
@@ -194,7 +190,6 @@ describe( 'resolveRecommendedOsSettings', () => {
 		expect( resolveRecommendedOsSettings( { windowReveal: 'iris' } ) ).toEqual(
 			{ windowReveal: 'iris' },
 		);
-
 		expect( resolveRecommendedOsSettings( { windowReveal: 'none' } ) ).toEqual(
 			{ windowReveal: 'none' },
 		);
@@ -231,7 +226,6 @@ describe( 'normalizeEntry', () => {
 	} );
 
 	test( 'a payload with no block yields an empty object, never undefined', () => {
-
 		const entry = normalizeEntry( { slug: 'acme-neon', name: 'Neon' } );
 		expect( entry?.recommendedOsSettings ).toEqual( {} );
 	} );
@@ -254,7 +248,6 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'seeds windowRadius — the corner preset a theme asks for', () => {
-
 		seedLibrary( { windowRadius: 'sharp' } );
 		const state = structuredDefaults();
 
@@ -265,7 +258,6 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'a theme already in the ledger does not pick up a NEW recommendation', () => {
-
 		seedLibrary( { dockSize: 'large' } );
 		const state = structuredDefaults();
 		applyThemeRecommendations( state, 'acme-neon' );
@@ -281,7 +273,6 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'does nothing the second time, even after the user changed things', () => {
-
 		seedLibrary( { dockSize: 'large' } );
 		const state = structuredDefaults();
 
@@ -308,7 +299,6 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'a theme that recommends nothing is not recorded', () => {
-
 		seedLibrary( {} );
 		const state = structuredDefaults();
 
@@ -345,7 +335,6 @@ describe( 'applyThemeRecommendations', () => {
 	} );
 
 	test( 'never writes a non-string setting', () => {
-
 		seedLibrary( { dockSize: 'large' } );
 		const state = structuredDefaults();
 		const before = state.nativePluginsEnabled;
@@ -387,7 +376,6 @@ describe( 'hasApplicableThemeRecommendations', () => {
 	} );
 
 	test( 'true for the system default, which recommends its own accent', () => {
-
 		expect( hasApplicableThemeRecommendations( SYSTEM_DEFAULT_THEME ) ).toBe(
 			true,
 		);
@@ -411,7 +399,6 @@ describe( 'the system default recommends the brand accent', () => {
 		expect( state.accent ).toBe( 'pulse' );
 		expect( state.desktopLayout ).toBe( 'unified' );
 		expect( state.dockPlacement ).toBe( 'bottom' );
-
 		expect( state.appliedThemeRecommendations ).toEqual( [
 			'system-default',
 		] );
@@ -440,7 +427,6 @@ describe( 'the system default recommends the brand accent', () => {
 	} );
 
 	test( 'an accent the site no longer offers is dropped, not written', () => {
-
 		expect(
 			resolveRecommendedOsSettings( { accent: 'not-a-swatch' } ),
 		).toEqual( {} );

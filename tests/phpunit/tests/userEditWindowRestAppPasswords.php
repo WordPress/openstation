@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-user-edit-window
+ */
 class Tests_OpenStation_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -24,6 +27,10 @@ class Tests_OpenStation_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 		return $req;
 	}
 
+	/**
+	 * @covers ::openstation_user_edit_window_rest_app_pw_create
+	 * @covers ::openstation_user_edit_window_app_pw_unavailable
+	 */
 	public function test_create_rejected_when_application_passwords_unavailable_sitewide() {
 		add_filter( 'wp_is_application_passwords_available', '__return_false' );
 
@@ -42,6 +49,10 @@ class Tests_OpenStation_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_user_edit_window_rest_app_pw_list
+	 * @covers ::openstation_user_edit_window_app_pw_unavailable
+	 */
 	public function test_list_rejected_when_unavailable_for_target_user() {
 		add_filter( 'wp_is_application_passwords_available', '__return_true' );
 		$target_id = $this->target_id;
@@ -65,6 +76,10 @@ class Tests_OpenStation_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_users_app_pw_unavailable', $res->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_user_edit_window_rest_app_pw_revoke
+	 * @covers ::openstation_user_edit_window_app_pw_unavailable
+	 */
 	public function test_revoke_rejected_when_application_passwords_unavailable_sitewide() {
 		add_filter( 'wp_is_application_passwords_available', '__return_false' );
 
@@ -76,6 +91,9 @@ class Tests_OpenStation_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_users_app_pw_unavailable', $res->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_user_edit_window_rest_app_pw_create
+	 */
 	public function test_create_succeeds_when_available() {
 		add_filter( 'wp_is_application_passwords_available', '__return_true' );
 		add_filter( 'wp_is_application_passwords_available_for_user', '__return_true' );

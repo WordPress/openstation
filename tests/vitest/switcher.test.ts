@@ -174,7 +174,6 @@ describe( 'WindowManager — window switcher (cycleFocus)', async () => {
 		} );
 
 		test( 'returns true when a text INPUT inside an open shadow root is focused (os-* host)', async () => {
-
 			const host = mount( document.createElement( 'div' ) );
 			const shadow = host.attachShadow( { mode: 'open' } );
 			const input = document.createElement( 'input' );
@@ -186,7 +185,6 @@ describe( 'WindowManager — window switcher (cycleFocus)', async () => {
 		} );
 
 		test( 'returns true when a TEXTAREA is focused two shadow roots deep', async () => {
-
 			const outer = mount( document.createElement( 'div' ) );
 			const outerShadow = outer.attachShadow( { mode: 'open' } );
 			const innerHost = document.createElement( 'div' );
@@ -200,7 +198,6 @@ describe( 'WindowManager — window switcher (cycleFocus)', async () => {
 		} );
 
 		test( 'returns false when a non-text element (button) inside a shadow root is focused', async () => {
-
 			const host = mount( document.createElement( 'div' ) );
 			const shadow = host.attachShadow( { mode: 'open' } );
 			const btn = document.createElement( 'button' );

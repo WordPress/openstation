@@ -16,7 +16,6 @@ export function setShortcutDragPayload(
 		dt.setData( 'text/plain', payload.title );
 		dt.effectAllowed = 'copy';
 	} catch {
-
 	}
 }
 
@@ -50,7 +49,6 @@ export function readShortcutPayload(
 			return parsed as DesktopShortcutDragPayload;
 		}
 	} catch {
-
 	}
 	return null;
 }

@@ -20,10 +20,8 @@ return App::define( APP_ID )
 	->icon( 'dashicons-dashboard' )
 	->size( 1240, 760 )
 	->min_size( 640, 480 )
-
 	->placement( 'none' )
 	->capabilities( 'read' )
-
 	->state( array( 'customizing' => false ) )
 	->action(
 		'customize',
@@ -37,7 +35,6 @@ return App::define( APP_ID )
 			$state->set( 'customizing', false );
 		}
 	)
-
 	->action(
 		'toggle_card',
 		static function ( State $state, Os $os, array $args ) {
@@ -51,7 +48,6 @@ return App::define( APP_ID )
 			}
 		}
 	)
-
 	->action(
 		'launch',
 		static function ( State $state, Os $os, array $args ) {
@@ -69,13 +65,10 @@ return App::define( APP_ID )
 			}
 		}
 	)
-
 	->action(
 		'show',
 		static function () {
-
 		}
 	)
-
 	->watch( '*' )
 	->view( __NAMESPACE__ . '\\render' );

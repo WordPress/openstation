@@ -3,23 +3,15 @@ import { __ } from '../i18n';
 
 export type BoardNotice =
 	| { kind: 'none' }
-
 	| { kind: 'no-content' }
-
 	| { kind: 'filtered-out' }
-
 	| { kind: 'all-off' }
-
 	| { kind: 'no-threads' };
 
 export interface BoardNoticeInput {
-
 	nodes: number;
-
 	edges: number;
-
 	types: ReadonlyArray< { slug: string; count?: number } >;
-
 	activeTypes: ReadonlyArray< string >;
 }
 
@@ -39,7 +31,6 @@ export function deriveBoardNotice( input: BoardNoticeInput ): BoardNotice {
 		if ( active.has( t.slug ) ) {
 			continue;
 		}
-
 		hidden += countsKnown ? t.count ?? 0 : 1;
 	}
 	return hidden > 0 ? { kind: 'filtered-out' } : { kind: 'no-content' };
@@ -47,7 +38,6 @@ export function deriveBoardNotice( input: BoardNoticeInput ): BoardNotice {
 
 export interface BoardNoticeHandle {
 	set: ( notice: BoardNotice ) => void;
-
 	setSuppressed: ( suppressed: boolean ) => void;
 	destroy: () => void;
 }

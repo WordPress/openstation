@@ -42,20 +42,17 @@ function openstation_handle_portal_request( $wp ) {
 
 	if ( $auto_enable && openstation_portal_is_same_origin_navigation() && '1' !== get_user_meta( $user_id, 'desktop_mode_mode', true ) ) {
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
-
 		openstation_record_user_enabled( $user_id );
 	}
 
 	$target     = '';
 	$has_intent = false;
-	if ( ! empty( $_GET['target'] ) ) {
-
-		$target = openstation_sanitize_portal_target( esc_url_raw( wp_unslash( $_GET['target'] ) ) );
+	if ( ! empty( $_GET['target'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$target = openstation_sanitize_portal_target( esc_url_raw( wp_unslash( $_GET['target'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( '' !== $target ) {
 			$has_intent = true;
 		}
 	}
-
 	wp_safe_redirect( openstation_shell_url( $target, $has_intent ) );
 	exit;
 }
@@ -111,18 +108,15 @@ function openstation_redirect_plain_admin_to_portal() {
 	if ( ! openstation_is_enabled() ) {
 		return;
 	}
-
 	if ( openstation_is_shell_screen_request() ) {
 		return;
 	}
 	if ( openstation_is_chromeless_request() ) {
 		return;
 	}
-
 	if ( function_exists( 'openstation_is_solo_request' ) && openstation_is_solo_request() ) {
 		return;
 	}
-
 	if ( is_multisite() && is_user_admin() ) {
 		return;
 	}
@@ -135,12 +129,11 @@ function openstation_redirect_plain_admin_to_portal() {
 	if ( ! empty( $_SERVER['REQUEST_METHOD'] ) && 'GET' !== strtoupper( sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) ) {
 		return;
 	}
-
 	if ( openstation_is_subresource_request() ) {
 		return;
 	}
 
-	if ( ! empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) {
+	if ( ! empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return;
 	}
 
@@ -152,9 +145,9 @@ function openstation_redirect_plain_admin_to_portal() {
 	$target = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	$target = is_string( $target ) ? $target : '';
 
-	if ( ! empty( $_GET[ OPENSTATION_PORTAL_FLAG ] ) ) {
+	if ( ! empty( $_GET[ OPENSTATION_PORTAL_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$clean  = openstation_sanitize_portal_target( $target );
-		$intent = '' !== $clean && ! empty( $_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] );
+		$intent = '' !== $clean && ! empty( $_GET[ OPENSTATION_PORTAL_INTENT_FLAG ] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		wp_safe_redirect( openstation_shell_url( $clean, $intent ) );
 		exit;
 	}
@@ -170,7 +163,6 @@ function openstation_redirect_plain_admin_to_portal() {
 	}
 
 	if ( openstation_portal_forward_is_redundant( $target ) ) {
-
 		if ( apply_filters( 'openstation_skip_redundant_portal_forward', true, $target ) ) {
 			wp_safe_redirect( openstation_shell_url( openstation_sanitize_portal_target( $target ), true ) );
 			exit;
@@ -225,7 +217,7 @@ function openstation_portal_forward_is_redundant( $request_uri ) {
 		'target',
 	);
 	foreach ( $rewritten as $key ) {
-		if ( isset( $_GET[ $key ] ) ) {
+		if ( isset( $_GET[ $key ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			return false;
 		}
 	}
@@ -257,7 +249,6 @@ function openstation_portal_entry_url( $user_id ) {
 		if ( ! openstation_url_is_same_admin( $win['url'] ) ) {
 			return $fallback;
 		}
-
 		if ( openstation_url_is_shell_screen( $win['url'] ) ) {
 			return $fallback;
 		}

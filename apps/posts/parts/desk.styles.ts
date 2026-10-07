@@ -1,7 +1,6 @@
 import { css } from '../../../src/ui/core';
 
 export const deskStyles = css`
-
 .desktop-mode-posts {
 	container: content-desk / inline-size;
 	color: var( --os-ui-fg, #1d2327 );

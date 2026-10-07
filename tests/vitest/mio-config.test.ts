@@ -69,7 +69,6 @@ describe( 'chromaRing', () => {
 	test( 'phase rotates the ramp rather than recolouring it', () => {
 		const app = { ...MIO_DEFAULTS.appearance, hueSpan: -360, lightness: 0.5 };
 		const base = chromaRing( 8, 0, app );
-
 		const wrapped = chromaRing( 8, -360, app );
 		expect( wrapped ).toEqual( base );
 	} );
@@ -78,22 +77,18 @@ describe( 'chromaRing', () => {
 		const flat = chromaRing( 6, 0, {
 			...MIO_DEFAULTS.appearance,
 			hueSpan: 0,
-
 			lightness: 0.5,
 		} );
-
 		const hues = flat.map( ( rgb ) =>
 			hueOf( ( rgb >> 16 ) & 0xff, ( rgb >> 8 ) & 0xff, rgb & 0xff ),
 		);
 		for ( const h of hues ) {
-
 			expect( Math.abs( h - hues[ 0 ] ) ).toBeLessThan( 1 );
 		}
 	} );
 } );
 
 describe( 'the looping gradient', () => {
-
 	function hues( ring: number[] ): number[] {
 		return ring.map( ( rgb ) =>
 			hueOf( ( rgb >> 16 ) & 0xff, ( rgb >> 8 ) & 0xff, rgb & 0xff ),
@@ -106,7 +101,6 @@ describe( 'the looping gradient', () => {
 		for ( let i = 0; i < h.length; i++ ) {
 			const a = h[ i ];
 			const b = h[ ( i + 1 ) % h.length ];
-
 			const d = Math.abs( ( ( a - b + 540 ) % 360 ) - 180 );
 			worst = Math.max( worst, d );
 		}
@@ -114,7 +108,6 @@ describe( 'the looping gradient', () => {
 	}
 
 	test( 'a straight ramp leaves a seam where the ring meets itself', () => {
-
 		const straight = chromaRing( 64, 0, {
 			...MIO_DEFAULTS.appearance,
 			hueLoop: false,
@@ -131,7 +124,6 @@ describe( 'the looping gradient', () => {
 			hueSpan: -79,
 			iridescence: 0,
 		} );
-
 		expect( worstStep( looped ) ).toBeLessThan( 6 );
 	} );
 
@@ -146,10 +138,8 @@ describe( 'the looping gradient', () => {
 			hueAngle: 0,
 			iridescence: 0,
 		} );
-
 		const h = hues( ring );
 		expect( Math.abs( h[ 0 ] - h[ h.length - 1 ] ) ).toBeLessThan( 6 );
-
 		expect( Math.abs( h[ 0 ] - h[ 32 ] ) ).toBeCloseTo(
 			Math.abs( MIO_DEFAULTS.appearance.hueSpan ),
 			0,
@@ -157,7 +147,6 @@ describe( 'the looping gradient', () => {
 	} );
 
 	test( 'the loop turns smoothly — no crease where the sweep reverses', () => {
-
 		const n = 180;
 		const h = hues(
 			chromaRing( n, 0, {
@@ -170,7 +159,6 @@ describe( 'the looping gradient', () => {
 		const step = ( i: number ): number => {
 			const a = h[ i % n ];
 			const b = h[ ( i + 1 ) % n ];
-
 			return ( ( b - a + 540 ) % 360 ) - 180;
 		};
 		let worstBend = 0;
@@ -186,12 +174,10 @@ describe( 'the looping gradient', () => {
 		const base = { ...MIO_DEFAULTS.appearance, iridescence: 0 };
 		const at0 = hues( chromaRing( 64, 0, { ...base, hueAngle: 0 } ) );
 		const at90 = hues( chromaRing( 64, 0, { ...base, hueAngle: 90 } ) );
-
 		expect( Math.abs( at90[ 16 ] - at0[ 0 ] ) ).toBeLessThan( 0.5 );
 	} );
 
 	test( 'a still ring is genuinely still', () => {
-
 		const app = MIO_DEFAULTS.appearance;
 		expect( app.hueDrift ).toBe( 0 );
 		expect( chromaRing( 32, app.hueDrift * 12, app ) ).toEqual(
@@ -201,7 +187,6 @@ describe( 'the looping gradient', () => {
 } );
 
 describe( 'the hologram', () => {
-
 	const HOLO = { ...MIO_DEFAULTS.appearance, iridescence: 0.85 };
 
 	function view( n: number, tilt: { x: number; y: number } ): HoloView {
@@ -231,16 +216,13 @@ describe( 'the hologram', () => {
 		const app = HOLO;
 		const east = chromaRing( 24, 0, app, view( 24, { x: 1, y: 0 } ) );
 		const north = chromaRing( 24, 0, app, view( 24, { x: 0, y: -1 } ) );
-
 		expect( north ).not.toEqual( east );
 	} );
 
 	test( 'the glint tracks the rake and nothing else', () => {
 		const app = HOLO;
 		const spec = holoSpecular( 24, app, view( 24, { x: 1, y: 0 } ) );
-
 		expect( spec[ 0 ] ).toBeGreaterThan( 0.5 );
-
 		expect( spec[ 12 ] ).toBe( 0 );
 		for ( const s of spec ) {
 			expect( s ).toBeGreaterThanOrEqual( 0 );
@@ -313,7 +295,6 @@ describe( 'sanitizeMioConfig', () => {
 	} );
 
 	test( 'the stretch limits can never cross', () => {
-
 		for ( const attempt of [
 			{ minStretch: 0.8, maxStretch: 0.4 },
 			{ minStretch: 3, maxStretch: 1.2 },
@@ -339,7 +320,6 @@ describe( 'sanitizeMioConfig', () => {
 		expect(
 			sanitizeMioConfig( { physics: { points: 33.7 } } ).physics.points,
 		).toBe( 34 );
-
 		expect(
 			sanitizeMioConfig( { physics: { shapeLobes: 3.4 } } ).physics
 				.shapeLobes,

@@ -24,7 +24,6 @@ function openstation_content_graph_register_routes() {
 			'callback'            => 'openstation_content_graph_rest_nodes',
 			'permission_callback' => 'openstation_content_graph_rest_permission',
 			'args'                => array(
-
 				'types' => array(
 					'description' => 'Comma-separated list of post type slugs to include. Omit for every registered type; pass an empty value for none.',
 					'type'        => 'string',
@@ -55,7 +54,6 @@ function openstation_content_graph_rest_post_types() {
 	$out   = array();
 	foreach ( $types as $entry ) {
 		$slug = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
-
 		$counts = $slug ? wp_count_posts( $slug, 'readable' ) : null;
 		$count  = 0;
 		if ( $counts && isset( $counts->publish ) ) {

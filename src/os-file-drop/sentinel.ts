@@ -5,9 +5,7 @@ import { showToast } from '../toast';
 import type { CapturedDrop } from './index';
 
 interface SentinelArgs {
-
 	bundleUrl: string;
-
 	boot: Parameters<
 		NonNullable< Window[ 'openStationFileDrop' ] >[ 'boot' ]
 	>[ 0 ];
@@ -45,7 +43,6 @@ export function installFileDropSentinel( args: SentinelArgs ): () => void {
 					}
 					api.boot( args.boot );
 					booted = true;
-
 					teardown();
 					for ( const drop of captured.splice( 0 ) ) {
 						api.replayCapturedDrop( drop );
@@ -53,12 +50,11 @@ export function installFileDropSentinel( args: SentinelArgs ): () => void {
 				} )
 				.catch( ( err ) => {
 					loading = null;
-
+					// eslint-disable-next-line no-console -- a dead drop path would otherwise fail silently.
 					console.warn(
 						'[openstation] file-drop bundle failed to load',
 						err,
 					);
-
 					if ( captured.length > 0 ) {
 						captured.length = 0;
 						showToast( {
@@ -81,7 +77,6 @@ export function installFileDropSentinel( args: SentinelArgs ): () => void {
 	const onDragOver = ( ev: DragEvent ): void => {
 		if ( ! booted && dragCarriesFiles( ev ) ) {
 			ev.preventDefault();
-
 			if ( ev.dataTransfer ) {
 				ev.dataTransfer.dropEffect = 'copy';
 			}
@@ -91,7 +86,6 @@ export function installFileDropSentinel( args: SentinelArgs ): () => void {
 		if ( booted || ! dragCarriesFiles( ev ) ) {
 			return;
 		}
-
 		const alreadyClaimed = ev.defaultPrevented;
 		ev.preventDefault();
 		captured.push( {
@@ -107,6 +101,5 @@ export function installFileDropSentinel( args: SentinelArgs ): () => void {
 	window.addEventListener( 'dragenter', onDragEnter, true );
 	window.addEventListener( 'dragover', onDragOver );
 	window.addEventListener( 'drop', onDrop );
-
 	return teardown;
 }

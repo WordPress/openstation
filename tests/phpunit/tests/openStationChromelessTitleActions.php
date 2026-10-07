@@ -1,5 +1,10 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_chromeless_submenu_tab_urls
+ * @covers ::openstation_chromeless_title_action_css
+ * @covers ::openstation_chromeless_css_attr_value
+ */
 class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -228,7 +233,6 @@ class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '>', $escaped );
 		$this->assertStringContainsString( '\\"b', $escaped );
 		$this->assertStringContainsString( '\\\\d', $escaped );
-
 		$this->assertSame( 0, preg_match( '/(?<!\\\\)"/', $escaped ) );
 	}
 

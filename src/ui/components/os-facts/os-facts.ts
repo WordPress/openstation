@@ -28,7 +28,6 @@ export class OsFact extends Component {
 			{ name: '--os-ui-facts-code-padding', default: '0' },
 			{ name: '--os-ui-facts-code-font-size', default: '1em' },
 		],
-
 		example: html`
 			<os-facts>
 				<os-fact label="File">class-foo.php</os-fact>

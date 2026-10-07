@@ -63,7 +63,7 @@ function modeHint( mode: SoupMode ): string {
 	return 'time-attack' === mode
 		? __( '90 seconds on the clock — every word buys you more.' )
 		: sprintf(
-
+			/* translators: %s: number of waves in a Daily run. */
 			__( '%s relaxed waves. No clock pressure, just streaks.' ),
 			String( DAILY_WAVE_COUNT ),
 		);
@@ -92,7 +92,6 @@ function readStoredMode(): SoupMode {
 			return stored as SoupMode;
 		}
 	} catch {
-
 	}
 	return 'daily';
 }
@@ -101,7 +100,6 @@ function storeMode( mode: SoupMode ): void {
 	try {
 		window.localStorage.setItem( MODE_STORAGE_KEY, mode );
 	} catch {
-
 	}
 }
 
@@ -112,7 +110,6 @@ function readStoredSize(): SoupSize {
 			return stored as SoupSize;
 		}
 	} catch {
-
 	}
 	return 'small';
 }
@@ -121,7 +118,6 @@ function storeSize( size: SoupSize ): void {
 	try {
 		window.localStorage.setItem( SIZE_STORAGE_KEY, size );
 	} catch {
-
 	}
 }
 
@@ -153,7 +149,6 @@ function markPlayed( dateSeed: string, seed: string ): void {
 			JSON.stringify( { date: dateSeed, seeds: [ ...seeds ] } ),
 		);
 	} catch {
-
 	}
 }
 
@@ -211,14 +206,13 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		const ribbon = document.createElement( 'span' );
 		ribbon.className = 'soup__hud-ribbon';
 		ribbon.textContent = sprintf(
-
+			/* translators: 1: challenger display name, 2: score to beat. */
 			__( 'Beat %1$s: %2$s' ),
 			ctx.challenge.challengerName,
 			String( ctx.challenge.scoreToBeat ),
 		);
 		hud.appendChild( ribbon );
 	}
-
 	hud.appendChild( soundToggle );
 	root.appendChild( hud );
 
@@ -269,7 +263,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 	let size: SoupSize = readStoredSize();
 	const dateSeed = formatDailySeed( new Date() );
 	let seedString = runSeedString( dateSeed, mode, size );
-
 	let officialRun = true;
 	let scores: SoupScoreState = createSoupScore();
 	let grid: SoupGrid | null = null;
@@ -290,7 +283,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 
 	const paintHud = (): void => {
 		scoreEl.textContent = sprintf(
-
+			/* translators: %s: current score. */
 			__( 'Score %s' ),
 			String( scores.score ),
 		);
@@ -307,7 +300,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 				timeLeft <= LOW_TIME_SECONDS,
 		);
 		waveEl.textContent = sprintf(
-
+			/* translators: 1: current wave number, 2: mode label. */
 			__( 'Wave %1$s · %2$s' ),
 			String( wave ),
 			modeLabel( mode ),
@@ -322,7 +315,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			return;
 		}
 		wordsHeading.textContent = sprintf(
-
+			/* translators: %s: number of hidden words. */
 			__( 'Find %s words' ),
 			String( grid.words.length ),
 		);
@@ -366,7 +359,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		renderChips();
 		fx.banner(
 			sprintf(
-
+				/* translators: %s: wave number. */
 				__( 'Wave %s' ),
 				String( wave ),
 			),
@@ -478,7 +471,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		const stats = document.createElement( 'p' );
 		stats.className = 'soup__over-stats';
 		stats.textContent = sprintf(
-
+			/* translators: 1: score, 2: words found, 3: accuracy percent, 4: best streak, 5: wave reached. */
 			__( 'Score %1$s — %2$s words, %3$s%% accuracy, best streak %4$s, wave %5$s.' ),
 			String( row.score ),
 			String( scores.wordsFound ),
@@ -604,7 +597,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		storeSize( pickedSize );
 		seedString = runSeedString( dateSeed, mode, size );
 		officialRun = ! readPlayedToday( dateSeed ).has( seedString );
-
 		markPlayed( dateSeed, seedString );
 		scores = createSoupScore();
 		colorCounter = 0;
@@ -630,7 +622,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 				const proceed = await confirm( {
 					title: __( 'Replay today’s soup?' ),
 					message: sprintf(
-
+						/* translators: 1: mode label (Daily / Time Attack), 2: board dimensions (e.g. 12×12). */
 						__( 'You already played today’s %1$s (%2$s). The word positions can be memorized, so replays don’t earn a share card — that stays with your first run.' ),
 						modeLabel( picked ),
 						sizeDims( pickedSize ),
@@ -665,7 +657,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 		const tagline = document.createElement( 'p' );
 		tagline.className = 'soup__over-stats';
 		tagline.textContent = sprintf(
-
+			/* translators: %s: today's puzzle date (dd-mm-yyyy). */
 			__( 'One pot, whole world: everyone gets the same soup today (%s). Drag across the letters to fish the words out.' ),
 			dateSeed,
 		);
@@ -675,7 +667,7 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			const note = document.createElement( 'p' );
 			note.className = 'soup__over-stats';
 			note.textContent = sprintf(
-
+				/* translators: 1: challenger display name, 2: score to beat. */
 				__( 'Challenge from %1$s — beat %2$s.' ),
 				ctx.challenge.challengerName,
 				String( ctx.challenge.scoreToBeat ),
@@ -919,7 +911,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			antialias: true,
 			autoDensity: true,
 			resolution: Math.min( window.devicePixelRatio || 1, 2 ),
-
 			sharedTicker: false,
 		} );
 		if ( disposed ) {
@@ -939,7 +930,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			if ( ! app || ! board ) {
 				return;
 			}
-
 			app.resize();
 			board.relayout( fieldWidth(), fieldHeight() );
 		} );
@@ -996,7 +986,6 @@ export function mountAlphabetSoup( ctx: GameLaunchContext ): () => void {
 			app.ticker.stop();
 			fx?.clear();
 			board?.destroy();
-
 			app.destroy( { removeView: true }, { children: true, texture: true } );
 			app = null;
 		}

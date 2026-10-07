@@ -94,7 +94,6 @@ function openstation_workspace_preset_requirements_met( $preset ) {
 		if ( ! is_string( $plugin ) ) {
 			continue;
 		}
-
 		$plugin = str_replace( '..', '', substr( preg_replace( '#[^A-Za-z0-9_./-]#', '', $plugin ), 0, 256 ) );
 		if ( '' === $plugin || ! is_plugin_active( $plugin ) ) {
 			return false;
@@ -205,7 +204,6 @@ function openstation_sanitize_workspace_preset( $raw ) {
 			if ( ! is_string( $id ) ) {
 				continue;
 			}
-
 			$id = substr( preg_replace( '#[^A-Za-z0-9_/-]#', '', $id ), 0, 128 );
 			if ( '' !== $id ) {
 				$widgets[] = $id;
@@ -284,7 +282,6 @@ function openstation_sanitize_workspace_profile( $raw ) {
 				if ( ! is_string( $id ) && ! is_numeric( $id ) ) {
 					continue;
 				}
-
 				$id = substr( preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) $id ), 0, 128 );
 				if ( '' === $id ) {
 					continue;
@@ -308,7 +305,6 @@ function openstation_sanitize_workspace_profile( $raw ) {
 				if ( ! is_string( $id ) ) {
 					continue;
 				}
-
 				$id = substr( preg_replace( '#[^A-Za-z0-9_/-]#', '', $id ), 0, 128 );
 				if ( '' === $id ) {
 					continue;
@@ -333,7 +329,6 @@ function openstation_sanitize_workspace_profile( $raw ) {
 			}
 			$entry = array( 'match' => substr( $match, 0, 128 ) );
 			if ( isset( $win['url'] ) && is_string( $win['url'] ) ) {
-
 				$url = substr( wp_strip_all_tags( $win['url'] ), 0, 512 );
 				if ( '' !== $url ) {
 					$entry['url'] = $url;
@@ -345,7 +340,6 @@ function openstation_sanitize_workspace_profile( $raw ) {
 					$entry['title'] = $title;
 				}
 			}
-
 			$grid_span = openstation_sanitize_session_grid_span( $win['gridSpan'] ?? null );
 			if ( null !== $grid_span ) {
 				$entry['gridSpan'] = $grid_span;
@@ -376,7 +370,6 @@ function openstation_sanitize_workspace_profile( $raw ) {
 		),
 		'windows'     => $windows,
 		'layout'      => $layout,
-
 		'provisioned' => ! empty( $raw['provisioned'] ),
 	);
 }

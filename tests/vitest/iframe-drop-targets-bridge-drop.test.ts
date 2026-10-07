@@ -63,7 +63,6 @@ describe( 'bridge drop intercept', () => {
 	beforeEach( () => {
 		stubWpHooks();
 		installIframeDropTargets( dragManagerStub );
-
 		downstream = vi.fn();
 		document.body.addEventListener( 'drop', downstream );
 		document.elementFromPoint = () => null;
@@ -91,7 +90,6 @@ describe( 'bridge drop intercept', () => {
 		const ev = fireDrop();
 
 		expect( downstream ).toHaveBeenCalledTimes( 1 );
-
 		expect( ev.defaultPrevented ).toBe( true );
 	} );
 

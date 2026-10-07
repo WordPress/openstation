@@ -46,7 +46,6 @@ function openstation_desktop_theme_compile_css( $manifest, $slug, $base_url = ''
 	ksort( $textures );
 
 	$slots = openstation_desktop_theme_texture_slots();
-
 	$size_groups = array();
 
 	foreach ( $textures as $slot => $entry ) {
@@ -56,7 +55,6 @@ function openstation_desktop_theme_compile_css( $manifest, $slug, $base_url = ''
 		$definition = isset( $slots[ $slot ] ) && is_array( $slots[ $slot ] ) ? $slots[ $slot ] : null;
 		$prop       = $definition && ! empty( $definition['prop'] ) ? (string) $definition['prop'] : '';
 		if ( '' === $prop ) {
-
 			continue;
 		}
 		$url = openstation_desktop_theme_asset_url( $entry['path'], $base_url, $version );
@@ -109,7 +107,7 @@ function openstation_desktop_theme_compile_css( $manifest, $slug, $base_url = ''
 	if ( empty( $declarations ) ) {
 		return '' === $font_faces
 			? ''
-			: "" . $font_faces;
+			: "/* OpenStation desktop theme: {$slug} — compiled, do not edit. */\n" . $font_faces;
 	}
 
 	sort( $declarations, SORT_STRING );
@@ -117,7 +115,7 @@ function openstation_desktop_theme_compile_css( $manifest, $slug, $base_url = ''
 	$selector = '.os-shell[data-os-desktop-theme="' . $slug . '"],' . "\n"
 		. 'body.os-desktop-theme-' . $slug;
 
-	return ""
+	return "/* OpenStation desktop theme: {$slug} — compiled, do not edit. */\n"
 		. $font_faces
 		. $selector . " {\n"
 		. implode( "\n", $declarations ) . "\n"

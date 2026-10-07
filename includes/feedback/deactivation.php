@@ -75,7 +75,6 @@ function openstation_feedback_days_between( $from, $to ) {
 }
 
 function openstation_deactivation_feedback_payload( $reasons, $details = '', $context = 'classic' ) {
-
 	$reasons = array_values(
 		array_intersect( OPENSTATION_FEEDBACK_REASONS, array_map( 'strval', (array) $reasons ) )
 	);
@@ -128,7 +127,6 @@ function openstation_deactivation_feedback_payload( $reasons, $details = '', $co
 }
 
 function openstation_deactivation_feedback_forward( array $payload ) {
-
 	$endpoint = (string) apply_filters( 'openstation_deactivation_feedback_endpoint', OPENSTATION_FEEDBACK_ENDPOINT );
 	if ( '' === $endpoint ) {
 		return false;

@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 
 	public function set_up() {
@@ -39,6 +41,10 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 		return rest_get_server()->dispatch( new WP_REST_Request( 'GET', '/desktop-mode/v1/site-views-jetpack' ) );
 	}
 
+	/**
+	 * @covers ::openstation_site_views_jetpack_callback
+	 * @covers ::openstation_site_views_jetpack_days
+	 */
 	public function test_jetpack_visits_are_mapped_to_daily_rows() {
 		$this->load_wpcom_stats_stub();
 		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
@@ -79,6 +85,9 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_site_views_jetpack_callback
+	 */
 	public function test_jetpack_source_is_restricted_without_the_stats_gate() {
 		$this->load_wpcom_stats_stub();
 		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
@@ -101,6 +110,10 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->get_jetpack_route_as( 'subscriber' )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_site_views_jetpack_days
+	 * @covers ::openstation_site_views_jetpack_stats_active
+	 */
 	public function test_jetpack_source_is_unavailable_when_stats_cannot_answer() {
 		$this->load_wpcom_stats_stub();
 
@@ -125,6 +138,9 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 		$this->assertNull( \Automattic\Jetpack\Stats\WPCOM_Stats::$last_args );
 	}
 
+	/**
+	 * @covers ::openstation_site_views_meta_callback
+	 */
 	public function test_aggregates_todays_views_across_posts() {
 		$today = current_time( 'Y-m-d' );
 		$a     = self::factory()->post->create();
@@ -142,6 +158,9 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 		$this->assertSame( 7, $last['views'] );
 	}
 
+	/**
+	 * @covers ::openstation_site_views_meta_callback
+	 */
 	public function test_result_is_served_from_the_transient() {
 		$today = current_time( 'Y-m-d' );
 		$a     = self::factory()->post->create();

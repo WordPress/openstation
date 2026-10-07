@@ -10,17 +10,11 @@ export function isPersonViewClaimed( parsed: URL ): boolean {
 }
 
 export interface NativeUrlRemap {
-
 	id: string;
-
 	nativeWindowId: string;
-
 	matches( url: string, parsed: URL ): boolean;
-
 	enabled?( snapshot: OsSettingsSnapshot ): boolean;
-
 	onMatch?( url: string, parsed: URL ): void;
-
 	params?(
 		url: string,
 		parsed: URL,
@@ -36,7 +30,6 @@ interface RemapDeps {
 			params?: Record< string, string | number | boolean >;
 		},
 	): boolean;
-
 	openNewById?(
 		id: string,
 		opts?: {
@@ -144,6 +137,7 @@ export function tryNativeUrlRemap(
 			try {
 				entry.onMatch( url, parsed );
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] URL remap onMatch hook threw for "${ entry.id }":`,
 					err,
@@ -153,12 +147,12 @@ export function tryNativeUrlRemap(
 		let params:
 			| Record< string, string | number | boolean >
 			| undefined;
-
 		const tagged = parsed.searchParams.get( OS_TAB_PARAM );
 		if ( entry.params ) {
 			try {
 				params = entry.params( url, parsed ) ?? undefined;
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] URL remap params hook threw for "${ entry.id }":`,
 					err,
@@ -168,7 +162,6 @@ export function tryNativeUrlRemap(
 		if ( tagged && /^[a-z0-9_-]+$/.test( tagged ) ) {
 			params = { ...( params ?? {} ), tab: tagged };
 		}
-
 		const open =
 			opts.newInstance && deps.openNewById
 				? deps.openNewById

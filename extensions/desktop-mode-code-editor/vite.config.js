@@ -7,7 +7,6 @@ export default defineConfig( ( { mode } ) => {
 	return {
 		build: {
 			outDir: 'assets/js',
-
 			emptyOutDir: false,
 			target: 'es2020',
 			minify: isProd ? 'esbuild' : false,

@@ -10,7 +10,6 @@ export const flyoutStyles = css`
 			--os-ui-flyout-bg,
 			var( --os-ui-surface-elevated, #ffffff )
 		);
-
 		background-image: var( --os-ui-panel-bg-image, none );
 		background-repeat: var( --os-ui-panel-bg-image-repeat, repeat );
 		background-size: var( --os-ui-panel-bg-image-size, auto );

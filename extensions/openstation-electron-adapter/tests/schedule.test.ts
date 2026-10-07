@@ -16,7 +16,6 @@ describe( 'clampInterval', () => {
 	} );
 
 	test( 'floors a server asking for a faster pulse than we allow', () => {
-
 		expect( clampInterval( 1000 ) ).toBe( MIN_INTERVAL );
 		expect( clampInterval( 0 ) ).toBe( DEFAULT_INTERVAL );
 		expect( clampInterval( -5 ) ).toBe( DEFAULT_INTERVAL );
@@ -41,7 +40,6 @@ describe( 'shouldSkipBeat', () => {
 	} );
 
 	test( 'never skips while a window is out on the desktop', () => {
-
 		expect(
 			shouldSkipBeat( {
 				activeSinceLastBeat: false,
@@ -62,7 +60,6 @@ describe( 'shouldSkipBeat', () => {
 		for ( let i = 0; i < IDLE_MULTIPLIER - 1; i++ ) {
 			expect( idle( i ) ).toBe( true );
 		}
-
 		expect( idle( IDLE_MULTIPLIER - 1 ) ).toBe( false );
 	} );
 } );
@@ -78,7 +75,6 @@ describe( 'nextDelay', () => {
 	} );
 
 	test( 'stops widening at the ceiling', () => {
-
 		expect( nextDelay( 120000, 999 ) ).toBe( 120000 * MAX_BACKOFF );
 	} );
 } );

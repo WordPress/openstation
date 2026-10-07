@@ -50,7 +50,6 @@ export function isNotesConflict( err: unknown ): err is NotesConflictError {
 const call = createFeatureClient( {
 	prefix: '[openstation] notes REST',
 	source: 'desktop-mode/notes',
-
 	url: ( path ) => {
 		const { baseUrl } = ensureDeps();
 		return path ? joinRestUrl( baseUrl, path ) : baseUrl;
@@ -72,7 +71,6 @@ export interface CreateNoteBody {
 	x: number;
 	y: number;
 	public: boolean;
-
 	seed?: number;
 }
 
@@ -90,7 +88,6 @@ export interface UpdateNoteBody {
 	y?: number;
 	z?: number;
 	public?: boolean;
-
 	updatedAtMs?: number;
 }
 
@@ -112,11 +109,8 @@ export function restoreNote( id: number ): Promise< Note > {
 }
 
 export interface ConvertNoteResult {
-
 	noteId: number;
-
 	postId: number;
-
 	editUrl: string;
 }
 

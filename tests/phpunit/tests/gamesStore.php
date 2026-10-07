@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-games
+ */
 class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 
 	protected static $player_a;
@@ -31,12 +34,18 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_games_save_score
+	 */
 	public function test_save_score_rejects_unknown_game() {
 		$result = openstation_games_save_score( 'nope', self::$player_a, 10 );
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_unknown_game', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_games_save_score
+	 */
 	public function test_save_score_clamps_negative_scores() {
 		$id = openstation_games_save_score( 'test-game', self::$player_a, -50 );
 		$this->assertIsInt( $id );
@@ -44,6 +53,9 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		$this->assertSame( 0, $scores['rows'][0]['score'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_sanitize_score_meta
+	 */
 	public function test_score_meta_is_bounded_and_flat() {
 		$meta = array(
 			'wpm'      => 62.5,
@@ -62,6 +74,9 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		$this->assertSame( 200, strlen( $clean['note'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_games_save_score
+	 */
 	public function test_pre_save_filter_vetoes() {
 		add_filter(
 			'openstation_game_score_pre_save',
@@ -76,6 +91,9 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		$this->assertSame( 0, $scores['total'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_get_scores
+	 */
 	public function test_leaderboard_orders_and_pages() {
 		foreach ( array( 10, 30, 20 ) as $score ) {
 			openstation_games_save_score( 'test-game', self::$player_a, $score );
@@ -95,6 +113,9 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		$this->assertNotEmpty( $mine['rows'][0]['userAvatar'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_create_challenge
+	 */
 	public function test_create_challenge_validates_parties() {
 		$self = openstation_games_create_challenge( 'test-game', self::$player_a, self::$player_a, 10 );
 		$this->assertWPError( $self );
@@ -105,6 +126,10 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_recipient', $ghost->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_games_set_challenge_state
+	 * @covers ::openstation_games_complete_challenge
+	 */
 	public function test_challenge_state_machine() {
 		$id = openstation_games_create_challenge( 'test-game', self::$player_a, self::$player_b, 100 );
 		$this->assertIsInt( $id );
@@ -132,6 +157,9 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		$this->assertSame( self::$player_b, $scores['rows'][0]['userId'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_complete_challenge
+	 */
 	public function test_matching_score_does_not_beat() {
 		$id = openstation_games_create_challenge( 'test-game', self::$player_a, self::$player_b, 100 );
 		openstation_games_set_challenge_state( $id, 'accepted' );
@@ -139,6 +167,9 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		$this->assertSame( 'not_beaten', $updated['result'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_get_challenges_for_user
+	 */
 	public function test_challenge_deltas_are_version_gated() {
 		$id = openstation_games_create_challenge( 'test-game', self::$player_a, self::$player_b, 100 );
 
@@ -154,6 +185,9 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 		$this->assertSame( 'accepted', $fresh[0]['state'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_shape_challenge
+	 */
 	public function test_shape_challenge_carries_both_parties() {
 		$id    = openstation_games_create_challenge( 'test-game', self::$player_a, self::$player_b, 100, array( 'wpm' => 50 ) );
 		$shape = openstation_games_shape_challenge( openstation_games_get_challenge( $id ) );

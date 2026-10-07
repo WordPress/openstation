@@ -98,7 +98,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.toggleMaximize();
 
 		expect( handle.win.state ).toBe( 'maximized' );
-
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'os-window--maximized',
 		] );
@@ -129,7 +128,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'normal → fullscreen → exit fullscreen: returns to normal with original geometry', () => {
-
 		handle.win.toggleFullscreen();
 		handle.win.toggleFullscreen();
 
@@ -147,7 +145,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 		handle.win.toggleFullscreen();
 		expect( handle.win.state ).toBe( 'fullscreen' );
-
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'os-window--fullscreen',
 		] );
@@ -191,20 +188,17 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.restore();
 
 		expect( handle.win.state ).toBe( 'fullscreen' );
-
 		expect( activeStateClasses( handle.win.element ) ).toEqual( [
 			'os-window--fullscreen',
 		] );
 	} );
 
 	test( 'fullscreen → minimize → restore: refreshes fullscreen body class', () => {
-
 		handle.win.toggleFullscreen();
 		expect(
 			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( true );
 		handle.win.minimize();
-
 		document.body.classList.remove( 'os-has-fullscreen-window' );
 
 		handle.win.restore();
@@ -215,7 +209,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'fullscreen → minimize: clears fullscreen body class while minimized', () => {
-
 		handle.win.toggleFullscreen();
 		expect(
 			document.body.classList.contains( 'os-has-fullscreen-window' ),
@@ -229,7 +222,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'minimizing one fullscreen window keeps body class for another visible fullscreen window', () => {
-
 		const other = mountWindow( baseConfig( { id: 'w2' } ) );
 		try {
 			handle.win.toggleFullscreen();
@@ -252,7 +244,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'fullscreen → minimize → restore: refreshes focus-button aria-pressed/label', () => {
-
 		const btn = document.createElement( 'button' );
 		btn.className = 'os-window__btn os-window__btn--focus';
 		handle.win.element.appendChild( btn );
@@ -260,7 +251,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.toggleFullscreen();
 		expect( btn.getAttribute( 'aria-pressed' ) ).toBe( 'true' );
 		handle.win.minimize();
-
 		btn.setAttribute( 'aria-pressed', 'false' );
 		btn.classList.remove( 'os-window__btn--active' );
 
@@ -273,7 +263,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'restore() to maximized fires WINDOW_RESTORED but NOT WINDOW_MAXIMIZED', () => {
-
 		const fired: string[] = [];
 		hooks.addAction(
 			'os.window.restored',
@@ -299,7 +288,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'restore() to fullscreen fires WINDOW_RESTORED but NOT WINDOW_FULLSCREEN_ENTERED', () => {
-
 		const fired: string[] = [];
 		hooks.addAction(
 			'os.window.restored',
@@ -336,7 +324,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	test( 'minimize is a no-op when already minimized — saved state not clobbered', () => {
 		handle.win.toggleMaximize();
 		handle.win.minimize();
-
 		handle.win.minimize();
 
 		handle.win.restore();
@@ -371,7 +358,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 	test( 'maximize() one-way does not overwrite saved geometry when called from fullscreen', () => {
 		handle.win.toggleFullscreen();
-
 		handle.win.maximize();
 		handle.win.toggleMaximize();
 
@@ -383,7 +369,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'fullscreen exit-to-maximized emits state-change exactly once', () => {
-
 		handle.win.toggleMaximize();
 		handle.win.toggleFullscreen();
 
@@ -399,7 +384,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'fullscreen → maximize via Maximize button fires FULLSCREEN_EXITED then MAXIMIZED, in that order', () => {
-
 		const fired: string[] = [];
 		hooks.addAction(
 			'os.window.fullscreen-exited',
@@ -424,7 +408,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'fullscreen → exit-to-maximized via Focus button fires same hook sequence', () => {
-
 		const fired: string[] = [];
 		hooks.addAction(
 			'os.window.fullscreen-exited',
@@ -450,7 +433,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'subscribers reading state in FULLSCREEN_EXITED handler see the new state, not stale fullscreen', () => {
-
 		const observed: string[] = [];
 		hooks.addAction(
 			'os.window.fullscreen-exited',
@@ -463,7 +445,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		handle.win.toggleMaximize();
 		handle.win.toggleFullscreen();
 		handle.win.toggleFullscreen();
-
 		handle.win.toggleFullscreen();
 		handle.win.toggleMaximize();
 
@@ -471,7 +452,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'minimize and restore invoke WAAPI flight animation when dock tile is present', () => {
-
 		const dockEl = document.createElement( 'div' );
 		dockEl.className = 'os-dock__item';
 		dockEl.setAttribute( 'data-os-window-base-id', 'w1' );
@@ -519,7 +499,6 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 	} );
 
 	test( 'minimize skips WAAPI animation when prefers-reduced-motion is active', () => {
-
 		const origMatchMedia = window.matchMedia;
 		window.matchMedia = vi.fn().mockReturnValue( { matches: true } );
 

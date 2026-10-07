@@ -22,23 +22,14 @@ export type FetchLike = (
 } >;
 
 export interface ConnectionDeps {
-
 	fetch: FetchLike;
-
 	namespace: string;
-
 	siteUrl: () => string;
-
 	hostId: () => string;
-
 	describe: () => Record< string, unknown >;
-
 	onChange: ( state: ConnectionState ) => void;
-
 	setTimer?: ( fn: () => void, ms: number ) => unknown;
-
 	clearTimer?: ( handle: unknown ) => void;
-
 	now?: () => number;
 }
 
@@ -61,7 +52,6 @@ export class Connection {
 	private skips = 0;
 
 	private activeSinceLastBeat = true;
-
 	private hasFreedWindows = false;
 
 	constructor( deps: ConnectionDeps ) {
@@ -97,7 +87,6 @@ export class Connection {
 		}
 
 		if ( ! isSameSiteUrl( restUrl, this.deps.siteUrl() ) ) {
-
 			this.stopTimer();
 			this.restUrl = '';
 			this.setState( {
@@ -188,7 +177,6 @@ export class Connection {
 		try {
 			await this.request( 'host/disconnect', { hostId: this.deps.hostId() } );
 		} catch {
-
 		}
 		this.setState( { state: 'idle', message: undefined } );
 	}
@@ -253,7 +241,6 @@ export class Connection {
 		this.timer = this.deps.setTimer( () => {
 			void this.beat();
 		}, nextDelay( this.interval, this.failures ) );
-
 		const handle = this.timer as { unref?: () => void };
 		if ( handle && 'function' === typeof handle.unref ) {
 			handle.unref();

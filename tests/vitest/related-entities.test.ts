@@ -286,7 +286,6 @@ describe( 'bootRelatedEntities', () => {
 			'.os-window__related-panel',
 		);
 		expect( panel ).not.toBeNull();
-
 		expect(
 			panel!.classList.contains( 'os-window__menu-panel' ),
 		).toBe( true );
@@ -392,7 +391,6 @@ describe( 'bootRelatedEntities', () => {
 		const rows = Array.from(
 			panel.querySelectorAll< HTMLElement >( '[role="menuitem"]' ),
 		);
-
 		expect( document.activeElement ).toBe( rows[ 0 ] );
 
 		panel.dispatchEvent(

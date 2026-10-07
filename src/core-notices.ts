@@ -5,24 +5,16 @@ import {
 } from './ui/components/os-notice/storage';
 
 export interface ShellNotice {
-
 	id: string;
-
 	title?: string;
-
 	message: string;
-
 	actionLabel?: string;
-
 	actionUrl?: string;
 }
 
 export interface ShellNoticesDeps {
-
 	notices: ShellNotice[] | undefined;
-
 	openUrl: ( args: { url: string; title: string } ) => void;
-
 	keyPrefix?: string;
 }
 
@@ -50,7 +42,6 @@ export function maybeShowNotices( deps: ShellNoticesDeps ): void {
 
 		const label = notice.actionLabel;
 		const actionUrl = notice.actionUrl;
-
 		const windowTitle = notice.title || label || '';
 		let action: { label: string; onClick: () => void } | undefined;
 		if ( label && actionUrl ) {

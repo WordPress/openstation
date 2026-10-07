@@ -20,7 +20,6 @@ interface TileMenuCtx {
 
 let cache: Agent[] | null = null;
 let warming = false;
-
 let enabledFlag: boolean | null = null;
 
 export function setSendToEnabled( enabled: boolean ): void {
@@ -115,12 +114,10 @@ export function registerSendToMenuFilter(): void {
 		FILTER_NAMESPACE,
 		sendToMenuFilter,
 	);
-
 	removeAction( 'os.agents.roster-changed', FILTER_NAMESPACE );
 	addAction( 'os.agents.roster-changed', FILTER_NAMESPACE, () => {
 		refreshSendToAgents();
 	} );
-
 	void warmSendToAgents();
 }
 
@@ -146,7 +143,7 @@ function sendToMenuFilter(
 		...targets.map( ( agent ) => ( {
 			id: `agent-send-to-${ agent.id }`,
 			label: sprintf(
-
+				/* translators: %s is the agent's name. */
 				__( 'Send to %s', 'desktop-mode' ),
 				agent.name,
 			),

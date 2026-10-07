@@ -12,7 +12,6 @@ export const styles = css`
 		border: var( --os-ui-log-border, 1px solid rgba( 0, 0, 0, 0.06 ) );
 		border-radius: var( --os-ui-log-border-radius, 4px );
 		min-height: var( --os-ui-log-min-height, 120px );
-
 		contain: strict;
 	}
 	:host( [ hidden ] ) {

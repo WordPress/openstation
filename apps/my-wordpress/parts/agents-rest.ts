@@ -68,7 +68,6 @@ export interface CreateAgentPayload {
 	role: string;
 	description?: string;
 	instructions?: string;
-
 	abilities?: string[];
 	triggers?: Trigger[];
 	vibes?: string;

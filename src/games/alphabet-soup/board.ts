@@ -32,11 +32,8 @@ const FLASH_SECONDS = 0.45;
 interface TileNode {
 	node: PixiText;
 	cell: SoupCell;
-
 	delay: number;
-
 	age: number;
-
 	popAge: number;
 	popDelay: number;
 }
@@ -52,22 +49,14 @@ interface LockedWord {
 }
 
 export interface SoupBoard {
-
 	setGrid: ( grid: SoupGrid ) => void;
-
 	relayout: ( width: number, height: number ) => void;
-
 	cellAt: ( x: number, y: number ) => SoupCell | null;
-
 	cellCenter: ( cell: SoupCell ) => { x: number; y: number };
-
 	showSelection: ( cells: SoupCell[] ) => void;
 	clearSelection: () => void;
-
 	lockWord: ( cells: SoupCell[], color: number ) => void;
-
 	flashInvalid: ( cells: SoupCell[] ) => void;
-
 	update: ( dt: number ) => void;
 	destroy: () => void;
 }
@@ -102,7 +91,6 @@ export function createSoupBoard(
 	let cell = 48;
 	let originX = 0;
 	let originY = 0;
-
 	const lockedCells = new Set< string >();
 
 	const cellKey = ( c: SoupCell ): string => `${ c.row }:${ c.col }`;
@@ -135,7 +123,6 @@ export function createSoupBoard(
 			return;
 		}
 		backdrop.rect( 0, 0, width, height ).fill( BACKDROP_COLOR );
-
 		backdrop
 			.circle( width * 0.22, height * 0.2, Math.max( width, height ) * 0.4 )
 			.fill( { color: BACKDROP_GLOW_A, alpha: 0.35 } );
@@ -153,7 +140,6 @@ export function createSoupBoard(
 					Math.min( 22, cell * 0.5 ),
 				)
 				.fill( { color: 0x000000, alpha: 0.28 } );
-
 			for ( let row = 0; row < grid.size; row++ ) {
 				for ( let col = 0; col < grid.size; col++ ) {
 					const p = center( { row, col } );
@@ -204,7 +190,6 @@ export function createSoupBoard(
 		selectionLayer.clear();
 		if ( selection.length > 0 ) {
 			drawCapsule( selectionLayer, selection, SELECTION_COLOR, 0.35 );
-
 			for ( const c of selection ) {
 				const p = center( c );
 				selectionLayer
@@ -370,7 +355,6 @@ export function createSoupBoard(
 					1,
 					Math.max( 0, ( tile.age - tile.delay ) / ENTRANCE_SECONDS ),
 				);
-
 				const eased =
 					1 + 2.7 * Math.pow( t - 1, 3 ) + 1.7 * Math.pow( t - 1, 2 );
 				let scale = eased;
@@ -384,7 +368,6 @@ export function createSoupBoard(
 							( tile.popAge - tile.popDelay ) / POP_SECONDS,
 						),
 					);
-
 					scale *= 1 + 0.35 * Math.sin( Math.PI * pt );
 					if ( pt >= 1 ) {
 						tile.popAge = -1;

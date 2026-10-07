@@ -21,7 +21,6 @@ export interface WordSprite {
 	matched: PixiText;
 	rest: PixiText;
 	text: string;
-
 	width: number;
 }
 
@@ -43,7 +42,6 @@ export function paintPaper(
 		.moveTo( marginX, 0 )
 		.lineTo( marginX, height )
 		.stroke( { color: MARGIN_COLOR, width: 2, alpha: 0.7 } );
-
 	graphics
 		.moveTo( 0, height - 6 )
 		.lineTo( width, height - 6 )

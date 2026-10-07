@@ -48,10 +48,8 @@ describe( 'reveals/registry.ts — built-ins', () => {
 			expect( def?.label, id ).toBeTruthy();
 			expect( def?.description, id ).toBeTruthy();
 			if ( typeof def!.render === 'function' ) {
-
 				continue;
 			}
-
 			const pairs = revealLayerPairs( def! );
 			expect( pairs.length, id ).toBeGreaterThan( 0 );
 			for ( const pair of pairs ) {
@@ -63,7 +61,6 @@ describe( 'reveals/registry.ts — built-ins', () => {
 	} );
 
 	test( 'the camera shutter renders itself rather than clipping layers', async () => {
-
 		const { getWindowReveal, revealLayerPairs } = await loadRegistry();
 		const def = getWindowReveal( 'obturator' )!;
 		expect( typeof def.render ).toBe( 'function' );
@@ -74,7 +71,6 @@ describe( 'reveals/registry.ts — built-ins', () => {
 	} );
 
 	test( 'no built-in hard-codes a single surface colour', async () => {
-
 		const { getWindowReveal } = await loadRegistry();
 		for ( const id of BUILT_INS ) {
 			expect( getWindowReveal( id )?.surfaceColor, id ).toBeUndefined();
@@ -186,7 +182,6 @@ describe( 'reveals/registry.ts — registration', () => {
 	} );
 
 	test( 'rejects an easing the browser cannot parse', async () => {
-
 		vi.stubGlobal(
 			'KeyframeEffect',
 			class {
@@ -263,7 +258,6 @@ describe( 'reveals/registry.ts — removal + subscriptions', () => {
 		expect( unregisterWindowRevealsByOwner( 'acme-plugin' ) ).toBe( 1 );
 		expect( getWindowReveal( 'acme/a' ) ).toBeUndefined();
 		expect( getWindowReveal( 'acme/b' ) ).toBeDefined();
-
 		expect( getWindowReveal( 'sweep' ) ).toBeDefined();
 	} );
 

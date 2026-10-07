@@ -32,7 +32,6 @@ export function saveEnabledIds( ids: string[] ): void {
 	try {
 		window.localStorage.setItem( IDS_KEY, JSON.stringify( ids ) );
 	} catch {
-
 	}
 }
 
@@ -65,7 +64,6 @@ export function saveGeometry(
 	try {
 		window.localStorage.setItem( GEOMETRY_KEY, JSON.stringify( geometry ) );
 	} catch {
-
 	}
 }
 
@@ -100,7 +98,6 @@ export function saveDockedHeights(
 			JSON.stringify( heights ),
 		);
 	} catch {
-
 	}
 }
 

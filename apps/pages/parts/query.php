@@ -4,9 +4,7 @@ defined( 'ABSPATH' ) || exit;
 
 function openstation_pages_window_default_query_args() {
 	$args = array(
-
 		'_embed'  => 'author,wp:featuredmedia',
-
 		'_fields' =>
 			'id,title,status,date,date_gmt,modified,modified_gmt,author,parent,menu_order,slug,link,template,comment_status,excerpt,openstation_lock,openstation_comment_count,_links,_embedded',
 		'orderby' => 'menu_order',

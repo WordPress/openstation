@@ -25,7 +25,6 @@ function openstation_inkfall_register() {
 			'description'   => __( 'Words fall down a notebook page — type them before they reach the bottom. Finishing a word sends up a musical note that tears it into scattering letters.', 'desktop-mode' ),
 			'icon_svg'      => openstation_inkfall_icon_svg(),
 			'script'        => 'os-game-inkfall',
-
 			'window'        => array(
 				'width'     => 820,
 				'height'    => 620,
@@ -69,7 +68,6 @@ function openstation_inkfall_register() {
 					'type'  => 'number',
 				),
 			),
-
 		)
 	);
 }

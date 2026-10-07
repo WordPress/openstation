@@ -158,7 +158,6 @@ describe( 'auth-recovery', () => {
 
 		tick( handlers, { 'wp-auth-check': false } );
 		tick( handlers, { 'wp-auth-check': true } );
-
 		postReauthMessage();
 		postReauthMessage();
 
@@ -203,7 +202,6 @@ describe( 'auth-recovery', () => {
 		bootAuthRecovery();
 
 		tick( handlers, { 'wp-auth-check': false } );
-
 		tick( handlers, { nonces_expired: true } );
 
 		expect( restored ).toHaveBeenCalledTimes( 1 );
@@ -283,7 +281,6 @@ describe( 'auth-recovery', () => {
 
 		const wrap = document.getElementById( 'wp-auth-check-wrap' )!;
 		wrap.classList.add( 'hidden' );
-
 		return Promise.resolve().then( () => {
 			expect( connectNow ).toHaveBeenCalledTimes( 1 );
 			expect( restored ).not.toHaveBeenCalled();

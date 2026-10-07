@@ -76,7 +76,6 @@ function openstation_plugins_window_field_can_manage( $row ) {
 		$caps = array(
 			'user'     => get_current_user_id(),
 			'activate' => current_user_can( 'activate_plugins' ),
-
 			'delete'   => ! is_multisite() && current_user_can( 'delete_plugins' ),
 			'network'  => current_user_can( 'manage_network_plugins' ),
 		);
@@ -93,7 +92,6 @@ function openstation_plugins_window_field_can_manage( $row ) {
 	return array(
 		'activate'   => $caps['activate'] && 'inactive' === $status,
 		'deactivate' => $deactivate,
-
 		'delete'     => $caps['delete'] && 'inactive' === $status,
 	);
 }
@@ -106,7 +104,6 @@ function openstation_plugins_window_field_size_kb( $row ) {
 
 	$root = WP_PLUGIN_DIR . '/' . dirname( $plugin_file );
 	if ( '.' === dirname( $plugin_file ) || ! is_dir( $root ) ) {
-
 		$candidate = WP_PLUGIN_DIR . '/' . $plugin_file;
 		if ( is_file( $candidate ) ) {
 			$bytes = (int) filesize( $candidate );
@@ -174,7 +171,7 @@ function openstation_plugins_window_compute_dir_size_kb( $dir ) {
 	$stack = array( $dir );
 	while ( ! empty( $stack ) && $visited < $max_visit ) {
 		$current = array_pop( $stack );
-		$entries = @scandir( $current );
+		$entries = @scandir( $current ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- best-effort, errors fall back to null.
 		if ( ! is_array( $entries ) ) {
 			continue;
 		}
@@ -184,7 +181,6 @@ function openstation_plugins_window_compute_dir_size_kb( $dir ) {
 			}
 			$path = $current . '/' . $entry;
 			if ( is_link( $path ) ) {
-
 				continue;
 			}
 			++$visited;

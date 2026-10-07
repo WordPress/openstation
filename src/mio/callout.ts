@@ -81,7 +81,6 @@ export class MioCalloutController {
 		if ( visible && rect ) {
 			const clamp = ( n: number, min: number, max: number ): number => Math.max( min, Math.min( n, max ) );
 			const rtl = getComputedStyle( this.frame ).direction === 'rtl';
-
 			const point = {
 				x: clamp( rtl ? rect.left + 60 : rect.right - 60, bounds.left + 60, bounds.right - 60 ),
 				y: clamp( rect.bottom + 65, bounds.top + 65, bounds.bottom - 65 ),
@@ -100,7 +99,6 @@ export class MioCalloutController {
 			}
 			this.visibility( visible );
 		}
-
 		if ( this.active && request && ! this.dismissed.has( request.id ) ) {
 			this.raf = requestAnimationFrame( () => this.update() );
 		}

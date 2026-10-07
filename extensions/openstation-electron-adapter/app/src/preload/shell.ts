@@ -27,7 +27,6 @@ function subscribe< T >(
 }
 
 contextBridge.exposeInMainWorld( 'openStationDesktopHost', {
-
 	isDesktopHost: true,
 
 	protocol: HOST_PROTOCOL_VERSION,

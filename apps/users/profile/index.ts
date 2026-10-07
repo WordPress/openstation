@@ -139,7 +139,6 @@ export class OsUserProfile extends HTMLElement {
 		paintInsightsLoading( activity );
 		try {
 			const data = await fetchInsights( this.host(), userId, fresh );
-
 			if ( generation !== this._generation ) {
 				return;
 			}

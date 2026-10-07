@@ -42,7 +42,6 @@ export class OsModal extends Component {
 					'The dialog box itself, inside the scrim. Reach for it when a consumer needs the scrim and the box to behave differently — e.g. a live-preview panel that makes the scrim transparent and click-through (`pointer-events: none` on the host) while keeping the box interactive (`::part(dialog) { pointer-events: auto }`).',
 			},
 		],
-
 		example: html`
 			<os-button data-demo="open">Open a modal</os-button>
 			<os-modal size="md" title="Window settings">
@@ -99,7 +98,6 @@ export class OsModal extends Component {
 				try {
 					this._prevFocus.focus();
 				} catch ( e ) {
-
 				}
 				this._prevFocus = null;
 			}

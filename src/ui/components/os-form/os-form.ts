@@ -125,7 +125,6 @@ export class OsForm extends Component {
 	} as const;
 
 	private _initial: Map< string, InitialSnapshot > = new Map();
-
 	private _captured = false;
 
 	private _fieldChangeListener: ( ( e: Event ) => void ) | null = null;
@@ -177,7 +176,6 @@ export class OsForm extends Component {
 			( this as unknown as { error: string | null } ).error || '';
 		const busy =
 			( this as unknown as { busy: string | null } ).busy !== null;
-
 		const showResetRaw = ( this as unknown as {
 			'show-reset': string | null;
 		} )[ 'show-reset' ];
@@ -442,7 +440,6 @@ export class OsForm extends Component {
 			}
 			return;
 		}
-
 		if ( ( value !== null && typeof value === 'object' ) ||
 			( field.value !== null && typeof field.value === 'object' ) ) {
 			field.value = value;
@@ -462,7 +459,6 @@ export class OsForm extends Component {
 		if ( ! name ) {
 			return;
 		}
-
 		this.dispatchEvent(
 			new CustomEvent( 'os-form-input', {
 				bubbles: true,

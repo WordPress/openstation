@@ -25,7 +25,6 @@ describe( 'WallpaperLayer — hook firing', () => {
 
 	beforeEach( () => {
 		hooks = installHooksStub();
-
 		element = document.createElement( 'div' );
 		document.body.appendChild( element );
 		layer = new WallpaperLayer( element, 'http://example.test/plugin' );
@@ -72,7 +71,6 @@ describe( 'WallpaperLayer — hook firing', () => {
 				return () => undefined;
 			} ),
 		);
-
 		await Promise.resolve();
 
 		const names = log.map( ( entry ) => entry.name );
@@ -133,7 +131,6 @@ describe( 'WallpaperLayer — hook firing', () => {
 				throw new Error( 'boom' );
 			} ),
 		);
-
 		await Promise.resolve();
 
 		const names = log.map( ( e ) => e.name );
@@ -148,7 +145,6 @@ describe( 'WallpaperLayer — hook firing', () => {
 		layer.apply(
 			canvasDef( () => Promise.reject( err ) ),
 		);
-
 		await Promise.resolve();
 		await Promise.resolve();
 
@@ -162,7 +158,6 @@ describe( 'WallpaperLayer — hook firing', () => {
 	} );
 
 	test( 'rapid switch discards the stale mount (no mounted hook for it)', async () => {
-
 		let slowResolve: ( () => void ) | null = null;
 		const slowPromise = new Promise<void>( ( res ) => {
 			slowResolve = res;
@@ -174,7 +169,6 @@ describe( 'WallpaperLayer — hook firing', () => {
 				return () => undefined;
 			} ),
 		);
-
 		layer.apply( cssDef() );
 
 		const log = recordActions( hooks, WALLPAPER_HOOKS );

@@ -57,7 +57,6 @@ export async function fetchGraph(
 	types: string[],
 ): Promise< GraphPayload > {
 	const url = new URL( `${ cfg.apiBase }/nodes` );
-
 	url.searchParams.set( 'types', types.join( ',' ) );
 	const res = await trackedFetch(
 		url.toString(),

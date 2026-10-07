@@ -458,7 +458,6 @@
 	.os-widgets__card-close:active,
 .os-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.os-widgets__card-redock:active {
-
 	border-color: var(--feed-buddy-border-dark) var(--feed-buddy-border-light)
 		var(--feed-buddy-border-light) var(--feed-buddy-border-dark);
 }

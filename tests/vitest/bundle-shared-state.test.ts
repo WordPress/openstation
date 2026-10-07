@@ -19,7 +19,6 @@ const SHARED_KEYS = [
 const WINDOW_SYSTEM_SHARED_KEYS = [
 	'desktop-mode/window-channels',
 	'desktop-mode/admin-link-deps',
-
 	'desktop-mode/connection',
 ] as const;
 

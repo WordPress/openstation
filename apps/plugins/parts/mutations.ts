@@ -6,7 +6,6 @@ import { describeError, isActiveStatus, type InstalledPlugin, type PluginsHost }
 
 declare global {
 	interface Window {
-
 		openStationDeactivationFeedback?: DeactivationFeedbackApi;
 	}
 }
@@ -53,13 +52,11 @@ export async function askBeforeSelfDeactivate( host: PluginsHost, plugins: strin
 		await api.ask( {
 			plugin: host.extra.selfPluginFile + '.php',
 			restUrl: cfg.restUrl,
-
 			restNonce: '',
 			context: 'app',
 			styleUrl: cfg.styleUrl,
 		} );
 	} catch {
-
 	}
 }
 
@@ -93,7 +90,7 @@ export async function deletePlugin( host: PluginsHost, row: InstalledPlugin ): P
 			confirm: {
 				title: __( 'Delete plugin?', 'desktop-mode' ),
 				message: sprintf(
-
+					/* translators: %s: plugin name */
 					__( 'Permanently delete %s? Its files will be removed from disk. This cannot be undone.', 'desktop-mode' ),
 					row.name || row.plugin,
 				),
@@ -119,7 +116,7 @@ export async function installBySlug( host: PluginsHost, slug: string, name: stri
 	} catch ( err ) {
 		host.toast(
 			sprintf(
-
+				/* translators: %s: error message */
 				__( 'Install failed: %s', 'desktop-mode' ),
 				describeError( err ),
 			),
@@ -130,7 +127,7 @@ export async function installBySlug( host: PluginsHost, slug: string, name: stri
 	await host.refresh();
 	host.toast(
 		sprintf(
-
+			/* translators: %s: plugin name */
 			__( 'Installed %s.', 'desktop-mode' ),
 			decodeHTML( name ),
 		),

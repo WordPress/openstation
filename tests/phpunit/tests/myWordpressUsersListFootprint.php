@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -40,17 +42,26 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_user_footprint_row_action
+	 */
 	public function test_action_absent_when_mode_off() {
 		$actions = $this->row_actions_for( self::$editor_id );
 		$this->assertArrayNotHasKey( 'os-footprint', $actions );
 	}
 
+	/**
+	 * @covers ::openstation_user_footprint_row_action
+	 */
 	public function test_action_absent_when_enabled_but_not_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$actions = $this->row_actions_for( self::$editor_id );
 		$this->assertArrayNotHasKey( 'os-footprint', $actions );
 	}
 
+	/**
+	 * @covers ::openstation_user_footprint_row_action
+	 */
 	public function test_action_absent_in_detached_classic_tab() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
@@ -58,6 +69,9 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'os-footprint', $actions );
 	}
 
+	/**
+	 * @covers ::openstation_user_footprint_row_action
+	 */
 	public function test_action_present_on_chromeless_request() {
 		$this->enable_chromeless( self::$admin_id );
 		$actions = $this->row_actions_for( self::$editor_id );
@@ -68,6 +82,9 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_user_footprint_row_action
+	 */
 	public function test_action_markup_attributes_and_escaping() {
 		$this->enable_chromeless( self::$admin_id );
 		$html = $this->row_actions_for( self::$editor_id )['os-footprint'];
@@ -76,7 +93,6 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 			'data-os-footprint="' . self::$editor_id . '"',
 			$html
 		);
-
 		$this->assertStringContainsString(
 			'data-os-footprint-name="Edie &amp; Co"',
 			$html
@@ -85,6 +101,9 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'user_id=' . self::$editor_id, $html );
 	}
 
+	/**
+	 * @covers ::openstation_user_footprint_row_action
+	 */
 	public function test_self_row_fallback_uses_profile_php() {
 		$this->enable_chromeless( self::$admin_id );
 		$html = $this->row_actions_for( self::$admin_id )['os-footprint'];
@@ -92,6 +111,9 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'user-edit.php', $html );
 	}
 
+	/**
+	 * @covers ::openstation_user_footprint_row_action
+	 */
 	public function test_filter_can_suppress_the_action() {
 		$this->enable_chromeless( self::$admin_id );
 		add_filter( 'openstation_user_footprint_row_action', '__return_false' );
@@ -99,6 +121,9 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'os-footprint', $actions );
 	}
 
+	/**
+	 * @covers ::openstation_user_footprint_row_action
+	 */
 	public function test_invalid_user_object_returns_actions_unchanged() {
 		$this->enable_chromeless( self::$admin_id );
 		$actions = openstation_user_footprint_row_action(

@@ -87,7 +87,6 @@ describe( 'adopting a window', () => {
 	} );
 
 	test( 'still records an id whose window the shell does not have', () => {
-
 		const h = harness();
 		h.freed.adopt( 'ghost' );
 		expect( h.freed.list() ).toEqual( [ 'ghost' ] );
@@ -119,7 +118,6 @@ describe( 'releasing a window', () => {
 
 describe( 'redirecting focus to the native window', () => {
 	test( 'raises the native window instead of restoring the shell copy', () => {
-
 		const posts = fakeWindow( 'edit-php' );
 		const h = harness( { 'edit-php': posts } );
 		h.freed.adopt( 'edit-php' );
@@ -162,7 +160,6 @@ describe( 'forgetting a closed window', () => {
 
 describe( 're-adopting after a shell reload', () => {
 	test( 'records the ids without announcing transitions that did not happen', () => {
-
 		const h = harness();
 
 		h.freed.adoptExisting( [ 'edit-php', 'os-files' ] );

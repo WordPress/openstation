@@ -15,7 +15,6 @@ function openstation_agents_my_wordpress_entity( $entities ) {
 		'icon'     => openstation_agent_avatar_url(),
 		'restPath' => 'desktop-mode/v1/agents',
 		'kind'     => 'agent',
-
 		'enabled'  => openstation_agents_enabled(),
 	);
 

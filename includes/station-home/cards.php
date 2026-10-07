@@ -33,7 +33,7 @@ function openstation_register_station_home_card( $id, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this Station Home card.', 'desktop-mode' ),
 					(string) $capability
 				),
@@ -218,7 +218,6 @@ function openstation_station_home_build_cards( $cards, $preferences ) {
 		try {
 			$data = call_user_func( $entry['callback'], $user_id, $entry );
 		} catch ( Throwable $error ) {
-
 			do_action( 'openstation_station_home_card_error', $error, $id, $entry );
 			continue;
 		}

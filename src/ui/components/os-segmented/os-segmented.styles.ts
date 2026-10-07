@@ -67,7 +67,6 @@ export const segmentStyles = css`
 	:host {
 		flex: 1 1 auto;
 		min-width: 0;
-
 		--_holo-sheen: var(
 			--os-ui-segmented-hover-sheen,
 			var(
@@ -96,7 +95,6 @@ export const segmentStyles = css`
 		border-radius: 6px;
 		transition: background-color var( --_holo-t ) ease, color var( --_holo-t ) ease,
 			box-shadow var( --_holo-t ) ease, background-position var( --_holo-t ) ease;
-
 		white-space: nowrap;
 	}
 

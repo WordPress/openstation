@@ -61,7 +61,6 @@ describe( 'the view-transition opt-in', () => {
 
 	test( 'the shell opts into cross-document transitions', () => {
 		expect( shell ).toMatch( /@view-transition\s*\{\s*navigation:\s*auto;/ );
-
 		expect( shell ).toContain( '::view-transition-old(root)' );
 		expect( shell ).toContain( '::view-transition-new(root)' );
 	} );
@@ -74,7 +73,6 @@ describe( 'the view-transition opt-in', () => {
 	} );
 
 	test( 'chromeless iframes never opt in', () => {
-
 		for ( const sheet of [ 'assets/css/variables.css', 'assets/css/chromeless.css' ] ) {
 			expect( readFileSync( resolve( ROOT, sheet ), 'utf8' ) ).not.toContain(
 				'@view-transition',

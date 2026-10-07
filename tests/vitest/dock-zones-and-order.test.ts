@@ -78,7 +78,6 @@ describe( 'system tile order', () => {
 		dock.appendSystemItem( control( 'os-mio', 10 ) );
 		dock.appendSystemItem( control( 'os-overview', 20 ) );
 		dock.appendSystemItem( control( 'os-system', 30 ) );
-
 		dock.appendSystemItem( control( 'desktop-mode-recycle-bin' ) );
 
 		expect( idsIn( container, '.os-dock__pinned' ) ).toEqual( [
@@ -102,7 +101,6 @@ describe( 'system tile order', () => {
 	} );
 
 	test( 'a launcher lands with the apps, not with the controls', () => {
-
 		dock.appendSystemItem( tile( 'my-plugin-window' ) );
 		dock.appendSystemItem( control( 'os-system', 30 ) );
 
@@ -139,7 +137,6 @@ describe( 'system tile order', () => {
 			container.querySelector< HTMLElement >(
 				`[data-system-id="${ id }"]`,
 			)!;
-
 		for ( const el of container.querySelectorAll( '.os-dock__item' ) ) {
 			( el as HTMLElement ).getBoundingClientRect = () =>
 				( { left: 100, top: 0, width: 40, height: 40 } as DOMRect );
@@ -148,7 +145,6 @@ describe( 'system tile order', () => {
 		expect( exit.dataset.navLocked ).toBeDefined();
 
 		const trash = tileFor( 'os-trash' );
-
 		( document as unknown as {
 			elementFromPoint: ( x: number, y: number ) => Element | null;
 		} ).elementFromPoint = () => exit;
@@ -168,7 +164,6 @@ describe( 'system tile order', () => {
 
 	test( 'the controls divider only appears once something precedes it', () => {
 		dock.appendSystemItem( control( 'os-system', 30 ) );
-
 		expect(
 			container.querySelector( '.os-dock__separator' ),
 		).toBeNull();

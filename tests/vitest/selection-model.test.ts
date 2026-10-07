@@ -54,7 +54,6 @@ describe( 'selection model', () => {
 		m.set( [ 'b' ] );
 		m.selectRange( 'd' );
 		m.selectRange( 'c' );
-
 		expect( m.keys() ).toEqual( [ 'b', 'c' ] );
 		expect( m.anchor() ).toBe( 'b' );
 	} );
@@ -90,7 +89,6 @@ describe( 'selection model', () => {
 		order.splice( order.indexOf( 'c' ), 1 );
 		expect( m.prune() ).toBe( true );
 		expect( m.keys() ).toEqual( [ 'b', 'd' ] );
-
 		expect( m.prune() ).toBe( false );
 	} );
 

@@ -29,7 +29,7 @@ function openstation_register_oauth_relay( $service, $args = array() ) {
 		if ( '' === (string) $args[ $required ] ) {
 			return new WP_Error(
 				'openstation_oauth_missing_' . $required,
-
+				/* translators: %s: missing field name. */
 				sprintf( __( 'OAuth relay registration requires a non-empty `%s`.', 'desktop-mode' ), $required ),
 				array( 'service' => $service )
 			);
@@ -104,7 +104,6 @@ function openstation_oauth_redirect_uri() {
 }
 
 function openstation_oauth_issue_state( $user_id, $service ) {
-
 	$state = wp_generate_password( 32, false );
 	set_transient(
 		OPENSTATION_OAUTH_TRANSIENT_PREFIX . $state,
@@ -272,7 +271,7 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 				'service' => $service,
 				'reason'  => 'token_exchange_failed',
 				'message' => sprintf(
-
+				/* translators: %d: HTTP status code. */
 					__( 'Token exchange failed with HTTP %d.', 'desktop-mode' ),
 					$status
 				),
@@ -304,7 +303,6 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 }
 
 function openstation_oauth_build_callback_html( array $payload ) {
-
 	$payload_literal = wp_json_encode( $payload, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES );
 	$origin_literal  = wp_json_encode( site_url(), JSON_HEX_TAG | JSON_UNESCAPED_SLASHES );
 
@@ -341,23 +339,20 @@ function openstation_oauth_render_callback_html( array $payload ) {
 
 	$filter_cb = null;
 	$filter_cb = static function ( $served, $result, $request ) use ( $html, &$filter_cb ) {
-
 		if (
 			! $request instanceof WP_REST_Request
 			|| '/desktop-mode/v1/oauth/callback' !== $request->get_route()
 		) {
 			return $served;
 		}
-
 		if ( $filter_cb ) {
 			remove_filter( 'rest_pre_serve_request', $filter_cb, 10 );
 		}
 		if ( ! headers_sent() ) {
 			header( 'Content-Type: text/html; charset=utf-8' );
 		}
-
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statically-built HTML; embedded payload is wp_json_encode( …, JSON_HEX_TAG )-escaped during build in `openstation_oauth_build_callback_html`.
 		echo $html;
-
 		return true;
 	};
 	add_filter( 'rest_pre_serve_request', $filter_cb, 10, 3 );
@@ -401,7 +396,6 @@ function openstation_register_oauth_rest_routes() {
 		array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_rest_oauth_callback',
-
 			'permission_callback' => '__return_true',
 			'args'                => array(
 				'state' => array(

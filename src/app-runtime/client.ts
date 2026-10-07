@@ -41,42 +41,27 @@ export interface MenuTab {
 export interface ViewContext< S, D > {
 	readonly state: S;
 	readonly data: D;
-
 	dispatch: (
 		action: string,
 		args?: Record< string, unknown >,
 		options?: { confirm?: ConfirmSpec | null },
 	) => Promise< boolean >;
-
 	local: ( action: string, args?: Record< string, unknown > ) => void;
-
 	root: HTMLElement;
-
 	readonly windowId: string;
-
 	readonly extra: Record< string, unknown >;
-
 	ui: < T >( factory: () => T ) => T;
-
 	repaint: () => void;
-
 	fetch: ( path: string, init?: RequestInit, options?: { silent?: boolean } ) => Promise< Response >;
-
 	host: RuntimeHost;
-
 	readonly loading: boolean;
 }
 
 export interface ClientAppDef< S, D > {
-
 	local?: Record< string, LocalAction< S, D > >;
-
 	placeholder?: ( state: S ) => D;
-
 	view: ( ctx: ViewContext< S, D > ) => TemplateResult;
-
 	mounted?: ( ctx: ViewContext< S, D > ) => void | ( () => void );
-
 	updated?: ( ctx: ViewContext< S, D > ) => void;
 }
 
@@ -91,7 +76,6 @@ export interface ClientApp {
 	) => Record< string, unknown >;
 	render: ( ctx: ViewContext< Record< string, unknown >, unknown > ) => void;
 	mounted: ( ctx: ViewContext< Record< string, unknown >, unknown > ) => void | ( () => void );
-
 	placeholder?: ( state: Record< string, unknown > ) => unknown;
 }
 

@@ -74,7 +74,6 @@ export interface PixiText extends PixiContainer {
 export interface PixiTicker {
 	add( cb: ( ticker: { deltaTime: number } ) => void ): void;
 	remove( cb: ( ticker: { deltaTime: number } ) => void ): void;
-
 	stop(): void;
 }
 
@@ -90,7 +89,6 @@ export interface PixiApp {
 	};
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 

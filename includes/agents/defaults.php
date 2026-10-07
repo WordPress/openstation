@@ -31,7 +31,7 @@ function openstation_agents_seed_defaults() {
 			)
 		);
 		if ( is_wp_error( $user ) ) {
-
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( '[openstation] Default agent "' . $definition['name'] . '" failed to seed: ' . $user->get_error_message() );
 			continue;
 		}
@@ -40,7 +40,6 @@ function openstation_agents_seed_defaults() {
 
 	update_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
 }
-
 function openstation_agents_maybe_seed_defaults() {
 	if ( ! is_admin() || ! current_user_can( 'edit_users' ) ) {
 		return;

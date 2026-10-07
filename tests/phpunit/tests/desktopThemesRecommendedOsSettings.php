@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCase {
 
 	public function tear_down() {
@@ -34,6 +37,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
+	 */
 	public function test_schema_mirrors_the_os_settings_enums() {
 		$schema = openstation_desktop_theme_recommended_os_settings_schema();
 
@@ -64,6 +70,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
+	 */
 	public function test_int_rules_are_filterable_and_validated() {
 		add_filter(
 			'openstation_desktop_theme_recommended_os_settings_schema',
@@ -84,6 +93,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertArrayNotHasKey( 'acmeBackward', $schema );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
+	 */
 	public function test_schema_is_filterable_and_malformed_entries_drop() {
 		add_filter(
 			'openstation_desktop_theme_recommended_os_settings_schema',
@@ -101,6 +113,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertArrayNotHasKey( 'acmeAlsoBad', $schema );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_every_core_key_round_trips() {
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
@@ -126,6 +141,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_int_recommendations_clamp_rather_than_drop() {
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'windowRevealDuration' => 999999 )
@@ -144,6 +162,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_non_numeric_int_recommendation_drops() {
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
@@ -154,6 +175,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertSame( array( 'windowReveal' => 'iris' ), $clean );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_out_of_enum_values_drop_and_the_rest_survive() {
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
@@ -166,6 +190,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertSame( array( 'desktopLayout' => 'classic' ), $clean );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_keys_outside_the_schema_are_dropped() {
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
@@ -180,6 +207,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertSame( array( 'dockSize' => 'compact' ), $clean );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_dock_rail_renderer_is_sanitized_as_a_slug() {
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'dockRailRenderer' => 'Orbit Rail!' )
@@ -192,6 +222,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertSame( array(), $empty );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_non_string_and_non_array_input_yields_an_empty_set() {
 		$this->assertSame(
 			array(),
@@ -213,6 +246,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_whitespace_is_trimmed_before_matching() {
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'dockSize' => "  large\n" )
@@ -220,6 +256,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertSame( array( 'dockSize' => 'large' ), $clean );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_manifest_carries_the_sanitized_block() {
 		$manifest = $this->manifest_with(
 			array(
@@ -239,6 +278,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_manifest_without_the_block_recommends_nothing() {
 		$manifest = $this->sanitize_manifest(
 			array(
@@ -253,6 +295,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertSame( 1, $manifest['manifestVersion'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_version_one_manifest_may_still_recommend() {
 		$manifest = $this->manifest_with( array( 'dockSize' => 'compact' ), 1 );
 
@@ -263,6 +308,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_a_garbage_block_does_not_fail_the_upload() {
 		$manifest = $this->manifest_with( 'dockSize=large' );
 
@@ -271,6 +319,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertSame( 'Neon', $manifest['name'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_desktop_theme
+	 */
 	public function test_code_registration_accepts_recommendations() {
 		$this->assertTrue(
 			openstation_register_desktop_theme(
@@ -295,6 +346,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_register_desktop_theme
+	 */
 	public function test_code_registration_without_recommendations_still_works() {
 		$this->assertTrue(
 			openstation_register_desktop_theme( 'acme/plain', array( 'name' => 'Plain' ) )
@@ -304,6 +358,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		$this->assertSame( array(), $entry['manifest']['recommendedOsSettings'] );
 	}
 
+	/**
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
+	 */
 	public function test_payload_exposes_the_recommendations() {
 		openstation_register_desktop_theme(
 			'acme/neon',
@@ -321,6 +378,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
+	 */
 	public function test_payload_resanitizes_a_stale_stored_block() {
 		$shaped = openstation_shape_desktop_theme_payload_entry(
 			array(
@@ -345,6 +405,9 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 		);
 	}
 
+	/**
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
+	 */
 	public function test_payload_key_is_always_present() {
 		$shaped = openstation_shape_desktop_theme_payload_entry(
 			array(

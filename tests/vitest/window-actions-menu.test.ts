@@ -76,12 +76,10 @@ describe( 'paintWindowActions', () => {
 		expect( painted[ 0 ].getAttribute( 'icon' ) ).toBe( 'dashicons-desktop' );
 		expect( painted[ 0 ].getAttribute( 'value' ) ).toBe( 'my/act' );
 		expect( painted[ 0 ].getAttribute( 'data-action-id' ) ).toBe( 'my/act' );
-
 		expect( panel.firstElementChild ).toBe( builtIn );
 	} );
 
 	test( 'rows are direct children of the role="menu" panel', () => {
-
 		const { win, panel } = harness();
 		registerWindowAction( { id: 'my/act', label: 'Do it', onSelect: () => {} } );
 
@@ -119,7 +117,6 @@ describe( 'paintWindowActions', () => {
 	} );
 
 	test( 'repaints from scratch so a label can follow its state', () => {
-
 		const { win, panel } = harness();
 		let freed = false;
 		registerWindowAction( {
@@ -175,7 +172,6 @@ describe( 'paintWindowActions', () => {
 	} );
 
 	test( 'a throwing handler does not escape into the menu', () => {
-
 		const { win, panel } = harness();
 		registerWindowAction( {
 			id: 'my/bad',
@@ -213,12 +209,10 @@ describe( 'paintWindowActions', () => {
 		const row = rows( panel )[ 0 ];
 		expect( row.getAttribute( 'role' ) ).toBe( 'menuitemcheckbox' );
 		expect( row.hasAttribute( 'checked' ) ).toBe( true );
-
 		expect( row.hasAttribute( 'icon' ) ).toBe( false );
 	} );
 
 	test( 'a repaint follows a preference the plugin changed elsewhere', () => {
-
 		const { win, panel } = harness();
 		let on = false;
 		registerWindowAction( {
@@ -259,7 +253,6 @@ describe( 'paintWindowActions', () => {
 
 		expect( rows( panel )[ 0 ].hasAttribute( 'checked' ) ).toBe( true );
 		expect( on ).toBe( true );
-
 		expect( panel.hidden ).toBe( false );
 	} );
 
@@ -294,7 +287,6 @@ describe( 'paintWindowActions', () => {
 	} );
 
 	test( 'a checkbox whose handler throws keeps the optimistic flip', () => {
-
 		const { win, panel } = harness();
 		registerWindowAction( {
 			id: 'my/bad-check',
@@ -348,7 +340,6 @@ describe( 'an open menu', () => {
 	} );
 
 	test( 'picks up a row registered while it is open', () => {
-
 		const { win, panel } = harness();
 
 		openActionsMenu( win );
@@ -385,7 +376,6 @@ describe( 'an open menu', () => {
 	} );
 
 	test( 'stops repainting once closed', () => {
-
 		const { win, panel } = harness();
 		openActionsMenu( win );
 		closeActionsMenu( win );
@@ -400,7 +390,6 @@ describe( 'an open menu', () => {
 	} );
 
 	test( 'a window destroyed with its menu open drops the subscription', () => {
-
 		const parent = document.createElement( 'div' );
 		document.body.appendChild( parent );
 		const win = new DesktopWindowClass( {

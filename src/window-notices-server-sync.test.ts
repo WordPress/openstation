@@ -21,7 +21,6 @@ function fakeWindow(
 
 function matcherFor( noticeId: string ) {
 	const slotId = `os-notice/${ noticeId }`;
-
 	return ( win: DesktopWindow ) =>
 		slotsForWindow( win, 'after-titlebar' ).some( ( def ) => def.id === slotId );
 }
@@ -145,19 +144,16 @@ describe( 'window-notices-server-sync — buildMatcher', () => {
 			},
 		] );
 		const matches = matcherFor( 'plugin/wc-posts' );
-
 		expect(
 			matches(
 				fakeWindow( 'edit-php', 'http://example.com/wp-admin/edit.php?page=wc-admin' ),
 			),
 		).toBe( true );
-
 		expect(
 			matches(
 				fakeWindow( 'plugins', 'http://example.com/wp-admin/plugins.php?page=wc-admin' ),
 			),
 		).toBe( false );
-
 		expect(
 			matches(
 				fakeWindow( 'edit-php', 'http://example.com/wp-admin/edit.php' ),
@@ -231,7 +227,6 @@ describe( 'window-notices-server-sync — applyServerWindowNotices', () => {
 			message: 'JS',
 			tone: 'info',
 		} );
-
 		applyServerWindowNotices( [
 			{ id: 'plugin/server', message: 'S', tone: 'info', dismissible: true },
 		] );
@@ -244,10 +239,9 @@ describe( 'window-notices-server-sync — applyServerWindowNotices', () => {
 
 	test( 'ignores entries with missing or non-string id', () => {
 		applyServerWindowNotices( [
-
 			{ id: '', message: 'x', tone: 'info', dismissible: true },
-
-			{ message: 'x', tone: 'info', dismissible: true } as unknown as Parameters< typeof applyServerWindowNotices >[ 0 ][ number ],
+			// @ts-expect-error — deliberately malformed for the test
+			{ message: 'x', tone: 'info', dismissible: true },
 			{ id: 'plugin/ok', message: 'ok', tone: 'info', dismissible: true },
 		] );
 

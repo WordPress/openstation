@@ -1,6 +1,5 @@
 import { __ } from '../../i18n';
 import { addAction, removeAction, HOOKS } from '../../hooks';
-
 import '../../ui/components/os-range-field/os-range-field';
 import '../../ui/components/os-color-field/os-color-field';
 import '../../ui/components/os-button/os-button';
@@ -243,7 +242,6 @@ function renderSnowConfig(
 
 	const reset = document.createElement( 'os-button' );
 	reset.setAttribute( 'variant', 'ghost' );
-
 	reset.style.alignSelf = 'flex-start';
 	reset.style.marginTop = '4px';
 	reset.textContent = __( 'Reset to defaults' );
@@ -265,7 +263,6 @@ function renderSnowConfig(
 	container.appendChild( reset );
 
 	return (): void => {
-
 	};
 }
 
@@ -275,7 +272,6 @@ const def: WallpaperDef = {
 	type: 'canvas',
 	preview: PREVIEW,
 	previewParams: { particleCount: PREVIEW_PARTICLES },
-
 	renderPreview: async (
 		container: HTMLElement,
 		ctx: WallpaperPreviewContext,
@@ -283,7 +279,6 @@ const def: WallpaperDef = {
 		const pixi = getPixi();
 		if ( ! pixi ) {
 			return (): void => {
-
 			};
 		}
 		const settings = sanitizeSnowSettings( ctx.settings );
@@ -312,7 +307,6 @@ const def: WallpaperDef = {
 		const pixi = getPixi();
 		if ( ! pixi ) {
 			return (): void => {
-
 			};
 		}
 		const scene = await mountSnowScene( {

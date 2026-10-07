@@ -33,7 +33,6 @@ function buildColumns( game: GameRegistryEntry ): OsTableColumn< GameScoreRow >[
 			label: __( 'Player' ),
 			render: ( _value, row ) => {
 				const cell = document.createElement( 'span' );
-
 				cell.style.cssText =
 					'display:inline-flex;align-items:center;gap:8px;min-width:0;';
 				const avatar = document.createElement( 'os-avatar' );
@@ -169,7 +168,6 @@ export function renderScoreboard(
 				page: toPage,
 				perPage: PER_PAGE,
 			} );
-
 			if ( disposed || seq !== loadSeq ) {
 				return;
 			}

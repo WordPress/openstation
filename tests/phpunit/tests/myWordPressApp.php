@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group my-wordpress-app
+ */
 
 use function OpenStation\Apps\MyWordPress\sections;
 
@@ -39,7 +43,6 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-
 		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
 			openstation_unregister_icon( $id );
 		}
@@ -80,12 +83,14 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		return null;
 	}
 
+	/**
+	 * @covers ::openstation_app
+	 */
 	public function test_the_app_is_loaded_from_apps_with_both_halves() {
 		$app = openstation_app( 'my-wordpress' );
 		$this->assertNotNull( $app );
 
 		$manifest = $app->manifest();
-
 		$this->assertSame( 'WP Explorer', $manifest['title'] );
 		$this->assertSame( openstation_my_wordpress_app_title(), $manifest['title'], 'One helper names the explorer.' );
 		if ( function_exists( 'openstation_my_wordpress_icon_svg' ) ) {
@@ -109,6 +114,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertStringEndsWith( 'apps/my-wordpress/my-wordpress.css', wp_normalize_path( $manifest['style'] ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App::allows
+	 */
 	public function test_gate_requires_edit_posts() {
 		$app = openstation_app( 'my-wordpress' );
 		$os  = openstation_apps_os();
@@ -120,6 +128,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertTrue( $app->allows( $os ) );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sections
+	 */
 	public function test_sections_are_capability_gated_per_user() {
 		$ids = static function () {
 			return array_column( sections( openstation_apps_os() ), 'id' );
@@ -133,6 +144,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertContains( 'posts', $ids() );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sections
+	 */
 	public function test_a_registered_cpt_becomes_a_section_through_the_shared_discovery() {
 		register_post_type(
 			'unit_book',
@@ -152,6 +166,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( 'unit_book', $book['post_type'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\groups
+	 */
 	public function test_grouped_sections_ship_their_root_folder() {
 		add_filter(
 			'openstation_my_wordpress_app_sections',
@@ -182,6 +199,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( 'my-shop', $folder['state']['group'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\count_of
+	 */
 	public function test_mount_ships_sections_with_counts_and_no_body_html() {
 		$response = $this->dispatch( 'mount' );
 		$this->assertTrue( $response['ok'] );
@@ -191,6 +211,11 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertNull( $response['data']['detail'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\mount
+	 * @covers \OpenStation\Apps\MyWordPress\reopen_action
+	 * @covers \OpenStation\Apps\MyWordPress\footprint_from_params
+	 */
 	public function test_a_footprint_param_lands_the_mount_and_the_reopen_on_that_person() {
 		$mounted = $this->dispatch( 'mount', array(), array(), array( 'footprint' => self::$author_id, 'fpName' => 'Ann <b>Author</b> <3 Q&A' ) );
 		$this->assertTrue( $mounted['ok'] );
@@ -207,6 +232,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( 0, $missing['state']['footprint'], 'An unknown id opens nothing.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\fetch
+	 */
 	public function test_opening_a_section_ships_the_list_page() {
 		$response = $this->dispatch( 'go', array(), array( 'section' => 'posts' ) );
 		$this->assertSame( 'posts', $response['state']['section'] );
@@ -224,6 +252,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'default', $response['data']['sortOptions'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sort_of
+	 */
 	public function test_sort_reorders_the_list() {
 		self::factory()->post->create(
 			array(
@@ -257,6 +288,10 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sort_options
+	 * @covers \OpenStation\Apps\MyWordPress\tiebroken
+	 */
 	public function test_the_list_view_sorts_by_id_slug_modified_and_comments() {
 		$zulu = self::factory()->post->create(
 			array(
@@ -292,11 +327,15 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		}
 		$by_login = array_column( $this->dispatch( 'sort', array( 'section' => 'users', 'sort' => 'login-asc' ) )['data']['list']['items'], 'login' );
 		$sorted   = $by_login;
-
 		usort( $sorted, 'strcasecmp' );
 		$this->assertSame( $sorted, $by_login, 'Username A–Z orders by user_login.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\post_facts
+	 * @covers \OpenStation\Apps\MyWordPress\media_facts
+	 * @covers \OpenStation\Apps\MyWordPress\user_row
+	 */
 	public function test_list_rows_carry_the_list_view_facts() {
 		$child = self::factory()->post->create(
 			array(
@@ -308,12 +347,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		);
 		$long  = self::factory()->post->create(
 			array(
-
 				'post_title'   => 'Long read &amp; more',
 				'post_content' => str_repeat( 'Tom &amp; Jerry go on. ', 40 ),
-
 				'post_author'  => self::factory()->user->create( array( 'display_name' => 'Pérez & Hijos' ) ),
-
 				'post_excerpt' => '',
 			)
 		);
@@ -321,12 +357,10 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$rows = $this->dispatch( 'refresh', array( 'section' => 'posts' ) )['data']['list']['items'];
 		foreach ( $rows as $candidate ) {
 			if ( $long === $candidate['id'] ) {
-
 				$this->assertStringNotContainsString( '&hellip;', $candidate['excerpt'] );
 				$this->assertStringNotContainsString( '&amp;', $candidate['excerpt'] );
 				$this->assertStringContainsString( 'Tom & Jerry', $candidate['excerpt'] );
 				$this->assertStringContainsString( '[…]', $candidate['excerpt'] );
-
 				$this->assertSame( 'Long read & more', $candidate['title'] );
 				$this->assertSame( 'Pérez & Hijos', $candidate['author'] );
 			}
@@ -380,9 +414,11 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertGreaterThanOrEqual( 1, $admin['posts'], 'The published-post count rides the row, counted once per page.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\lock_holder
+	 */
 	public function test_list_rows_name_whoever_else_holds_the_edit_lock() {
 		require_once ABSPATH . 'wp-admin/includes/post.php';
-
 		$holder = self::factory()->user->create(
 			array(
 				'role'         => 'editor',
@@ -405,6 +441,10 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( '', $locked_by(), 'Someone who cannot edit the post never learns who is editing it.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\mount
+	 * @covers \OpenStation\Apps\MyWordPress\view_action
+	 */
 	public function test_the_view_mode_is_remembered_per_user() {
 		$first = $this->dispatch( 'mount' );
 		$this->assertSame( 'icons', $first['state']['view'], 'The tile canvas is the default.' );
@@ -424,6 +464,10 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( 'icons', $this->dispatch( 'mount' )['state']['view'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\set_columns_action
+	 * @covers \OpenStation\Apps\MyWordPress\hidden_columns
+	 */
 	public function test_hidden_columns_are_remembered_per_section() {
 		$initial = $this->dispatch( 'refresh', array( 'section' => 'posts' ) );
 		$this->assertSame( array(), (array) $initial['data']['hiddenColumns'], 'Nothing remembered: the client applies its defaults.' );
@@ -452,6 +496,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( array(), (array) $this->dispatch( 'refresh', array( 'section' => 'pages' ) )['data']['hiddenColumns'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\fetch
+	 */
 	public function test_search_narrows_the_list_and_resets_the_page() {
 		self::factory()->post->create( array( 'post_title' => 'Beta notes' ) );
 
@@ -469,12 +516,18 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertNotContains( 'Beta notes', $titles );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\fetch
+	 */
 	public function test_more_advances_the_page_for_infinite_scroll() {
 		$response = $this->dispatch( 'more', array( 'section' => 'posts' ) );
 		$this->assertSame( 2, $response['state']['page'] );
 		$this->assertSame( 2, $response['data']['list']['page'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\add_user_action
+	 */
 	public function test_add_user_opens_the_core_screen_for_the_allowed() {
 		$response = $this->dispatch( 'go', array( 'section' => 'users' ) );
 		$section  = $this->data_section( $response, 'users' );
@@ -486,6 +539,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'user-new.php', $opens[0]['url'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\add_user_action
+	 */
 	public function test_add_user_refused_without_the_capability() {
 		$editor = self::factory()->user->create( array( 'role' => 'editor' ) );
 		wp_set_current_user( $editor );
@@ -494,6 +550,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( array(), $this->effects_of( $response, 'open_url' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\detail
+	 */
 	public function test_post_dossier_carries_facts_and_the_rendered_preview() {
 		$response = $this->dispatch(
 			'open',
@@ -508,6 +567,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertTrue( $detail['canDelete'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\detail
+	 */
 	public function test_user_dossier_carries_role_email_and_footprint() {
 		$response = $this->dispatch(
 			'open',
@@ -531,6 +593,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'registered', $detail['stats']['profile'], 'An admin viewer sees the private profile half.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\detail
+	 */
 	public function test_media_dossier_carries_the_usage_scan_and_zoom_source() {
 		$attachment = self::factory()->post->create(
 			array(
@@ -552,6 +617,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'full', $detail, 'The zoom overlay reads the full-size source.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\section_of
+	 */
 	public function test_a_vanished_section_falls_back_to_the_root() {
 		$response = $this->dispatch( 'refresh', array( 'section' => 'no-such-thing' ) );
 		$this->assertTrue( $response['ok'] );
@@ -559,6 +627,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertNull( $response['data']['list'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\detail
+	 */
 	public function test_back_walks_pane_then_section_then_group() {
 		$response = $this->dispatch(
 			'back',
@@ -573,6 +644,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( '', $response['state']['section'], 'Second back leaves the section.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\folder
+	 */
 	public function test_navigate_into_ships_the_relation_folders_and_the_article() {
 		wp_set_post_terms( self::$post_id, array( 'alpha-tag' ), 'post_tag' );
 		wp_update_post(
@@ -598,8 +672,10 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertGreaterThanOrEqual( 1, $relations['revisions'], 'The update above left a revision.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub
+	 */
 	public function test_relation_sub_lists_carry_their_rows() {
-
 		wp_update_post(
 			array(
 				'ID'           => self::$post_id,
@@ -609,7 +685,6 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		self::factory()->comment->create(
 			array(
 				'comment_post_ID' => self::$post_id,
-
 				'comment_author'  => 'Ada &amp; Grace',
 				'comment_content' => 'Great strategy, I <3 it.',
 			)
@@ -643,7 +718,6 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$revisions = $this->dispatch( 'relation', $state, array( 'relation' => 'revisions' ) );
 		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );
 		foreach ( $revisions['data']['sub']['rows'] as $row ) {
-
 			$this->assertStringNotContainsString( '<', $row['title'], 'A revision title is plain text, never an avatar tag.' );
 			$this->assertMatchesRegularExpression( '/ ago \(/', $row['title'] );
 		}
@@ -658,6 +732,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( '', $bogus['state']['relation'], 'Unknown relations fall back to the folder view.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub_detail
+	 */
 	public function test_selecting_a_term_row_ships_the_wp_explorer_stats_pane() {
 		$cat = self::factory()->category->create( array( 'name' => 'Notes' ) );
 		wp_set_post_categories( self::$post_id, array( $cat ) );
@@ -682,8 +759,10 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'coTerms', $picked['stats'], 'Often-paired terms ride along.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\fetch
+	 */
 	public function test_pagination_is_deterministic_across_equal_dates() {
-
 		$ids = array();
 		for ( $i = 0; $i < 30; $i++ ) {
 			$ids[] = self::factory()->post->create(
@@ -715,6 +794,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( $sorted, $batch, 'Equal-date rows come back newest-ID-first, every page, every query.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub_detail
+	 */
 	public function test_selecting_an_author_row_ships_the_user_dossier_with_stats() {
 		$response = $this->dispatch(
 			'open',
@@ -731,6 +813,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertIsArray( $picked['stats'], 'WP Explorer\'s user-stats payload rides along.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub_detail
+	 */
 	public function test_a_revision_pane_refuses_a_row_from_another_post() {
 		$other = self::factory()->post->create();
 		wp_update_post(
@@ -754,6 +839,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertNull( $response['data']['subDetail'], 'A revision of a different post never leaks into this pane.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\sub
+	 */
 	public function test_sub_open_recomputes_the_edit_url_server_side() {
 		$response = $this->dispatch(
 			'sub-open',
@@ -769,6 +857,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'user-edit.php?user_id=' . self::$admin_id, $opens[0]['url'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\edit_choices
+	 */
 	public function test_quick_edit_applies_author_sticky_categories_and_tags() {
 		$victim = self::factory()->post->create( array( 'post_title' => 'Full edit' ) );
 		$cat    = self::factory()->category->create( array( 'name' => 'Field notes' ) );
@@ -798,6 +889,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertContains( 'Field notes', array_column( $response['data']['categories'], 'name' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\preview_actions
+	 */
 	public function test_preview_actions_flow_from_the_wp_explorer_filter_capability_gated() {
 		add_filter(
 			'openstation_my_wordpress_preview_actions',
@@ -826,8 +920,11 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertNotContains( 'admin-only', $ids, 'Capability-gated actions never reach a user without the capability.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\edit_url
+	 * @covers \OpenStation\Apps\MyWordPress\edit_title
+	 */
 	public function test_edit_queues_an_open_url_effect() {
-
 		$post_id  = self::factory()->post->create( array( 'post_title' => 'Salt &amp; Pepper' ) );
 		$response = $this->dispatch(
 			'edit',
@@ -841,6 +938,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( 'Salt & Pepper', $opens[0]['title'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\allowed
+	 */
 	public function test_trash_moves_the_post_announces_and_closes_the_pane() {
 		$victim   = self::factory()->post->create( array( 'post_title' => 'Doomed' ) );
 		$response = $this->dispatch(
@@ -862,6 +962,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( array( $victim ), $announces[0]['ids'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\allowed
+	 */
 	public function test_trash_refuses_a_user_without_the_meta_capability() {
 		wp_set_current_user( self::$author_id );
 		$response = $this->dispatch(
@@ -876,6 +979,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'cannot', $toasts[0]['message'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\allowed
+	 */
 	public function test_quick_edit_updates_status_and_comments_over_the_selection() {
 		$draft    = self::factory()->post->create(
 			array(
@@ -903,6 +1009,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( array( $draft, $chatty ), $announces[0]['ids'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\allowed
+	 */
 	public function test_quick_edit_refuses_items_outside_the_meta_capability() {
 		wp_set_current_user( self::$author_id );
 		$this->dispatch(
@@ -916,6 +1025,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( 'publish', get_post_status( self::$post_id ), 'The admin\'s post is untouched.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\allowed
+	 */
 	public function test_bulk_trash_trashes_only_what_the_user_may_trash() {
 		wp_set_current_user( self::$author_id );
 		$own = self::factory()->post->create(
@@ -942,13 +1054,15 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( array( $own ), $announces[0]['ids'], 'Only what was actually trashed is announced.' );
 	}
 
+	/**
+	 * @coversNothing
+	 */
 	public function test_the_app_stays_small_and_ships_exactly_one_script() {
 		$dir     = OPENSTATION_DIR . 'apps/my-wordpress/';
 		$sources = array_merge(
 			glob( $dir . '*.php' ),
 			glob( $dir . 'parts/*.php' ),
 			glob( $dir . '*.os.ts' ),
-
 			array_values(
 				array_filter(
 					(array) glob( $dir . 'parts/*.ts' ),
@@ -962,7 +1076,6 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		foreach ( array_merge( $sources, glob( $dir . '*.css' ) ) as $file ) {
 			$lines += count( file( $file ) );
 		}
-
 		$this->assertLessThan( 12600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,600 — still well under half of the original it replaced.', $lines ) );
 
 		foreach ( $sources as $file ) {

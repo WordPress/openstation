@@ -37,7 +37,6 @@ describe( 'reading order belongs to the canvas', () => {
 	} );
 
 	test( 'a column-major pack fills a column before starting the next', () => {
-
 		const cells = pack( 8, 'column', host( 1200, 760 ) );
 		expect( cells.map( ( c ) => `${ c.col },${ c.row }` ) ).toEqual( [
 			'0,0',
@@ -52,7 +51,6 @@ describe( 'reading order belongs to the canvas', () => {
 	} );
 
 	test( 'a row-major pack fills a row before dropping to the next', () => {
-
 		const cells = pack( 6, 'row', host( 460, 800 ) );
 		expect( cells.map( ( c ) => `${ c.col },${ c.row }` ) ).toEqual( [
 			'0,0',
@@ -65,7 +63,6 @@ describe( 'reading order belongs to the canvas', () => {
 	} );
 
 	test( 'a displaced tile lands where the next tile would have', () => {
-
 		const occupied = new Set( [ cellKey( 0, 0 ) ] );
 		const displaced = snapToEmptyCell(
 			GRID_PADDING,
@@ -85,7 +82,6 @@ describe( 'a scan is bounded by the canvas', () => {
 		const cells = pack( 4, 'column', canvas );
 		expect( cells[ 3 ].col ).toBe( 1 );
 		expect( cells[ 3 ].row ).toBe( 0 );
-
 		for ( const cell of cells ) {
 			expect( cell.y + GRID_CELL_H ).toBeLessThanOrEqual( 400 );
 		}
@@ -103,7 +99,6 @@ describe( 'a scan is bounded by the canvas', () => {
 } );
 
 describe( 'an unmeasurable canvas', () => {
-
 	test( 'falls back to the declared bounds, never to one cell', () => {
 		for ( const canvas of [ undefined, null, host( 0, 0 ) ] ) {
 			expect( gridRows( canvas ) ).toBe( GRID_FALLBACK_ROWS );
@@ -120,7 +115,6 @@ describe( 'an unmeasurable canvas', () => {
 	} );
 
 	test( 'the fallbacks are small enough to stay on a modest canvas', () => {
-
 		const lastRowBottom =
 			GRID_PADDING + ( GRID_FALLBACK_ROWS - 1 ) * GRID_CELL_H + GRID_CELL_H;
 		const lastColEnd =
@@ -132,7 +126,6 @@ describe( 'an unmeasurable canvas', () => {
 
 describe( 'packing respects reserved cells', () => {
 	test( 'pinned slots in column 0 are skipped, and not mutated away', () => {
-
 		const reserved = new Set( [ cellKey( 0, 0 ), cellKey( 0, 1 ) ] );
 		const cells = packCells( 3, reserved, 'column', host( 1200, 760 ) );
 		expect( cells.map( ( c ) => `${ c.col },${ c.row }` ) ).toEqual( [

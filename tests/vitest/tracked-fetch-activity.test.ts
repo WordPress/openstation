@@ -5,6 +5,7 @@ import type { Window as DesktopWindow } from '../../src/window';
 import { activity } from '../../src/activity';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
+
 interface Settlement {
 	ok: boolean;
 	error?: string;
@@ -183,7 +184,6 @@ describe( 'os/request-settled', () => {
 		await trackedFetch( manager, '/wp-json/x/v1/y' );
 		await flush();
 		off();
-
 		expect( seen[ 0 ] ).not.toHaveProperty( 'source' );
 	} );
 
@@ -199,7 +199,6 @@ describe( 'os/request-settled', () => {
 		await trackedFetch( manager, '/wp-json/x/v1/y', { method: 'post' } );
 		await flush();
 		off();
-
 		expect( seen[ 0 ] ).toMatchObject( {
 			ok: false,
 			status: 500,
@@ -222,7 +221,6 @@ describe( 'os/request-settled', () => {
 		await flush();
 		off();
 		expect( seen[ 0 ] ).toMatchObject( { error: 'offline', source: 'probe/x' } );
-
 		expect( seen[ 0 ] ).not.toHaveProperty( 'status' );
 		expect( seen[ 0 ] ).not.toHaveProperty( 'ok' );
 	} );
@@ -240,7 +238,6 @@ describe( 'os/request-settled', () => {
 		} );
 		await flush();
 		off();
-
 		expect( settled ).toHaveLength( 0 );
 		expect( seen ).toHaveLength( 1 );
 		expect( seen[ 0 ] ).toMatchObject( { silent: true, source: 'probe/x' } );
@@ -254,13 +251,9 @@ describe( 'os/request-settled', () => {
 			seen.push( p ),
 		);
 		const named = { id: 'notes' } as unknown as DesktopWindow;
-
 		await trackedFetch( manager, '/a' );
-
 		await trackedFetch( manager, '/b', undefined, { silent: true } );
-
 		await trackedFetch( manager, '/c', undefined, { silent: true, window: named } );
-
 		await trackedFetch( manager, '/d', undefined, { silent: true, windowId: 'gone' } );
 		await flush();
 		off();
@@ -278,7 +271,6 @@ describe( 'os/request-settled', () => {
 		const off = activity.subscribe( 'os/request-settled', ( p ) =>
 			seen.push( p as Record< string, unknown > ),
 		);
-
 		const controller = new AbortController();
 		controller.abort( 'superseded' );
 		vi.spyOn( window, 'fetch' ).mockRejectedValueOnce( 'superseded' );
@@ -300,18 +292,15 @@ describe( 'os/request-settled', () => {
 		const off = activity.subscribe( 'os/request-settled', () => {
 			throw new Error( 'bad subscriber' );
 		} );
-
 		const rejections: unknown[] = [];
 		const onRejection = ( err: unknown ) => rejections.push( err );
 		process.on( 'unhandledRejection', onRejection );
 		const res = await trackedFetch( manager, '/wp-json/x/v1/y' );
-
 		vi.spyOn( window, 'fetch' ).mockRejectedValueOnce( Object.create( null ) );
 		await trackedFetch( manager, '/wp-json/x/v1/z', undefined, {
 			silent: true,
 		} ).catch( () => {} );
 		await flush();
-
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		process.off( 'unhandledRejection', onRejection );
 		off();

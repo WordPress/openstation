@@ -40,7 +40,7 @@ function openstation_register_file_opener( $id, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this opener.', 'desktop-mode' ),
 					(string) $cap
 				),
@@ -148,7 +148,6 @@ function openstation_resolve_file_opener_id( $type, $user_id ) {
 	if ( '' !== $override && isset( $by_id[ $override ] ) ) {
 		$resolved = $override;
 	} else {
-
 		$resolved = '';
 		foreach ( $candidates as $entry ) {
 			if ( ! empty( $entry['is_default'] ) ) {
@@ -156,7 +155,6 @@ function openstation_resolve_file_opener_id( $type, $user_id ) {
 				break;
 			}
 		}
-
 		if ( '' === $resolved ) {
 			$resolved = (string) $candidates[0]['id'];
 		}
@@ -194,7 +192,6 @@ function openstation_build_file_openers_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}

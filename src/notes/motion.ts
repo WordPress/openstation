@@ -24,17 +24,11 @@ function animate(
 }
 
 export interface PinInsertionParts {
-
 	pin: Element;
-
 	paper: Element;
-
 	rippleHost: HTMLElement;
-
 	restRotation?: number;
-
 	fallDistance?: number;
-
 	tempo?: number;
 }
 
@@ -126,14 +120,11 @@ function spawnRipple( host: HTMLElement, duration: number ): void {
 		],
 		{ duration, easing: 'ease-out' },
 	).then( () => ripple.remove() );
-
 	window.setTimeout( () => ripple.remove(), duration + 100 );
 }
 
 export interface PendulumHandle {
-
 	onPointerMove( clientX: number ): void;
-
 	setBias( deg: number ): void;
 	stop(): void;
 }
@@ -166,7 +157,6 @@ export function startPendulum( swingEl: HTMLElement ): PendulumHandle {
 		}
 		const dt = Math.min( 0.05, lastFrame ? ( now - lastFrame ) / 1000 : 0.016 );
 		lastFrame = now;
-
 		if ( now - lastMoveTime > 80 ) {
 			emaVx *= 0.85;
 		}
@@ -200,11 +190,8 @@ export function startPendulum( swingEl: HTMLElement ): PendulumHandle {
 }
 
 export interface SnapBackParts {
-
 	flyback: HTMLElement;
-
 	swing: HTMLElement | null;
-
 	homeX: number;
 	homeY: number;
 }
@@ -245,13 +232,9 @@ export async function playSnapBack( parts: SnapBackParts ): Promise< void > {
 }
 
 export interface CrumpleParts {
-
 	clone: HTMLElement;
-
 	pin: Element | null;
-
 	paper: HTMLElement;
-
 	binX: number;
 	binY: number;
 }
@@ -313,13 +296,16 @@ export async function playCrumpleIntoBin( parts: CrumpleParts ): Promise< void >
 }
 
 export function hashNoteSeed( text: string ): number {
+	/* eslint-disable no-bitwise -- FNV-1a is defined in terms of XOR
+	   and unsigned shifts; a non-bitwise rewrite would obscure the
+	   reference algorithm. */
 	let hash = 0x811c9dc5;
 	for ( let i = 0; i < text.length; i++ ) {
 		hash ^= text.charCodeAt( i );
 		hash = Math.imul( hash, 0x01000193 ) >>> 0;
 	}
 	const seed = ( hash >>> 1 ) || 1;
-
+	/* eslint-enable no-bitwise */
 	return seed;
 }
 
@@ -328,6 +314,8 @@ export function noteJitter( seed: number ): {
 	pinOffsetX: number;
 	pinRotation: number;
 } {
+	/* eslint-disable no-bitwise -- decorrelate the three knobs with
+	   unsigned shifts of the same seed. */
 	let hash = 0x811c9dc5;
 	const key = `os-note-${ seed }`;
 	for ( let i = 0; i < key.length; i++ ) {
@@ -336,7 +324,7 @@ export function noteJitter( seed: number ): {
 	}
 	const shifted3 = hash >>> 3;
 	const shifted5 = hash >>> 5;
-
+	/* eslint-enable no-bitwise */
 	return {
 		rotation: ( ( hash % 45 ) - 22 ) / 10,
 		pinOffsetX: ( shifted3 % 21 ) - 10,

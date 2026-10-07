@@ -203,7 +203,6 @@
 
 .dm-agent-chat__msg--error {
 	align-self: flex-start;
-
 	background: var( --os-ui-notice-error-bg, rgba( 214, 54, 56, 0.12 ) );
 	color: var( --os-ui-danger, #8a1f21 );
 }
@@ -310,6 +309,7 @@
 		transition: none;
 	}
 }
+
 
 .dm-agent-chat__line {
 	display: flex;

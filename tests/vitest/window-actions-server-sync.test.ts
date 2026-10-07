@@ -85,7 +85,6 @@ describe( 'window-actions/server-sync.ts', () => {
 		await run( [] );
 
 		expect( ids( registry ) ).not.toContain( 'a/send' );
-
 		expect( ids( registry ) ).toContain( 'untagged' );
 	} );
 

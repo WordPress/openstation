@@ -2,7 +2,6 @@ const NODE_KEY_PROP = '__openstationKeyedListKey';
 const NODE_DATA_PROP = '__openstationKeyedListData';
 
 export interface KeyedListOptions< T > {
-
 	keyOf( item: T ): string | number;
 
 	buildItem( item: T ): HTMLElement;
@@ -45,6 +44,7 @@ export function renderKeyedList< T >(
 	for ( const item of items ) {
 		const key = String( opts.keyOf( item ) );
 		if ( seenKeys.has( key ) ) {
+			// eslint-disable-next-line no-console
 			console.warn(
 				'[desktop-mode/keyed-list] duplicate key — only the last item with this key will render:',
 				key,
@@ -62,7 +62,6 @@ export function renderKeyedList< T >(
 			continue;
 		}
 		const el = opts.buildItem( item );
-
 		( el as unknown as Record< string, unknown > )[ NODE_KEY_PROP ] = key;
 		( el as unknown as Record< string, unknown > )[ NODE_DATA_PROP ] = item;
 		next.set( key, { el, data: item } );
@@ -81,7 +80,6 @@ export function renderKeyedList< T >(
 		if ( live === desired ) {
 			continue;
 		}
-
 		host.insertBefore( desired, live ?? null );
 	}
 

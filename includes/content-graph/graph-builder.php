@@ -38,7 +38,6 @@ function openstation_content_graph_build( array $types ) {
 	}
 
 	$terms_by_post = openstation_content_graph_collect_post_terms( $post_ids );
-
 	$contribs_by_post = openstation_content_graph_collect_post_contributors( $post_ids );
 
 	$default_category = max( 1, (int) get_option( 'default_category', 1 ) );
@@ -54,14 +53,12 @@ function openstation_content_graph_build( array $types ) {
 		$year       = 0;
 		$year_month = '';
 		if ( ! empty( $row->post_date ) ) {
-
 			$year       = (int) mysql2date( 'Y', $row->post_date, false );
 			$year_month = (string) mysql2date( 'Y-m', $row->post_date, false );
 		}
 		$post_cats = isset( $terms_by_post[ $id ]['category'] )
 			? $terms_by_post[ $id ]['category']
 			: array();
-
 		if ( empty( $post_cats ) && is_object_in_taxonomy( $row->post_type, 'category' ) ) {
 			$post_cats = array( $default_category );
 		}
@@ -71,7 +68,6 @@ function openstation_content_graph_build( array $types ) {
 		$contribs  = isset( $contribs_by_post[ $id ] )
 			? $contribs_by_post[ $id ]
 			: array();
-
 		if ( $author_id > 0 && ! empty( $contribs ) ) {
 			$contribs = array_values(
 				array_filter(
@@ -131,7 +127,6 @@ function openstation_content_graph_build( array $types ) {
 				continue;
 			}
 			if ( empty( $nodes_by_id[ $to ] ) ) {
-
 				continue;
 			}
 			$key = $from . '->' . $to;
@@ -222,7 +217,7 @@ function openstation_content_graph_visibility_sql( array $types ) {
 function openstation_content_graph_cache_key( array $types ) {
 	global $wpdb;
 	$visibility = openstation_content_graph_visibility_sql( $types );
-
+	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$hash = (string) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MD5( GROUP_CONCAT( CONCAT( ID, ':', post_modified_gmt ) ORDER BY ID ) )
@@ -231,7 +226,7 @@ function openstation_content_graph_cache_key( array $types ) {
 			$visibility['values']
 		)
 	);
-
+	// phpcs:enable
 	if ( '' === $hash || null === $hash ) {
 		$hash = 'empty';
 	}
@@ -241,7 +236,7 @@ function openstation_content_graph_cache_key( array $types ) {
 function openstation_content_graph_fetch_rows( array $types ) {
 	global $wpdb;
 	$visibility = openstation_content_graph_visibility_sql( $types );
-
+	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date
@@ -251,6 +246,7 @@ function openstation_content_graph_fetch_rows( array $types ) {
 			$visibility['values']
 		)
 	);
+	// phpcs:enable
 
 	if ( ! is_array( $rows ) ) {
 		return array();
@@ -276,7 +272,6 @@ function openstation_content_graph_extract_internal_links( $content ) {
 	$seen = array();
 	$prev = libxml_use_internal_errors( true );
 	$dom  = new DOMDocument();
-
 	$loaded = $dom->loadHTML( '<?xml encoding="utf-8"?>' . $content );
 	libxml_clear_errors();
 	libxml_use_internal_errors( $prev );
@@ -286,12 +281,10 @@ function openstation_content_graph_extract_internal_links( $content ) {
 
 	$anchors = $dom->getElementsByTagName( 'a' );
 	foreach ( $anchors as $anchor ) {
-
 		$href = trim( (string) $anchor->getAttribute( 'href' ) );
 		if ( '' === $href ) {
 			continue;
 		}
-
 		if ( 0 === strpos( $href, '#' ) ) {
 			continue;
 		}
@@ -311,16 +304,15 @@ function openstation_content_graph_extract_internal_links( $content ) {
 
 function openstation_content_graph_flush_cache() {
 	global $wpdb;
-
 	$prefix_like = $wpdb->esc_like( '_transient_' . OPENSTATION_CONTENT_GRAPH_TRANSIENT_PREFIX ) . '%';
-
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$option_names = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
 			$prefix_like
 		)
 	);
-
+	// phpcs:enable
 	if ( ! is_array( $option_names ) || empty( $option_names ) ) {
 		return;
 	}
@@ -334,7 +326,6 @@ function openstation_content_graph_flush_cache() {
 }
 add_action( 'save_post', 'openstation_content_graph_flush_cache' );
 add_action( 'deleted_post', 'openstation_content_graph_flush_cache' );
-
 add_action( 'set_object_terms', 'openstation_content_graph_flush_cache' );
 
 function openstation_content_graph_collect_post_terms( array $post_ids ) {
@@ -344,7 +335,7 @@ function openstation_content_graph_collect_post_terms( array $post_ids ) {
 	}
 	global $wpdb;
 	$placeholders = implode( ',', array_fill( 0, count( $post_ids ), '%d' ) );
-
+	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT tr.object_id, tt.term_id, tt.taxonomy
@@ -356,7 +347,7 @@ function openstation_content_graph_collect_post_terms( array $post_ids ) {
 			$post_ids
 		)
 	);
-
+	// phpcs:enable
 	$out = array();
 	if ( ! is_array( $rows ) ) {
 		return $out;
@@ -383,7 +374,7 @@ function openstation_content_graph_collect_post_contributors( array $post_ids ) 
 	}
 	global $wpdb;
 	$placeholders = implode( ',', array_fill( 0, count( $post_ids ), '%d' ) );
-
+	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_parent AS post_id, post_author
@@ -395,7 +386,7 @@ function openstation_content_graph_collect_post_contributors( array $post_ids ) 
 			$post_ids
 		)
 	);
-
+	// phpcs:enable
 	$out = array();
 	if ( ! is_array( $rows ) ) {
 		return $out;

@@ -32,7 +32,6 @@ describe( 'native-window render ctx', async () => {
 	} );
 
 	afterEach( async () => {
-
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -158,7 +157,6 @@ describe( 'native-window render ctx', async () => {
 			native: true,
 			render: ( _body, ctx ) => {
 				const off = ctx!.onResize( ( w ) => got.push( w ) );
-
 				off();
 			},
 		} );
@@ -181,7 +179,6 @@ describe( 'native-window render ctx', async () => {
 				ctx!.onResize( () => resizeFired++ );
 			},
 		} );
-
 		doAction( HOOKS.WINDOW_BODY_RESIZED, {
 			windowId: 'auto-detach',
 			width: 100,
@@ -218,7 +215,6 @@ describe( 'native-window render ctx', async () => {
 
 		expect( signal!.aborted ).toBe( true );
 		expect( teardownCalls ).toEqual( [ 'user-teardown' ] );
-
 		expect( win.element.isConnected ).toBe( false );
 
 		win.destroy();
@@ -236,7 +232,6 @@ describe( 'native-window render ctx', async () => {
 		} );
 
 		win.close();
-
 		expect( win.element.isConnected ).toBe( true );
 		expect( teardownCalls ).toEqual( [] );
 
@@ -256,7 +251,6 @@ describe( 'native-window render ctx', async () => {
 				captured = ctx ?? null;
 			},
 		} );
-
 		await new Promise< void >( ( resolve ) =>
 			requestAnimationFrame( () => resolve() ),
 		);

@@ -13,7 +13,6 @@ function makeManagerStub(): WindowManager {
 	return {
 		getFocused: () => null,
 		getAllByBaseId: () => [],
-
 		getAllByBaseIdOnActiveDesktop: () => [],
 		getAll: () => [],
 		getById: () => undefined,
@@ -321,7 +320,6 @@ describe( 'desktop-layout dispatcher', () => {
 	} );
 
 	describe( 'one rail groups before it draws', () => {
-
 		const railOrder = ( dockId: string ): string[] =>
 			Array.from(
 				document
@@ -337,7 +335,6 @@ describe( 'desktop-layout dispatcher', () => {
 
 		test( 'unified: an interleaved menu is sorted, not split', () => {
 			const { deps } = makeDeps();
-
 			createLayoutDispatcher(
 				deps,
 				'unified',
@@ -362,7 +359,6 @@ describe( 'desktop-layout dispatcher', () => {
 				[ dashboard, posts ],
 				[],
 			);
-
 			dispatcher.applyDockItems( [ dashboard, woo, posts ] );
 
 			expect( railOrder( 'os-dock' ) ).toEqual( [
@@ -441,9 +437,7 @@ describe( 'desktop-layout dispatcher', () => {
 					.getElementById( 'os-dock' )
 					?.getAttribute( 'data-os-dock-placement' ),
 			).toBe( 'right' );
-
 			expect( dispatcher.getPrimary() ).not.toBe( before );
-
 			expect(
 				document.getElementById( 'os-dock' )!.querySelectorAll(
 					'[data-menu-slug]',
@@ -547,7 +541,6 @@ describe( 'desktop-layout dispatcher', () => {
 			expect(
 				dock.querySelectorAll( '.os-dock__item--system' ).length,
 			).toBe( 1 );
-
 			expect(
 				dock.querySelector( '.os-dock__separator' ),
 			).not.toBeNull();
@@ -633,7 +626,6 @@ describe( 'desktop-layout dispatcher', () => {
 		);
 		dispatcher.appendSystemTile( controlTile );
 		dispatcher.setLayout( 'unified' );
-
 		expect( document.getElementById( 'os-side-dock' ) ).toBeNull();
 		expect(
 			document
@@ -694,7 +686,6 @@ describe( 'desktop-layout dispatcher', () => {
 			id: 'desktop-mode-games',
 			title: 'Games',
 			icon: 'dashicons-games',
-
 			windowId: 'desktop-mode-games',
 			navKind: 'control',
 			onOpen: () => {},
@@ -720,7 +711,6 @@ describe( 'desktop-layout dispatcher', () => {
 					.getElementById( 'os-dock' )!
 					.querySelector( tileSelector ),
 			).toBeNull();
-
 			expect(
 				dispatcher.listSystemTiles().map( ( t ) => t.id ),
 			).toContain( gamesTile.id );
@@ -942,7 +932,6 @@ describe( 'desktop-layout dispatcher', () => {
 		} );
 
 		test( 'a preference keyed by the icon covers the tile its window backs', () => {
-
 			const { deps } = makeDeps( {
 				getSettings: () => ( {
 					navPlacement: { 'desktop-mode-games': 'hidden' },
@@ -994,7 +983,6 @@ describe( 'desktop-layout dispatcher — settings sanitization', () => {
 	test( 'invalid desktopLayout in persisted state falls back to default', async () => {
 		const stateModule = await import( '../../src/settings/state' );
 		const constants = await import( '../../src/settings/constants' );
-
 		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
 			osSettings: {
 				wallpaper: 'dark',

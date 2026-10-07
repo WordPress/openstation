@@ -26,11 +26,9 @@ export function showConflictToast( err: FilesConflictError ): void {
 	const reason = buildReason( err );
 	const targetParentId = err.detail.current.parentId;
 	let action: { label: string; onClick: () => void } | undefined;
-
 	if ( targetParentId > 0 ) {
 		action = {
 			label: 'View folder',
-
 			onClick: () => {
 				void openFile(
 					folderFileById(

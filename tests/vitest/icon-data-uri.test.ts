@@ -12,7 +12,6 @@ describe( 'renderIcon — non-SVG image data URIs', () => {
 		expect( ( el as HTMLImageElement ).src ).toBe( VALID_PNG_DATA_URI );
 		expect( el.classList.contains( 'x' ) ).toBe( true );
 		expect( el.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-
 		expect( ( el as HTMLImageElement ).draggable ).toBe( false );
 	} );
 

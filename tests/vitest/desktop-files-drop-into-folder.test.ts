@@ -191,7 +191,6 @@ describe( 'drop shortcut on folder tile (user regression)', () => {
 
 		const folderHost = document.createElement( 'div' );
 		folderHost.classList.add( 'os-window__body' );
-
 		const folderWindow = document.createElement( 'div' );
 		folderWindow.classList.add( 'os-window' );
 		folderWindow.appendChild( folderHost );

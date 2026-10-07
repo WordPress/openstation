@@ -3,11 +3,8 @@ import type { Obstacle } from './environment';
 const MAX_STALE_MS = 250;
 
 export interface ObstacleTrack {
-
 	sample( obstacles: readonly Obstacle[], nowMs: number ): void;
-
 	at( nowMs: number ): readonly Obstacle[];
-
 	reset(): void;
 }
 
@@ -52,10 +49,8 @@ export function createObstacleTrack( intervalMs: number ): ObstacleTrack {
 	const interval = Math.max( 1, intervalMs );
 	let previous = new Map< string, Obstacle >();
 	let current = new Map< string, Obstacle >();
-
 	let currentList: readonly Obstacle[] = [];
 	let sampledAt = 0;
-
 	let still = true;
 
 	return {

@@ -17,17 +17,11 @@ export interface CellEnv {
 	extra: ListExtra;
 	client: PostsRestClient;
 	cells: CellRenderers;
-
 	openUrl: ( url: string, title: string, icon: string ) => void;
-
 	confirm: ( options: { title?: string; message: string; confirmLabel?: string; danger?: boolean } ) => Promise< boolean >;
-
 	toast: ( title: string, err: unknown ) => void;
-
 	announce: ( action: string, ids: number[] ) => void;
-
 	parentTitles: Map< number, string >;
-
 	categories: {
 		tree: Promise< OsCategoryItem[] > | null;
 		pickers: Set< OsCategoryPicker >;

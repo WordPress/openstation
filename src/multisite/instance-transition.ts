@@ -1,11 +1,8 @@
 export type HopDirection = 'next' | 'prev';
 
 export const HOP_OUT_MS = 220;
-
 export const REVEAL_MS = 360;
-
 const REVEAL_FALLBACK_MS = 4000;
-
 const DIRECTION_KEY = 'openstation-hop-direction';
 
 const ARRIVING = 'os-shell--arriving';
@@ -26,7 +23,6 @@ export function leaveInstance( direction: HopDirection ): Promise< void > {
 	try {
 		window.sessionStorage.setItem( DIRECTION_KEY, direction );
 	} catch {
-
 	}
 	const root = shellRoot();
 	if ( ! root || reducedMotion() ) {
@@ -73,7 +69,6 @@ export function revealInstance(): void {
 	if ( reducedMotion() ) {
 		return;
 	}
-
 	root.classList.add( REVEALING );
 	window.setTimeout( () => root.classList.remove( REVEALING ), REVEAL_MS );
 }

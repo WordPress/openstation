@@ -16,7 +16,6 @@ export const styles = css`
 		aspect-ratio: 1 / 1;
 		flex: 0 0 auto;
 	}
-
 	:host( [ variant='accent' ] ) {
 		display: inline-block;
 		width: 28px;
@@ -24,22 +23,18 @@ export const styles = css`
 		aspect-ratio: 1 / 1;
 		flex: 0 0 auto;
 	}
-
 	:host( [ size='small' ][ variant='accent' ] ) button {
 		border-radius: 8px;
 	}
-
 	:host( [ size='small' ][ variant='accent' ] )
 		button[ aria-pressed='true' ] {
 		box-shadow: 0 0 0 2px var( --os-ui-surface-sunken, #f0f0f1 ),
 			0 0 0 4px var( --os-ui-accent, #2271b1 );
 	}
-
 	:host( [ size='small' ][ variant='accent' ] )
 		button[ aria-pressed='true' ]:focus-visible {
 		box-shadow: var( --_holo-focus );
 	}
-
 	:host( [ variant='wallpaper' ] ) {
 		aspect-ratio: 16 / 10;
 	}
@@ -52,7 +47,6 @@ export const styles = css`
 	}
 	button {
 		appearance: none;
-
 		position: relative;
 		width: 100%;
 		height: 100%;
@@ -60,7 +54,6 @@ export const styles = css`
 		border-radius: 10px;
 		border: 2px solid transparent;
 		cursor: pointer;
-
 		background-color: var( --os-ui-surface-sunken, #eee );
 		background-size: cover;
 		background-position: center;
@@ -77,13 +70,11 @@ export const styles = css`
 		outline: none;
 		box-shadow: var( --_holo-focus );
 	}
-
 	button[ aria-pressed='true' ] {
 		border-color: transparent;
 		box-shadow: 0 0 0 var( --os-ui-swatch-ring-width, 2px ) var( --os-ui-accent, #2271b1 ),
 			var( --os-ui-swatch-lift, 0 0 0 0 transparent );
 	}
-
 	:host( :not( [ variant='accent' ] ) ) button[ aria-pressed='true' ]::after {
 		content: '';
 		position: absolute;
@@ -103,11 +94,9 @@ export const styles = css`
 			linear-gradient( #000 0 0 );
 		mask-composite: exclude;
 	}
-
 	button[ aria-pressed='true' ]:focus-visible {
 		box-shadow: var( --_holo-focus );
 	}
-
 	:host( [ variant='wallpaper' ] ) button:hover {
 		transform: translateY( -2px );
 	}

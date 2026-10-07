@@ -7,7 +7,6 @@ if ( ! class_exists( '\Automattic\Jetpack\Modules' ) ) {
 }
 
 class WPCOM_Stats {
-
 	public static $visits_response = null;
 
 	public static $last_args = null;

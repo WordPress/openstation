@@ -156,7 +156,6 @@ describe( 'the column model', () => {
 		const root = document.createElement( 'div' );
 		const ctx = mockViewContext< AppState, AppData >( { state: state(), data: data(), root } );
 		expect( Array.from( hiddenFor( ctx, section(), cols ) ) ).toEqual( [ 'words' ] );
-
 		const remembered = mockViewContext< AppState, AppData >( {
 			state: state(),
 			data: data( { hiddenColumns: { posts: [] } } ),
@@ -226,9 +225,7 @@ describe( 'the table', () => {
 		expect( table ).not.toBeNull();
 		expect( root.querySelector( '.os-mywp__tiles' ) ).toBeNull();
 		const heads = Array.from( root.querySelectorAll( 'th' ), ( th ) => th.textContent?.replace( /\s+/g, ' ' ).trim() );
-
 		expect( heads.slice( 0, 6 ) ).toEqual( [ 'ID', 'Title', 'Slug', 'Author', 'Status', 'Date ▼' ] );
-
 		expect( heads ).not.toContain( 'Words' );
 		const rows = root.querySelectorAll( 'tr.os-mywp__row[data-item-id]' );
 		expect( rows ).toHaveLength( 2 );
@@ -240,12 +237,10 @@ describe( 'the table', () => {
 		expect( first.querySelector( '.os-mywp__td--comments' )?.textContent?.trim() ).toBe( '4' );
 		expect( first.querySelector( 'time' )?.getAttribute( 'datetime' ) ).toBe( '2026-01-10T10:00:00+00:00' );
 		expect( first.querySelector( 'os-relative-time' )?.getAttribute( 'datetime' ) ).toBe( '2026-02-01T10:00:00+00:00' );
-
 		const second = rows[ 1 ];
 		expect( second.querySelector( 'os-badge' )?.textContent?.trim() ).toBe( 'Draft' );
 		expect( second.querySelector( '.os-mywp__cell-lock' )?.getAttribute( 'title' ) ).toContain( 'Grace' );
 		expect( second.querySelector( '.os-mywp__td--slug' )?.textContent?.trim() ).toBe( 'beta-2' );
-
 		expect( root.querySelector( '.os-mywp__canvas[data-mywp-list]' ) ).not.toBeNull();
 	} );
 
@@ -270,7 +265,6 @@ describe( 'the table', () => {
 		slugHead.querySelector( 'button' )?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( local ).toHaveBeenCalledWith( 'set-sort', { sort: 'slug-asc' } );
 		expect( dispatch ).toHaveBeenCalledWith( 'sort' );
-
 		const authorHead = Array.from( root.querySelectorAll( 'th' ) ).find( ( th ) => th.textContent?.includes( 'Author' ) )!;
 		expect( authorHead.querySelector( 'button' ) ).toBeNull();
 		expect( authorHead.hasAttribute( 'aria-sort' ) ).toBe( false );
@@ -392,7 +386,6 @@ describe( 'the table', () => {
 		const buttons = Array.from( row.querySelectorAll< HTMLElement >( '.os-mywp__row-action' ) );
 		buttons[ 0 ].dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( dispatch ).toHaveBeenCalledWith( 'edit', { item: 1 } );
-
 		expect( dispatch ).not.toHaveBeenCalledWith( 'open', expect.anything() );
 		buttons[ 2 ].dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await Promise.resolve();
@@ -401,7 +394,6 @@ describe( 'the table', () => {
 		expect( toast ).toHaveBeenCalledWith( { message: 'Copied the shortlink.' } );
 		buttons[ 3 ].dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( uiOf( ctx ).menu?.item?.id ).toBe( 1 );
-
 		row.querySelector< HTMLElement >( '.os-mywp__cell-id--copy' )?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await Promise.resolve();
 		await Promise.resolve();
@@ -441,7 +433,6 @@ describe( 'the table', () => {
 		const options = Array.from( menu.querySelectorAll( 'os-context-menu-option[id]' ) );
 		const ids = options.map( ( o ) => o.getAttribute( 'id' ) );
 		expect( ids ).toEqual( [ 'slug', 'author', 'status', 'date', 'modified', 'comments', 'words', 'reset' ] );
-
 		expect( options.find( ( o ) => o.getAttribute( 'id' ) === 'slug' )?.hasAttribute( 'checked' ) ).toBe( true );
 		expect( options.find( ( o ) => o.getAttribute( 'id' ) === 'words' )?.hasAttribute( 'checked' ) ).toBe( false );
 		menu.dispatchEvent( new CustomEvent( 'os-context-menu-pick', { detail: { id: 'words' } } ) );
@@ -459,7 +450,6 @@ describe( 'the table', () => {
 			data( { list: page( [ item( {} ) ], { total: 40, pages: 2, perPage: 24 } ) } ),
 		);
 		expect( root.querySelector( '[data-mywp-sentinel]' ) ).not.toBeNull();
-
 		uiOf( ctx ).list.sync( {
 			sentinel: null,
 			canvas: null,
@@ -481,7 +471,6 @@ describe( 'the view switch', () => {
 		switcher.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'list' } } ) );
 		expect( local ).toHaveBeenCalledWith( 'set-view', { view: 'list' } );
 		expect( dispatch ).toHaveBeenCalledWith( 'view' );
-
 		local.mockClear();
 		switcher.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'icons' } } ) );
 		switcher.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'grid' } } ) );
@@ -501,9 +490,7 @@ describe( 'the view switch', () => {
 		const chosen = app.runLocal( 'set-view', state( { view: 'icons', sort: 'title-asc', page: 3 } ), { view: 'list' }, data() );
 		expect( chosen.sort ).toBe( 'title-asc' );
 		expect( chosen.page ).toBe( 3 );
-
 		expect( app.runLocal( 'set-view', state( { view: 'list', sort: 'id-desc' } ), { view: 'icons' }, data() ).sort ).toBe( 'id-desc' );
-
 		const { root } = mount( state( { sort: 'id-desc' } ), data() );
 		expect( root.querySelector( 'th.os-mywp__th--id' )?.getAttribute( 'aria-sort' ) ).toBe( 'descending' );
 		expect( root.querySelector( 'th.os-mywp__th--id' )?.textContent ).toContain( '▼' );
@@ -516,7 +503,6 @@ describe( 'the view switch', () => {
 		};
 		const { root, ctx } = mount( state( { view: 'icons', selected: [ 2 ], item: 2 } ), data() );
 		expect( root.querySelector( '[data-item-id="2"] os-tile' )?.hasAttribute( 'selected' ) ).toBe( true );
-
 		root.querySelector( 'os-segmented.os-mywp__view-switch' )
 			?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'list' } } ) );
 		expect( uiOf( ctx ).revealSelection ).toBe( true );

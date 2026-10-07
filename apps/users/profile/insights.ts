@@ -32,7 +32,7 @@ export function paintInsightsLoading( host: HTMLElement ): void {
 export function paintInsightsError( host: HTMLElement, err: unknown ): void {
 	const msg = document.createElement( 'p' );
 	msg.style.cssText = 'padding:24px;color:var(--os-ui-danger, #b32d2e);font-size:13px;text-align:center;';
-
+	// translators: %s is an error message.
 	msg.textContent = sprintf( __( 'Could not load insights (%s).' ), String( ( err as Error )?.message ?? err ) );
 	host.replaceChildren( msg );
 }
@@ -150,7 +150,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		tile(
 			__( 'Posts' ),
 			String( stats.posts ),
-
+			// translators: %d is a count of pages.
 			stats.pages > 0 ? sprintf( _n( '+ %d page', '+ %d pages', stats.pages ), stats.pages ) : undefined,
 		),
 	);
@@ -158,7 +158,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		tile(
 			__( 'Comments' ),
 			String( stats.commentsAuthored ),
-
+			// translators: %d is a count of received comments.
 			stats.commentsReceived > 0 ? sprintf( __( '%d received' ), stats.commentsReceived ) : undefined,
 		),
 	);
@@ -171,6 +171,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	);
 	let memberValue = '—';
 	if ( stats.daysSinceRegistration !== null ) {
+		// translators: %d is a number of days.
 		memberValue = sprintf( _n( '%d day', '%d days', stats.daysSinceRegistration ), stats.daysSinceRegistration );
 	}
 	grid.appendChild(
@@ -198,7 +199,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 	const head = div( 'display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px;' );
 	head.appendChild( div( 'font-size:13px;font-weight:600;', __( 'Posts published — last 12 months' ) ) );
 	const total = data.contentByMonth.reduce( ( s, m ) => s + m.count, 0 );
-
+	// translators: %d is a count of posts.
 	head.appendChild( div( 'font-size:11px;color:var(--os-ui-fg-muted, #50575e);', sprintf( __( '%d total' ), total ) ) );
 	wrap.appendChild( head );
 
@@ -225,7 +226,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 				'transition:height 360ms ease',
 			].join( ';' ),
 		);
-
+		// translators: %1$s is a YYYY-MM month, %2$d is post count.
 		bar.title = sprintf( __( '%1$s — %2$d posts' ), month.month, month.count );
 		col.appendChild( bar );
 		bars.appendChild( col );
@@ -261,7 +262,7 @@ function buildRecentLists( data: UserInsightsPayload ): HTMLElement {
 				primary: p.title,
 				when: p.dateGmt,
 				tag: p.status !== 'publish' ? p.status : null,
-
+				// translators: %d is a count of comments.
 				badge: p.commentCount > 0 ? sprintf( __( '%d 💬' ), p.commentCount ) : null,
 			} ) ),
 		),
@@ -273,7 +274,7 @@ function buildRecentLists( data: UserInsightsPayload ): HTMLElement {
 			data.recentComments.map( ( c ) => ( {
 				primary: c.excerpt || __( '(empty comment)' ),
 				when: c.dateGmt,
-
+				// translators: %s is a post title.
 				context: c.postTitle ? sprintf( __( 'on "%s"' ), c.postTitle ) : undefined,
 				tag: c.approved ? null : __( 'pending' ),
 				badge: null,
@@ -353,7 +354,7 @@ function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 	let appSub: string | Node;
 	if ( apps.lastUsedAt && apps.lastUsedName ) {
 		const frag = document.createDocumentFragment();
-
+		// translators: %s is the app password name.
 		frag.append( sprintf( __( '"%s" last used' ), apps.lastUsedName ), ' ', relativeTimeNode( apps.lastUsedAt ) );
 		appSub = frag;
 	} else {

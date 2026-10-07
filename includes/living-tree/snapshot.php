@@ -29,7 +29,6 @@ add_action( 'rest_api_init', 'openstation_living_tree_register_routes' );
 
 function openstation_living_tree_rest_snapshot() {
 	$snapshot = get_transient( OPENSTATION_LIVING_TREE_CACHE_KEY );
-
 	if ( ! is_array( $snapshot ) || ! array_key_exists( OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY, $snapshot ) ) {
 		$snapshot = openstation_living_tree_build_cache_entry();
 		set_transient(
@@ -106,6 +105,5 @@ function openstation_living_tree_snapshot_fields() {
 }
 
 function openstation_living_tree_filter_snapshot( $snapshot ) {
-
 	return apply_filters( 'openstation_living_tree_snapshot', $snapshot );
 }

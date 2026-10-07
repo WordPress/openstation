@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group code-blue
+ */
 
 use OpenStation\App\State;
 use function OpenStation\Apps\CodeBlue\level_map;
@@ -35,7 +39,6 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 			}
 		}
 		$this->temp_files = array();
-
 		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
 			openstation_unregister_icon( $id );
 		}
@@ -72,6 +75,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
 	public function test_parse_warning_with_on_line_location() {
 		$entries = parse( '[22-Aug-2026 09:14:02 UTC] PHP Warning:  Undefined array key "foo" in /srv/wp-content/plugins/x/x.php on line 12' );
 
@@ -84,6 +90,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( strtotime( '2026-08-22 09:14:02 UTC' ), $entries[0]['timestamp'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
 	public function test_parse_fatal_with_colon_location_and_attached_trace() {
 		$raw     = "[22-Aug-2026 09:14:02 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function foo() in /srv/x.php:3\nStack trace:\n#0 {main}\n  thrown in /srv/x.php on line 3";
 		$entries = parse( $raw );
@@ -95,6 +104,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertStringContainsString( "Stack trace:\n#0 {main}", $entries[0]['trace'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
 	public function test_parse_database_error_moves_the_query_into_the_trace() {
 		$entries = parse( "[22-Aug-2026 09:14:02 UTC] WordPress database error Table 'wp.nope' doesn't exist for query SELECT * FROM nope made by require('wp-blog-header.php')" );
 
@@ -103,6 +115,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( "Query: SELECT * FROM nope\nMade by: require('wp-blog-header.php')", $entries[0]['trace'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
 	public function test_parse_strips_markup_but_keeps_a_bare_angle_bracket() {
 		$entries = parse( "[22-Aug-2026 09:14:02 UTC] PHP Notice:  Function <strong>foo</strong> is <code>bad</code> in /a.php on line 1\n[22-Aug-2026 09:14:03 UTC] PHP Parse error:  syntax error, unexpected '<' in /b.php on line 2" );
 
@@ -111,6 +126,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( '/b.php', $entries[1]['file'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
 	public function test_parse_keeps_untimestamped_lines_as_their_own_entries() {
 		$entries = parse( "first plain line\nsecond plain line\n[22-Aug-2026 09:14:02 UTC] custom message" );
 
@@ -120,6 +138,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( 'custom message', $entries[2]['message'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\origin
+	 */
 	public function test_origin_reads_ownership_off_the_path() {
 		$content = '/var/www/html/wp-content';
 
@@ -130,7 +151,6 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 			),
 			origin( $content . '/plugins/woocommerce/includes/class-wc.php', $content )
 		);
-
 		$this->assertSame(
 			array(
 				'kind' => 'plugin',
@@ -160,6 +180,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( 'unknown', origin( $content . '/plugins/woocommerce/x.php', '' )['kind'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\read
+	 */
 	public function test_read_attributes_every_entry_including_filtered_ones() {
 		$this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Warning:  Boom in /a.php on line 1\n" );
 		add_filter(
@@ -183,6 +206,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\signature
+	 */
 	public function test_signature_collapses_numbers_and_addresses() {
 		$this->assertSame(
 			signature( 'warning', 'Allowed memory 0x1f exhausted at 12345', '/a.php' ),
@@ -191,6 +217,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertNotSame( signature( 'warning', 'x', '/a.php' ), signature( 'notice', 'x', '/a.php' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\tail
+	 */
 	public function test_tail_reads_the_end_and_drops_the_partial_first_line() {
 		$path = $this->make_temp_log( str_repeat( "line one is here\n", 100 ) );
 		$tail = tail( $path, 100 );
@@ -204,6 +233,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( 1700, $whole['scanned_bytes'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\sources
+	 */
 	public function test_sources_normalise_and_skip_malformed_entries() {
 		$path = $this->make_temp_log( 'x' );
 		add_filter(
@@ -245,12 +277,15 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->fail( "No log source registered under '$id'." );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\level_map
+	 * @covers \OpenStation\Apps\CodeBlue\parse
+	 */
 	public function test_every_php_error_label_maps_to_its_severity() {
 		$lines = array();
 		foreach ( array_keys( level_map() ) as $label ) {
 			$lines[] = sprintf( '[22-Aug-2026 09:14:02 UTC] PHP %s:  %s happened', ucfirst( $label ), $label );
 		}
-
 		$lines[] = '[22-Aug-2026 09:14:03 UTC] PHP Something else:  who knows';
 
 		$entries = parse( implode( "\n", $lines ) . "\n" );
@@ -260,6 +295,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( 'info', end( $levels ) );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\read
+	 */
 	public function test_read_entries_are_filterable() {
 		$this->make_temp_log( "not a php log line\n" );
 		add_filter(
@@ -277,6 +315,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( 'Custom', $result['entries'][0]['label'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\read
+	 */
 	public function test_read_caps_entries_keeping_newest() {
 		$lines = array();
 		for ( $i = 1; $i <= 150; $i++ ) {
@@ -304,6 +345,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'entry 150', end( $result['entries'] )['message'] );
 	}
 
+	/**
+	 * @covers ::openstation_app
+	 */
 	public function test_the_app_is_loaded_from_apps_with_its_chrome() {
 		$app = openstation_app( 'openstation-code-blue' );
 		$this->assertNotNull( $app );
@@ -322,13 +366,15 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( array( 'refresh', 'source', 'clear' ), $manifest['actions'], 'Only the actions that need the server are server actions.' );
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_host_ships_the_client_view_with_the_window() {
 		wp_set_current_user( self::$admin_id );
 		openstation_apps_register_windows();
 
 		$entry = openstation_native_window_registry( 'openstation-code-blue' );
 		$this->assertIsArray( $entry );
-
 		$this->assertTrue(
 			$entry['config']['client'],
 			'No built client view found — run `npm run build:apps` (or `npm run build`) first.'
@@ -337,6 +383,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'assets/js/apps/code-blue', wp_scripts()->registered['openstation-app-openstation-code-blue-client']->src );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\can_use
+	 */
 	public function test_gate_requires_developer_mode_and_site_management() {
 		$app = openstation_app( 'openstation-code-blue' );
 		$os  = openstation_apps_os();
@@ -355,6 +404,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( $os ) );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\can_use
+	 */
 	public function test_gate_denies_site_admin_on_multisite() {
 		if ( ! is_multisite() ) {
 			$this->markTestSkipped( 'Multisite-only behavior.' );
@@ -367,6 +419,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_mount_picks_the_first_usable_source_and_paints_the_log() {
 		wp_set_current_user( self::$admin_id );
 		$this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Warning:  Needle in haystack in /srv/wp-content/plugins/x/x.php on line 12\n" );
@@ -388,6 +443,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertIsInt( $data['now'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_the_instant_interactions_never_reach_the_server() {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'openstation_code_blue_log_sources', '__return_empty_array', 5 );
@@ -397,6 +455,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_switching_source_refreshes_the_data_and_collapses_rows() {
 		wp_set_current_user( self::$admin_id );
 		$this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Fatal error:  Boom in /srv/x.php:3\nStack trace:\n#0 {main}\n" );
@@ -410,6 +471,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( 'fatal', $response['data']['entries'][0]['level'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\CodeBlue\clear
+	 */
 	public function test_clear_truncates_the_log_and_toasts() {
 		wp_set_current_user( self::$admin_id );
 		$path = $this->make_temp_log( "[22-Aug-2026 09:14:02 UTC] PHP Warning:  Gone soon in /a.php on line 1\n" );
@@ -434,6 +498,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertSame( 0, $response['data']['source']['size'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_state_from_the_client_is_bounded_by_the_schema() {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'openstation_code_blue_log_sources', '__return_empty_array', 5 );
@@ -456,6 +523,9 @@ class Tests_OpenStation_CodeBlue extends WP_UnitTestCase {
 		$this->assertNull( $response['data']['source'], 'No sources at all: the client paints its empty state.' );
 	}
 
+	/**
+	 * @covers ::openstation_apps_rest_permission
+	 */
 	public function test_rest_route_is_closed_to_users_outside_the_gate() {
 		wp_set_current_user( self::$editor_id );
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/apps/openstation-code-blue/dispatch' );

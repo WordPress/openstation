@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group icons
+ */
 class Tests_OpenStation_WpIconRegistry extends WP_UnitTestCase {
 
 	const CORE_ALLOWLIST = array(
@@ -40,6 +43,9 @@ class Tests_OpenStation_WpIconRegistry extends WP_UnitTestCase {
 		return file_get_contents( OPENSTATION_DIR . 'assets/icons/' . $slug . '.svg' );
 	}
 
+	/**
+	 * @dataProvider data_icons
+	 */
 	public function test_icon_file_exists( $slug ) {
 		$this->assertFileIsReadable( OPENSTATION_DIR . 'assets/icons/' . $slug . '.svg' );
 	}
@@ -60,6 +66,9 @@ class Tests_OpenStation_WpIconRegistry extends WP_UnitTestCase {
 		$this->assertSame( $registered, $on_disk );
 	}
 
+	/**
+	 * @dataProvider data_icons
+	 */
 	public function test_icon_survives_core_sanitisation( $slug ) {
 		$before = $this->markup( $slug );
 		$after  = wp_kses( $before, self::CORE_ALLOWLIST );
@@ -72,6 +81,9 @@ class Tests_OpenStation_WpIconRegistry extends WP_UnitTestCase {
 		$this->assertStringContainsString( ' d="', $after, "{$slug} lost its geometry." );
 	}
 
+	/**
+	 * @dataProvider data_icons
+	 */
 	public function test_icon_does_not_rely_on_a_stroke( $slug ) {
 		$this->assertStringNotContainsString(
 			'stroke',
@@ -81,6 +93,9 @@ class Tests_OpenStation_WpIconRegistry extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @dataProvider data_icons
+	 */
 	public function test_icon_uses_only_allowed_elements( $slug ) {
 		$markup = $this->markup( $slug );
 
@@ -93,6 +108,9 @@ class Tests_OpenStation_WpIconRegistry extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @dataProvider data_icons
+	 */
 	public function test_icon_inherits_text_color( $slug ) {
 		$markup = $this->markup( $slug );
 

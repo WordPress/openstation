@@ -20,7 +20,6 @@ function openstation_chromeless_submenu_tab_urls() {
 		if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
 			continue;
 		}
-
 		if ( '' === openstation_menu_item_title( $sub_item[0] ?? '' ) ) {
 			continue;
 		}

@@ -6,7 +6,6 @@ describe( 'formatBytes', () => {
 		expect( formatBytes( 0 ) ).toBe( '0 B' );
 		expect( formatBytes( 844 ) ).toBe( '844 B' );
 		expect( formatBytes( 1024 * 1024 * 1.25 ) ).toBe( '1.3 MB' );
-
 		expect( formatBytes( 563200 ) ).toBe( '550 KB' );
 	} );
 } );
@@ -24,7 +23,6 @@ describe( 'formatDate', () => {
 
 	it( 'reads a bare YYYY-MM as that month, local time', () => {
 		expect( formatDate( '2026-08', 'month' ) ).toContain( '2026' );
-
 		expect( formatDate( '2026-08', 'iso' ) ).toBe(
 			new Date( '2026-08-01T00:00:00' ).toISOString(),
 		);

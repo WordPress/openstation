@@ -50,9 +50,7 @@ const BLINK_DURATION = 0.14;
 const HANDLE_SCALE = 2.1;
 
 const AMBIENT_RAKE_RATE = 0.42;
-
 const FULL_RAKE_SPEED = 900;
-
 const MORPH_SECONDS = 2.6;
 
 const MAX_RIM_POINTS = 64;
@@ -104,7 +102,6 @@ export async function mountMio(
 		autoDensity: true,
 		resolution: Math.min( window.devicePixelRatio || 1, 2 ),
 	} );
-
 	if ( ! host.isConnected ) {
 		app.destroy( { removeView: true }, { children: true, texture: true } );
 		return null;
@@ -138,11 +135,8 @@ export async function mountMio(
 		: defaultStart( size(), config.appearance.radius );
 
 	let morphFrom: MioShapePreset | null = null;
-
 	let morphAt = 0;
-
 	let nextShuffle = shuffleDelay( config.physics.shapeShuffle );
-
 	let shape: MioShapePreset = config.physics.shapePreset;
 
 	const profile = ( angle: number ): number => {
@@ -176,7 +170,6 @@ export async function mountMio(
 		morphFrom = shape;
 		morphAt = 0;
 		shape = next;
-
 		nextShuffle = shuffleDelay( config.physics.shapeShuffle );
 		doAction( 'os.mio.shape-changed', { shape, from: morphFrom } );
 	};
@@ -243,7 +236,6 @@ export async function mountMio(
 	let dragging = false;
 	let anchor: { x: number; y: number } | null = null;
 	let persistentAnchor = false;
-
 	let trappedFor = 0;
 	let dragPointerId: number | null = null;
 	let dragTarget: { x: number; y: number } | null = null;
@@ -252,11 +244,9 @@ export async function mountMio(
 	let tiltAngle = 0;
 	let thinking = 0;
 	let tilt = { x: 1, y: 0 };
-
 	let reducedMotion =
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
-
 	let driftVx = 0;
 	let driftVy = 0;
 	let lastCore = { x: body.core.x, y: body.core.y };
@@ -334,7 +324,6 @@ export async function mountMio(
 	const clampTarget = ( p: { x: number; y: number } ): { x: number; y: number } => {
 		const bounds = size();
 		const r = body.radius;
-
 		const clear = clampOutsideChrome( p, r, obstacles );
 		return {
 			x: clamp( clear.x, r, Math.max( r, bounds.width - r ) ),
@@ -351,7 +340,6 @@ export async function mountMio(
 			anchor = null;
 		}
 		dragPointerId = e.pointerId;
-
 		const local = toLayer( { x: e.clientX, y: e.clientY } );
 		dragGrab = { x: body.core.x - local.x, y: body.core.y - local.y };
 		dragTarget = { x: body.core.x, y: body.core.y };
@@ -363,7 +351,6 @@ export async function mountMio(
 		try {
 			handle.setPointerCapture( e.pointerId );
 		} catch {
-
 		}
 		e.preventDefault();
 		doAction( 'os.mio.grabbed', { position: toViewport() } );
@@ -406,13 +393,11 @@ export async function mountMio(
 			try {
 				handle.releasePointerCapture( pointerId );
 			} catch {
-
 			}
 		}
 
 		if ( throwIt ) {
 			const boost = config.physics.throwBoost;
-
 			const maxSpeed = 4000;
 			const speed = Math.hypot( flickVx, flickVy );
 			const scale =
@@ -453,7 +438,6 @@ export async function mountMio(
 	handle.addEventListener( 'pointerdown', onHandleDown );
 	handle.addEventListener( 'contextmenu', onHandleContextMenu );
 	handle.addEventListener( 'lostpointercapture', onLostCapture );
-
 	window.addEventListener( 'pointermove', onDragMove, true );
 	window.addEventListener( 'pointerup', onDragEnd, true );
 	window.addEventListener( 'pointercancel', onDragCancel, true );
@@ -536,7 +520,6 @@ export async function mountMio(
 		stepSoftBody( body, seconds, {
 			physics: config.physics,
 			magnet,
-
 			obstacles: solid,
 			bounds,
 			dragTarget,
@@ -571,7 +554,6 @@ export async function mountMio(
 		if ( destroyed ) {
 			return;
 		}
-
 		if (
 			! host.isConnected ||
 			host.clientWidth <= 0 ||
@@ -582,9 +564,7 @@ export async function mountMio(
 		const { width, height } = size();
 		resizeMioCanvas( app, { width, height }, () => {
 			origin = originOf();
-
 			desk.reset();
-
 			const r = body.radius;
 			const x = clamp( body.core.x, r, Math.max( r, width - r ) );
 			const y = clamp( body.core.y, r, Math.max( r, height - r ) );
@@ -686,7 +666,6 @@ export async function mountMio(
 				return;
 			}
 			destroyed = true;
-
 			if ( host.isConnected ) {
 				savePosition( toViewport() );
 			}
@@ -705,7 +684,6 @@ export async function mountMio(
 			window.removeEventListener( 'blur', onWindowBlur );
 			handle.remove();
 			pointer.destroy();
-
 			app.destroy( { removeView: true }, { children: true, texture: true } );
 			doAction( 'os.mio.unmounted', {} );
 		},
@@ -720,9 +698,7 @@ function calmed( config: MioConfig ): MioConfig {
 		return config;
 	}
 	return {
-
 		appearance: { ...config.appearance, hueDrift: 0, hueSpin: 0 },
-
 		physics: { ...config.physics, floatAmplitude: 0, shapeShuffle: 0 },
 	};
 }
@@ -743,14 +719,12 @@ function buildLayers(
 
 	halo.blendMode = 'add';
 	bloom.blendMode = 'add';
-
 	sheen.blendMode = 'add';
 
 	root.addChild( halo );
 	root.addChild( bloom );
 	root.addChild( body );
 	root.addChild( sheen );
-
 	root.addChild( liner );
 	root.addChild( core );
 	root.addChild( eyes );
@@ -797,7 +771,6 @@ function applyGlow(
 				new pixi.BlurFilter( {
 					strength: blur,
 					quality: 2,
-
 					blendMode: GLOW_BLEND,
 				} ),
 			];
@@ -825,7 +798,6 @@ function applySheenBlur(
 					Math.max( 3, config.appearance.radius * 0.12 ),
 				),
 				quality: 2,
-
 				blendMode: GLOW_BLEND,
 			} ),
 		];

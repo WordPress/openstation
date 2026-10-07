@@ -57,7 +57,6 @@ describe( 'Mio wears the brand', () => {
 	} );
 
 	test( 'and does not overshoot it at either end', () => {
-
 		const hues = ring().map( ( c ) => hsl( c ).h );
 		for ( const h of hues ) {
 			expect( h ).toBeLessThanOrEqual( MIOMESH[ 0 ].hue + 0.6 );
@@ -76,15 +75,12 @@ describe( 'Mio wears the brand', () => {
 	} );
 
 	test( 'Pulse sits on the upper-left shoulder, blue on the lower-right', () => {
-
 		expect( hueAt( 225 ) ).toBeCloseTo( MIOMESH[ 0 ].hue, 0 );
 		expect( hueAt( 45 ) ).toBeCloseTo( MIOMESH[ 3 ].hue, 0 );
-
 		expect( hueAt( 180 ) ).toBeGreaterThan( hueAt( 0 ) );
 	} );
 
 	test( 'the ring is never darker than Miomesh at its brightest', () => {
-
 		const brightest = Math.max( ...MIOMESH.map( ( s ) => hsl( s.rgb ).l ) );
 		const lit = Math.max( ...ring().map( ( c ) => hsl( c ).l ) );
 		expect( lit ).toBeCloseTo( brightest, 2 );
@@ -96,24 +92,19 @@ describe( 'Mio wears the brand', () => {
 	} );
 
 	test( 'the flat colours are named palette colours', () => {
-
 		expect( MIO_DEFAULTS.appearance.bodyColor ).toBe( VOID );
 		expect( MIO_DEFAULTS.appearance.eyeColor ).toBe( STARLIGHT );
-
 		expect( MIO_DEFAULTS.appearance.linerColor ).toBe( STARLIGHT );
 	} );
 
 	test( 'and the inner line the artwork draws is really there', () => {
-
 		expect( MIO_DEFAULTS.appearance.linerWidth ).toBeGreaterThan( 0 );
 	} );
 
 	test( 'the shipped look really is the flat gradient, not the hologram', () => {
-
 		expect( MIO_DEFAULTS.appearance.iridescence ).toBe( 0 );
 		expect( MIO_DEFAULTS.appearance.hueDrift ).toBe( 0 );
 		expect( MIO_DEFAULTS.appearance.hueSpin ).toBe( 0 );
-
 		expect( MIO_DEFAULTS.appearance.hueLoop ).toBe( true );
 	} );
 } );

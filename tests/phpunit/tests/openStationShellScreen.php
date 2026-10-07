@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-shell-screen
+ */
 class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -42,10 +45,16 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_shell_url
+	 */
 	public function test_shell_url_is_the_hidden_admin_page() {
 		$this->assertSame( admin_url( 'admin.php?page=openstation' ), openstation_shell_url() );
 	}
 
+	/**
+	 * @covers ::openstation_shell_url
+	 */
 	public function test_shell_url_carries_target_as_path_and_query_only() {
 		$url = openstation_shell_url( admin_url( 'edit.php?post_type=page' ), true );
 
@@ -55,10 +64,16 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( rawurlencode( home_url() ), $url );
 	}
 
+	/**
+	 * @covers ::openstation_shell_url
+	 */
 	public function test_shell_url_omits_intent_without_a_target() {
 		$this->assertStringNotContainsString( 'intent=', openstation_shell_url( '', true ) );
 	}
 
+	/**
+	 * @covers ::openstation_url_is_shell_screen
+	 */
 	public function test_url_is_shell_screen_recognises_the_page() {
 		$this->assertTrue( openstation_url_is_shell_screen( openstation_shell_url() ) );
 		$this->assertTrue( openstation_url_is_shell_screen( '/wp-admin/admin.php?page=openstation&target=x' ) );
@@ -68,6 +83,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertFalse( openstation_url_is_shell_screen( '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_shell_screen
+	 */
 	public function test_screen_is_registered_and_hidden() {
 		global $submenu, $menu, $_registered_pages;
 		$menu_backup    = $menu;
@@ -83,7 +101,6 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 			$this->assertSame( 'read', $submenu[''][0][1] );
 			$this->assertArrayHasKey( OPENSTATION_SHELL_SCREEN_ID, $_registered_pages );
 			$this->assertTrue( has_action( OPENSTATION_SHELL_SCREEN_ID, 'openstation_render_shell_screen' ) !== false );
-
 			$this->assertSame( array(), $menu );
 		} finally {
 			$menu    = $menu_backup;
@@ -92,6 +109,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_register_shell_screen
+	 */
 	public function test_screen_registers_for_a_subscriber() {
 		global $submenu, $_wp_submenu_nopriv;
 		wp_set_current_user( self::$subscriber_id );
@@ -109,6 +129,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_is_shell_screen_request
+	 */
 	public function test_screen_request_is_detected_from_the_current_screen() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$this->assertTrue( openstation_is_shell_screen_request() );
@@ -118,22 +141,34 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_shell_screen_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_shell_request
+	 */
 	public function test_shell_request_is_true_on_the_screen_for_an_enabled_user() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$this->assertTrue( openstation_is_shell_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_shell_request
+	 */
 	public function test_shell_request_is_false_on_the_dashboard() {
 		set_current_screen( 'dashboard' );
 		$this->assertFalse( openstation_is_shell_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_shell_request
+	 */
 	public function test_shell_request_is_false_for_a_disabled_user() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$this->assertFalse( openstation_is_shell_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_shell_request
+	 */
 	public function test_shell_request_is_false_inside_a_window_and_on_a_classic_request() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 
@@ -145,12 +180,20 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_shell_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_shell_request
+	 */
 	public function test_shell_request_is_true_for_a_solo_boot_off_the_screen() {
 		set_current_screen( 'dashboard' );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
 		$this->assertTrue( openstation_is_shell_request() );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 * @covers ::openstation_admin_body_classes
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_shell_paints_only_on_the_screen() {
 		set_current_screen( 'dashboard' );
 		ob_start();
@@ -169,6 +212,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'openstation', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell_screen
+	 */
 	public function test_page_callback_prints_nothing_under_the_shell_and_a_way_in_without_it() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		ob_start();
@@ -182,6 +228,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertStringContainsString( esc_url( openstation_portal_url() ), $out );
 	}
 
+	/**
+	 * @covers ::openstation_shell_screen_set_title
+	 */
 	public function test_screen_sets_a_title_for_admin_header() {
 		$GLOBALS['title'] = null;
 		openstation_shell_screen_set_title();
@@ -194,6 +243,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		unset( $GLOBALS['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_shell_screen
+	 */
 	public function test_screen_registration_wires_the_title_to_its_load_hook() {
 		remove_action(
 			'load-' . OPENSTATION_SHELL_SCREEN_ID,
@@ -210,6 +262,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_shell_boot_target
+	 */
 	public function test_boot_target_reads_an_explicit_target_with_intent() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$_GET[ OPENSTATION_SHELL_TARGET_ARG ] = '/wp-admin/edit.php?post_type=page';
@@ -222,6 +277,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertTrue( $boot['fromPortalIntent'] );
 	}
 
+	/**
+	 * @covers ::openstation_shell_boot_target
+	 */
 	public function test_boot_target_falls_back_on_an_invalid_target_and_drops_intent() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$_GET[ OPENSTATION_SHELL_TARGET_ARG ] = 'https://evil.example/wp-admin/edit.php';
@@ -234,6 +292,10 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertFalse( $boot['fromPortalIntent'] );
 	}
 
+	/**
+	 * @covers ::openstation_shell_boot_target
+	 * @covers ::openstation_sanitize_portal_target
+	 */
 	public function test_boot_target_refuses_the_shell_screen_as_a_target() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$_GET[ OPENSTATION_SHELL_TARGET_ARG ] = '/wp-admin/admin.php?page=openstation&target=x';
@@ -246,6 +308,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertFalse( $boot['fromPortalIntent'] );
 	}
 
+	/**
+	 * @covers ::openstation_shell_boot_target
+	 */
 	public function test_boot_target_without_a_target_is_the_focused_session_window() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		openstation_save_session(
@@ -275,6 +340,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertFalse( $boot['fromPortalIntent'] );
 	}
 
+	/**
+	 * @covers ::openstation_portal_entry_url
+	 */
 	public function test_entry_url_refuses_a_focused_window_on_the_shell_screen() {
 		openstation_save_session(
 			self::$admin_id,
@@ -299,6 +367,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertSame( admin_url( 'index.php' ), openstation_portal_entry_url( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_shell_boot_target
+	 */
 	public function test_boot_target_for_a_native_default_window_is_the_dashboard_file() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$this->assertTrue( openstation_set_default_window( self::$admin_id, 'native:os-settings' ) );
@@ -309,6 +380,10 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertFalse( $boot['fromPortalIntent'] );
 	}
 
+	/**
+	 * @covers ::openstation_shell_boot_target_meta
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_boot_meta_and_config_take_title_and_icon_from_the_dock() {
 		$dock = array(
 			array(
@@ -378,6 +453,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-post', $received['currentIcon'] );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_a_dashboard_only_enqueue_never_reaches_the_shell() {
 		wp_register_script( 'acme-editor', 'https://example.com/editor.js', array(), '1', true );
 		wp_register_script( 'acme-dashboard-loader', 'https://example.com/loader.js', array( 'acme-editor' ), '1', true );
@@ -389,7 +467,6 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		add_action( 'admin_enqueue_scripts', $enqueue_on_dashboard );
 
 		try {
-
 			set_current_screen( 'dashboard' );
 			do_action( 'admin_enqueue_scripts', 'index.php' );
 			$this->assertTrue( wp_script_is( 'acme-dashboard-loader', 'enqueued' ) );
@@ -406,6 +483,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_shell_dequeue_assets
+	 */
 	public function test_dequeue_filter_drops_a_named_handle_and_leaves_its_now_orphaned_dependency_unprinted() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_register_script( 'acme-nag-core', 'https://example.com/nag-core.js', array(), '1', true );
@@ -426,12 +506,14 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 
 		$this->assertFalse( wp_script_is( 'acme-nag', 'enqueued' ) );
 		$this->assertFalse( wp_style_is( 'acme-nag-style', 'enqueued' ) );
-
 		$this->assertTrue( wp_script_is( 'acme-nag', 'registered' ) );
-
 		$this->assertNotContains( 'acme-nag-core', openstation_script_dependency_closure( wp_scripts(), wp_scripts()->queue ) );
 	}
 
+	/**
+	 * @covers ::openstation_shell_dequeue_assets
+	 * @expectedIncorrectUsage openstation_shell_dequeue_assets
+	 */
 	public function test_dequeue_filter_refuses_a_handle_a_survivor_depends_on() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_register_script( 'acme-nag-core', 'https://example.com/nag-core.js', array(), '1', true );
@@ -453,6 +535,9 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'acme-keep', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_shell_dequeue_assets
+	 */
 	public function test_dequeue_filter_is_inert_off_the_screen() {
 		set_current_screen( 'dashboard' );
 		wp_register_script( 'acme-nag', 'https://example.com/nag.js', array(), '1', true );

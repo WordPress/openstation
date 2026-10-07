@@ -58,7 +58,6 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'every canvas lays out on the same pitch', () => {
-
 		expect( GRID_METRICS ).toEqual( {
 			w: GRID_CELL_W,
 			h: GRID_CELL_H,
@@ -72,7 +71,6 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'there is a visible gap between neighbouring tiles', () => {
-
 		expect( GRID_GAP_X ).toBeGreaterThanOrEqual( 12 );
 		expect( GRID_GAP_Y ).toBeGreaterThanOrEqual( 12 );
 	} );
@@ -82,16 +80,13 @@ describe( 'icon grid metrics', () => {
 		const rule = /\.os-file-tile \{([\s\S]*?)\n\}/.exec( files );
 		expect( rule ).not.toBeNull();
 		const body = rule![ 1 ];
-
 		expect( body ).toMatch( /box-sizing:\s*border-box/ );
 		expect( body ).toMatch( /width:\s*var\(\s*--os-tile-w/ );
-
 		expect( body ).toMatch( /\n\theight:\s*var\(\s*--os-tile-h/ );
 		expect( body ).not.toMatch( /min-height:\s*var\(\s*--os-tile-h/ );
 	} );
 
 	test( 'the fixed height fits the tallest a tile can be', () => {
-
 		const files = css( 'assets/css/desktop-files.css' );
 		const label = /\.os-file-tile__label \{([\s\S]*?)\n\}/.exec( files );
 		const fontSize = Number(
@@ -108,7 +103,6 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'flow-laid tiles opt OUT of the fixed height', () => {
-
 		const mw = css( 'assets/css/my-wordpress.css' );
 		const rule = /\.os-my-wordpress__media-tile \{([\s\S]*?)\n\}/.exec( mw );
 		expect( rule ).not.toBeNull();
@@ -116,7 +110,6 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'image-led sections re-point the tokens instead of overriding width', () => {
-
 		const mw = css( 'assets/css/my-wordpress.css' );
 		const rule = /\.os-my-wordpress__tiles--large \{([\s\S]*?)\n\}/.exec( mw );
 		expect( rule ).not.toBeNull();
@@ -125,7 +118,6 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'flow-laid canvases use the same gaps as the absolute ones', () => {
-
 		const mw = css( 'assets/css/my-wordpress.css' );
 		for ( const selector of [
 			'os-my-wordpress__media-grid',
@@ -145,7 +137,6 @@ describe( 'icon grid metrics', () => {
 	} );
 
 	test( 'the grid tokens are scoped to the shell, not :root', () => {
-
 		const shellScope = variables.slice(
 			variables.indexOf( 'body.os-active {' ),
 		);

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_Files_RestRedaction extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -52,6 +55,9 @@ class Tests_OpenStation_Files_RestRedaction extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_shape_placement
+	 */
 	public function test_shape_placement_redacts_access_gated_rows() {
 		$shape = openstation_files_shape_placement(
 			$this->placement_row( array( 'access_gated' => true ) )
@@ -74,6 +80,9 @@ class Tests_OpenStation_Files_RestRedaction extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_shape_placement
+	 */
 	public function test_shape_placement_serializes_normally_without_access_gate() {
 		$shape = openstation_files_shape_placement( $this->placement_row() );
 
@@ -90,6 +99,9 @@ class Tests_OpenStation_Files_RestRedaction extends WP_UnitTestCase {
 		return $req;
 	}
 
+	/**
+	 * @covers ::openstation_files_check_if_match
+	 */
 	public function test_if_match_409_hides_parent_identity_from_out_of_scope_viewer() {
 		$folder_id    = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Secret' ) );
 		$placement_id = openstation_files_place( self::$owner_id, $folder_id, 'post', (string) self::$post_id );
@@ -110,6 +122,9 @@ class Tests_OpenStation_Files_RestRedaction extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_check_if_match
+	 */
 	public function test_if_match_409_keeps_parent_identity_for_in_scope_viewer() {
 		$folder_id    = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Secret' ) );
 		$placement_id = openstation_files_place( self::$owner_id, $folder_id, 'post', (string) self::$post_id );
@@ -124,6 +139,9 @@ class Tests_OpenStation_Files_RestRedaction extends WP_UnitTestCase {
 		$this->assertSame( 'Secret', $data['data']['current']['parentName'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_shape_folder
+	 */
 	public function test_share_summary_recipient_count_is_owner_only() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Team' ) );
 		$share_id  = openstation_folder_share_invite( $folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read' );

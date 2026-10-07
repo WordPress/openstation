@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -46,6 +49,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_eligible_post_types
+	 */
 	public function test_eligible_includes_public_cpt() {
 		$this->register_type( 'dm_book' );
 
@@ -54,6 +60,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'dm_book', $types );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_eligible_post_types
+	 */
 	public function test_eligible_excludes_builtin_types() {
 		$types = openstation_my_wordpress_eligible_post_types();
 
@@ -63,6 +72,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'wp_block', $types );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_eligible_post_types
+	 */
 	public function test_eligible_excludes_types_without_ui() {
 		$this->register_type( 'dm_hidden', array( 'show_ui' => false ) );
 
@@ -71,6 +83,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'dm_hidden', $types );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_eligible_post_types
+	 */
 	public function test_eligible_excludes_plugin_internal_types() {
 		$types = openstation_my_wordpress_eligible_post_types();
 
@@ -82,6 +97,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_eligible_post_types
+	 */
 	public function test_eligible_respects_capability() {
 		$this->register_type(
 			'dm_private',
@@ -97,6 +115,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'dm_private', $types );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_eligible_post_types
+	 */
 	public function test_post_types_filter_can_drop_a_type() {
 		$this->register_type( 'dm_book' );
 
@@ -112,6 +133,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'dm_book', $types );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_rest_path
+	 */
 	public function test_rest_path_uses_wp_v2_for_rest_exposed_types() {
 		$this->register_type( 'dm_book', array( 'rest_base' => 'books' ) );
 
@@ -120,6 +144,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertSame( 'wp/v2/books', $path );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_rest_path
+	 */
 	public function test_rest_path_uses_bridge_for_non_rest_types() {
 		$this->register_type( 'dm_norest', array( 'show_in_rest' => false ) );
 
@@ -128,12 +155,18 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertSame( 'desktop-mode/v1/post-type/dm_norest', $path );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_is_bridged
+	 */
 	public function test_rest_exposed_types_are_not_bridged() {
 		$this->register_type( 'dm_book' );
 
 		$this->assertFalse( openstation_my_wordpress_post_type_is_bridged( 'dm_book' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_is_bridged
+	 */
 	public function test_bridge_can_be_vetoed_per_type() {
 		$this->register_type( 'dm_norest', array( 'show_in_rest' => false ) );
 
@@ -151,6 +184,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertFalse( openstation_my_wordpress_post_type_is_bridged( 'dm_norest' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_eligible_post_types
+	 */
 	public function test_vetoed_non_rest_type_is_not_eligible() {
 		$this->register_type( 'dm_norest', array( 'show_in_rest' => false ) );
 
@@ -161,6 +197,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'dm_norest', $types );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_entity
+	 */
 	public function test_entity_shape() {
 		$this->register_type( 'dm_book', array( 'menu_icon' => 'dashicons-book' ) );
 
@@ -174,6 +213,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertTrue( $entity['thumbnails'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_entity
+	 */
 	public function test_entity_thumbnails_follows_post_type_support() {
 		$this->register_type( 'dm_book', array( 'supports' => array( 'title' ) ) );
 
@@ -182,6 +224,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertFalse( $entity['thumbnails'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_icon
+	 */
 	public function test_icon_falls_back_when_menu_icon_is_absent_or_none() {
 		$this->register_type( 'dm_book', array( 'menu_icon' => 'none' ) );
 
@@ -191,6 +236,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_icon
+	 */
 	public function test_icon_passes_through_data_uris() {
 		$uri = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
 		$this->register_type( 'dm_book', array( 'menu_icon' => $uri ) );
@@ -201,6 +249,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_append_post_type_entities
+	 */
 	public function test_entities_filter_appends_cpt_sections() {
 		$this->register_type( 'dm_book' );
 
@@ -211,6 +262,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertContains( 'cpt-dm_book', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_append_post_type_entities
+	 */
 	public function test_existing_section_is_not_duplicated() {
 		$this->register_type( 'dm_book' );
 
@@ -236,6 +290,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertNotContains( 'cpt-dm_book', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_group_for_path
+	 */
 	public function test_group_for_path_resolves_a_plugin_folder() {
 		$group = openstation_my_wordpress_group_for_path(
 			trailingslashit( wp_normalize_path( WP_PLUGIN_DIR ) ) . 'acme-shop/includes/types.php'
@@ -244,10 +301,12 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertIsArray( $group );
 		$this->assertSame( 'plugin:acme-shop', $group['id'] );
 		$this->assertSame( 'dashicons-admin-plugins', $group['icon'] );
-
 		$this->assertSame( 'acme-shop', $group['label'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_group_for_path
+	 */
 	public function test_group_for_path_resolves_a_theme() {
 		$theme = wp_get_theme();
 		$group = openstation_my_wordpress_group_for_path(
@@ -261,6 +320,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertSame( (string) $theme->get( 'Name' ), $group['label'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_group_for_path
+	 */
 	public function test_group_for_path_returns_null_outside_extensions() {
 		$this->assertNull(
 			openstation_my_wordpress_group_for_path( ABSPATH . 'wp-includes/post.php' )
@@ -268,6 +330,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertNull( openstation_my_wordpress_group_for_path( '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_group
+	 */
 	public function test_group_filter_can_override_attribution() {
 		$this->register_type( 'dm_book' );
 
@@ -291,6 +356,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertSame( 5, $entity['groupOrder'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_collect_groups
+	 */
 	public function test_collect_groups_dedupes_and_orders() {
 		$entities = array(
 			array( 'id' => 'posts' ),
@@ -324,6 +392,9 @@ class Tests_OpenStation_MyWordpressPostTypes extends WP_UnitTestCase {
 		$this->assertSame( 'theme:twenty', $groups[1]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_collect_groups
+	 */
 	public function test_collect_groups_is_filterable() {
 		add_filter(
 			'openstation_my_wordpress_post_type_groups',

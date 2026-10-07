@@ -83,7 +83,6 @@ function openstation_recycle_bin_get_items( $args = array() ) {
 	}
 
 	$items_files = array();
-
 	$wanted_files_types = array();
 	switch ( $type ) {
 		case '':
@@ -260,7 +259,7 @@ function openstation_recycle_bin_shape_comment_item( $comment ) {
 
 	$title = '' !== $parent_text
 		? sprintf(
-
+			/* translators: 1: comment author. 2: parent post title. */
 			__( '%1$s on %2$s', 'desktop-mode' ),
 			$author,
 			$parent_text
@@ -301,7 +300,6 @@ function openstation_recycle_bin_plain_text( $text ) {
 }
 
 function openstation_recycle_bin_excerpt( $text ) {
-
 	$text = str_replace( '<', "\x1A", openstation_recycle_bin_plain_text( $text ) );
 
 	return str_replace( "\x1A", '<', wp_trim_words( $text, 18, '…' ) );
@@ -323,7 +321,6 @@ function openstation_recycle_bin_shape_item( $post ) {
 	$subtitle = '';
 
 	if ( 'attachment' === $type ) {
-
 		$thumb = wp_get_attachment_image_src( $post->ID, array( 64, 64 ), true );
 		if ( is_array( $thumb ) ) {
 			$preview = (string) $thumb[0];
@@ -338,7 +335,6 @@ function openstation_recycle_bin_shape_item( $post ) {
 		$icon     = 'dashicons-admin-page';
 		$subtitle = openstation_recycle_bin_excerpt( (string) $post->post_content );
 	} else {
-
 		$icon          = 'dashicons-media-default';
 		$post_type_obj = get_post_type_object( $type );
 		if (
@@ -516,7 +512,6 @@ function openstation_recycle_bin_purge( $id, $type = '' ) {
 	do_action( 'openstation_recycle_bin_before_purge', $id, $post );
 
 	if ( 'attachment' === $post->post_type ) {
-
 		$result = wp_delete_attachment( $id, true );
 	} else {
 		$result = wp_delete_post( $id, true );

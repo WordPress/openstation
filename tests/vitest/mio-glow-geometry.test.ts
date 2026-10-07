@@ -73,7 +73,6 @@ const SETTINGS = [
 
 describe( 'Mio glow geometry', () => {
 	test( 'a normal offset really does fold on the shipped star', () => {
-
 		const samples = starSamples();
 		expect( foldedFraction( samples, byNormal( 6 ) ) ).toBe( 0 );
 		expect( foldedFraction( samples, byNormal( 42 ) ) ).toBeGreaterThan(
@@ -94,7 +93,6 @@ describe( 'Mio glow geometry', () => {
 	} );
 
 	test( 'the inner bleed does not fold either', () => {
-
 		const samples = starSamples();
 		for ( const w of [ 3, 8, 14, 24 ] ) {
 			const bleed = Math.max( 1, w * 0.4 );
@@ -106,7 +104,6 @@ describe( 'Mio glow geometry', () => {
 	} );
 
 	test( 'a dilated boundary holds up on a squashed body too', () => {
-
 		const samples = starSamples( 20 );
 		expect(
 			foldedFraction( samples, byDilation( samples, 24 * 3 * 3 ) ),
@@ -129,7 +126,6 @@ function recorder() {
 		},
 		lineTo: () => g,
 		closePath: () => {
-
 			anchors.push( {
 				outer: pending[ 0 ] ?? [],
 				inner: pending[ 2 ] ?? [],
@@ -146,7 +142,6 @@ function recorder() {
 }
 
 describe( 'Mio glow falloff', () => {
-
 	const SLIDER: { w: number; glow: number; radius: number }[] = [];
 	for ( const w of [ 0.5, 3, 24 ] ) {
 		for ( const glow of [ 0.1, 1, 6, 20 ] ) {
@@ -165,19 +160,16 @@ describe( 'Mio glow falloff', () => {
 			samples,
 			CENTRE,
 			colors,
-
 			0.16 * glow,
 			Math.max( 1, w * 0.4 ),
 			0.2,
 			10,
 			12,
 		);
-
 		return [ ...new Set( rec.alphas ) ];
 	}
 
 	test( 'the ramp does not depend on the outline width', () => {
-
 		for ( const glow of [ 0.1, 1, 6, 20 ] ) {
 			const hairline = halo( 0.5, glow );
 			for ( const w of [ 3, 8, 14, 24 ] ) {
@@ -189,7 +181,6 @@ describe( 'Mio glow falloff', () => {
 	} );
 
 	test( 'the wash reaches the same multiple of the body at every size', () => {
-
 		function spread( reach: number, radius: number ): number {
 			const samples = starSamples( radius );
 			const colors = samples.map( () => 0xffffff );
@@ -216,14 +207,12 @@ describe( 'Mio glow falloff', () => {
 					`reach=${ reach } r=${ radius }`,
 				).toBeCloseTo( reference, 6 );
 			}
-
 			expect( reference ).toBeGreaterThan( 1 );
 		}
 		expect( spread( 3.2, 56 ) ).toBeGreaterThan( spread( 0.16, 56 ) * 3 );
 	} );
 
 	test( 'the alpha falls monotonically, never flat', () => {
-
 		for ( const { w, glow, radius } of SLIDER ) {
 			const steps = halo( w, glow, radius );
 			const at = `w=${ w } glow=${ glow } r=${ radius }`;
@@ -237,7 +226,6 @@ describe( 'Mio glow falloff', () => {
 	} );
 
 	test( 'the ramp reaches its edge at nothing, at every setting', () => {
-
 		for ( const { w, glow, radius } of SLIDER ) {
 			const steps = halo( w, glow, radius );
 			const faintest = steps[ steps.length - 1 ];
@@ -249,12 +237,10 @@ describe( 'Mio glow falloff', () => {
 	} );
 
 	test( 'shells tile exactly — no seam between steps', () => {
-
 		const samples = starSamples();
 		const colors = samples.map( () => 0xffffff );
 		const rec = recorder();
 		const stride = 12;
-
 		fillGlow( rec.g as never, samples, CENTRE, colors, 2, 5, 0.2, 10, stride );
 
 		const perShell = Math.ceil( samples.length / stride );
@@ -271,18 +257,14 @@ describe( 'Mio glow falloff', () => {
 	} );
 
 	test( 'the blur is sized off each pass, not off the outline', () => {
-
 		const narrow = glowBlurStrength( 56, 1 );
 		const wide = glowBlurStrength( 56, 20 );
 		expect( wide.halo ).toBeGreaterThan( narrow.halo * 3 );
-
 		expect( narrow.bloom ).toBeGreaterThan( 0 );
 		expect( wide.bloom ).toBeGreaterThan( narrow.bloom * 3 );
-
 		expect( glowBlurStrength( 220, 6 ).halo ).toBeGreaterThan(
 			glowBlurStrength( 16, 6 ).halo,
 		);
-
 		expect( glowBlurStrength( 16, 0.1 ).halo ).toBeGreaterThanOrEqual( 2 );
 	} );
 } );

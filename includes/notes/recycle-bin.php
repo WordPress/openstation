@@ -30,7 +30,6 @@ function openstation_notes_recycle_bin_item( $item, $post ) {
 	$item['type_label'] = __( 'Note', 'desktop-mode' );
 	$item['icon']       = 'dashicons-sticky';
 	$item['subtitle']   = openstation_recycle_bin_excerpt( (string) $post->post_content );
-
 	$item['edit_link'] = '';
 
 	if ( '' === (string) $item['deleted_by'] ) {
@@ -65,10 +64,8 @@ function openstation_notes_recycle_bin_count( $total ) {
 	$own   = openstation_notes_recycle_bin_trashed_count( get_current_user_id() );
 
 	if ( current_user_can( 'edit_others_posts' ) ) {
-
 		$total = $total - openstation_notes_recycle_bin_trashed_count() + $own;
 	} elseif ( ! current_user_can( 'edit_posts' ) ) {
-
 		$total = $total + $own;
 	}
 

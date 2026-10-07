@@ -160,7 +160,6 @@ export function registerWindowReveal( def: WindowRevealDef ): void {
 				'render|layers|from|to (supply exactly one of: a from/to pair, a layers array, or a render function)',
 			);
 		} else if ( hasRender ) {
-
 		} else if ( hasLayers && hasPair ) {
 			errors.push(
 				'layers|from|to (supply EITHER a single from/to pair OR a layers array, not both)',
@@ -377,10 +376,8 @@ registerWindowReveal( {
 	description: __(
 		'Six wedges slide aside in unison, opening a hexagonal aperture from the centre like the iris of a camera lens.',
 	),
-
 	render: renderObturator,
 	duration: 720,
-
 	edgeLag: 0,
 } );
 

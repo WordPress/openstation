@@ -2,13 +2,13 @@ import { applyFilters, doAction } from '../hooks';
 import { DefaultDesktopFile, DesktopFile } from './file';
 import type { DesktopFileShape } from './types';
 
+// eslint-disable-next-line func-call-spacing, @typescript-eslint/func-call-spacing
 export type DesktopFileClass = new ( shape: DesktopFileShape ) => DesktopFile;
 
 export interface DesktopFileTypeDef {
 	type: string;
 	label: string;
 	sort: number;
-
 	DesktopFile?: DesktopFileClass;
 }
 
@@ -78,6 +78,7 @@ function notify(): void {
 		try {
 			cb();
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] files registry subscriber threw:', err );
 		}
 	}

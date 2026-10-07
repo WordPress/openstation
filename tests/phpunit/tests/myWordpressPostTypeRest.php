@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -68,18 +71,27 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		return rest_get_server()->dispatch( new WP_REST_Request( $method, $path ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_post_type_routes
+	 */
 	public function test_route_is_registered_for_non_rest_type() {
 		$routes = rest_get_server()->get_routes();
 
 		$this->assertArrayHasKey( '/desktop-mode/v1/post-type/dm_coupon', $routes );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_post_type_routes
+	 */
 	public function test_no_route_for_rest_exposed_type() {
 		$routes = rest_get_server()->get_routes();
 
 		$this->assertArrayNotHasKey( '/desktop-mode/v1/post-type/dm_book', $routes );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_post_type_routes
+	 */
 	public function test_routes_are_not_registered_for_users_who_cannot_use_the_window() {
 		foreach ( array( 0, self::$subscriber_id ) as $user_id ) {
 			wp_set_current_user( $user_id );
@@ -96,6 +108,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_post_type_routes
+	 */
 	public function test_rest_enabled_filter_suppresses_registration() {
 		remove_all_actions( 'rest_api_init' );
 		rest_get_server()->override_by_default = false;
@@ -111,6 +126,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( '/desktop-mode/v1/post-type/dm_coupon', $routes );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::get_items
+	 */
 	public function test_editor_can_list_items() {
 		$response = $this->dispatch( 'GET', '/desktop-mode/v1/post-type/dm_coupon' );
 
@@ -118,6 +136,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertCount( 3, $response->get_data() );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::get_items
+	 */
 	public function test_list_sends_total_headers() {
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/post-type/dm_coupon' );
 		$request->set_param( 'per_page', 2 );
@@ -129,6 +150,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertSame( 2, (int) $headers['X-WP-TotalPages'] );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::get_items_permissions_check
+	 */
 	public function test_logged_out_is_denied() {
 		wp_set_current_user( 0 );
 
@@ -137,6 +161,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertSame( 401, $response->get_status() );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::get_items_permissions_check
+	 */
 	public function test_subscriber_is_denied() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -145,6 +172,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertSame( 403, $response->get_status() );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::get_item_permissions_check
+	 */
 	public function test_single_item_is_gated_too() {
 		$id = $this->post_ids[0];
 
@@ -157,6 +187,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertSame( 401, $denied->get_status() );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::register_routes
+	 */
 	public function test_delete_trashes_the_post() {
 		$id = $this->post_ids[0];
 
@@ -166,6 +199,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertSame( 'trash', get_post_status( $id ) );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::delete_item_permissions_check
+	 */
 	public function test_subscriber_cannot_trash() {
 		$id = $this->post_ids[0];
 		wp_set_current_user( self::$subscriber_id );
@@ -176,6 +212,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertSame( 'publish', get_post_status( $id ) );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::register_routes
+	 */
 	public function test_create_and_update_are_not_registered() {
 		$routes = rest_get_server()->get_routes();
 
@@ -202,6 +241,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertNotContains( 'PUT', $methods );
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::get_items
+	 */
 	public function test_featured_media_is_embeddable() {
 		$attachment_id = self::factory()->attachment->create_object(
 			'product.jpg',
@@ -226,6 +268,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::prepare_links
+	 */
 	public function test_self_and_collection_links_point_at_the_bridge() {
 		$id = $this->post_ids[0];
 
@@ -243,6 +288,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::prepare_links
+	 */
 	public function test_core_post_routes_are_untouched() {
 		$post_id = self::factory()->post->create();
 
@@ -250,6 +298,9 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		$this->assertSame( '', rest_get_route_for_post( $this->post_ids[0] ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_rest_field_post_types
+	 */
 	public function test_bridged_types_carry_openstation_rest_fields() {
 		$types = openstation_my_wordpress_rest_field_post_types();
 

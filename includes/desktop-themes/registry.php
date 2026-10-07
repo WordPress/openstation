@@ -39,7 +39,6 @@ function openstation_register_desktop_theme( $id, $args = array() ) {
 
 	$manifest = openstation_sanitize_desktop_theme_manifest(
 		array(
-
 			'manifestVersion'       => 2,
 			'id'                    => (string) $id,
 			'name'                  => (string) $args['name'],
@@ -69,7 +68,6 @@ function openstation_register_desktop_theme( $id, $args = array() ) {
 	$entry = array(
 		'slug'     => $slug,
 		'manifest' => $manifest,
-
 		'cssText'  => openstation_desktop_theme_compile_css( $manifest, $slug, '' ),
 	);
 	openstation_desktop_theme_registry( $slug, $entry );
@@ -100,7 +98,6 @@ function openstation_shape_desktop_theme_payload_entry( $entry, $source ) {
 	$is_upload    = 'upload' === $source;
 	$base_url     = $is_upload ? openstation_desktop_themes_url( $slug ) : '';
 	$installed_at = isset( $entry['installedAt'] ) ? (int) $entry['installedAt'] : 0;
-
 	$asset_version = $is_upload && $installed_at > 0 ? (string) $installed_at : '';
 
 	$icons       = array();
@@ -172,7 +169,6 @@ function openstation_shape_desktop_theme_payload_entry( $entry, $source ) {
 		'tokens'                => isset( $manifest['tokens'] ) && is_array( $manifest['tokens'] )
 			? $manifest['tokens']
 			: array(),
-
 		'fonts'                 => $font_families,
 		'icons'                 => $icons,
 		'iconColors'            => $icon_colors,

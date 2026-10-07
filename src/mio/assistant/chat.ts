@@ -126,7 +126,6 @@ export function mountMioChat(
 			}
 		}
 		const newest = log.lastElementChild as HTMLElement | null;
-
 		log.scrollTop = last !== renderedLast && newest ? newest.offsetTop : scroll;
 		renderedLast = last;
 	};

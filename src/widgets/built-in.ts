@@ -4,7 +4,6 @@ import type { WidgetDef } from './types';
 
 const clock: WidgetDef = {
 	id: 'clock',
-
 	get label(): string {
 		return __( 'Clock' );
 	},
@@ -25,7 +24,6 @@ const clock: WidgetDef = {
 
 		const render = (): void => {
 			const now = new Date();
-
 			time.textContent = now.toLocaleTimeString( undefined, {
 				hour: '2-digit',
 				minute: '2-digit',

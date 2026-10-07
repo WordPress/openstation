@@ -72,7 +72,6 @@ describe( 'classifyAdminAssetRequest', () => {
 	} );
 
 	it( 'keeps own-plugin precedence — never reclassified', () => {
-
 		expect(
 			classify( `https://site.test${ OWN }assets/css/desktop.css?ver=123` ),
 		).toBe( 'own-plugin' );
@@ -200,7 +199,6 @@ describe( 'readSwConfig', () => {
 		expect(
 			readSwConfig( { shellBuild: '0123456789abcdef' }, FALLBACK ).shellBuild,
 		).toBe( '0123456789abcdef' );
-
 		expect( readSwConfig( {}, FALLBACK ).shellBuild ).toBe( '' );
 		expect( readSwConfig( { shellBuild: 42 }, FALLBACK ).shellBuild ).toBe( '' );
 		expect(

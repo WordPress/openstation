@@ -10,7 +10,6 @@ export interface OsHelpProp {
 }
 
 export interface OsHelpSlot {
-
 	name: string;
 	description?: string;
 }
@@ -29,24 +28,18 @@ export interface OsHelpCssProp {
 export interface OsHelpEvent {
 	name: string;
 	description?: string;
-
 	detail?: string;
 }
 
 export interface OsHelp {
-
 	title?: string;
-
 	summary?: string;
-
 	status?: OsHelpStatus;
 	props?: readonly OsHelpProp[];
 	slots?: readonly OsHelpSlot[];
 	parts?: readonly OsHelpPart[];
 	cssProps?: readonly OsHelpCssProp[];
 	events?: readonly OsHelpEvent[];
-
 	example?: TemplateResult;
-
 	exampleInit?: ( root: HTMLElement ) => void;
 }

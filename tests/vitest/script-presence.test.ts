@@ -37,7 +37,6 @@ describe( 'concatenatedScriptHandles', () => {
 	} );
 
 	it( 'joins the chunks before splitting on commas', () => {
-
 		const handles = [
 			...Array.from( { length: 12 }, ( _, i ) => `filler-handle-${ i }` ),
 			'wp-hooks',
@@ -49,7 +48,6 @@ describe( 'concatenatedScriptHandles', () => {
 	} );
 
 	it( 'orders chunks numerically, not lexicographically', () => {
-
 		const handles = Array.from(
 			{ length: 90 },
 			( _, i ) => `some-plugin-handle-${ i }`,
@@ -89,7 +87,6 @@ describe( 'isScriptInDocument', () => {
 	} );
 
 	it( 'matches a concatenated package by handle', () => {
-
 		printConcatBlob( [ 'wp-hooks', 'wp-i18n' ] );
 
 		expect(
@@ -150,7 +147,6 @@ describe( 'isScriptInDocument', () => {
 } );
 
 describe( 'printedScriptHandleInDocument', () => {
-
 	function printInline( id: string, code: string ): void {
 		const tag = document.createElement( 'script' );
 		tag.id = id;
@@ -159,7 +155,6 @@ describe( 'printedScriptHandleInDocument', () => {
 	}
 
 	it( 'sees an alias handle through the inline tag Core printed for it', () => {
-
 		printInline( 'acme-config-js-before', 'window.acmeConfig={};' );
 
 		expect( printedScriptHandleInDocument( 'acme-config' ) ).toBe( true );

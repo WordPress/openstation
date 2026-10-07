@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-notes
+ */
 class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -40,6 +43,9 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		return $note_id;
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_capture_post_types
+	 */
 	public function test_show_ui_custom_post_types_are_captured_by_default() {
 		register_post_type(
 			'wpd_test_book',
@@ -52,13 +58,14 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		);
 		$types = openstation_recycle_bin_capture_post_types();
 		$this->assertContains( 'wpd_test_book', $types );
-
 		$this->assertContains( OPENSTATION_NOTES_POST_TYPE, $types );
-
 		$this->assertNotContains( 'revision', $types );
 		$this->assertNotContains( 'wp_block', $types );
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_shape_item
+	 */
 	public function test_custom_post_type_rows_use_their_menu_dashicon() {
 		register_post_type(
 			'wpd_test_book',
@@ -86,6 +93,9 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'Call me Ishmael.', $item['subtitle'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_recycle_bin_gate
+	 */
 	public function test_owner_sees_their_trashed_note_in_the_bin() {
 		$note_id = $this->create_trashed_note( self::$owner_id, 'my trashed note' );
 
@@ -104,8 +114,11 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_plain_text
+	 * @covers ::openstation_recycle_bin_shape_item
+	 */
 	public function test_titles_with_apostrophes_are_not_entity_encoded() {
-
 		$note_id = $this->create_trashed_note(
 			self::$owner_id,
 			"Don't forget to feed the cat"
@@ -117,8 +130,11 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'forget to feed the cat', $item['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_plain_text
+	 * @covers ::openstation_strip_all_tags
+	 */
 	public function test_a_less_than_sign_that_opens_no_tag_is_kept() {
-
 		$this->assertSame(
 			'I <3 WordPress',
 			openstation_recycle_bin_plain_text( '<em>I</em> <3 <b>WordPress</b>' )
@@ -130,8 +146,10 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_excerpt
+	 */
 	public function test_a_subtitle_keeps_a_less_than_sign_through_the_trim() {
-
 		$this->assertSame(
 			'I <3 it, 1 <2, and the <b> tag',
 			openstation_recycle_bin_excerpt( '<p>I <3 it, 1 &lt;2, and the &lt;b&gt; tag</p>' )
@@ -148,9 +166,11 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'Research is at R&D…', $subtitle );
 	}
 
+	/**
+	 * @covers ::openstation_notes_recycle_bin_item
+	 */
 	public function test_unstamped_trashed_notes_fall_back_to_the_owner_as_deleter() {
 		$note_id = $this->create_trashed_note( self::$owner_id, 'legacy trash' );
-
 		delete_post_meta( $note_id, '_desktop_mode_trash_user_id' );
 
 		$item = openstation_recycle_bin_shape_item( get_post( $note_id ) );
@@ -161,6 +181,9 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_notes_recycle_bin_gate
+	 */
 	public function test_admins_do_not_see_other_users_trashed_notes() {
 		$note_id = $this->create_trashed_note( self::$owner_id, 'private business' );
 
@@ -175,6 +198,9 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'trash', get_post_status( $note_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_recycle_bin_gate
+	 */
 	public function test_subscribers_manage_their_own_trashed_notes() {
 		$note_id = $this->create_trashed_note( self::$subscriber_id, 'subscriber note' );
 
@@ -186,6 +212,9 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'private', get_post_status( $note_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_restore
+	 */
 	public function test_bin_restore_returns_a_public_note_to_publish() {
 		$note_id = wp_insert_post(
 			array(
@@ -202,6 +231,9 @@ class Tests_OpenStation_NotesRecycleBin extends WP_UnitTestCase {
 		$this->assertSame( 'publish', get_post_status( $note_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_recycle_bin_count
+	 */
 	public function test_badge_count_scopes_notes_to_the_owner() {
 		$this->create_trashed_note( self::$owner_id );
 		$this->create_trashed_note( self::$subscriber_id );

@@ -1,5 +1,4 @@
 import { applyFilters, doAction } from '../hooks';
-
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { clampToViewport, positionFlyout } from '../ui/util/menu-position';
 import { attachDismissable } from './dismissable';
@@ -10,23 +9,14 @@ export interface WallpaperMenuContext {
 }
 
 export interface WallpaperMenuItem {
-
 	id: string;
-
 	label: string;
-
 	icon?: string;
-
 	sort?: number;
-
 	disabled?: boolean;
-
 	heading?: boolean;
-
 	children?: WallpaperMenuItem[];
-
 	checked?: boolean;
-
 	onClick: ( e: MouseEvent ) => void | Promise< void >;
 }
 
@@ -36,7 +26,6 @@ export interface ServerWallpaperMenuItem {
 	icon?: string;
 	sort?: number;
 	disabled?: boolean;
-
 	callbackId?: string;
 }
 
@@ -45,7 +34,6 @@ const MENU_CLASS = 'os-wallpaper-menu';
 let activeMenu: HTMLElement | null = null;
 
 export interface OpenWallpaperMenuOptions {
-
 	excludeOutsideTarget?: HTMLElement;
 }
 
@@ -220,7 +208,6 @@ export function closeWallpaperMenu(): void {
 	if ( ! activeMenu ) {
 		return;
 	}
-
 	document
 		.querySelectorAll( `.${ MENU_CLASS }--flyout` )
 		.forEach( ( el ) => el.remove() );
@@ -250,7 +237,6 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 			id: 'add-widget',
 			label: deps.labels.addWidget,
 			icon: 'dashicons-screenoptions',
-
 			sort: 15,
 			onClick: () => deps.addWidget(),
 		},
@@ -343,7 +329,6 @@ function serverItemToMenuItem(
 					return cb();
 				}
 			}
-
 			doAction( 'os.wallpaper-context-menu.activated', {
 				id: server.id,
 				callbackId: server.callbackId ?? '',
@@ -357,16 +342,12 @@ export type SortMode = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc';
 export interface WallpaperMenuDeps {
 	createFolder: () => void;
 	createUrl: () => void;
-
 	addWidget: () => void;
 	toggleShowDesktop: () => void;
 	openOsSettings: () => void;
 	sortIcons: ( mode: SortMode ) => void;
-
 	currentSortMode?: SortMode | null;
-
 	includeShowDesktop?: boolean;
-
 	position?: { x: number; y: number };
 	labels: {
 		createFolder: string;

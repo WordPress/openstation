@@ -116,7 +116,6 @@ function openstation_user_edit_window_sessions( $id ) {
 	if ( ! class_exists( 'WP_Session_Tokens' ) ) {
 		return array();
 	}
-
 	$current_token    = wp_get_session_token();
 	$current_verifier = $current_token ? hash( 'sha256', $current_token ) : '';
 	$sessions         = array();

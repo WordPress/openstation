@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group trash-app
+ */
 
 use OpenStation\App\State;
 
@@ -16,7 +20,6 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-
 		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
 			openstation_unregister_icon( $id );
 		}
@@ -35,6 +38,9 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_manifest_mirrors_the_legacy_windows_registration() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-recycle-bin' );
 		$this->assertNotNull( $app );
@@ -44,20 +50,19 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		$this->assertSame( 560, $manifest['height'] );
 		$this->assertSame( 520, $manifest['min_width'] );
 		$this->assertSame( 360, $manifest['min_height'] );
-
 		$this->assertSame( 'dock', $manifest['placement'] );
 		$this->assertSame( 'control', $manifest['nav_kind'] );
 		$this->assertSame( 40, $manifest['dock_order'] );
 		$this->assertTrue( $manifest['placeable'] );
-
 		$this->assertSame( array( '*' ), $manifest['watch'] );
-
 		$this->assertSame( array( 'show', 'reopen', 'restore', 'purge' ), $manifest['actions'] );
-
 		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $manifest['config']['empty'] );
 		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $manifest['config']['full'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::allows
+	 */
 	public function test_gate_follows_the_legacy_capability_filter() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-recycle-bin' );
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
@@ -67,6 +72,9 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		remove_filter( 'openstation_recycle_bin_user_can_use', '__return_false' );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_mount_serves_the_same_rows_the_legacy_store_lists() {
 		$post_id = self::factory()->post->create( array( 'post_title' => 'Doomed post' ) );
 		wp_trash_post( $post_id );
@@ -79,6 +87,9 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		$this->assertIsBool( $response['data']['mediaTrash'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_returning_to_an_empty_bin_reads_newly_trashed_items() {
 		$initial = $this->dispatch( 'mount' );
 		$post_id = self::factory()->post->create();
@@ -96,6 +107,9 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_filter_and_search_ride_the_built_in_refresh() {
 		$post_id = self::factory()->post->create( array( 'post_title' => 'Alpha strategy memo' ) );
 		$page_id = self::factory()->post->create(
@@ -116,10 +130,12 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		$ids      = wp_list_pluck( $searched['data']['items'], 'id' );
 		$this->assertContains( $post_id, $ids );
 		$this->assertNotContains( $page_id, $ids );
-
 		$this->assertGreaterThanOrEqual( 2, $searched['data']['total'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_restore_untrashes_and_announces_per_type() {
 		$post_id = self::factory()->post->create();
 		wp_trash_post( $post_id );
@@ -131,7 +147,6 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		);
 		$this->assertTrue( $response['ok'] );
 		$this->assertNotSame( 'desktop-mode-recycle-bin', get_post_status( $post_id ) );
-
 		$announce = null;
 		foreach ( $response['effects'] as $effect ) {
 			if ( 'announce' === $effect['type'] ) {
@@ -142,10 +157,12 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		$this->assertSame( 'post', $announce['contentType'] );
 		$this->assertSame( 'untrashed', $announce['action'] );
 		$this->assertSame( array( $post_id ), $announce['ids'] );
-
 		$this->assertNotContains( $post_id, wp_list_pluck( $response['data']['items'], 'id' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_purge_deletes_forever_and_a_blocked_item_becomes_a_toast() {
 		$post_id = self::factory()->post->create();
 		wp_trash_post( $post_id );
@@ -156,7 +173,6 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 			array(
 				'items' => array(
 					array( 'id' => $post_id, 'type' => 'post' ),
-
 					array( 'id' => 999999, 'type' => 'post' ),
 				),
 			)
@@ -165,7 +181,6 @@ class Tests_OpenStation_TrashApp extends WP_UnitTestCase {
 		$this->assertNull( get_post( $post_id ) );
 		$types = wp_list_pluck( $response['effects'], 'type' );
 		$this->assertContains( 'announce', $types );
-
 		$this->assertContains( 'toast', $types );
 	}
 }

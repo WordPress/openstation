@@ -57,7 +57,6 @@ describe( 'panel tabs', () => {
 			'Two',
 			'Three',
 		] );
-
 		expect(
 			stripOf( win ).firstElementChild!.classList.contains(
 				'os-window__tab-plate',
@@ -75,7 +74,6 @@ describe( 'panel tabs', () => {
 
 		const tab = tabsOf( win )[ 1 ];
 		const pane = win.querySelector( 'os-tabpanel[for="two"]' )!;
-
 		expect( tab.getAttribute( 'aria-controls' ) ).toBe( pane.id );
 		expect( pane.getAttribute( 'aria-labelledby' ) ).toBe( tab.id );
 		expect( tab.id ).not.toBe( '' );

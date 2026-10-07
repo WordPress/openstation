@@ -64,7 +64,6 @@ export class BloomEngine {
 
 		const perCluster = 1 + Math.round( fraction * 2 );
 		const count = Math.min( 140, Math.round( placements.length * fraction * perCluster ) );
-
 		const placed: Vec2[] = [];
 		const MIN_GAP = 26;
 		const MIN_GAP_SQ = MIN_GAP * MIN_GAP;
@@ -90,7 +89,6 @@ export class BloomEngine {
 					sprite.anchor.set( 0.5 );
 					sprite.tint =
 						FLOWER_TINTS[ Math.floor( rng() * FLOWER_TINTS.length ) ];
-
 					const scale =
 						( candidate.radius * ( 0.32 + rng() * 0.22 ) ) / FLOWER_TEX_SIZE;
 					sprite.scale.set( scale );

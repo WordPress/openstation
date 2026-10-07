@@ -1,20 +1,14 @@
 import { trackedFetch, type TrackedFetchOpts } from '../tracked-fetch';
 
 export interface RestClientOptions {
-
 	baseUrl: string;
-
 	nonce?: string;
-
 	headers?: Record< string, string >;
-
 	source?: string;
-
 	silent?: boolean;
 }
 
 export interface RequestOptions extends TrackedFetchOpts {
-
 	recover?: ( errorBody: unknown, response: Response ) => unknown;
 }
 
@@ -22,7 +16,6 @@ export class RestError extends Error {
 	public readonly status: number;
 	public readonly code?: string;
 	public readonly data?: unknown;
-
 	public readonly serverMessage: string;
 
 	constructor(
@@ -73,15 +66,10 @@ export function unreadableReplyError( status: number, message: string ): RestErr
 }
 
 export interface FeatureClientOptions {
-
 	prefix: string;
-
 	source: string;
-
 	url: ( path: string ) => string;
-
 	nonce: () => string;
-
 	conflict?: ( body: unknown ) => Error | null;
 }
 
@@ -161,7 +149,6 @@ export function createRestClient( opts: RestClientOptions ): RestClient {
 		if ( /^https?:\/\//i.test( path ) ) {
 			return path;
 		}
-
 		if ( path.startsWith( '/' ) && baseUrl.endsWith( '/' ) ) {
 			return baseUrl + path.slice( 1 );
 		}
@@ -180,7 +167,6 @@ export function createRestClient( opts: RestClientOptions ): RestClient {
 		if ( nonce ) {
 			headers[ 'X-WP-Nonce' ] = nonce;
 		}
-
 		if ( init.body !== undefined && init.body !== null ) {
 			headers[ 'Content-Type' ] = 'application/json';
 		}

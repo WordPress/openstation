@@ -90,7 +90,6 @@ describe( 'a tile whose target is a window', () => {
 			} ),
 		);
 		click();
-
 		expect( focus ).not.toHaveBeenCalled();
 		expect( openWindow ).not.toHaveBeenCalled();
 		expect( managerOpen ).toHaveBeenCalledWith(

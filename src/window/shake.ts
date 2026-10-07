@@ -1,13 +1,8 @@
 export interface ShakeOptions {
-
 	minDurationMs: number;
-
 	minReversals: number;
-
 	minAmplitudePx: number;
-
 	maxGapMs: number;
-
 	cooldownMs: number;
 }
 
@@ -20,24 +15,18 @@ export const DEFAULT_SHAKE_OPTIONS: Readonly< ShakeOptions > = {
 };
 
 export interface ShakeDetail {
-
 	x: number;
 	y: number;
-
 	durationMs: number;
 	reversals: number;
-
 	axis: 'x' | 'y';
 }
 
 export const SHAKE_EVENT = 'os-pointer-shake';
 
 interface AxisRun {
-
 	origin: number;
-
 	dir: -1 | 0 | 1;
-
 	extent: number;
 }
 
@@ -47,9 +36,7 @@ interface Reversal {
 }
 
 export interface ShakeDetector {
-
 	feed( x: number, y: number, t: number ): ShakeDetail | null;
-
 	reset(): void;
 }
 
@@ -85,7 +72,6 @@ export function createShakeDetector(
 			run.extent = along;
 			return false;
 		}
-
 		if ( run.extent - along >= opts.minAmplitudePx ) {
 			const turnedAt = run.origin + run.dir * run.extent;
 			run.origin = turnedAt;

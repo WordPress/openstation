@@ -14,56 +14,32 @@ export interface GridSpan {
 }
 
 export interface Desktop {
-
 	id: string;
-
 	label: string;
-
 	profile?: import( './workspaces/types' ).WorkspaceProfile;
 }
 
 export interface WindowConfig {
-
 	openAs?: 'default' | 'maximized' | 'focused';
-
 	id: string;
-
 	desktopId?: string;
-
 	baseId?: string;
-
 	multi?: boolean;
-
 	url?: string;
-
 	parentUrl?: string;
-
 	selfLabel?: string;
-
 	title: string;
-
 	titleFromPage?: boolean;
-
 	icon: string;
-
 	x: number;
-
 	y: number;
-
 	width: number;
-
 	height: number;
-
 	minWidth: number;
-
 	minHeight: number;
-
 	submenu?: { title: string; url: string; offSite?: boolean }[];
-
 	initialState?: WindowState;
-
 	native?: boolean;
-
 	render?: (
 		body: HTMLElement,
 		ctx?: NativeRenderContext,
@@ -71,27 +47,16 @@ export interface WindowConfig {
 		| void
 		| ( () => void )
 		| Promise< void | ( () => void ) >;
-
 	autofocus?: boolean | string;
-
 	onClose?: () => void;
-
 	onResize?: ( width: number, height: number ) => void;
-
 	ownerHandle?: string;
-
 	content?: WindowContentRef;
-
 	ephemeral?: boolean;
-
 	parentWindowId?: string;
-
 	params?: Record< string, string | number | boolean >;
-
 	gridSpan?: GridSpan;
-
 	appearance?: WindowAppearance;
-
 	loading?: {
 		render?: (
 			host: HTMLElement,
@@ -101,13 +66,9 @@ export interface WindowConfig {
 }
 
 export interface WindowAppearance {
-
 	theme?: WindowThemeRef;
-
 	controls?: WindowControlsConfig;
-
 	slots?: Partial< Record< WindowSlotName, WindowSlotConfig > >;
-
 	chrome?: string;
 }
 
@@ -152,35 +113,23 @@ export type WindowSlotConfig =
 	| null;
 
 export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 'submenu' | 'x' | 'y' > {
-
 	url?: string;
-
 	native?: true;
-
 	x?: number;
-
 	y?: number;
-
 	iframeContent?: NativeWindowIframeContent;
 }
 
 export interface NativeWindowIframeContent {
-
 	url: string;
-
 	sandbox?: string;
-
 	bridge?: boolean;
-
 	onMessage?: ( payload: unknown ) => void;
 }
 
 export interface NativeRenderContext {
-
 	window: {
-
 		send< T = unknown >( channel: string, payload?: T ): void;
-
 		on< T = unknown >(
 			channel: string,
 			cb: (
@@ -188,9 +137,7 @@ export interface NativeRenderContext {
 				meta: { channel: string; windowId: string },
 			) => void,
 		): () => void;
-
 		markLoading(): void;
-
 		markReady(): void;
 	};
 
@@ -210,32 +157,20 @@ export interface NativeRenderContext {
 }
 
 export interface MonitorEntry {
-
 	ts: number;
-
 	type: 'log' | 'warn' | 'error' | 'network' | 'shell-error' | 'iframe-error' | string;
-
 	message: string;
-
 	source?: string;
-
 	status?: number;
-
 	method?: string;
-
 	url?: string;
-
 	duration?: number;
-
 	failed?: boolean;
-
 	extra?: Record<string, unknown>;
 }
 
 export interface LazyScriptDependency {
-
 	handle?: string;
-
 	url: string;
 	before?: string[];
 	after?: string[];
@@ -250,7 +185,6 @@ export interface NativeWindowCompanionScript {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -262,7 +196,6 @@ export type NativeWindowScriptData = Record<
 		after?: string[];
 		l10n?: string[];
 		translations?: string;
-
 		deps?: string[];
 	}
 >;
@@ -285,63 +218,35 @@ export interface NativeWindowCompanionStyle {
 }
 
 export interface NativeWindowServerEntry {
-
 	id: string;
-
 	title: string;
-
 	icon: string;
-
 	placement: 'dock' | 'none';
-
 	navKind?: 'app' | 'control';
-
 	dockOrder?: number;
-
 	placeable?: boolean;
-
 	width: number;
 	height: number;
-
 	minWidth: number;
 	minHeight: number;
-
 	autofocus: boolean | string;
-
 	templateId: string;
-
 	templateHtml: string;
-
 	scriptUrl: string;
-
 	scriptHandle: string;
-
 	scriptBefore?: string[];
-
 	scriptAfter?: string[];
-
 	scriptL10n?: string[];
-
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
-
 	companionScripts?: NativeWindowCompanionScript[];
-
 	preloadScript?: boolean;
-
 	styleUrl?: string;
-
 	styleHandle?: string;
-
 	styleInline?: string[];
-
 	companionStyles?: NativeWindowCompanionStyle[];
-
 	ownerHandle: string;
-
 	tabs?: NativeWindowTabEntry[];
-
 	menuPages?: Array< { id: string; page: string } >;
 }
 
@@ -349,15 +254,12 @@ export interface NativeWindowTabEntry {
 	value: string;
 	label: string;
 	isMain: boolean;
-
 	scriptUrl: string;
-
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -374,15 +276,12 @@ export interface DesktopWidgetServerEntry {
 	maxHeight: number;
 	defaultWidth: number;
 	defaultHeight: number;
-
 	scriptUrl: string;
-
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -391,21 +290,15 @@ export interface DesktopWallpaperServerEntry {
 	label: string;
 	preview: string;
 	type: 'css' | 'canvas';
-
 	value: string;
-
 	description?: string;
-
 	tone?: '' | 'light' | 'dark';
-
 	scriptUrl: string;
-
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -416,14 +309,10 @@ export interface DesktopThemeServerEntry {
 	version: string;
 	author: string;
 	description: string;
-
 	previewUrl: string;
-
 	cssUrl: string;
-
 	cssText: string;
 	tokens: Record< string, string >;
-
 	icons: Record< string, string >;
 	installedAt: number;
 	source: 'upload' | 'code';
@@ -432,47 +321,36 @@ export interface DesktopThemeServerEntry {
 export interface DesktopGameServerEntry {
 	id: string;
 	title: string;
-
 	description: string;
-
 	icon: string;
-
 	scoreColumns: Array< {
 		key: string;
 		label: string;
 		type: 'number' | 'time' | 'text';
 	} >;
-
 	config: Record< string, unknown >;
-
 	window?: {
 		width?: number;
 		height?: number;
 		minWidth?: number;
 		minHeight?: number;
 	};
-
 	scriptUrl: string;
-
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
 export interface DesktopCommandScriptServerEntry {
-
 	handle: string;
-
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -483,7 +361,6 @@ export interface DesktopDockRailRendererScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -493,93 +370,72 @@ export interface DesktopCommandServerEntry {
 	description: string;
 	icon: string;
 	hint: string;
-
 	scriptUrl: string;
-
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
 export interface DesktopSettingsTabScriptServerEntry {
-
 	handle: string;
-
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
 export interface DesktopTitleBarButtonScriptServerEntry {
-
 	handle: string;
-
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
 export interface DesktopWindowActionScriptServerEntry {
-
 	handle: string;
-
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
 export interface DesktopUnfocusEffectScriptServerEntry {
-
 	handle: string;
-
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
 export interface DesktopWindowLinkRendererScriptServerEntry {
-
 	handle: string;
-
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
 export interface DesktopWindowThemeScriptServerEntry {
-
 	handle: string;
-
 	scriptUrl: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -594,7 +450,6 @@ export interface DesktopWindowThemeServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -605,7 +460,6 @@ export interface DesktopWindowControlScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -621,7 +475,6 @@ export interface DesktopWindowControlServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -632,7 +485,6 @@ export interface DesktopWindowSlotScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -646,7 +498,6 @@ export interface DesktopWindowSlotServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -671,7 +522,6 @@ export interface DesktopWindowChromeScriptServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -684,26 +534,20 @@ export interface DesktopWindowChromeServerEntry {
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
 export interface DesktopSettingsTabServerEntry {
 	id: string;
 	label: string;
-
 	capability: string;
-
 	order: number;
-
 	scriptUrl: string;
-
 	scriptHandle: string;
 	scriptBefore?: string[];
 	scriptAfter?: string[];
 	scriptL10n?: string[];
 	scriptTranslations?: string;
-
 	scriptDeps?: LazyScriptDependency[];
 }
 
@@ -711,24 +555,16 @@ export interface DesktopIconServerEntry {
 	id: string;
 	title: string;
 	icon: string;
-
 	window: string;
-
 	url: string;
-
 	position: number;
-
 	pinned?: boolean;
 }
 
 export interface VisibleWindowRect {
-
 	windowId: string;
-
 	rect: { x: number; y: number; width: number; height: number };
-
 	state: WindowState;
-
 	element: HTMLElement;
 }
 
@@ -745,39 +581,24 @@ export interface WindowSnapshot {
 }
 
 export interface DockItemConfig {
-
 	id: string;
-
 	title: string;
-
 	icon: string;
-
 	url: string;
-
 	badge: number;
-
 	submenu: { title: string; url: string; offSite?: boolean }[];
-
 	selfLabel?: string;
-
 	multi?: boolean;
-
 	isCore?: boolean;
 }
 
 export interface SessionWindow {
 	id: string;
-
 	baseId?: string;
-
 	desktopId?: string;
-
 	native?: boolean;
-
 	params?: Record< string, string | number | boolean >;
-
 	gridSpan?: GridSpan;
-
 	unplaced?: boolean;
 	url: string;
 	title: string;
@@ -787,7 +608,6 @@ export interface SessionWindow {
 	y: number;
 	width: number;
 	height: number;
-
 	externalTabs?: { url: string; label: string }[];
 }
 
@@ -801,116 +621,68 @@ export interface Session {
 
 export interface MultisiteConfig {
 	isNetworkAdmin: boolean;
-
 	networkAdmin: {
 		url: string;
 		shellUrl: string;
 		rows: Array< { title: string; url: string } >;
-
 		foreign?: boolean;
 	} | null;
-
 	current: string;
-
 	sites: Array< {
 		id: string;
 		name: string;
 		shellUrl: string;
-
 		adminUrl?: string;
-
 		active?: boolean;
 		kind?: 'local' | 'member';
-
 		foreign?: boolean;
 	} >;
-
 	hopUrl?: string;
 }
 
 export interface UsageFeedbackConfig {
-
 	restUrl: string;
 }
 
 export interface DesktopConfig {
-
 	currentPage: string;
-
 	currentTitle: string;
-
 	currentIcon: string;
-
 	adminUrl: string;
-
 	homeUrl?: string;
-
 	logoutUrl?: string;
-
 	colorScheme: string;
-
 	menuSig?: string;
-
 	dockItems: DockItemConfig[];
-
 	nativeWindows: NativeWindowWireEntry[];
-
 	nativeWindowScriptData?: NativeWindowScriptData;
-
 	scriptDepPayloads?: Record< string, LazyScriptDependency >;
-
 	serverWidgets: DesktopWidgetServerEntry[];
-
 	serverWallpapers: DesktopWallpaperServerEntry[];
-
 	serverGames?: DesktopGameServerEntry[];
-
 	serverDesktopThemes?: DesktopThemeServerEntry[];
-
 	workspacePresets?: import( './workspaces/server-sync' ).WorkspacePresetServerEntry[];
-
 	canManageDesktopThemes?: boolean;
-
 	desktopThemesUrl?: string;
-
 	serverCommandScripts?: DesktopCommandScriptServerEntry[];
-
 	serverCommands?: DesktopCommandServerEntry[];
-
 	serverSettingsTabScripts?: DesktopSettingsTabScriptServerEntry[];
-
 	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
-
 	serverDockRailRendererScripts?: DesktopDockRailRendererScriptServerEntry[];
-
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
-
 	serverWindowActionScripts?: DesktopWindowActionScriptServerEntry[];
-
 	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
-
 	serverWindowLinkRendererScripts?: DesktopWindowLinkRendererScriptServerEntry[];
-
 	serverWindowThemeScripts?: DesktopWindowThemeScriptServerEntry[];
-
 	serverWindowThemes?: DesktopWindowThemeServerEntry[];
-
 	serverWindowControlScripts?: DesktopWindowControlScriptServerEntry[];
-
 	serverWindowControls?: DesktopWindowControlServerEntry[];
-
 	serverWindowSlotScripts?: DesktopWindowSlotScriptServerEntry[];
-
 	serverWindowSlots?: DesktopWindowSlotServerEntry[];
-
 	serverWindowChromeScripts?: DesktopWindowChromeScriptServerEntry[];
-
 	serverWindowChromes?: DesktopWindowChromeServerEntry[];
-
 	serverWindowNotices?: DesktopWindowNoticeServerEntry[];
-
 	desktopIcons?: DesktopIconServerEntry[];
-
 	serverFileTypes?: Array< {
 		id: string;
 		label: string;
@@ -922,7 +694,6 @@ export interface DesktopConfig {
 		scriptL10n: Record< string, string >;
 		scriptTranslations: string;
 	} >;
-
 	serverFileOpeners?: Array< {
 		id: string;
 		label: string;
@@ -936,23 +707,14 @@ export interface DesktopConfig {
 		scriptL10n: Record< string, string >;
 		scriptTranslations: string;
 	} >;
-
 	userFileAssociations?: Record< string, string >;
-
 	filesUrl?: string;
-
 	notesUrl?: string;
-
 	canCreatePosts?: boolean;
-
 	shareEligibleRoles?: Array< { slug: string; name: string } >;
-
 	currentUserId?: number;
-
 	filesUsersSearchUrl?: string;
-
 	folderSharesUrl?: string;
-
 	serverWallpaperMenuItems?: Array< {
 		id: string;
 		label: string;
@@ -961,139 +723,77 @@ export interface DesktopConfig {
 		disabled?: boolean;
 		callbackId?: string;
 	} >;
-
 	session: Session;
-
 	sessionUrl: string;
-
 	restUrl?: string;
-
 	mediaUrl: string;
-
 	dropConfig?: import( './os-file-drop/types' ).DropConfig;
-
 	desktopStorage?: {
-
 		canUpload: boolean;
-
 		maxBytes: number;
-
 		quotaBytes: number;
-
 		zipAvailable: boolean;
 	};
-
 	defaultWindowUrl: string;
-
 	defaultWindow: { enabled: boolean; url: string };
-
 	canUpload: boolean;
-
 	pluginUrl: string;
-
 	iframeBridgeUrl?: string;
-
 	restNonce: string;
-
 	soloWindow?: string;
-
 	portalUrl: string;
-
 	fromPortal: boolean;
-
 	fromPortalIntent?: boolean;
-
 	landInOverview?: boolean;
-
 	arrivalDirection?: 'next' | 'prev' | '';
-
 	hopLinkOffer?: { site: string; name: string; email: string; url: string } | null;
-
 	pwa?: PwaConfig;
-
 	accentColors?: AccentColor[];
-
 	toastTypes?: ToastTypeDef[];
-
 	coreUpdate?: {
-
 		version: string;
-
 		available?: string;
-
 		branch?: string;
 		url: string;
-
 		crossing?: boolean;
 	} | null;
-
 	coreNotices?: Array< {
-
 		id: string;
-
 		title?: string;
-
 		message: string;
-
 		actionLabel?: string;
-
 		actionUrl?: string;
 	} >;
-
 	pluginNotices?: Array< {
-
 		id: string;
-
 		title?: string;
-
 		message: string;
-
 		actionLabel?: string;
-
 		actionUrl?: string;
 	} >;
-
 	rebrandNotice?: boolean;
-
 	usageFeedback?: UsageFeedbackConfig | null;
-
 	usageFeedbackBundleUrl?: string;
-
 	seenIntros?: string[];
-
 	seenIntrosUrl?: string;
-
 	shellTour?: boolean;
-
 	shellTourBundleUrl?: string;
-
 	firstRun?: {
 		installedAt?: number;
 		firstEnabledAt?: number;
 		enabledAt?: number;
 	};
-
 	defaultWallpaper?: string;
-
 	osSettings?: Record<string, unknown>;
-
 	osSettingsUrl?: string;
-
 	aiSearchUrl?: string;
-
 	aiAssistant?: import( './settings/types' ).AiAssistantConfig | null;
-
 	aiStatusUrl?: string;
-
 	aiAssistantBundleUrl?: string;
-
 	deferredStyles?: Record< string, { url: string; inline?: string[] } >;
-
 	gameStyleHandles?: string[];
-
 	commandPalette?: {
 		scripts: Array< {
-
 			handle: string;
 			url: string;
 			before?: string[];
@@ -1107,48 +807,33 @@ export interface DesktopConfig {
 			inline?: string[];
 		} >;
 	} | null;
-
 	aboutFeedUrl?: string;
-
 	shellOverlaysBundleUrl?: string;
-
 	fileDropBundleUrl?: string;
 	filesOverlaysBundleUrl?: string;
 	notesBundleUrl?: string;
 	dockConstellationBundleUrl?: string;
 	windowLinkVisualsBundleUrl?: string;
-
 	hasNotes?: boolean;
-
 	componentsBundleUrl?: string;
-
 	mio?: unknown;
-
 	mioBundleUrl?: string;
-
 	windowSystemBundleUrl?: string;
-
 	mobileBundleUrl?: string;
-
 	mode?: {
 		preference?: 'auto' | 'desktop' | 'mobile';
 		breakpoints?: { mobile?: number; tablet?: number };
 		tabBar?: string[];
 	};
-
 	currentUserIsAdmin?: boolean;
-
 	multisite?: MultisiteConfig | null;
-
 	extendedOptions?: {
 		media_library_enhanced: boolean;
 		games: boolean;
 		agents: boolean;
 		network: boolean;
 	} | null;
-
 	extendedOptionsUrl?: string;
-
 	gamesEnabled?: boolean;
 }
 
@@ -1158,23 +843,14 @@ export interface PwaUserState {
 }
 
 export interface PwaConfig {
-
 	manifestUrl: string;
-
 	swUrl: string;
-
 	swFallbackUrl?: string;
-
 	swScope?: string;
-
 	stateUrl: string;
-
 	state: PwaUserState;
-
 	appName: string;
-
 	forceReplaceSw?: boolean;
-
 	shellBuild?: string;
 }
 
@@ -1195,7 +871,6 @@ export interface HarvestedCommand {
 	name: string;
 	label: string;
 	icon?: string;
-
 	iconSvg?: string;
 	context?: string;
 	kind: 'navigate' | 'action';

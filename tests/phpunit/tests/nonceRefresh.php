@@ -1,12 +1,14 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-nonce-refresh
+ */
 class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 
 	protected static $user_id;
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$user_id = $factory->user->create( array( 'role' => 'administrator' ) );
-
 		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
 	}
 
@@ -15,6 +17,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_heartbeat_received
+	 */
 	public function test_skips_anonymous_users() {
 		wp_set_current_user( 0 );
 
@@ -27,9 +32,11 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_heartbeat_received
+	 */
 	public function test_skips_users_without_openstation_enabled() {
 		$opted_out = self::factory()->user->create( array( 'role' => 'administrator' ) );
-
 		wp_set_current_user( $opted_out );
 
 		$response = openstation_nonce_refresh_heartbeat_received( array(), array() );
@@ -41,6 +48,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_heartbeat_received
+	 */
 	public function test_logged_in_user_receives_fresh_nonces_for_default_actions() {
 		wp_set_current_user( self::$user_id );
 
@@ -61,6 +71,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		$this->assertSame( 1, wp_verify_nonce( $nonces['updates'], 'updates' ) );
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_heartbeat_received
+	 */
 	public function test_preserves_pre_existing_response_keys() {
 		wp_set_current_user( self::$user_id );
 
@@ -73,6 +86,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		$this->assertArrayHasKey( OPENSTATION_NONCE_REFRESH_FIELD, $response );
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_build_payload
+	 */
 	public function test_filter_can_add_custom_actions() {
 		wp_set_current_user( self::$user_id );
 
@@ -93,6 +109,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_build_payload
+	 */
 	public function test_filter_can_remove_default_actions() {
 		wp_set_current_user( self::$user_id );
 
@@ -108,6 +127,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		$this->assertSame( array( 'wp_rest' ), array_keys( $payload ) );
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_build_payload
+	 */
 	public function test_filter_skips_non_string_and_empty_entries() {
 		wp_set_current_user( self::$user_id );
 
@@ -137,6 +159,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_heartbeat_received
+	 */
 	public function test_tick_carries_current_user_id() {
 		wp_set_current_user( self::$user_id );
 
@@ -149,6 +174,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_on_expired
+	 */
 	public function test_expired_path_carries_payload_and_uid() {
 		wp_set_current_user( self::$user_id );
 
@@ -168,6 +196,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_on_expired
+	 */
 	public function test_expired_path_skips_users_without_openstation() {
 		$opted_out = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $opted_out );
@@ -179,6 +210,9 @@ class Tests_OpenStation_NonceRefresh extends WP_UnitTestCase {
 		$this->assertTrue( $response['nonces_expired'], 'Pre-existing keys must pass through.' );
 	}
 
+	/**
+	 * @covers ::openstation_nonce_refresh_on_expired
+	 */
 	public function test_expired_path_filter_is_registered() {
 		$this->assertNotFalse(
 			has_filter(

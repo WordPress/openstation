@@ -90,7 +90,6 @@ describe( 'os-drag-move stream', () => {
 		targets[ 0 ].onEnter?.( { payload } as never );
 		document.dispatchEvent( new CustomEvent( DRAG_EVENTS.MOVE, { detail: { payload, clientX: 340, clientY: 250 } } ) );
 		const move = posted.find( ( m ) => m.type === 'os-drag-move' );
-
 		expect( move ).toEqual( { type: 'os-drag-move', position: { x: 240, y: 200 } } );
 
 		targets[ 0 ].onLeave?.( { payload } as never );

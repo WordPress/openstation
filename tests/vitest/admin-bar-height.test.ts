@@ -126,7 +126,6 @@ describe( 'installAdminBarHeight', () => {
 		install( bar );
 		bar.getBoundingClientRect = rect( 0, 0 );
 		document.body.classList.add( 'os-has-fullscreen-window' );
-
 		await Promise.resolve();
 		expect( published() ).toBe( '' );
 	} );
@@ -170,7 +169,6 @@ describe( 'every consumer reads the measured edge with Core’s token behind it'
 	} );
 
 	test( 'no top-level admin-bar item may be taller than the bar', () => {
-
 		const rule = css( 'desktop.css' ).match(
 			/body\.os-active #wpadminbar \.ab-top-menu > li\s*\{([^}]*)\}/,
 		);

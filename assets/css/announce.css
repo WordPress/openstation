@@ -6,7 +6,6 @@
 .os-announce {
 	position: fixed;
 	inset: 0;
-
 	z-index: 100000;
 	display: flex;
 	align-items: center;
@@ -249,7 +248,6 @@
 }
 
 .os-announce__btn--primary {
-
 	background: linear-gradient(135deg, #2a2533, #a12bb0 45%, #f252fc);
 	background-size: 180% 180%;
 	box-shadow: 0 10px 24px -10px rgba(242, 82, 252, 0.75),

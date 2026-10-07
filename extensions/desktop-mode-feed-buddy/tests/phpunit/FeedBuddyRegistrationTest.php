@@ -4,6 +4,9 @@ if ( ! function_exists( 'feed_buddy_register_surfaces' ) ) {
 	require_once dirname( __DIR__, 2 ) . '/desktop-mode-feed-buddy.php';
 }
 
+/**
+ * @group openstation
+ */
 class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 
 	private $user_id;
@@ -20,7 +23,6 @@ class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-
 		openstation_unregister_icon( 'feed-buddy-reader' );
 		wp_set_current_user( 0 );
 		parent::tear_down();

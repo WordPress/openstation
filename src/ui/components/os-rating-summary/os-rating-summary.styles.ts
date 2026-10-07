@@ -9,9 +9,7 @@ export const styles = css`
 		);
 		--_fill: var( --os-ui-rating-fill,
 			linear-gradient( 90deg, #f5af00 0%, #ffd245 100% ) );
-
 		--_star: var( --os-ui-rating-star, #f5af00 );
-
 		--_star-empty: var(
 			--os-ui-rating-star-empty,
 			var( --os-ui-fg-faint, rgba( 0, 0, 0, 0.18 ) )

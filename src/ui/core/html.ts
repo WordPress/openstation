@@ -17,20 +17,16 @@ function isTemplateResult( v: unknown ): v is TemplateResult {
 
 const MARKER_PREFIX = '$$wpd$$';
 const MARKER_RE = /\$\$wpd\$\$(\d+)\$\$/g;
-
 const COMMENT_MARKER_PREFIX = '$$wpd-node$$';
 const COMMENT_MARKER_RE = /^\$\$wpd-node\$\$(\d+)\$\$$/;
 const RAW_TEXT_TAGS = new Set( [ 'style', 'script', 'textarea', 'title' ] );
 
 function joinWithMarkers( strings: TemplateStringsArray ): string {
 	let out = '';
-
 	let inTag = false;
 	let quote: string | null = null;
 	let inComment = false;
-
 	let rawText: string | null = null;
-
 	let tagName = '';
 	let naming = false;
 	for ( let i = 0; i < strings.length; i++ ) {
@@ -92,7 +88,6 @@ function joinWithMarkers( strings: TemplateStringsArray ): string {
 			if ( ch === '<' && /[a-zA-Z/!]/.test( next ) ) {
 				inTag = true;
 				tagName = '';
-
 				naming = /[a-zA-Z]/.test( next );
 			}
 		}
@@ -116,11 +111,9 @@ type ChildState =
 		shape: 'template';
 		strings: TemplateStringsArray;
 		parts: Part[];
-
 		nodes: Node[];
 	}
 	| { shape: 'array'; entries: ChildPart[] }
-
 	| { shape: 'node'; node: Node };
 
 interface NodePart {
@@ -134,7 +127,6 @@ interface AttrPart {
 	valueIndices: number[];
 	element: Element;
 	name: string;
-
 	template: string[];
 	last?: string;
 }
@@ -306,7 +298,6 @@ function compile( strings: TemplateStringsArray ): Compiled {
 					parent.insertBefore( nn, child );
 				}
 				parent.removeChild( child );
-
 				shift += newNodes.length - 1;
 				recipes.push( ...newRecipes );
 			} else {
@@ -375,7 +366,6 @@ function compile( strings: TemplateStringsArray ): Compiled {
 interface MountState {
 	strings: TemplateStringsArray;
 	parts: Part[];
-
 	nodes: Node[];
 }
 
@@ -580,7 +570,6 @@ function updateArrayChild( child: ChildPart, arr: readonly unknown[] ): void {
 	if ( old ) {
 		disposeChildState( old );
 	}
-
 	const entries: ChildPart[] = [];
 	for ( const v of arr ) {
 		const entryAnchor = document.createTextNode( '' );
@@ -627,7 +616,6 @@ function disposeChildState( state: ChildState ): void {
 		}
 		return;
 	}
-
 	for ( const entry of state.entries ) {
 		if ( entry.state ) {
 			disposeChildState( entry.state );

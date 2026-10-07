@@ -14,7 +14,6 @@ interface CommentRow {
 	id: number;
 	status: 'approved' | 'hold' | 'spam' | 'trash';
 	author_name: string;
-
 	date_gmt: string;
 	post: number;
 	_embedded?: {
@@ -47,7 +46,6 @@ function timeAgo( isoUtc: string ): string {
 async function fetchComments(): Promise< CommentRow[] > {
 	const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
 		.wpApiSettings?.root ?? '/wp-json/';
-
 	const res = await trackedFetch(
 		root.replace( /\/$/, '' ) +
 			`/wp/v2/comments?per_page=${ LIMIT }&orderby=date&order=desc&_embed=up`,

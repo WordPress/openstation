@@ -45,15 +45,12 @@ export interface MenuRefreshPayload {
 	serverGames?: unknown;
 	serverDesktopThemes?: unknown;
 	desktopIcons?: unknown;
-
 	scriptDepPayloads?: unknown;
 	updateCounts?: unknown;
-
 	multisite?: unknown;
 }
 
 export interface MenuRefreshDeps {
-
 	applyDockItems: ( items: DockItem[] ) => void;
 	desktopArea: HTMLElement;
 	config: DesktopConfig;
@@ -86,18 +83,12 @@ export interface MenuRefreshDeps {
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
 	syncServerGames: ( list: DesktopGameServerEntry[] ) => Promise< void >;
-
 	applyMultisite?: ( block: MultisiteConfig | null ) => void;
-
 	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
-
 	applyDesktopIcons?: ( icons: DesktopIconServerEntry[] | undefined ) => void;
-
 	refreshRootPlacements?: ( addedIconIds: string[] ) => void;
-
 	syncShortcuts?: () => void;
-
 	syncWindowSubmenus?: () => void;
 }
 
@@ -201,7 +192,6 @@ export function createApplyPayload(
 
 	return function applyPayload( payload: MenuRefreshPayload ): void {
 		hydrateScriptDeps( payload );
-
 		if ( payload.scriptDepPayloads && typeof payload.scriptDepPayloads === 'object' ) {
 			config.scriptDepPayloads = {
 				...config.scriptDepPayloads,
@@ -248,13 +238,11 @@ export function createApplyPayload(
 			prevDockItems as ReadonlyArray< { id?: unknown } > | undefined,
 			dockItems as ReadonlyArray< { id?: unknown } >,
 		);
-
 		syncShortcuts?.();
 		syncWindowSubmenus?.();
 
 		if ( Array.isArray( nativeWindows ) ) {
 			const prevNativeWindows = config.nativeWindows;
-
 			void syncNativeWindows(
 				hydrateServerEntries(
 					nativeWindows as NativeWindowWireEntry[],
@@ -265,7 +253,6 @@ export function createApplyPayload(
 			);
 			config.nativeWindows =
 				nativeWindows as DesktopConfig[ 'nativeWindows' ];
-
 			if ( payload.nativeWindowScriptData ) {
 				config.nativeWindowScriptData =
 					payload.nativeWindowScriptData as DesktopConfig[ 'nativeWindowScriptData' ];
@@ -390,7 +377,6 @@ export function createApplyPayload(
 			renderIcons( desktopIcons as DesktopIconServerEntry[] );
 			applyDesktopIcons?.( desktopIcons as DesktopIconServerEntry[] );
 			syncShortcuts?.();
-
 			if (
 				iconIdSet(
 					prevDesktopIcons as ReadonlyArray< { id?: unknown } >,

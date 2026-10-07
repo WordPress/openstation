@@ -16,7 +16,6 @@ function blurFilterCalls(): string[] {
 
 describe( 'Mio glow blending', () => {
 	test( 'both blurred layers are still constructed', () => {
-
 		expect( blurFilterCalls() ).toHaveLength( 2 );
 	} );
 
@@ -28,7 +27,6 @@ describe( 'Mio glow blending', () => {
 	} );
 
 	test( 'the layers still ask for additive blending themselves', () => {
-
 		for ( const layer of [ 'halo', 'bloom', 'sheen' ] ) {
 			expect( source ).toMatch(
 				new RegExp( `${ layer }\\.blendMode = 'add'` ),

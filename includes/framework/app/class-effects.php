@@ -13,7 +13,6 @@ final class Effects {
 	public function toast( $message, $type = '' ) {
 		$effect = array( 'message' => (string) $message );
 		if ( '' !== (string) $type ) {
-
 			$effect['toastType'] = (string) $type;
 		}
 		return $this->add( 'toast', $effect );

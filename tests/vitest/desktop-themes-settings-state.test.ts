@@ -37,7 +37,6 @@ describe( 'OsSettingsState.desktopTheme', () => {
 	} );
 
 	test( 'the empty string is a REAL value, not a missing one', () => {
-
 		seedCache( '' );
 		expect( loadState().desktopTheme ).toBe( '' );
 	} );
@@ -84,7 +83,6 @@ describe( 'OsSettingsState.appliedThemeRecommendations', () => {
 	} );
 
 	test( 'entries outside the slug charset are dropped, the rest survive', () => {
-
 		seedLedger( [ 'Acme-Neon', 'acme/neon', '', 42, null, 'kept-theme' ] );
 		expect( loadState().appliedThemeRecommendations ).toEqual( [
 			'kept-theme',
@@ -97,7 +95,6 @@ describe( 'OsSettingsState.appliedThemeRecommendations', () => {
 	} );
 
 	test( 'the cap keeps the most recent 64 entries', () => {
-
 		seedLedger( Array.from( { length: 90 }, ( _v, i ) => `theme-${ i }` ) );
 		const ledger = loadState().appliedThemeRecommendations;
 		expect( ledger ).toHaveLength( 64 );

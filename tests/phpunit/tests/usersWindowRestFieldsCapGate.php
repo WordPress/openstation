@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-users-window
+ */
 class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -33,6 +36,9 @@ class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 		return rest_get_server()->dispatch( $request )->get_data();
 	}
 
+	/**
+	 * @covers ::openstation_users_window_register_rest_fields
+	 */
 	public function test_subscriber_gets_empty_defaults_for_other_user() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -52,6 +58,9 @@ class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_users_window_register_rest_fields
+	 */
 	public function test_admin_sees_last_login_and_presence() {
 		wp_set_current_user( self::$admin_id );
 
@@ -61,6 +70,9 @@ class Tests_OpenStation_UsersWindowRestFieldsCapGate extends WP_UnitTestCase {
 		$this->assertSame( 'online', $data['openstation_presence'] );
 	}
 
+	/**
+	 * @covers ::openstation_users_window_register_rest_fields
+	 */
 	public function test_user_sees_own_last_login_and_presence() {
 		wp_set_current_user( self::$author_id );
 

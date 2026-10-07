@@ -51,7 +51,6 @@ describe( '<os-range-field>', () => {
 		const field = host.querySelector( 'os-range-field' )!;
 		const width = (): string | undefined =>
 			readout().getAttribute( 'style' ) ?? undefined;
-
 		expect( width() ).toContain( '6ch' );
 
 		field.setAttribute( 'value', '359.5' );

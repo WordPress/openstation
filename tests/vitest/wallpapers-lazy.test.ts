@@ -125,7 +125,6 @@ describe( 'wallpapers — deferred hydration', () => {
 		await sync( [ serverEntry() ] );
 
 		expect( m.lazy.isPending( 'wp-living-tree' ) ).toBe( false );
-
 		expect( m.registry.get( 'wp-living-tree' )?.description ).toBe(
 			'A tree that grows with your site.',
 		);
@@ -246,7 +245,6 @@ describe( 'wallpapers — deferred hydration', () => {
 		await expect( m.lazy.hydrate( 'wp-living-tree' ) ).resolves.toBeNull();
 
 		expect( m.registry.get( 'wp-living-tree' ) ).toBeDefined();
-
 		expect( m.lazy.isPending( 'wp-living-tree' ) ).toBe( true );
 		await m.lazy.hydrate( 'wp-living-tree' );
 		expect( load ).toHaveBeenCalledTimes( 2 );
@@ -285,7 +283,6 @@ describe( 'wallpapers — deferred hydration', () => {
 					id: 'wp-living-tree',
 					label: 'Living Tree',
 					type: 'canvas',
-
 					preview: '#0b3',
 					mount: () => () => {},
 				} as CanvasWallpaperDef );

@@ -155,7 +155,6 @@ describe( 'overlay reconciliation (sync)', () => {
 		manager.sync();
 
 		expect( a.teardown ).toHaveBeenCalledTimes( 1 );
-
 		expect(
 			tile.querySelectorAll( `.${ PREVIEW_OVERLAY_CLASS }` ),
 		).toHaveLength( 1 );
@@ -384,7 +383,6 @@ describe( 'size-aware mounting (ResizeObserver available)', () => {
 
 		observerFor().trigger( [ tile ], true );
 		await flush();
-
 		expect( renderPreview ).not.toHaveBeenCalled();
 
 		setTileSize( tile, 180, 101 );
@@ -410,7 +408,6 @@ describe( 'size-aware mounting (ResizeObserver available)', () => {
 
 			setTileSize( tile, 260, 146 );
 			FakeResizeObserver.instances[ 0 ].trigger( [ tile ] );
-
 			await vi.advanceTimersByTimeAsync( 100 );
 			expect( teardown ).not.toHaveBeenCalled();
 

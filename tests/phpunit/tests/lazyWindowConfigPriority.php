@@ -1,14 +1,18 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_LazyWindowConfigPriority extends WP_UnitTestCase {
 
 	public function data_lazy_window_config_localizers() {
 		return array(
-
 			'games' => array( 'openstation_games_localize_config' ),
 		);
 	}
 
+	/**
+	 * @dataProvider data_lazy_window_config_localizers
+	 */
 	public function test_config_attaches_before_the_payload_harvest( $localizer ) {
 		$harvest = has_action( 'admin_enqueue_scripts', 'openstation_enqueue_assets' );
 

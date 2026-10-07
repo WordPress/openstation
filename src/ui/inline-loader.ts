@@ -7,16 +7,12 @@ const ROOT_CLASS = 'os-inline-loader';
 const KEYFRAMES_ID = 'os-inline-loader-keyframes';
 
 export interface InlineLoaderOptions {
-
 	label?: string;
-
 	immediate?: boolean;
 }
 
 export interface InlineLoader {
-
 	done: () => void;
-
 	fail: ( message: string, retry?: () => void ) => void;
 }
 
@@ -41,10 +37,8 @@ function ensureKeyframes(): void {
 export function buildLoadingSpinner(): HTMLElement {
 	if ( spinnerWillUpgrade() ) {
 		const spinner = document.createElement( 'os-spinner' );
-
 		spinner.setAttribute( 'preset', 'inline' );
 		spinner.setAttribute( 'size', '20' );
-
 		spinner.setAttribute( 'aria-hidden', 'true' );
 		return spinner;
 	}
@@ -84,7 +78,6 @@ export function showInlineLoader(
 		}
 		root = document.createElement( 'div' );
 		root.className = ROOT_CLASS;
-
 		root.setAttribute( 'role', 'status' );
 		root.setAttribute( 'aria-live', 'polite' );
 		root.style.cssText = [
@@ -134,7 +127,6 @@ export function showInlineLoader(
 			}
 			settled = true;
 			clearTimer();
-
 			if ( ! root ) {
 				settled = false;
 				paint();
@@ -144,7 +136,6 @@ export function showInlineLoader(
 				return;
 			}
 			root.textContent = '';
-
 			root.setAttribute( 'aria-live', 'assertive' );
 			root.style.flexDirection = 'column';
 			root.style.color = 'var(--os-ui-fg-muted,#646970)';

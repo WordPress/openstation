@@ -71,12 +71,10 @@ describe( 'forwarding', () => {
 		const req = h.openWindow.mock.calls[ 0 ][ 0 ] as Record< string, unknown >;
 		expect( req.windowId ).toBe( 'os-game-inkfall' );
 		expect( req.native ).toBe( true );
-
 		expect( String( req.url ) ).toContain( 'openstation_solo=os-game-inkfall' );
 	} );
 
 	test( 'closes the local copy once the host has it', async () => {
-
 		const game = fakeWindow( 'os-game-inkfall' );
 		const h = harness( { 'os-game-inkfall': game } );
 
@@ -85,7 +83,6 @@ describe( 'forwarding', () => {
 	} );
 
 	test( 'leaves the solo window itself alone', () => {
-
 		const h = harness( { 'desktop-mode-games': fakeWindow( 'desktop-mode-games' ) } );
 
 		h.fire( 'desktop-mode-games' );
@@ -111,7 +108,6 @@ describe( 'forwarding', () => {
 	} );
 
 	test( 'falls back to the configured URL before the window has navigated', async () => {
-
 		const post = fakeWindow( 'post-php', {
 			config: {
 				native: false,
@@ -144,7 +140,6 @@ describe( 'sameDocument', () => {
 	} );
 
 	test( 'treats two different solo windows as different', () => {
-
 		expect(
 			sameDocument(
 				`${ BASE }?openstation_solo=os-game-inkfall`,
@@ -177,7 +172,6 @@ describe( 'sameDocument', () => {
 
 describe( 'when it cannot forward', () => {
 	test( 'keeps the local window if the host refuses', async () => {
-
 		const game = fakeWindow( 'os-game-inkfall' );
 		const os = harness( { 'os-game-inkfall': game } );
 		os.openWindow.mockResolvedValue( { ok: false, error: 'nope' } );
@@ -204,7 +198,6 @@ describe( 'when it cannot forward', () => {
 	} );
 
 	test( 'does nothing at all against a host too old to offer openWindow', () => {
-
 		let handler: unknown = null;
 		const os = {
 			config: { adminUrl: 'https://example.test/wp-admin/', soloWindow: 'x' },

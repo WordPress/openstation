@@ -79,7 +79,6 @@ describe( 'shell harvester — invoking a harvested command', () => {
 		expect( () => harvester.runInvoke( 'plugin/broken' )( '', ctx ) ).toThrow(
 			'sntAbilityRun is not defined',
 		);
-
 		expect( close ).not.toHaveBeenCalled();
 	} );
 

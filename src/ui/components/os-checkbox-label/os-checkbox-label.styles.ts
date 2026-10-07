@@ -12,7 +12,6 @@ export const styles = css`
 		font-size: 12px;
 		color: var( --os-ui-fg, #1d2327 );
 		cursor: pointer;
-
 		-webkit-user-select: none;
 		user-select: none;
 	}

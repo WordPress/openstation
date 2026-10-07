@@ -13,7 +13,6 @@ function openstation_desktop_theme_rmdir( $dir ) {
 		return false;
 	}
 	if ( $real === $base ) {
-
 		return false;
 	}
 	if ( ! is_dir( $real ) ) {
@@ -35,7 +34,7 @@ function openstation_desktop_theme_rmdir( $dir ) {
 			wp_delete_file( $path );
 		}
 	}
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
 	return @rmdir( $real );
 }
 
@@ -120,7 +119,6 @@ function openstation_desktop_theme_validate_zip( $zip_path ) {
 		if ( openstation_desktop_theme_zip_entry_ignored( $name ) ) {
 			continue;
 		}
-
 		if ( '' === $name || '/' === substr( $name, -1 ) ) {
 			continue;
 		}
@@ -141,7 +139,7 @@ function openstation_desktop_theme_validate_zip( $zip_path ) {
 			return new WP_Error(
 				'openstation_desktop_theme_entry_too_large',
 				sprintf(
-
+					/* translators: %s: file name inside the archive. */
 					__( '"%s" is larger than a theme asset is allowed to be.', 'desktop-mode' ),
 					$name
 				),
@@ -164,7 +162,7 @@ function openstation_desktop_theme_validate_zip( $zip_path ) {
 			return new WP_Error(
 				'openstation_desktop_theme_bad_extension',
 				sprintf(
-
+					/* translators: %s: file name inside the archive. */
 					__( '"%s" is not a file type a desktop theme may contain.', 'desktop-mode' ),
 					$name
 				),
@@ -202,6 +200,7 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 		);
 	}
 
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	$markup = (string) file_get_contents( $file );
 	if ( '' === trim( $markup ) ) {
 		return new WP_Error(
@@ -210,7 +209,6 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 			array( 'status' => 400 )
 		);
 	}
-
 	if ( preg_match( '/<!DOCTYPE|<!ENTITY/i', $markup ) ) {
 		return new WP_Error(
 			'openstation_desktop_theme_bad_svg',
@@ -236,7 +234,6 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 	$forbidden = array( 'script', 'foreignobject', 'iframe', 'object', 'embed', 'audio', 'video', 'handler', 'set', 'animate' );
 
 	$walk = static function ( DOMNode $node ) use ( &$walk, $forbidden ) {
-
 		$children = array();
 		foreach ( $node->childNodes as $child ) {
 			$children[] = $child;
@@ -249,7 +246,6 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 			if ( XML_ELEMENT_NODE !== $child->nodeType ) {
 				continue;
 			}
-
 			$tag = strtolower( $child->localName );
 			if ( in_array( $tag, $forbidden, true ) ) {
 				$node->removeChild( $child );
@@ -270,7 +266,6 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 					continue;
 				}
 				if ( 'href' === $local || 'xlink:href' === $name ) {
-
 					if ( '' === $value || '#' !== $value[0] ) {
 						$child->removeAttributeNode( $attribute );
 					}
@@ -298,7 +293,7 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 			array( 'status' => 400 )
 		);
 	}
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 	file_put_contents( $file, $clean );
 
 	return true;
@@ -318,7 +313,6 @@ function openstation_desktop_theme_sweep_staging( $max_age = DAY_IN_SECONDS ) {
 		if ( false === $mtime || ( $now - $mtime ) < $max_age ) {
 			continue;
 		}
-
 		if ( openstation_desktop_theme_rmdir( $dir ) ) {
 			++$removed;
 		}
@@ -328,7 +322,6 @@ function openstation_desktop_theme_sweep_staging( $max_age = DAY_IN_SECONDS ) {
 }
 
 function openstation_desktop_theme_install_from_zip( $zip_path ) {
-
 	openstation_desktop_theme_sweep_staging();
 
 	$manifest_entry = openstation_desktop_theme_validate_zip( $zip_path );
@@ -359,13 +352,11 @@ function openstation_desktop_theme_install_from_zip( $zip_path ) {
 			array( 'status' => 500 )
 		);
 	}
-
 	global $wp_filesystem;
 
 	$unzipped = unzip_file( $zip_path, $staging );
 	if ( is_wp_error( $unzipped ) ) {
 		openstation_desktop_theme_rmdir( $staging );
-
 		return $unzipped;
 	}
 
@@ -383,6 +374,7 @@ function openstation_desktop_theme_install_from_zip( $zip_path ) {
 		);
 	}
 
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	$decoded = json_decode( (string) file_get_contents( $manifest_file ), true );
 	if ( null === $decoded ) {
 		openstation_desktop_theme_rmdir( $staging );
@@ -463,7 +455,6 @@ function openstation_desktop_theme_install_from_zip( $zip_path ) {
 				array( 'status' => 500 )
 			);
 		}
-
 		if ( ! $wp_filesystem->move( $root . '/' . $relative, $destination, true ) ) {
 			openstation_desktop_theme_rmdir( $staging );
 			openstation_desktop_theme_rmdir( $target );
@@ -485,7 +476,7 @@ function openstation_desktop_theme_install_from_zip( $zip_path ) {
 		openstation_desktop_themes_url( $slug ),
 		(string) $installed_at
 	);
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 	if ( false === file_put_contents( $target . '/theme.css', $css ) ) {
 		openstation_desktop_theme_rmdir( $staging );
 		openstation_desktop_theme_rmdir( $target );

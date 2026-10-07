@@ -27,7 +27,6 @@ export const userSearchStyles = css`
 	}
 
 	.dropdown {
-
 		background: var( --os-bg, #1d2327 );
 		color: var( --os-fg, #fff );
 		border: 1px solid var( --os-ui-border, rgba( 255, 255, 255, 0.18 ) );

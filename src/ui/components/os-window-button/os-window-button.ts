@@ -13,7 +13,6 @@ const ICONS: Record<string, string> = {
 	detach:
 		'<path d="M5 2H2.5v7.5H10V7M6.5 2H10v3.5M10 2L5.5 6.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
 	reload:
-
 		'<g transform="translate(0.6 0.6) scale(0.021)" fill="currentColor">' +
 		'<path d="m504.554 233.704-76.447 91.467c-6.329 7.572-15.417 11.479-24.571 11.479a31.872 31.872 0 0 1-20.504-7.447l-91.467-76.447c-13.561-11.334-15.366-31.515-4.032-45.075s31.515-15.366 45.075-4.032l37.506 31.347c-10.274-74.891-74.668-132.774-152.337-132.774C132.984 102.223 64 171.207 64 256s68.984 153.777 153.777 153.777c17.673 0 32 14.327 32 32s-14.327 32-32 32c-58.17 0-112.859-22.653-153.991-63.785C22.653 368.859 0 314.17 0 256s22.653-112.859 63.786-153.992c41.132-41.132 95.821-63.785 153.991-63.785s112.859 22.653 153.992 63.785c32.517 32.516 53.471 73.508 60.829 117.991l22.849-27.339c11.334-13.56 31.515-15.364 45.075-4.032 13.56 11.335 15.365 31.516 4.032 45.076z"/>' +
 		'</g>',
@@ -106,9 +105,7 @@ export class OsWindowButton extends Component {
 		const iconKey = iconSrc
 			? ''
 			: ( this as unknown as { icon: string | null } ).icon || '';
-
 		const svgInner = ICONS[ iconKey ] || '';
-
 		const label = this.getAttribute( 'aria-label' ) || '';
 		if ( iconSrc ) {
 			return html`
@@ -140,7 +137,6 @@ export class OsWindowButton extends Component {
 	connectedCallback(): void {
 		super.connectedCallback();
 		queueMicrotask( () => this._paintSvg() );
-
 		queueMicrotask( () => this._wireActivateEvent() );
 	}
 
@@ -162,7 +158,6 @@ export class OsWindowButton extends Component {
 		const buffer = root.querySelector( '[data-svg-buffer]' );
 		if ( svg && buffer ) {
 			const markup = buffer.textContent || '';
-
 			if ( svg.innerHTML !== markup ) {
 				svg.innerHTML = markup;
 			}

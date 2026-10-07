@@ -119,7 +119,6 @@ describe( '<os-notice>', () => {
 		const el = host.querySelector( 'os-notice' )! as HTMLElement;
 		( el as unknown as { dismiss(): void } ).dismiss();
 		expect( el.hidden ).toBe( true );
-
 		host.innerHTML = '';
 		host.innerHTML = `<os-notice>Again</os-notice>`;
 		await tick();

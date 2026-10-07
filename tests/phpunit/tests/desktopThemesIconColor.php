@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 
 	private function permissive_resolver() {
@@ -22,6 +25,10 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @dataProvider data_valid_colors
+	 * @covers ::openstation_desktop_theme_is_color_value
+	 */
 	public function test_valid_colors_are_accepted( $value ) {
 		$this->assertTrue(
 			openstation_desktop_theme_is_color_value( $value ),
@@ -45,6 +52,10 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @dataProvider data_invalid_colors
+	 * @covers ::openstation_desktop_theme_is_color_value
+	 */
 	public function test_invalid_colors_are_rejected( $value ) {
 		$this->assertFalse(
 			openstation_desktop_theme_is_color_value( $value ),
@@ -71,6 +82,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_normalize_color
+	 */
 	public function test_current_color_is_normalized() {
 		$this->assertSame(
 			'currentColor',
@@ -82,6 +96,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_per_icon_color_survives() {
 		$manifest = $this->sanitize( array(
 			'icons' => array(
@@ -102,6 +119,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		$this->assertSame( 'currentColor', $manifest['icons']['RECYCLE_BIN']['color'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_manifest_wide_icon_color_applies_to_every_icon() {
 		$manifest = $this->sanitize( array(
 			'iconColor' => 'currentColor',
@@ -122,6 +142,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_per_icon_color_overrides_the_default() {
 		$manifest = $this->sanitize( array(
 			'iconColor' => 'currentColor',
@@ -139,6 +162,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		$this->assertSame( '#ff6b81', $manifest['icons']['EXIT_OPENSTATION']['color'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_color_none_opts_a_single_icon_out() {
 		$manifest = $this->sanitize( array(
 			'iconColor' => 'currentColor',
@@ -160,6 +186,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_bad_color_drops_without_dropping_the_icon() {
 		$manifest = $this->sanitize( array(
 			'icons' => array(
@@ -175,11 +204,17 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'color', $manifest['icons']['OS_SETTINGS'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_bad_manifest_icon_color_is_dropped() {
 		$manifest = $this->sanitize( array( 'iconColor' => 'url( evil.png )' ) );
 		$this->assertSame( '', $manifest['iconColor'] );
 	}
 
+	/**
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
+	 */
 	public function test_payload_carries_tints_in_a_parallel_map() {
 		openstation_register_desktop_theme( 'acme/tinted', array(
 			'name'      => 'Tinted',
@@ -216,6 +251,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		openstation_unregister_desktop_theme( 'acme/tinted' );
 	}
 
+	/**
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
+	 */
 	public function test_untinted_theme_ships_an_empty_map() {
 		openstation_register_desktop_theme( 'acme/plain', array(
 			'name'  => 'Plain',
@@ -236,6 +274,10 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		openstation_unregister_desktop_theme( 'acme/plain' );
 	}
 
+	/**
+	 * @dataProvider data_valid_positions
+	 * @covers ::openstation_desktop_theme_is_position_value
+	 */
 	public function test_valid_positions_are_accepted( $value ) {
 		$this->assertTrue(
 			openstation_desktop_theme_is_position_value( $value ),
@@ -256,6 +298,10 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @dataProvider data_invalid_positions
+	 * @covers ::openstation_desktop_theme_is_position_value
+	 */
 	public function test_invalid_positions_are_rejected( $value ) {
 		$this->assertFalse(
 			openstation_desktop_theme_is_position_value( $value ),
@@ -274,6 +320,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_position_compiles_to_a_background_position() {
 		$manifest = $this->sanitize( array(
 			'textures' => array(
@@ -293,6 +342,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_textures
+	 */
 	public function test_bad_position_drops_without_dropping_the_texture() {
 		$manifest = $this->sanitize( array(
 			'textures' => array(
@@ -308,6 +360,9 @@ class Tests_OpenStation_DesktopThemesIconColor extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'position', $manifest['textures']['DESKTOP'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_textures
+	 */
 	public function test_border_image_slots_take_no_position() {
 		$manifest = $this->sanitize( array(
 			'textures' => array(

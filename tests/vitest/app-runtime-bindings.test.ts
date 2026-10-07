@@ -88,7 +88,6 @@ describe( 'readBinding', () => {
 	it( 'debounces typing by default and honours os-debounce', () => {
 		const typed = el( '<os-text-field os-bind="query"></os-text-field>' );
 		expect( readBinding( typed, new CustomEvent( 'os-input-change', { detail: { value: 'a' } } ) ).debounce ).toBe( 250 );
-
 		const dragged = el( '<os-range-field os-bind="size"></os-range-field>' );
 		expect( readBinding( dragged, new CustomEvent( 'os-range-change', { detail: { value: 3 } } ) ).debounce ).toBe( 250 );
 		const custom = el( '<os-text-field os-bind="query" os-debounce="50"></os-text-field>' );

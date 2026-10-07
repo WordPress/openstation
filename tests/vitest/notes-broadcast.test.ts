@@ -25,7 +25,6 @@ const NOTE: Note = {
 };
 
 describe( 'notes bin broadcast', () => {
-
 	let published: Array< Record< string, unknown > >;
 	let unsubscribe: () => void;
 	let undoAction: ( () => void ) | null;
@@ -39,7 +38,6 @@ describe( 'notes bin broadcast', () => {
 			published.push( payload as Record< string, unknown > );
 		} );
 		undoAction = null;
-
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		w.wp = {
 			...( w.wp ?? {} ),
@@ -94,7 +92,6 @@ describe( 'notes bin broadcast', () => {
 	} );
 
 	test( 'the topic matches the slug the bin config ships', () => {
-
 		expect( NOTES_POST_TYPE ).toBe( 'wpd_note' );
 	} );
 } );

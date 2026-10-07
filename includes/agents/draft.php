@@ -62,7 +62,6 @@ function openstation_agent_draft_generate( $brief, array $roles, array $catalogu
 		$error = openstation_agent_humanize_generate_error( $generated );
 		$data  = $error->get_error_data();
 		if ( ! is_array( $data ) || ! isset( $data['status'] ) ) {
-
 			$error->add_data( array_merge( is_array( $data ) ? $data : array(), array( 'status' => 502 ) ) );
 		}
 		return $error;

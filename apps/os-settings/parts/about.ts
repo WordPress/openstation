@@ -92,6 +92,7 @@ function formatDate( iso: string ): string {
 function postMeta( item: AboutFeedItem ): string {
 	const date = formatDate( item.publishedAt );
 	if ( date && item.author ) {
+		/* translators: 1: publication date, 2: post author. */
 		return sprintf( '%1$s · %2$s', date, item.author );
 	}
 	return date || item.author;
@@ -263,6 +264,7 @@ export function ensureAboutLoaded( ctx: Ctx ): void {
 			}
 			ui.about = { kind: 'ready', feed };
 		} catch ( error ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation/about] journal feed failed:', error );
 			ui.about = { kind: 'error' };
 		}

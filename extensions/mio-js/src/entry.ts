@@ -20,7 +20,13 @@ const LAYER_CSS = `
 }
 
 #${ LAYER_ID } .os-mio__handle {
-
+	/*
+	 * PHYSICAL top/left, deliberately: the handle is placed every
+	 * frame by a translate3d() carrying canvas coordinates, and
+	 * transform is always physical. A logical inset-inline-start would
+	 * flip the origin under RTL while the translation kept pushing
+	 * rightwards, and the handle would walk off screen.
+	 */
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -37,36 +43,25 @@ const LAYER_CSS = `
 `;
 
 export interface MioStandalone {
-
 	start: () => Promise< void >;
-
 	stop: () => void;
-
 	isRunning: () => boolean;
-
 	getPosition: () => { x: number; y: number } | null;
-
 	setPosition: ( x: number, y: number ) => void;
-
 	setColliders: ( selector: string | null ) => void;
-
 	getColliders: () => string | null;
-
 	config: MioConfig;
 }
 
 declare global {
 	interface Window {
-
 		Mio?: MioStandalone;
-
 		MIO_AUTO_BOOT?: boolean;
 	}
 }
 
 let handle: MioHandle | null = null;
 let layer: HTMLElement | null = null;
-
 let starting: Promise< void > | null = null;
 
 function ensureStyle(): void {
@@ -86,7 +81,6 @@ function ensureLayer(): HTMLElement {
 	}
 	const el = document.createElement( 'div' );
 	el.id = LAYER_ID;
-
 	el.setAttribute( 'aria-hidden', 'true' );
 	document.body.appendChild( el );
 	return el;
@@ -117,7 +111,6 @@ function writePosition( pos: { x: number; y: number } ): void {
 	try {
 		window.localStorage.setItem( POSITION_KEY, JSON.stringify( pos ) );
 	} catch {
-
 	}
 }
 
@@ -149,7 +142,6 @@ async function start(): Promise< void > {
 		ensureStyle();
 		const host = ensureLayer();
 		layer = host;
-
 		let mounted;
 		try {
 			mounted = await withPixiGlobal( () =>
@@ -165,7 +157,6 @@ async function start(): Promise< void > {
 			mounted = null;
 		}
 		if ( ! mounted ) {
-
 			host.remove();
 			layer = null;
 			return;
@@ -181,7 +172,6 @@ function stop(): void {
 	const live = handle;
 	handle = null;
 	if ( live ) {
-
 		const resting = live.getPosition();
 		if ( resting ) {
 			writePosition( resting );
@@ -219,7 +209,6 @@ if ( tag?.dataset?.mioColliders ) {
 }
 
 if ( wantsAutoBoot() ) {
-
 	if ( document.readyState === 'loading' ) {
 		document.addEventListener( 'DOMContentLoaded', () => void start(), {
 			once: true,

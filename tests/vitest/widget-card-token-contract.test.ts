@@ -31,12 +31,8 @@ const PALETTE = paletteTokens();
 
 function documentedContract(): string[] {
 	return [
-		'--os-ui-color-text',
-		'--os-ui-color-text-subtle',
-		'--os-ui-color-border',
-		'--os-ui-color-accent',
-		'--os-ui-color-surface',
-	];
+		...STARTER.matchAll( /^\s*\*\s+(--os-ui-color-[a-z-]+)\s{2,}/gm ),
+	].map( ( m ) => m[ 1 ] );
 }
 
 function resolve( name: string, table: Map< string, string > ): string {
@@ -152,7 +148,6 @@ describe( 'the widget card token contract', () => {
 	test.each( [ '--os-ui-color-text', '--os-ui-color-text-subtle' ] )(
 		'%s clears AA on the card glass under Legacy',
 		( token ) => {
-
 			const worn = new Map( [
 				...PALETTE,
 				...Object.entries( LEGACY.tokens ).map(
@@ -164,21 +159,18 @@ describe( 'the widget card token contract', () => {
 	);
 
 	test( 'the accent follows the picker rather than the brand', () => {
-
 		expect( PALETTE.get( '--os-ui-color-accent' ) ).toContain(
 			'var(--os-ui-accent'
 		);
 	} );
 
 	test( 'canvas ink follows the tokens too, not a hardcoded value', () => {
-
 		expect( POST_STATS ).not.toMatch( /rgba\(\s*0\s*,\s*0\s*,\s*0/ );
 		expect( POST_STATS ).toContain( '--os-ui-color-border' );
 		expect( POST_STATS ).toContain( '--os-ui-color-text-subtle' );
 	} );
 
 	test( 'the canvas fallbacks are legible on the glass, not the old black', () => {
-
 		const ink = POST_STATS.slice(
 			POST_STATS.indexOf( 'const RULE =' ),
 			POST_STATS.indexOf( '\n', POST_STATS.indexOf( 'const LABEL =' ) )
@@ -189,7 +181,6 @@ describe( 'the widget card token contract', () => {
 	} );
 
 	test( 'the card paints the surface token it publishes', () => {
-
 		const card = DESKTOP.slice(
 			DESKTOP.indexOf( '.os-widgets__card {' ),
 			DESKTOP.indexOf( '}', DESKTOP.indexOf( '.os-widgets__card {' ) )

@@ -2,7 +2,6 @@ import { css } from '../../core';
 
 export const styles = css`
 	:host {
-
 		--_gap: var( --os-ui-field-row-gap, 6px );
 		--_label-width: var( --os-ui-field-row-label-width, 12rem );
 

@@ -52,20 +52,15 @@ export interface PostFanDeps {
 	postChipLayer: PixiContainer;
 	postEdgeGfx: PixiGraphics;
 	env: CanvasEnv;
-
 	param: 'categories' | 'tags';
 	interaction: Interaction;
-
 	chipFontSize: number;
 	chipTextRes: number;
 	pagerLabelSize: number;
 	pagerGlyphSize: number;
 	pagerTextRes?: number;
-
 	getCenter: ( id: number ) => { x: number; y: number; tone: number } | null;
-
 	onCountReconciled: ( termId: number, total: number ) => void;
-
 	onOpenPost: () => void;
 }
 
@@ -74,17 +69,11 @@ export interface PostFan {
 	focusId: number | null;
 	focusPage: number;
 	focusTotalPages: number;
-
 	load(): Promise< void >;
-
 	clear(): void;
-
 	invalidate(): void;
-
 	ease(): void;
-
 	drawEdges(): void;
-
 	syncChips( counterScale: number ): void;
 }
 
@@ -93,7 +82,6 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 	const posts = new Map< number, PostMini >();
 	const chips = new Map< number, PostChip >();
 	const cache = new Map< string, PostsCacheEntry >();
-
 	let loadSeq = 0;
 
 	const pager = new pixi.Container();
@@ -122,7 +110,6 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 			return;
 		}
 		stopBubble( interaction, e );
-
 		interaction.lastFocusChange = performance.now();
 		if ( fan.focusPage > 1 ) {
 			fan.focusPage--;
@@ -225,7 +212,6 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 		const container = new pixi.Container();
 		container.eventMode = 'static';
 		container.cursor = 'pointer';
-
 		container.alpha = 0;
 		const bg = new pixi.Graphics();
 		const dot = new pixi.Graphics();
@@ -245,7 +231,6 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 			if ( isPinchGesture( interaction ) ) {
 				return;
 			}
-
 			env.leaveFullscreen();
 			env.openUrl( post.editUrl, post.title, 'dashicons-admin-post' );
 			deps.onOpenPost();
@@ -271,7 +256,6 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 		const ringR = POST_RING_RADIUS + Math.max( 0, count - 8 ) * 6;
 		items.forEach( ( item, idx ) => {
 			const angle = ( ( 2 * Math.PI ) / Math.max( 1, count ) ) * idx - Math.PI / 2;
-
 			const gfx = new pixi.Graphics();
 			postLayer.addChild( gfx );
 			const post: PostMini = {
@@ -295,7 +279,6 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 
 	function apply( entry: PostsCacheEntry, termId: number ): void {
 		fan.focusTotalPages = entry.totalPages;
-
 		if ( Number.isFinite( entry.realTotal ) && entry.realTotal >= 0 ) {
 			deps.onCountReconciled( termId, entry.realTotal );
 		}

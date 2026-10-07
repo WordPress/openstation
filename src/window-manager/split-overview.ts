@@ -155,7 +155,6 @@ export function fillOppositeHalfAndExit( mgr: WindowManager, selected: Window ):
 	const partnerZone: SnapZone = anchorZone === 'left' ? 'right' : 'left';
 
 	selected.element.style.transform = '';
-
 	selected.element.classList.remove( 'os-window--overview' );
 
 	selected.applySnap( partnerZone );

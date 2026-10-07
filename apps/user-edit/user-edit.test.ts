@@ -35,7 +35,6 @@ describe( 'the user edit app view', () => {
 		expect( host ).not.toBeNull();
 		const profile = host?.querySelector< ProfileEl >( 'os-user-profile[data-os-user-profile-host]' );
 		expect( profile?.getAttribute( 'user-id' ) ).toBe( '7' );
-
 		expect( profile?.config ).toEqual( ctx.extra );
 		expect( profile?.fetch ).toBe( ctx.fetch );
 		profile?.toast?.( 'Saved', 'success' );

@@ -11,7 +11,6 @@ export class WindField {
 		if ( this.strength <= 0 ) {
 			return { x: 0, y: 0 };
 		}
-
 		const gust = Math.sin( t * 0.9 + x * 0.004 + y * 0.003 );
 		const breeze = Math.sin( t * 2.1 + y * 0.006 + 1.7 );
 		const shiver = Math.sin( t * 5.3 + x * 0.01 + 4.1 );

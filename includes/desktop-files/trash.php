@@ -10,7 +10,6 @@ function openstation_files_user_owns_row( $user_id, $row ) {
 }
 
 function openstation_files_user_can_trash_placement( $user_id, $row ) {
-
 	return (bool) apply_filters(
 		'openstation_files_user_can_trash_placement',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -20,7 +19,6 @@ function openstation_files_user_can_trash_placement( $user_id, $row ) {
 }
 
 function openstation_files_user_can_restore_placement( $user_id, $row ) {
-
 	return (bool) apply_filters(
 		'openstation_files_user_can_restore_placement',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -30,7 +28,6 @@ function openstation_files_user_can_restore_placement( $user_id, $row ) {
 }
 
 function openstation_files_user_can_purge_placement( $user_id, $row ) {
-
 	return (bool) apply_filters(
 		'openstation_files_user_can_purge_placement',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -40,7 +37,6 @@ function openstation_files_user_can_purge_placement( $user_id, $row ) {
 }
 
 function openstation_files_user_can_trash_folder( $user_id, $row ) {
-
 	return (bool) apply_filters(
 		'openstation_files_user_can_trash_folder',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -50,7 +46,6 @@ function openstation_files_user_can_trash_folder( $user_id, $row ) {
 }
 
 function openstation_files_user_can_restore_folder( $user_id, $row ) {
-
 	return (bool) apply_filters(
 		'openstation_files_user_can_restore_folder',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -60,7 +55,6 @@ function openstation_files_user_can_restore_folder( $user_id, $row ) {
 }
 
 function openstation_files_user_can_purge_folder( $user_id, $row ) {
-
 	return (bool) apply_filters(
 		'openstation_files_user_can_purge_folder',
 		openstation_files_user_owns_row( $user_id, $row ),
@@ -87,7 +81,6 @@ function openstation_files_capture_ancestry( $parent_id ) {
 		if ( ! $folder ) {
 			break;
 		}
-
 		$placement      = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT parent_id, x, y FROM {$tables['placements']}
@@ -125,14 +118,12 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 	foreach ( $ancestry as $entry ) {
 		$orig_id  = (int) $entry['folder_id'];
 		$orig_par = (int) $entry['placement_parent_id'];
-
 		$resolved_parent = isset( $id_map[ $orig_par ] )
 			? (int) $id_map[ $orig_par ]
 			: $orig_par;
 
 		$folder = openstation_files_get_folder( $orig_id, true );
 		if ( $folder ) {
-
 			if ( ! empty( $folder['trashed_at_ms'] ) ) {
 				openstation_files_restore_folder( $user_id, $orig_id );
 			}
@@ -151,12 +142,10 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 			)
 		);
 		if ( is_wp_error( $new_id ) ) {
-
 			$resolved           = $resolved_parent;
 			$id_map[ $orig_id ] = $resolved;
 			continue;
 		}
-
 		openstation_files_place(
 			$user_id,
 			$resolved_parent,
@@ -221,7 +210,6 @@ function openstation_files_trash_placement( $user_id, $placement_id ) {
 		array( '%d', '%d', '%s', '%d' ),
 		array( '%d' )
 	);
-
 	if ( false === $result ) {
 		return new WP_Error(
 			'openstation_files_trash_failed',
@@ -274,7 +262,6 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 		$parent_alive = openstation_files_get_folder( $original_parent_id, true );
 		if ( $parent_alive ) {
 			if ( ! empty( $parent_alive['trashed_at_ms'] ) ) {
-
 				$folder_restore = openstation_files_restore_folder( $user_id, $original_parent_id );
 				if ( is_wp_error( $folder_restore ) ) {
 					return $folder_restore;
@@ -282,7 +269,6 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 			}
 			$resolved_parent_id = $original_parent_id;
 		} else {
-
 			$meta_raw           = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
 			$decoded            = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
 			$ancestry           = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
@@ -389,7 +375,6 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 	do_action( 'openstation_files_before_trash_folder', $folder_id, $user_id, $row );
 
 	$now = openstation_files_now_ms();
-
 	$folder_placement = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT parent_id FROM {$tables['placements']}
@@ -425,7 +410,6 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 			array( 'status' => 500 )
 		);
 	}
-
 	$ancestry = openstation_files_capture_ancestry( $folder_id );
 	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
 	$wpdb->query(
@@ -446,7 +430,6 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 			$folder_id
 		)
 	);
-
 	$child_folder_ids = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT f.id FROM {$tables['folders']} f
@@ -498,7 +481,6 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 	do_action( 'openstation_files_before_restore_folder', $folder_id, $user_id, $row );
 
 	$now = openstation_files_now_ms();
-
 	$nested_ids = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT DISTINCT CAST( p.file_ref AS UNSIGNED ) AS fid
@@ -523,7 +505,6 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 		array( null, null, null, '%d' ),
 		array( '%d' )
 	);
-
 	$meta_raw = isset( $row['trashed_meta'] ) ? (string) $row['trashed_meta'] : '';
 	$decoded  = '' !== $meta_raw ? json_decode( $meta_raw, true ) : null;
 	$ancestry = ( is_array( $decoded ) && isset( $decoded['ancestry'] ) && is_array( $decoded['ancestry'] ) )
@@ -559,7 +540,6 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 			}
 		}
 	}
-
 	$wpdb->query(
 		$wpdb->prepare(
 			"UPDATE {$tables['placements']}
@@ -573,7 +553,6 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 			$folder_id
 		)
 	);
-
 	foreach ( (array) $nested_ids as $nid ) {
 		openstation_files_restore_folder( $user_id, (int) $nid );
 	}
@@ -631,14 +610,14 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	);
 	if ( ! empty( $share_ids ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $share_ids ), '%d' ) );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['decisions']} WHERE share_id IN ($placeholders)",
 				$share_ids
 			)
 		);
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['shares']} WHERE id IN ($placeholders)",
@@ -659,7 +638,7 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	}
 	if ( ! empty( $pointing_ids ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$tables['placements']} WHERE id IN ($placeholders)",
@@ -739,7 +718,6 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		ARRAY_A
 	);
 	foreach ( (array) $placements as $row ) {
-
 		if ( ! empty( $row['trashed_via_folder'] ) ) {
 			continue;
 		}
@@ -750,18 +728,16 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 			? openstation_plain_text_title( $file->title() )
 			: (string) $row['file_type'];
 		$icon  = $file ? (string) $file->icon() : 'dashicons-no-alt';
-
 		$bucket   = ( 'shortcut' === (string) $row['file_type'] )
 			? 'shortcut'
 			: 'placement';
 		$subtitle = ( 'shortcut' === $bucket )
 			? __( 'Desktop shortcut', 'desktop-mode' )
 			: sprintf(
-
+				/* translators: %s: file-type slug like 'post', 'attachment'. */
 				__( '%s on desktop', 'desktop-mode' ),
 				(string) $row['file_type']
 			);
-
 		$item = array(
 			'id'            => (int) $row['id'],
 			'type'          => $bucket,
@@ -806,7 +782,7 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 			'title'         => (string) $row['name'],
 			'subtitle'      => $child_count > 0
 				? sprintf(
-
+					/* translators: %d: number of items inside the trashed folder. */
 					_n( 'Folder · %d item inside', 'Folder · %d items inside', $child_count, 'desktop-mode' ),
 					$child_count
 				)

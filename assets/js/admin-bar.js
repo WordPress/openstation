@@ -1,5 +1,4 @@
 ( function() {
-
 	var toggle = document.getElementById( 'wp-admin-bar-os-toggle' );
 	if ( ! toggle ) {
 		return;
@@ -7,9 +6,7 @@
 	var cfg = window.openStationAdminBar || {};
 	toggle.addEventListener( 'click', function( e ) {
 		e.preventDefault();
-
 		var fallback = cfg.portalUrl;
-
 		function navigate( url ) {
 			try {
 				window.top.location.href = url;
@@ -21,7 +18,6 @@
 		body.set( 'action', 'save-openstation' );
 		body.set( 'nonce', cfg.nonce );
 		body.set( 'enabled', '1' );
-
 		if ( cfg.network ) {
 			body.set( 'network', '1' );
 		}

@@ -4,7 +4,6 @@ import { directoryStyles } from './directory.styles';
 export const CANVAS_PREFIX = 'os-term-canvas';
 
 export interface ChromeButton {
-
 	variant?: string;
 	icon: string;
 	label: string;
@@ -148,7 +147,7 @@ export function wireCanvasSearch< T extends { id: number; count: number; name: s
 			const countEl = document.createElement( 'span' );
 			countEl.className = `${ CANVAS_PREFIX }__search-meta`;
 			countEl.textContent = sprintf(
-
+				/* translators: %d: number of posts assigned to a term. */
 				_n( '%d post', '%d posts', item.count ),
 				item.count,
 			);

@@ -57,7 +57,6 @@ describe( 'Recycle Bin Badge Subscriptions', () => {
 	} );
 
 	test( 'the postMessage fast path refetches the count through the framework fetch, silently', async () => {
-
 		const rawFetch = vi.fn();
 		vi.stubGlobal( 'fetch', rawFetch );
 		const osFetch = vi.fn().mockResolvedValue( {

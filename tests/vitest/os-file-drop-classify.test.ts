@@ -18,7 +18,6 @@ describe( 'classifyDropTarget', () => {
 	} );
 
 	test( 'drop on the files layer inside a folder window resolves the folder', () => {
-
 		document.body.innerHTML = `
 			<div class="os-window os-window--native" id="wp-window-os-folder-7">
 				<div class="os-files-layer" data-folder-id="7">
@@ -31,7 +30,6 @@ describe( 'classifyDropTarget', () => {
 	} );
 
 	test( 'drop on folder-window whitespace OUTSIDE the layer still resolves the folder', () => {
-
 		document.body.innerHTML = `
 			<div class="os-window os-window--native" id="wp-window-os-folder-7">
 				<div class="os-folder-window__split" id="target"></div>

@@ -11,7 +11,6 @@ function openstation_my_wordpress_eligible_post_types() {
 		if ( ! $post_type instanceof WP_Post_Type ) {
 			continue;
 		}
-
 		if ( ! empty( $post_type->_builtin ) ) {
 			continue;
 		}
@@ -21,7 +20,6 @@ function openstation_my_wordpress_eligible_post_types() {
 		if ( empty( $post_type->cap->edit_posts ) || ! current_user_can( $post_type->cap->edit_posts ) ) {
 			continue;
 		}
-
 		if ( empty( $post_type->show_in_rest ) && ! openstation_my_wordpress_post_type_is_bridged( $name ) ) {
 			continue;
 		}
@@ -37,7 +35,6 @@ function openstation_my_wordpress_eligible_post_types() {
 			$out[ $slug ] = $types[ $slug ];
 			continue;
 		}
-
 		$object = get_post_type_object( $slug );
 		if ( $object instanceof WP_Post_Type ) {
 			$out[ $slug ] = $object;
@@ -72,7 +69,6 @@ function openstation_my_wordpress_post_type_rest_path( $post_type ) {
 
 function openstation_my_wordpress_post_type_icon( $post_type ) {
 	$icon = isset( $post_type->menu_icon ) ? (string) $post_type->menu_icon : '';
-
 	if ( '' === $icon || 'none' === $icon || 'div' === $icon ) {
 		return 'dashicons-admin-post';
 	}

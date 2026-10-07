@@ -7,7 +7,7 @@ if ( ! function_exists( 'as_get_datetime_object' ) ) {
 }
 
 if ( ! class_exists( 'ActionScheduler_Store' ) ) {
-
+	// phpcs:ignore Generic.Files.OneObjectStructurePerFile.MultipleFound
 	class ActionScheduler_Store {
 		const STATUS_PENDING = 'pending';
 
@@ -24,7 +24,7 @@ if ( ! class_exists( 'ActionScheduler_Store' ) ) {
 }
 
 if ( ! class_exists( 'ActionScheduler_AdminView' ) ) {
-
+	// phpcs:ignore Generic.Files.OneObjectStructurePerFile.MultipleFound
 	class ActionScheduler_AdminView {
 		private static $instance;
 
@@ -39,6 +39,10 @@ if ( ! class_exists( 'ActionScheduler_AdminView' ) ) {
 	}
 }
 
+/**
+ * @group openstation
+ * @group os-plugin-notices
+ */
 class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -61,11 +65,17 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_plugin_notice_action_scheduler
+	 */
 	public function test_no_notice_when_no_pastdue_actions() {
 		ActionScheduler_Store::$fake_count = 0;
 		$this->assertNull( openstation_plugin_notice_action_scheduler() );
 	}
 
+	/**
+	 * @covers ::openstation_plugin_notice_action_scheduler
+	 */
 	public function test_notice_reports_pastdue_count() {
 		ActionScheduler_Store::$fake_count = 15;
 
@@ -77,6 +87,9 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'past-due', $notice['actionUrl'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugin_notice_action_scheduler
+	 */
 	public function test_no_notice_without_capability() {
 		ActionScheduler_Store::$fake_count = 15;
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
@@ -84,6 +97,9 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 		$this->assertNull( openstation_plugin_notice_action_scheduler() );
 	}
 
+	/**
+	 * @covers ::openstation_get_plugin_notices
+	 */
 	public function test_aggregate_includes_action_scheduler() {
 		ActionScheduler_Store::$fake_count = 3;
 
@@ -91,6 +107,9 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 		$this->assertContains( 'action-scheduler-pastdue', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_get_plugin_notices
+	 */
 	public function test_filter_can_suppress_all() {
 		ActionScheduler_Store::$fake_count = 3;
 		add_filter( 'openstation_plugin_notices', '__return_empty_array' );
@@ -98,6 +117,9 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_get_plugin_notices() );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_plugin_notices
+	 */
 	public function test_suppressor_removes_notice_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -117,6 +139,9 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_plugin_notices
+	 */
 	public function test_suppressor_leaves_notice_when_not_chromeless() {
 		add_action(
 			'admin_notices',

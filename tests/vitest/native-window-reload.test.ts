@@ -44,7 +44,6 @@ describe( 'native-window reload', async () => {
 		} );
 		document.body.appendChild( desktop );
 		manager = new WindowManager( desktop );
-
 		_resetWindowLoadingTransitionsForTests();
 		installWindowLoadingTransitions();
 	} );
@@ -119,7 +118,6 @@ describe( 'native-window reload', async () => {
 		await settle();
 
 		expect( renders ).toBe( 2 );
-
 		const probes = win?.element.querySelectorAll( '.probe' );
 		expect( probes?.length ).toBe( 1 );
 		expect( probes?.[ 0 ].textContent ).toBe( 'render 2' );
@@ -175,9 +173,7 @@ describe( 'native-window reload', async () => {
 
 		expect( signals ).toHaveLength( 2 );
 		expect( signals[ 1 ] ).not.toBe( signals[ 0 ] );
-
 		expect( signals[ 0 ].aborted ).toBe( true );
-
 		expect( signals[ 1 ].aborted ).toBe( false );
 	} );
 
@@ -264,13 +260,11 @@ describe( 'native-window reload', async () => {
 		await settle();
 
 		expect( closes ).toBe( 0 );
-
 		expect( manager.getById( 'no-lifecycle' ) ).toBe( win );
 		expect( win?.element ).toBe( elementBefore );
 	} );
 
 	test( 'emptying the body does not cost the window its loading overlay', async () => {
-
 		const win = await manager.open( {
 			id: 'overlay-survives',
 			url: '#overlay-survives',

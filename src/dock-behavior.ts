@@ -24,14 +24,11 @@ export interface DockBehaviors {
 }
 
 export interface DockBehaviorDeps {
-
 	shellBody: HTMLElement;
-
 	getBehaviors: () => DockBehaviors;
 }
 
 export interface DockBehaviorController {
-
 	refresh(): void;
 	destroy(): void;
 }
@@ -113,14 +110,10 @@ function prefersReducedMotion(): boolean {
 
 export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorController {
 	let destroyed = false;
-
 	let pointer: { x: number; y: number } | null = null;
-
 	let overFlyout = false;
-
 	const inFlight = new Map< HTMLElement, Promise< void > >();
 	const pending = new Map< HTMLElement, boolean >();
-
 	let buttonDown = false;
 	let parkAfterRelease = false;
 
@@ -175,7 +168,6 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 			flip();
 			return;
 		}
-
 		const vtName = `os-dock-${ rail.id || 'rail' }`;
 		rail.style.setProperty( 'view-transition-name', vtName );
 		document.documentElement.classList.add( VIEW_TRANSITION_CLASS );
@@ -231,7 +223,6 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 			target instanceof Element && target.closest( FLYOUT_SELECTOR ) !== null;
 		evaluate();
 	};
-
 	let focusFrame = 0;
 	const onFocusChange = (): void => {
 		if ( focusFrame ) {
@@ -243,7 +234,6 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 		} );
 	};
 	const onLayoutChanged = (): void => evaluate();
-
 	const onButtonDown = (): void => {
 		buttonDown = true;
 	};
@@ -259,9 +249,7 @@ export function installDockBehavior( deps: DockBehaviorDeps ): DockBehaviorContr
 	document.addEventListener( 'pointerup', onButtonUp, { capture: true, passive: true } );
 	document.addEventListener( 'pointercancel', onButtonUp, { capture: true, passive: true } );
 	document.addEventListener( 'pointermove', onPointer, { passive: true } );
-
 	document.addEventListener( 'pointerdown', onPointer, { passive: true } );
-
 	document.addEventListener( 'focusin', onFocusChange );
 	document.addEventListener( 'focusout', onFocusChange );
 	document.addEventListener( 'os-layout-changed', onLayoutChanged );

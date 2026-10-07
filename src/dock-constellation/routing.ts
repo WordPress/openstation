@@ -60,3 +60,4 @@ export function openSubmenuItem(
 		multi: !! item.multi,
 	} );
 }
+

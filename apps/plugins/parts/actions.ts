@@ -159,7 +159,7 @@ async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< bo
 		const result = await updateAndRefresh( host, row );
 		host.toast(
 			sprintf(
-
+				/* translators: 1: plugin name, 2: new version */
 				__( '%1$s updated to %2$s.', 'desktop-mode' ),
 				row.name || row.plugin,
 				result.newVersion,
@@ -171,7 +171,7 @@ async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< bo
 		if ( isUpToDateError( err ) ) {
 			host.toast(
 				sprintf(
-
+					/* translators: %s: plugin name */
 					__( '%s is already up to date.', 'desktop-mode' ),
 					row.name || row.plugin,
 				),
@@ -181,7 +181,7 @@ async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< bo
 		} else {
 			host.toast(
 				sprintf(
-
+					/* translators: 1: plugin name, 2: error message */
 					__( 'Update of %1$s failed: %2$s', 'desktop-mode' ),
 					row.name || row.plugin,
 					describeError( err ),
@@ -191,7 +191,6 @@ async function runUpdate( host: PluginsHost, row: InstalledPlugin ): Promise< bo
 		}
 	} finally {
 		host.busy.updating.delete( row.plugin );
-
 		host.repaint();
 		host.refreshMenu();
 	}
@@ -221,8 +220,8 @@ export async function runToggleAutoUpdate( host: PluginsHost, row: InstalledPlug
 		host.toast(
 			sprintf(
 				wasEnabled
-					? __( 'Auto-updates disabled for %s.', 'desktop-mode' )
-					: __( 'Auto-updates enabled for %s.', 'desktop-mode' ),
+					? /* translators: %s: plugin name */ __( 'Auto-updates disabled for %s.', 'desktop-mode' )
+					: /* translators: %s: plugin name */ __( 'Auto-updates enabled for %s.', 'desktop-mode' ),
 				row.name || row.plugin,
 			),
 		);
@@ -231,7 +230,7 @@ export async function runToggleAutoUpdate( host: PluginsHost, row: InstalledPlug
 	} catch ( err ) {
 		host.toast(
 			sprintf(
-
+				/* translators: 1: plugin name, 2: error message */
 				__( 'Could not toggle auto-updates for %1$s: %2$s', 'desktop-mode' ),
 				row.name || row.plugin,
 				describeError( err ),
@@ -261,7 +260,7 @@ export function bulkButtons( host: PluginsHost, selectedIds: string[], clear: ()
 		if ( updatable.length > 0 ) {
 			out.push( {
 				label: sprintf(
-
+					/* translators: %d: number of plugins with pending updates */
 					__( 'Update %d', 'desktop-mode' ),
 					updatable.length,
 				),
@@ -314,7 +313,7 @@ async function runBulk( host: PluginsHost, rows: InstalledPlugin[], verb: 'activ
 				confirm: {
 					title: __( 'Delete selected plugins?', 'desktop-mode' ),
 					message: sprintf(
-
+						/* translators: %d: number of plugins */
 						__( 'Permanently delete %d plugin(s)? Their files will be removed from disk. This cannot be undone.', 'desktop-mode' ),
 						rows.length,
 					),
@@ -358,13 +357,13 @@ async function runBulkUpdate( host: PluginsHost, rows: InstalledPlugin[] ): Prom
 	host.toast(
 		failed === 0
 			? sprintf(
-
+				/* translators: 1: count, 2: action verb (activated, deactivated, deleted) */
 				__( '%1$d plugin(s) %2$s.', 'desktop-mode' ),
 				succeeded,
 				noun,
 			)
 			: sprintf(
-
+				/* translators: 1: success count, 2: failure count, 3: action verb */
 				__( '%1$d %3$s, %2$d failed.', 'desktop-mode' ),
 				succeeded,
 				failed,

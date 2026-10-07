@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-ai
+ */
 class Tests_OpenStation_AiAnalysisMigrations extends WP_UnitTestCase {
 
 	public function set_up() {
@@ -15,6 +18,9 @@ class Tests_OpenStation_AiAnalysisMigrations extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_migrate_unschedule_post_term_ai
+	 */
 	public function test_migration_unschedules_post_and_term_jobs() {
 		wp_schedule_single_event( time() + 100, 'desktop_mode_ai_analyze_post', array( 1, 1 ) );
 		wp_schedule_single_event( time() + 100, 'desktop_mode_ai_analyze_term', array( 1, 'category', 1 ) );
@@ -34,6 +40,9 @@ class Tests_OpenStation_AiAnalysisMigrations extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_migrate_unschedule_post_term_ai
+	 */
 	public function test_migration_two_leaves_the_comment_job_alone() {
 		wp_schedule_single_event( time() + 100, 'desktop_mode_ai_analyze_comment', array( 5, 1 ) );
 
@@ -45,6 +54,9 @@ class Tests_OpenStation_AiAnalysisMigrations extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_migrate_remove_comments_ai
+	 */
 	public function test_migration_eight_clears_the_comment_job_and_option() {
 		update_option( 'desktop_mode_comments_ai_moderation', true, false );
 		wp_schedule_single_event( time() + 100, 'desktop_mode_ai_analyze_comment', array( 5, 1 ) );
@@ -61,6 +73,9 @@ class Tests_OpenStation_AiAnalysisMigrations extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_maybe_run_migrations
+	 */
 	public function test_runner_dispatches_and_stamps_v2() {
 		wp_schedule_single_event( time() + 100, 'desktop_mode_ai_analyze_post', array( 2, 1 ) );
 

@@ -107,7 +107,6 @@ describe( 'window-links × real WindowManager — minimize survives', () => {
 			height: 600,
 		} );
 		await manager.open( {
-
 			id: 'comment-php-c-500',
 			url: `${ ORIGIN }/wp-admin/comment.php?action=editcomment&c=500`,
 			title: 'Comment 500',

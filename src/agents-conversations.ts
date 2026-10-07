@@ -14,9 +14,7 @@ export interface AgentConversationSummary {
 	agentDescription: string;
 	agentAvatarUrl: string;
 	title: string;
-
 	preview: string;
-
 	lastRole: string;
 	messageCount: number;
 	createdAt: string;
@@ -115,6 +113,7 @@ export async function persistAgentTranscript(
 		state.conversationsRev = ( state.conversationsRev ?? 0 ) + 1;
 		agentsChatStore.notify();
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.warn( '[desktop-mode/agents] conversation save failed:', err );
 	}
 }

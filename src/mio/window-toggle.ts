@@ -35,7 +35,6 @@ export function registerMioWindowToggle(
 		match: ( win ) => win.id === windowId,
 		render: ( host ) => {
 			host.classList.add( 'os-mio-window-toggle' );
-
 			const svg = host.querySelector( 'svg' );
 			if ( svg ) {
 				const slash = document.createElementNS( 'http://www.w3.org/2000/svg', 'path' );

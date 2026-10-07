@@ -36,7 +36,6 @@ function noteRestoreTargets( payload: Session ): void {
 				.filter( Boolean ),
 		);
 	} catch {
-
 	}
 }
 
@@ -51,11 +50,8 @@ export function createSessionSaver(
 	let debounceTimer: number | null = null;
 	let inFlight = false;
 	let dirty = false;
-
 	let activeSave: Promise< void > | null = null;
-
 	let lastSaveStartedAt = 0;
-
 	let lastAccepted: string | null = null;
 
 	const doSave = (): Promise< void > => {
@@ -63,7 +59,6 @@ export function createSessionSaver(
 			dirty = true;
 			return Promise.resolve();
 		}
-
 		const payload = manager.snapshot();
 		const current = fingerprint( payload );
 		if ( current === lastAccepted ) {
@@ -87,12 +82,10 @@ export function createSessionSaver(
 							'X-WP-Nonce': config.restNonce,
 						},
 						body: JSON.stringify( { session: payload } ),
-
 						keepalive: true,
 					},
 					{ silent: true },
 				);
-
 				if ( response?.ok ) {
 					lastAccepted = current;
 				}
@@ -104,7 +97,6 @@ export function createSessionSaver(
 			activeSave = null;
 			if ( dirty ) {
 				dirty = false;
-
 				schedule();
 			}
 		} );
@@ -128,15 +120,12 @@ export function createSessionSaver(
 			clearTimeout( debounceTimer );
 			debounceTimer = null;
 		}
-
 		dirty = false;
-
 		const payload = manager.snapshot();
 		const current = fingerprint( payload );
 		if ( current === lastAccepted ) {
 			return;
 		}
-
 		noteRestoreTargets( payload );
 		const body = new Blob(
 			[ JSON.stringify( { session: payload } ) ],
@@ -161,7 +150,6 @@ export function createSessionSaver(
 		if ( debounceTimer !== null ) {
 			clearTimeout( debounceTimer );
 		}
-
 		let wait = SESSION_SAVE_DEBOUNCE_MS;
 		if ( lastSaveStartedAt !== 0 ) {
 			const sinceLastSave = Date.now() - lastSaveStartedAt;
@@ -177,7 +165,6 @@ export function createSessionSaver(
 	};
 
 	window.addEventListener( 'pagehide', flushImmediately );
-
 	document.addEventListener( 'visibilitychange', () => {
 		if ( document.visibilityState === 'hidden' ) {
 			flushImmediately();

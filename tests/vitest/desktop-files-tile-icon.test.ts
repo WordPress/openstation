@@ -77,7 +77,6 @@ describe( 'file-tile icon dispatch (regression — data URI / URL handling)', ()
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( URL_ICON );
-
 		const malformed = tile.querySelector(
 			'span.os-file-tile__icon.dashicons',
 		);

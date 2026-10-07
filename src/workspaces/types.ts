@@ -17,13 +17,11 @@ export const WORKSPACE_LAYOUTS: readonly WorkspaceLayoutId[] = [
 
 export interface WorkspaceApps {
 	mode: 'all' | 'only';
-
 	ids: string[];
 }
 
 export interface WorkspaceWidgets {
 	mode: 'all' | 'only';
-
 	ids: string[];
 }
 
@@ -54,55 +52,37 @@ export type WorkspaceAppearance = Partial<
 >;
 
 export interface WorkspaceLaunch {
-
 	match: string;
-
 	url?: string;
-
 	title?: string;
-
 	gridSpan?: import( '../types' ).GridSpan;
-
 	place?: { x: number; y: number; width: number; height: number };
 }
 
 export interface WorkspaceProfile {
-
 	preset: string;
-
 	icon: string;
-
 	color: string;
 	apps: WorkspaceApps;
-
 	widgets?: WorkspaceWidgets;
-
 	appearance?: WorkspaceAppearance;
 	windows: WorkspaceLaunch[];
 	layout: WorkspaceLayoutId;
-
 	provisioned?: boolean;
 }
 
 export interface WorkspacePreset {
 	id: string;
-
 	label: string;
-
 	description: string;
 	icon: string;
 	color: string;
-
 	apps: string[];
-
 	widgets?: string[];
-
 	appearance?: WorkspaceAppearance;
 	windows: WorkspaceLaunch[];
 	layout: WorkspaceLayoutId;
-
 	defaultLabel?: string;
-
 	order?: number;
 }
 

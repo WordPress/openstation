@@ -24,7 +24,6 @@ export function computeGirth(
 	const scale = trunkBase / Math.max( TIP_RADIUS, nodes[ 0 ].radius );
 	for ( const node of nodes ) {
 		node.radius = Math.max( 0.7, node.radius * scale );
-
 		const rel = Math.min( 1, node.radius / Math.max( 0.7, trunkBase ) );
 		node.compliance = Math.pow( 1 - rel, 1.6 );
 	}

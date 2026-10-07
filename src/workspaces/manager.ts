@@ -22,19 +22,12 @@ import { workspaceAppearance, workspaceWidgetIds } from './visibility';
 
 export interface WorkspaceDeps {
 	manager: WindowManager;
-
 	getNavItems: () => NavItem[];
-
 	adminUrl: string;
-
 	deriveWindowId: ( url: string ) => string;
-
 	openNative: ( id: string ) => void;
-
 	refreshLayout: () => void;
-
 	setVisibleWidgets?: ( ids: readonly string[] | null ) => void;
-
 	setAppearance?: ( patch: Record< string, unknown > | null ) => void;
 }
 
@@ -70,9 +63,7 @@ export function setWorkspaceProfile(
 	} else {
 		delete desktop.profile;
 	}
-
 	deps.refreshLayout();
-
 	if ( desktopId === deps.manager.getActiveDesktopId() ) {
 		if ( JSON.stringify( workspaceAppearance( profile ) ) === previousLook ) {
 			applyWorkspaceWidgets( deps, desktopId );
@@ -111,15 +102,10 @@ export function applyWorkspaceView(
 }
 
 export interface CreateWorkspaceOptions {
-
 	preset?: string;
-
 	label?: string;
-
 	profile?: WorkspaceProfile;
-
 	activate?: boolean;
-
 	desktopId?: string;
 }
 
@@ -251,10 +237,8 @@ function openLaunchUrl(
 	const menu = launch.item.menu;
 	return deps.manager.openNew( {
 		id: deps.deriveWindowId( url ),
-
 		baseId: launchBaseId( deps, url, launch ),
 		url,
-
 		parentUrl: menu?.url ?? url,
 		title: launch.title ?? launch.item.title,
 		icon: launch.item.icon,
@@ -271,7 +255,6 @@ export function provisionWorkspace(
 	opts: { force?: boolean } = {},
 ): void {
 	const profile = getWorkspaceProfile( deps.manager, desktopId );
-
 	if ( ! profile || ( profile.provisioned && ! opts.force ) ) {
 		return;
 	}
@@ -279,10 +262,8 @@ export function provisionWorkspace(
 	setWorkspaceProfile( deps, desktopId, { ...profile, provisioned: true } );
 
 	const launches = resolveLaunches( deps.getNavItems(), profile.windows );
-
 	const claimed = new Set< string >();
 	const onDesk = claimOpenWindows( deps, launches, desktopId, claimed );
-
 	const landed: string[] = [];
 	let opened = 0;
 	for ( const [ index, launch ] of launches.entries() ) {
@@ -295,7 +276,6 @@ export function provisionWorkspace(
 				placeLaunchedWindow( deps.manager, existing, launch );
 				continue;
 			}
-
 			void openLaunchUrl( deps, url, launch, desktopId, claimed )
 				.then( ( win ) => {
 					if ( win ) {
@@ -305,7 +285,6 @@ export function provisionWorkspace(
 					}
 				} )
 				.catch( () => {
-
 				} );
 			continue;
 		}
@@ -371,7 +350,6 @@ export function reopenWorkspaceWindows(
 	for ( const [ index, launch ] of launches.entries() ) {
 		if ( launch.url ) {
 			const url = absoluteAdminUrl( launch.url, deps.adminUrl );
-
 			const existing = onDesk.get( launch );
 			if ( existing ) {
 				landed[ index ] = existing.id;
@@ -387,7 +365,6 @@ export function reopenWorkspaceWindows(
 						}
 					} )
 					.catch( () => {
-
 					} ),
 			);
 			continue;
@@ -442,11 +419,9 @@ export function captureWorkspaceWindows(
 			match: id,
 			title: win.config.title || id,
 		};
-
 		if ( true !== win.config.native && win.config.url ) {
 			entry.url = win.config.url;
 		}
-
 		if ( win._gridSpan ) {
 			entry.gridSpan = { ...win._gridSpan };
 		} else if ( win.state === 'normal' && area.width > 0 && area.height > 0 ) {
@@ -459,7 +434,6 @@ export function captureWorkspaceWindows(
 			} );
 		}
 		out.push( entry );
-
 		if ( out.length >= WORKSPACE_MAX_WINDOWS ) {
 			break;
 		}
@@ -540,9 +514,7 @@ function whenWindowOpens(
 }
 
 export interface SaveDeskOptions {
-
 	visibleAppIds?: readonly string[];
-
 	mountedWidgetIds?: readonly string[];
 }
 

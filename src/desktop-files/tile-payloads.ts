@@ -3,16 +3,12 @@ import type { DragPayload, DragSession } from '../drag';
 import type { RestPlacementShape } from './rest';
 
 export interface TilePayloadContext {
-
 	placement: RestPlacementShape;
 }
 
 export interface TilePayloadHandler {
-
 	appliesTo( ctx: TilePayloadContext ): boolean;
-
 	accept( data: Record< string, unknown >, ctx: TilePayloadContext ): boolean;
-
 	acceptLabel: string;
 	onDrop(
 		session: DragSession,

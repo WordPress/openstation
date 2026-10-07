@@ -84,7 +84,6 @@ describe( 'wallpaper editor slot', () => {
 		registry.register( editableDef() );
 		syncEditor( ctx );
 		select( 'test-plain' );
-
 		select( 'test-editable' );
 		expect( slot().querySelector( '.test-editor' )?.textContent ).toBe( 'controls' );
 	} );
@@ -108,7 +107,6 @@ describe( 'wallpaper editor slot', () => {
 		expect( teardown ).not.toHaveBeenCalled();
 		select( 'test-plain' );
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
-
 		teardownEditor( ctx );
 		expect( teardown ).toHaveBeenCalledTimes( 1 );
 	} );

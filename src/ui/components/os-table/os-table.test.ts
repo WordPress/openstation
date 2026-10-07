@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './os-table';
-
+// eslint-disable-next-line no-duplicate-imports
 import type { OsTable, OsTableColumn } from './os-table';
 
 const tick = (): Promise< void > =>
@@ -51,7 +51,6 @@ describe( '<os-table>', () => {
 		expect( slots.map( ( s ) => s.name ) ).toEqual( [ 'run-b', 'run-a' ] );
 		expect( slots[ 0 ].assignedElements()[ 0 ]?.textContent ).toBe( 'Run Bob' );
 		expect( table.shadowRoot!.textContent ).not.toContain( '[object Object]' );
-
 		expect( new Set( slots.map( ( s ) => s.name ) ).size ).toBe( slots.length );
 		table.filters = { run: 'alice' };
 		await tick();
@@ -147,7 +146,6 @@ describe( '<os-table>', () => {
 		const select = table.shadowRoot!.querySelector(
 			'.filter-select',
 		) as HTMLSelectElement;
-
 		expect( select.options.length ).toBe( 3 );
 
 		select.value = 'admin';
@@ -204,7 +202,6 @@ describe( '<os-table>', () => {
 		expect( ths[ 0 ].classList.contains( 'is-sticky' ) ).toBe( true );
 		expect( ths[ 1 ].classList.contains( 'is-sticky' ) ).toBe( true );
 		expect( ths[ 2 ].classList.contains( 'is-sticky' ) ).toBe( false );
-
 		expect( ths[ 1 ].classList.contains( 'is-sticky-edge' ) ).toBe( true );
 
 		const tds = table.shadowRoot!.querySelectorAll( 'tbody tr td' );
@@ -348,7 +345,6 @@ describe( '<os-table>', () => {
 		host.innerHTML = `<os-table></os-table>`;
 		await tick();
 		const table = host.querySelector( 'os-table' ) as OsTable< User >;
-
 		table.columns = [
 			{
 				key: 'name',
@@ -423,7 +419,6 @@ describe( '<os-table>', () => {
 		const firstCb = trsBefore[ 0 ].querySelector(
 			'input.select-row-checkbox',
 		) as HTMLInputElement;
-
 		firstCb.focus();
 		expect( table.shadowRoot!.activeElement ).toBe( firstCb );
 
@@ -436,17 +431,13 @@ describe( '<os-table>', () => {
 				'tbody tr:not(.subtable):not(.empty):not(.skeleton)',
 			),
 		);
-
 		expect( trsAfter.length ).toBe( trsBefore.length );
 		for ( let i = 0; i < trsBefore.length; i++ ) {
 			expect( trsAfter[ i ] ).toBe( trsBefore[ i ] );
 		}
-
 		expect( trsAfter[ 0 ].classList.contains( 'is-selected' ) ).toBe( true );
 		expect( firstCb.checked ).toBe( true );
-
 		expect( table.shadowRoot!.activeElement ).toBe( firstCb );
-
 		const headerCb = table.shadowRoot!.querySelector(
 			'thead .select-all-checkbox',
 		) as HTMLInputElement;
@@ -486,7 +477,6 @@ describe( '<os-table>', () => {
 		table.columns = sampleColumns;
 		table.getRowId = ( row ) => row.email;
 		table.data = sampleData;
-
 		table.filters = { role: 'admin' };
 		await tick();
 
@@ -520,7 +510,6 @@ describe( '<os-table>', () => {
 			'Alice',
 			'Carol',
 		] );
-
 		expect( table.data.length ).toBe( 3 );
 	} );
 
@@ -639,7 +628,6 @@ describe( '<os-table>', () => {
 			'tbody tr.skeleton',
 		);
 		expect( skeletonRows.length ).toBe( 3 );
-
 		expect(
 			table.shadowRoot!.querySelectorAll(
 				'tbody tr:not(.skeleton):not(.empty)',
@@ -653,7 +641,6 @@ describe( '<os-table>', () => {
 		</os-table>`;
 		await tick();
 		const table = host.querySelector( 'os-table' )!;
-
 		const slot = table.shadowRoot!.querySelector(
 			'tr.empty slot',
 		) as HTMLSlotElement;
@@ -685,7 +672,6 @@ describe( '<os-table>', () => {
 			host.innerHTML = `<os-table sticky-columns="1"></os-table>`;
 			await tick();
 			const table = host.querySelector( 'os-table' )!;
-
 			const scroll = table.shadowRoot!.querySelector( '.scroll' );
 			expect( observed ).toContain( scroll );
 			expect( observed ).toContain( table );
@@ -732,7 +718,6 @@ describe( '<os-table>', () => {
 		table.columns = [ { key: 'a' }, { key: 'b' } ];
 		table.data = [ { a: 1, b: 2 } as unknown as User ];
 		await tick();
-
 		expect( () => table.recomputeLayout() ).not.toThrow();
 		expect( () => table.recomputeLayout() ).not.toThrow();
 	} );

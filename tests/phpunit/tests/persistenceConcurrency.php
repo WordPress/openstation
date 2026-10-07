@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_PersistenceConcurrency extends WP_UnitTestCase {
 	private $db;
 	private $prefix;
@@ -13,7 +15,6 @@ class Tests_OpenStation_PersistenceConcurrency extends WP_UnitTestCase {
 		$this->db = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
 		$this->db->set_prefix( $this->prefix );
 		$this->db->set_blog_id( 1 );
-
 		$this->assertTrue( mysqli_query( $this->db->dbh, "CREATE TABLE {$this->prefix}openstation_presence (
 			user_id BIGINT UNSIGNED PRIMARY KEY, last_seen_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			last_active_ms BIGINT UNSIGNED NOT NULL DEFAULT 0, inactive_at_ms BIGINT UNSIGNED NOT NULL DEFAULT 0)" ) );
@@ -75,6 +76,7 @@ class Tests_OpenStation_PersistenceConcurrency extends WP_UnitTestCase {
 		$this->assertSame( 'ok', $output, $error );
 	}
 
+	/** @covers ::openstation_presence_upsert */
 	public function test_independent_workers_do_not_lose_users_or_regress_timestamps() {
 		$left = $right = array();
 		for ( $i = 1; $i <= 100; ++$i ) {
@@ -96,6 +98,10 @@ class Tests_OpenStation_PersistenceConcurrency extends WP_UnitTestCase {
 		$this->assertSame( array( '10000', '20000', '10000' ), array_column( $rows, 'last_active_ms' ) );
 	}
 
+	/**
+	 * @covers ::openstation_presence_upsert
+	 * @covers ::openstation_presence_cron_prune
+	 */
 	public function test_heartbeat_and_pruning_workers_preserve_refreshed_users() {
 		$now = (int) round( microtime( true ) * 1000 );
 		$this->db->insert( $this->prefix . 'openstation_presence', array( 'user_id' => 1, 'last_seen_ms' => $now - 30 * DAY_IN_SECONDS * 1000 ) );
@@ -116,6 +122,7 @@ class Tests_OpenStation_PersistenceConcurrency extends WP_UnitTestCase {
 		$this->assertSame( array( (string) ( $now + 100 ), (string) ( $now + 100 ) ), array_column( $rows, 'last_seen_ms' ) );
 	}
 
+	/** @covers ::openstation_stored_files_reconcile_bytes */
 	public function test_byte_revalidation_ignores_an_old_transaction_snapshot() {
 		global $wpdb;
 		$name = wp_generate_uuid4();
@@ -139,7 +146,6 @@ class Tests_OpenStation_PersistenceConcurrency extends WP_UnitTestCase {
 			} );
 			$this->assertIsArray( $result );
 			if ( ! $result[0] ) {
-
 				$this->assertNotEmpty( $result[1] );
 			}
 		} finally {
@@ -151,6 +157,7 @@ class Tests_OpenStation_PersistenceConcurrency extends WP_UnitTestCase {
 		$this->assertFileExists( $path );
 	}
 
+	/** @covers ::openstation_stored_files_locked */
 	public function test_upload_writer_waits_for_cleanup_connection_to_release_lock() {
 		global $wpdb;
 		$original = $wpdb;

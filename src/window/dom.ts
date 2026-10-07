@@ -4,7 +4,6 @@ import { isShellDocumentUrl } from '../shell-url';
 import { OS_TAB_PARAM } from '../native-url-remap';
 import { paintThemedControlIcon } from '../window-chrome/controls/paint-themed-icon';
 import { __, sprintf } from '../i18n';
-
 import {
 	markWindowContentLoading,
 	markWindowContentReady,
@@ -53,7 +52,6 @@ export function scheduleLoadingOverlayShow(
 		overlay.classList.add( LOADING_OVERLAY_VISIBLE_CLASS );
 		return;
 	}
-
 	window.setTimeout( () => {
 		if ( ! overlay.isConnected ) {
 			return;
@@ -108,12 +106,10 @@ export function updateFullscreenBodyClass(): void {
 function buildDefaultLoadingOverlay(): HTMLElement {
 	const overlay = document.createElement( 'div' );
 	overlay.className = LOADING_OVERLAY_CLASS;
-
 	overlay.setAttribute( 'role', 'status' );
 	overlay.setAttribute( 'aria-live', 'polite' );
 
 	const spinner = document.createElement( 'os-spinner' );
-
 	spinner.setAttribute( 'preset', 'classic' );
 	spinner.setAttribute( 'size', 'clamp(96px, 14vw, 192px)' );
 	spinner.setAttribute( 'label', __( 'Loading window content' ) );
@@ -214,7 +210,6 @@ export function buildSubmenuTabs(
 	config: Pick< WindowConfig, 'submenu' | 'url' | 'parentUrl' | 'selfLabel' | 'title' >,
 ): HTMLButtonElement[] {
 	const built: HTMLButtonElement[] = [];
-
 	const tabSubmenu = ( config.submenu ?? [] ).filter(
 		( s ) => ! s.offSite && ! namesAnotherWindowsTab( s.url ),
 	);
@@ -229,7 +224,6 @@ export function buildSubmenuTabs(
 	const parentAlreadyInSubmenu = tabSubmenu.some(
 		( s ) => urlMatchKey( s.url ) === synthKey,
 	);
-
 	const seedSubmenu: { title: string; url: string }[] = parentAlreadyInSubmenu
 		? [ ...tabSubmenu ]
 		: [
@@ -265,7 +259,6 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	el.id = `wp-window-${ config.id }`;
 	el.setAttribute( 'role', 'dialog' );
 	el.setAttribute( 'aria-labelledby', `wp-window-title-${ config.id }` );
-
 	el.setAttribute( 'aria-busy', 'true' );
 	el.style.left = `${ config.x }px`;
 	el.style.top = `${ config.y }px`;
@@ -277,12 +270,10 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 
 	const menuBtn = document.createElement( 'os-window-button' );
 	menuBtn.setAttribute( 'icon', 'menu' );
-
 	paintThemedControlIcon( menuBtn, 'core/menu' );
 	menuBtn.setAttribute( 'aria-label', __( 'Window actions' ) );
 	menuBtn.setAttribute( 'aria-haspopup', 'menu' );
 	menuBtn.setAttribute( 'aria-expanded', 'false' );
-
 	menuBtn.classList.add( 'os-window__btn' );
 	menuBtn.classList.add( 'os-window__menu-btn' );
 
@@ -293,7 +284,6 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const startup = document.createElement( 'os-menu-item' );
 	startup.setAttribute( 'role', 'menuitemcheckbox' );
 	startup.setAttribute( 'value', 'startup' );
-
 	startup.classList.add( 'os-window__menu-item' );
 	startup.classList.add( 'os-window__menu-item--startup' );
 	startup.textContent = __( 'Open on startup' );
@@ -309,7 +299,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 			'os-window__menu-item--open-another',
 		);
 		openAnother.textContent = sprintf(
-
+			// translators: %s is the window's admin-page name (e.g., "Posts")
 			__( 'Open another %s' ),
 			config.title,
 		);
@@ -397,7 +387,6 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	titleBar.appendChild( slotAfterTitle );
 	titleBar.appendChild( customLeft );
 	titleBar.appendChild( screenMeta );
-
 	if ( menuBtn && menuPanel && menuPanel.children.length > 0 ) {
 		titleBar.appendChild( menuBtn );
 		titleBar.appendChild( menuPanel );
@@ -416,7 +405,6 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 
 	const body = document.createElement( 'div' );
 	body.className = `os-window__body ${ LOADING_BODY_CLASS }`;
-
 	stampLoadingStart( body );
 
 	if ( ! config.native ) {
@@ -479,8 +467,10 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		tabs.appendChild( plate );
 
 		if ( config.native ) {
+			// translators: %s is the window's title (e.g., "OpenStation Preferences")
 			tabs.dataset.tablistLabel = sprintf( __( '%s sections' ), config.title );
 		} else {
+			// translators: %s is the window's admin-page title (e.g., "Posts")
 			tabs.dataset.tablistLabel = sprintf( __( '%s sub-pages' ), config.title );
 		}
 

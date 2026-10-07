@@ -88,7 +88,6 @@ describe( 'WindowManager — focus transfer on close', () => {
 	test( 'skips a minimized sibling and focuses the visible window', async () => {
 		const a = await manager.open( cfg( 'a' ) );
 		const b = await manager.open( cfg( 'b' ) );
-
 		a.minimize();
 		manager.focus( b );
 		expect( b.isFocused() ).toBe( true );

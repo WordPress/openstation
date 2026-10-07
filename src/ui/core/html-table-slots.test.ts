@@ -8,7 +8,6 @@ describe( 'html — slots in table context', () => {
 		render( html`<table><tbody><tr class="r">${ [ 'a', 'b' ].map( cell ) }</tr></tbody></table>`, root );
 		expect( root.querySelectorAll( 'tr.r > td' ) ).toHaveLength( 2 );
 		expect( root.querySelector( 'tr.r > td.b' )?.textContent ).toBe( 'xb' );
-
 		expect( root.children ).toHaveLength( 1 );
 		expect( root.firstElementChild?.tagName ).toBe( 'TABLE' );
 	} );
@@ -23,7 +22,6 @@ describe( 'html — slots in table context', () => {
 		const first = root.querySelector( 'tr[data-id="1"]' );
 		render( rows( [ 1, 2, 3 ] ), root );
 		expect( root.querySelectorAll( 'tbody > tr' ) ).toHaveLength( 3 );
-
 		expect( root.querySelector( 'tr[data-id="1"]' ) ).toBe( first );
 		render( rows( [] ), root );
 		expect( root.querySelectorAll( 'tbody > tr' ) ).toHaveLength( 0 );
@@ -47,7 +45,6 @@ describe( 'html — slots in table context', () => {
 		render( html`<div><!-- ${ 'ignored' } --><textarea>${ 'typed' }</textarea><style>${ '.x{color:red}' }</style></div>`, root );
 		expect( root.querySelector( 'textarea' )?.textContent ).toBe( 'typed' );
 		expect( root.querySelector( 'style' )?.textContent ).toBe( '.x{color:red}' );
-
 		expect( root.innerHTML ).toContain( '<!-- $$wpd$$0$$ -->' );
 	} );
 

@@ -1,5 +1,9 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_menu_item_url
+ * @covers ::openstation_is_admin_file_slug
+ */
 class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 
 	public function test_passes_through_absolute_http_url() {
@@ -53,7 +57,6 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'page=wc-admin', $result );
 		$this->assertStringNotContainsString( 'page=wc-admin%26', $result );
 		$this->assertStringNotContainsString( '%3D', $result );
-
 		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
 		$this->assertSame( 'wc-admin', $args['page'] );
 		$this->assertSame( '/customers', $args['path'] );
@@ -119,7 +122,6 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 	}
 
 	public function test_falls_back_to_admin_php_for_unregistered_slug() {
-
 		$this->assertSame(
 			esc_url_raw( admin_url( 'admin.php?page=unhooked' ) ),
 			openstation_menu_item_url( 'unhooked' )
@@ -127,7 +129,6 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 	}
 
 	public function test_embedded_query_param_with_only_key() {
-
 		$result = openstation_menu_item_url( 'wc-admin&' );
 		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
 		$this->assertSame( 'wc-admin', $args['page'] );

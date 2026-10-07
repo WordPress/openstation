@@ -68,7 +68,6 @@ async function request< T >( path: string, options: RequestOptions = {} ): Promi
 				message = error.message;
 			}
 		} catch {
-
 		}
 		throw new Error( message );
 	}

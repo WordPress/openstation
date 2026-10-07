@@ -44,7 +44,6 @@ describe( 'help examples', () => {
 	} );
 
 	test.each( files )( '%s puts no <script> in an example', ( name, src ) => {
-
 		const inExample = src
 			.split( 'example: html`' )
 			.slice( 1 )
@@ -90,7 +89,6 @@ describe( 'help examples', () => {
 	);
 
 	test.each( files )( '%s carries no version stamp', ( name, src ) => {
-
 		expect(
 			src.includes( 'since:' ),
 			`${ name } declares \`since\` in its help descriptor.`,
@@ -105,12 +103,10 @@ describe( 'help examples', () => {
 	} );
 
 	test( 'exampleInit wires listeners by assignment, never by accumulation', () => {
-
 		for ( const [ name, src ] of files ) {
 			if ( ! src.includes( 'exampleInit:' ) ) {
 				continue;
 			}
-
 			const init = src.slice( src.indexOf( 'exampleInit:' ) );
 			const body = init
 				.slice( 0, init.indexOf( '\n\t} as const;' ) )

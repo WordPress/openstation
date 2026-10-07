@@ -76,7 +76,6 @@ function set_columns_action( State $state, Os $os, array $args ) {
 			)
 		);
 	}
-
 	$map = array_slice( $map, -40, 40, true );
 	if ( array() === $map ) {
 		$os->forget( COLUMNS_KEY );
@@ -98,7 +97,6 @@ function go_action( State $state, Os $os, array $args ) {
 
 function back_action( State $state ) {
 	if ( true === $state->get( 'casting' ) ) {
-
 		$state->set( 'casting', false )->set( 'wstep', 0 )
 			->reset( 'cast' )->set( 'agentNotice', '' )->set( 'briefError', '' );
 		return;
@@ -214,7 +212,6 @@ function sub_open_action( State $state, Os $os, array $args ) {
 
 function quick_edit_action( State $state, Os $os, array $args ) {
 	$section = section_of( $os, (string) $state->get( 'section' ) );
-
 	if ( ! $section || 'post' !== $section['kind'] || ! empty( $section['flat'] ) ) {
 		return;
 	}
@@ -279,7 +276,7 @@ function quick_edit_action( State $state, Os $os, array $args ) {
 	}
 	$os->toast(
 		sprintf(
-
+			/* translators: %s: updated count. */
 			_n( '%s entry updated.', '%s entries updated.', count( $updated ), 'desktop-mode' ),
 			number_format_i18n( count( $updated ) )
 		)
@@ -308,7 +305,7 @@ function bulk_trash_action( State $state, Os $os ) {
 	}
 	$os->toast(
 		sprintf(
-
+			/* translators: %s: trashed count. */
 			_n( 'Moved %s item to the Trash.', 'Moved %s items to the Trash.', count( $trashed ), 'desktop-mode' ),
 			number_format_i18n( count( $trashed ) )
 		)

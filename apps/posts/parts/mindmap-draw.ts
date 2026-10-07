@@ -96,7 +96,6 @@ export function drawNodeDisc( pixi: PixiNamespace, node: MindNode, highlighted: 
 	g.x = node.x;
 	g.y = node.y;
 	g.zIndex = 10;
-
 	g.hitArea = new pixi.Circle( 0, 0, r + 4 );
 }
 

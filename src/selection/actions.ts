@@ -2,24 +2,16 @@ import { applyFilters } from '../hooks';
 import { __, sprintf } from '../i18n';
 
 export interface SelectionAction< T = unknown > {
-
 	id: string;
-
 	multiId?: string;
 	label: string;
-
 	icon?: string;
-
 	sort?: number;
 	disabled?: boolean;
 	danger?: boolean;
-
 	onClick: ( e: MouseEvent ) => void | Promise< void >;
-
 	multi?: boolean;
-
 	bulkLabel?: ( count: number ) => string;
-
 	bulk?: ( items: T[] ) => void | Promise< void >;
 }
 
@@ -34,7 +26,7 @@ function sortValue( action: { sort?: number } ): number {
 
 function defaultBulkLabel( label: string, count: number ): string {
 	return sprintf(
-
+		/* translators: 1: action label, e.g. "Open". 2: number of selected items. */
 		__( '%1$s (%2$d items)', 'desktop-mode' ),
 		label,
 		count,
@@ -88,7 +80,6 @@ export function resolveCommonActions< T >(
 			id: key,
 			label,
 			icon: primary.icon,
-
 			disabled: contributors.some( ( a ) => a.disabled === true ),
 			danger: contributors.some( ( a ) => a.danger === true ),
 			sort: Math.min( ...contributors.map( sortValue ) ),
@@ -114,17 +105,18 @@ export function resolveCommonActions< T >(
 					try {
 						await runner( batch );
 					} catch ( err ) {
+						// eslint-disable-next-line no-console
 						console.error(
 							`[openstation] selection action '${ key }' failed for a batch:`,
 							err,
 						);
 					}
 				}
-
 				for ( const contributor of singles ) {
 					try {
 						await contributor.onClick( e );
 					} catch ( err ) {
+						// eslint-disable-next-line no-console
 						console.error(
 							`[openstation] selection action '${ key }' failed for one item:`,
 							err,

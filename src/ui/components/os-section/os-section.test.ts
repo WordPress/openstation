@@ -25,7 +25,6 @@ describe( '<os-section>', () => {
 		expect( section.shadowRoot!.querySelector( 'p' )?.textContent ).toBe(
 			'Backdrop',
 		);
-
 		expect( section.querySelector( '.child' ) ).not.toBeNull();
 	} );
 } );

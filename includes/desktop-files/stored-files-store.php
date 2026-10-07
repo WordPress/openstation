@@ -5,7 +5,6 @@ defined( 'ABSPATH' ) || exit;
 function openstation_stored_files_dir( $user_id = 0 ) {
 	$uploads = wp_get_upload_dir();
 	$base    = trailingslashit( $uploads['basedir'] ) . 'desktop-mode-files';
-
 	$base = (string) apply_filters( 'openstation_stored_files_base_dir', $base );
 	if ( (int) $user_id > 0 ) {
 		return $base . '/' . (int) $user_id;
@@ -34,12 +33,12 @@ function openstation_stored_files_ensure_dir( $user_id ) {
 			. "\tOrder deny,allow\n"
 			. "\tDeny from all\n"
 			. "</IfModule>\n";
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		file_put_contents( $htaccess, $rules );
 	}
 	foreach ( array( $base . '/index.php', $dir . '/index.php' ) as $index ) {
 		if ( ! file_exists( $index ) ) {
-
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 			file_put_contents( $index, "<?php // Silence is golden.\n" );
 		}
 	}
@@ -63,7 +62,6 @@ function openstation_stored_file_path( $row ) {
 	$real_parent = realpath( dirname( $path ) );
 	$real_base   = realpath( $base );
 	if ( false === $real_parent || false === $real_base ) {
-
 		return $path;
 	}
 	if ( 0 !== strpos( $real_parent . '/', $real_base . '/' ) ) {
@@ -79,7 +77,6 @@ function openstation_stored_files_create( $owner_id, $args ) {
 		}
 	);
 	if ( ! is_wp_error( $id ) ) {
-
 		do_action( 'openstation_stored_file_created', $id, (int) $owner_id );
 
 	}
@@ -276,12 +273,10 @@ function openstation_stored_files_total_bytes( $owner_id ) {
 }
 
 function openstation_stored_files_user_quota_bytes( $user_id ) {
-
 	return max( 0, (int) apply_filters( 'openstation_stored_files_user_quota_bytes', 0, (int) $user_id ) );
 }
 
 function openstation_stored_files_upload_capability() {
-
 	return (string) apply_filters( 'openstation_stored_files_upload_capability', 'upload_files' );
 }
 
@@ -358,6 +353,8 @@ function openstation_stored_files_handle_unplaced( $placement_id, $row ) {
 }
 add_action( 'openstation_file_unplaced', 'openstation_stored_files_handle_unplaced', 10, 2 );
 
+
+
 function openstation_stored_files_handle_deleted_user( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
@@ -377,7 +374,7 @@ function openstation_stored_files_handle_deleted_user( $user_id ) {
 		if ( file_exists( $index ) ) {
 			wp_delete_file( $index );
 		}
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
 		@rmdir( $dir );
 	}
 }

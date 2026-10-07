@@ -166,7 +166,6 @@ export function registerBuiltInFileOpeners(): void {
 				if ( ! fileId ) {
 					return;
 				}
-
 				navigateToDownload( filesRest.getUploadDownloadUrl( fileId ) );
 			},
 		},
@@ -192,7 +191,6 @@ export function registerBuiltInFileOpeners(): void {
 					return;
 				}
 				const id = `os-folder-${ folderId }`;
-
 				const folderRow = filesStoreApi.getState().folders.get( folderId );
 				const viewerId = Number( window.openStationConfig?.currentUserId ?? 0 );
 				const isRecipient =
@@ -285,7 +283,6 @@ export function registerBuiltInFileOpeners(): void {
 								layerHost,
 								route.folderId,
 							);
-
 							const offSelection = layer.onSelectionChanged(
 								( placements ) => {
 									if ( placements.length === 0 ) {
@@ -327,7 +324,6 @@ export function registerBuiltInFileOpeners(): void {
 								if ( ! subId ) {
 									return;
 								}
-
 								e.preventDefault();
 								e.stopPropagation();
 								const subTitle =
@@ -469,12 +465,10 @@ export function registerBuiltInFileOpeners(): void {
 				if ( ! wp ) {
 					return;
 				}
-
 				if ( extras.shortcutSystemTile && wp.getSystemTile ) {
 					wp.getSystemTile( extras.shortcutSystemTile )?.onOpen();
 					return;
 				}
-
 				doAction( HOOKS.DESKTOP_ICON_CLICKED, {
 					id: file.shape.ref,
 					target: extras.shortcutWindow ? 'window' : 'url',
@@ -490,16 +484,13 @@ export function registerBuiltInFileOpeners(): void {
 							window.open( u.toString(), '_blank', 'noopener,noreferrer' );
 							return;
 						}
-
 						if ( tryNativeUrlRemap( u.toString() ) ) {
 							return;
 						}
-
 						const adminUrl = wp.config?.adminUrl;
 						const id = adminUrl
 							? deriveWindowId( u.toString(), adminUrl )
 							: `desktop-icon-${ file.ref() }`;
-
 						const entry = findMenuEntryForUrl( u.toString() );
 						wp.windowManager.open( {
 							id,
@@ -513,7 +504,6 @@ export function registerBuiltInFileOpeners(): void {
 							multi: !! entry?.multi,
 						} );
 					} catch {
-
 					}
 				}
 			},
@@ -533,7 +523,6 @@ export function registerBuiltInFileOpeners(): void {
 				if ( ! url ) {
 					return;
 				}
-
 				window.open( url, '_blank', 'noopener,noreferrer' );
 			},
 		},

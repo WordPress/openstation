@@ -53,7 +53,6 @@ function openstation_network_hub_list() {
 		$admin = array(
 			'url'      => esc_url_raw( network_admin_url() ),
 			'shellUrl' => $identity['shellUrl'],
-
 			'rows'     => openstation_multisite_network_admin_rows( true ),
 		);
 	}

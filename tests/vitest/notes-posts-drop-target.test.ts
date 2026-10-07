@@ -76,7 +76,6 @@ describe( 'notes → posts dock drop target', () => {
 			get: ( id: number ) => ( id === 7 ? { note: NOTE } : undefined ),
 			convertNote,
 		};
-
 		( window as unknown as { wp: { os?: unknown } } ).wp.os = {
 			dragManager: fakeDragManager(),
 		};

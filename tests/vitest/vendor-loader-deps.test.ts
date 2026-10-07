@@ -6,7 +6,6 @@ let appended: string[];
 beforeEach( () => {
 	appended = [];
 	document.head.innerHTML = '';
-
 	vi.spyOn( document.head, 'appendChild' ).mockImplementation( ( node ) => {
 		const el = node as HTMLScriptElement;
 		if ( el.tagName === 'SCRIPT' && el.src ) {
@@ -40,7 +39,6 @@ describe( 'loadVendorScript — dependency closure', () => {
 	} );
 
 	it( 'skips a package the page already carries', async () => {
-
 		const existing = document.createElement( 'script' );
 		existing.src = 'https://site.test/wp-includes/js/dist/api-fetch.js?ver=6.9';
 		document.head.append( existing );
@@ -54,7 +52,6 @@ describe( 'loadVendorScript — dependency closure', () => {
 	} );
 
 	it( 'skips a package Core concatenated into load-scripts.php', async () => {
-
 		const blob = document.createElement( 'script' );
 		blob.src =
 			'https://site.test/wp-admin/load-scripts.php?c=1&load%5Bchunk_0%5D=wp-hooks,wp-i18n,jquery-core&ver=6.9';
@@ -81,7 +78,6 @@ describe( 'loadVendorScript — dependency closure', () => {
 	} );
 
 	it( 'skips a concatenated handle passed as the bundle itself', async () => {
-
 		const blob = document.createElement( 'script' );
 		blob.src =
 			'https://site.test/wp-admin/load-scripts.php?c=1&load%5Bchunk_0%5D=wp-dom-ready&ver=6.9';
@@ -103,7 +99,6 @@ describe( 'loadVendorScript — dependency closure', () => {
 	} );
 
 	it( 'does not deadlock on its own memo', async () => {
-
 		await expect(
 			loadVendorScript( 'https://site.test/memo.js', {
 				deps: [ { url: 'https://site.test/dep.js' } ],

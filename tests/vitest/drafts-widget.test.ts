@@ -62,11 +62,9 @@ function installShell( opts: {
 	userId?: number;
 	withConfirm?: boolean;
 	confirmAnswer?: boolean;
-
 	ai?: boolean;
 	suggestions?: unknown;
 	suggestionsOk?: boolean;
-
 	suggestionsStatus?: number;
 	applyOk?: boolean;
 	connectorsUrl?: string;
@@ -189,7 +187,6 @@ describe( 'drafts widget — rendering', () => {
 			( n ) => n.textContent,
 		);
 		expect( stamps[ 0 ] ).toBe( 'just now' );
-
 		expect( stamps[ 1 ] ).toBe( '2h ago' );
 	} );
 
@@ -216,7 +213,6 @@ describe( 'drafts widget — rendering', () => {
 		teardown = await getMount()( container, makeCtx() );
 
 		const link = container.querySelector( '.dm-drafts__link' ) as HTMLAnchorElement;
-
 		expect( link.dataset.osWindowTitle ).toBe( 'Ginza after work' );
 		expect( link.textContent ).toBe( 'Ginza after work356d ago' );
 	} );
@@ -329,7 +325,6 @@ describe( 'drafts widget — AI writing assistant', () => {
 		teardown = await getMount()( container, makeCtx() );
 
 		expect( container.querySelector( '.dm-drafts__spark' ) ).toBeNull();
-
 		expect( container.querySelector( '.dm-drafts__trash' ) ).not.toBeNull();
 	} );
 
@@ -340,7 +335,6 @@ describe( 'drafts widget — AI writing assistant', () => {
 		const spark = container.querySelector( '.dm-drafts__spark' ) as HTMLElement;
 		expect( spark.tagName.toLowerCase() ).toBe( 'os-button' );
 		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
-
 		expect(
 			spark.querySelector( '.screen-reader-text' )?.textContent,
 		).toBe( 'Suggest title, excerpt & tags' );
@@ -366,7 +360,6 @@ describe( 'drafts widget — AI writing assistant', () => {
 		expect( panel ).not.toBeNull();
 		const spinner = panel.querySelector( 'os-spinner' ) as HTMLElement;
 		expect( spinner ).not.toBeNull();
-
 		expect( spinner.getAttribute( 'preset' ) ).toBe( 'inline' );
 		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'true' );
 		expect( spark.getAttribute( 'aria-controls' ) ).toBe( panel.id );
@@ -394,13 +387,11 @@ describe( 'drafts widget — AI writing assistant', () => {
 
 		const items = [ ...panel.querySelectorAll( '.dm-drafts__suggest-item' ) ];
 		const pills = [ ...panel.querySelectorAll( '.dm-drafts__suggest-tag' ) ];
-
 		expect( items.map( ( i ) => i.textContent ) ).toEqual( [
 			'A better title',
 			'An even better title',
 			'A crisp one-line summary.',
 		] );
-
 		expect( pills.map( ( p ) => p.textContent ) ).toEqual( [
 			'wordpress',
 			'drafts',
@@ -429,7 +420,6 @@ describe( 'drafts widget — AI writing assistant', () => {
 	} );
 
 	test( 'panel notices carry the contrast-override class', async () => {
-
 		installShell( { drafts: oneDraft, ai: true } );
 		teardown = await getMount()( container, makeCtx() );
 		const panel = await openPanel();
@@ -480,17 +470,14 @@ describe( 'drafts widget — AI writing assistant', () => {
 		expect( JSON.parse( String( ( call?.[ 1 ] as RequestInit ).body ) ) ).toEqual(
 			{ post_id: 12, title: 'A better title' },
 		);
-
 		expect( container.querySelector( '.dm-drafts__name' )?.textContent ).toBe(
 			'A better title',
 		);
-
 		expect( first.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
 		expect( first.hasAttribute( 'disabled' ) ).toBe( false );
 		expect(
 			first.querySelector( '.dm-drafts__applied-check' ),
 		).not.toBeNull();
-
 		expect( desktop.showToast ).toHaveBeenCalledWith( {
 			message: 'Title updated.',
 		} );
@@ -634,7 +621,6 @@ describe( 'drafts widget — AI writing assistant', () => {
 		await openPanel();
 
 		desktop.fetch.mockClear();
-
 		document.dispatchEvent( new Event( 'os-window-blurred' ) );
 		await new Promise( ( resolve ) => setTimeout( resolve, 700 ) );
 
@@ -643,7 +629,6 @@ describe( 'drafts widget — AI writing assistant', () => {
 				String( c[ 0 ] ).includes( '/wp/v2/posts' ),
 			),
 		).toBe( false );
-
 		expect( container.querySelector( '.dm-drafts__suggest' ) ).not.toBeNull();
 	} );
 } );
@@ -680,7 +665,6 @@ describe( 'drafts widget — focus across refreshes', () => {
 		teardown = await getMount()( container, makeCtx() );
 
 		linkFor( 5 ).focus();
-
 		desktop.fetch.mockImplementation( () =>
 			Promise.resolve( jsonResponse( [ twoDrafts[ 1 ] ] ) ),
 		);
@@ -715,11 +699,9 @@ describe( 'drafts widget — accessible names', () => {
 
 		for ( const cls of [ 'dm-drafts__trash', 'dm-drafts__spark' ] ) {
 			const btn = container.querySelector( `.${ cls }` ) as HTMLElement;
-
 			expect( btn.getAttribute( 'aria-label' ) ).toBeNull();
 			const name = btn.querySelector( '.screen-reader-text' );
 			expect( name?.textContent?.trim() ).toBeTruthy();
-
 			expect( btn.getAttribute( 'title' ) ).toBe( name?.textContent );
 		}
 	} );

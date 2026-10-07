@@ -58,7 +58,6 @@ function installSwStub( initial: RegistrationLike[] = [] ): SwTestHandle {
 }
 
 function clearSwStub(): void {
-
 	delete ( navigator as unknown as { serviceWorker?: unknown } )
 		.serviceWorker;
 }
@@ -126,7 +125,6 @@ describe( 'registerServiceWorker — foreign SW detection', () => {
 	} );
 
 	test( 'a sibling site\'s OpenStation SW is not foreign, and swScope routes the registration', async () => {
-
 		const siblingReg: RegistrationLike = {
 			scope: '/',
 			active: {
@@ -222,7 +220,6 @@ describe( 'install tile — foreign-SW toast surfacing', () => {
 		const showToast = vi.fn( () => () => {} );
 		const tile = getInstallTileDef( 'Test Site', showToast );
 		tile.onOpen();
-
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 
 		expect( showToast ).toHaveBeenCalledTimes( 1 );
@@ -234,7 +231,6 @@ describe( 'install tile — foreign-SW toast surfacing', () => {
 	} );
 
 	test( 'falls back to the generic toast when status is not "foreign-sw"', async () => {
-
 		installSwStub( [] );
 
 		const showToast = vi.fn( () => () => {} );

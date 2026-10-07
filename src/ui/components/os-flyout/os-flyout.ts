@@ -150,15 +150,10 @@ export class OsFlyout extends Component {
 	} as const;
 
 	private _trigger: HTMLElement | null = null;
-
 	private _onDocKey: ( ( e: KeyboardEvent ) => void ) | null = null;
-
 	private _onScopePointerDown: ( ( e: PointerEvent ) => void ) | null = null;
-
 	private _onHostClick: ( ( e: MouseEvent ) => void ) | null = null;
-
 	private _onHostKeyDown: ( ( e: KeyboardEvent ) => void ) | null = null;
-
 	private _pendingReason: OsFlyoutDismissReason | null = null;
 
 	connectedCallback(): void {
@@ -166,7 +161,6 @@ export class OsFlyout extends Component {
 		if ( ! this.hasAttribute( 'role' ) ) {
 			this.setAttribute( 'role', 'dialog' );
 		}
-
 		if ( ! this.hasAttribute( 'open' ) ) {
 			this.setAttribute( 'inert', '' );
 		}
@@ -193,7 +187,6 @@ export class OsFlyout extends Component {
 
 	private _handleOpen(): void {
 		this.removeAttribute( 'inert' );
-
 		const doc = this.ownerDocument;
 		const active = doc?.activeElement ?? null;
 		this._trigger =
@@ -325,7 +318,6 @@ export class OsFlyout extends Component {
 		if ( scope === 'parent' ) {
 			return this.parentElement ?? document.body;
 		}
-
 		const windowBody = this.closest< HTMLElement >( '.os-window__body' );
 		return windowBody ?? this.parentElement ?? document.body;
 	}

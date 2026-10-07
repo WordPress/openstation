@@ -114,7 +114,6 @@ export function installSnapPartnerReflow( mgr: WindowManager ): () => void {
 				next.set( w.id, { zone, desktopId: w.config.desktopId || '' } );
 			}
 		}
-
 		const touched = new Set< string >();
 		const diff = (
 			from: typeof snapshot,
@@ -137,7 +136,6 @@ export function installSnapPartnerReflow( mgr: WindowManager ): () => void {
 		if ( touched.size === 0 ) {
 			return;
 		}
-
 		for ( const w of mgr._stack ) {
 			const entry = next.get( w.id );
 			if ( entry && touched.has( entry.desktopId ) ) {
@@ -182,7 +180,6 @@ export function showSnapPreview(
 		el.setAttribute( 'aria-hidden', 'true' );
 		mgr._desktop.appendChild( el );
 		mgr._snapPreviewEl = el;
-
 		Promise.resolve().then( () => {
 			el.classList.add( 'os-snap-preview--visible' );
 		} );
@@ -204,7 +201,6 @@ export function hideSnapPreview( mgr: WindowManager ): void {
 	mgr._snapPreviewEl = null;
 	mgr._snapPendingZone = null;
 	el.classList.remove( 'os-snap-preview--visible' );
-
 	window.setTimeout( () => {
 		el.remove();
 	}, SNAP_COMMIT_MS );

@@ -73,7 +73,6 @@ export class OsMenuItem extends Component {
 				detail: '{ value: string | null }',
 			},
 		],
-
 		example: html`
 			<os-menu>
 				<os-menu-item value="plain">Plain item</os-menu-item>
@@ -89,7 +88,6 @@ export class OsMenuItem extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
 		if ( ! this.hasAttribute( 'role' ) ) {
 			this.setAttribute( 'role', 'menuitem' );
 		}
@@ -100,7 +98,6 @@ export class OsMenuItem extends Component {
 		const isCheckbox = this.getAttribute( 'role' ) === 'menuitemcheckbox';
 		const checked =
 			( this as unknown as { checked: string | null } ).checked !== null;
-
 		if ( isCheckbox ) {
 			this.setAttribute( 'aria-checked', checked ? 'true' : 'false' );
 		}

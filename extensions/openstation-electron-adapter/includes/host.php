@@ -19,7 +19,6 @@ function openstation_electron_enabled( $user_id = 0 ) {
 }
 
 function openstation_electron_interval() {
-
 	$seconds = (int) apply_filters(
 		'openstation_electron_heartbeat_interval',
 		OPENSTATION_ELECTRON_INTERVAL
@@ -29,7 +28,6 @@ function openstation_electron_interval() {
 }
 
 function openstation_electron_ttl() {
-
 	$seconds = (int) apply_filters( 'openstation_electron_ttl', OPENSTATION_ELECTRON_TTL );
 
 	return max( 2 * openstation_electron_interval(), $seconds );
@@ -136,7 +134,6 @@ function openstation_electron_set_host( $user_id, $args ) {
 		'osLabel'     => openstation_electron_os_label( $platform ),
 		'appVersion'  => isset( $args['appVersion'] ) ? substr( sanitize_text_field( (string) $args['appVersion'] ), 0, 32 ) : '',
 		'protocol'    => isset( $args['protocol'] ) ? (int) $args['protocol'] : 0,
-
 		'agentUrl'    => array_key_exists( 'agentUrl', $args )
 			? openstation_electron_sanitize_agent_url( $args['agentUrl'] )
 			: ( is_array( $existing ) && isset( $existing['agentUrl'] ) ? (string) $existing['agentUrl'] : '' ),
@@ -144,7 +141,6 @@ function openstation_electron_set_host( $user_id, $args ) {
 			? (string) preg_replace( '/[^a-f0-9]/', '', (string) $args['agentToken'] )
 			: ( is_array( $existing ) && isset( $existing['agentToken'] ) ? (string) $existing['agentToken'] : '' ),
 		'lastSeen'    => $now,
-
 		'connectedAt' => ( is_array( $existing ) && ! empty( $existing['connectedAt'] ) && ! empty( $existing['hostId'] ) && $existing['hostId'] === $host_id )
 			? (int) $existing['connectedAt']
 			: $now,
@@ -327,7 +323,6 @@ function openstation_electron_rest_handshake( $request ) {
 
 	$protocol = (int) $request->get_param( 'protocol' );
 	if ( $protocol > OPENSTATION_ELECTRON_PROTOCOL ) {
-
 		return new WP_Error(
 			'openstation_electron_protocol',
 			__( 'This site does not understand that version of the desktop app yet. Update the adapter.', 'openstation-electron-adapter' ),
@@ -424,7 +419,6 @@ function openstation_electron_rest_disconnect() {
 	openstation_electron_clear_host( $user_id );
 
 	if ( ! empty( $record['connected'] ) ) {
-
 		do_action( 'openstation_electron_host_disconnected', $record, $user_id );
 	}
 

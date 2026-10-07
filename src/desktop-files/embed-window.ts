@@ -41,7 +41,6 @@ export function openEmbedWindow(
 	if ( ! url ) {
 		return;
 	}
-
 	const wm = ( window.wp as
 		| { os?: { windowManager?: WindowManagerLike } }
 		| undefined )?.os?.windowManager;
@@ -69,7 +68,6 @@ export function openEmbedWindow(
 	};
 
 	const saved = meta?.window;
-
 	const area = document.getElementById( 'os-area' );
 	const canvas = area
 		? workAreaRectOf( area )
@@ -166,6 +164,7 @@ async function persist( placementId: number, geo: SavedGeometry ): Promise< void
 		};
 		await filesRest.updatePlacement( placementId, { meta: nextMeta } );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.warn( '[openstation] embed window persist failed:', err );
 	}
 }

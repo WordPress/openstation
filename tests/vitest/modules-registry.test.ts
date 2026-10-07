@@ -9,7 +9,6 @@ async function loadRegistry(): Promise<Registry> {
 
 describe( 'modules/registry.ts', () => {
 	beforeEach( () => {
-
 		delete ( window as unknown as { wp?: unknown } ).wp;
 	} );
 

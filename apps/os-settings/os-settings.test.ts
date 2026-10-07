@@ -89,7 +89,6 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( select.getAttribute( 'os-bind' ) ).toBe( 'tab' );
 		expect( select.getAttribute( 'value' ) ).toBe( 'appearance' );
 		expect( Array.from( select.querySelectorAll( 'os-option' ) ).map( ( o ) => o.getAttribute( 'value' ) ) ).toEqual( tabIds() );
-
 		expect( select.parentElement ).toBe( root.querySelector( '#os-settings-nav' )!.parentElement );
 		( ctx.state as { tab: string } ).tab = 'features';
 		ctx.repaint();
@@ -129,7 +128,6 @@ describe( 'OpenStation Preferences — the frame', () => {
 		const starts = Array.from( root.querySelectorAll( '#os-settings-nav > os-tab[data-group-start="true"]' ) ).map(
 			( tab ) => tab.getAttribute( 'value' ),
 		);
-
 		expect( starts ).toEqual( [ 'navigation', 'help' ] );
 	} );
 
@@ -176,7 +174,6 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( next.tab ).toBe( 'features' );
 		const same = app.runLocal( 'tab', { tab: 'themes' }, { value: '' }, ctx.data );
 		expect( same.tab ).toBe( 'themes' );
-
 		( ctx.state as { tab: string } ).tab = 'gone';
 		ctx.repaint();
 		expect( root.querySelector( '#os-settings-nav' )?.getAttribute( 'value' ) ).toBe( 'appearance' );
@@ -302,11 +299,9 @@ describe( 'OpenStation Preferences — Appearance › Desktop layout', () => {
 	test( 'the whole card picks the layout, its control does not, and the radio does not pick twice', () => {
 		paint();
 		const split = cards()[ 1 ];
-
 		split.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 1 );
 		expect( stub.updateOsSettings ).toHaveBeenLastCalledWith( { desktopLayout: 'classic' }, expect.anything() );
-
 		split.querySelector< HTMLElement >( '.os-settings__dock-options' )!.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( stub.updateOsSettings ).toHaveBeenCalledTimes( 2 );
 

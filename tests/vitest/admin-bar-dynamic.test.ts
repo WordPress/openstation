@@ -67,7 +67,6 @@ describe( 'dynamic admin bar — never a containing block', () => {
 			( r ) => r.selector === 'body.os-active.os-admin-bar-dynamic #wpadminbar',
 		);
 		expect( parked ).toBeDefined();
-
 		expect( parked!.body ).toMatch( /inset-block-start\s*:[^;]*!important/ );
 		expect( parked!.body ).toMatch( /--os-admin-bar-peek/ );
 		expect( parked!.body ).toMatch( /--wp-admin--admin-bar--height/ );
@@ -75,7 +74,6 @@ describe( 'dynamic admin bar — never a containing block', () => {
 	} );
 
 	test( 'the reveal zone waits for the slide before it changes size', () => {
-
 		const all = rules( CSS );
 		const parked = all.find(
 			( r ) => r.selector === 'body.os-active.os-admin-bar-dynamic #wpadminbar',
@@ -92,7 +90,6 @@ describe( 'dynamic admin bar — never a containing block', () => {
 		expect( zone!.body ).toMatch(
 			/transition\s*:\s*height\s+0s\s+linear\s+var\(\s*--os-admin-bar-slide/,
 		);
-
 		const collapse = all.find(
 			( r ) =>
 				r.selector.includes( '#wpadminbar:hover::after' ) &&

@@ -1,5 +1,10 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_build_dock_items
+ * @covers ::openstation_menu_item_is_external
+ * @covers ::openstation_menu_item_is_hidden
+ */
 class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -167,7 +172,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_hidden_original_is_restored_when_its_off_site_replacement_is_dropped() {
 		global $menu, $submenu;
-
 		$menu                  = array( $this->make_menu_row( 'Appearance', 'switch_themes', 'themes.php' ) );
 		$submenu['themes.php'] = array(
 			array( 'Themes', 'switch_themes', 'https://wordpress.com/themes/example.com' ),
@@ -179,7 +183,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 		$this->assertSame( 'Themes', $items[0]['selfLabel'] );
 		$this->assertSame( admin_url( 'themes.php' ), $items[0]['url'] );
-
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
 		$this->assertContains( 'Editor', $titles );
 		$this->assertNotContains( 'Themes', $titles );
@@ -208,7 +211,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_top_level_menu_pointing_off_site_falls_back_to_its_restored_child() {
 		global $menu, $submenu;
-
 		$menu                   = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
 		$submenu['https://wordpress.com/plugins/example.com'] = array(
 			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
@@ -223,7 +225,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_restored_child_does_not_steal_the_parent_url() {
 		global $menu, $submenu;
-
 		$menu                   = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'plugins.php' ) );
 		$submenu['plugins.php'] = array(
 			array( 'Add Plugin', 'install_plugins', 'https://wordpress.com/plugins/example.com' ),
@@ -243,7 +244,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_host_filter_on_self_admin_url_does_not_move_a_restored_original_off_site() {
 		global $menu, $submenu;
-
 		add_filter(
 			'self_admin_url',
 			static function ( $url, $path ) {
@@ -273,7 +273,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_container_menu_whose_children_were_all_off_site_is_dropped() {
 		global $menu, $submenu;
-
 		$menu = array(
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 			$this->make_menu_row( 'Upgrades', 'manage_options', 'paid-upgrades.php' ),
@@ -304,7 +303,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_container_menu_with_a_registered_page_is_kept() {
 		global $menu, $submenu;
-
 		$menu                    = array( $this->make_menu_row( 'My Plugin', 'manage_options', 'my-plugin' ) );
 		$submenu['my-plugin']    = array(
 			array( 'Account', 'manage_options', 'https://example.org/account' ),
@@ -324,7 +322,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_container_check_leaves_menus_without_off_site_children_alone() {
 		global $menu;
-
 		$menu = array( $this->make_menu_row( 'Empty', 'manage_options', 'empty-menu' ) );
 
 		$items = openstation_build_dock_items();
@@ -335,7 +332,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_rescued_tile_takes_the_identity_of_the_slug_it_adopted() {
 		global $menu, $submenu;
-
 		$this->attribute_to_plugin( 'https://wordpress.com/plugins/example.com', 'jetpack/jetpack.php' );
 
 		$menu = array( $this->make_menu_row( 'Plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
@@ -395,7 +391,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_off_site_parent_falls_back_to_any_hidden_on_site_row() {
 		global $menu, $submenu;
-
 		$menu = array( $this->make_menu_row( 'Manage plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
 		$submenu['https://wordpress.com/plugins/example.com'] = array(
 			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
@@ -410,7 +405,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 
 	public function test_off_site_parent_prefers_an_on_site_child_over_a_hidden_row() {
 		global $menu, $submenu;
-
 		$menu = array( $this->make_menu_row( 'Manage plugins', 'activate_plugins', 'https://wordpress.com/plugins/example.com' ) );
 		$submenu['https://wordpress.com/plugins/example.com'] = array(
 			array( 'Plugins', 'activate_plugins', 'plugins.php', '', 'hide-if-js' ),
@@ -467,7 +461,6 @@ class Tests_OpenStation_ExternalMenuItems extends WP_UnitTestCase {
 		$menu = array( $this->make_menu_row( 'Thing', 'manage_options', 'thing', '', '', '', 'dashicons-cart' ) );
 
 		openstation_snapshot_menu_icons();
-
 		$menu[0][6] = 'dashicons-chart-bar';
 
 		$items = openstation_build_dock_items();

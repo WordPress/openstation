@@ -9,9 +9,7 @@ interface AdminBarConfig {
 	nonce?: string;
 	classicUrl?: string;
 	ajaxUrl?: string;
-
 	network?: boolean;
-
 	shortcuts?: ShortcutsData;
 }
 
@@ -26,11 +24,8 @@ export function getExitOpenStationTileDef(): SystemDockItem {
 		id: EXIT_OPENSTATION_TILE_ID,
 		title: __( 'Exit OpenStation' ),
 		navKind: 'control',
-
 		locked: true,
-
 		order: SYSTEM_TILE_ORDER.exit,
-
 		icon: 'dashicons-exit',
 		onOpen: () => {
 			void exitOpenStation();
@@ -57,6 +52,7 @@ export async function exitOpenStation(): Promise< void > {
 
 	let target = fallback;
 	try {
+		// eslint-disable-next-line no-restricted-syntax -- exit flow navigates the top frame away immediately; activity bus / spinner attribution would never be observable.
 		const res = await fetch( cfg.ajaxUrl, {
 			method: 'POST',
 			headers: {
@@ -74,7 +70,6 @@ export async function exitOpenStation(): Promise< void > {
 			}
 		}
 	} catch {
-
 	}
 
 	navigateTop( target );
@@ -99,7 +94,6 @@ export function leaveForClassicAdmin(
 			navigateTop( adminUrl );
 			return;
 		}
-
 		try {
 			( window.top ?? window ).location.reload();
 		} catch {

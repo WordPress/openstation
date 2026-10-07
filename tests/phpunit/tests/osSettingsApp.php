@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group os-settings-app
+ */
 
 class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 
@@ -37,6 +41,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_manifest_mirrors_the_legacy_windows_registration() {
 		$app = openstation_apps_registry()->get( self::APP_ID );
 		$this->assertNotNull( $app );
@@ -46,33 +53,29 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertSame( 720, $manifest['height'] );
 		$this->assertSame( 560, $manifest['min_width'] );
 		$this->assertSame( 480, $manifest['min_height'] );
-
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertNull( $manifest['desktop_icon'] );
-
 		$this->assertSame( 'any', $manifest['admin'] );
-
 		$this->assertStringStartsWith( 'data:image/svg+xml', (string) $manifest['icon'] );
 		$this->assertStringContainsString( 'currentColor', (string) $manifest['icon_svg'] );
-
 		$this->assertSame( array( 'tab' => 'appearance' ), $manifest['state'] );
-
 		$this->assertSame(
 			array( 'extended', 'reset-intros', 'purge-shares', 'focus' ),
 			$manifest['actions']
 		);
 		$this->assertSame( array( 'focus' ), $manifest['lifecycle'] );
-
 		foreach ( array( 'mediaUrl', 'desktopThemesUrl', 'aboutFeedUrl', 'pluginUrl', 'pluginVersion' ) as $key ) {
 			$this->assertArrayHasKey( $key, $manifest['config'] );
 		}
 		$this->assertStringContainsString( 'openstation_about_feed', $manifest['config']['aboutFeedUrl'] );
-
 		$this->assertStringEndsWith( 'os-settings.os.ts', $manifest['client_source'] );
 		$this->assertStringEndsWith( 'apps/os-settings/os-settings.css', (string) $manifest['style'] );
 		$this->assertFileExists( (string) $manifest['style'] );
 	}
 
+	/**
+	 * @covers ::openstation_apps_client_config
+	 */
 	public function test_data_is_prefetched_into_the_window_config() {
 		$app      = openstation_apps_registry()->get( self::APP_ID );
 		$manifest = $app->manifest();
@@ -86,6 +89,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'data', openstation_apps_client_config( $manifest, '', $app ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App::allows
+	 */
 	public function test_every_shell_user_may_open_it_but_not_an_anonymous_visitor() {
 		$app = openstation_apps_registry()->get( self::APP_ID );
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
@@ -95,6 +101,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_mount_lands_on_the_deep_linked_tab() {
 		$response = $this->dispatch( 'mount', array(), array(), array( 'tab' => 'features' ) );
 		$this->assertTrue( $response['ok'] );
@@ -104,6 +113,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertSame( 'appearance', $plain['state']['tab'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_data_carries_the_caps_and_the_admin_facts() {
 		$data = $this->dispatch( 'mount' )['data'];
 		$this->assertTrue( $data['isAdmin'] );
@@ -115,10 +127,12 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		wp_set_current_user( self::$editor_id );
 		$data = $this->dispatch( 'mount' )['data'];
 		$this->assertFalse( $data['isAdmin'] );
-
 		$this->assertNull( $data['extendedOptions'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_extended_saves_the_site_options_and_spends_a_menu_refresh() {
 		$response = $this->dispatch(
 			'extended',
@@ -128,11 +142,13 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertTrue( $response['ok'] );
 		$this->assertTrue( $response['data']['extendedOptions']['games'] );
 		$this->assertTrue( openstation_get_extended_options()['games'] );
-
 		$this->assertTrue( openstation_get_extended_options()['media_library_enhanced'] );
 		$this->assertContains( 'refresh_menu', wp_list_pluck( $response['effects'], 'type' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_site_truth_actions_refuse_a_non_admin() {
 		wp_set_current_user( self::$editor_id );
 		foreach ( array( 'extended', 'purge-shares' ) as $action ) {
@@ -143,6 +159,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertFalse( openstation_get_extended_options()['games'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_reset_intros_clears_the_users_seen_list() {
 		openstation_mark_intro_seen( self::$admin_id, 'welcome' );
 		$this->assertContains( 'welcome', openstation_get_seen_intros( self::$admin_id ) );
@@ -152,6 +171,9 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_get_seen_intros( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_focus_only_recomputes_the_facts() {
 		$response = $this->dispatch( 'focus', array( 'tab' => 'windows' ) );
 		$this->assertTrue( $response['ok'] );
@@ -183,10 +205,8 @@ class Tests_OpenStation_OsSettingsApp extends WP_UnitTestCase {
 				sprintf( '%s outgrew the 1,000-line ceiling — split it along its seams (see docs/app-framework.md, "Splitting a large app").', basename( $file ) )
 			);
 		}
-
 		$this->assertLessThan( 850, $mio_lines, 'Keep the MIO Preferences adapter focused; generic conversation machinery belongs in src/mio.' );
 		$this->assertLessThan( 5000, $lines, sprintf( 'OpenStation Preferences is %d lines; the budget is under 5,000 — two thirds of the panel bundle it replaced.', $lines ) );
-
 		$this->assertCount( 1, glob( $dir . '/*.os.ts' ) );
 		$this->assertSame( array(), glob( $dir . '/*.js' ) );
 	}

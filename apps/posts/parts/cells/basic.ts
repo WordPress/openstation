@@ -67,7 +67,7 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 		titleRow.appendChild(
 			pill( lock.userName, { fg: 'var(--os-ui-danger, #b32d2e)', bg: 'var(--os-ui-surface-raised, rgba(179, 45, 46, 0.1))' }, {
 				icon: lockGlyph(),
-
+				/* translators: %s is the user name currently editing the post. */
 				title: sprintf( __( '%s is currently editing' ), lock.userName ),
 			} ),
 		);
@@ -136,7 +136,6 @@ export function buildDateCell( row: PostListItem ): HTMLElement {
 	const wrap = document.createElement( 'span' );
 	wrap.style.cssText = 'display:flex;flex-direction:column;line-height:1.2;';
 	const time = document.createElement( 'os-relative-time' );
-
 	time.setAttribute( 'datetime', row.date_gmt || row.date );
 	wrap.appendChild( time );
 	if ( row.modified_gmt && row.modified_gmt !== row.date_gmt ) {

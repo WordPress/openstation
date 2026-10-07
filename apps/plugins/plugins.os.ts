@@ -32,11 +32,8 @@ interface UiState {
 	installed: InstalledUi;
 	browse: BrowseGallery | null;
 	featured: FeaturedGallery | null;
-
 	ctaKey: string;
-
 	dragDepth: number;
-
 	ownChanges: Map< number, number >;
 	teardown: Array< () => void >;
 }
@@ -76,7 +73,6 @@ function createHost( ctx: Ctx, ownChanges: Map< number, number > ): PluginsHost 
 					ownChanges.set( pluginChangeId( fullPluginFile( plugin ) ), now );
 				}
 			}
-
 			const api = window.wp?.os;
 			if ( typeof api?.broadcast === 'function' ) {
 				api.broadcast< PluginsChangedPayload >( PLUGINS_CHANGED_TOPIC, {
@@ -226,7 +222,6 @@ const featuredPanel = (): TemplateResult => html`
 
 export default defineApp< AppState, AppData >( APP_ID, {
 	local: {
-
 		set: () => undefined,
 	},
 

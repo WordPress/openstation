@@ -41,7 +41,6 @@ describe( 'workspaces — overview top bar', () => {
 		setVisibleWidgets = vi.fn();
 		deps = {
 			manager,
-
 			getNavItems: () => [
 				{
 					id: 'edit-php',
@@ -102,7 +101,6 @@ describe( 'workspaces — overview top bar', () => {
 		expect( createWorkspaceFromOverview( 'desktop-1' ) ).toBe( true );
 
 		expect( openCreator ).toHaveBeenCalledWith( 'desktop-1' );
-
 		expect( manager.getDesktops() ).toHaveLength( before );
 	} );
 
@@ -137,7 +135,6 @@ describe( 'workspaces — overview top bar', () => {
 	} );
 
 	test( 'a plain Space has nothing to restore', () => {
-
 		expect(
 			workspaceCanRestore( { id: 'desktop-1', label: 'Desktop 1' } ),
 		).toBe( false );
@@ -196,7 +193,6 @@ describe( 'workspaces — overview top bar', () => {
 
 	test( 'restore switches to the desk and rebuilds it', () => {
 		install();
-
 		const open = vi
 			.spyOn( manager, 'openNew' )
 			.mockResolvedValue( {} as never );
@@ -211,7 +207,6 @@ describe( 'workspaces — overview top bar', () => {
 				appearance: { wallpaper: 'mono' },
 				windows: [ { match: 'edit.php', url: 'edit.php' } ],
 				layout: 'columns',
-
 				provisioned: true,
 			},
 		} );
@@ -230,7 +225,6 @@ describe( 'workspaces — overview top bar', () => {
 		install();
 		createWorkspaceFromOverview( 'desktop-1' );
 		editWorkspaceFromOverview( 'desktop-1' );
-
 		expect( desktop.children ).toHaveLength( 0 );
 		expect( document.querySelector( '.os-workspace-switcher' ) ).toBeNull();
 		expect( document.querySelector( 'os-select' ) ).toBeNull();

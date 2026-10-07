@@ -30,7 +30,6 @@ export function cycleFocus( mgr: WindowManager, direction: CycleDirection ): voi
 	const focused = mgr.getFocused();
 	const currentIdx = focused ? list.indexOf( focused ) : -1;
 	const step = direction === 'next' ? 1 : -1;
-
 	const nextIdx = ( currentIdx + step + list.length ) % list.length;
 	const target = list[ nextIdx ];
 
@@ -81,7 +80,6 @@ export function isTextEntryElement( el: Element | null ): boolean {
 	if ( el instanceof HTMLElement && el.isContentEditable === true ) {
 		return true;
 	}
-
 	const ce = el.getAttribute( 'contenteditable' );
 	return ce !== null && ce !== 'false';
 }

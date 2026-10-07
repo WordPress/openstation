@@ -44,7 +44,6 @@ describe( 'convertNoteToPost', () => {
 		openWindow = vi.fn();
 		closeWindow = vi.fn();
 		getById = vi.fn( () => ( { close: closeWindow } ) );
-
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		w.wp = {
 			...( w.wp ?? {} ),
@@ -91,9 +90,7 @@ describe( 'convertNoteToPost', () => {
 		const onRestore = vi.fn();
 
 		await convertNoteToPost( NOTE, { onEvict: vi.fn(), onRestore } );
-
 		await showToast.mock.calls[ 0 ][ 0 ].action.onClick();
-
 		await vi.waitFor( () => expect( onRestore ).toHaveBeenCalled() );
 
 		expect( closeWindow ).toHaveBeenCalledTimes( 1 );

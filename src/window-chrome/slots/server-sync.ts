@@ -28,7 +28,6 @@ export function createWindowSlotRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,

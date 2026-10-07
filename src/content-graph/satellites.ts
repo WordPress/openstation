@@ -58,7 +58,6 @@ const KIND_COLOR: Record<SatelliteRef['kind'], number> = {
 
 const KIND_DASHICON: Record<SatelliteRef['kind'], string> = {
 	user: 'admin-users',
-
 	term: 'tag',
 	comment: 'admin-comments',
 	media: 'admin-media',
@@ -82,7 +81,6 @@ const KIND_ICON_NUDGE: Record<
 > = {
 	user: { x: 0, y: 3 },
 	term: { x: 0, y: 3 },
-
 	comment: { x: 1, y: 4 },
 	media: { x: -1, y: 1 },
 	revision: { x: 0, y: 3 },
@@ -113,13 +111,10 @@ export class SatelliteLayer {
 
 	constructor(
     private pixi: PixiNamespace,
-
     private satelliteParent: PixiContainer,
-
     private spokeParent: PixiContainer,
     private onClick: SatelliteOnClick,
     private hostEl: HTMLElement,
-
     private claimPointer: () => void,
 	) {
 		this.linkGfx = new pixi.Graphics();
@@ -148,7 +143,6 @@ export class SatelliteLayer {
 		if ( ! this.focused || this.views.length === 0 ) {
 			return;
 		}
-
 		const halo = this.focused.radius + 8;
 		const fx = this.focused.x;
 		const fy = this.focused.y;
@@ -261,7 +255,7 @@ export class SatelliteLayer {
 				taxonomy: t.taxonomy,
 				label: t.name,
 				meta: sprintf(
-
+					/* translators: 1: taxonomy label (e.g. Category, Tag). 2: post count for the term. */
 					__( '%1$s · %2$d posts' ),
 					t.tax_label,
 					t.count,
@@ -321,7 +315,6 @@ export class SatelliteLayer {
 		const dashName =
 			ref.kind === 'term' ? iconForTermRef( ref ) : KIND_DASHICON[ ref.kind ];
 		const iconChar = resolveDashicon( dashName );
-
 		const icon = new this.pixi.Text( {
 			text: iconChar ?? '?',
 			style: {
@@ -338,7 +331,6 @@ export class SatelliteLayer {
 		container.addChild( icon );
 
 		const labelText = truncate( ref.label || '—', 28 );
-
 		const labelBg = new this.pixi.Graphics();
 		container.addChild( labelBg );
 
@@ -370,7 +362,6 @@ export class SatelliteLayer {
 		container.on( 'pointerdown', ( evt: unknown ) => {
 			const e = evt as { stopPropagation?: () => void };
 			e.stopPropagation?.();
-
 			this.claimPointer();
 		} );
 		container.on( 'pointerover', ( evt: unknown ) => {
@@ -390,7 +381,6 @@ export class SatelliteLayer {
 			const e = evt as { stopPropagation?: () => void };
 			e.stopPropagation?.();
 			this.hideTooltip();
-
 			this.setSelectedKey( keyForRef( ref ) );
 			this.onClick( ref );
 		} );

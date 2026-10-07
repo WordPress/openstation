@@ -162,7 +162,6 @@ const uploadPane: Section = ( s, ctx ) => {
 		ctx.root.querySelector< HTMLInputElement >( '[data-os-upload-input]' );
 	const onRemove = ( e: Event ): void => {
 		e.stopPropagation();
-
 		update( {
 			customImage: null,
 			...( s.wallpaper === CUSTOM_IMAGE_ID ? { wallpaper: getDefaultWallpaperId() } : {} ),
@@ -184,7 +183,6 @@ const uploadPane: Section = ( s, ctx ) => {
 		if ( file ) {
 			void handleImageFile( ctx, file );
 		}
-
 		input.value = '';
 	};
 	const setDragover = ( on: boolean ): void => {
@@ -302,10 +300,11 @@ const libraryPane: Section = ( s, ctx ) => {
 	const visible = visibleLibraryItems( s, lib.loaded );
 	const hiddenByHd = lib.loaded.length - visible.length;
 	const parts = [
-
+		/* translators: %d: the number of media items currently visible. */
 		sprintf( __( 'Showing %d' ), visible.length ),
 	];
 	if ( s.libraryHdOnly && hiddenByHd > 0 ) {
+		/* translators: %d: the number of images filtered out by the HD toggle. */
 		parts.push( sprintf( __( '%d hidden by HD filter' ), hiddenByHd ) );
 	}
 	const onSearch = ( e: Event ): void => {
@@ -354,7 +353,7 @@ const libraryPane: Section = ( s, ctx ) => {
 				/>
 				<os-checkbox-label
 					label=${ sprintf(
-
+						/* translators: 1: the HD minimum width in px, 2: the minimum height. */
 						__( 'Only HD (≥%1$d×%2$d)' ),
 						HD_MIN_WIDTH,
 						HD_MIN_HEIGHT,
@@ -406,7 +405,6 @@ export const customImageSection: Section = ( s, ctx ) => {
 			ctx.repaint();
 		}
 	};
-
 	return html`
 		<div class="os-settings__uploader">
 			${ canUpload

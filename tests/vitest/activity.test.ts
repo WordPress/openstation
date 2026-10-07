@@ -66,10 +66,8 @@ describe( 'wp.os.activity', () => {
 	} );
 
 	test( 'a channel maps onto a hook name @wordpress/hooks accepts', () => {
-
 		const cb = vi.fn();
 		activity.subscribe( 'os/game-score-recorded', cb );
-
 		doAction( 'os.activity.os.game-score-recorded', {
 			game: 'inkfall',
 		} );

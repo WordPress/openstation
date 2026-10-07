@@ -13,7 +13,6 @@ export function computeAutoId( element: HTMLElement ): string {
 			windowId = id.slice( 'wp-window-'.length );
 			break;
 		}
-
 		if ( node.tagName.toLowerCase() === 'os-tabpanel' ) {
 			const forValue = node.getAttribute( 'for' );
 			if ( forValue ) {

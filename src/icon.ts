@@ -18,7 +18,6 @@ function isSilhouetteSvg( icon: string ): boolean {
 			'currentColor',
 		);
 	} catch {
-
 	}
 
 	if ( silhouetteCache.size >= 256 ) {
@@ -29,11 +28,8 @@ function isSilhouetteSvg( icon: string ): boolean {
 }
 
 export interface RenderIconOptions {
-
 	title: string;
-
 	className?: string;
-
 	slot?: string;
 }
 
@@ -47,7 +43,6 @@ export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement
 		if ( themed !== null ) {
 			icon = themed;
 		}
-
 		tint = resolveThemedIconColor( opts.slot );
 	}
 

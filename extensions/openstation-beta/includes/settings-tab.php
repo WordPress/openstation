@@ -6,7 +6,6 @@ function openstation_beta_register_settings_tab() {
 	if ( ! function_exists( 'openstation_register_settings_tab' ) ) {
 		return;
 	}
-
 	if ( ! current_user_can( 'update_plugins' ) ) {
 		return;
 	}
@@ -45,5 +44,4 @@ function openstation_beta_shell_assets() {
 
 	wp_enqueue_script( 'openstation-beta-settings' );
 }
-
 add_action( 'admin_enqueue_scripts', 'openstation_beta_shell_assets', 5 );

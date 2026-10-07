@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group os-ai
+ */
 
 use WordPress\AiClient\Messages\DTO\Message;
 use WordPress\AiClient\Messages\DTO\MessagePart;
@@ -15,6 +19,9 @@ class Tests_OpenStation_AiClientThoughtParts extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_ai_strip_thought_parts
+	 */
 	public function test_strips_thought_parts_and_keeps_the_rest() {
 		$message = new Message(
 			MessageRoleEnum::model(),
@@ -36,6 +43,9 @@ class Tests_OpenStation_AiClientThoughtParts extends WP_UnitTestCase {
 		$this->assertTrue( $stripped->getRole()->isModel(), 'The role must be preserved.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_strip_thought_parts
+	 */
 	public function test_message_without_thought_parts_is_returned_unchanged() {
 		$message = new Message(
 			MessageRoleEnum::model(),
@@ -47,6 +57,9 @@ class Tests_OpenStation_AiClientThoughtParts extends WP_UnitTestCase {
 		$this->assertSame( $message, openstation_ai_strip_thought_parts( $message ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_strip_thought_parts
+	 */
 	public function test_thought_only_message_is_not_emptied() {
 		$message = new Message(
 			MessageRoleEnum::model(),

@@ -47,7 +47,6 @@ describe( 'games/share-card.ts', () => {
 				footer: 'WordPress OpenStation',
 			} ),
 		).not.toThrow();
-
 		expect( canvas.width ).toBe( 1200 );
 		expect( canvas.height ).toBe( 630 );
 	} );

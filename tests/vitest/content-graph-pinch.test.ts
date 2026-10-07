@@ -14,7 +14,6 @@ describe( 'pinchCamera', () => {
 		const next: PointerPair = { a: { x: 50, y: 100 }, b: { x: 250, y: 100 } };
 		const out = pinchCamera( camera, prev, next, BOUNDS );
 		expect( out.scale ).toBeCloseTo( 2 );
-
 		expect( worldUnder( out, 150, 100 ) ).toEqual( worldUnder( camera, 150, 100 ) );
 	} );
 
@@ -24,7 +23,6 @@ describe( 'pinchCamera', () => {
 		const next: PointerPair = { a: { x: 180, y: 140 }, b: { x: 280, y: 140 } };
 		const out = pinchCamera( camera, prev, next, BOUNDS );
 		expect( out.scale ).toBeCloseTo( 1 );
-
 		const before = worldUnder( camera, 200, 100 );
 		const after = worldUnder( out, 230, 140 );
 		expect( after.x ).toBeCloseTo( before.x );

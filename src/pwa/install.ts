@@ -17,7 +17,6 @@ export function isStandaloneDisplay(): boolean {
 	if ( window.matchMedia?.( '(display-mode: standalone)' ).matches ) {
 		return true;
 	}
-
 	const nav = window.navigator as unknown as { standalone?: boolean };
 	return nav.standalone === true;
 }
@@ -71,10 +70,9 @@ export function installPwaInstallAffordance(
 
 	function _handleAppInstalled(): void {
 		_deferred = null;
-
 		showToast( {
 			message: sprintf(
-
+				/* translators: %s: site name */
 				__( 'Installed %s as an app.' ),
 				siteName,
 			),
@@ -93,9 +91,7 @@ export function getInstallTileDef(
 } {
 	return {
 		id: PWA_INSTALL_TILE_ID,
-
 		title: __( 'Install web app' ),
-
 		icon: 'dashicons-download',
 		onOpen: () => {
 			void onTileClick( siteName, showToast );
@@ -109,7 +105,6 @@ async function onTileClick(
 ): Promise< void > {
 	if ( _deferred ) {
 		const event = _deferred;
-
 		_deferred = null;
 		try {
 			await event.prompt();
@@ -133,7 +128,7 @@ async function onTileClick(
 	if ( await isLikelyInstalled() ) {
 		showToast( {
 			message: sprintf(
-
+				/* translators: %s: site name */
 				__(
 					'%s is already installed. Open it from your apps menu or home screen.',
 				),

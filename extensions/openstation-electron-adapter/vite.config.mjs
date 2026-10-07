@@ -12,7 +12,6 @@ const TARGETS = {
 		entry: 'app/src/renderer/connect.ts',
 		name: 'openStationConnectScreen',
 		outDir: 'app/dist/renderer',
-
 		fileName: () => 'connect.js',
 	},
 };

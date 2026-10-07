@@ -44,7 +44,6 @@ function openstation_network_remote_get( $base, $route, array $headers = array()
 		$url,
 		array(
 			'timeout'     => 8,
-
 			'redirection' => 0,
 			'headers'     => array_merge( array( 'Accept' => 'application/json' ), $headers ),
 		)
@@ -60,7 +59,7 @@ function openstation_network_remote_get( $base, $route, array $headers = array()
 			'openstation_network_http_' . $code,
 			'' !== $message
 				? $message
-
+				/* translators: %d: HTTP status code. */
 				: sprintf( __( 'The site answered with HTTP %d.', 'desktop-mode' ), $code )
 		);
 	}

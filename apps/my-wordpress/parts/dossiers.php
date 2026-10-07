@@ -95,7 +95,7 @@ function folder( Os $os, array $section, $id ) {
 		'id'      => $id,
 		'title'   => '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ),
 		'status'  => (string) $post->post_status,
-
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying Core's own content pipeline, not declaring a hook.
 		'content' => (string) apply_filters( 'the_content', (string) $post->post_content ),
 		'folders' => $folders,
 	);
@@ -164,7 +164,7 @@ function sub( Os $os, array $section, $id, $relation ) {
 					'id'       => (int) $term->term_id,
 					'title'    => openstation_plain_text_title( $term->name ),
 					'subtitle' => sprintf(
-
+						/* translators: %s: entry count. */
 						_n( '%s entry', '%s entries', (int) $term->count, 'desktop-mode' ),
 						number_format_i18n( (int) $term->count )
 					),
@@ -291,7 +291,7 @@ function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 				'title'   => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ),
 				'author'  => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $revision->post_author ) ),
 				'date'    => (string) get_the_date( '', $revision ) . ' ' . get_the_time( '', $revision ),
-				'content' => wp_kses_post( (string) apply_filters( 'the_content', (string) $revision->post_content ) ),
+				'content' => wp_kses_post( (string) apply_filters( 'the_content', (string) $revision->post_content ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own content pipeline.
 			);
 	}
 	return null;

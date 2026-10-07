@@ -18,13 +18,9 @@ export interface CommandEntity {
 }
 
 export interface CommandContext {
-
 	close(): void;
-
 	openInWindow( url: string, title: string, icon?: string ): void;
-
 	confirm( message: string, details?: string ): Promise< boolean >;
-
 	notify?: ( message: string ) => void;
 }
 
@@ -39,41 +35,26 @@ export type CommandResult =
 	};
 
 export interface CommandSuggestion {
-
 	value: string;
-
 	label: string;
-
 	description?: string;
-
 	icon?: string;
 }
 
 export interface DesktopCommand {
-
 	slug: string;
-
 	label: string;
-
 	description?: string;
-
 	hint?: string;
-
 	icon?: string;
-
 	iconSvg?: string;
-
 	eager?: boolean;
-
 	owner?: string;
-
 	aiCallable?: boolean;
-
 	suggest?: (
 		args: string,
 		ctx: CommandContext,
 	) => CommandSuggestion[] | Promise< CommandSuggestion[] >;
-
 	run( args: string, ctx: CommandContext ): CommandResult | Promise<CommandResult>;
 }
 

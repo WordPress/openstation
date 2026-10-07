@@ -18,7 +18,6 @@ class OpenStation_Post_File extends OpenStation_File {
 			return __( '(missing post)', 'desktop-mode' );
 		}
 		$title = wp_strip_all_tags( get_the_title( $post ) );
-
 		return '' !== $title ? $title : __( '(no title)', 'desktop-mode' );
 	}
 
@@ -60,7 +59,6 @@ class OpenStation_Post_File extends OpenStation_File {
 		$post              = $this->post();
 		$shape['postType'] = $post ? (string) $post->post_type : '';
 		$shape['status']   = $post ? (string) $post->post_status : '';
-
 		$shape['link'] = $post ? (string) get_permalink( $post ) : '';
 		return $shape;
 	}

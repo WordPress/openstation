@@ -4,7 +4,6 @@ import {
 	ensureAutoId,
 	html,
 } from '../../core';
-
 import '../os-select/os-select';
 import { osIcon } from '../../icons';
 import { multiselectStyles } from './os-multiselect.styles';
@@ -113,7 +112,6 @@ export class OsMultiselect extends Component {
 			opt.textContent = item.label;
 			this.appendChild( opt );
 		}
-
 		this._loadingMore = false;
 		const validSet = new Set( list.map( ( i ) => i.value ) );
 		const next = this._readValues().filter( ( v ) => validSet.has( v ) );
@@ -138,7 +136,6 @@ export class OsMultiselect extends Component {
 	private _optionObserver: MutationObserver | null = null;
 	private _popover: HTMLDivElement | null = null;
 	private _teardownOpen: ( () => void ) | null = null;
-
 	private _hasMore = false;
 	private _loadingMore = false;
 
@@ -300,7 +297,6 @@ export class OsMultiselect extends Component {
 		if ( vals.length === 1 ) {
 			return byValue.get( vals[ 0 ] ) ?? vals[ 0 ];
 		}
-
 		return `${ vals.length } selected`;
 	}
 
@@ -331,7 +327,6 @@ export class OsMultiselect extends Component {
 		popover.className = 'os-multiselect__popover';
 		popover.setAttribute( 'role', 'listbox' );
 		popover.setAttribute( 'aria-multiselectable', 'true' );
-
 		popover.style.setProperty(
 			'--wp-admin-theme-color',
 			getComputedStyle( this ).getPropertyValue(

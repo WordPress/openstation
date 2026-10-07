@@ -33,7 +33,6 @@ function openstation_files_cascade_trash_placements_for_entity( $file_type, $fil
 		$placement_id = (int) $row['id'];
 		$owner_id     = (int) $row['owner_id'];
 		$ancestry     = openstation_files_capture_ancestry( (int) $row['parent_id'] );
-
 		$meta = wp_json_encode(
 			array(
 				'ancestry' => $ancestry,
@@ -82,7 +81,6 @@ function openstation_files_cascade_on_post_trash( $post_id ) {
 	if ( ! $post instanceof WP_Post ) {
 		return;
 	}
-
 	if ( 'attachment' === $post->post_type ) {
 		openstation_files_cascade_trash_placements_for_entity(
 			'attachment',

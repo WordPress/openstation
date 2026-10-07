@@ -5,22 +5,16 @@ export interface AiAssistantApi {
 	close(): void;
 	toggle(): void;
 	readonly isOpen: boolean;
-
 	ask: AskFn;
 }
 
 export interface AiAssistantConfig {
 	aiSearchUrl: string;
 	restNonce: string;
-
 	adminUrl: string;
-
 	isAiSupported?: () => boolean;
-
 	canConnectProvider?: () => boolean;
-
 	isAiAvailable?: () => boolean;
-
 	isOverrideEnabled?: () => boolean;
 }
 

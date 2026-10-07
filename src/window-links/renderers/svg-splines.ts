@@ -43,9 +43,7 @@ function endpointAnchor(
 }
 
 interface EndpointMarkers {
-
 	dot: { normal: string; active: string };
-
 	port: { normal: string; active: string };
 }
 
@@ -166,7 +164,6 @@ registerWindowLinkRenderer( {
 				}
 
 				const obstacles = frame.obstacles ?? [];
-
 				const shortest = closestBorderAnchors( edge.from, edge.to );
 				const visibleAt = (
 					anchor: LinkAnchor,
@@ -212,7 +209,6 @@ registerWindowLinkRenderer( {
 						edge.toZIndex,
 						edge.toWindowId,
 						obstacles,
-
 						{ x: start.x, y: start.y },
 					);
 				}

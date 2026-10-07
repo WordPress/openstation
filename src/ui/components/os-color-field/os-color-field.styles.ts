@@ -30,12 +30,10 @@ export const styles = css`
 	input[ type='color' ]:hover {
 		border-color: var( --os-ui-border-strong, #8c8f94 );
 	}
-
 	input[ type='color' ]:focus-visible {
 		outline: none;
 		box-shadow: var( --_holo-focus );
 	}
-
 	:host( [ variant='block' ] ) {
 		display: flex;
 		width: 100%;
@@ -50,7 +48,6 @@ export const styles = css`
 		width: auto;
 		height: 32px;
 	}
-
 	input[ type='color' ]::-webkit-color-swatch-wrapper {
 		padding: 2px;
 	}

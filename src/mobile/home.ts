@@ -53,17 +53,14 @@ export function filterByQuery( items: readonly NavItem[], query: string ): NavIt
 export interface HomeDeps {
 	renderIcon: ( icon: string, opts: { title: string; className?: string } ) => HTMLElement;
 	getBadge: ( item: NavItem ) => number;
-
 	getArt?: ( item: NavItem ) => string;
 	onOpen: ( item: NavItem ) => void;
 }
 
 export interface HomeSurface {
 	el: HTMLElement;
-
 	render( nav: NavResult | null ): void;
 	setHidden( hidden: boolean ): void;
-
 	reset(): void;
 }
 
@@ -82,14 +79,12 @@ export function createHome( host: HTMLElement, deps: HomeDeps ): HomeSurface {
 	const search = document.createElement( 'os-text-field' );
 	search.setAttribute( 'type', 'search' );
 	search.setAttribute( 'placeholder', __( 'Search apps' ) );
-
 	search.setAttribute( 'aria-label', __( 'Search apps' ) );
 	search.setAttribute( 'autocomplete', 'off' );
 	searchWrap.appendChild( search );
 
 	const scroll = document.createElement( 'div' );
 	scroll.className = 'os-mobile-home__scroll';
-
 	const content = document.createElement( 'div' );
 	content.className = 'os-mobile-home__content';
 	scroll.appendChild( content );

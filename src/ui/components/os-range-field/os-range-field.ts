@@ -28,11 +28,9 @@ function readoutWidth(
 		if ( ! Number.isFinite( n ) ) {
 			return 3;
 		}
-
 		return String( Math.trunc( Math.abs( n ) ) ).length + ( n < 0 ? 1 : 0 );
 	};
 	const whole = Math.max( digits( min ), digits( max ) );
-
 	return whole + ( decimals > 0 ? decimals + 1 : 0 ) + suffix.length;
 }
 
@@ -160,7 +158,6 @@ export class OsRangeField extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
 		if ( getComputedStyle( this ).direction === 'rtl' ) {
 			this.style.setProperty( '--_range-angle', '270deg' );
 		}

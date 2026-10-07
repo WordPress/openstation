@@ -1,9 +1,6 @@
 export interface CreateExtensionWindowOptions< Config > {
-
 	id: string;
-
 	configGlobal: string;
-
 	render: ( ctx: { container: HTMLElement; config: Config; windowId: string } ) => void;
 }
 

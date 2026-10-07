@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-titles
+ */
 class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -18,6 +21,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_recycle_bin_window_is_titled_trash() {
 		openstation_apps_register_windows();
 
@@ -26,8 +32,10 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertSame( 'Trash', $entry['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_recycle_bin_registers_no_desktop_icon() {
-
 		openstation_unregister_icon( 'desktop-mode-recycle-bin' );
 
 		openstation_apps_register_windows();
@@ -37,6 +45,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_recycle_bin_tile_is_placeable() {
 		openstation_apps_register_windows();
 
@@ -45,6 +56,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertTrue( $entry['placeable'] );
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_recycle_bin_keeps_its_window_id() {
 		openstation_apps_register_windows();
 
@@ -53,6 +67,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_content_graph_register_window
+	 */
 	public function test_content_graph_window_and_icon_are_titled_corkboard() {
 		openstation_content_graph_register_window();
 
@@ -63,6 +80,10 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertSame( 'Corkboard', $icon['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_content_graph_register_window
+	 * @covers ::openstation_content_graph_icon_svg
+	 */
 	public function test_content_graph_uses_the_corkboard_svg() {
 		openstation_content_graph_register_window();
 
@@ -75,6 +96,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertSame( $expected, $icon['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_content_graph_icon_svg
+	 */
 	public function test_corkboard_svg_survives_the_icon_sanitizer() {
 		$uri = 'data:image/svg+xml;base64,'
 			. base64_encode( openstation_content_graph_icon_svg() );
@@ -82,6 +106,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertSame( $uri, openstation_sanitize_dock_icon( $uri ) );
 	}
 
+	/**
+	 * @covers ::openstation_content_graph_icon_svg
+	 */
 	public function test_corkboard_svg_is_drawn_entirely_in_current_color() {
 		$svg = openstation_content_graph_icon_svg();
 
@@ -91,6 +118,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertDoesNotMatchRegularExpression( '/(fill|stroke)="#/', $svg );
 	}
 
+	/**
+	 * @covers ::openstation_content_graph_icon_svg
+	 */
 	public function test_corkboard_svg_keeps_its_nodes_legible() {
 		$svg = openstation_content_graph_icon_svg();
 
@@ -106,6 +136,11 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertGreaterThan( max( $radii ), $hub );
 	}
 
+	/**
+	 * @covers ::openstation_games_icon_svg
+	 * @covers ::openstation_recycle_bin_icon_svg
+	 * @covers ::openstation_my_wordpress_icon_svg
+	 */
 	public function test_built_in_app_icons_are_all_silhouettes() {
 		$icons = array(
 			'games'        => openstation_games_icon_svg(),
@@ -125,6 +160,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_recycle_bin_uses_its_own_svg() {
 		openstation_apps_register_windows();
 
@@ -136,6 +174,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertSame( $expected, $entry['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_content_graph_register_window
+	 */
 	public function test_content_graph_config_carries_the_site_title() {
 		add_filter(
 			'openstation_site_title',
@@ -151,6 +192,9 @@ class Tests_OpenStation_DesktopObjectTitles extends WP_UnitTestCase {
 		$this->assertSame( "Izzi's Gym", $entry['config']['siteName'] );
 	}
 
+	/**
+	 * @covers ::openstation_content_graph_register_window
+	 */
 	public function test_content_graph_keeps_its_window_id() {
 		openstation_content_graph_register_window();
 

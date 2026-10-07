@@ -125,7 +125,6 @@ describe( 'buildBlockSpec — post / user', () => {
 			url: 'https://example.test/x?a=1&b=<script>',
 			title: 'Mean & "quoted" <script>',
 		} );
-
 		expect( spec?.attributes.content ).toBe(
 			'<a href="https://example.test/x?a=1&amp;b=&lt;script&gt;">Mean &amp; &quot;quoted&quot; &lt;script&gt;</a>',
 		);
@@ -157,7 +156,7 @@ describe( 'buildBlockSpec — post / user', () => {
 			kind: 'post',
 			id: 1,
 			postType: 'post',
-
+			// eslint-disable-next-line no-script-url
 			url: 'javascript:alert(1)',
 			title: 'Bad',
 		} );

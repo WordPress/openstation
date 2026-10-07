@@ -310,11 +310,9 @@ describe( 'grouping', () => {
 			'c2',
 			'term-win',
 		] );
-
 		expect( getDirectlyRelatedWindowIds( 'c1' ) ).toEqual( [
 			'post-win',
 		] );
-
 		expect( getRelatedWindowIds( 'c1' ).sort() ).toEqual( [
 			'c2',
 			'post-win',
@@ -388,7 +386,6 @@ describe( 'edges', () => {
 	} );
 
 	test( 'ARROW SEMANTICS: every edge points at what its source belongs to / refers to', async () => {
-
 		const { setWindowContent, listWindowLinkEdges } = await load();
 
 		setWindowContent( 'post-win', {
@@ -421,7 +418,6 @@ describe( 'edges', () => {
 	} );
 
 	test( 'a child-root edge absorbs the REVERSE reference on the same pair', async () => {
-
 		const { setWindowContent, listWindowLinkEdges } = await load();
 
 		setWindowContent( 'post-win', {
@@ -741,7 +737,6 @@ describe( 'change events', () => {
 		] );
 
 		setWindowContent( 'w1', { type: 'post', id: 1 } );
-
 		setWindowContent( 'w1', { type: 'post', id: 1, label: 'Hello' } );
 
 		expect( log ).toHaveLength( 1 );

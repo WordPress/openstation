@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_Presence extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -36,14 +38,20 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_presence_record
+	 * @covers ::openstation_presence_status_for_user
+	 */
 	public function test_record_makes_user_online() {
 		openstation_presence_record( self::$admin_id, true );
 		$this->assertSame( 'online', openstation_presence_status_for_user( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_presence_status_from_record
+	 */
 	public function test_inactive_threshold_demotes_online_to_inactive() {
 		$now_ms = (int) round( microtime( true ) * 1000 );
-
 		$record = array(
 			'last_seen_ms'   => $now_ms,
 			'last_active_ms' => $now_ms - ( 6 * 60 * 1000 ),
@@ -51,9 +59,11 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertSame( 'inactive', openstation_presence_status_from_record( $record ) );
 	}
 
+	/**
+	 * @covers ::openstation_presence_status_from_record
+	 */
 	public function test_offline_threshold_dominates() {
 		$now_ms = (int) round( microtime( true ) * 1000 );
-
 		$record = array(
 			'last_seen_ms'   => $now_ms - ( 3 * 60 * 1000 ),
 			'last_active_ms' => $now_ms,
@@ -61,8 +71,10 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertSame( 'offline', openstation_presence_status_from_record( $record ) );
 	}
 
+	/**
+	 * @covers ::openstation_presence_record
+	 */
 	public function test_record_active_false_preserves_last_active() {
-
 		$now_ms = (int) round( microtime( true ) * 1000 );
 		$seeded = array(
 			'last_seen_ms'   => $now_ms - ( 61 * 1000 ),
@@ -76,19 +88,25 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertSame( $seeded['last_active_ms'], $stored['last_active_ms'], 'last_active stays put when active=false' );
 	}
 
+	/**
+	 * @covers ::openstation_presence_record
+	 * @covers ::openstation_presence_should_persist
+	 */
 	public function test_redundant_bump_within_throttle_window_skips_the_write() {
 		openstation_presence_record( self::$admin_id, true );
 		$first = openstation_presence_get_all()[ self::$admin_id ];
 		usleep( 5000 );
-
 		openstation_presence_record( self::$admin_id, true );
 		$second = openstation_presence_get_all()[ self::$admin_id ];
 		$this->assertSame( $first, $second, 'a redundant bump inside the throttle window must not rewrite the row' );
 		$this->assertSame( 'online', openstation_presence_status_for_user( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_presence_record
+	 * @covers ::openstation_presence_should_persist
+	 */
 	public function test_status_transition_persists_despite_throttle() {
-
 		$now_ms = (int) round( microtime( true ) * 1000 );
 		$this->seed_records(
 			array(
@@ -106,6 +124,9 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertGreaterThanOrEqual( $now_ms, $stored['last_active_ms'], 'transitioning bump rewrites the stored record' );
 	}
 
+	/**
+	 * @covers ::openstation_presence_record
+	 */
 	public function test_changed_action_fires_only_on_transition() {
 		$transitions = array();
 		add_action(
@@ -118,7 +139,6 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		);
 
 		openstation_presence_record( self::$admin_id, true );
-
 		openstation_presence_record( self::$admin_id, true );
 
 		$this->assertCount( 1, $transitions );
@@ -127,6 +147,9 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertSame( 'online', $transitions[0][2] );
 	}
 
+	/**
+	 * @covers ::openstation_presence_record
+	 */
 	public function test_recorded_action_fires_every_time() {
 		$count = 0;
 		add_action(
@@ -141,6 +164,9 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertSame( 3, $count );
 	}
 
+	/**
+	 * @covers ::openstation_presence_record
+	 */
 	public function test_can_track_filter_vetoes_recording() {
 		add_filter( 'openstation_presence_can_track', '__return_false' );
 		$ok = openstation_presence_record( self::$admin_id, true );
@@ -149,6 +175,9 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		remove_filter( 'openstation_presence_can_track', '__return_false' );
 	}
 
+	/**
+	 * @covers ::openstation_presence_snapshot
+	 */
 	public function test_snapshot_with_null_returns_all_tracked_users() {
 		openstation_presence_record( self::$admin_id, true );
 		openstation_presence_record( self::$editor_id, false );
@@ -157,6 +186,9 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertArrayHasKey( (string) self::$editor_id, $snap );
 	}
 
+	/**
+	 * @covers ::openstation_presence_snapshot
+	 */
 	public function test_snapshot_with_id_list_filters_to_those_only() {
 		openstation_presence_record( self::$admin_id, true );
 		openstation_presence_record( self::$editor_id, true );
@@ -166,6 +198,9 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( (string) self::$editor_id, $snap );
 	}
 
+	/**
+	 * @covers ::openstation_presence_visible_users
+	 */
 	public function test_visible_users_filter_can_narrow_the_set() {
 		add_filter(
 			'openstation_presence_visible_users',
@@ -180,9 +215,11 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_presence_visible_users' );
 	}
 
+	/**
+	 * @covers ::openstation_presence_cron_prune
+	 */
 	public function test_cron_prune_drops_stale_entries() {
 		$now_ms = (int) round( microtime( true ) * 1000 );
-
 		$this->seed_records(
 			array(
 				self::$admin_id  => array(
@@ -201,12 +238,18 @@ class Tests_OpenStation_Presence extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( self::$editor_id, $all );
 	}
 
+	/**
+	 * @covers ::openstation_presence_record
+	 */
 	public function test_invalid_user_id_is_a_noop() {
 		$ok = openstation_presence_record( 0, true );
 		$this->assertFalse( $ok );
 		$this->assertSame( array(), openstation_presence_get_all() );
 	}
 
+	/**
+	 * @covers ::openstation_presence_status_for_user
+	 */
 	public function test_unknown_user_is_offline() {
 		$this->assertSame( 'offline', openstation_presence_status_for_user( 99999 ) );
 	}

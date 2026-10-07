@@ -551,7 +551,6 @@
 				try {
 					voice.stop();
 				} catch ( error ) {
-
 				}
 			}
 			voices.clear();

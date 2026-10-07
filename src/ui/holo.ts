@@ -48,15 +48,12 @@ export const holoTokens = css`
 		);
 		--_holo-track: var( --os-ui-holo-track, rgba( 255, 251, 255, 0.16 ) );
 		--_holo-track-edge: var( --os-ui-holo-track-edge, #8c8f94 );
-
 		--_holo-ring-color: var( --os-ui-accent-dim, #2271b1 );
-
 		--_holo-focus: var(
 			--os-ui-focus-ring,
 			0 0 0 2px rgba( 12, 11, 15, 0.9 ), 0 0 0 4px #f252fc,
 				0 0 12px 2px rgba( 242, 82, 252, 0.45 )
 		);
-
 		--_holo-focus-field: var(
 			--os-ui-focus-ring-field,
 			0 0 0 1px #f252fc, 0 0 0 4px rgba( 242, 82, 252, 0.18 )
@@ -160,7 +157,6 @@ export const holoEdge = css`
 		background-image: var( --_holo-edge-quiet );
 		opacity: 0;
 		pointer-events: none;
-
 		-webkit-mask: linear-gradient( #000 0 0 ) content-box,
 			linear-gradient( #000 0 0 );
 		-webkit-mask-composite: xor;
@@ -192,7 +188,6 @@ export const holoGlint = css`
 		position: absolute;
 		inset: 0;
 		border-radius: inherit;
-
 		overflow: hidden;
 		pointer-events: none;
 	}
@@ -200,7 +195,6 @@ export const holoGlint = css`
 	.os-holo-glint::before {
 		content: '';
 		position: absolute;
-
 		top: -60%;
 		bottom: -60%;
 		width: 45%;
@@ -240,7 +234,6 @@ export const holoGlint = css`
 
 		100% {
 			opacity: 0;
-
 			transform: rotate( 18deg ) translateX( 240vw );
 		}
 	}
@@ -395,7 +388,6 @@ export const holoCheck = css`
 		height: 16px;
 		margin: 0;
 		padding: 0;
-
 		border: 1px solid var( --_holo-track-edge );
 		border-radius: 4px;
 		background-color: var( --_holo-track );

@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -10,7 +12,6 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_set_current_user( self::$admin_id );
 		openstation_flush_script_handle_registries();
@@ -28,6 +29,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_build_dock_items
+	 */
 	public function test_openstation_dock_items_filter_receives_array() {
 		global $menu;
 		$menu = array(
@@ -49,6 +53,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		$this->assertCount( 1, $received );
 	}
 
+	/**
+	 * @covers ::openstation_build_dock_items
+	 */
 	public function test_a_windows_tabs_lead_the_submenu_and_keep_the_rows_it_has_no_tab_for() {
 		global $menu, $submenu;
 		$menu    = array(
@@ -88,7 +95,6 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $demo );
-
 		$this->assertSame( 'Everything', $demo['selfLabel'] );
 		$this->assertSame(
 			array( 'Write one', 'A plugin page' ),
@@ -101,6 +107,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		openstation_apps_registry()->remove( 'demo-window' );
 	}
 
+	/**
+	 * @covers ::openstation_build_dock_items
+	 */
 	public function test_openstation_dock_item_filter_receives_item_and_slug() {
 		global $menu;
 		$menu = array(
@@ -126,6 +135,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		$this->assertSame( 'edit.php', $received_slug );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_shell_config_filter_fires_with_expected_keys() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -146,6 +158,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_shell_config_surfaces_target_and_intent() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET[ OPENSTATION_SHELL_TARGET_ARG ] = '/wp-admin/post.php?post=104&action=edit&' . OPENSTATION_PORTAL_FLAG . '=1';
@@ -172,6 +187,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( OPENSTATION_SHELL_TARGET_ARG . '=', $received['currentPage'] );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_shell_config_intent_flag_defaults_false() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -191,6 +209,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		$this->assertFalse( $received['fromPortalIntent'] );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_mode_init_action_fires_when_assets_enqueue() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
@@ -207,6 +228,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		$this->assertTrue( $fired );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_mode_init_does_not_fire_when_mode_off() {
 		$fired = false;
 		add_action(
@@ -221,6 +245,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		$this->assertFalse( $fired );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_chromeless_styles_action_fires_on_chromeless_request() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -238,6 +265,9 @@ class Tests_OpenStation_OpenStationHooks extends WP_UnitTestCase {
 		$this->assertTrue( $fired );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_chromeless_styles_does_not_fire_outside_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 

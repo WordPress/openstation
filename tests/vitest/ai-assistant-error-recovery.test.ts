@@ -52,7 +52,6 @@ describe( 'AiAssistant — error recovery link', () => {
 	} );
 
 	test( 'the link opens the tab the server named', async () => {
-
 		stubErrorResponse( 403, {
 			code: 'openstation_ai_disabled',
 			message: 'El asistente de IA está desactivado.',
@@ -72,7 +71,6 @@ describe( 'AiAssistant — error recovery link', () => {
 	} );
 
 	test( 'closing the panel drops the in-flight answer', async () => {
-
 		let release: ( v: Response ) => void = () => {};
 		vi.stubGlobal(
 			'fetch',

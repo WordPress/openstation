@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-agents
+ */
 class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -14,6 +17,9 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 		delete_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION );
 	}
 
+	/**
+	 * @covers ::openstation_agents_default_definitions
+	 */
 	public function test_definitions_are_complete() {
 		$defs  = openstation_agents_default_definitions();
 		$names = wp_list_pluck( $defs, 'name' );
@@ -27,10 +33,12 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 			$kinds = wp_list_pluck( $def['triggers'], 'kind' );
 			$this->assertSame( array( 'chat', 'send-to', 'drag' ), $kinds, "{$def['name']} trigger kinds" );
 		}
-
 		$this->assertSame( 'author', $defs[2]['role'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_default_definitions
+	 */
 	public function test_default_allowlists_name_registered_abilities() {
 		if ( ! function_exists( 'wp_get_ability' ) ) {
 			$this->markTestSkipped( 'Abilities API not available.' );
@@ -45,6 +53,9 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_migrate_agent_ability_slugs
+	 */
 	public function test_migration_repairs_the_concierge_slug() {
 		$agent = openstation_agent_create(
 			array(
@@ -64,6 +75,9 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_agents_seed_defaults
+	 */
 	public function test_seeds_on_an_agentless_site_once() {
 		$this->assertCount( 0, openstation_agent_get_agents() );
 
@@ -88,6 +102,9 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 		$this->assertCount( 5, openstation_agent_get_agents() );
 	}
 
+	/**
+	 * @covers ::openstation_agents_seed_defaults
+	 */
 	public function test_never_seeds_into_an_existing_roster() {
 		$own = openstation_agent_create(
 			array(

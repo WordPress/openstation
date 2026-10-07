@@ -1,6 +1,5 @@
 import { get as getDockRailRenderer } from '../dock-rail/registry';
 import { hasWindowReveal, WINDOW_REVEAL_NONE } from '../reveals/registry';
-
 import { getAccents } from '../settings/constants';
 import type { RecommendedOsSettings } from './types';
 
@@ -71,7 +70,6 @@ export function resolveRecommendedOsSettings(
 	) {
 		delete clean.dockRailRenderer;
 	}
-
 	if (
 		typeof clean.windowReveal === 'string' &&
 		clean.windowReveal !== WINDOW_REVEAL_NONE &&
@@ -79,7 +77,6 @@ export function resolveRecommendedOsSettings(
 	) {
 		delete clean.windowReveal;
 	}
-
 	if (
 		typeof clean.accent === 'string' &&
 		! getAccents().some( ( a ) => a.id === clean.accent )

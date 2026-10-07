@@ -127,7 +127,6 @@ describe( 'wallpaper context menu', () => {
 	} );
 
 	test( 'the filter receives the right-click position', async () => {
-
 		const { buildMenuItems } = await load();
 		const stub = ( window.wp as { hooks: { addFilter: ( ...a: unknown[] ) => void } } ).hooks;
 		const seen: unknown[] = [];
@@ -141,7 +140,6 @@ describe( 'wallpaper context menu', () => {
 		);
 		buildMenuItems( stubDeps( { position: { x: 320, y: 180 } } ) );
 		expect( seen[ 0 ] ).toEqual( { x: 320, y: 180 } );
-
 		buildMenuItems( stubDeps() );
 		expect( seen[ 1 ] ).toEqual( { x: 0, y: 0 } );
 	} );
@@ -161,7 +159,6 @@ describe( 'wallpaper context menu', () => {
 		);
 		showDesktopBtn!.click();
 		expect( deps.toggleShowDesktop ).toHaveBeenCalledTimes( 1 );
-
 		expect( document.querySelector( 'os-context-menu' ) ).toBeNull();
 	} );
 
@@ -251,7 +248,6 @@ describe( 'wallpaper context menu', () => {
 			buildMenuItems( stubDeps() ),
 			{ excludeOutsideTarget: wallpaper },
 		);
-
 		const md = new MouseEvent( 'mousedown', { bubbles: true } );
 		wallpaper.dispatchEvent( md );
 		expect( isWallpaperMenuOpen() ).toBe( true );
@@ -275,7 +271,6 @@ describe( 'wallpaper context menu', () => {
 			],
 		} ) );
 		const ids = items.map( ( i ) => i.id );
-
 		expect( ids ).toContain( 'first' );
 		expect( ids ).toContain( 'last' );
 	} );

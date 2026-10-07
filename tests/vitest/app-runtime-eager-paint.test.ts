@@ -66,7 +66,6 @@ describe( 'paintEagerly', () => {
 		expect( session.paintEagerly() ).toBe( true );
 		expect( root.querySelector( 'p' )?.textContent ).toBe( 'prefetched' );
 		expect( root.querySelector( 'p' )?.getAttribute( 'data-tab' ) ).toBe( 'home' );
-
 		expect( mountedSpy ).toHaveBeenCalledTimes( 1 );
 	} );
 
@@ -85,7 +84,6 @@ describe( 'paintEagerly', () => {
 		const session = createSession( { root, config: config( { label: 'prefetched' } ), windowId: APP, host, client: app } );
 		const mount = session.dispatch( 'mount' );
 		session.paintEagerly();
-
 		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 		resolveMount( {
 			ok: true,
@@ -102,7 +100,6 @@ describe( 'paintEagerly', () => {
 describe( 'createFocusGate', () => {
 	it( 'reports transitions, not requests', () => {
 		const gate = createFocusGate();
-
 		expect( gate.focus() ).toBe( false );
 		expect( gate.focus() ).toBe( false );
 		expect( gate.blur() ).toBe( true );

@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -32,6 +34,9 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		return $req;
 	}
 
+	/**
+	 * @covers ::openstation_comments_window_rest_reply
+	 */
 	public function test_reply_forbidden_without_edit_post_on_target_post() {
 		wp_set_current_user( self::$contributor_id );
 
@@ -66,6 +71,9 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		$this->assertSame( $before, $after );
 	}
 
+	/**
+	 * @covers ::openstation_comments_window_rest_reply
+	 */
 	public function test_reply_allowed_for_user_who_can_edit_post() {
 		wp_set_current_user( self::$admin_id );
 
@@ -90,6 +98,9 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		$this->assertSame( (string) self::$comment_id, (string) $new->comment_parent );
 	}
 
+	/**
+	 * @covers ::openstation_comments_window_rest_reply
+	 */
 	public function test_reply_missing_parent_returns_404() {
 		wp_set_current_user( self::$admin_id );
 

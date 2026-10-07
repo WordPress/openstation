@@ -63,7 +63,6 @@ export function sampleAttractors(
 	rng: () => number,
 ): Vec2[] {
 	const out: Vec2[] = [];
-
 	const crownHeight = env.heightMax * 0.72;
 	const cy = -( env.heightMax - crownHeight / 2 );
 	const rx = env.crownRadius;
@@ -76,7 +75,6 @@ export function sampleAttractors(
 		const y = cy + ( rng() * 2 - 1 ) * ry;
 		const nx = x / rx;
 		const ny = ( y - cy ) / ry;
-
 		const inside = nx * nx + ny * ny <= 1;
 		const pinch = ny < -0.85 ? Math.abs( nx ) < 0.55 : true;
 		if ( inside && pinch ) {
@@ -94,7 +92,6 @@ export function buildGrowthConfig(
 	return {
 		segLen,
 		influenceRadius: segLen * 5,
-
 		killRadius: segLen * 0.82,
 		jitter: 0.22,
 		tropism: 0.28,

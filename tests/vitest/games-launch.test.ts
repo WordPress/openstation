@@ -36,11 +36,8 @@ async function loadModules(): Promise< { registry: Registry; launch: Launch } > 
 
 describe( 'games/launch.ts', () => {
 	let fake: FakeDesktop;
-
 	let windowHandlers: { closed?: () => void };
-
 	let capturedTeardown: ( () => void ) | void;
-
 	let capturedCtx: GameLaunchContext | null;
 
 	beforeEach( () => {
@@ -58,7 +55,6 @@ describe( 'games/launch.ts', () => {
 						| void
 						| Promise< ( () => void ) | void >;
 				} ) => {
-
 					capturedTeardown = await def.render(
 						document.createElement( 'div' ),
 					);
@@ -80,7 +76,6 @@ describe( 'games/launch.ts', () => {
 			),
 			config: { restUrl: 'https://example.test/wp-json/', restNonce: 'n' },
 		};
-
 		(
 			window.wp as unknown as { os?: FakeDesktop }
 		 ).os = fake;
@@ -154,14 +149,12 @@ describe( 'games/launch.ts', () => {
 		await launch.launchGame( 'test-game' );
 
 		expect( fake.wallpaper.suspend ).not.toHaveBeenCalled();
-
 		expect( fake.registerWindow ).toHaveBeenCalled();
 	} );
 
 	test( 'an instance on another virtual desktop switches Spaces first', async () => {
 		const { registry, launch } = await loadModules();
 		registerGame( registry );
-
 		fake.windowManager.getByBaseId = vi.fn().mockReturnValue( {
 			close: vi.fn(),
 			config: { desktopId: 'desktop-2' },
@@ -229,12 +222,10 @@ describe( 'games/launch.ts', () => {
 			expect.anything(),
 		);
 		expect( render ).toHaveBeenCalled();
-
 		expect( registry.get( 'test-game' )?.render ).toBeDefined();
 	} );
 
 	test( 'the window opens BEFORE the game bundle is fetched', async () => {
-
 		const { registry, launch } = await loadModules();
 		registerGame( registry, {
 			render: undefined,
@@ -275,7 +266,6 @@ describe( 'games/launch.ts', () => {
 	} );
 
 	test( 'the window opens at the size the server declared', async () => {
-
 		const { registry, launch } = await loadModules();
 		registerGame( registry, {
 			render: undefined,
@@ -386,7 +376,6 @@ describe( 'games/launch.ts', () => {
 
 		await launch.launchGame( 'test-game' );
 		const pending = capturedCtx!.submitScore( { score: 42 } );
-
 		expect( fake.activity.publish ).not.toHaveBeenCalled();
 
 		settle!();

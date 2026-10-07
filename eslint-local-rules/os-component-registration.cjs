@@ -4,13 +4,11 @@ const fs = require( 'node:fs' );
 const path = require( 'node:path' );
 
 const SHELL_OVERLAYS_TAGS = new Set( [
-
 	'os-toast',
 	'os-toast-container',
 	'os-confirm-dialog',
 	'os-context-menu',
 	'os-context-menu-option',
-
 	'os-menu',
 	'os-menu-item',
 	'os-window-button',
@@ -74,7 +72,6 @@ function tagsRegisteredByFile( absPath ) {
 		tagsRegisteredByFileCache.set( absPath, out );
 		return out;
 	}
-
 	const stripped = source
 		.replace( /\/\*[\s\S]*?\*\//g, '' )
 		.replace( /\/\/.*$/gm, '' );
@@ -121,7 +118,6 @@ function resolveImportPath( fromFile, source, projectRoot ) {
 			const stat = fs.statSync( candidate );
 			if ( stat.isFile() ) return candidate;
 		} catch {
-
 		}
 	}
 	return null;
@@ -143,11 +139,9 @@ module.exports = {
 
 	create( context ) {
 		const filename = context.getFilename();
-
 		if ( /\.test\.tsx?$/.test( filename ) ) {
 			return {};
 		}
-
 		let projectRoot = path.dirname( filename );
 		while (
 			projectRoot !== path.dirname( projectRoot ) &&
@@ -170,7 +164,6 @@ module.exports = {
 				if ( ! first || first.type !== 'Literal' ) return;
 				const tag = first.value;
 				if ( typeof tag !== 'string' || ! tag.startsWith( 'os-' ) ) return;
-
 				if ( SHELL_OVERLAYS_TAGS.has( tag ) ) return;
 				if ( ! tagsConstructed.has( tag ) ) {
 					tagsConstructed.set( tag, node );
@@ -193,7 +186,6 @@ module.exports = {
 					}
 					return;
 				}
-
 				if ( node.importKind === 'type' ) return;
 
 				node._wpdResolved = resolved;

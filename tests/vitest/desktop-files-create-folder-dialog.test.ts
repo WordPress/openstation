@@ -37,7 +37,6 @@ describe( 'create-folder dialog', () => {
 		const mod = await load();
 		mod.openCreateFolderDialog( { onSubmit: () => undefined } );
 		const dialog = document.querySelector( '.os-create-folder-dialog' )!;
-
 		expect( dialog.querySelector( 'input' ) ).toBeNull();
 		expect( dialog.querySelector( 'button' ) ).toBeNull();
 		expect( field() ).not.toBeNull();
@@ -50,7 +49,6 @@ describe( 'create-folder dialog', () => {
 		await settle();
 		const el = field()!;
 		expect( el.value ).toBe( 'Untitled folder' );
-
 		expect( document.activeElement ).toBe( el );
 		const inner = el.shadowRoot!.querySelector< HTMLInputElement >( 'input' )!;
 		expect( inner.selectionStart ).toBe( 0 );
@@ -118,7 +116,6 @@ describe( 'create-folder dialog', () => {
 		await settle();
 		const el = field()!;
 		el.value = 'Quick';
-
 		el.shadowRoot!.querySelector< HTMLInputElement >( 'input' )!.dispatchEvent(
 			new KeyboardEvent( 'keydown', {
 				key: 'Enter',
@@ -140,12 +137,9 @@ describe( 'create-folder dialog', () => {
 		const dialog = overlay.querySelector< HTMLElement >(
 			'.os-create-folder-dialog',
 		)!;
-
 		dialog.click();
 		expect( document.querySelector( '.os-create-folder-dialog' ) ).not.toBeNull();
-
 		overlay.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
-
 		expect( document.querySelector( '.os-create-folder-dialog' ) ).toBeNull();
 		expect( onCancel ).toHaveBeenCalledTimes( 1 );
 	} );

@@ -3,7 +3,6 @@ export function readFieldValue( field: HTMLElement ): string {
 	if ( typeof value === 'string' ) {
 		return value;
 	}
-
 	return (
 		field.getAttribute( 'value' ) ??
 		field.shadowRoot?.querySelector< HTMLInputElement >( 'input' )?.value ??
@@ -13,7 +12,6 @@ export function readFieldValue( field: HTMLElement ): string {
 
 export function setControlDisabled( control: HTMLElement, disabled: boolean ): void {
 	( control as unknown as { disabled: boolean } ).disabled = disabled;
-
 	if ( disabled ) {
 		control.setAttribute( 'disabled', '' );
 	} else {

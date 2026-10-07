@@ -15,7 +15,6 @@ describe( 'shouldAutoOpenCurrentPage', () => {
 	} );
 
 	it( 'opens when portal redirect carried user intent, even with a saved session', () => {
-
 		expect(
 			shouldAutoOpenCurrentPage( {
 				fromPortal: true,
@@ -64,7 +63,6 @@ describe( 'shouldAutoOpenCurrentPage', () => {
 	} );
 
 	it( 'suppresses on a bare portal visit when the default is a native window', () => {
-
 		expect(
 			shouldAutoOpenCurrentPage( {
 				fromPortal: true,
@@ -89,7 +87,6 @@ describe( 'shouldAutoOpenCurrentPage', () => {
 	} );
 
 	it( 'treats an undefined intent flag as falsy (older payloads)', () => {
-
 		expect(
 			shouldAutoOpenCurrentPage( {
 				fromPortal: true,

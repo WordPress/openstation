@@ -19,7 +19,6 @@ export function getDesktops( mgr: WindowManager ): Desktop[] {
 
 export function getActiveDesktop( mgr: WindowManager ): Desktop {
 	const found = mgr._desktops.find( ( d ) => d.id === mgr._activeDesktopId );
-
 	return found ?? mgr._desktops[ 0 ];
 }
 
@@ -77,7 +76,7 @@ export function createDesktop(
 		id: `desktop-${ mgr._desktopSeq }`,
 		label:
 			init?.label?.trim().slice( 0, DESKTOP_LABEL_MAX_LENGTH ) ||
-
+			// translators: %d is the workspace number (e.g., "Workspace 2")
 			sprintf( __( 'Workspace %d' ), mgr._desktopSeq ),
 	};
 	mgr._desktops.push( desktop );
@@ -111,9 +110,7 @@ export function renameDesktop(
 }
 
 export interface SwitchDesktopOptions {
-
 	direction?: 'next' | 'prev';
-
 	skipFocus?: boolean;
 }
 
@@ -197,7 +194,6 @@ export function closeDesktop( mgr: WindowManager, id: string ): void {
 	if ( idx === -1 ) {
 		return;
 	}
-
 	const survivorIdx = idx > 0 ? idx - 1 : 1;
 	const survivor = mgr._desktops[ survivorIdx ];
 
@@ -224,7 +220,6 @@ export function closeDesktop( mgr: WindowManager, id: string ): void {
 		desktopId: id,
 		migratedTo: survivor.id,
 	} );
-
 	if ( wasActive ) {
 		doAction( HOOKS.DESKTOP_SWITCHED, {
 			from: id,

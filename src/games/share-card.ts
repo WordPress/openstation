@@ -4,19 +4,12 @@ export interface ShareCardStat {
 }
 
 export interface ShareCardData {
-
 	gameTitle: string;
-
 	puzzleLabel: string;
-
 	score: number;
-
 	scoreLabel: string;
-
 	stats: ShareCardStat[];
-
 	footer: string;
-
 	accent?: string;
 }
 
@@ -26,7 +19,6 @@ export const SHARE_CARD_HEIGHT = 630;
 const DECO_TILES: ReadonlyArray<
 	readonly [ number, number, number, number ]
 > = [
-
 	[ 1020, 96, 74, -0.16 ],
 	[ 1108, 210, 56, 0.22 ],
 	[ 966, 250, 44, 0.42 ],
@@ -205,7 +197,6 @@ export async function shareScoreCard(
 			await nav.share( { files: [ file ], title } );
 			return 'shared';
 		} catch {
-
 		}
 	}
 	if ( await copyCardToClipboard( blob ) ) {

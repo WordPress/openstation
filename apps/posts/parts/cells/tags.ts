@@ -21,7 +21,6 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 	picker.value = seed;
 
 	const cellState = {
-
 		tags: seed.slice(),
 		suggestAbort: null as AbortController | null,
 		suggestDebounce: null as number | null,
@@ -58,7 +57,7 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 					return;
 				}
 				picker.suggestions = [];
-
+				// eslint-disable-next-line no-console
 				console.warn( '[openstation:desktop-mode-posts] tag search failed', err );
 			} finally {
 				picker.suggestionsLoading = false;
@@ -82,7 +81,6 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 				resolved.id,
 			];
 			await client.updatePostTags( row.id, desiredIds );
-
 			setValue(
 				cellState.tags.map( ( t ) =>
 					t.label.toLowerCase() === detail.tag.label.toLowerCase()
@@ -93,7 +91,7 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 			env.announce( 'tagged', [ row.id ] );
 		} catch ( err ) {
 			setValue( cellState.tags.filter( ( t ) => t.label.toLowerCase() !== detail.tag.label.toLowerCase() ) );
-
+			/* translators: %s: tag label */
 			env.toast( sprintf( __( 'Couldn’t add tag "%s".' ), detail.tag.label ), err );
 		}
 	} );
@@ -116,7 +114,7 @@ export function buildTagsCell( row: PostListItem, env: CellEnv ): HTMLElement {
 			env.announce( 'untagged', [ row.id ] );
 		} catch ( err ) {
 			setValue( previous );
-
+			/* translators: %s: tag label */
 			env.toast( sprintf( __( 'Couldn’t remove tag "%s".' ), removed.label ), err );
 		}
 	} );

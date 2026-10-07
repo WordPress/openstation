@@ -29,7 +29,6 @@ const config = ( over: Partial< MultisiteConfig > = {} ): MultisiteConfig => ( {
 	current: '1',
 	sites: [
 		{ id: '1', name: 'Main', shellUrl: MAIN_SHELL },
-
 		{ id: '2', name: 'Shop', shellUrl: SHOP_SHELL, foreign: true },
 	],
 	...over,
@@ -64,7 +63,6 @@ describe( 'the site switcher', () => {
 			} ),
 		);
 		const children = Array.from( el?.children ?? [] ).map( ( c ) => c.tagName.toLowerCase() + ( c.hasAttribute( 'data-external' ) ? '[external]' : '' ) );
-
 		expect( children ).toEqual( [ 'os-segment', 'os-segment', 'span', 'os-segment[external]', 'os-segment[external]' ] );
 		const divider = el?.querySelector( '.os-site-switcher__divider' );
 		expect( divider?.getAttribute( 'role' ) ).toBe( 'separator' );
@@ -72,7 +70,6 @@ describe( 'the site switcher', () => {
 		const studio = el?.querySelector( 'os-segment[value="member:abc"]' ) as HTMLElement;
 		expect( studio.title ).toBe( 'External site' );
 		expect( studio.querySelector( '.os-site-switcher__mark' )?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-
 		expect( studio.textContent ).toBe( 'External site: Studio' );
 		expect( ( el?.querySelector( 'os-segment[value="1"]' ) as HTMLElement ).title ).toBe( '' );
 		expect( siteSwitcherEntries( config() ).map( ( e ) => e.external ) ).toEqual( [ false, false, false ] );
@@ -98,7 +95,6 @@ describe( 'the site switcher', () => {
 		expect( blog.hasAttribute( 'data-opens-tab' ) ).toBe( true );
 		expect( blog.querySelector( '.os-site-switcher__mark' ) ).not.toBeNull();
 		expect( blog.textContent ).toBe( 'Opens in a new tab: Blog' );
-
 		expect( el?.querySelector( '.os-site-switcher__divider' ) ).toBeNull();
 
 		const click = new MouseEvent( 'click', { bubbles: true, cancelable: true } );
@@ -133,7 +129,6 @@ describe( 'the site switcher', () => {
 		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBe( 'next' );
 
 		hop.mockClear();
-
 		expect( switchToSite( config(), '1', { hop } ) ).toBe( false );
 		expect( switchToSite( config(), 'member:nope', { hop } ) ).toBe( false );
 		await settle();
@@ -214,7 +209,6 @@ describe( 'the site switcher', () => {
 	} );
 
 	test( 'a lone instance gets no row', () => {
-
 		expect(
 			buildSiteSwitcher(
 				config( { networkAdmin: null, sites: config().sites.slice( 0, 1 ) } ),
@@ -229,12 +223,9 @@ describe( 'the site switcher', () => {
 		const settle = () => new Promise( ( r ) => setTimeout( r, 0 ) );
 
 		el?.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: '2' } } ) );
-
 		expect( hop ).not.toHaveBeenCalled();
 		await settle();
-
 		expect( hop ).toHaveBeenCalledWith( SHOP_SHELL + '&openstation_overview=1&openstation_hop_from=next' );
-
 		expect( sessionStorage.getItem( 'openstation-hop-direction' ) ).toBe( 'next' );
 
 		hop.mockClear();
@@ -286,7 +277,6 @@ describe( 'the site switcher', () => {
 		document.body.appendChild( el as HTMLElement );
 
 		el?.querySelector( 'os-segment[value="member:abc"]' )?.dispatchEvent( new MouseEvent( 'click', { metaKey: true, bubbles: true, cancelable: true } ) );
-
 		expect( open ).toHaveBeenCalledWith( '', '_blank' );
 		expect( tab.location.href ).toBe( '' );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
@@ -307,7 +297,6 @@ describe( 'the site switcher', () => {
 		const url = shellUrlInOverview( MAIN_SHELL );
 		expect( new URL( url ).searchParams.get( OVERVIEW_ARG ) ).toBe( '1' );
 		expect( shellUrlWithoutBootArgs( url ) ).toBe( MAIN_SHELL );
-
 		expect(
 			shellUrlWithoutBootArgs( MAIN_SHELL + '&openstation_hop=abc.def&' + HOP_FROM_ARG + '=next' ),
 		).toBe( MAIN_SHELL );
@@ -318,7 +307,6 @@ describe( 'the site switcher', () => {
 		const twin = window.location.origin + '/site-b/wp-admin/admin.php?page=openstation';
 		expect( isOtherOrigin( here ) ).toBe( false );
 		expect( isOtherOrigin( SHOP_SHELL ) ).toBe( true );
-
 		expect( shellUrlInOverview( here, 'next' ) ).toBe( here + '&openstation_overview=1' );
 
 		const hop = vi.fn();

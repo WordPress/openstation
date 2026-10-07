@@ -35,7 +35,6 @@ export function mioResponseActionRow( message: MioChatMessage, actions: MioRespo
 					icon.setAttribute( 'name', view.icon ); icon.setAttribute( 'aria-hidden', 'true' );
 					button.append( icon, ' ' );
 				}
-
 				const label = document.createElement( 'span' ); label.textContent = view.label;
 				if ( view.ariaLabel ) {
 					label.setAttribute( 'aria-hidden', 'true' );

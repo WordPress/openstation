@@ -82,7 +82,6 @@ describe( 'link interceptor: window title', () => {
 	} );
 
 	it( 'runs multi-element anchors together without a declared title', () => {
-
 		const link = draftRowLink( 'Ginza after work', '356d ago' );
 		container.appendChild( link );
 

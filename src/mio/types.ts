@@ -1,41 +1,22 @@
 export interface MioAppearance {
-
 	radius: number;
-
 	bodyColor: number;
-
 	bodyAlpha: number;
-
 	hueStart: number;
-
 	hueSpan: number;
-
 	hueDrift: number;
-
 	hueLoop: boolean;
-
 	hueAngle: number;
-
 	hueSpin: number;
-
 	saturation: number;
-
 	lightness: number;
-
 	iridescence: number;
-
 	outlineWidth: number;
-
 	linerWidth: number;
-
 	linerColor: number;
-
 	glow: number;
-
 	glowBlur: boolean;
-
 	eyeColor: number;
-
 	eyeScale: number;
 }
 
@@ -64,76 +45,42 @@ export type MioLookPhysics = Pick<
 >;
 
 export interface MioLook {
-
 	appearance: Partial< MioAppearance >;
-
 	physics: Partial< MioLookPhysics >;
 }
 
 export interface MioPhysics {
-
 	points: number;
-
 	shapePreset: MioShapePreset;
-
 	shapeLobes: number;
-
 	shapeAmount: number;
-
 	shapeAngle: number;
-
 	shapeShuffle: number;
-
 	radialStiffness: number;
-
 	edgeStiffness: number;
-
 	bendStiffness: number;
-
 	pressure: number;
-
 	damping: number;
-
 	airDamping: number;
-
 	magnetStrength: number;
-
 	magnetRange: number;
-
 	magnetGrip: number;
-
 	magnetDamping: number;
-
 	floatAmplitude: number;
-
 	floatSpeed: number;
-
 	idleWobble: number;
-
 	idleWobbleSpeed: number;
-
 	speedStretch: number;
-
 	friction: number;
-
 	restitution: number;
-
 	dragStiffness: number;
-
 	throwBoost: number;
-
 	minStretch: number;
-
 	maxStretch: number;
-
 	minAngularGap: number;
-
 	limitIterations: number;
-
 	dragMaxAccel: number;
-
 	subStep: number;
-
 	maxSubSteps: number;
 }
 
@@ -148,28 +95,18 @@ export type PartialMioConfig = {
 };
 
 export interface MioMountOptions {
-
 	host: HTMLElement;
-
 	config: MioConfig;
-
 	position: { x: number; y: number } | null;
-
 	savePosition: ( pos: { x: number; y: number } ) => void;
 }
 
 export interface MioHandle {
-
 	getPosition: () => { x: number; y: number };
-
 	setPosition: ( x: number, y: number ) => void;
-
 	setAnchor?: ( position: { x: number; y: number } | null, persistent?: boolean ) => void;
-
 	setAnimating: ( animating: boolean ) => void;
-
 	applyConfig: ( config: MioConfig ) => void;
-
 	destroy: () => void;
 }
 
@@ -179,7 +116,6 @@ export type MioMountFn = (
 
 declare global {
 	interface Window {
-
 		openStationMountMio?: MioMountFn;
 	}
 }

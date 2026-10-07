@@ -1,5 +1,4 @@
 export const FILE_DROP_HOOKS = {
-
 	FILES_DETECTED: 'os.drop.files-detected',
 
 	FILES_REJECTED: 'os.drop.files-rejected',

@@ -18,7 +18,6 @@ export const styles = css`
 		border-radius: var( --os-ui-display-border-radius, 0 );
 		line-height: 1.1;
 		overflow: hidden;
-
 		white-space: nowrap;
 		text-overflow: ellipsis;
 	}

@@ -264,7 +264,6 @@ export interface BuildPublicApiDeps {
 	getConnection: ( connectionId: string ) => WindowConnection | null;
 	wallpaperSuspend: WallpaperSuspendApi;
 	mio: MioApi;
-
 	mode: OsModeApi;
 	workspaces: WorkspacesApi;
 	config: DesktopConfig;
@@ -319,7 +318,6 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		isActive: () => !! document.getElementById( 'os-shell' ),
 		registerWallpaper: ( def: WallpaperDef ) => {
 			wallpaperRegistry.register( def );
-
 			osSettings.apply();
 		},
 		registerWidget: ( def ) => {
@@ -340,11 +338,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		registerWindow,
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,
-
 		embedAdminPage,
 		loadWindowScript: loadWindowScriptById,
 		prewarmWindow: prewarmWindowById,
-
 		loadComponents,
 		fetch: ( input, requestInit, opts ) =>
 			trackedFetch( manager, input, requestInit, opts ),
@@ -389,7 +385,6 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			opts: { windowId?: string } = {},
 		) => {
 			osSettings.update( patch, opts );
-
 			if ( patch.navPlacement || patch.navOrder ) {
 				layoutDispatcher?.refresh();
 			}
@@ -436,14 +431,12 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			list: listDesktopThemes,
 			getActive: getActiveDesktopThemeId,
 			setActive: applyDesktopTheme,
-
 			ensureFull: ensureFullDesktopThemes,
 			subscribe: subscribeDesktopThemes,
 			resolveIcon: resolveThemedIcon,
 			resolveIconColor: resolveThemedIconColor,
 			applyRecommendedOsSettings: ( themeId ) => {
 				const target = themeId !== undefined ? themeId : ( getActiveDesktopThemeId() ?? '' );
-
 				return osSettings.applyThemeRecommendations( target );
 			},
 		},
@@ -520,25 +513,27 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 		clearKeyedList,
 		registerNamespace: ( name: string, api: object ) => {
 			if ( typeof name !== 'string' || name === '' ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					'[openstation] registerNamespace: name must be a non-empty string',
 				);
 				return;
 			}
 			if ( ! api || typeof api !== 'object' ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] registerNamespace("${ name }"): api must be an object`,
 				);
 				return;
 			}
 			if ( RESERVED_NAMESPACE_KEYS.has( name ) ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] registerNamespace("${ name }"): name is reserved by the shell — pick a plugin-specific key`,
 				);
 				return;
 			}
 			( desktopApi as unknown as Record< string, unknown > )[ name ] = api;
-
 			const live = window.wp?.os as unknown as Record< string, unknown > | undefined;
 			if ( live && live !== ( desktopApi as unknown ) ) {
 				live[ name ] = api;
@@ -554,7 +549,6 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			const value = ( store as Record< string, unknown > )[ id ];
 			return value === undefined ? undefined : ( value as T );
 		},
-
 		getWindowParams: (
 			id: string,
 		): Record< string, string | number | boolean > | undefined => {
@@ -562,10 +556,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 			if ( ! win ) {
 				return undefined;
 			}
-
 			return { ...( win.config.params ?? {} ) };
 		},
-
 		registerNativeUrlRemap,
 		debug: {
 			window: ( id: string ): DesktopDebugWindow | null => {
@@ -575,7 +567,6 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				if ( ! entry ) {
 					return null;
 				}
-
 				const url =
 					entry.scriptUrl ||
 					( entry.scriptHandle

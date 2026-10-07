@@ -3,7 +3,6 @@ import type { WallpaperSurface } from '../wallpapers/surfaces';
 export interface Obstacle {
 	id: string;
 	kind: WallpaperSurface[ 'kind' ];
-
 	face: WallpaperSurface[ 'face' ];
 	x: number;
 	y: number;
@@ -143,12 +142,9 @@ export function closestPointOn(
 }
 
 export interface MagnetPull {
-
 	dx: number;
 	dy: number;
-
 	strength: number;
-
 	gap: number;
 }
 
@@ -269,7 +265,6 @@ export function findEscape(
 		if ( ! MAGNET_KINDS.has( o.kind ) ) {
 			continue;
 		}
-
 		const depth = Math.min(
 			px - o.x,
 			o.x + o.width - px,

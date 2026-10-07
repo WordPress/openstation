@@ -24,7 +24,6 @@ export function installShareInviteBanner(): void {
 				continue;
 			}
 			prompted.add( invite.id );
-
 			if ( invite.targetType === 'file' && typeof invite.fileId === 'number' ) {
 				const fileId = invite.fileId;
 				void openPendingFileInviteModal( {
@@ -57,6 +56,5 @@ export function installShareInviteBanner(): void {
 		}
 	};
 	store.subscribe( handle );
-
 	handle( store.state );
 }

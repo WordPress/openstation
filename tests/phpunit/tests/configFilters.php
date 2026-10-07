@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-config-filters
+ */
 class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 
 	public function tear_down() {
@@ -9,6 +12,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_get_accent_colors
+	 */
 	public function test_accent_colors_default_shape() {
 		$colors = openstation_get_accent_colors();
 
@@ -22,6 +28,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_get_accent_colors
+	 */
 	public function test_accent_colors_filter_can_add_entry() {
 		add_filter( 'openstation_accent_colors', static function ( $colors ) {
 			$colors[] = array(
@@ -38,6 +47,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertContains( 'brand', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_get_accent_colors
+	 */
 	public function test_accent_colors_filter_rejects_invalid_hex() {
 		add_filter( 'openstation_accent_colors', static function () {
 			return array(
@@ -53,6 +65,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertContains( 'ok', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_get_accent_colors
+	 */
 	public function test_accent_colors_non_array_filter_return_falls_back() {
 		add_filter( 'openstation_accent_colors', static function () {
 			return 'broken';
@@ -64,6 +79,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertNotEmpty( $colors );
 	}
 
+	/**
+	 * @covers ::openstation_get_accent_colors
+	 */
 	public function test_accent_colors_filter_deduplicates_ids() {
 		add_filter( 'openstation_accent_colors', static function () {
 			return array(
@@ -79,6 +97,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertNotContains( 'Second', $labels );
 	}
 
+	/**
+	 * @covers ::openstation_get_accent_colors
+	 */
 	public function test_accent_colors_empty_after_filter_falls_back() {
 		add_filter( 'openstation_accent_colors', static function () {
 			return array();
@@ -88,6 +109,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertNotEmpty( $colors );
 	}
 
+	/**
+	 * @covers ::openstation_get_toast_types
+	 */
 	public function test_toast_types_defaults_include_core_set() {
 		$types = openstation_get_toast_types();
 		$ids   = wp_list_pluck( $types, 'id' );
@@ -98,6 +122,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertContains( 'shell-error', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_get_toast_types
+	 */
 	public function test_toast_types_filter_can_add_custom_type() {
 		add_filter( 'openstation_toast_types', static function ( $types ) {
 			$types[] = array(
@@ -114,6 +141,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertContains( 'update-available', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_get_toast_types
+	 */
 	public function test_toast_types_filter_rejects_invalid_tone() {
 		add_filter( 'openstation_toast_types', static function () {
 			return array(
@@ -128,6 +158,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertContains( 'success', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_get_toast_types
+	 */
 	public function test_toast_types_non_array_falls_back() {
 		add_filter( 'openstation_toast_types', static function () {
 			return null;
@@ -137,11 +170,16 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertNotEmpty( $types );
 	}
 
+	/**
+	 * @covers ::openstation_get_default_wallpaper
+	 */
 	public function test_default_wallpaper_builtin_value() {
-
 		$this->assertSame( 'galaxy', openstation_get_default_wallpaper() );
 	}
 
+	/**
+	 * @covers ::openstation_get_default_wallpaper
+	 */
 	public function test_default_wallpaper_filter_override() {
 		add_filter( 'openstation_default_wallpaper', static function () {
 			return 'aurora';
@@ -150,6 +188,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertSame( 'aurora', openstation_get_default_wallpaper() );
 	}
 
+	/**
+	 * @covers ::openstation_get_default_wallpaper
+	 */
 	public function test_default_wallpaper_non_string_returns_empty() {
 		add_filter( 'openstation_default_wallpaper', static function () {
 			return array( 'not', 'a', 'string' );
@@ -158,6 +199,9 @@ class Tests_OpenStation_ConfigFilters extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_get_default_wallpaper() );
 	}
 
+	/**
+	 * @covers ::openstation_get_default_wallpaper
+	 */
 	public function test_default_wallpaper_normalises_uppercase_slug() {
 		add_filter( 'openstation_default_wallpaper', static function () {
 			return 'My-Plugin/Brand';

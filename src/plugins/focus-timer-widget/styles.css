@@ -1,7 +1,6 @@
 .dm-focus {
 	--dm-focus-accent: #7c3aed;
 	--dm-focus-accent-2: #2563eb;
-
 	--os-ui-fg: rgba( 255, 255, 255, 0.9 );
 	--os-ui-fg-muted: rgba( 255, 255, 255, 0.6 );
 	--wp-admin-theme-color: var( --dm-focus-accent );

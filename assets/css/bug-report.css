@@ -25,7 +25,6 @@
 	padding: 8px 10px;
 	border: 1px solid var( --os-ui-danger, #d63638 );
 	border-radius: 4px;
-
 	background: var( --os-ui-notice-error-bg, #fcf0f1 );
 	color: var( --os-ui-danger, #b32d2e );
 	font-size: 12px;

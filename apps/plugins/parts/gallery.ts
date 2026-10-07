@@ -1,5 +1,4 @@
 import { __, sprintf } from '@openstation/app';
-
 import '../../../src/ui/components/os-ribbon/os-ribbon';
 import { setBusy } from './actions';
 import { buildCard, buildSkeletonCard, repaintCardCta, type CardCallbacks, type InstalledIndex } from './card';
@@ -22,11 +21,9 @@ interface GalleryDeps {
 }
 
 interface GalleryCore {
-
 	plugins: Map< string, { plugin: WpOrgBrowsePlugin; card: HTMLElement } >;
 	callbacks: CardCallbacks;
 	installedIndex: () => InstalledIndex;
-
 	repaintCtas: () => void;
 	addCard: ( gallery: HTMLElement, plugin: WpOrgBrowsePlugin, before: Node | null, featured: boolean ) => void;
 	clear: () => void;
@@ -104,7 +101,6 @@ function createCore( deps: GalleryDeps ): GalleryCore {
 }
 
 export interface BrowseGallery {
-
 	sync: ( opts: {
 		gallery: HTMLElement | null;
 		status: HTMLElement | null;
@@ -112,7 +108,6 @@ export interface BrowseGallery {
 		query: string;
 		active: boolean;
 	} ) => void;
-
 	reset: () => void;
 	repaintCtas: () => void;
 	dispose: () => void;
@@ -147,7 +142,6 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 		for ( let i = 0; i < 6; i++ ) {
 			gallery.appendChild( buildSkeletonCard() );
 		}
-
 		gallery.appendChild( sentinel );
 		await loadMore();
 	};
@@ -175,7 +169,6 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				gallery.replaceChildren();
 				gallery.appendChild( sentinel );
 			}
-
 			const info = ( data.info ?? {} ) as { pages?: number };
 			if ( typeof info.pages === 'number' && info.pages > 0 ) {
 				totalPages = info.pages;
@@ -194,7 +187,6 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				}
 			}
 			page++;
-
 			if ( totalPages > 0 ? page > totalPages : incoming.length < BROWSE_PAGE_SIZE ) {
 				exhausted = true;
 			}
@@ -203,7 +195,7 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 			core.showStatus(
 				status,
 				sprintf(
-
+					/* translators: %s: error message */
 					__( 'Could not load plugins: %s', 'desktop-mode' ),
 					describeError( err ),
 				),
@@ -238,7 +230,6 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 				}
 			}
 			const next = `${ opts.filter }|${ opts.query }`;
-
 			if ( gallery && opts.active && next !== key ) {
 				key = next;
 				filter = opts.filter;
@@ -256,7 +247,6 @@ export function createBrowseGallery( deps: GalleryDeps ): BrowseGallery {
 }
 
 export interface FeaturedGallery {
-
 	sync: ( opts: { gallery: HTMLElement | null; status: HTMLElement | null; active: boolean } ) => void;
 	repaintCtas: () => void;
 }
@@ -298,7 +288,7 @@ export function createFeaturedGallery( deps: GalleryDeps ): FeaturedGallery {
 				core.showStatus(
 					status,
 					sprintf(
-
+						/* translators: %s: error message */
 						__( 'Could not load featured plugins: %s', 'desktop-mode' ),
 						describeError( err ),
 					),

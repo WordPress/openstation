@@ -6,45 +6,31 @@ function openstation_mio_default_config() {
 	return array(
 		'appearance' => array(
 			'radius'       => 56,
-
 			'bodyColor'    => '#0c0b0f',
 			'bodyAlpha'    => 1,
-
 			'hueStart'     => 296.5,
 			'hueSpan'      => -52.5,
 			'hueAngle'     => 225,
-
 			'hueDrift'     => 0,
 			'hueSpin'      => 0,
 			'hueLoop'      => true,
 			'saturation'   => 1,
-
 			'lightness'    => 0.75,
-
 			'iridescence'  => 0,
-
 			'outlineWidth' => 4,
-
 			'linerWidth'   => 2,
-
 			'linerColor'   => '#fffbff',
-
 			'glow'         => 10,
-
 			'glowBlur'     => true,
-
 			'eyeColor'     => '#fffbff',
 			'eyeScale'     => 0.3,
 		),
 		'physics'    => array(
 			'points'          => 12,
-
 			'shapePreset'     => 'blob',
-
 			'shapeLobes'      => 3,
 			'shapeAmount'     => 1,
 			'shapeAngle'      => 0,
-
 			'shapeShuffle'    => 60,
 			'radialStiffness' => 460,
 			'edgeStiffness'   => 540,
@@ -215,7 +201,6 @@ function openstation_mio_clamp_look( $raw ) {
 	};
 
 	$physics = $resolve( $defaults['physics'], $look['physics'] );
-
 	$physics['shapeShuffle'] = 0;
 
 	return array(
@@ -251,12 +236,10 @@ function openstation_sanitize_mio_look( $raw ) {
 			if ( is_bool( $value ) ) {
 				$clean[ $group ][ $key ] = $value;
 			} elseif ( is_int( $value ) || is_float( $value ) ) {
-
 				if ( is_finite( (float) $value ) ) {
 					$clean[ $group ][ $key ] = 0 + $value;
 				}
 			} elseif ( is_string( $value ) ) {
-
 				$clean[ $group ][ $key ] = sanitize_text_field( $value );
 			}
 		}

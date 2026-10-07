@@ -55,7 +55,6 @@ describe( 'os-ui html renderer', () => {
 		render( html`<input .value=${ 'hello' } />`, host );
 		const input = host.querySelector( 'input' )!;
 		expect( input.value ).toBe( 'hello' );
-
 		expect( input.hasAttribute( 'value' ) ).toBe( false );
 	} );
 
@@ -73,7 +72,6 @@ describe( 'os-ui html renderer', () => {
 	} );
 
 	test( 'second render with same template updates text without re-parsing', () => {
-
 		const update = ( value: string ) =>
 			render( html`<p>${ value }</p>`, host );
 		update( 'one' );
@@ -85,7 +83,6 @@ describe( 'os-ui html renderer', () => {
 	} );
 
 	test( 'remounts when the container was cleared behind the renderer\'s back', () => {
-
 		const update = ( value: string ) =>
 			render( html`<p>${ value }</p>`, host );
 		update( 'one' );
@@ -99,7 +96,6 @@ describe( 'os-ui html renderer', () => {
 			render( html`<p>${ value }</p>`, host );
 		update( 'same' );
 		const p = host.querySelector( 'p' )!;
-
 		const slot = p.firstChild as Text;
 		const setSpy = vi.spyOn( slot, 'textContent', 'set' );
 		update( 'same' );
@@ -118,7 +114,6 @@ describe( 'os-ui html renderer', () => {
 	} );
 
 	test( 'switching a slot between templates disposes top-level slot content', () => {
-
 		const detail = ( label: string ) => html`
 			<span class="head">${ label }</span>
 			${ html`<nav class="tabs">${ label }</nav>` }
@@ -147,7 +142,6 @@ describe( 'os-ui html renderer', () => {
 		const firstP = host.querySelector( 'p' );
 		render( html`<p>second</p>`, host );
 		const secondP = host.querySelector( 'p' );
-
 		expect( firstP ).not.toBe( secondP );
 	} );
 
@@ -210,7 +204,6 @@ describe( 'os-ui html renderer', () => {
 		const before = Array.from( host.querySelectorAll( 'li' ) );
 		list( [ 'a', 'b', 'c', 'd' ] );
 		const after = Array.from( host.querySelectorAll( 'li' ) );
-
 		expect( after[ 0 ] ).toBe( before[ 0 ] );
 		expect( after[ 1 ] ).toBe( before[ 1 ] );
 		expect( after.map( ( n ) => n.textContent ) ).toEqual( [ 'a', 'b', 'c', 'd' ] );
@@ -248,7 +241,6 @@ describe( 'os-ui html renderer', () => {
 		const firstLis = Array.from( host.querySelectorAll( 'li' ) );
 		list( [ 'x', 'y' ] );
 		const secondLis = Array.from( host.querySelectorAll( 'li' ) );
-
 		expect( firstLis[ 0 ] ).toBe( secondLis[ 0 ] );
 		expect( firstLis[ 1 ] ).toBe( secondLis[ 1 ] );
 		expect( secondLis[ 0 ].textContent ).toBe( 'x' );
@@ -272,7 +264,6 @@ describe( 'os-ui html renderer', () => {
 		const noop = (): void => {};
 		outer( noop );
 		host.querySelector( 'button' )!.click();
-
 		expect( counter ).toBe( 1 );
 	} );
 
@@ -298,7 +289,6 @@ describe( 'os-ui html renderer', () => {
 		expect( host.querySelector( 'span' ) ).toBeNull();
 		variant( html`<span>rich</span>` );
 		expect( host.querySelector( 'span' )!.textContent ).toBe( 'rich' );
-
 		expect( host.querySelector( 'div' )!.textContent ).toBe( 'rich' );
 	} );
 
@@ -310,7 +300,6 @@ describe( 'os-ui html renderer', () => {
 		const live = host.querySelector( 'input' );
 		expect( live ).toBe( pre );
 		expect( live!.value ).toBe( 'hello' );
-
 		expect( host.innerHTML ).not.toContain( '[object' );
 	} );
 
@@ -326,7 +315,6 @@ describe( 'os-ui html renderer', () => {
 		expect( host.querySelector( '#a' ) ).toBe( a );
 
 		go( a );
-
 		expect( host.querySelector( '#a' ) ).toBe( a );
 
 		go( b );
@@ -335,7 +323,6 @@ describe( 'os-ui html renderer', () => {
 	} );
 
 	test( 'siblings after a text-node with multiple markers are still processed', () => {
-
 		const onClick = vi.fn();
 		render(
 			html`
@@ -347,11 +334,9 @@ describe( 'os-ui html renderer', () => {
 			`,
 			host,
 		);
-
 		expect( host.textContent ).toContain( 'a' );
 		expect( host.textContent ).toContain( 'b' );
 		expect( host.textContent ).toContain( 'c' );
-
 		const btn = host.querySelector( 'button' )!;
 		expect( btn.textContent ).toBe( 'go' );
 		expect( host.innerHTML ).not.toContain( '$$wpd$$' );
@@ -373,7 +358,7 @@ describe( 'os-ui css', () => {
 
 	test( 'rejects unknown interpolations', () => {
 		expect( () =>
-
+			// @ts-expect-error — intentional misuse
 			css`:host { color: ${ {} } }`,
 		).toThrow( TypeError );
 	} );
@@ -392,7 +377,6 @@ describe( 'os-ui css', () => {
 } );
 
 describe( 'os-ui Component', () => {
-
 	class OsGreeter extends Component {
 		static props = [ 'name' ] as const;
 		static shadow = false;
@@ -465,7 +449,6 @@ describe( 'os-ui Component', () => {
 	} );
 
 	test( 'multiple property writes in one tick collapse into a single render', async () => {
-
 		let renderCount = 0;
 		class OsCounter extends Component {
 			static props = [ 'n' ] as const;

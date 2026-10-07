@@ -12,7 +12,6 @@ import {
 	type RestPlacementShape,
 } from './rest';
 import { removePlacement, setFolderPlacements } from './store';
-
 import { osConfirm } from '../os-confirm';
 import type { TileMenuItem } from './tile-menu';
 
@@ -132,7 +131,6 @@ export function installUploadMenuItems(): void {
 								const res = await listPlacements( 0 );
 								setFolderPlacements( 0, res.placements );
 							} catch ( _e ) {
-
 							}
 							showToast( { message: 'You left the shared file.' } );
 						} catch ( err ) {

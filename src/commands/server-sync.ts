@@ -12,7 +12,6 @@ export function createCommandRegistrySync(): (
 ) => Promise< void > {
 	const loadedHandles = new Set< string >();
 	const loadedUrls = new Set< string >();
-
 	let prevSlugsByHandle = new Map< string, Set< string > >();
 
 	const ensureScript = async (
@@ -25,7 +24,6 @@ export function createCommandRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -69,13 +67,11 @@ export function createCommandRegistrySync(): (
 		handle: string,
 	): Set< string > => {
 		const slugs = new Set< string >();
-
 		for ( const cmd of listCommands() ) {
 			if ( cmd.owner === handle ) {
 				slugs.add( cmd.slug );
 			}
 		}
-
 		const declared = prevSlugsByHandle.get( handle );
 		if ( declared ) {
 			for ( const slug of declared ) {

@@ -26,7 +26,6 @@ const POST_TYPES: PostTypeDescriptor[] = [
 		label: 'Legacy',
 		icon: 'dashicons-book',
 		count: 1,
-
 	},
 ];
 

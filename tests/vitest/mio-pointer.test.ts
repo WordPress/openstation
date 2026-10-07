@@ -129,7 +129,6 @@ describe( 'createPointerTracker', () => {
 		const tracker = createPointerTracker();
 		movePointer( 10, 10 );
 		document.documentElement.dispatchEvent( new MouseEvent( 'mouseleave' ) );
-
 		expect( tracker.get() ).not.toBeNull();
 		vi.advanceTimersByTime( 300 );
 		expect( tracker.get() ).toBeNull();

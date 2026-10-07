@@ -44,7 +44,6 @@ final class State implements \ArrayAccess, \JsonSerializable {
 		if ( is_array( $default ) ) {
 			return is_array( $value ) ? $value : $default;
 		}
-
 		return is_scalar( $value ) || is_array( $value ) || null === $value ? $value : $default;
 	}
 

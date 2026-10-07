@@ -31,7 +31,6 @@ export class OsOption extends Component {
 		slots: [
 			{ name: '(default)', description: 'Label text read from textContent.' },
 		],
-
 		example: html`
 			<os-select value="md" label="Dock size (built from os-option children)">
 				<os-option value="sm">Small</os-option>
@@ -142,14 +141,12 @@ export class OsSelect extends Component {
 			opt.textContent = item.label;
 			this.appendChild( opt );
 		}
-
 		const current = ( this as unknown as { value: string | null } ).value;
 		const stillValid =
 			current !== null && list.some( ( i ) => i.value === current );
 		if ( ! stillValid && list.length > 0 ) {
 			( this as unknown as { value: string } ).value = list[ 0 ].value;
 		}
-
 		this.requestUpdate();
 	}
 
@@ -160,7 +157,6 @@ export class OsSelect extends Component {
 	private _activeIndex = -1;
 
 	private _typed = '';
-
 	private _dismissedAt = 0;
 	private _typedTimer: ReturnType< typeof setTimeout > | null = null;
 
@@ -180,9 +176,7 @@ export class OsSelect extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
 		ensureAutoId( this );
-
 		this._optionObserver = new MutationObserver( () => this.requestUpdate() );
 		this._optionObserver.observe( this, {
 			childList: true,
@@ -197,7 +191,6 @@ export class OsSelect extends Component {
 		this._optionObserver?.disconnect();
 		this._optionObserver = null;
 		this._teardownDismiss();
-
 		this._open = false;
 		if ( this._typedTimer ) {
 			clearTimeout( this._typedTimer );
@@ -306,7 +299,6 @@ export class OsSelect extends Component {
 
 	private _readOptions(): ReadOption[] {
 		const out: ReadOption[] = [];
-
 		const children = this.querySelectorAll( ':scope > os-option' );
 		for ( const child of Array.from( children ) ) {
 			const value = child.getAttribute( 'value' );
@@ -364,7 +356,6 @@ export class OsSelect extends Component {
 			popup.style.left = `${ rect.left }px`;
 			popup.style.top = `${ rect.bottom + 4 }px`;
 			popup.showPopover();
-
 			const overflow =
 				rect.bottom + 4 + popup.offsetHeight >
 				window.innerHeight - 8;
@@ -397,7 +388,6 @@ export class OsSelect extends Component {
 				try {
 					popup.hidePopover();
 				} catch {
-
 				}
 			}
 			popup.removeAttribute( 'data-open' );
@@ -432,7 +422,6 @@ export class OsSelect extends Component {
 
 	private _commit( next: string ): void {
 		this._hide();
-
 		( this as unknown as { value: string } ).value = next;
 		this.emit( 'os-pick', { value: next } );
 	}

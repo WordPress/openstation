@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -30,7 +33,6 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-
 		foreach ( openstation_my_wordpress_media_usage_cache_buckets() as $bucket ) {
 			delete_transient(
 				openstation_my_wordpress_media_usage_cache_key( $this->attachment_id, $bucket )
@@ -46,6 +48,9 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		return rest_get_server()->dispatch( $request );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_build
+	 */
 	public function test_finds_featured_image_and_content_embeds_with_correct_usedAs() {
 		$featured_post = self::factory()->post->create(
 			array( 'post_status' => 'publish', 'post_title' => 'Featured' )
@@ -83,6 +88,9 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertSame( 'content', $by_id[ $content_post ]['usedAs'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_build
+	 */
 	public function test_subscriber_does_not_see_drafts() {
 		$draft = self::factory()->post->create(
 			array(
@@ -103,6 +111,10 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertNotContains( $draft, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_callback
+	 * @covers ::openstation_my_wordpress_media_usage_build
+	 */
 	public function test_cached_scan_does_not_leak_authors_draft_to_subscriber() {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$draft     = self::factory()->post->create(
@@ -125,6 +137,9 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertNotContains( $draft, wp_list_pluck( $second->get_data()['usedIn'], 'postId' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_callback
+	 */
 	public function test_transient_caches_result() {
 		$post = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		update_post_meta( $post, '_thumbnail_id', $this->attachment_id );
@@ -151,6 +166,9 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		add_action( 'save_post', 'openstation_my_wordpress_media_usage_bust_for_post' );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_callback
+	 */
 	public function test_filter_can_extend_usedIn() {
 		add_filter(
 			'openstation_my_wordpress_media_usage',
@@ -178,8 +196,10 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertContains( 999, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_build
+	 */
 	public function test_word_boundary_excludes_numeric_prefix_matches() {
-
 		$subject_id = $this->attachment_id;
 		$prefix_id  = $subject_id . '0';
 
@@ -205,6 +225,9 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertNotContains( $false_positive, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_bust_for_post
+	 */
 	public function test_reference_removal_busts_cache() {
 		$post = self::factory()->post->create(
 			array(
@@ -230,6 +253,9 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertNotContains( $post, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_bust_for_post
+	 */
 	public function test_post_deletion_busts_attachment_cache() {
 		$post = self::factory()->post->create(
 			array(
@@ -249,6 +275,9 @@ class Tests_OpenStation_MyWordpressMediaUsage extends WP_UnitTestCase {
 		$this->assertFalse( get_transient( $cache_key ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_media_usage_callback
+	 */
 	public function test_unknown_attachment_returns_403_via_permission_gate() {
 		$response = $this->dispatch( 999999 );
 		$this->assertSame( 403, $response->get_status() );

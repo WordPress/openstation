@@ -1,5 +1,4 @@
 <?php
-
 defined( 'ABSPATH' ) || exit;
 add_filter( 'openstation_agents_enabled', '__return_true' );
 add_filter(
@@ -7,7 +6,6 @@ add_filter(
 	static function ( $result, $history ) {
 		foreach ( $history as $row ) {
 			if ( isset( $row['text'] ) && '__openstation_async_http_smoke__' === $row['text'] ) {
-
 				sleep( 35 );
 				return array( 'text' => 'Slow HTTP job completed.', 'function_calls' => array(), 'message' => null );
 			}

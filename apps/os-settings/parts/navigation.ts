@@ -77,7 +77,6 @@ const row = ( item: NavItem, s: OsSettingsState ) => html`<div class="os-nav-set
 		${ renderIcon( item.icon, {
 			title: item.title,
 			className: 'os-nav-settings__icon',
-
 			slot: slotForTileId( item.id ),
 		} ) }
 		<div class="os-nav-settings__title">${ item.title }</div>
@@ -101,7 +100,6 @@ const row = ( item: NavItem, s: OsSettingsState ) => html`<div class="os-nav-set
 
 export const renderNavigation: Section = ( s ) => {
 	const items = readNavItems().filter( isListed );
-
 	const groups = GROUPS.map( ( group ) => ( {
 		...group,
 		rows: sortByOrder( items.filter( ( item ) => group.kinds.includes( item.kind ) ) ),

@@ -21,17 +21,12 @@ export function letterFrequency( ch: string ): number {
 }
 
 export interface GameAudio {
-
 	letter: ( ch: string ) => void;
-
 	typo: () => void;
-
 	wordBurst: ( lastLetter: string ) => void;
-
 	miss: () => void;
 	setEnabled: ( enabled: boolean ) => void;
 	isEnabled: () => boolean;
-
 	dispose: () => void;
 }
 
@@ -59,7 +54,6 @@ function storeEnabled( enabled: boolean ): void {
 	try {
 		window.localStorage.setItem( SOUND_STORAGE_KEY, enabled ? '1' : '0' );
 	} catch {
-
 	}
 }
 

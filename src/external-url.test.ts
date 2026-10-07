@@ -46,7 +46,6 @@ describe( 'tryOpenExternalUrl', () => {
 	test( 'opens different-host URLs in a new tab (regression for WP.com)', () => {
 		const spy = vi.fn();
 		window.open = spy as unknown as typeof window.open;
-
 		expect(
 			tryOpenExternalUrl( 'https://wordpress.com/plans/foo' ),
 		).toBe( true );
@@ -56,7 +55,6 @@ describe( 'tryOpenExternalUrl', () => {
 	test( 'returns false for unparseable URLs', () => {
 		const spy = vi.fn();
 		window.open = spy as unknown as typeof window.open;
-
 		expect( tryOpenExternalUrl( '://broken' ) ).toBe( false );
 		expect( spy ).not.toHaveBeenCalled();
 	} );

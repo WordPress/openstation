@@ -19,13 +19,9 @@ export default defineConfig( {
 	test: {
 		environment: 'jsdom',
 		globals: false,
-
 		setupFiles: [ './tests/vitest/setup.ts' ],
-
 		include: [ 'tests/vitest/**/*.test.ts', 'src/**/*.test.ts', 'apps/**/*.test.ts' ],
-
 		isolate: true,
-
 		testTimeout: 2000,
 	},
 } );

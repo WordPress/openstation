@@ -9,21 +9,13 @@ export interface ListTableLike< Row > extends Element {
 }
 
 export interface ListTableSyncOptions< Row > {
-
 	table: ListTableLike< Row > | null;
-
 	rows: Row[];
-
 	listKey: string;
-
 	fingerprint: string;
-
 	columns: ( phone: boolean ) => unknown;
-
 	wire?: ( table: ListTableLike< Row > ) => void;
-
 	rowId?: ( row: Row ) => string | number;
-
 	onSelection?: ( kept: string[] ) => void;
 }
 
@@ -35,11 +27,8 @@ export interface ListTableSyncResult {
 }
 
 export interface ListTableSync< Row > {
-
 	sync( opts: ListTableSyncOptions< Row > ): ListTableSyncResult;
-
 	invalidateColumns(): void;
-
 	invalidateData(): void;
 }
 

@@ -79,7 +79,6 @@ export const OS_SPINNER_PRESETS: Readonly<
 		pulse: 'both',
 		dots: 8,
 	},
-
 	inline: {
 		sp1: 8,
 		sp2: 8,
@@ -333,10 +332,8 @@ export class OsSpinner extends Component {
 		return (
 			`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"` +
 			` role="img" aria-label="${ label }">` +
-
 			`<circle cx="12" cy="12" r="${ r }" fill="none"` +
 			` stroke="currentColor" stroke-width="2.4" stroke-opacity="0.22"/>` +
-
 			`<circle cx="12" cy="12" r="${ r }" fill="none"` +
 			` stroke="currentColor" stroke-width="2.4" stroke-linecap="round"` +
 			` stroke-dasharray="${ dasharray( r, cfg.a1 ) }"` +
@@ -407,7 +404,6 @@ export class OsSpinner extends Component {
 			`<circle cx="${ CX }" cy="${ CY }" r="${ DISC_R }" fill="currentColor"/>` +
 			`<g class="mark">${ W_PATHS }</g>` +
 			`</g>` +
-
 			`<circle cx="${ CX }" cy="${ CY }" r="${ r1.toFixed( 2 ) }"` +
 			` fill="none" stroke="currentColor" stroke-width="0.6" stroke-opacity="0.2"/>` +
 			`<circle cx="${ CX }" cy="${ CY }" r="${ r1.toFixed( 2 ) }"` +
@@ -415,7 +411,6 @@ export class OsSpinner extends Component {
 			` stroke-dasharray="${ dasharray( r1, cfg.a1 ) }"` +
 			` stroke-linecap="round"` +
 			` style="transform-origin:${ CX }px ${ CY }px;${ ring1Anim }"/>` +
-
 			`<circle cx="${ CX }" cy="${ CY }" r="${ r2.toFixed( 2 ) }"` +
 			` fill="none" stroke="currentColor" stroke-width="0.5" stroke-opacity="0.15"/>` +
 			`<circle cx="${ CX }" cy="${ CY }" r="${ r2.toFixed( 2 ) }"` +
@@ -423,7 +418,6 @@ export class OsSpinner extends Component {
 			` stroke-dasharray="${ dasharray( r2, cfg.a2 ) }"` +
 			` stroke-linecap="round"` +
 			` style="transform-origin:${ CX }px ${ CY }px;${ ring2Anim }"/>` +
-
 			`<circle cx="${ CX }" cy="${ CY }" r="${ r3.toFixed( 2 ) }"` +
 			` fill="none" stroke="currentColor" stroke-width="0.4" stroke-opacity="0.12"/>` +
 			`<circle cx="${ CX }" cy="${ CY }" r="${ r3.toFixed( 2 ) }"` +

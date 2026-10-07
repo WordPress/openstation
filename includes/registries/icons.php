@@ -2,6 +2,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
+
 function openstation_register_icon( $id, $args = array() ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
@@ -25,7 +26,6 @@ function openstation_register_icon( $id, $args = array() ) {
 
 	$svg = trim( (string) $args['icon_svg'] );
 	if ( '' !== $svg ) {
-
 		if ( false !== stripos( $svg, '<script' ) ) {
 			return openstation_registration_error(
 				'openstation_invalid_icon_svg',
@@ -48,7 +48,7 @@ function openstation_register_icon( $id, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this desktop icon.', 'desktop-mode' ),
 					(string) $cap
 				),
@@ -85,7 +85,6 @@ function openstation_register_icon( $id, $args = array() ) {
 		);
 	}
 	if ( '' !== $url ) {
-
 		$url = esc_url_raw( $url, array( 'http', 'https' ) );
 		if ( '' === $url ) {
 			return openstation_registration_error(
@@ -118,7 +117,6 @@ function openstation_desktop_icon_registry( $id = '', $entry = null ) {
 	if ( '' === (string) $id ) {
 		return $store;
 	}
-
 	if ( '__unset__' === $entry ) {
 		unset( $store[ $id ] );
 		return null;
@@ -142,7 +140,6 @@ function openstation_desktop_icon_entry( $id ) {
 	if ( '' === $id ) {
 		return null;
 	}
-
 	$registry = apply_filters( 'openstation_icons', openstation_desktop_icon_registry() );
 	if ( ! is_array( $registry ) ) {
 		return null;
@@ -150,7 +147,6 @@ function openstation_desktop_icon_entry( $id ) {
 	if ( isset( $registry[ $id ] ) && is_array( $registry[ $id ] ) ) {
 		return $registry[ $id ];
 	}
-
 	foreach ( $registry as $entry ) {
 		if ( is_array( $entry ) && isset( $entry['id'] ) && $id === (string) $entry['id'] ) {
 			return $entry;
@@ -166,7 +162,6 @@ function openstation_build_desktop_icons_payload() {
 	}
 
 	$registry = apply_filters( 'openstation_icons', $registry );
-
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}

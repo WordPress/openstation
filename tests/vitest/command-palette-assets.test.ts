@@ -111,7 +111,6 @@ describe( 'ensureCommandPaletteAssets', () => {
 	} );
 
 	test( 'hands the handle to the presence test, not just the URL', async () => {
-
 		vi.mocked( scriptPresence.isScriptInDocument ).mockImplementation(
 			( ref ) => 'wp-hooks' === ref.handle,
 		);
@@ -198,7 +197,6 @@ describe( 'ensureCommandPaletteAssets', () => {
 	} );
 
 	test( 'a handle listed twice executes once', async () => {
-
 		setManifest( {
 			scripts: [
 				{ handle: 'wp-data', url: 'https://example.test/data.js' },

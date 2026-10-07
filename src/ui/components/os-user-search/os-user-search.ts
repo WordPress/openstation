@@ -37,7 +37,6 @@ export class OsUserSearch extends Component {
 		events: [
 			{ name: 'os-user-pick', description: 'Emitted on pick. Detail: `{ user: SearchUser }`.' },
 		],
-
 		example: html`
 			<os-user-search
 				placeholder="Search users to share with…"
@@ -90,7 +89,6 @@ export class OsUserSearch extends Component {
 		if ( this._timer ) {
 			clearTimeout( this._timer );
 		}
-
 		this._phase = 'loading';
 		this._open = true;
 		this._positionDropdown();
@@ -155,7 +153,6 @@ export class OsUserSearch extends Component {
 		const top = rect.bottom + 4;
 		const left = rect.left;
 		const width = rect.width;
-
 		const viewportH = window.innerHeight;
 		const spaceBelow = viewportH - rect.bottom;
 		const spaceAbove = rect.top;

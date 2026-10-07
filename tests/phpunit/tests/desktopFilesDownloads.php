@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -111,7 +114,6 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 	}
 
 	public function test_zip_contains_nested_paths_skips_references_and_keeps_empty_dirs() {
-
 		$root_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Root' ) );
 		$sub_id  = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Sub' ) );
 		$empty_id = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Empty' ) );
@@ -146,7 +148,6 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 		$this->assertContains( 'a.txt', $names );
 		$this->assertContains( 'Sub/b.txt', $names );
 		$this->assertContains( 'Empty/', $names );
-
 		$this->assertCount( 3, $names );
 	}
 
@@ -236,7 +237,6 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 			openstation_files_serve_download( false, new WP_REST_Response( array( 'x' => 1 ) ), $req )
 		);
 		$dl_req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/uploads/5/download' );
-
 		$this->assertFalse(
 			openstation_files_serve_download( false, new WP_REST_Response( array( 'code' => 'x' ), 404 ), $dl_req )
 		);

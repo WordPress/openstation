@@ -84,12 +84,10 @@ export class GrowthSimulator {
 
 			let dx = pullX[ n ] / pulls[ n ] + ( this.rng() - 0.5 ) * jitter;
 			let dy = pullY[ n ] / pulls[ n ] + ( this.rng() - 0.5 ) * jitter - tropism;
-
 			dy += droop * ( parent.depth / Math.max( 1, this.env.maxDepth ) );
 			let len = Math.max( 1e-6, Math.hypot( dx, dy ) );
 			dx /= len;
 			dy /= len;
-
 			if ( dy > 0.2 ) {
 				dy = 0.2 + ( dy - 0.2 ) * 0.25;
 				len = Math.max( 1e-6, Math.hypot( dx, dy ) );
@@ -130,7 +128,6 @@ export class GrowthSimulator {
 			this.finished = true;
 			return;
 		}
-
 		let tip = 0;
 		for ( let n = 0; n < this.nodes.length; n++ ) {
 			if ( this.childCount[ n ] === 0 && this.nodes[ n ].pos.y < this.nodes[ tip ].pos.y ) {
@@ -151,7 +148,6 @@ export class GrowthSimulator {
 			this.finished = true;
 			return;
 		}
-
 		if ( ( nearest.y - from.pos.y ) / nearestD > 0.45 ) {
 			const dead = nearest;
 			this.attractors = this.attractors.filter( ( a ) => a !== dead );
@@ -163,7 +159,6 @@ export class GrowthSimulator {
 		let len = Math.max( 1e-6, Math.hypot( dx, dy ) );
 		dx /= len;
 		dy /= len;
-
 		if ( dy > 0.2 ) {
 			dy = 0.2 + ( dy - 0.2 ) * 0.25;
 			len = Math.max( 1e-6, Math.hypot( dx, dy ) );

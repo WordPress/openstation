@@ -21,7 +21,6 @@ function openstation_stored_files_denied_extensions() {
 		'jsp',
 		'shtml',
 	);
-
 	return (array) apply_filters( 'openstation_stored_files_denied_extensions', $denied );
 }
 
@@ -43,7 +42,6 @@ function openstation_stored_files_is_denied_filename( $name ) {
 
 function openstation_stored_files_max_upload_bytes( $user_id ) {
 	$max = (int) wp_max_upload_size();
-
 	return max( 0, (int) apply_filters( 'openstation_stored_files_max_upload_bytes', $max, (int) $user_id ) );
 }
 
@@ -67,7 +65,6 @@ function openstation_files_register_upload_rest_routes() {
 		'desktop-mode/v1',
 		'/files/uploads',
 		array(
-
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => 'openstation_files_rest_uploads_permission',
 			'callback'            => 'openstation_files_rest_upload',
@@ -81,7 +78,6 @@ function openstation_files_register_upload_rest_routes() {
 					'type'    => 'string',
 					'default' => '',
 				),
-
 				'x'            => array(
 					'type'     => 'integer',
 					'required' => false,
@@ -230,7 +226,6 @@ function openstation_files_rest_upload( WP_REST_Request $req ) {
 		$coords
 	);
 	if ( is_wp_error( $registered ) ) {
-
 		if ( ! empty( $received['path'] ) && file_exists( $received['path'] ) ) {
 			wp_delete_file( $received['path'] );
 		}
@@ -284,7 +279,7 @@ function openstation_files_upload_receive( $file, $user_id ) {
 		return new WP_Error(
 			'openstation_stored_files_too_large',
 			sprintf(
-
+				/* translators: %s: formatted maximum file size. */
 				__( 'That file is larger than the allowed maximum of %s.', 'desktop-mode' ),
 				size_format( $max )
 			),
@@ -321,7 +316,6 @@ function openstation_files_upload_receive( $file, $user_id ) {
 	$name_cb     = static function ( $dir_unused, $name_unused, $ext_unused ) use ( $disk_name ) {
 		return $disk_name;
 	};
-
 	$target_base = openstation_stored_files_dir();
 	$target_dir  = openstation_stored_files_dir( $user_id );
 	$redirect    = static function ( $dirs ) use ( $user_id, $target_base, $target_dir ) {
@@ -404,7 +398,6 @@ function openstation_files_upload_register( $user_id, $received, $parent_id, $re
 			)
 		);
 	} else {
-
 		$placement_id = openstation_files_place_at_next_free_slot(
 			(int) $user_id,
 			$parent_id,
@@ -413,7 +406,6 @@ function openstation_files_upload_register( $user_id, $received, $parent_id, $re
 		);
 	}
 	if ( is_wp_error( $placement_id ) ) {
-
 		openstation_stored_files_delete( (int) $file_id );
 		return $placement_id;
 	}
@@ -487,7 +479,6 @@ function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $re
 		if ( is_wp_error( $folder_id ) ) {
 			return $folder_id;
 		}
-
 		$placement = openstation_files_place_at_next_free_slot( $user_id, $parent_id, 'folder', (string) $folder_id );
 		if ( is_wp_error( $placement ) ) {
 			return $placement;

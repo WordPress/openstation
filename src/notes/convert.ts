@@ -7,7 +7,6 @@ import type { Note } from './types';
 
 interface DesktopApi {
 	deriveWindowId?: ( url: string, adminUrl?: string ) => string;
-
 	config?: { adminUrl?: string };
 	windowManager?: {
 		open?: ( config: {
@@ -75,7 +74,6 @@ function openDraftEditor( result: ConvertNoteResult ): string | null {
 			return null;
 		}
 		const id = api.deriveWindowId( url );
-
 		void Promise.resolve(
 			api.windowManager.open( {
 				id,
@@ -85,6 +83,7 @@ function openDraftEditor( result: ConvertNoteResult ): string | null {
 				icon: 'dashicons-admin-post',
 			} ),
 		).catch( ( err: unknown ) => {
+			// eslint-disable-next-line no-console
 			console.error(
 				'[openstation] notes: draft editor failed to open:',
 				err,
@@ -92,6 +91,7 @@ function openDraftEditor( result: ConvertNoteResult ): string | null {
 		} );
 		return id;
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] notes: draft editor failed to open:', err );
 		return null;
 	}
@@ -110,9 +110,7 @@ export function convertFailureMessage( err: unknown ): string {
 }
 
 export interface ConvertNoteCallbacks {
-
 	onEvict( noteId: number ): void;
-
 	onRestore( note: Note ): void;
 }
 
@@ -125,6 +123,7 @@ export async function convertNoteToPost(
 	try {
 		result = await convertNote( note.id );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] notes: convert failed:', err );
 		callbacks.onRestore( note );
 		shellToast( {
@@ -157,6 +156,7 @@ export async function convertNoteToPost(
 						callbacks.onRestore( restored );
 					} )
 					.catch( ( err: unknown ) => {
+						// eslint-disable-next-line no-console
 						console.error(
 							'[openstation] notes: convert undo failed:',
 							err,

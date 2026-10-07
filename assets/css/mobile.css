@@ -58,10 +58,8 @@ html[data-os-mode="mobile"] .os-shell {
 	--_m-safe-bottom: env( safe-area-inset-bottom, 0px );
 	--_m-safe-left: env( safe-area-inset-left, 0px );
 	--_m-safe-right: env( safe-area-inset-right, 0px );
-
 	--_m-tabs-total: calc( var( --_m-tabs-h ) + 8px + var( --_m-safe-bottom ) );
 	--_m-ease: cubic-bezier( 0.2, 0.8, 0.2, 1 );
-
 	--os-ui-field-font-size: 16px;
 	--os-ui-field-font-size-compact: 16px;
 }
@@ -400,7 +398,6 @@ html[data-os-mode="mobile"] .os-mobile-tabs__count {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-
 	box-sizing: border-box;
 	width: 20px;
 	height: 20px;
@@ -794,7 +791,6 @@ html[data-os-mode="mobile"] .os-mobile-tabs {
 
 ::view-transition-old( os-mobile-hero ),
 ::view-transition-new( os-mobile-hero ) {
-
 	height: 100%;
 	width: 100%;
 	object-fit: cover;

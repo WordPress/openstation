@@ -21,7 +21,6 @@ const config = ( over: Partial< MultisiteConfig > = {} ): MultisiteConfig => ( {
 describe( 'the Network Admin tile', () => {
 	test( 'is absent without the capability, and inside the network admin', () => {
 		const opener = vi.fn();
-
 		expect(
 			getNetworkAdminTileDef( config( { networkAdmin: null } ), opener ),
 		).toBeNull();
@@ -31,7 +30,6 @@ describe( 'the Network Admin tile', () => {
 	} );
 
 	test( 'sits with the admin menus, and leaves its position to computeNav', () => {
-
 		const tile = getNetworkAdminTileDef( config(), vi.fn() );
 		expect( tile?.id ).toBe( NETWORK_ADMIN_TILE_ID );
 		expect( [ tile?.navKind, tile?.order, zoneForSystemTile( tile! ) ] ).toEqual( [
@@ -47,7 +45,6 @@ describe( 'the Network Admin tile', () => {
 		const rows = tile?.submenu ?? [];
 
 		expect( rows.map( ( r ) => r.title ) ).toEqual( [ 'Dashboard', 'Sites' ] );
-
 		expect( rows.every( ( r ) => r.url && r.onSelect ) ).toBe( true );
 
 		tile?.onOpen();

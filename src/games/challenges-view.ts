@@ -30,7 +30,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	if ( 'pending' === row.state ) {
 		if ( incoming ) {
 			return sprintf(
-
+				/* translators: 1: challenger name, 2: game title, 3: score. */
 				__( '%1$s challenged you to %2$s — beat %3$s.' ),
 				other,
 				title,
@@ -38,7 +38,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 			);
 		}
 		return sprintf(
-
+			/* translators: 1: recipient name, 2: game title, 3: score. */
 			__( 'Waiting for %1$s to accept your %2$s challenge (%3$s).' ),
 			other,
 			title,
@@ -48,14 +48,14 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	if ( 'accepted' === row.state ) {
 		if ( incoming ) {
 			return sprintf(
-
+				/* translators: 1: game title, 2: score. */
 				__( 'You accepted — play %1$s and beat %2$s!' ),
 				title,
 				target,
 			);
 		}
 		return sprintf(
-
+			/* translators: 1: recipient name, 2: game title. */
 			__( '%1$s accepted your %2$s challenge and is playing.' ),
 			other,
 			title,
@@ -64,14 +64,14 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	if ( 'declined' === row.state ) {
 		if ( incoming ) {
 			return sprintf(
-
+				/* translators: 1: challenger name, 2: game title. */
 				__( 'You declined %1$s’s %2$s challenge.' ),
 				other,
 				title,
 			);
 		}
 		return sprintf(
-
+			/* translators: 1: recipient name, 2: game title. */
 			__( '%1$s declined your %2$s challenge.' ),
 			other,
 			title,
@@ -83,7 +83,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	if ( incoming ) {
 		if ( beaten ) {
 			return sprintf(
-
+				/* translators: 1: game title, 2: result score, 3: target score. */
 				__( 'You beat the %1$s challenge: %2$s vs %3$s.' ),
 				title,
 				result,
@@ -91,7 +91,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 			);
 		}
 		return sprintf(
-
+			/* translators: 1: game title, 2: result score, 3: target score. */
 			__( 'You missed the %1$s challenge: %2$s vs %3$s.' ),
 			title,
 			result,
@@ -100,7 +100,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 	}
 	if ( beaten ) {
 		return sprintf(
-
+			/* translators: 1: recipient name, 2: result score, 3: target score. */
 			__( '%1$s beat your score: %2$s vs %3$s.' ),
 			other,
 			result,
@@ -108,7 +108,7 @@ function describeRow( row: GameChallengeRow, viewerId: number ): string {
 		);
 	}
 	return sprintf(
-
+		/* translators: 1: recipient name, 2: result score, 3: target score. */
 		__( '%1$s did not beat your score: %2$s vs %3$s.' ),
 		other,
 		result,

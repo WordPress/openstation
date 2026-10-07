@@ -52,18 +52,15 @@ function announcePostIdentity( ctx: Ctx, postId: number, title?: string ): void 
 	try {
 		relations.set( ctx.windowId, ref );
 	} catch {
-
 	}
 }
 
 export default defineApp< AppState, AppData >( APP_ID, {
-
 	placeholder: () => ( {} ),
 
 	view: ( ctx ) => {
 		const { state, data } = ctx;
 		const ui = ctx.ui( freshUi );
-
 		const rows =
 			data.rail && data.railKey !== undefined
 				? ui.list.accumulate( data.railKey, data.rail )
@@ -72,14 +69,12 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			ui.thread = data.thread;
 		}
 		const root = rows.find( ( r ) => r.id === state.selected );
-
 		if ( ui.draftFor !== state.selected ) {
 			ui.draftFor = state.selected;
 			ui.draft = '';
 			ui.replyTo = 0;
 			ui.editing = 0;
 		}
-
 		const pane = root ? ui.pane : 'rail';
 		return html`
 			<os-app-frame contained class="${ NS } ${ NS }--conversation" data-os-comments-root data-os-comments-pane=${ pane }>
@@ -107,7 +102,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 
 	updated: ( ctx ) => {
 		const ui = ctx.ui( freshUi );
-
 		ctx.root.querySelectorAll< HTMLElement >( 'os-avatar[data-avatar-src]' ).forEach( ( el ) => {
 			const url = el.getAttribute( 'data-avatar-src' ) ?? '';
 			if ( el.getAttribute( 'data-avatar-applied' ) === url ) {
@@ -120,15 +114,12 @@ export default defineApp< AppState, AppData >( APP_ID, {
 				el.removeAttribute( 'src' );
 			}
 		} );
-
 		const composerFor = ctx.root.querySelector< HTMLElement >( `.${ NS }__composer[data-target]` );
 		if ( composerFor && composerFor.getAttribute( 'data-composer-for' ) !== String( ui.draftFor ) ) {
 			composerFor.setAttribute( 'data-composer-for', String( ui.draftFor ) );
 			composerFor.querySelector< Textarea >( `.${ NS }__reply-input` )?.clear?.();
 		}
-
 		pruneBodies( ui, ui.thread?.rows ?? [] );
-
 		const post = ctx.state.post;
 		if ( post !== ui.announcedPost ) {
 			ui.announcedPost = post;

@@ -51,7 +51,6 @@
 
 .os-recycle-bin__body os-table {
 	flex: 1 1 auto;
-
 	min-inline-size: 0;
 	--os-ui-table-max-height: 100%;
 }

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-mio
+ */
 class Tests_OpenStation_Mio extends WP_UnitTestCase {
 
 	public function tear_down() {
@@ -7,6 +10,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_mio_config
+	 */
 	public function test_config_has_both_sections() {
 		$config = openstation_mio_config();
 		$this->assertIsArray( $config );
@@ -14,6 +20,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'physics', $config );
 	}
 
+	/**
+	 * @covers ::openstation_mio_config
+	 */
 	public function test_config_carries_every_documented_key() {
 		$config = openstation_mio_config();
 
@@ -81,11 +90,16 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_mio_config
+	 */
 	public function test_config_is_json_encodable() {
-
 		$this->assertIsString( wp_json_encode( openstation_mio_config() ) );
 	}
 
+	/**
+	 * @covers ::openstation_mio_config
+	 */
 	public function test_filter_can_retune_the_mio() {
 		add_filter(
 			'openstation_mio_config',
@@ -101,6 +115,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertSame( 3400, $config['physics']['magnetStrength'] );
 	}
 
+	/**
+	 * @covers ::openstation_mio_config
+	 */
 	public function test_non_array_filter_return_falls_back_to_defaults() {
 		add_filter( 'openstation_mio_config', '__return_false' );
 
@@ -109,12 +126,18 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'appearance', $config );
 	}
 
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
 	public function test_mio_is_off_by_default() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'mioEnabled', $defaults );
 		$this->assertFalse( $defaults['mioEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_round_trips_mio_enabled() {
 		$on = openstation_sanitize_os_settings( array( 'mioEnabled' => true ) );
 		$this->assertTrue( $on['mioEnabled'] );
@@ -123,6 +146,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertFalse( $off['mioEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_coerces_truthy_mio_values() {
 		$clean = openstation_sanitize_os_settings( array( 'mioEnabled' => '1' ) );
 		$this->assertTrue( $clean['mioEnabled'] );
@@ -131,12 +157,18 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertFalse( $clean['mioEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_defaults_mio_when_absent() {
 		$clean = openstation_sanitize_os_settings( array() );
 		$this->assertArrayHasKey( 'mioEnabled', $clean );
 		$this->assertFalse( $clean['mioEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_preference_persists_to_user_meta() {
 		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $user_id );
@@ -148,6 +180,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertTrue( $stored['mioEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_look_persists_to_user_meta() {
 		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $user_id );
@@ -167,6 +202,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertSame( 'star', $stored['mioStyle']['physics']['shapePreset'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_defaults_look_when_absent() {
 		$clean = openstation_sanitize_os_settings( array() );
 		$this->assertSame(
@@ -178,6 +216,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_mio_look
+	 */
 	public function test_sanitize_look_keeps_known_keys() {
 		$clean = openstation_sanitize_mio_look(
 			array(
@@ -204,6 +245,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertSame( 0, $clean['physics']['idleWobble'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_mio_look
+	 */
 	public function test_sanitize_look_drops_unknown_keys() {
 		$clean = openstation_sanitize_mio_look(
 			array(
@@ -224,6 +268,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertSame( array( 'shapePreset' => 'star' ), $clean['physics'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_mio_look
+	 */
 	public function test_sanitize_look_survives_nonsense() {
 		foreach ( array( null, 'nope', 42, array( 'appearance' => 'nope' ) ) as $raw ) {
 			$this->assertSame(
@@ -236,6 +283,9 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_mio_look
+	 */
 	public function test_sanitize_look_drops_non_finite_numbers() {
 		$clean = openstation_sanitize_mio_look(
 			array(
@@ -249,6 +299,10 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		$this->assertSame( array( 'lightness' => 0.5 ), $clean['appearance'] );
 	}
 
+	/**
+	 * @covers ::openstation_mio_look_appearance_keys
+	 * @covers ::openstation_mio_look_physics_keys
+	 */
 	public function test_look_whitelists_mirror_the_config() {
 		$config = openstation_mio_config();
 

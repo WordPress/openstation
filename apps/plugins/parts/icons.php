@@ -13,7 +13,6 @@ function openstation_plugins_window_field_icon_url( $row ) {
 	if ( null !== $entry && ! empty( $entry['slug'] ) ) {
 		$slug = (string) $entry['slug'];
 	} elseif ( '' === $slug ) {
-
 		$slug = isset( $row['textdomain'] ) ? (string) $row['textdomain'] : '';
 	}
 
@@ -29,7 +28,7 @@ function openstation_plugins_window_field_icon_url( $row ) {
 		$no_art  = ( null === $default && ! empty( $entry['icons'] ) );
 	}
 	if ( null === $default && ! $no_art ) {
-
+		// phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- wp.org's own asset host, for directory art this plugin cannot bundle; degrades to a placeholder.
 		$default = 'https://ps.w.org/' . $slug . '/assets/icon.svg';
 	}
 
@@ -59,7 +58,6 @@ function openstation_plugins_window_local_icon_url( $plugin_file ) {
 	}
 	$folder = dirname( $plugin_file );
 	if ( '' === $folder || '.' === $folder ) {
-
 		return null;
 	}
 
@@ -114,7 +112,6 @@ function openstation_plugins_window_local_icon_url( $plugin_file ) {
 add_action(
 	'init',
 	static function () {
-
 		wp_cache_add_non_persistent_groups( OPENSTATION_PLUGINS_CACHE_GROUP );
 	},
 	0

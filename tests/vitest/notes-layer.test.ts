@@ -26,7 +26,6 @@ function makeNote( overrides: Partial< Note > = {} ): Note {
 
 function makeLayer( canCreatePosts = false ): NotesLayer {
 	const host = document.createElement( 'div' );
-
 	Object.defineProperty( host, 'clientWidth', { value: 1000 } );
 	Object.defineProperty( host, 'clientHeight', { value: 500 } );
 	host.getBoundingClientRect = () =>
@@ -76,15 +75,12 @@ describe( 'NotesLayer', () => {
 		expect( el.classList.contains( 'os-pinned-note' ) ).toBe( true );
 		expect( el.dataset.owner ).toBe( 'me' );
 		expect( el.dataset.noteColor ).toBe( 'butter' );
-
 		const pin = el.querySelector( 'button.os-pinned-note__pin' );
 		expect( pin ).not.toBeNull();
 		expect( pin?.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
-
 		expect( el.querySelector( 'os-textarea' ) ).not.toBeNull();
 		expect( el.querySelector( '.os-pinned-note__color-dot' ) ).not.toBeNull();
 		expect( el.querySelector( '.os-pinned-note__visibility' ) ).not.toBeNull();
-
 		const img = el.querySelector( 'img' );
 		expect( img?.getAttribute( 'src' ) ).toBe(
 			'https://example.test/plugin/assets/images/pushpin.svg',
@@ -101,11 +97,9 @@ describe( 'NotesLayer', () => {
 		expect( el.dataset.owner ).toBe( 'other' );
 		expect( el.getAttribute( 'role' ) ).toBe( 'note' );
 		expect( el.getAttribute( 'aria-label' ) ).toContain( 'Ana García' );
-
 		expect( el.querySelector( 'button.os-pinned-note__pin' ) ).toBeNull();
 		const pin = el.querySelector( 'span.os-pinned-note__pin' );
 		expect( pin?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-
 		expect( el.querySelector( 'os-textarea' ) ).toBeNull();
 		expect( el.querySelector( '.os-pinned-note__color-dot' ) ).toBeNull();
 		expect(
@@ -117,7 +111,6 @@ describe( 'NotesLayer', () => {
 	} );
 
 	test( 'filter-added color slugs survive to the DOM unclamped', () => {
-
 		const layer = makeLayer();
 		const controller = layer.upsertNote( makeNote( { color: 'seafoam' } ) );
 		expect( controller.element.dataset.noteColor ).toBe( 'seafoam' );
@@ -141,7 +134,6 @@ describe( 'NotesLayer', () => {
 		const layer = makeLayer();
 		layer.applyHeartbeatPayload( { notes: [], serverTimeMs: 9000, truncated: true } );
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
-
 		expect( layer.has( 5 ) ).toBe( true );
 	} );
 
@@ -150,10 +142,8 @@ describe( 'NotesLayer', () => {
 		const a = layer.upsertNote( makeNote( { id: 1, seed: 42 } ) );
 		const rotation = a.element.style.getPropertyValue( '--dm-note-rot' );
 		expect( rotation ).not.toBe( '' );
-
 		a.replace( makeNote( { id: 1, seed: 42, text: 'edited', updatedAtMs: 2000 } ) );
 		expect( a.element.style.getPropertyValue( '--dm-note-rot' ) ).toBe( rotation );
-
 		const b = layer.upsertNote( makeNote( { id: 2, seed: 43 } ) );
 		expect( b.element.style.getPropertyValue( '--dm-note-rot' ) ).not.toBe( rotation );
 	} );
@@ -191,7 +181,6 @@ describe( 'NotesLayer', () => {
 				?.element.querySelector( '.os-pinned-note__body' )
 				?.textContent,
 		).toBe( 'updated text' );
-
 		expect( layer.getHeartbeatSubscription()?.sinceMs ).toBe( 6000 );
 		expect( layer.getHeartbeatSubscription()?.knownIds.sort() ).toEqual( [ 2, 3 ] );
 	} );
@@ -209,6 +198,14 @@ describe( 'NotesLayer', () => {
 				?.textContent,
 		).toBe( 'newer' );
 	} );
+
+
+
+
+
+
+
+
 
 	test( 'createNoteAt pins optimistically and POSTs', async () => {
 		const fetchSpy = vi.fn( async () =>
@@ -234,12 +231,10 @@ describe( 'NotesLayer', () => {
 		expect( post ).toBeDefined();
 		const body = JSON.parse( String( ( post?.[ 1 ] as RequestInit ).body ) );
 		expect( body.x ).toBeCloseTo( 0.4 );
-
 		expect( layer.has( 77 ) ).toBe( true );
 	} );
 
 	test( 'empty notes still get distinct tilts', () => {
-
 		const layer = makeLayer();
 		const a = layer.createNoteAt( { x: 0.2, y: 0.3 } );
 		const b = layer.createNoteAt( { x: 0.6, y: 0.7 } );
@@ -247,13 +242,12 @@ describe( 'NotesLayer', () => {
 		expect( a.element.style.getPropertyValue( '--dm-note-rot' ) ).not.toBe(
 			b.element.style.getPropertyValue( '--dm-note-rot' ),
 		);
-
 		const c = layer.createNoteAt( { x: 0.2, y: 0.3, text: 'buy milk' } );
 		expect( c.note.seed ).not.toBe( a.note.seed );
 	} );
 
-	test( 'every action sits together in the footer, clear of the pushpin', () => {
 
+	test( 'every action sits together in the footer, clear of the pushpin', () => {
 		const layer = makeLayer( true );
 		const el = layer.upsertNote( makeNote() ).element;
 
@@ -366,7 +360,6 @@ describe( 'NotesLayer', () => {
 		const showToast = vi.fn( ( opts: { action?: { onClick: () => void } } ) => {
 			undoAction = opts.action?.onClick ?? null;
 		} );
-
 		( window as unknown as { wp: { os: { showToast: unknown } } } ).wp.os = {
 			showToast,
 		};

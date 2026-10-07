@@ -160,7 +160,6 @@ export function paintWindowSlots( win: DesktopWindow ): () => void {
 			try {
 				fn();
 			} catch {
-
 			}
 		}
 	};

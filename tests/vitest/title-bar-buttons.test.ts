@@ -19,7 +19,6 @@ function fakeWindow( id: string, overrides: Partial< DesktopWindow > = {} ): Des
 
 describe( 'title-bar-buttons registry', () => {
 	beforeEach( () => {
-
 		for ( const def of listTitleBarButtons() ) {
 			unregisterTitleBarButton( def.id );
 		}

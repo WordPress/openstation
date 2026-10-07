@@ -20,9 +20,7 @@ export function isCloseAllChord( e: KeyboardEvent ): boolean {
 }
 
 export interface CloseAllPrefs {
-
 	shouldAsk(): boolean;
-
 	setAsk( ask: boolean ): void;
 }
 
@@ -69,7 +67,7 @@ export async function closeAllWindows(
 		confirmed = await osConfirm( {
 			title: __( 'Close all windows?' ),
 			message: sprintf(
-
+				/* translators: %d: number of open windows on this desktop. */
 				_n(
 					'%d open window on this desktop will be closed.',
 					'%d open windows on this desktop will be closed.',
@@ -117,7 +115,6 @@ async function runClose( mgr: WindowManager ): Promise< number > {
 	}
 
 	const targets = windowsOnActiveDesktop( mgr ).map( ( w ) => w.id );
-
 	const elsewhere = mgr
 		.getAll()
 		.map( ( w ) => w.id )
@@ -129,7 +126,7 @@ async function runClose( mgr: WindowManager ): Promise< number > {
 	if ( closed > 0 ) {
 		showToast( {
 			message: sprintf(
-
+				/* translators: %d: number of windows closed. */
 				_n( 'Closed %d window.', 'Closed %d windows.', closed ),
 				closed,
 			),

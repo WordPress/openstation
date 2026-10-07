@@ -6,9 +6,7 @@ export type DestructiveAdminActionPredicate = (
 ) => boolean;
 
 export interface DestructiveAdminActionEntry {
-
 	id: string;
-
 	matches: DestructiveAdminActionPredicate;
 }
 
@@ -63,6 +61,7 @@ export function matchDestructiveAdminAction(
 				return entry.id;
 			}
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.warn(
 				`[openstation] destructive-action predicate threw for "${ entry.id }":`,
 				err,

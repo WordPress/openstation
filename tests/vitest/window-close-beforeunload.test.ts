@@ -121,7 +121,6 @@ describe( 'Window.close() — iframe pre-close beforeunload query', () => {
 	} );
 
 	test( 'a second close() call while a query is in flight is a no-op, not an immediate destroy', async () => {
-
 		const win = await manager.open( cfg( 'a' ) );
 		markBridgeReady( win );
 		const postSpy = vi.spyOn( win.iframe!.contentWindow!, 'postMessage' );

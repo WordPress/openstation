@@ -28,7 +28,6 @@ export function createSettingsTabRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -70,7 +69,6 @@ export function createSettingsTabRegistrySync(): (
 
 	const removeByHandle = ( handle: string ): void => {
 		unregisterSettingsTabsByOwner( handle );
-
 		const declared = prevIdsByHandle.get( handle );
 		if ( declared ) {
 			const present = new Set(

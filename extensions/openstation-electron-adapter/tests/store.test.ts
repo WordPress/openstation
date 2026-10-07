@@ -30,7 +30,6 @@ describe( 'persistence', () => {
 	} );
 
 	test( 'treats a corrupt file as no state rather than failing to boot', () => {
-
 		writeFileSync( join( dir, 'openstation-desktop.json' ), '{ not json', 'utf8' );
 
 		expect( new Store( dir ).get( 'siteUrl' ) ).toBe( '' );
@@ -69,7 +68,6 @@ describe( 'hostId', () => {
 } );
 
 describe( 'agentToken', () => {
-
 	test( 'is stable within a launch', () => {
 		const store = new Store( dir );
 		const first = store.agentToken();
@@ -81,7 +79,6 @@ describe( 'agentToken', () => {
 	test( 'is new on the next launch, and never written to disk', () => {
 		const store = new Store( dir );
 		const first = store.agentToken();
-
 		store.set( 'siteUrl', 'https://example.test' );
 
 		expect( readFileSync( join( dir, 'openstation-desktop.json' ), 'utf8' ) )

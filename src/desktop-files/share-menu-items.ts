@@ -6,7 +6,6 @@ import { getFilesState, removePlacement, setFolderPlacements } from './store';
 import { leaveShare, listPlacements } from './rest';
 import { showToast } from '../toast';
 import { toastRestFailure } from '../core/rest-failure';
-
 import { osConfirm } from '../os-confirm';
 import type { RestPlacementShape } from './rest';
 import type { TileMenuItem } from './tile-menu';
@@ -81,7 +80,6 @@ export function installShareMenuItems(): void {
 			if ( folderId === null ) {
 				return items;
 			}
-
 			const ownerId =
 				folderOwnerId( folderId ) || placementOwnerId( placement );
 			const viewer = viewerId();
@@ -121,16 +119,12 @@ export function installShareMenuItems(): void {
 						}
 						try {
 							await leaveShare( folderId );
-
 							removePlacement( placement.id );
-
 							try {
 								const res = await listPlacements( 0 );
 								setFolderPlacements( 0, res.placements );
 							} catch ( _e ) {
-
 							}
-
 							const winId = `os-folder-${ folderId }`;
 							closeWindowById( winId );
 							showToast( { message: 'You left the shared folder.' } );
@@ -159,7 +153,6 @@ export function installShareMenuItems(): void {
 			if ( folderId === null ) {
 				return false;
 			}
-
 			return folderOwnerId( folderId ) === viewerId();
 		},
 		onClick: ( w: DesktopWindow ): void => {

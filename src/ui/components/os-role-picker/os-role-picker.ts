@@ -33,7 +33,6 @@ export class OsRolePicker extends Component {
 				description: 'Emitted on every click. Detail: `{ slug, selected }`.',
 			},
 		],
-
 		example: html`
 			<os-role-picker
 				selected="editor,author"
@@ -61,7 +60,6 @@ export class OsRolePicker extends Component {
 					return parsed as EligibleRole[];
 				}
 			} catch ( e ) {
-
 			}
 		}
 		return ( window.openStationConfig?.shareEligibleRoles || [] ) as EligibleRole[];

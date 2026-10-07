@@ -17,7 +17,6 @@ describe( 'normalizeSiteUrl', () => {
 	} );
 
 	test( 'assumes https for a bare hostname', () => {
-
 		expect( normalizeSiteUrl( 'example.com' ) ).toBe( 'https://example.com' );
 	} );
 
@@ -69,7 +68,6 @@ describe( 'normalizeSiteUrl', () => {
 
 describe( 'shellEntryUrl', () => {
 	test( 'points at the portal, not wp-admin', () => {
-
 		expect( shellEntryUrl( 'https://example.com' ) ).toBe(
 			'https://example.com/openstation/',
 		);
@@ -96,7 +94,6 @@ describe( 'isSameSiteUrl', () => {
 	} );
 
 	test( 'rejects another host', () => {
-
 		expect( isSameSiteUrl( 'https://evil.test/', site ) ).toBe( false );
 	} );
 
@@ -130,14 +127,12 @@ describe( 'navigationVerdict', () => {
 	} );
 
 	test( 'sends an off-site link to the browser', () => {
-
 		expect( navigationVerdict( 'https://wordpress.org/', site ) ).toBe(
 			'external',
 		);
 	} );
 
 	test( 'refuses to follow a scheme that is not the web', () => {
-
 		for ( const url of [
 			'file:///etc/passwd',
 			'data:text/html,<script>1</script>',
@@ -150,7 +145,6 @@ describe( 'navigationVerdict', () => {
 	} );
 
 	test( 'holds the line before a site is configured', () => {
-
 		expect( navigationVerdict( 'https://example.com/', '' ) ).toBe(
 			'external',
 		);
@@ -167,7 +161,6 @@ describe( 'navigationVerdict', () => {
 } );
 
 describe( 'settledSiteUrl', () => {
-
 	test( 'adopts the www form of the host that was typed', () => {
 		expect(
 			settledSiteUrl( 'https://www.example.com/openstation/', 'https://example.com' ),
@@ -196,7 +189,6 @@ describe( 'settledSiteUrl', () => {
 	} );
 
 	test( 'refuses a chain that walked somewhere else', () => {
-
 		for ( const landed of [
 			'https://attacker.example/openstation/',
 			'https://example.com.attacker.example/',

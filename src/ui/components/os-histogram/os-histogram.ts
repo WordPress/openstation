@@ -14,7 +14,6 @@ const DEFAULT_HEIGHT = 150;
 export interface HistogramSeries {
 	key: string;
 	label: string;
-
 	tone?: string;
 }
 
@@ -162,7 +161,6 @@ export class OsHistogram extends Component {
 
 	protected requestUpdate(): void {
 		super.requestUpdate();
-
 		queueMicrotask( () => this.paint() );
 	}
 
@@ -478,7 +476,6 @@ export class OsHistogram extends Component {
 
 		tooltip.hidden = false;
 		const x = PAD_LEFT + index * slot + slot / 2;
-
 		tooltip.style.left = `${ Math.max( 60, Math.min( x, width - 60 ) ) }px`;
 	}
 }

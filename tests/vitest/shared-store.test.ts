@@ -34,10 +34,8 @@ describe( 'shared-store', () => {
 	test( 'second call with the same key returns the SAME store', () => {
 		const a = createSharedStore< DemoState >( 'test/dedupe', buildDemo );
 		a.state.count = 7;
-
 		const b = createSharedStore< DemoState >( 'test/dedupe', buildDemo );
 		expect( b.getState().count ).toBe( 7 );
-
 		b.state.count = 9;
 		expect( a.getState().count ).toBe( 9 );
 	} );
@@ -79,7 +77,6 @@ describe( 'shared-store', () => {
 			throw new Error( 'kaboom' );
 		} );
 		store.subscribe( survivor );
-
 		const errSpy = vi.spyOn( console, 'error' ).mockImplementation( () => {} );
 		store.notify();
 		expect( survivor ).toHaveBeenCalledTimes( 1 );
@@ -93,9 +90,7 @@ describe( 'shared-store', () => {
 		captured.items.set( 'x', 1 );
 		captured.user = 'eve';
 		store.reset();
-
 		expect( store.state ).toBe( captured );
-
 		expect( captured.count ).toBe( 0 );
 		expect( captured.user ).toBeNull();
 		expect( captured.items.size ).toBe( 0 );
@@ -140,7 +135,6 @@ describe( 'shared-store', () => {
 
 	test( 'registers under the framework window slot', () => {
 		const slotKey = '__openStationSharedStores';
-
 		delete ( window as unknown as Record< string, unknown > )[ slotKey ];
 		createSharedStore( 'test/registers', buildDemo );
 		const slot = ( window as unknown as Record< string, unknown > )[ slotKey ];
@@ -157,7 +151,6 @@ describe( 'shared-store with vi.resetModules across "bundles"', () => {
 	} );
 
 	test( 'a re-imported module sees the same underlying state', async () => {
-
 		const first = await import( '../../src/shared-store' );
 		const storeA = first.createSharedStore< DemoState >(
 			'test/cross-bundle',

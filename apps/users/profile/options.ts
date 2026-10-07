@@ -54,7 +54,6 @@ export function applyColorSchemePreview( slug: string, info: ColorSchemeInfo | u
 		}
 		link.href = info.url;
 	}
-
 	document.querySelector< HTMLElement >( '.os-shell' )?.setAttribute( 'data-os-scheme', slug );
 	const next = `admin-color-${ slug }`;
 	for ( const cls of Array.from( document.body.classList ) ) {
@@ -66,9 +65,7 @@ export function applyColorSchemePreview( slug: string, info: ColorSchemeInfo | u
 }
 
 export interface ColorPickerElement extends HTMLElement {
-
 	revert(): void;
-
 	commit( slug: string ): void;
 }
 
@@ -194,6 +191,7 @@ export function buildSessionsRow( host: ProfileHost, userId: number, isSelfEdit:
 			await destroySessions( host, userId, isSelfEdit ? 'others' : 'all' );
 			host.toast( __( 'Sessions destroyed.' ), 'success' );
 		} catch ( err ) {
+			// translators: %s is an error message.
 			host.toast( sprintf( __( 'Could not destroy sessions (%s).' ), String( ( err as Error ).message ?? err ) ), 'error' );
 		}
 	} );
@@ -277,7 +275,6 @@ export function buildAppPasswordsRow( host: ProfileHost, userId: number ): HTMLE
 		try {
 			renderItems( await listAppPasswords( host, userId ) );
 		} catch {
-
 		}
 	};
 	void refresh();
@@ -291,7 +288,7 @@ export function buildAppPasswordsRow( host: ProfileHost, userId: number ): HTMLE
 		}
 		try {
 			const password = await createAppPassword( host, userId, name );
-
+			// translators: %s is an application password.
 			host.toast( sprintf( __( 'Created. Copy the password now: %s' ), password ), 'success' );
 			copyQuietly( password );
 			nameInput.value = '';

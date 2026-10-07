@@ -1,9 +1,6 @@
 export const DEFAULT_INTERVAL = 120000;
-
 export const MIN_INTERVAL = 30000;
-
 export const IDLE_MULTIPLIER = 4;
-
 export const MAX_BACKOFF = 8;
 
 export function clampInterval(
@@ -18,11 +15,8 @@ export function clampInterval(
 }
 
 export interface IdleState {
-
 	activeSinceLastBeat: boolean;
-
 	hasFreedWindows: boolean;
-
 	skips: number;
 }
 

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-registration-actions
+ */
 class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 
 	public function tear_down() {
@@ -9,6 +12,9 @@ class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_native_window_registered_action_fires_on_success() {
 		$calls = array();
 		add_action( 'openstation_native_window_registered', static function ( $id, $entry ) use ( &$calls ) {
@@ -30,6 +36,9 @@ class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 		$this->assertIsCallable( $calls[0]['entry']['template'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_native_window_registered_action_does_not_fire_on_error() {
 		$calls = 0;
 		add_action( 'openstation_native_window_registered', static function () use ( &$calls ) {
@@ -45,6 +54,9 @@ class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 		$this->assertSame( 0, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_register_widget
+	 */
 	public function test_widget_registered_action_fires_on_success() {
 		$calls = array();
 		add_action( 'openstation_widget_registered', static function ( $id, $entry ) use ( &$calls ) {
@@ -61,6 +73,9 @@ class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 		$this->assertSame( 'Act Widget', $calls[0]['entry']['label'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_widget
+	 */
 	public function test_widget_registered_action_does_not_fire_on_error() {
 		$calls = 0;
 		add_action( 'openstation_widget_registered', static function () use ( &$calls ) {
@@ -73,6 +88,9 @@ class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 		$this->assertSame( 0, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_registered_action_fires_on_success() {
 		$calls = array();
 		add_action( 'openstation_wallpaper_registered', static function ( $id, $entry ) use ( &$calls ) {
@@ -91,6 +109,9 @@ class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 		$this->assertSame( 'css', $calls[0]['entry']['type'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_registered_action_does_not_fire_on_error() {
 		$calls = 0;
 		add_action( 'openstation_wallpaper_registered', static function () use ( &$calls ) {
@@ -103,6 +124,9 @@ class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 		$this->assertSame( 0, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_native_window_action_fires_once_per_call() {
 		$count = 0;
 		add_action( 'openstation_native_window_registered', static function () use ( &$count ) {

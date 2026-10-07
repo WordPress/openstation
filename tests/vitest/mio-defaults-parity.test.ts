@@ -10,7 +10,6 @@ const php = readFileSync( join( __dirname, '../../includes/mio.php' ), 'utf8' )
 function phpDefaults( block: 'appearance' | 'physics' ): Map< string, string > {
 	const start = php.indexOf( `'${ block }'` );
 	expect( start, `${ block } block found` ).toBeGreaterThan( -1 );
-
 	const rest = php.slice( start );
 	const end = 'appearance' === block ? rest.indexOf( "'physics'" ) : -1;
 	const body = rest.slice( 0, end > 0 ? end : rest.length );
@@ -58,7 +57,6 @@ describe( 'Mio defaults parity (PHP ↔ TypeScript)', () => {
 	}
 
 	test( 'the glow default is the one both files document', () => {
-
 		expect( MIO_DEFAULTS.appearance.glow ).toBe( 10 );
 		expect( phpDefaults( 'appearance' ).get( 'glow' ) ).toBe( '10' );
 	} );

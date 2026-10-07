@@ -38,44 +38,29 @@ const SHORTCUT_LABEL =
 export interface ShellTourWindowLike {
 	readonly id: string;
 	readonly element: HTMLElement;
-
 	snapTo( zone: 'left' | 'right' ): void;
-
 	isSnapped?(): boolean;
 	unsnap?(): void;
 }
 
 export interface ShellTourDeps {
-
 	config: { seenIntrosUrl?: string; restNonce?: string };
-
 	windowManager: { getById( id: string ): ShellTourWindowLike | undefined };
-
 	openPalette: () => void;
-
 	openFallbackWindow: () => void;
-
 	openLayoutSettings: () => { windowId: string; wasAlreadyOpen: boolean };
-
 	findLayoutTarget: () => Element | null;
-
 	closeWindow: ( id: string ) => void;
-
 	closePalette: () => void;
-
 	mio?: boolean;
-
 	refreshDesktopIcons?: () => void;
-
 	findAssistant?: () => Element | null;
-
 	host?: HTMLElement;
 }
 
 export type ShellTourEndReason = 'done' | 'skip' | 'escape' | 'restart' | 'teardown';
 
 export interface ShellTourHandle {
-
 	readonly step: number;
 	end( reason: ShellTourEndReason ): void;
 }
@@ -86,13 +71,10 @@ interface StepDef {
 	id: StepId;
 	heading: string;
 	body: () => Node[];
-
 	primary: string | ( () => string );
-
 	placement?: OsCoachmarkPlacement;
 	secondary: string;
 	anchor: () => Element | null;
-
 	doIt: () => boolean;
 }
 
@@ -117,7 +99,6 @@ async function markSeen( config: ShellTourDeps[ 'config' ], slug: string ): Prom
 			{ source: 'desktop-mode/shell-tour', silent: true },
 		);
 	} catch {
-
 	}
 }
 
@@ -177,24 +158,17 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	const { signal } = controller;
 	const mark = document.createElement( 'os-coachmark' ) as OsCoachmark;
 	mark.className = 'os-shell-tour';
-
 	mark.setAttribute( 'highlight', 'none' );
 	const peek = deps.mio ? mioPeek() : null;
 	( deps.host ?? document.body ).appendChild( mark );
 
 	let index = 0;
 	let openedId = '';
-
 	let owedWindowId = '';
-
 	let layoutShown = false;
-
 	let layoutWindowId = '';
-
 	let paletteOpened = false;
-
 	let tourAskedForWindow = false;
-
 	const openedByTour = new Set< string >();
 	let ended = false;
 
@@ -207,7 +181,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 					__( 'Every WordPress admin menu lives on this rail. Hover a tile for its name; the ones with submenus fan them out.' ),
 				),
 			],
-
 			primary: __( 'Next' ),
 			secondary: __( 'Skip tour' ),
 			anchor: findDockRail,
@@ -222,10 +195,8 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 				),
 				paragraph( __( 'OpenStation Preferences → Appearance → Desktop layout.' ) ),
 			],
-
 			primary: () => ( layoutShown ? __( 'Next' ) : __( 'Show me' ) ),
 			secondary: __( 'Skip tour' ),
-
 			anchor: () => deps.findLayoutTarget() ?? findDockRail(),
 			doIt: () => {
 				if ( layoutShown ) {
@@ -239,7 +210,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 					}
 					return true;
 				}
-
 				const pointedAt = deps.findLayoutTarget();
 				const { windowId, wasAlreadyOpen } = deps.openLayoutSettings();
 				layoutWindowId = windowId;
@@ -247,10 +217,8 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 					openedByTour.add( windowId );
 				}
 				layoutShown = true;
-
 				paint();
 				followTarget( 'layout', deps.findLayoutTarget, pointedAt );
-
 				return false;
 			},
 		},
@@ -273,7 +241,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 				} else {
 					deps.openFallbackWindow();
 				}
-
 				return false;
 			},
 		},
@@ -290,7 +257,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			anchor: () => deps.windowManager.getById( openedId )?.element ?? null,
 			doIt: () => {
 				deps.windowManager.getById( openedId )?.snapTo( 'left' );
-
 				return true;
 			},
 		},
@@ -299,7 +265,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			heading: __( 'Find anything' ),
 			body: () => {
 				const p = document.createElement( 'p' );
-
+				/* translators: %s: the keyboard shortcut, rendered as a key cap. */
 				const [ before, after ] = __( 'Press %s to search screens, commands and content, or ask the assistant.' ).split( '%s' );
 				p.appendChild( document.createTextNode( before ?? '' ) );
 				const key = document.createElement( 'os-key' );
@@ -321,7 +287,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			anchor: () => null,
 			doIt: () => {
 				deps.openPalette();
-
 				return true;
 			},
 		},
@@ -335,7 +300,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			],
 			primary: __( 'Done' ),
 			secondary: '',
-
 			anchor: () => deps.findAssistant?.() ?? null,
 			placement: 'bottom',
 			doIt: () => true,
@@ -351,7 +315,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			mark.setAttribute( 'total', String( TOTAL ) );
 			mark.setAttribute(
 				'counter-label',
-
+				/* translators: 1: the current step, 2: the number of steps. */
 				sprintf( __( '%1$d of %2$d' ), index + 1, TOTAL ),
 			);
 		} else {
@@ -415,14 +379,12 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			try {
 				deps.closePalette();
 			} catch {
-
 			}
 		}
 		for ( const id of openedByTour ) {
 			try {
 				deps.closeWindow( id );
 			} catch {
-
 			}
 		}
 		openedByTour.clear();
@@ -441,7 +403,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			removeAction( HOOKS.WINDOW_OPENED, NS );
 			removeAction( HOOKS.WINDOW_REOPENED, NS );
 			removeAction( HOOKS.SNAP_ZONE_COMMITTED, NS );
-
 			mark.removeAttribute( 'open' );
 			window.setTimeout( () => mark.remove(), COACHMARK_EXIT_MS + 40 );
 			if ( current === handle ) {
@@ -449,7 +410,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			}
 			if ( reason === 'done' || reason === 'skip' || reason === 'escape' ) {
 				void recordOutcome( deps, reason === 'done' );
-
 				tidyUp();
 			}
 		},
@@ -468,7 +428,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			return;
 		}
 		openedId = typeof detail?.windowId === 'string' ? detail.windowId : '';
-
 		if ( tourAskedForWindow && wasOpened && openedId ) {
 			openedByTour.add( openedId );
 		}

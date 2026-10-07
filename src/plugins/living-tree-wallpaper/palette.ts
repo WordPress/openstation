@@ -49,11 +49,9 @@ export function canopyHue( siteKey: string ): number {
 
 export function leafColor( hue: number, health01: number, ageDays: number ): number {
 	const health = clamp01( health01 );
-
 	const effectiveHue = health >= 0.7 ? hue : 20 + ( hue - 20 ) * ( health / 0.7 );
 	let s = 0.3 + 0.42 * health;
 	let l = 0.32 + 0.18 * health;
-
 	const dryness = clamp01( ( ageDays - 730 ) / 2920 );
 	s *= 1 - 0.55 * dryness;
 	l -= 0.06 * dryness;

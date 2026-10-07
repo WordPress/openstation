@@ -8,7 +8,6 @@ export interface TopBarInfo {
 
 export interface TopBarDeps {
 	renderIcon: ( icon: string, opts: { title: string; className?: string } ) => HTMLElement;
-
 	onClose: () => void;
 }
 
@@ -16,7 +15,6 @@ export interface TopBarSurface {
 	el: HTMLElement;
 	update( info: TopBarInfo | null ): void;
 	setHidden( hidden: boolean ): void;
-
 	setBackProgress( progress: number ): void;
 }
 

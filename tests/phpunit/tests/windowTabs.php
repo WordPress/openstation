@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-window-tabs
+ */
 class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -32,6 +35,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertTrue( openstation_register_window( $id, $args ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_success_on_well_formed_args() {
 		$this->register_demo_window( 'demo-ok' );
 
@@ -49,6 +55,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertIsCallable( $entry['template'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_missing_window_id_returns_wp_error() {
 		$result = openstation_register_window_tab( '', array(
 			'value'    => 'x',
@@ -60,6 +69,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_window_id', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_missing_tab_value_returns_wp_error() {
 		$this->register_demo_window( 'demo-missing-value' );
 
@@ -72,6 +84,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_tab_value', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_reserved_value_main_returns_wp_error() {
 		$this->register_demo_window( 'demo-reserved' );
 
@@ -85,6 +100,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_reserved_tab_value', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_missing_label_returns_wp_error() {
 		$this->register_demo_window( 'demo-no-label' );
 
@@ -97,6 +115,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_label', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_non_callable_template_returns_wp_error() {
 		$this->register_demo_window( 'demo-bad-template' );
 
@@ -110,6 +131,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_template', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_capability_gate_denies_subscriber() {
 		$this->register_demo_window( 'demo-cap' );
 		wp_set_current_user( self::$subscriber_id );
@@ -125,6 +149,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_capability_denied', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_get_native_window_tabs
+	 */
 	public function test_tabs_are_sorted_with_main_first() {
 		$this->register_demo_window( 'demo-order' );
 		openstation_register_window_tab( 'demo-order', array(
@@ -148,6 +175,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertFalse( $tabs[1]['is_main'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_native_window_tabs
+	 */
 	public function test_main_tab_label_defaults_to_title() {
 		openstation_register_window( 'demo-default-label', array(
 			'title'    => 'Shortcuts',
@@ -159,6 +189,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'Shortcuts', $tabs[0]['label'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_native_window_tabs
+	 */
 	public function test_main_tab_label_honours_window_registration() {
 		openstation_register_window( 'demo-explicit-label', array(
 			'title'          => 'Jorvy',
@@ -171,6 +204,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'Quotes', $tabs[0]['label'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_native_window_tabs
+	 */
 	public function test_filter_can_reorder_tabs() {
 		$this->register_demo_window( 'demo-filter' );
 		openstation_register_window_tab( 'demo-filter', array(
@@ -185,7 +221,6 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		) );
 
 		add_filter( 'openstation_window_tabs', static function ( $tabs ) {
-
 			$main   = array_shift( $tabs );
 			$extras = array_reverse( $tabs );
 			return array_merge( array( $main ), $extras );
@@ -198,6 +233,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( array( 'main', 'second', 'first' ), $values );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_cross_plugin_tab_addition() {
 		$this->register_demo_window( 'demo-xplugin' );
 
@@ -206,7 +244,6 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 			'label'    => 'About',
 			'template' => static function () {},
 		) );
-
 		openstation_register_window_tab( 'demo-xplugin', array(
 			'value'    => 'stats',
 			'label'    => 'Stats',
@@ -221,6 +258,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertContains( 'stats', $values );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_window_template_html
+	 */
 	public function test_template_html_without_tabs_is_flat() {
 		$this->register_demo_window( 'demo-flat' );
 
@@ -232,6 +272,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<os-tabpanel', $html );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_window_template_html
+	 */
 	public function test_template_html_wraps_with_tabs_when_extras_exist() {
 		$this->register_demo_window( 'demo-wrap' );
 		openstation_register_window_tab( 'demo-wrap', array(
@@ -247,16 +290,16 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 
 		$this->assertStringNotContainsString( '<os-tabs', $html );
 		$this->assertStringNotContainsString( '<os-tab ', $html );
-
 		$this->assertStringContainsString( '<os-stack gap="12"', $html );
-
 		$this->assertStringContainsString( '<os-tabpanel for="main">', $html );
 		$this->assertStringContainsString( '<p class="main">MAIN</p>', $html );
-
 		$this->assertStringContainsString( '<os-tabpanel for="about" hidden>', $html );
 		$this->assertStringContainsString( '<p class="about">ABOUT</p>', $html );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_window_template_html
+	 */
 	public function test_tab_wrap_padding_defaults_to_16() {
 		$this->register_demo_window( 'demo-wrap-default' );
 		openstation_register_window_tab( 'demo-wrap-default', array(
@@ -276,6 +319,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_build_native_window_template_html
+	 */
 	public function test_tab_wrap_padding_honours_window_registration() {
 		openstation_register_window( 'demo-wrap-zero', array(
 			'title'            => 'Zero',
@@ -295,6 +341,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'padding="0"', $html );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_window_template_html
+	 */
 	public function test_tab_wrap_padding_filter_overrides_default() {
 		$this->register_demo_window( 'demo-wrap-filter' );
 		openstation_register_window_tab( 'demo-wrap-filter', array(
@@ -319,6 +368,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_native_window_tab_wrap_padding' );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_window_template_html
+	 */
 	public function test_tab_wrap_padding_clamps_negative_values() {
 		openstation_register_window( 'demo-wrap-neg', array(
 			'title'            => 'Neg',
@@ -339,6 +391,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'padding="-', $html );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_window_template_html
+	 */
 	public function test_template_html_does_not_carry_tab_labels() {
 		$this->register_demo_window( 'demo-escape' );
 		openstation_register_window_tab( 'demo-escape', array(
@@ -352,10 +407,12 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 
 		$this->assertStringNotContainsString( '<script>alert(1)</script>', $html );
 		$this->assertStringNotContainsString( 'alert(1)', $html );
-
 		$this->assertStringContainsString( '<os-tabpanel for="x"', $html );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_registered_action_fires_on_success() {
 		$this->register_demo_window( 'demo-action' );
 		$calls = array();
@@ -379,6 +436,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 'about', $calls[0]['value'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_tab
+	 */
 	public function test_registered_action_does_not_fire_on_error() {
 		$this->register_demo_window( 'demo-no-fire' );
 		$count = 0;
@@ -387,7 +447,6 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		} );
 
 		openstation_register_window_tab( 'demo-no-fire', array(
-
 			'value'    => 'x',
 			'template' => static function () {},
 		) );
@@ -395,6 +454,9 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertSame( 0, $count );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_payload_includes_tabs_descriptor() {
 		$this->register_demo_window( 'demo-payload' );
 		openstation_register_window_tab( 'demo-payload', array(

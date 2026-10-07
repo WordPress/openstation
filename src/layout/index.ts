@@ -6,7 +6,6 @@ interface LayoutState {
 }
 
 const store = createSharedStore< LayoutState >( 'desktop-mode/layout', () => ( {
-
 	layout: 'classic',
 } ) );
 

@@ -112,7 +112,6 @@ describe( 'applyAdminBarUpdates', () => {
 
 		const node = document.getElementById( 'wp-admin-bar-updates' );
 		expect( node ).not.toBeNull();
-
 		expect( node!.nextElementSibling?.id ).toBe( 'wp-admin-bar-comments' );
 		const anchor = node!.querySelector( 'a.ab-item' ) as HTMLAnchorElement;
 		expect( anchor.href ).toBe( UPDATE_CORE_URL );

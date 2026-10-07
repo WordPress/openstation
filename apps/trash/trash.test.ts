@@ -158,10 +158,8 @@ describe( 'the trash app view', () => {
 				stored = value;
 			},
 		} );
-
 		app.render( ctx );
 		expect( assignments ).toBe( 0 );
-
 		ctx.data.items = [ item( { deleted_at: '2026-08-31 09:00:00' } ) ];
 		app.render( ctx );
 		expect( assignments ).toBe( 1 );
@@ -185,15 +183,12 @@ describe( 'the trash app view', () => {
 		ctx.host.setBadge = setBadge;
 		app.render( ctx );
 		expect( setIcon ).toHaveBeenCalledWith( 'desktop-mode-recycle-bin', 'data:image/svg+xml;base64,FULL' );
-
 		app.render( ctx );
 		expect( setIcon ).toHaveBeenCalledTimes( 1 );
-
 		ctx.data.items = [];
 		ctx.data.total = 0;
 		app.render( ctx );
 		expect( setIcon ).toHaveBeenLastCalledWith( 'desktop-mode-recycle-bin', 'data:image/svg+xml;base64,EMPTY' );
-
 		expect( setBadge ).not.toHaveBeenCalled();
 	} );
 
@@ -202,7 +197,6 @@ describe( 'the trash app view', () => {
 		type UiBag = { empty: { mode: string; purged: number; total: number } };
 		( ctx.ui( () => ( {} ) ) as UiBag ).empty = { mode: 'progress', purged: 12, total: 40 };
 		app.render( ctx );
-
 		await Promise.resolve();
 		expect( renderedText( root ) ).toContain( 'Emptying… 12 of 40' );
 	} );

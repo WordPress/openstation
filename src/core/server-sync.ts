@@ -2,17 +2,11 @@ import { trackedFetch } from '../tracked-fetch';
 import type { ReactiveRegistry } from './reactive-registry';
 
 export interface CreateRegistrySyncOptions< T, P = unknown > {
-
 	endpoint: string;
-
 	transform?: ( snapshot: T[] ) => P;
-
 	nonce?: string;
-
 	source?: string;
-
 	debounceMs?: number;
-
 	silent?: boolean;
 }
 

@@ -17,29 +17,20 @@ export type WindowSlotName =
 export type WindowSlotTeardown = () => void;
 
 export interface WindowSlotRenderContext {
-
 	window: DesktopWindow;
-
 	slot: WindowSlotName;
 }
 
 export interface WindowSlotDef {
-
 	id: string;
-
 	slot: WindowSlotName;
-
 	match: ( window: DesktopWindow ) => boolean;
-
 	render: (
 		host: HTMLElement,
 		ctx: WindowSlotRenderContext,
 	) => void | WindowSlotTeardown;
-
 	order?: number;
-
 	replace?: boolean;
-
 	owner?: string;
 }
 
@@ -152,6 +143,7 @@ export function slotsForWindow(
 			}
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] window-slot "${ def.id }" match() threw — skipping`,
 					err,
@@ -178,6 +170,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] window-slot registry listener threw:',
 					err,

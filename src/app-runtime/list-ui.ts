@@ -7,17 +7,11 @@ export interface StatusSegment {
 }
 
 export interface StatusControlOptions {
-
 	segments: readonly StatusSegment[];
-
 	value: string;
-
 	bind: string;
-
 	action: string;
-
 	label: string;
-
 	phone?: boolean;
 }
 
@@ -46,21 +40,13 @@ export function statusControl( opts: StatusControlOptions ): TemplateResult {
 }
 
 export interface PagerOptions {
-
 	page: number;
-
 	pages: number;
-
 	perPage: number;
-
 	summary: string;
-
 	pageAction?: string;
-
 	perPageBind?: string;
-
 	perPageAction?: string;
-
 	perPageOptions?: readonly number[];
 	labels: {
 		previous: string;
@@ -114,22 +100,15 @@ export function pager( opts: PagerOptions ): TemplateResult {
 }
 
 export interface MenuCheckboxesOptions {
-
 	section: string;
-
 	items: ReadonlyArray< { key: string; label: string } >;
-
 	isChecked: ( key: string ) => boolean;
-
 	onToggle: ( key: string ) => void;
-
 	prefix: string;
 }
 
 export interface MenuCheckboxes {
-
 	refresh: () => void;
-
 	dispose: () => void;
 }
 

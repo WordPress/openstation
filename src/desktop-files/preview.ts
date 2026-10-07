@@ -46,7 +46,6 @@ function readRestRoot(): string {
 	if ( cfg?.restUrl ) {
 		return cfg.restUrl.endsWith( '/' ) ? cfg.restUrl : cfg.restUrl + '/';
 	}
-
 	return `${ window.location.origin }/wp-json/`;
 }
 
@@ -67,7 +66,6 @@ export function renderPlacementPreview(
 		host.replaceChildren( filtered );
 		return;
 	}
-
 	if ( placement.accessGated ) {
 		host.replaceChildren( renderAccessGated( placement ) );
 		return;
@@ -158,7 +156,6 @@ async function renderPostPreview(
 	if ( ! id ) {
 		return renderGenericPreview( file );
 	}
-
 	let data: PostPreviewData | null = null;
 	for ( const path of [ 'wp/v2/posts', 'wp/v2/pages' ] ) {
 		try {
@@ -169,7 +166,6 @@ async function renderPostPreview(
 			);
 			break;
 		} catch {
-
 		}
 	}
 	if ( ! data ) {
@@ -598,7 +594,6 @@ function renderUploadPreview(
 		img.className = 'os-my-wordpress__article-hero';
 		img.src = getUploadDownloadUrl( fileId );
 		img.alt = file.title || '';
-
 		img.addEventListener( 'error', () => {
 			img.replaceWith( noPreviewNote() );
 		} );
@@ -703,7 +698,7 @@ function renderGenericPreview(
 	const meta = document.createElement( 'p' );
 	meta.className = 'os-my-wordpress__article-meta';
 	meta.textContent = sprintf(
-
+		// translators: %s is a file-type slug.
 		__( 'Type: %s', 'desktop-mode' ),
 		file.type,
 	);
@@ -746,7 +741,6 @@ function renderLoading(): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'os-my-wordpress__preview-loading';
 	const spinner = document.createElement( 'os-spinner' );
-
 	wrap.appendChild( spinner );
 	return wrap;
 }
@@ -794,7 +788,7 @@ export function renderSelectionSummary(
 
 	const heading = document.createElement( 'strong' );
 	heading.textContent = sprintf(
-
+		/* translators: %d: number of selected items. */
 		__( '%d items selected', 'desktop-mode' ),
 		items.length,
 	);

@@ -57,7 +57,6 @@ const mount = async (
 				{ credentials: 'same-origin' },
 				{ source: 'desktop-mode/starter', silent: true },
 			);
-
 			if ( destroyed ) {
 				return;
 			}
@@ -65,7 +64,6 @@ const mount = async (
 				throw await restErrorFromResponse( res );
 			}
 			const posts = await res.json() as Array< { title: { rendered: string } } >;
-
 			if ( destroyed ) {
 				return;
 			}

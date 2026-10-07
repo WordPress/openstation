@@ -1,13 +1,9 @@
 export interface ScoreState {
 	score: number;
 	wordsCompleted: number;
-
 	streak: number;
-
 	correctKeys: number;
-
 	totalKeys: number;
-
 	typoInCurrentWord: boolean;
 }
 

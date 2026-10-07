@@ -1,5 +1,4 @@
 const EVENT_NAME = 'os-recycle-bin-changed';
-
 const HEARTBEAT_FIELD = 'openstation_recycle_bin_seen_ts';
 const POSTMESSAGE_TYPE = 'os-recycle-bin-changed';
 

@@ -61,7 +61,6 @@ describe( 'interceptPluginsScreen', () => {
 		link.dispatchEvent( new MouseEvent( 'click', { bubbles: true, cancelable: true, button: 0 } ) );
 		expect( dialog() ).not.toBeNull();
 		expect( navigate ).not.toHaveBeenCalled();
-
 		expect( button( 'primary' ).disabled ).toBe( true );
 
 		const head = document.querySelector< HTMLElement >( '.os-deactivation-feedback__field-head' )!;
@@ -97,7 +96,6 @@ describe( 'interceptPluginsScreen', () => {
 		}
 		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
 		expect( details.placeholder ).toMatch( /page or plugin/ );
-
 		const head = document.querySelector< HTMLElement >( '.os-deactivation-feedback__field-head' )!;
 		const prompt = document.querySelector< HTMLElement >( '.os-deactivation-feedback__prompt' )!;
 		expect( head.hasAttribute( 'data-asking' ) ).toBe( true );

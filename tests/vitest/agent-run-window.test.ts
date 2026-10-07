@@ -142,7 +142,6 @@ describe( 'agent chat window', () => {
 			async: true,
 			requestId: expect.any( String ),
 			source: 'chat',
-
 			history: [],
 		} );
 
@@ -156,7 +155,6 @@ describe( 'agent chat window', () => {
 	} );
 
 	test( 'the in-flight row is an instrument line: inline arc, then the word', async () => {
-
 		const body = makeBody();
 		const cleanup = getRender()( body );
 		openAgentChat( {
@@ -181,7 +179,6 @@ describe( 'agent chat window', () => {
 		expect( first.getAttribute( 'preset' ) ).toBe( 'inline' );
 		expect( second.className ).toBe( 'dm-agent-chat__msg-text' );
 		expect( second.textContent ).toBe( 'Working…' );
-
 		expect(
 			line!.querySelector( '.dm-agent-chat__msg-avatar' )?.tagName.toLowerCase(),
 		).toBe( 'os-avatar' );
@@ -189,7 +186,6 @@ describe( 'agent chat window', () => {
 	} );
 
 	test( 'a mid-run repaint keeps the reader where they are and follows the newest row from the bottom', async () => {
-
 		const scrollHeightDesc = Object.getOwnPropertyDescriptor(
 			Element.prototype,
 			'scrollHeight',
@@ -236,7 +232,6 @@ describe( 'agent chat window', () => {
 			];
 			agentsChatStore.notify();
 			await flush();
-
 			expect( scrollBox().scrollTop ).toBeGreaterThanOrEqual( 700 );
 
 			box.clientHeight = 250;
@@ -415,7 +410,6 @@ describe( 'agent chat window', () => {
 				type: 'shortcut',
 				data: { kind: 'attachment', ref: '44', title: 'Hornet' },
 			};
-
 			expect( targets[ 0 ].accept( payload ) ).toBe( false );
 
 			openAgentChat( {
@@ -425,7 +419,6 @@ describe( 'agent chat window', () => {
 				avatarUrl: 'data:image/svg+xml;base64,x',
 			} );
 			expect( targets[ 0 ].accept( payload ) ).toBe( true );
-
 			expect(
 				targets[ 0 ].accept( {
 					type: 'shortcut',
@@ -787,7 +780,6 @@ describe( 'agent chat window', () => {
 				{ source: 'agents/editor' },
 			);
 			expect( agentEditorTarget.state.agentId ).toBe( 9 );
-
 			expect( agentsChatStore.state.activeAgent ).toBeNull();
 
 			if ( typeof cleanup === 'function' ) {
@@ -833,7 +825,6 @@ describe( 'agent chat window', () => {
 			)!;
 			expect( card ).not.toBeNull();
 			expect( card.textContent ).toContain( 'Hello world' );
-
 			expect( body.textContent ).not.toContain( 'The user dropped' );
 
 			card.click();

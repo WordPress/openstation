@@ -94,7 +94,6 @@ export function buildHost( ownerWindowId: string ): RuntimeHost {
 			if ( ! api ) {
 				return;
 			}
-
 			if ( tryNativeUrlRemap( url ) ) {
 				return;
 			}
@@ -147,7 +146,6 @@ export function buildHost( ownerWindowId: string ): RuntimeHost {
 			try {
 				void api?.refreshMenu?.();
 			} catch {
-
 			}
 		},
 		onBroadcast: ( topic, cb ) =>
@@ -260,7 +258,6 @@ function buildRender( config: AppConfig ): RenderCallback {
 		if ( roots.length === 0 ) {
 			roots.push( body );
 		}
-
 		const client = config.client ? clientAppFor( config.id ) : undefined;
 		const byView = new Map< string, Session >();
 		for ( const root of roots ) {
@@ -314,7 +311,6 @@ function buildRender( config: AppConfig ): RenderCallback {
 			}
 			host.send = ( channel, payload ) => ctx.window.send( channel, payload );
 		}
-
 		const onReopened = ( ev: Event ): void => {
 			const detail = ( ev as CustomEvent< {
 				windowId?: string;
@@ -419,6 +415,7 @@ export function publishClientApi(): void {
 		try {
 			fn( CLIENT_API );
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] a queued client view threw.', err );
 		}
 	};
@@ -431,30 +428,23 @@ export function publishClientApi(): void {
 
 publishClientApi();
 registerApps();
-
 document.addEventListener( 'os-registry-changed', () => {
 	registerApps();
 } );
 
 os()?.registerNamespace( 'apps', {
 	...CLIENT_API,
-
 	debug: ( windowId = '*', on = true ) => setSessionDebug( windowId, on ),
-
 	dispatch: (
 		windowId: string,
 		action: string,
 		args: Record< string, unknown > = {},
 		view = 'main',
 	) => sessionOf( windowId, view )?.dispatch( action, args ) ?? Promise.resolve( false ),
-
 	local: ( windowId: string, action: string, args: Record< string, unknown > = {} ) =>
 		sessionOf( windowId )?.local( action, args ),
-
 	session: ( windowId: string, view = 'main' ) => sessionOf( windowId, view ),
-
 	refresh: () => registerApps(),
-
 	prewarm: ( id: string ) => {
 		const config = ( window as unknown as RuntimeGlobals ).openStationWindowConfig?.[ id ] as
 			| Partial< AppConfig >

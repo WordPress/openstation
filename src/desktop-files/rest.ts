@@ -20,9 +20,7 @@ export interface RestPlacementShape {
 		exists: boolean;
 		[ key: string ]: unknown;
 	};
-
 	accessGated?: boolean;
-
 	canTrash?: boolean;
 }
 
@@ -33,7 +31,6 @@ export interface RestFolderShape {
 	shareMode: 'private' | 'users' | 'roles' | 'all' | string;
 	shareMeta: { users?: number[]; roles?: string[] } | null;
 	updatedAtMs: number;
-
 	shareSummary?: { shared: boolean; recipientCount: number };
 }
 
@@ -168,7 +165,6 @@ export async function restoreTrashedItem(
 	type: 'placement' | 'folder',
 ): Promise< { ok: number[]; errors: unknown[] } > {
 	const { baseUrl, nonce } = ensureDeps();
-
 	const root = baseUrl.replace( /\/files\/?$/, '' );
 	const url = `${ root }/recycle-bin/restore`;
 	const res = await trackedFetch(
@@ -451,9 +447,7 @@ export interface RestAttachToPostShape {
 	postId: number;
 	title: string;
 	editUrl: string;
-
 	appended: boolean;
-
 	featuredImageSet: boolean;
 	attachments: RestMediaAttachmentShape[];
 }

@@ -44,7 +44,6 @@ function openstation_register_assets() {
 		array(),
 		$built_version( 'assets/css/variables.css' )
 	);
-
 	wp_register_style(
 		'openstation',
 		OPENSTATION_URL . 'assets/css/desktop.css',
@@ -75,14 +74,12 @@ function openstation_register_assets() {
 		$previous,
 		$built_version( 'assets/css/windows.css' )
 	);
-
 	wp_register_style(
 		'os-window-overview',
 		OPENSTATION_URL . 'assets/css/window-overview.css',
 		array( 'os-windows' ),
 		$built_version( 'assets/css/window-overview.css' )
 	);
-
 	wp_register_style(
 		'os-solo',
 		OPENSTATION_URL . 'assets/css/solo.css',
@@ -101,35 +98,30 @@ function openstation_register_assets() {
 		array( 'os-dock' ),
 		$built_version( 'assets/css/dock-peek.css' )
 	);
-
 	wp_register_style(
 		'os-mobile',
 		OPENSTATION_URL . 'assets/css/mobile.css',
 		array( 'os-variables', 'dashicons', 'os-dock', 'os-windows' ),
 		$built_version( 'assets/css/mobile.css' )
 	);
-
 	wp_register_style(
 		'os-workspaces',
 		OPENSTATION_URL . 'assets/css/workspaces.css',
 		array( 'os-variables', 'dashicons' ),
 		$built_version( 'assets/css/workspaces.css' )
 	);
-
 	wp_register_style(
 		'os-shortcuts',
 		OPENSTATION_URL . 'assets/css/shortcuts.css',
 		array( 'os-variables' ),
 		$built_version( 'assets/css/shortcuts.css' )
 	);
-
 	wp_register_style(
 		'os-openstation-layout',
 		OPENSTATION_URL . 'assets/css/openstation-layout.css',
 		array( 'os-dock' ),
 		$built_version( 'assets/css/openstation-layout.css' )
 	);
-
 	wp_register_style(
 		'os-chromeless',
 		OPENSTATION_URL . 'assets/css/chromeless.css',
@@ -208,10 +200,8 @@ function openstation_register_assets() {
 	wp_register_script(
 		'openstation',
 		OPENSTATION_URL . 'assets/js/desktop' . $suffix . '.js',
-
 		array( 'wp-hooks', 'wp-i18n', 'heartbeat', 'jquery' ),
 		$built_version( 'assets/js/desktop' . $suffix . '.js' ),
-
 		array(
 			'in_footer' => true,
 			'strategy'  => 'defer',

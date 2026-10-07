@@ -60,7 +60,7 @@ function userDossierBlocks(
 	const pages = stats.counts?.pages ?? {};
 	const published = ( bucket: Record< string, number > ): string =>
 		sprintf(
-
+			/* translators: %d: published count. */
 			__( '%d published' ),
 			bucket.publish ?? 0,
 		);
@@ -119,7 +119,6 @@ function userPreviewActions(
 			id: 'open-profile',
 			label: __( 'Edit profile' ),
 			variant: 'secondary',
-
 			onSelect: () =>
 				openUserEditWindow( detail.id, {
 					source: 'my-wordpress-app/user-pane',
@@ -181,10 +180,8 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 		: [];
 	const dossierAllow = userDossierAllow( detail, section );
 	const facts = dossierFilteredFacts( detail, dossierAllow );
-
 	const roleLabel = detail.kind === 'user' ? detail.stats?.profile?.roleLabels?.[ 0 ] ?? '' : '';
 	const archiveUrl = detail.kind === 'user' ? detail.stats?.profile?.link ?? '' : '';
-
 	let editRow: TemplateResult | TemplateResult[] | '' = '';
 	if ( detail.kind === 'user' ) {
 		editRow = userPreviewActions(
@@ -238,7 +235,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 			${ extrasSlot( 'header', detail.id ) }
 			${ detail.lockedBy
 				? html`<os-notice tone="warning" not-dismissible>${ sprintf(
-
+					/* translators: %s: user display name. */
 					__( '%s is editing this right now.' ),
 					detail.lockedBy,
 				) }</os-notice>`
@@ -445,7 +442,7 @@ function renderSubDetail( ctx: Ctx ): TemplateResult | null {
 				</header>
 				<div class="os-mywp__stats">
 					${ statTile( posts.total ?? 0, __( 'Posts' ), sprintf(
-
+						/* translators: %d: published count. */
 						__( '%d published' ),
 						published,
 					) ) }
@@ -470,7 +467,7 @@ function renderSubDetail( ctx: Ctx ): TemplateResult | null {
 									<os-avatar src=${ person.userAvatarUrl } name=${ person.userName } size="sm"></os-avatar>
 									<span class="os-mywp__person-name">${ person.userName }</span>
 									<span class="os-mywp__subtitle">${ sprintf(
-
+										/* translators: %d: post count. */
 										_n( '%d post', '%d posts', person.count ),
 										person.count,
 									) }</span>

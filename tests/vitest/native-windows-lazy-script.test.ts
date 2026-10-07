@@ -156,7 +156,6 @@ describe( 'native-windows — deferred bundle loading', () => {
 		await sync( [ e ] );
 
 		const render = vi.fn();
-
 		vi.mocked( vendorLoader.loadVendorScript ).mockImplementation(
 			async ( url: string ) => {
 				loaded.push( url );
@@ -389,7 +388,6 @@ describe( 'native-windows — deferred bundle loading', () => {
 				deps: [ 'forms-config' ],
 			},
 			'wp-hooks': { url: 'https://example.test/hooks.js' },
-
 			'forms-config': { url: '', before: [ 'window.allTerrainForms={};' ] },
 		} );
 
@@ -507,7 +505,6 @@ describe( 'native-windows — deferred bundle loading', () => {
 		await runRender( h.managerOpen );
 
 		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
-
 		expect(
 			( extras as { l10n?: string[] } ).l10n,
 		).toEqual( shared.l10n );
@@ -534,13 +531,11 @@ describe( 'native-windows — deferred bundle loading', () => {
 
 		openById( 'posts' );
 		await runRender( h.managerOpen, 0 );
-
 		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
 		expect( inject ).not.toHaveBeenCalled();
 
 		openById( 'pages' );
 		await runRender( h.managerOpen, 1 );
-
 		expect( loaded ).toEqual( [ 'https://example.test/shared.js' ] );
 		expect( inject ).toHaveBeenCalledWith(
 			'window.openStationWindowConfig={pages:1};',
@@ -676,14 +671,12 @@ describe( 'native-windows — deferred bundle loading', () => {
 				'link[rel="stylesheet"]',
 			),
 		).map( ( l ) => l.href );
-
 		expect(
 			links.indexOf( 'https://example.test/explorer-own.css' ),
 		).toBeGreaterThanOrEqual( 0 );
 		expect(
 			links.indexOf( 'https://example.test/explorer-own.css' ),
 		).toBeLessThan( links.indexOf( url ) );
-
 		const inline = document.head.querySelector< HTMLStyleElement >(
 			'style[data-os-style-handle="woo-css"]',
 		);

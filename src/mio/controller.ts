@@ -23,54 +23,32 @@ export const MIO_TILE_ID = 'os-mio-toggle';
 export { MIO_TILE_ICON } from './icon';
 
 export interface MioControllerOptions {
-
 	shell: HTMLElement;
 	focusedWindow?: () => string | null;
-
 	chatAvailable?: () => boolean;
 	wallpaperVisible?: () => boolean;
-
 	bundleUrl: string;
-
 	serverConfig?: unknown;
-
 	enabled: boolean;
-
 	persist: ( enabled: boolean ) => void;
-
 	savedLook?: unknown;
-
 	persistLook?: ( look: MioLook ) => void;
 }
 
 export interface MioApi {
-
 	registerWindow: ( windowId: string, context: MioWindowContext ) => MioWindowLease;
-
 	getWindowId: () => string | null;
-
 	isEnabled: () => boolean;
-
 	enable: () => Promise< void >;
-
 	disable: () => void;
-
 	toggle: () => Promise< void >;
-
 	getPosition: () => { x: number; y: number } | null;
-
 	setPosition: ( x: number, y: number ) => void;
-
 	getConfig: () => MioConfig;
-
 	setConfig: ( partial: PartialMioConfig ) => void;
-
 	setStyle: ( partial: Partial< MioAppearance & MioLookPhysics > ) => void;
-
 	getLook: () => MioLook;
-
 	commitStyle: () => void;
-
 	resetStyle: () => void;
 }
 
@@ -80,14 +58,11 @@ export class MioController {
 	private layer: HTMLElement | null = null;
 	private handle: MioHandle | null = null;
 	private mounting: { generation: number; promise: Promise<void> } | null = null;
-
 	private parked: { handle: MioHandle; layer: HTMLElement } | null = null;
 	private config: MioConfig;
 	private enabled: boolean;
-
 	private generation = 0;
 	private loading: Promise< void > | null = null;
-
 	private look: MioLook = emptyMioLook();
 
 	public constructor( options: MioControllerOptions ) {
@@ -103,7 +78,6 @@ export class MioController {
 			ready: () => this.mount(),
 		} );
 		this.enabled = options.enabled;
-
 		this.look = sanitizeMioLook( options.savedLook );
 		this.config = this.resolveConfig();
 	}
@@ -179,7 +153,6 @@ export class MioController {
 			this.options.persist( next );
 		}
 		doAction( next ? 'os.mio.enabled' : 'os.mio.disabled', {} );
-
 		doAction( HOOKS.DOCK_REFRESH_ACTIVE, {} );
 		if ( next ) {
 			await this.mount();
@@ -197,7 +170,6 @@ export class MioController {
 			'os.mio.config',
 			fromServer,
 		);
-
 		const resolved = sanitizeMioConfig( filtered, fromServer );
 		return sanitizeMioConfig(
 			{ appearance: this.look.appearance, physics: this.look.physics },
@@ -225,7 +197,6 @@ export class MioController {
 		el.id = MIO_LAYER_ID;
 		el.className = 'os-mio';
 		el.dataset.mioVisible = String( this.options.wallpaperVisible?.() ?? true );
-
 		el.setAttribute( 'aria-hidden', 'true' );
 		this.options.shell.appendChild( el );
 		this.layer = el;
@@ -250,7 +221,6 @@ export class MioController {
 		if ( this.handle ) {
 			return;
 		}
-
 		const parked = this.parked;
 		if ( parked ) {
 			this.parked = null;
@@ -293,7 +263,6 @@ export class MioController {
 			this.layer = null;
 			return;
 		}
-
 		if ( generation !== this.generation || ! this.enabled ) {
 			const layer = this.layer;
 			this.layer = null;
@@ -377,6 +346,5 @@ function writePosition( pos: { x: number; y: number } ): void {
 	try {
 		window.localStorage.setItem( POSITION_KEY, JSON.stringify( pos ) );
 	} catch {
-
 	}
 }

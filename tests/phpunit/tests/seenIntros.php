@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-seen-intros
+ */
 class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 
 	protected static $user_id;
@@ -10,7 +13,6 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
 	}
 
@@ -20,15 +22,25 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_get_seen_intros
+	 */
 	public function test_get_returns_empty_array_for_unconfigured_user() {
 		$this->assertSame( array(), openstation_get_seen_intros( self::$user_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_get_seen_intros
+	 */
 	public function test_get_returns_empty_array_for_invalid_meta() {
 		update_user_meta( self::$user_id, OPENSTATION_SEEN_INTROS_META_KEY, 'garbage' );
 		$this->assertSame( array(), openstation_get_seen_intros( self::$user_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_mark_intro_seen
+	 * @covers ::openstation_has_seen_intro
+	 */
 	public function test_mark_and_has_round_trip() {
 		$this->assertFalse( openstation_has_seen_intro( self::$user_id, 'posts' ) );
 		$this->assertTrue( openstation_mark_intro_seen( self::$user_id, 'posts' ) );
@@ -36,12 +48,18 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertSame( array( 'posts' ), openstation_get_seen_intros( self::$user_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_mark_intro_seen
+	 */
 	public function test_mark_is_idempotent() {
 		openstation_mark_intro_seen( self::$user_id, 'posts' );
 		openstation_mark_intro_seen( self::$user_id, 'posts' );
 		$this->assertSame( array( 'posts' ), openstation_get_seen_intros( self::$user_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_mark_intro_seen
+	 */
 	public function test_mark_appends_distinct_slugs() {
 		openstation_mark_intro_seen( self::$user_id, 'posts' );
 		openstation_mark_intro_seen( self::$user_id, 'pages' );
@@ -51,12 +69,18 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_mark_intro_seen
+	 */
 	public function test_mark_rejects_invalid_input() {
 		$this->assertFalse( openstation_mark_intro_seen( 0, 'posts' ) );
 		$this->assertFalse( openstation_mark_intro_seen( self::$user_id, '' ) );
 		$this->assertFalse( openstation_mark_intro_seen( self::$user_id, '   ' ) );
 	}
 
+	/**
+	 * @covers ::openstation_clear_seen_intros
+	 */
 	public function test_clear_wipes_the_list() {
 		openstation_mark_intro_seen( self::$user_id, 'posts' );
 		openstation_mark_intro_seen( self::$user_id, 'pages' );
@@ -65,12 +89,17 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_get_seen_intros( self::$user_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_seen_intros
+	 */
 	public function test_sanitize_drops_garbage_and_dedupes() {
 		$out = openstation_sanitize_seen_intros( array( 'posts', 42, 'posts', '', 'PAGES' ) );
-
 		$this->assertSame( array( 'posts', 'pages' ), $out );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_seen_intros
+	 */
 	public function test_sanitize_caps_at_max() {
 		$big = array();
 		for ( $i = 0; $i < OPENSTATION_SEEN_INTROS_MAX + 10; $i++ ) {
@@ -80,6 +109,9 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertCount( OPENSTATION_SEEN_INTROS_MAX, $out );
 	}
 
+	/**
+	 * @covers ::openstation_rest_mark_intro_seen
+	 */
 	public function test_rest_mark_seen_round_trip() {
 		wp_set_current_user( self::$user_id );
 
@@ -92,6 +124,9 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertTrue( openstation_has_seen_intro( self::$user_id, 'posts' ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_mark_intro_seen
+	 */
 	public function test_rest_mark_seen_rejects_empty_slug() {
 		wp_set_current_user( self::$user_id );
 
@@ -102,6 +137,9 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_rest_clear_seen_intros
+	 */
 	public function test_rest_clear_wipes_list() {
 		wp_set_current_user( self::$user_id );
 		openstation_mark_intro_seen( self::$user_id, 'posts' );
@@ -114,6 +152,9 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_get_seen_intros( self::$user_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_seen_intros_permission
+	 */
 	public function test_rest_requires_authentication() {
 		wp_set_current_user( 0 );
 
@@ -124,8 +165,10 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertSame( 401, $response->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_rest_seen_intros_permission
+	 */
 	public function test_rest_welcome_slug_persists_without_openstation_enabled() {
-
 		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 		wp_set_current_user( self::$user_id );
 
@@ -143,6 +186,9 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_rest_seen_intros_permission
+	 */
 	public function test_rest_non_welcome_slug_still_requires_enabled() {
 		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 		wp_set_current_user( self::$user_id );
@@ -155,6 +201,9 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertFalse( openstation_has_seen_intro( self::$user_id, 'posts' ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_seen_intros_permission
+	 */
 	public function test_rest_activation_nudge_slug_persists_without_openstation_enabled() {
 		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 		wp_set_current_user( self::$user_id );

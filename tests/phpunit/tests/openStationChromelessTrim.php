@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -14,7 +16,6 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_chromeless_trimmed_scripts' );
 		remove_all_filters( 'openstation_chromeless_trimmed_styles' );
 		remove_all_filters( 'openstation_chromeless_trim_emoji' );
-
 		add_action( 'admin_print_scripts', 'print_emoji_detection_script' );
 		add_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' );
 		parent::tear_down();
@@ -26,6 +27,10 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$_GET['openstation_chromeless'] = '1';
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_trimmed_scripts
+	 * @covers ::openstation_chromeless_trimmed_styles
+	 */
 	public function test_defaults_cover_the_admin_bar_family() {
 		$scripts = openstation_chromeless_trimmed_scripts();
 		$styles  = openstation_chromeless_trimmed_styles();
@@ -37,6 +42,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$this->assertContains( 'admin-bar', $styles );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_trim_assets
+	 */
 	public function test_trims_admin_bar_assets_in_a_window() {
 		$this->enter_chromeless();
 
@@ -51,6 +59,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$this->assertFalse( wp_style_is( 'admin-bar', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_trim_assets
+	 */
 	public function test_leaves_the_shell_untouched() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -63,6 +74,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'admin-bar', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_trim_assets
+	 */
 	public function test_trimmed_handles_stay_registered() {
 		$this->enter_chromeless();
 
@@ -74,6 +88,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'admin-bar', 'registered' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_trimmed_scripts
+	 */
 	public function test_filter_can_add_and_remove_handles() {
 		add_filter(
 			'openstation_chromeless_trimmed_scripts',
@@ -89,6 +106,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$this->assertContains( 'my-plugin-chrome', $handles );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_trim_assets
+	 */
 	public function test_filtered_out_handle_survives_the_trim() {
 		$this->enter_chromeless();
 		add_filter( 'openstation_chromeless_trimmed_scripts', '__return_empty_array' );
@@ -101,6 +121,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'admin-bar', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_filter_print_list
+	 */
 	public function test_print_list_filter_strips_trimmed_handles() {
 		$this->enter_chromeless();
 
@@ -110,6 +133,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$this->assertSame( array( 'jquery-core', 'common' ), $out );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_filter_print_list
+	 */
 	public function test_print_list_filter_is_a_noop_outside_windows() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -121,6 +147,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_filter_print_list
+	 */
 	public function test_print_list_filter_uses_the_matching_list() {
 		$this->enter_chromeless();
 
@@ -132,6 +161,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		$this->assertSame( array( 'os-admin-bar', 'colors' ), $out );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_emoji
+	 */
 	public function test_emoji_polyfill_dropped_in_a_window() {
 		$this->enter_chromeless();
 
@@ -145,6 +177,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_emoji
+	 */
 	public function test_emoji_polyfill_kept_in_the_shell() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -156,6 +191,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_emoji
+	 */
 	public function test_emoji_trim_can_be_filtered_off() {
 		$this->enter_chromeless();
 		add_filter( 'openstation_chromeless_trim_emoji', '__return_false' );
@@ -167,6 +205,9 @@ class Tests_OpenStation_ChromelessTrim extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_toggle_assets
+	 */
 	public function test_own_toggle_assets_are_not_enqueued_in_a_window() {
 		$this->enter_chromeless();
 		set_current_screen( 'dashboard' );

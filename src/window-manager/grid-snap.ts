@@ -43,12 +43,9 @@ export interface GridSnapSession {
 	dims: GridDimensions;
 	anchor: GridCell;
 	cursor: GridCell;
-
 	rect: GridRect;
-
 	overlayEl: HTMLElement;
 	targetEl: HTMLElement;
-
 	windowEl: HTMLElement;
 }
 
@@ -163,10 +160,8 @@ function paint( session: GridSnapSession, area: WorkAreaRect ): void {
 	overlayEl.style.top = `${ area.y }px`;
 	overlayEl.style.width = `${ area.width }px`;
 	overlayEl.style.height = `${ area.height }px`;
-
 	overlayEl.style.setProperty( '--os-grid-snap-cols', String( dims.cols ) );
 	overlayEl.style.setProperty( '--os-grid-snap-rows', String( dims.rows ) );
-
 	targetEl.style.left = `${ rect.x - area.x }px`;
 	targetEl.style.top = `${ rect.y - area.y }px`;
 	targetEl.style.width = `${ rect.width }px`;
@@ -184,7 +179,6 @@ export function beginGridSnap(
 	if ( mgr._gridSnap ) {
 		return;
 	}
-
 	abortSnapIfPending( mgr );
 
 	const area = workAreaRectOf( mgr._desktop );
@@ -211,11 +205,9 @@ export function beginGridSnap(
 		windowEl: win.element,
 	};
 	mgr._gridSnap = session;
-
 	win.element.classList.add( GRID_SNAPPING_CLASS );
 	mgr._desktop.classList.add( GRID_SNAPPING_AREA_CLASS );
 	paint( session, area );
-
 	requestAnimationFrame( () => {
 		if ( mgr._gridSnap === session ) {
 			overlayEl.classList.add( 'os-grid-snap--visible' );
@@ -256,7 +248,6 @@ export function updateGridSnap(
 		rect.height !== session.rect.height;
 	session.cursor = cursor;
 	session.rect = rect;
-
 	paint( session, area );
 	if ( moved || resized ) {
 		doAction( HOOKS.GRID_SNAP_CHANGED, {
@@ -285,7 +276,6 @@ export function resetGridSnapAnchor(
 	session.cursor = anchor;
 	session.rect = placementRect( anchor, anchor, area, session.dims );
 	paint( session, area );
-
 	session.targetEl.classList.remove( 'os-grid-snap__target--reset' );
 	void session.targetEl.offsetWidth;
 	session.targetEl.classList.add( 'os-grid-snap__target--reset' );
@@ -347,7 +337,6 @@ export function commitGridSnapIfActive(
 
 	win._emitChange( 'moved' );
 	win._emitChange( 'resized' );
-
 	win._gridSpan = {
 		anchor: { ...session.anchor },
 		cursor: { ...session.cursor },
@@ -368,7 +357,6 @@ export function commitGridSnapIfActive(
 		cursor: { ...session.cursor },
 		dims: { ...session.dims },
 	} );
-
 	doAction( HOOKS.WINDOW_DRAG_END, { windowId: win.id, x: rect.x, y: rect.y } );
 	doAction( HOOKS.WINDOW_MOVED, { windowId: win.id, x: rect.x, y: rect.y } );
 	doAction( HOOKS.WINDOW_RESIZED, {

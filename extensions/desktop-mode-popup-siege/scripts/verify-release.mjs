@@ -8,10 +8,8 @@ const scriptsDir = path.dirname( fileURLToPath( import.meta.url ) );
 const pluginRoot = path.resolve( scriptsDir, '..' );
 
 const pinnedFiles = Object.freeze( {
-
 	'games/popup-breaker/assets/openstation-adapter.js':
 		'c2c5abf1b962fd4b84646a6517507cc89692453cb25db2a8a24dff0117e1ad70',
-
 	'games/popup-breaker/assets/popup-siege-runtime-0.7.0.js':
 		'7b7b32359b97a0aab16e3dd53913e6b0a9170d79bac73e10563bdcbc061a51bf',
 	'standalone/popup-breaker.css':

@@ -14,11 +14,9 @@ describe( 'inkfall/fx-math.ts', () => {
 	test( 'velocities fan outward from the word center', () => {
 		const particles = scatterVelocities( 5, zeroRng );
 		expect( particles ).toHaveLength( 5 );
-
 		expect( particles[ 0 ].vx ).toBeLessThan( 0 );
 		expect( particles[ 2 ].vx ).toBe( 0 );
 		expect( particles[ 4 ].vx ).toBeGreaterThan( 0 );
-
 		for ( const particle of particles ) {
 			expect( particle.vy ).toBeLessThan( 0 );
 		}
@@ -45,7 +43,6 @@ describe( 'inkfall/fx-math.ts', () => {
 		const step = integrateStep( particle, 0.1 );
 		expect( step.dx ).toBeCloseTo( 1 );
 		expect( step.vyNext ).toBeCloseTo( -100 + SCATTER_GRAVITY * 0.1 );
-
 		expect( step.dy ).toBeCloseTo( ( ( -100 + step.vyNext ) / 2 ) * 0.1 );
 		expect( step.dRotation ).toBeCloseTo( 0.2 );
 	} );

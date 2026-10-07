@@ -70,9 +70,7 @@ export class AiAssistantStub implements AiAssistantApi {
 	private _real: LoadedAi | null = null;
 	private _loadPromise: Promise< LoadedAi > | null = null;
 	private _pendingAsk: AskFn | null = null;
-
 	private _runtime: 'idle' | 'loading' | 'ready' = 'idle';
-
 	private _intendOpen = false;
 
 	constructor( config: AiAssistantConfig, scriptUrl: string ) {
@@ -87,7 +85,6 @@ export class AiAssistantStub implements AiAssistantApi {
 			}
 			return this._loadPromise;
 		}
-
 		ensureDeferredStyle( 'desktop-mode-ai-assistant' );
 		const attempt = loadImpl( this._scriptUrl ).then( ( factory ) => {
 			const real = factory( this._config );
@@ -98,16 +95,13 @@ export class AiAssistantStub implements AiAssistantApi {
 			return real;
 		} );
 		this._loadPromise = attempt;
-
 		attempt.catch( () => {
 			if ( this._loadPromise === attempt ) {
 				this._loadPromise = null;
 			}
 		} );
-
 		void this._loadPromise.then(
 			( real ) => this._loadPaletteRuntime( real ),
-
 			() => undefined,
 		);
 		return this._loadPromise;
@@ -126,7 +120,7 @@ export class AiAssistantStub implements AiAssistantApi {
 				},
 				( err ) => {
 					this._runtime = 'idle';
-
+					// eslint-disable-next-line no-console -- a failed palette-runtime load would otherwise be silent; the palette still works with shell commands only.
 					console.warn( '[openstation] command-palette runtime failed to load', err );
 				},
 			)
@@ -135,7 +129,6 @@ export class AiAssistantStub implements AiAssistantApi {
 
 	open(): void {
 		this._intendOpen = true;
-
 		if ( ! this._real ) {
 			showPalettePlaceholder( () => this.close() );
 		}
@@ -144,13 +137,12 @@ export class AiAssistantStub implements AiAssistantApi {
 				if ( this._intendOpen ) {
 					r.open();
 				}
-
 				hidePalettePlaceholder( true );
 			} )
 			.catch( ( err ) => {
 				this._intendOpen = false;
 				hidePalettePlaceholder();
-
+				// eslint-disable-next-line no-console -- a failed impl load would otherwise leave ⌘K silently dead.
 				console.warn( '[openstation] command palette failed to load', err );
 			} );
 	}

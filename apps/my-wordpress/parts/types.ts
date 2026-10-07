@@ -25,13 +25,9 @@ export interface SectionDef extends Record< string, unknown > {
 	post_type: string;
 	thumbnails: boolean;
 	count: number;
-
 	flat?: boolean;
-
 	hierarchical?: boolean;
-
 	canAdd?: boolean;
-
 	restPath?: string;
 	group?: string | null;
 	groupLabel?: string | null;
@@ -49,11 +45,9 @@ export interface GroupDef {
 export interface ListItem extends Record< string, unknown > {
 	id: number;
 	title: string;
-
 	name?: string;
 	subtitle: string;
 	status: string;
-
 	excerpt: string;
 	thumb: string;
 	link: string;
@@ -62,32 +56,24 @@ export interface ListItem extends Record< string, unknown > {
 	canEdit: boolean;
 	canDelete: boolean;
 	meta?: Record< string, unknown >;
-
 	slug?: string;
 	author?: string;
 	authorId?: number;
-
 	date?: string;
-
 	modified?: string;
 	comments?: number;
-
 	shortlink?: string;
 	parent?: number;
 	parentTitle?: string;
 	words?: number;
-
 	file?: string;
 	bytes?: number;
 	size?: string;
 	dimensions?: string;
-
 	alt?: string;
-
 	login?: string;
 	email?: string;
 	roles?: string[];
-
 	registered?: string;
 	posts?: number;
 }
@@ -95,16 +81,11 @@ export interface ListItem extends Record< string, unknown > {
 export interface ListColumn {
 	id: string;
 	label: string;
-
 	sort?: { asc: string; desc: string; first: 'asc' | 'desc' };
 	align?: 'start' | 'end';
-
 	mono?: boolean;
-
 	hidden?: boolean;
-
 	width?: string;
-
 	locked?: boolean;
 	render: ( item: ListItem, section: SectionDef ) => TemplateResult | string | number;
 }
@@ -126,9 +107,7 @@ export interface DetailFacts {
 	kind: 'post' | 'media' | 'user';
 	id: number;
 	title: string;
-
 	facts: Array< [ string, string ] | [ string, string, string ] >;
-
 	stats?: StatsPayload | null;
 	canEdit: boolean;
 	canDelete: boolean;
@@ -172,36 +151,24 @@ export interface AppState extends Record< string, unknown > {
 	group: string;
 	section: string;
 	item: number;
-
 	into: number;
-
 	relation: string;
-
 	footprint: number;
-
 	fpName: string;
 	query: string;
 	page: number;
 	sort: string;
 	selected: number[];
-
 	view: 'icons' | 'list';
-
 	pane: 'define' | 'tools' | 'triggers';
-
 	casting: boolean;
-
 	wstep: 0 | 1 | 2 | 3 | 4;
-
 	cast: CastDraft | null;
-
 	agentNotice: string;
-
 	briefError: string;
 }
 
 export interface CastDraft extends Record< string, unknown > {
-
 	brief: string;
 	name: string;
 	description: string;
@@ -210,13 +177,10 @@ export interface CastDraft extends Record< string, unknown > {
 	role: string;
 	abilities: string[];
 	triggers: Trigger[];
-
 	copiedFrom: string;
 	faceSeed: number;
 	face: MioLook;
-
 	stripSeed: number;
-
 	drafting: boolean;
 }
 
@@ -226,7 +190,6 @@ export interface AgentsPayload {
 	canManage: boolean;
 	canInvoke: boolean;
 	aiAvailable: boolean;
-
 	aiReady: boolean;
 	connectorsUrl: string;
 	runWindowId: string;
@@ -237,9 +200,7 @@ export interface AgentsPayload {
 	abilities: Ability[];
 	triggerKinds: TriggerKindDescriptor[];
 	hooks: HookSuggestion[];
-
 	roles: RoleChoice[] | null;
-
 	preview?: PreviewAgent[];
 }
 
@@ -318,7 +279,6 @@ export type SubDetail =
 
 export interface AppData {
 	siteName: string;
-
 	agentsEnabled: boolean;
 	sections: SectionDef[];
 	groups: GroupDef[];
@@ -329,13 +289,10 @@ export interface AppData {
 	sub: SubPayload | null;
 	subDetail: SubDetail | null;
 	authors: Array< { id: number; name: string } >;
-
 	categories: Array< { id: number; name: string; parent: number } >;
-
 	tags: Array< { id: number; name: string } >;
 	previewActions: PreviewAction[];
 	agents: AgentsPayload | null;
-
 	hiddenColumns: Record< string, string[] >;
 }
 
@@ -345,7 +302,6 @@ export interface MenuOption {
 	icon?: string;
 	danger?: boolean;
 	disabled?: boolean;
-
 	heading?: boolean;
 	onSelect?: ( () => void ) | null;
 }
@@ -396,11 +352,8 @@ export function shell(): OsShell {
 }
 
 export interface UiState {
-
 	menu: { x: number; y: number; item: ListItem | null } | null;
-
 	folderSel: string | null;
-
 	quickEdit: {
 		ids: number[];
 		status: string;
@@ -408,7 +361,6 @@ export interface UiState {
 		author: string;
 		sticky: string;
 		categories: number[];
-
 		tags: Array< { id?: number; label: string } >;
 	} | null;
 	trashHidden: Map< string, Set< number > >;
@@ -419,32 +371,19 @@ export interface UiState {
 	previewRevision: number;
 	previewError: boolean;
 	zoom: boolean;
-
 	columnsMenu: { x: number; y: number } | null;
-
 	revealSelection: boolean;
-
 	list: PagedList< ListItem >;
-
 	abilityQuery: string;
-
 	abilityOpen: Map< string, boolean >;
-
 	nameError: string;
-
 	agentDraft: { name: string; description: string; instructions: string; role: string } | null;
 	agentDraftFor: number;
-
 	agentBusy: boolean;
-
 	agentBackfilled: Set< number >;
-
 	agentDropTargets: Map< number, () => void >;
-
 	rosterStamp: string;
-
 	chatAfterCreate: boolean;
-
 	fp: {
 		userId: number;
 		status: 'loading' | 'error' | 'ready';
@@ -496,24 +435,17 @@ export interface UserFootprint {
 		registered?: string;
 	};
 	range: {
-
 		from: string;
-
 		to: string;
-
 		days: number;
 	};
 	daily: Array< {
-
 		date: string;
 		posts: number;
 		comments: number;
-
 		updates: number;
 	} >;
-
 	weekday: number[];
-
 	hour: number[];
 	streak: {
 		longest: number;
@@ -521,7 +453,6 @@ export interface UserFootprint {
 		longestRange: { from: string; to: string };
 	};
 	timeline: Array< {
-
 		kind: 'post' | 'comment' | 'post-update';
 		date: string;
 		title: string;
@@ -534,7 +465,6 @@ export interface UserFootprint {
 		posts: number;
 		pages: number;
 		comments: number;
-
 		updates: number;
 		mostProlificMonth?: { ym: string; n: number };
 	};

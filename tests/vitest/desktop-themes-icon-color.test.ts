@@ -138,7 +138,6 @@ describe( 'applyIconMask', () => {
 		expect( el.style.getPropertyValue( 'mask' ) ).toContain(
 			'https://x.test/a.svg',
 		);
-
 		expect( el.style.backgroundImage ).toBe( 'none' );
 	} );
 
@@ -183,7 +182,6 @@ describe( 'renderIcon with a tint', () => {
 	} );
 
 	test( 'a tint with no glyph override recolours the shell own icon', () => {
-
 		seedTheme( { FOLDER: '#3ae0ff' } );
 		const el = renderIcon( 'https://x.test/folder.svg', {
 			title: 'Folder',
@@ -198,7 +196,6 @@ describe( 'renderIcon with a tint', () => {
 
 	test( 'an unmaskable icon falls through to its normal rendering', () => {
 		seedTheme( { FOLDER: '#fff' } );
-
 		const el = renderIcon( 'none', { title: 'My Plugin', slot: 'FOLDER' } );
 		expect( el.className ).toContain( 'os-icon-letter' );
 		expect( el.textContent ).toBe( 'MP' );

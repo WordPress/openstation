@@ -3,7 +3,6 @@ import type { OsTable } from '../../../src/ui/components/os-table/os-table';
 export type PostsMode = 'posts' | 'pages';
 
 export interface ListState extends Record< string, unknown > {
-
 	tab: string;
 	page: number;
 	perPage: number;
@@ -33,7 +32,6 @@ export interface ListExtra {
 	mode?: PostsMode;
 	editPostUrlBase?: string;
 	newPostUrl?: string;
-
 	defaultOrderby?: string;
 	defaultOrder?: 'asc' | 'desc';
 	frontPageId?: number;
@@ -45,7 +43,6 @@ export interface PostListItemLock {
 	userId: number;
 	userName: string;
 	userAvatarUrl: string;
-
 	time: string;
 }
 
@@ -60,15 +57,11 @@ export interface PostListItem {
 	author: number;
 	categories: number[];
 	tags: number[];
-
 	parent?: number;
 	menu_order?: number;
 	slug?: string;
-
 	link?: string;
-
 	template?: string;
-
 	openstation_comment_count?: number;
 	comment_status: 'open' | 'closed';
 	excerpt?: { rendered: string; protected?: boolean };
@@ -152,7 +145,6 @@ export interface TermRow {
 	parent: number;
 	count: number;
 	description: string;
-
 	isDefault: boolean;
 	[ key: string ]: unknown;
 }
@@ -178,31 +170,20 @@ export interface TermNeighbor {
 }
 
 export interface PostsWindowContext {
-
 	body: HTMLElement;
-
 	table: OsTable< PostListItem >;
-
 	refresh(): Promise< void >;
-
 	getSelectedIds(): number[];
-
 	getSelectedRows(): PostListItem[];
-
 	getCurrentParams(): PostsListParams;
 }
 
 export interface BulkAction {
-
 	id: string;
 	label: string;
-
 	icon?: string;
-
 	variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-
 	confirm?: string | ( ( count: number ) => string );
-
 	run( ids: number[], ctx: PostsWindowContext ): void | false | Promise< void | false >;
 }
 

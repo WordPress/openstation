@@ -81,6 +81,7 @@ export function runAction( action: PreviewAction, ctx: PreviewActionContext ): v
 	try {
 		action.onSelect?.( ctx );
 	} catch {
+		// eslint-disable-next-line no-console
 		console.error( `[my-wordpress] preview action ${ action.id } threw.` );
 	}
 }
@@ -111,7 +112,6 @@ export function glyph( icon: string, cls: string ): TemplateResult {
 	if ( icon.startsWith( 'dashicons-' ) ) {
 		return html`<span class="${ cls } dashicons ${ icon }" aria-hidden="true"></span>`;
 	}
-
 	return html`<span
 		class="${ cls } os-mywp__icon-mask"
 		style="--mywp-icon:url(&quot;${ icon.replace( /"/g, '%22' ) }&quot;)"
@@ -150,7 +150,6 @@ export function buildMenuOptions(
 		} );
 	}
 	options.push( { id: 'open', label: __( 'Navigate into' ) } );
-
 	if ( section.kind === 'post' && item.canEdit && ! section.flat ) {
 		options.push( { id: 'quick-edit', label: __( 'Edit…' ) } );
 		if ( item.status !== 'publish' ) {
@@ -160,7 +159,6 @@ export function buildMenuOptions(
 	if ( item.link ) {
 		options.push( { id: 'copy-link', label: __( 'Copy link' ) } );
 	}
-
 	if ( item.shortlink ) {
 		options.push( { id: 'copy-shortlink', label: __( 'Copy shortlink' ) } );
 	}

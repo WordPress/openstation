@@ -34,117 +34,67 @@ export interface AiSettings {
 }
 
 export interface AiAssistantConfig {
-
 	available: boolean;
-
 	providerConfigured: boolean;
-
 	assistantProviderConfigured: boolean;
-
 	enabled: boolean;
-
 	connectorsUrl: string;
 }
 
 export interface OsSettingsState {
 	wallpaper: string;
 	accent: AccentId;
-
 	customAccent: string;
 	dockSize: DockSizeId;
-
 	windowRadius: WindowRadiusId;
-
 	openWindowsAs: OpenWindowsAsId;
-
 	adminBarMode: AdminBarModeId;
 	desktopLayout: DesktopLayoutId;
-
 	dockPlacement: DockPlacementId;
-
 	dockBehavior: DockBehaviorId;
-
 	sideDockBehavior: DockBehaviorId;
-
 	dockRailRenderer: string;
-
 	desktopTheme: string;
-
 	appliedThemeRecommendations: string[];
-
 	unfocusEffect: string;
-
 	windowReveal: string;
-
 	windowRevealDuration: number;
-
 	windowLinkRenderer: string;
-
 	windowLinkVisibility: 'focus' | 'always' | 'off';
-
 	windowLinksEnabled: boolean;
-
 	windowLinkRaiseOnFocus: boolean;
-
 	windowLinkHighlight: boolean;
 	customGradient: CustomGradient;
 	customImage: CustomImage | null;
-
 	wallpaperSettings: Record<
 		string,
 		Record< string, string | number | boolean >
 	>;
-
 	libraryHdOnly: boolean;
 	ai: AiSettings;
-
 	heartbeatRate: 15 | 30 | 45 | 60;
-
 	nativePostsEnabled: boolean;
-
 	nativePostsHiddenColumns: string[];
-
 	nativePagesHiddenColumns: string[];
-
 	nativePagesEnabled: boolean;
-
 	nativeUsersEnabled: boolean;
-
 	nativePluginsEnabled: boolean;
-
 	nativeCommentsEnabled: boolean;
-
 	stationHomeEnabled: boolean;
-
 	adminAssetCacheEnabled: boolean;
-
 	windowPrewarmEnabled: boolean;
-
 	showDesktopOnWallpaperClick: boolean;
-
 	confirmCloseAllWindows: boolean;
-
 	mioEnabled: boolean;
-
 	mioApiEnabled: boolean;
-
 	mioShowOnWallpaper: boolean;
-
 	mioStyle: MioLook;
-
 	showPostStatusRibbons: boolean;
-
 	developerModeEnabled: boolean;
-
 	foldersSharingEnabled: boolean;
-
 	navPlacement: Record< string, NavPlacement >;
-
 	navOrder: string[];
-
 	mobileLayout: 'auto' | 'desktop' | 'mobile';
-
 	mobileTabs: string[];
-
 	dockPromotedPositions: Record< string, { x: number; y: number } >;
 }

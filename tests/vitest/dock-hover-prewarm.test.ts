@@ -7,7 +7,6 @@ vi.mock( '../../src/native-url-remap', async ( importOriginal ) => {
 	const actual = await importOriginal< typeof import('../../src/native-url-remap') >();
 	return {
 		...actual,
-
 		resolveNativeUrlRemap: ( url: string ) => ( url.includes( 'edit.php' ) ? 'desktop-mode-posts' : null ),
 	};
 } );
@@ -21,7 +20,6 @@ interface Shell {
 
 function installShell(): Shell {
 	const shell: Shell = { prewarmWindow: vi.fn( async () => true ), settings: { windowPrewarmEnabled: true } };
-
 	const wp = ( window as unknown as { wp?: Record< string, unknown > } ).wp ?? {};
 	wp.os = {
 		getOsSettings: () => shell.settings,

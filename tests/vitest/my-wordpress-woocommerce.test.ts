@@ -94,7 +94,6 @@ function decorate( item: Record< string, unknown > ): HTMLElement {
 }
 
 describe( 'my-wordpress — WooCommerce integration', () => {
-
 	beforeAll( async () => {
 		installHooksStub();
 		setConfig();
@@ -125,7 +124,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 			expect( banding ).not.toBeNull();
 			expect( banding.bands ).toHaveLength( 2 );
-
 			expect(
 				banding.assign( productRow( { band: 'cat:apparel' } ) ),
 			).toBe( 'cat:apparel' );
@@ -162,7 +160,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			) as Array< { id: string; render: ( item: Record< string, unknown > ) => unknown } >;
 			const cell = ( id: string ) =>
 				columns.find( ( c ) => c.id === id )?.render( {
-
 					status: 'publish',
 					wcStatus: 'processing',
 					customer: 'Ada',
@@ -205,7 +202,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 
 			expect( ribbon ).not.toBeNull();
 			expect( ribbon?.getAttribute( 'tone' ) ).toBe( tone );
-
 			expect( ribbon?.getAttribute( 'placement' ) ).toBe( 'top-start' );
 		} );
 
@@ -223,7 +219,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'the ribbon is restored after the tile repaints', () => {
-
 			const tile = decorate(
 				productRow( {
 					band: '',
@@ -253,7 +248,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 	} );
 
 	describe( 'preview panel', () => {
-
 		async function paint( entityId = PRODUCTS ): Promise< HTMLElement > {
 			const container = document.createElement( 'div' );
 			document.body.appendChild( container );
@@ -319,7 +313,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( text ).toContain( 'SHOE-42' );
 			expect( text ).toContain( '231 units' );
 			expect( text ).toContain( '4.2' );
-
 			expect(
 				container.querySelector( 'os-badge' )?.getAttribute( 'tone' ),
 			).toBe( 'success' );
@@ -341,7 +334,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'a malformed payload shows the error row, not a stuck skeleton', async () => {
-
 			vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 			stubSummary( { type: 'product' } );
 
@@ -385,7 +377,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 	} );
 
 	describe( 'customers', () => {
-
 		function customerRow( facts: Record< string, unknown > ) {
 			return { id: 11, name: 'Ada', openstation_woo_customer: facts };
 		}
@@ -464,11 +455,9 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( badge?.classList.contains(
 				`os-woo-customer-band--${ band }`,
 			) ).toBe( true );
-
 			expect( badge?.parentElement?.className ).toContain(
 				'os-file-tile__visual',
 			);
-
 			expect( tile.querySelector( 'os-ribbon' ) ).toBeNull();
 		} );
 
@@ -476,7 +465,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			const tile = decorateUser(
 				customerRow( { band: 'vip', orders: 3, spend: '£90.00' } ),
 			);
-
 			repaint( tile );
 
 			expect(
@@ -485,7 +473,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'a tile decorated before it paints gets exactly one badge', () => {
-
 			const tile = decorateUser(
 				customerRow( { band: 'vip', orders: 3, spend: '£90.00' } ),
 				CUSTOMERS,
@@ -553,7 +540,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'double-click on a customer opens the customer window', () => {
-
 			const openWindow = vi.fn( () => true );
 			stubOpenWindow( openWindow );
 
@@ -571,14 +557,12 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			expect( openWindow ).toHaveBeenCalledWith(
 				'desktop-mode-woo-customer',
 				expect.objectContaining( {
-
 					params: { customerId: 11, customerName: 'Ada' },
 				} ),
 			);
 		} );
 
 		test( 'double-click in the Users folder is left alone', () => {
-
 			const openWindow = vi.fn( () => true );
 			stubOpenWindow( openWindow );
 
@@ -613,7 +597,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			) as Array< { id: string } >;
 
 			const ids = options.map( ( o ) => o.id );
-
 			expect( ids ).not.toContain( 'author-archive' );
 			expect( ids ).not.toContain( 'footprint' );
 			expect( ids ).toContain( 'wc-customer-window' );
@@ -653,7 +636,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'both halves of the hand-off registered: the claim wins, the profile stands down', () => {
-
 			const openById = vi.fn().mockReturnValue( true );
 			const profileMatches = vi.fn( ( _url: string, parsed: URL ) => {
 				if ( isPersonViewClaimed( parsed ) ) {
@@ -670,7 +652,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 				( r ) => r.id === 'desktop-mode/woo-customer',
 			);
 			expect( claim ).toBeDefined();
-
 			unregisterNativeUrlRemap( 'desktop-mode/woo-customer' );
 			registerNativeUrlRemap( {
 				id: 'desktop-mode-user-edit',
@@ -703,7 +684,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 						'http://example.test/wp-admin/user-edit.php?user_id=11',
 					),
 				).toBe( true );
-
 				expect( openById ).toHaveBeenCalledWith(
 					'desktop-mode-user-edit',
 				);
@@ -729,7 +709,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'the customer window announces a `user` identity', () => {
-
 			const set = vi.fn();
 			const w = window as unknown as { wp?: Record< string, unknown > };
 			w.wp = w.wp ?? {};
@@ -771,7 +750,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'a retarget beats a slow response for the customer it replaced', async () => {
-
 			const bodies: Record< string, () => void > = {};
 			vi.stubGlobal(
 				'fetch',
@@ -848,7 +826,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			render( body, {
 				params: { customerId: 11, customerName: 'Ada' },
 			} );
-
 			document.dispatchEvent(
 				new CustomEvent( 'os-window-reopened', {
 					detail: {
@@ -870,7 +847,6 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 					throw new Error( 'second paint not applied' );
 				}
 			} );
-
 			bodies[ '11' ]();
 			for ( let i = 0; i < 5; i++ ) {
 				await new Promise( ( r ) => setTimeout( r, 0 ) );
@@ -1014,12 +990,10 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			) as Array< { id: string; variant?: string } >;
 
 			expect( actions.map( ( a ) => a.id ) ).toEqual( [ 'open-profile' ] );
-
 			expect( actions[ 0 ].variant ).toBe( 'primary' );
 		} );
 
 		test( 'a people surface whose rows carry no customer facts gets no money panel', () => {
-
 			const container = document.createElement( 'div' );
 			document.body.appendChild( container );
 			doAction( 'os.my-wordpress.preview-extras', {
@@ -1056,9 +1030,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 			} );
 
 			const container = document.createElement( 'div' );
-
 			document.body.appendChild( container );
-
 			doAction( 'os.my-wordpress.preview-extras', {
 				slot: 'meta',
 				container,

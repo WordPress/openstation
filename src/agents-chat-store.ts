@@ -20,26 +20,18 @@ export interface AgentChatAttachment {
 export interface AgentChatMessage {
 	role: 'user' | 'agent' | 'error';
 	text: string;
-
 	attachment?: AgentChatAttachment;
 	toolCalls?: AgentToolCall[];
-
 	callToActions?: AgentCallToAction[];
-
 	ctaUsed?: boolean;
 	at: number;
-
 	pending?: boolean;
 }
 
 export interface AgentsChatState {
-
 	activeAgent: AgentChatAgent | null;
-
 	transcripts: Record< number, AgentChatMessage[] >;
-
 	conversationIds: Record< number, number | null >;
-
 	conversationsRev: number;
 }
 

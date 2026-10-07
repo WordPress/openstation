@@ -1,7 +1,5 @@
 export interface PanelTabEntry {
-
 	value: string;
-
 	label: string;
 }
 
@@ -45,7 +43,6 @@ export function positionTabPlate( strip: HTMLElement ): void {
 	strip.style.setProperty( '--_tab-plate-x', `${ active.offsetLeft }px` );
 	strip.style.setProperty( '--_tab-plate-w', `${ active.offsetWidth }px` );
 	strip.style.setProperty( '--_tab-strip-w', `${ strip.clientWidth }px` );
-
 	if ( active.offsetWidth > 0 ) {
 		plate.dataset.placed = '';
 	}
@@ -77,7 +74,6 @@ export function syncTabRoving( strip: HTMLElement ): void {
 		tabs[ 0 ];
 	for ( const tab of tabs ) {
 		const next = tab === active ? 0 : -1;
-
 		if ( tab.tabIndex !== next ) {
 			tab.tabIndex = next;
 		}
@@ -125,7 +121,6 @@ export function handleTabStripKeydown( strip: HTMLElement, e: Event ): void {
 	current.tabIndex = -1;
 	next.tabIndex = 0;
 	next.focus();
-
 	next.scrollIntoView?.( { block: 'nearest', inline: 'nearest' } );
 }
 
@@ -205,7 +200,6 @@ export function setPanelTabs(
 			existing.delete( entry.value );
 		} else {
 			const button = document.createElement( 'button' );
-
 			button.type = 'button';
 			tab = button;
 			tab.className = 'os-window__tab';
@@ -220,7 +214,6 @@ export function setPanelTabs(
 		}
 		tab.id = tabId( winEl, entry.value );
 		tab.setAttribute( 'aria-controls', panelId( winEl, entry.value ) );
-
 		if ( tab.previousElementSibling !== after ) {
 			strip.insertBefore( tab, after ? after.nextSibling : strip.firstChild );
 		}

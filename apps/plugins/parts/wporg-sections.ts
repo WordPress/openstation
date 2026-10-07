@@ -1,6 +1,5 @@
 import { __ } from '@openstation/app';
 import { osIconSvg } from '../../../src/ui/icons';
-
 import '../../../src/ui/components/os-badge/os-badge';
 import '../../../src/ui/components/os-card/os-card';
 import '../../../src/ui/components/os-stack/os-stack';
@@ -140,7 +139,6 @@ function splitDtIntoPair( dt: Element ): FaqPair {
 			continue;
 		}
 		const el = child as Element;
-
 		if ( el.tagName === 'P' && ( el.textContent ?? '' ).trim() === '' ) {
 			continue;
 		}

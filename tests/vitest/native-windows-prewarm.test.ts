@@ -82,7 +82,6 @@ describe( 'native-windows — prewarmById', () => {
 			loaded.push( url );
 		} );
 		runtimePrewarm = vi.fn( () => true );
-
 		const wp = ( ( window as unknown as { wp?: Record< string, unknown > } ).wp ??= {} );
 		wp.os = { apps: { prewarm: runtimePrewarm } };
 		( window as unknown as { openStationNativeWindows?: unknown } ).openStationNativeWindows = {};
@@ -109,7 +108,6 @@ describe( 'native-windows — prewarmById', () => {
 		await expect( prewarmById( 'posts' ) ).resolves.toBe( true );
 		expect( loaded ).toEqual( [ 'https://example.test/posts-client.js', 'https://example.test/posts.js' ] );
 		expect( runtimePrewarm ).toHaveBeenCalledWith( 'posts' );
-
 		expect( runtimePrewarm.mock.invocationCallOrder[ 0 ] ).toBeGreaterThan( 0 );
 	} );
 

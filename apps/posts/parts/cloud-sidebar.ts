@@ -35,9 +35,7 @@ export interface CloudSidebarHost {
 	setFocus: ( id: number | null ) => void;
 	draft: () => boolean;
 	setDraft: ( on: boolean ) => void;
-
 	applyTagUpdate: ( id: number, patch: { name: string; description: string; slug: string } ) => void;
-
 	forgetTag: ( id: number ) => void;
 	buildCloud: () => void;
 	clearPosts: () => void;
@@ -77,7 +75,6 @@ function paintDraft( host: CloudSidebarHost ): void {
 			if ( ! host.terms().some( ( t ) => t.id === next.id ) ) {
 				host.setTerms( host.terms().concat( next ) );
 			}
-
 			const desc = descInput.value.trim();
 			if ( desc ) {
 				try {
@@ -116,7 +113,7 @@ function paintEditor( host: CloudSidebarHost, box: TagInfo ): void {
 	sidebarMeta(
 		sidebar,
 		sprintf(
-
+			/* translators: %d: post count. */
 			_n( '%d post tagged with this.', '%d posts tagged with this.', box.count ),
 			box.count,
 		),

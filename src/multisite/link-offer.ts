@@ -5,9 +5,7 @@ import { trackedFetch } from '../tracked-fetch';
 export type LinkOffer = NonNullable< DesktopConfig[ 'hopLinkOffer' ] >;
 
 export interface LinkOfferDeps {
-
 	confirm: ( options: { title: string; message: string; confirmLabel: string } ) => Promise< boolean >;
-
 	post: ( url: string, accept: boolean ) => Promise< unknown >;
 }
 
@@ -34,7 +32,7 @@ export async function offerAccountLink(
 	const who = offer.email ? `${ offer.name } (${ offer.email })` : offer.name;
 	const accept = await deps.confirm( {
 		title: __( 'Arrive logged in next time?' ),
-
+		// translators: %1$s: who arrived (name and email); %2$s: the site they came from.
 		message: __(
 			'%1$s just switched here from %2$s while you were logged in. Link that account to yours, and a switch from there logs you in as you. You can undo this in the Network window.',
 		)
@@ -45,7 +43,6 @@ export async function offerAccountLink(
 	try {
 		await deps.post( offer.url, accept );
 	} catch {
-
 	}
 	return accept;
 }

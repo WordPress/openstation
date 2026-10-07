@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group openstation-beta
+ */
 class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -25,7 +28,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
-
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -85,13 +87,11 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 					'sha' => self::sha( 'b' ),
 				),
 			),
-
 			array(
 				'number' => 503,
 				'title'  => 'Broken payload',
 				'head'   => array( 'ref' => 'broken' ),
 			),
-
 			array(
 				'number' => 504,
 				'title'  => 'Bad sha',
@@ -419,7 +419,6 @@ class Tests_OpenStationBeta_Channels extends WP_UnitTestCase {
 	}
 
 	public function test_wp_env_mount_is_detected_as_dev_checkout() {
-
 		$this->assertNotSame( '', openstation_beta_dev_checkout_marker() );
 
 		$blocked = openstation_beta_install_blocked();

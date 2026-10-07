@@ -98,7 +98,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 	test( 'does not apply to windows hosting a WebGL <canvas> (Pixi scenes)', async () => {
 		const { engine } = await loadModules();
 		const pixi = makeWin( 'graph', false );
-
 		pixi.element.appendChild( document.createElement( 'canvas' ) );
 		const plain = makeWin( 'posts', false );
 		const { osSettings } = makeOsSettings( 'darken' );
@@ -132,7 +131,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 
 	test( 'does not apply to windows in split view', async () => {
 		const { engine } = await loadModules();
-
 		const left = makeWin( 'left', true, 'snapped-left' );
 		const right = makeWin( 'right', false, 'snapped-right' );
 		const floating = makeWin( 'floating', false );
@@ -149,7 +147,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 		expect(
 			right.element.hasAttribute( 'data-desktop-unfocus-effect' ),
 		).toBe( false );
-
 		expect( floating.element.classList.contains( DARKEN_CLASS ) ).toBe(
 			true,
 		);
@@ -275,7 +272,6 @@ describe( 'effects/unfocus-engine.ts', () => {
 			owner: 'plugin-a',
 		} );
 		const unfocused = makeWin( 'b', false );
-
 		const { osSettings } = makeOsSettings( 'plugin/glow' );
 
 		engine.startUnfocusEngine( {

@@ -13,9 +13,7 @@ const SPLIT_AREAS: ReadonlyArray< {
 	{
 		dir: 'os-file-drop',
 		allowed: [
-
 			'os-file-drop/sentinel.ts',
-
 			'os-file-drop/format-bytes.ts',
 			'os-file-drop/hooks.ts',
 			'os-file-drop/types.ts',
@@ -26,7 +24,6 @@ const SPLIT_AREAS: ReadonlyArray< {
 		dir: 'notes',
 		allowed: [
 			'notes/sentinel.ts',
-
 			'notes/types.ts',
 		],
 		why: 'presence-gated on hasNotes / first note-creating gesture',
@@ -35,7 +32,6 @@ const SPLIT_AREAS: ReadonlyArray< {
 		dir: 'dock-constellation',
 		allowed: [
 			'dock-constellation/sentinel.ts',
-
 			'dock-constellation/active.ts',
 		],
 		why: 'loads on the first pointer entering a dock rail',
@@ -92,7 +88,6 @@ function runtimeDeps( file: string ): string[] {
 		depsCache.set( file, [] );
 		return [];
 	}
-
 	source = source
 		.replace( /\/\*[\s\S]*?\*\//g, '' )
 		.replace( /(^|[^:])\/\/[^\n]*/g, '$1' );
@@ -188,7 +183,6 @@ describe( 'shell-bundle boundary', () => {
 	} );
 
 	test( 'each split bundle entry actually reaches its feature', () => {
-
 		const expectations: Array< [ string, string ] > = [
 			[ 'src/os-file-drop/entry.ts', 'os-file-drop/dialog.ts' ],
 			[ 'src/desktop-files/overlays-entry.ts', 'desktop-files/share-settings-modal.ts' ],

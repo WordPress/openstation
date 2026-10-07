@@ -45,7 +45,6 @@ function leftRail( over: Partial< WallpaperSurface > = {} ): WallpaperSurface {
 	return surface( {
 		id: 'dock:edge',
 		kind: 'dock',
-
 		rect: { x: 71, y: 0, width: 1, height: 800 },
 		face: 'right',
 		...over,
@@ -96,7 +95,6 @@ describe( 'collectObstacles', () => {
 	} );
 
 	test( 'inflates the dock strip into a solid the rim can hit', () => {
-
 		const [ rail ] = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
 		expect( rail.x ).toBe( 0 );
 		expect( rail.width ).toBe( 72 );
@@ -154,7 +152,6 @@ describe( 'clampOutsideChrome', () => {
 	} );
 
 	test( 'pushes along the face, never the shallowest axis', () => {
-
 		const out = clampOutsideChrome( { x: 2, y: 400 }, RADIUS, rail );
 		expect( out.x ).toBeGreaterThan( 0 );
 	} );
@@ -217,7 +214,6 @@ describe( 'magnetPull', () => {
 	} );
 
 	test( 'pulls toward the nearest edge, from any direction', () => {
-
 		const above = magnetPull( 300, 100, RADIUS, [ obstacle() ], 240 );
 		expect( above?.dx ).toBeCloseTo( 0, 9 );
 		expect( above?.dy ).toBeCloseTo( 1, 9 );
@@ -259,9 +255,7 @@ describe( 'magnetPull', () => {
 			y: 0,
 			height: 600,
 		} );
-
 		const pull = magnetPull( 225, 300, RADIUS, [ left, right ], 240 );
-
 		expect( pull?.dx ).toBeCloseTo( -1, 9 );
 	} );
 
@@ -295,20 +289,16 @@ describe( 'magnetPull', () => {
 	} );
 
 	test( 'gap is measured edge-to-edge, not centre-to-edge', () => {
-
 		expect( magnetPull( 300, 50, RADIUS, [ obstacle() ], 240 )?.gap ).toBe(
 			100,
 		);
-
 		expect( magnetPull( 300, 150, RADIUS, [ obstacle() ], 240 )?.gap ).toBe( 0 );
-
 		expect( magnetPull( 300, 180, RADIUS, [ obstacle() ], 240 )?.gap ).toBe(
 			-30,
 		);
 	} );
 
 	test( 'strength reaches exactly 1 on contact', () => {
-
 		expect( magnetPull( 300, 150, RADIUS, [ obstacle() ], 240 )?.strength ).toBe(
 			1,
 		);
@@ -318,7 +308,6 @@ describe( 'magnetPull', () => {
 	} );
 
 	test( 'range is a gap, so a bigger body notices a window sooner', () => {
-
 		expect( magnetPull( 300, -110, 50, [ obstacle() ], 240 ) ).toBeNull();
 		expect( magnetPull( 300, -110, 120, [ obstacle() ], 240 ) ).not.toBeNull();
 	} );
@@ -337,7 +326,6 @@ describe( 'clusterBounds', () => {
 
 	test( 'merges a tiled pair, hairline gap included', () => {
 		const left = obstacle( { id: 'a', x: 0, y: 0, width: 300, height: 400 } );
-
 		const right = obstacle( { id: 'b', x: 304, y: 0, width: 300, height: 400 } );
 		expect( clusterBounds( left, [ left, right ] ) ).toEqual( {
 			x: 0,
@@ -351,7 +339,6 @@ describe( 'clusterBounds', () => {
 		const a = obstacle( { id: 'a', x: 0, y: 0, width: 200, height: 200 } );
 		const b = obstacle( { id: 'b', x: 190, y: 0, width: 200, height: 200 } );
 		const c = obstacle( { id: 'c', x: 380, y: 0, width: 200, height: 200 } );
-
 		expect( clusterBounds( a, [ a, b, c ] ).width ).toBe( 580 );
 	} );
 
@@ -379,7 +366,6 @@ describe( 'findEscape', () => {
 	const bounds = { width: 1400, height: 900 };
 
 	test( 'resting against a window is not trapped', () => {
-
 		expect(
 			findEscape( 300, 150, 50, [ obstacle() ], bounds ),
 		).toBeNull();
@@ -391,7 +377,6 @@ describe( 'findEscape', () => {
 
 	test( 'any depth inside the dock is trapped, and it leaves sideways', () => {
 		const rail = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
-
 		const out = findEscape( 40, 400, 50, rail, bounds );
 		expect( out ).not.toBeNull();
 		expect( out?.x ).toBe( 130 );
@@ -400,29 +385,24 @@ describe( 'findEscape', () => {
 
 	test( 'resting against the dock is not trapped', () => {
 		const rail = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
-
 		expect( findEscape( 122, 400, 50, rail, bounds ) ).toBeNull();
 	} );
 
 	test( 'a shallow overlap is not trapped', () => {
-
 		expect( findEscape( 300, 210, 50, [ obstacle() ], bounds ) ).toBeNull();
 		expect( findEscape( 300, 230, 50, [ obstacle() ], bounds ) ).toBeNull();
 	} );
 
 	test( 'a corner rest is not trapped', () => {
-
 		expect( findEscape( 112, 212, 50, [ obstacle() ], bounds ) ).toBeNull();
 	} );
 
 	test( 'being buried past the depth threshold is trapped', () => {
-
 		const out = findEscape( 300, 245, 50, [ obstacle() ], bounds );
 		expect( out ).not.toBeNull();
 	} );
 
 	test( 'ejects to the midpoint of the nearest edge', () => {
-
 		const out = findEscape( 300, 280, 50, [ obstacle() ], bounds );
 		expect( out ).not.toBeNull();
 		expect( out?.x ).toBe( 300 );
@@ -430,7 +410,6 @@ describe( 'findEscape', () => {
 	} );
 
 	test( 'picks the side it is actually closest to', () => {
-
 		const win = obstacle( { x: 400, y: 200, width: 400, height: 300 } );
 		const out = findEscape( 445, 430, 50, [ win ], bounds );
 		expect( out?.x ).toBe( 400 - 58 );
@@ -438,7 +417,6 @@ describe( 'findEscape', () => {
 	} );
 
 	test( 'skips a side with no room and takes the next-nearest', () => {
-
 		const win = obstacle( { x: 20, y: 200, width: 400, height: 300 } );
 		const out = findEscape( 70, 430, 50, [ win ], bounds );
 		expect( out?.x ).toBeGreaterThanOrEqual( 50 );
@@ -448,7 +426,6 @@ describe( 'findEscape', () => {
 	test( 'escapes the whole cluster, not one window of a tiled pair', () => {
 		const left = obstacle( { id: 'a', x: 100, y: 100, width: 400, height: 400 } );
 		const right = obstacle( { id: 'b', x: 500, y: 100, width: 400, height: 400 } );
-
 		const out = findEscape( 440, 300, 50, [ left, right ], bounds );
 		expect( out ).not.toBeNull();
 		const insideRight =
@@ -460,7 +437,6 @@ describe( 'findEscape', () => {
 	} );
 
 	test( 'falls back to the widest free strip under a maximised window', () => {
-
 		const maximised = obstacle( {
 			id: 'window:big',
 			x: 0,
@@ -489,7 +465,6 @@ describe( 'findEscape', () => {
 	} );
 
 	test( 'never returns a point outside the layer', () => {
-
 		const corner = obstacle( { id: 'w', x: 0, y: 0, width: 300, height: 300 } );
 		const out = findEscape( 150, 150, 50, [ corner ], bounds );
 		expect( out?.x ).toBeGreaterThanOrEqual( 50 );
@@ -511,11 +486,9 @@ describe( 'resolveObstacleCollisions', () => {
 	} );
 
 	test( 'picks the shallowest axis', () => {
-
 		const p = { x: 105, y: 400, vx: -50, vy: 0 };
 		resolveObstacleCollisions( p, [ obstacle() ], 0.5, 1 );
 		expect( p.x ).toBe( 100 );
-
 		expect( p.vx ).toBe( -50 );
 	} );
 

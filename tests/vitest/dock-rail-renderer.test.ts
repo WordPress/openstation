@@ -275,7 +275,6 @@ describe( 'dock-rail dispatcher integration', () => {
 		const deps = mount.mock.calls[ 0 ][ 0 ];
 		expect( deps.container ).toBe( shell.bottomDockEl );
 		expect( deps.orientation ).toBe( 'bottom' );
-
 		expect( deps.items ).toHaveLength( 0 );
 		expect( deps.fullMenu ).toHaveLength( 1 );
 		expect( typeof deps.openItem ).toBe( 'function' );
@@ -350,7 +349,6 @@ describe( 'dock-rail dispatcher integration', () => {
 			[ makeItem() ],
 			[],
 		);
-
 		expect(
 			shell.bottomDockEl.querySelector( '[data-menu-slug="edit.php"]' ),
 		).not.toBeNull();
@@ -371,7 +369,6 @@ describe( 'dock-rail dispatcher integration', () => {
 		setActiveDockRailRenderer( 'ring' );
 
 		expect( customMount ).toHaveBeenCalledTimes( 1 );
-
 		expect(
 			shell.bottomDockEl.querySelector( '[data-menu-slug="edit.php"]' ),
 		).toBeNull();
@@ -411,7 +408,6 @@ describe( 'dock-rail dispatcher integration', () => {
 		);
 
 		expect( onError ).toHaveBeenCalled();
-
 		expect(
 			shell.bottomDockEl.querySelector( '[data-menu-slug="edit.php"]' ),
 		).not.toBeNull();

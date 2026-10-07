@@ -1,7 +1,6 @@
 export interface RecycleBinItem {
 	id: number;
 	type: string;
-
 	type_label?: string;
 	title: string;
 	subtitle: string;

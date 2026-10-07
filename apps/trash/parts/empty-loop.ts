@@ -1,27 +1,19 @@
 import type { EmptyResponse } from './types';
 
 export interface EmptyProgress {
-
 	purged: number;
-
 	skipped: number;
-
 	initialTotal: number;
 }
 
 export interface EmptyLoopResult extends EmptyProgress {
-
 	remaining: number;
-
 	stoppedBecause: 'empty' | 'no-progress' | 'iteration-cap';
 }
 
 export interface EmptyLoopOptions {
-
 	emptyBin: () => Promise< EmptyResponse >;
-
 	onProgress?: ( progress: EmptyProgress ) => void;
-
 	maxIterations?: number;
 }
 
@@ -39,6 +31,7 @@ export async function runEmptyLoop(
 	let stoppedBecause: EmptyLoopResult[ 'stoppedBecause' ] = 'iteration-cap';
 
 	for ( let i = 0; i < maxIterations; i++ ) {
+		// eslint-disable-next-line no-await-in-loop
 		const result = await emptyBin();
 		purged += result.purged;
 		skipped += result.skipped;

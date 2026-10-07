@@ -81,15 +81,10 @@ export function isTrunkHit( lx: number, ly: number, env: Envelope ): boolean {
 }
 
 export interface TrunkClickGestureOptions {
-
 	isEnabled: () => boolean;
-
 	toLocal: ( clientX: number, clientY: number ) => { lx: number; ly: number };
-
 	isHit: ( lx: number, ly: number ) => boolean;
-
 	onTrigger: () => void;
-
 	now?: () => number;
 }
 
@@ -129,15 +124,10 @@ function hormoneLine( snapshot: TreeSnapshot ): string {
 }
 
 export interface DebugPanelOptions {
-
 	snapshot: TreeSnapshot;
-
 	onChange: ( next: TreeSnapshot ) => void;
-
 	onClose: () => void;
-
 	hour?: number;
-
 	onHourChange?: ( hour: number | null ) => void;
 }
 

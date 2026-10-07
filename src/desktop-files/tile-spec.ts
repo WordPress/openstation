@@ -7,34 +7,20 @@ export { TILE_CLASS };
 export type TileStatus = 'draft' | 'pending' | 'private' | 'future' | string;
 
 export interface TileSpec {
-
 	type: string;
-
 	ref: string;
-
 	label: string;
-
 	icon?: string;
-
 	thumbnail?: string;
-
 	role?: 'folder' | 'entry';
-
 	status?: TileStatus;
-
 	x?: number;
 	y?: number;
-
 	dataset?: Record< string, string | number | undefined >;
-
 	meta?: Record< string, unknown >;
-
 	extraClasses?: string[];
-
 	ariaLabel?: string;
-
 	missing?: boolean;
-
 	accessGated?: boolean;
 }
 
@@ -110,7 +96,6 @@ export function buildDragStackGhost(
 
 	const clone = tile.cloneNode( true ) as HTMLElement;
 	clone.removeAttribute( 'id' );
-
 	clone.removeAttribute( 'selected' );
 	clone.removeAttribute( 'aria-selected' );
 	clone.classList.remove( `${ TILE_CLASS }--selected` );
@@ -127,17 +112,11 @@ export function buildDragStackGhost(
 }
 
 export interface TileDragOutPayload {
-
 	kind: string;
-
 	ref: string;
-
 	title?: string;
-
 	icon?: string;
-
 	entityId?: string;
-
 	bridgePayload?: import( '../drag-bridge' ).DragBridgePayload;
 }
 
@@ -151,7 +130,6 @@ export function attachTileDragOut(
 		if ( e.button !== 0 ) {
 			return;
 		}
-
 		if ( e.shiftKey || e.ctrlKey || e.metaKey ) {
 			return;
 		}
@@ -160,7 +138,6 @@ export function attachTileDragOut(
 			return;
 		}
 		const rect = tile.getBoundingClientRect();
-
 		const set = opts.resolveSet?.() ?? [];
 		const many = set.length > 1 ? set : [];
 		dragManager.start( {
@@ -174,7 +151,6 @@ export function attachTileDragOut(
 					icon: payload.icon,
 					entityId: payload.entityId,
 					bridgePayload: payload.bridgePayload,
-
 					...( many.length > 0 ? { items: many } : {} ),
 				} satisfies ShortcutDragData,
 				ghost: {

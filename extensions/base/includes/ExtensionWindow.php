@@ -92,10 +92,12 @@ abstract class OpenStation_Extension_Window {
 		header( 'Content-Type: application/javascript; charset=utf-8' );
 		header( 'X-Robots-Tag: noindex' );
 
+		echo "/* openstation extension bundle: " . esc_js( $this->asset_handle() ) . " */\n";
 
 		echo 'window.' . esc_js( $this->config_global() ) . ' = '
 			. wp_json_encode( $this->config_payload() ) . ";\n";
 
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prebuilt bundle file controlled by the plugin.
 		echo file_get_contents( $file );
 
 		echo "\n;( function () {\n";

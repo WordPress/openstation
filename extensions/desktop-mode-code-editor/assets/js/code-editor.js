@@ -108,7 +108,7 @@ var openStationCodeEditor = function(exports) {
     }
   }
   function createModelCache() {
-    const cache =                 new Map();
+    const cache = /* @__PURE__ */ new Map();
     const monacoUriFor = (monaco, path) => {
       return monaco.Uri.parse(`file:///workspace/${path}`);
     };
@@ -213,7 +213,6 @@ var openStationCodeEditor = function(exports) {
           openEditorWindow();
         }
       },
-
       { capture: true }
     );
   }
@@ -874,9 +873,7 @@ var openStationCodeEditor = function(exports) {
       insertText,
       insertTextRules,
       range,
-
       documentation: void 0,
-
       sortText: context.kind === "hook" && isHook ? `0_${entry.name}` : `1_${entry.name}`
     };
   }
@@ -923,7 +920,6 @@ var openStationCodeEditor = function(exports) {
     const completionLatest = new CancellableLatest();
     const detailLatest = new CancellableLatest();
     monaco.languages.registerCompletionItemProvider("php", {
-
       triggerCharacters: [
         "_",
         "'",
@@ -1138,7 +1134,6 @@ var openStationCodeEditor = function(exports) {
     ts.typescriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: false,
       noSyntaxValidation: false,
-
       diagnosticCodesToIgnore: [2307, 2304]
     });
     ts.javascriptDefaults.setDiagnosticsOptions({
@@ -1211,7 +1206,7 @@ var openStationCodeEditor = function(exports) {
     const ul = document.createElement("ul");
     ul.className = "osc-tabs__list";
     mount.replaceChildren(ul);
-    const tabs =                 new Map();
+    const tabs = /* @__PURE__ */ new Map();
     const order = [];
     let active = null;
     const updateActiveClass = () => {
@@ -1405,7 +1400,7 @@ var openStationCodeEditor = function(exports) {
       icon: ICON_BY_EXT[ext] ?? "dashicons-media-default"
     };
   }
-  const DARK_SCHEMES =                 new Set([
+  const DARK_SCHEMES = /* @__PURE__ */ new Set([
     "midnight",
     "ectoplasm",
     "coffee",
@@ -1459,9 +1454,9 @@ var openStationCodeEditor = function(exports) {
     const { mount, onOpen } = opts;
     mount.classList.add("osc-tree");
     mount.replaceChildren();
-    const childrenByPath =                 new Map();
-    const expanded =                 new Set();
-    const inflight =                 new Map();
+    const childrenByPath = /* @__PURE__ */ new Map();
+    const expanded = /* @__PURE__ */ new Set();
+    const inflight = /* @__PURE__ */ new Map();
     const renderRow = (entry) => {
       const li = document.createElement("li");
       li.className = `osc-tree__row osc-tree__row--${entry.type}`;
@@ -1674,11 +1669,9 @@ var openStationCodeEditor = function(exports) {
     const editor = monaco.editor.create(editorMount, {
       model: placeholder,
       theme: monacoThemeForScheme(currentColorScheme()),
-
       automaticLayout: false,
       minimap: {
         enabled: true,
-
         renderCharacters: false
       },
       fontSize: 13,
@@ -1702,9 +1695,9 @@ var openStationCodeEditor = function(exports) {
     });
     layoutObserver.observe(editorMount);
     const models = createModelCache();
-    const openFiles =                 new Map();
-    const modelChangeDisposers =                 new Map();
-    const openControllers =                 new Map();
+    const openFiles = /* @__PURE__ */ new Map();
+    const modelChangeDisposers = /* @__PURE__ */ new Map();
+    const openControllers = /* @__PURE__ */ new Map();
     let saveController = null;
     const setWindowTitle = (title) => {
       const win = window.wp?.os?.windowManager?.getById("wpdc-editor");
@@ -1885,7 +1878,6 @@ var openStationCodeEditor = function(exports) {
           path: result.path,
           mtime: result.mtime,
           size: result.size,
-
           savedVersionId: model.getVersionId()
         };
         openFiles.set(file.path, updated);
@@ -1951,7 +1943,7 @@ var openStationCodeEditor = function(exports) {
       }
     };
     editor.addCommand(
-
+      // eslint-disable-next-line no-bitwise
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
       () => {
         void saveActiveFile();
@@ -1960,7 +1952,7 @@ var openStationCodeEditor = function(exports) {
     editor.addAction({
       id: "osc.saveFile",
       label: "Save File",
-
+      // eslint-disable-next-line no-bitwise
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
       contextMenuGroupId: "navigation",
       run: () => {

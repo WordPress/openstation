@@ -23,7 +23,6 @@ const store = createSharedStore< {
 } ) );
 
 export interface HeartbeatBus {
-
 	contribute< T = unknown >(
 		field: string,
 		supplier: HeartbeatSupplier< T >,
@@ -64,6 +63,7 @@ export function bootHeartbeatBus(): void {
 	store.state.booted = true;
 	const $ = ( window as unknown as { jQuery?: JQueryLike } ).jQuery;
 	if ( ! $ ) {
+		// eslint-disable-next-line no-console
 		console.warn(
 			'[desktop-mode/heartbeat] jQuery missing — Heartbeat bus disabled.',
 		);
@@ -79,6 +79,7 @@ export function bootHeartbeatBus(): void {
 			try {
 				data[ field ] = supplier();
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error(
 					`[desktop-mode/heartbeat] supplier for "${ field }" threw:`,
 					err,
@@ -101,6 +102,7 @@ export function bootHeartbeatBus(): void {
 				try {
 					cb( value );
 				} catch ( err ) {
+					// eslint-disable-next-line no-console
 					console.error(
 						`[desktop-mode/heartbeat] subscriber for "${ field }" threw:`,
 						err,

@@ -11,7 +11,7 @@ function openstation_agents_register_personal_data_exporter( $exporters ) {
 }
 add_filter( 'wp_privacy_personal_data_exporters', 'openstation_agents_register_personal_data_exporter' );
 
-function openstation_agents_personal_data_exporter( $email_address, $page = 1 ) {
+function openstation_agents_personal_data_exporter( $email_address, $page = 1 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 	$user = get_user_by( 'email', $email_address );
 	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
 		return array(
@@ -117,7 +117,7 @@ function openstation_agents_register_personal_data_eraser( $erasers ) {
 }
 add_filter( 'wp_privacy_personal_data_erasers', 'openstation_agents_register_personal_data_eraser' );
 
-function openstation_agents_personal_data_eraser( $email_address, $page = 1 ) {
+function openstation_agents_personal_data_eraser( $email_address, $page = 1 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 	$user = get_user_by( 'email', $email_address );
 	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
 		return array(

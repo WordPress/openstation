@@ -157,12 +157,10 @@ describe( 'syncDesktopShortcuts — items with no icon of their own', () => {
 		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
 		expect( rows ).toHaveLength( 1 );
 		expect( rows[ 0 ].file.title ).toBe( 'Mio' );
-
 		expect(
 			( rows[ 0 ].file as unknown as { shortcutSystemTile?: string } )
 				.shortcutSystemTile,
 		).toBe( 'os-mio-toggle' );
-
 		expect( rows[ 0 ].file.ref ).toBe( 'os-mio-toggle' );
 	} );
 

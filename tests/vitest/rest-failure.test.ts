@@ -98,7 +98,6 @@ describe( 'describeRestFailure', () => {
 		expect( refused.message ).toBe(
 			'Could not add to the post: You are not allowed to edit this post.',
 		);
-
 		expect(
 			describeRestFailure( new Error( '' ), {
 				lead: 'Could not add to the post',
@@ -116,7 +115,6 @@ describe( 'restFailureText', () => {
 		expect( restFailureText( new TypeError( 'Failed to fetch' ) ) ).toMatch(
 			/Check your connection/,
 		);
-
 		expect( restFailureText( restError( 200 ) ) ).toBe( '' );
 	} );
 } );
@@ -140,7 +138,6 @@ describe( 'toastRestFailure', () => {
 			type: 'error',
 		} );
 		expect( () => toastRestFailure( undefined, restError( 500 ), { fallback: FALLBACK } ) ).not.toThrow();
-
 		toastRestFailure( toast, restError( 403, { serverMessage: 'No.' } ), { fallback: FALLBACK, duration: 6000 } );
 		expect( toast ).toHaveBeenLastCalledWith( { message: 'No.', type: 'error', duration: 6000 } );
 	} );

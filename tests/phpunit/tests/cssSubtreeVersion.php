@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-assets
+ */
 class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 
 	private static $chain = array(
@@ -18,6 +21,9 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 		openstation_register_assets();
 	}
 
+	/**
+	 * @covers ::openstation_register_assets
+	 */
 	public function test_window_sheets_do_not_use_import() {
 		$sheets = array_merge(
 			array( 'assets/css/windows.css' ),
@@ -28,7 +34,6 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 			$path = OPENSTATION_DIR . $relative;
 			$this->assertFileExists( $path );
 			$css = (string) file_get_contents( $path );
-
 			$code = (string) preg_replace( '#/\*.*?\*/#s', '', $css );
 			$this->assertDoesNotMatchRegularExpression(
 				'/^\s*@import/m',
@@ -38,6 +43,9 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_register_assets
+	 */
 	public function test_each_window_sheet_has_its_own_filemtime_stamp() {
 		$styles = wp_styles();
 		$all = self::$chain + self::$deferred;
@@ -57,6 +65,9 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_register_assets
+	 */
 	public function test_dependency_chain_preserves_cascade_order() {
 		$styles   = wp_styles();
 		$previous = null;
@@ -90,6 +101,9 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_register_assets
+	 */
 	public function test_entry_handle_pulls_in_the_whole_chain() {
 		$styles = wp_styles();
 		$styles->all_deps( array( 'os-windows' ) );
@@ -103,6 +117,9 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_css_subtree_version
+	 */
 	public function test_version_covers_imported_sub_sheets() {
 		$dir    = OPENSTATION_DIR . 'assets/css';
 		$parent = $dir . '/__test-parent.css';
@@ -110,7 +127,6 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 
 		file_put_contents( $child, "/* child */\n" );
 		file_put_contents( $parent, "@import url( \"__test-child.css\" );\n" );
-
 		touch( $parent, time() - 500 );
 		touch( $child, time() );
 
@@ -126,6 +142,9 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 		unlink( $child );
 	}
 
+	/**
+	 * @covers ::openstation_css_subtree_version
+	 */
 	public function test_missing_file_falls_back() {
 		$this->assertSame(
 			'fallback',

@@ -133,7 +133,6 @@ describe( 'restoreSession — dock identity fallback', () => {
 
 	test( 'a window parked on an off-menu URL keeps its submenu', async () => {
 		const win = mailpoetWindow();
-
 		const config = desktopConfig( [ win ] );
 		expect( findDockEntryForUrl( win.url, config ) ).toBeUndefined();
 
@@ -150,7 +149,6 @@ describe( 'restoreSession — dock identity fallback', () => {
 	} );
 
 	test( 'a URL that matches another dock entry wins over baseId', async () => {
-
 		const win = mailpoetWindow( { url: PAGES_URL } );
 		const config = desktopConfig( [ win ] );
 
@@ -179,7 +177,6 @@ describe( 'restoreSession — window titles follow the current menu', () => {
 	} );
 
 	test( 'a saved title in another language is replaced by the menu label', async () => {
-
 		const win = mailpoetWindow( { url: PAGES_URL, title: 'Páginas' } );
 		const config = desktopConfig( [ win ] );
 
@@ -191,7 +188,6 @@ describe( 'restoreSession — window titles follow the current menu', () => {
 	test( 'a submenu page keeps its own name rather than the parent menu', () => {
 		const config = desktopConfig( [] );
 		expect( findDockTitleForUrl( MP_EMAILS, config ) ).toBe( 'Emails' );
-
 		expect( findDockTitleForUrl( PAGES_URL, config ) ).toBe( 'Pages' );
 	} );
 

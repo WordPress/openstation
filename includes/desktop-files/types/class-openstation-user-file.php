@@ -34,7 +34,6 @@ class OpenStation_User_File extends OpenStation_File {
 	}
 
 	public function can_read( int $user_id ): bool {
-
 		return user_can( $user_id, 'list_users' );
 	}
 
@@ -42,7 +41,6 @@ class OpenStation_User_File extends OpenStation_File {
 		$shape          = parent::serialize();
 		$user           = $this->user();
 		$shape['roles'] = $user ? array_values( (array) $user->roles ) : array();
-
 		$shape['link'] = $user ? (string) get_author_posts_url( (int) $user->ID ) : '';
 
 		if (
@@ -54,7 +52,6 @@ class OpenStation_User_File extends OpenStation_File {
 
 			$has_definition = function_exists( 'openstation_agent_get_description' )
 				&& function_exists( 'openstation_agent_get_triggers' );
-
 			$shape['agentDescription'] = $has_definition
 				? openstation_agent_get_description( (int) $user->ID )
 				: '';

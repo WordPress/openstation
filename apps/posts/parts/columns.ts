@@ -42,7 +42,6 @@ export function getHiddenColumns( settingKey: HiddenColumnsSettingKey ): Set< st
 			}
 		}
 	} catch {
-
 	}
 	return new Set();
 }
@@ -50,9 +49,7 @@ export function getHiddenColumns( settingKey: HiddenColumnsSettingKey ): Set< st
 export interface ColumnFilterData {
 	authors: AuthorOption[];
 	tags: TagOption[];
-
 	tagsHasMore?: boolean;
-
 	loadMoreTags?: () => void;
 }
 
@@ -198,7 +195,6 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 		cols.push( {
 			key: 'tags',
 			label: __( 'Tags' ),
-
 			minWidth: '360px',
 			filterRender: ( host, ctx ) =>
 				renderMultiSelectFilter(
@@ -281,6 +277,7 @@ export function resolveStatusSegments(): StatusSegment[] {
 		const out = hooks.applyFilters( HOOK_FILTER_STATUS_SEGMENTS, defaults );
 		return Array.isArray( out ) && out.length > 0 ? ( out as StatusSegment[] ) : defaults;
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( `${ LOG } status-segments filter threw; falling back to defaults:`, err );
 		return defaults;
 	}
@@ -299,12 +296,12 @@ export function defaultBulkActions(
 			confirm: ( count: number ) =>
 				mode === 'pages'
 					? sprintf(
-
+						/* translators: %d: row count. */
 						_n( 'Move %d page to the trash?', 'Move %d pages to the trash?', count ),
 						count,
 					)
 					: sprintf(
-
+						/* translators: %d: row count. */
 						_n( 'Move %d post to the trash?', 'Move %d posts to the trash?', count ),
 						count,
 					),
@@ -333,6 +330,7 @@ export function resolveBulkActions( defaults: BulkAction[] ): BulkAction[] {
 		const out = hooks.applyFilters( HOOK_FILTER_BULK_ACTIONS, defaults );
 		return Array.isArray( out ) ? ( out as BulkAction[] ) : defaults;
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( `${ LOG } bulk-actions filter threw; falling back to defaults:`, err );
 		return defaults;
 	}
@@ -347,6 +345,7 @@ export function resolveToolbarTrailing( ctx: PostsWindowContext ): HTMLElement[]
 		const out = hooks.applyFilters( HOOK_FILTER_TOOLBAR_TRAILING, [], ctx );
 		return Array.isArray( out ) ? out.filter( ( el ): el is HTMLElement => el instanceof HTMLElement ) : [];
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( `${ LOG } toolbar-trailing filter threw; ignoring:`, err );
 		return [];
 	}

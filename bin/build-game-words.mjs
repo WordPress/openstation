@@ -18,11 +18,9 @@ const SOURCES = {
 };
 
 const EXTRA_BLOCKED = [
-
 	'anal', 'anus', 'arse', 'damn', 'erotic', 'genital', 'genitals',
 	'hell', 'nazi', 'nazis', 'nude', 'nudes', 'pee', 'poo', 'poop',
 	'rectum', 'urine',
-
 	'ammo', 'ammunition', 'bayonet', 'bomb', 'bombed', 'bomber',
 	'bombing', 'bombs', 'bullet', 'bullets', 'cannon', 'cannons',
 	'grenade', 'grenades', 'gun', 'gunfire', 'gunman', 'gunmen',
@@ -83,7 +81,6 @@ for ( const line of freqRaw.split( /\r?\n/ ) ) {
 	) {
 		continue;
 	}
-
 	picked.push( word );
 }
 

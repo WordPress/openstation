@@ -75,7 +75,6 @@ export interface TabBarDeps {
 }
 
 export interface TabBarState {
-
 	active: string | null;
 	openCount: number;
 }
@@ -125,13 +124,12 @@ export function createTabBar( host: HTMLElement, deps: TabBarDeps ): TabBarSurfa
 			countEl.hidden = state.openCount === 0;
 			countEl.textContent = countEl.hidden ? '' : String( Math.min( state.openCount, 99 ) );
 		}
-
 		switcherIcon?.classList.toggle( 'os-mobile-tabs__icon--counted', state.openCount > 0 );
 		if ( switcherButton ) {
 			switcherButton.setAttribute(
 				'aria-label',
 				sprintf(
-
+					/* translators: %d: number of open apps. */
 					__( 'Open apps (%d)' ),
 					state.openCount,
 				),

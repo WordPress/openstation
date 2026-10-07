@@ -64,7 +64,6 @@ function call( path: string, init: RequestInit = {} ) {
 
 describe( 'binding', () => {
 	test( 'listens on loopback only', () => {
-
 		expect( agent.url ).toMatch( /^http:\/\/127\.0\.0\.1:\d+$/ );
 	} );
 
@@ -144,7 +143,6 @@ describe( 'the gates', () => {
 	} );
 
 	test( 'refuses a token that is only a prefix of the real one', async () => {
-
 		for ( const guess of [
 			'Bearer ',
 			`Bearer ${ TOKEN.slice( 0, 1 ) }`,
@@ -160,7 +158,6 @@ describe( 'the gates', () => {
 	} );
 
 	test( 'refuses everything when the app has no token to check against', async () => {
-
 		const open = new LocalAgent( {
 			token: '',
 			allowedOrigin: () => ORIGIN,
@@ -179,7 +176,6 @@ describe( 'the gates', () => {
 	} );
 
 	test( 'refuses another origin even with the right token', async () => {
-
 		const res = await fetch( `${ base }/ping`, {
 			headers: { Origin: 'https://evil.test', Authorization: `Bearer ${ TOKEN }` },
 		} );
@@ -187,7 +183,6 @@ describe( 'the gates', () => {
 	} );
 
 	test( 'refuses a request with no origin at all', async () => {
-
 		const res = await fetch( `${ base }/ping`, {
 			headers: { Authorization: `Bearer ${ TOKEN }` },
 		} );
@@ -224,7 +219,6 @@ describe( 'CORS preflight', () => {
 		expect( res.status ).toBe( 204 );
 		expect( res.headers.get( 'access-control-allow-origin' ) ).toBe( ORIGIN );
 		expect( res.headers.get( 'access-control-allow-headers' ) ).toContain( 'authorization' );
-
 		expect( res.headers.get( 'access-control-allow-private-network' ) ).toBe( 'true' );
 	} );
 
@@ -250,7 +244,6 @@ describe( 'bad input', () => {
 	} );
 
 	test( 'measures the body limit in bytes, not UTF-16 code units', async () => {
-
 		const emoji = '\u{1F600}';
 		const payload = JSON.stringify( { windowId: emoji.repeat( 17_000 ) } );
 
@@ -264,7 +257,6 @@ describe( 'bad input', () => {
 	} );
 
 	test( 'an over-large body refuses once and stays up', async () => {
-
 		await call( '/free', {
 			method: 'POST',
 			body: JSON.stringify( { windowId: 'x'.repeat( 200_000 ) } ),

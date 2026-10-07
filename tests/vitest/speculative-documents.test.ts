@@ -23,7 +23,6 @@ describe( 'isSpeculatableDocument', () => {
 	} );
 
 	test( 'requires the chromeless flag', () => {
-
 		expect(
 			isSpeculatableDocument(
 				new URL( 'https://site.test/wp-admin/options-writing.php' ),
@@ -38,7 +37,6 @@ describe( 'isSpeculatableDocument', () => {
 	} );
 
 	test( 'refuses every URL that acts', () => {
-
 		const acting = [
 			'action=activate&plugin=foo/foo.php',
 			'action2=delete',
@@ -58,7 +56,6 @@ describe( 'isSpeculatableDocument', () => {
 	} );
 
 	test( 'refuses screens that act merely by rendering', () => {
-
 		for ( const file of [ 'post-new.php', 'user-new.php', 'media-new.php' ] ) {
 			expect(
 				isSpeculatableDocument(
@@ -80,7 +77,6 @@ describe( 'isSpeculatableDocument', () => {
 	} );
 
 	test( 'the acts-on-load rule reads the filename, not the whole path', () => {
-
 		expect(
 			isSpeculatableDocument(
 				new URL(
@@ -103,7 +99,6 @@ describe( 'SpeculativeStore', () => {
 		Promise.resolve( new Response( tag ) as Response | null );
 
 	test( 'clear() drops everything for a session boundary', async () => {
-
 		const store = new SpeculativeStore();
 		store.put( '/a', res( 'a' ) );
 		store.put( '/b', res( 'b' ) );
@@ -124,7 +119,6 @@ describe( 'SpeculativeStore', () => {
 		} );
 
 		store.put( '/a', pending );
-
 		const taken = store.take( '/a' );
 		expect( taken ).not.toBeNull();
 
@@ -139,7 +133,6 @@ describe( 'SpeculativeStore', () => {
 		store.put( '/a', res( 'one' ) );
 
 		expect( store.take( '/a' ) ).not.toBeNull();
-
 		expect( store.take( '/a' ) ).toBeNull();
 	} );
 
@@ -269,7 +262,6 @@ describe( 'rememberRestoreTargets', () => {
 	} );
 
 	test( 'sends nothing at all when the opt-in is off', async () => {
-
 		const { createSessionSaver } = await import(
 			'../../src/boot/session-saver'
 		);
@@ -279,10 +271,8 @@ describe( 'rememberRestoreTargets', () => {
 		installHooksStub();
 		const wp = ( window as unknown as { wp?: Record< string, unknown > } )
 			.wp as Record< string, unknown >;
-
 		wp.os = {
 			getOsSettings: () => ( { windowPrewarmEnabled: false } ),
-
 			fetch: async () => new Response( '{}' ),
 		};
 		const manager = {

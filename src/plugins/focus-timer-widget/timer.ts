@@ -7,13 +7,9 @@ export type Phase = 'idle' | 'running' | 'paused' | 'finished';
 
 export interface TimerSnapshot {
 	phase: Phase;
-
 	remainingMs: number;
-
 	durationMs: number;
-
 	linkedWindowId: string | null;
-
 	showRemaining: boolean;
 }
 
@@ -189,7 +185,6 @@ class FocusTimer {
 			this.phase === 'paused' ? this.remainingMs : this.durationMs;
 		this.endAt = Date.now() + Math.max( 0, base );
 		this.phase = 'running';
-
 		this.alarm.prime();
 		this.startTick();
 		this.persist();
@@ -255,7 +250,6 @@ class FocusTimer {
 		this.endAt = null;
 		this.remainingMs = 0;
 		this.persist();
-
 		this.alarm.start();
 		this.doShake();
 		this.shaker = setInterval( () => this.doShake(), SHAKE_MS );

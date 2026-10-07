@@ -92,13 +92,11 @@ describe( 'matching', () => {
 		} );
 		expect( itemMatchesToken( products, 'post_type=product' ) ).toBe( true );
 		expect( itemMatchesToken( products, 'edit-php-post-type' ) ).toBe( true );
-
 		expect( itemMatchesToken( products, 'products' ) ).toBe( true );
 		expect( itemMatchesToken( products, 'sensei' ) ).toBe( false );
 	} );
 
 	test( 'an empty token matches nothing', () => {
-
 		expect( itemMatchesToken( item( 'x' ), '' ) ).toBe( false );
 		expect( itemMatchesToken( item( 'x' ), '   ' ) ).toBe( false );
 	} );
@@ -113,7 +111,6 @@ describe( 'matching', () => {
 	} );
 
 	test( 'resolveLaunches drops entries whose app is missing', () => {
-
 		const coreOnly = fullSite().filter(
 			( i ) => ! i.id.includes( 'woo' ) && ! i.id.includes( 'product' ),
 		);
@@ -162,7 +159,6 @@ describe( 'presets', () => {
 			windows: [],
 			layout: 'columns',
 		} );
-
 		expect( listWorkspacePresets()[ 0 ].id ).toBe( 'support' );
 		unregisterWorkspacePreset( 'support' );
 		expect(
@@ -176,14 +172,11 @@ describe( 'presets', () => {
 		expect( profile.apps.mode ).toBe( 'only' );
 		expect( profile.apps.ids ).toContain( 'woocommerce' );
 		expect( profile.apps.ids ).toContain( 'edit-php-post-type-product' );
-
 		expect( profile.apps.ids ).toContain( 'index-php' );
 		expect( profile.apps.ids ).toContain( 'upload-php' );
 		expect( profile.apps.ids ).toContain( 'options-general-php' );
-
 		expect( profile.apps.ids ).not.toContain( 'sensei' );
 		expect( profile.layout ).toBe( 'columns' );
-
 		expect( profile.provisioned ).toBe( false );
 	} );
 
@@ -193,7 +186,6 @@ describe( 'presets', () => {
 			findWorkspacePreset( 'commerce' )!,
 			coreOnly,
 		);
-
 		expect( profile.apps.mode ).toBe( 'only' );
 		expect( profile.apps.ids ).toEqual( [
 			'index-php',
@@ -205,9 +197,7 @@ describe( 'presets', () => {
 	test( 'Publishing is the writing desk', () => {
 		const preset = findWorkspacePreset( 'publishing' )!;
 		expect( preset.layout ).toBe( 'focus' );
-
 		expect( preset.windows[ 0 ].url ).toBe( 'post-new.php' );
-
 		expect( preset.widgets ).toContain( 'desktop-mode/drafts' );
 		expect( preset.widgets ).not.toContain( 'desktop-mode/site-views' );
 	} );
@@ -246,7 +236,6 @@ describe( 'visibility', () => {
 	const base: Record< string, NavPlacement > = { 'edit-php': 'desktop' };
 
 	test( 'a desk that shows everything returns the map untouched', () => {
-
 		expect( workspacePlacements( base, fullSite(), null ) ).toBe( base );
 		expect(
 			workspacePlacements( base, fullSite(), blankWorkspaceProfile() ),
@@ -262,7 +251,6 @@ describe( 'visibility', () => {
 		expect( next[ 'sensei' ] ).toBe( 'hidden' );
 		expect( next[ 'edit-php' ] ).toBe( 'hidden' );
 		expect( next[ 'woocommerce' ] ).toBeUndefined();
-
 		expect( base ).toEqual( { 'edit-php': 'desktop' } );
 	} );
 
@@ -288,7 +276,6 @@ describe( 'visibility', () => {
 		};
 		profile = withWorkspaceApp( profile, 'b', true );
 		expect( profile.apps.ids ).toEqual( [ 'a', 'b' ] );
-
 		expect( withWorkspaceApp( profile, 'b', true ) ).toBe( profile );
 		profile = withWorkspaceApp( profile, 'a', false );
 		expect( profile.apps.ids ).toEqual( [ 'b' ] );
@@ -297,7 +284,6 @@ describe( 'visibility', () => {
 	test( 'a desk with no widget opinion leaves the column alone', () => {
 		expect( workspaceWidgetIds( null ) ).toBeNull();
 		expect( workspaceWidgetIds( blankWorkspaceProfile() ) ).toBeNull();
-
 		const legacy = { ...blankWorkspaceProfile() };
 		delete legacy.widgets;
 		expect( workspaceWidgetIds( legacy ) ).toBeNull();
@@ -330,7 +316,6 @@ describe( 'visibility', () => {
 	} );
 
 	test( 'adding a widget to a desk with no column of its own is a no-op', () => {
-
 		const profile = blankWorkspaceProfile();
 		expect( withWorkspaceWidget( profile, 'clock', true ) ).toBe( profile );
 	} );
@@ -349,7 +334,6 @@ describe( 'visibility', () => {
 			appearance: {
 				wallpaper: 'mono',
 				accent: 'rose',
-
 				navPlacement: { 'edit-php': 'hidden' },
 				heartbeatRate: 1,
 			} as WorkspaceProfile[ 'appearance' ],
@@ -386,7 +370,6 @@ describe( 'visibility', () => {
 	} );
 
 	test( 'adding an app to a desk that shows everything is a no-op', () => {
-
 		const profile = blankWorkspaceProfile();
 		expect( withWorkspaceApp( profile, 'a', true ) ).toBe( profile );
 	} );

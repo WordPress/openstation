@@ -27,31 +27,22 @@ const DRAG_EXCLUDED_SELECTORS =
 type ResizeDir = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
 export interface FrameHandlers {
-
 	onRemove(): void;
-
 	onGeometryChanged( geometry: WidgetGeometry ): void;
-
 	onDockedHeightChanged( height: number ): void;
-
 	onLiberate( initialGeometry: WidgetGeometry ): void;
-
 	onRedock(): void;
 }
 
 export interface FrameContext {
-
 	floatingParent: HTMLElement;
-
 	geometry: WidgetGeometry | undefined;
-
 	dockedHeight?: number;
 }
 
 export interface Frame {
 	card: HTMLElement;
 	body: HTMLElement;
-
 	dispose(): void;
 }
 
@@ -128,14 +119,12 @@ export function buildFrame(
 				try {
 					fn();
 				} catch {
-
 				}
 			}
 			if ( dragCleanup ) {
 				try {
 					dragCleanup();
 				} catch {
-
 				}
 			}
 			card.remove();
@@ -154,7 +143,6 @@ function buildChrome(
 	const grip = document.createElement( 'span' );
 	grip.className = 'os-widgets__grip';
 	grip.setAttribute( 'aria-hidden', 'true' );
-
 	chrome.appendChild( grip );
 
 	const title = document.createElement( 'span' );
@@ -179,10 +167,9 @@ function buildRedockButton(
 	btn.className = 'os-widgets__card-redock';
 	btn.setAttribute(
 		'aria-label',
-
+		// translators: %s is the widget label (e.g., "Clock")
 		sprintf( __( 'Dock %s back to widget column' ), def.label ),
 	);
-
 	btn.innerHTML =
 		'<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">' +
 		'<path d="M2 6h6M5.5 3.5L8 6l-2.5 2.5M10 2.5v7" ' +
@@ -193,7 +180,6 @@ function buildRedockButton(
 		e.stopPropagation();
 		onRedock();
 	} );
-
 	btn.dataset.noDrag = 'true';
 	return btn;
 }
@@ -211,7 +197,7 @@ function buildCloseButton(
 	const close = document.createElement( 'button' );
 	close.type = 'button';
 	close.className = 'os-widgets__card-close';
-
+	// translators: %s is the widget label (e.g., "Clock")
 	close.setAttribute( 'aria-label', sprintf( __( 'Remove %s' ), def.label ) );
 	close.innerHTML = osIconSvg( 'close', { size: 16 } );
 	close.addEventListener( 'click', ( e ) => {
@@ -234,7 +220,6 @@ function attachDrag(
 	let startY = 0;
 	let initialLeft = 0;
 	let initialTop = 0;
-
 	let committed = false;
 
 	const onDown = ( e: PointerEvent ): void => {
@@ -242,7 +227,6 @@ function attachDrag(
 			return;
 		}
 		const target = e.target as HTMLElement | null;
-
 		if ( target && target.closest( DRAG_EXCLUDED_SELECTORS ) ) {
 			return;
 		}
@@ -252,7 +236,6 @@ function attachDrag(
 		startX = e.clientX;
 		startY = e.clientY;
 		committed = false;
-
 		initialLeft = parseFloat( card.style.left ) || 0;
 		initialTop = parseFloat( card.style.top ) || 0;
 		chrome.setPointerCapture( pointerId );
@@ -262,7 +245,6 @@ function attachDrag(
 		if ( ! card.classList.contains( FLOATING_CLASS ) ) {
 			const parentRect = ctx.floatingParent.getBoundingClientRect();
 			const rect = card.getBoundingClientRect();
-
 			const initial: WidgetGeometry = {
 				x: rect.left - parentRect.left,
 				y: rect.top - parentRect.top,
@@ -272,7 +254,6 @@ function attachDrag(
 			applyGeometry( card, initial );
 			card.classList.add( FLOATING_CLASS );
 			handlers.onLiberate( initial );
-
 			initialLeft = parseFloat( card.style.left ) || 0;
 			initialTop = parseFloat( card.style.top ) || 0;
 		}
@@ -312,10 +293,8 @@ function attachDrag(
 		try {
 			chrome.releasePointerCapture( pointerId );
 		} catch {
-
 		}
 		pointerId = null;
-
 		if ( ! committed ) {
 			return;
 		}
@@ -358,7 +337,6 @@ function attachResize(
 		if ( e.button !== 0 ) {
 			return;
 		}
-
 		if ( ! isFloating() && ! isHeightOnlyDir( dir ) ) {
 			return;
 		}
@@ -412,11 +390,9 @@ function attachResize(
 		try {
 			handle.releasePointerCapture( pointerId );
 		} catch {
-
 		}
 		pointerId = null;
 		card.classList.remove( RESIZING_CLASS );
-
 		if ( isFloating() ) {
 			handlers.onGeometryChanged( currentGeometry( card ) );
 		} else {
@@ -532,7 +508,6 @@ export function computeResize(
 	const minH = def.minHeight ?? DEFAULT_MIN_HEIGHT;
 	const maxW = def.maxWidth ?? Infinity;
 	const maxH = def.maxHeight ?? Infinity;
-
 	const area = workAreaRectOf( parent );
 	const parentWidth = area.x + area.width;
 	const parentHeight = area.y + area.height;

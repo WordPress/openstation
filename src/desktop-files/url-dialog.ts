@@ -1,27 +1,17 @@
 import { applyFilters, doAction } from '../hooks';
-
 import { focusField, readFieldValue, setControlDisabled } from './dialog-fields';
 
 const ROOT_CLASS = 'os-url-dialog';
 
 export interface UrlDialogOptions {
-
 	title: string;
-
 	description?: string;
-
 	nameLabel?: string;
-
 	urlLabel?: string;
-
 	initialName?: string;
-
 	initialUrl?: string;
-
 	submitLabel?: string;
-
 	onSubmit: ( values: { name: string; url: string } ) => Promise< unknown > | unknown;
-
 	onCancel?: () => void;
 }
 
@@ -150,9 +140,9 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 			showError( 'Please enter a URL.' );
 			return;
 		}
-
 		const finalUrl = /^[a-z][a-z0-9+\-.]*:/i.test( url ) ? url : `https://${ url }`;
 		try {
+			// eslint-disable-next-line no-new
 			new URL( finalUrl );
 		} catch {
 			showError( 'That doesn\'t look like a valid URL.' );

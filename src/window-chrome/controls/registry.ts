@@ -6,25 +6,15 @@ import type { Window as DesktopWindow } from '../../window';
 export type WindowControlPlacement = 'left' | 'right' | 'controls';
 
 export interface WindowControlDef {
-
 	id: string;
-
 	label: string;
-
 	icon?: string;
-
 	placement?: WindowControlPlacement;
-
 	order?: number;
-
 	match: ( window: DesktopWindow ) => boolean;
-
 	onClick?: ( window: DesktopWindow, ev: MouseEvent ) => void;
-
 	render?: ( host: HTMLElement, window: DesktopWindow ) => void;
-
 	owner?: string;
-
 	core?: boolean;
 }
 
@@ -139,6 +129,7 @@ export function controlsForWindow(
 			}
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] window-control "${ def.id }" match() threw — skipping`,
 					err,
@@ -172,6 +163,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] window-control registry listener threw:',
 					err,

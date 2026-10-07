@@ -1,7 +1,13 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-posts-window
+ */
 class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
 	public function test_default_includes_native_posts_enabled() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'nativePostsEnabled', $defaults );
@@ -11,6 +17,9 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_keeps_true_value() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'nativePostsEnabled' => true )
@@ -18,6 +27,9 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertTrue( $clean['nativePostsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_keeps_false_value() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'nativePostsEnabled' => false )
@@ -25,6 +37,9 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertFalse( $clean['nativePostsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_coerces_truthy_strings() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'nativePostsEnabled' => '1' )
@@ -32,6 +47,9 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertTrue( $clean['nativePostsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_coerces_falsy_values() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'nativePostsEnabled' => 0 )
@@ -44,6 +62,9 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertFalse( $clean['nativePostsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_falls_back_when_missing() {
 		$clean = openstation_sanitize_os_settings(
 			array( 'wallpaper' => 'dark' )
@@ -54,6 +75,10 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_user_meta_round_trip_keeps_native_posts_enabled() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings(
@@ -67,6 +92,10 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertTrue( $loaded['nativePostsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_user_meta_round_trip_keeps_explicit_false() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings(
@@ -81,6 +110,9 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertFalse( $loaded['nativePostsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
 	public function test_default_includes_hidden_columns() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'nativePostsHiddenColumns', $defaults );
@@ -89,6 +121,9 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertSame( array(), $defaults['nativePagesHiddenColumns'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_sanitize_hidden_columns() {
 		$clean = openstation_sanitize_os_settings(
 			array(
@@ -100,6 +135,10 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 		$this->assertSame( array( 'author', 'parent' ), $clean['nativePagesHiddenColumns'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_user_meta_round_trip_keeps_hidden_columns_independently() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings(

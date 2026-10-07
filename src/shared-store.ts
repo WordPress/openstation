@@ -1,22 +1,15 @@
 export interface SharedStore< T > {
-
 	state: T;
-
 	getState(): Readonly< T >;
-
 	notify(): void;
-
 	subscribe( cb: ( state: Readonly< T > ) => void ): () => void;
-
 	setState( patch: Partial< T > ): void;
-
 	reset(): void;
 }
 
 interface InternalRecord< T > {
 	state: T;
 	listeners: Set< ( state: Readonly< T > ) => void >;
-
 	rebuild: () => T;
 }
 
@@ -52,7 +45,6 @@ export function createSharedStore< T >(
 	}
 
 	const handle: SharedStore< T > = {
-
 		get state() {
 			return record!.state;
 		},
@@ -67,6 +59,7 @@ export function createSharedStore< T >(
 				try {
 					cb( record!.state as Readonly< T > );
 				} catch ( err ) {
+					// eslint-disable-next-line no-console
 					console.error(
 						`[desktop-mode/shared-store:${ key }] subscriber threw:`,
 						err,
@@ -83,6 +76,7 @@ export function createSharedStore< T >(
 		setState( patch: Partial< T > ): void {
 			const cur = record!.state;
 			if ( typeof cur !== 'object' || cur === null ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[desktop-mode/shared-store:${ key }] setState called on a primitive store; use the state setter instead.`,
 				);
@@ -93,7 +87,6 @@ export function createSharedStore< T >(
 		},
 		reset(): void {
 			const fresh = record!.rebuild();
-
 			const cur = record!.state;
 			if (
 				typeof cur === 'object' && cur !== null &&

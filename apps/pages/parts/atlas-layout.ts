@@ -44,7 +44,6 @@ export function layoutAtlas( pages: AtlasPage[], edges: AtlasEdge[], home?: numb
 		for ( const id of queue ) {
 			( layers[ depths.get( id )! ] ??= [] ).push( id );
 		}
-
 		for ( let pass = 0; pass < 6; pass++ ) {
 			const order = layers.map( ( _, index ) => index );
 			if ( pass % 2 ) {

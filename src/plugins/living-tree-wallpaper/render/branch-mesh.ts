@@ -8,13 +8,9 @@ const BARK_HIGHLIGHT = 0xd9b083;
 const BARK_GROOVE = 0x241609;
 
 export interface BranchChain {
-
 	nodeIdx: number[];
-
 	meanCompliance: number;
-
 	meanRadius: number;
-
 	fromRoot: boolean;
 }
 
@@ -44,7 +40,6 @@ export function buildChains( nodes: BranchNode[] ): BranchChain[] {
 	}
 
 	const chains: BranchChain[] = [];
-
 	const starts: Array< { from: number; head: number } > = [];
 	for ( let i = 0; i < nodes.length; i++ ) {
 		if ( nodes[ i ].parent === null || children[ nodes[ i ].parent as number ].length > 1 ) {

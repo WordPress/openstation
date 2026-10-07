@@ -108,7 +108,6 @@ describe( 'createReactiveRegistry', () => {
 		r.register( { id: 'a', label: 'A' } );
 		r.reset();
 		r.register( { id: 'b', label: 'B' } );
-
 		expect( cb ).toHaveBeenCalledTimes( 1 );
 		expect( r.all().map( ( e ) => e.id ) ).toEqual( [ 'b' ] );
 	} );

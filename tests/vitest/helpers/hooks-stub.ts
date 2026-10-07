@@ -110,7 +110,6 @@ export function createHooksStub(): FakeWpHooks {
 
 export function installHooksStub(): FakeWpHooks {
 	const stub = createHooksStub();
-
 	( window as unknown as { wp?: unknown } ).wp = { hooks: stub };
 	return stub;
 }

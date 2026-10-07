@@ -38,7 +38,6 @@ function makePlacement( id: number, type = 'link' ) {
 describe( 'desktop-files trash — broadcast shape', () => {
 	beforeEach( async () => {
 		installHooksStub();
-
 		const { bc } = await load();
 		const w = window as unknown as { wp?: Record< string, unknown > };
 		w.wp = {

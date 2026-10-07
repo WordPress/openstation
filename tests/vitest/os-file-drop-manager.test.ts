@@ -25,7 +25,6 @@ function makeFile(
 	type: string,
 	size = 1024,
 ): File {
-
 	const blob = new Blob( [ new Uint8Array( size ) ], { type } );
 	return new File( [ blob ], name, { type } );
 }
@@ -38,7 +37,6 @@ describe( 'os-file-drop/manager', () => {
 	afterEach( () => {
 		clearHooksStub();
 		document.body.innerHTML = '';
-
 		const host = window as unknown as {
 			__openStationOsFileDropMounted?: { dispose: () => void };
 		};
@@ -130,7 +128,6 @@ describe( 'os-file-drop/manager', () => {
 		} );
 
 		test( 'replaces path separators and trims leading dots', () => {
-
 			expect( sanitizeFilename( '..\\Windows\\evil.exe' ) ).toBe(
 				'Windows-evil.exe',
 			);
@@ -274,7 +271,6 @@ describe( 'os-file-drop/manager', () => {
 		} );
 
 		test( 'window-level drop bails when a nested handler already preventDefault-ed', async () => {
-
 			const openDialog = vi.fn().mockResolvedValue( undefined );
 			mountOsFileDropManager( {
 				config: {

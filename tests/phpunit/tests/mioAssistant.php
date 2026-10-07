@@ -1,9 +1,13 @@
 <?php
+/**
+ * @group openstation
+ * @group os-mio
+ */
 
 defined( 'ABSPATH' ) || exit;
 
 class Tests_OpenStation_MioAssistant extends WP_UnitTestCase {
-
+	/** @covers ::openstation_rest_mio_permission */
 	public function test_disabled_mio_api_blocks_direct_turns() {
 		$user = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $user );
@@ -29,16 +33,19 @@ class Tests_OpenStation_MioAssistant extends WP_UnitTestCase {
 		);
 	}
 
+	/** @covers ::openstation_mio_normalize_arguments */
 	public function test_empty_sdk_arguments_normalize_only_for_parameterless_tools() {
 		$this->assertSame( '{}', openstation_mio_normalize_arguments( '[]', array( 'type' => 'object', 'properties' => array() ) ) );
 		$this->assertSame( '[]', openstation_mio_normalize_arguments( '[]', $this->turn()['tools'][0]['parameters'] ) );
 		$this->assertSame( '{"unexpected":1}', openstation_mio_normalize_arguments( '{"unexpected":1}', array( 'type' => 'object' ) ) );
 	}
 
+	/** @covers ::openstation_mio_valid_turn */
 	public function test_valid_turn_accepts_window_authored_prompt_and_private_tools() {
 		$this->assertTrue( openstation_mio_valid_turn( $this->turn() ) );
 	}
 
+	/** @covers ::openstation_mio_valid_turn */
 	public function test_rejects_missing_fields_unknown_fields_and_oversized_context() {
 		$this->assertFalse( openstation_mio_valid_turn( null ) );
 		$this->assertFalse( openstation_mio_valid_turn( array() ) );
@@ -53,6 +60,7 @@ class Tests_OpenStation_MioAssistant extends WP_UnitTestCase {
 		$this->assertFalse( openstation_mio_valid_turn( $turn ) );
 	}
 
+	/** @covers ::openstation_mio_valid_turn */
 	public function test_rejects_ambiguous_or_malformed_tool_catalogs() {
 		$turn = $this->turn();
 		$turn['tools'][] = $turn['tools'][0];
@@ -65,6 +73,7 @@ class Tests_OpenStation_MioAssistant extends WP_UnitTestCase {
 		$this->assertFalse( openstation_mio_valid_turn( $turn ) );
 	}
 
+	/** @covers ::openstation_register_mio_rest_route */
 	public function test_route_requires_authentication_and_publishes_no_wordpress_abilities() {
 		wp_set_current_user( 0 );
 		$server = rest_get_server();
@@ -79,6 +88,7 @@ class Tests_OpenStation_MioAssistant extends WP_UnitTestCase {
 		}
 	}
 
+	/** @covers ::openstation_rest_mio_turn */
 	public function test_callback_rejects_invalid_input_before_any_generation() {
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/mio/turn' );
 		$request->set_header( 'Content-Type', 'application/json' );

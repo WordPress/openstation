@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-agents
+ */
 class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -109,7 +112,6 @@ class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 	}
 
 	public function test_face_keeps_only_what_was_set() {
-
 		$user = $this->make_agent(
 			array( 'face' => array( 'physics' => array( 'shapePreset' => 'cloud' ) ) )
 		);
@@ -129,7 +131,6 @@ class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 		);
 		$url = openstation_agent_face_url( $user->ID );
 		$this->assertNotSame( '', $url, 'The face should have been written on create.' );
-
 		$this->assertStringStartsWith( 'http', $url );
 		$this->assertStringEndsWith( '.svg', $url );
 	}
@@ -191,11 +192,10 @@ class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 	}
 
 	public function test_the_face_directory_is_exec_off_not_deny_all() {
-
 		openstation_agent_faces_ensure_dir();
 		$htaccess = openstation_agent_faces_dir() . '/.htaccess';
 		$this->assertFileExists( $htaccess );
-		$rules = file_get_contents( $htaccess );
+		$rules = file_get_contents( $htaccess ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading a file this test just wrote.
 
 		$this->assertStringContainsString( 'php_flag engine off', $rules );
 
@@ -226,8 +226,7 @@ class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 	}
 
 	public function test_the_roster_data_loads_without_the_seeder() {
-
-		$source = file_get_contents(
+		$source = file_get_contents( // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading plugin source in a test.
 			dirname( __DIR__, 3 ) . '/includes/agents/default-definitions.php'
 		);
 		$this->assertStringNotContainsString( 'add_action(', $source );

@@ -55,7 +55,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates individual post edit URLs by the `post` query arg', () => {
-
 		const first = deriveWindowId(
 			`${ ADMIN }post.php?post=123&action=edit`,
 			ADMIN,
@@ -69,7 +68,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'keeps the generic `id` query arg transient (plugin row actions)', () => {
-
 		const list = deriveWindowId( `${ ADMIN }admin.php?page=foo`, ADMIN );
 		const action = deriveWindowId(
 			`${ ADMIN }admin.php?page=foo&action=duplicate&id=3`,
@@ -79,7 +77,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates an admin.php entity editor from its list by `id`', () => {
-
 		const list = deriveWindowId(
 			`${ ADMIN }admin.php?page=wc-orders`,
 			ADMIN,
@@ -111,7 +108,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'the entity-editor rule is scoped to admin.php screens with a `page`', () => {
-
 		expect(
 			deriveWindowId( `${ ADMIN }admin.php?action=edit&id=3`, ADMIN ),
 		).toBe( deriveWindowId( `${ ADMIN }admin.php`, ADMIN ) );
@@ -121,7 +117,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'row actions on an admin.php screen still resolve to the list window', () => {
-
 		const list = deriveWindowId( `${ ADMIN }admin.php?page=foo`, ADMIN );
 		expect(
 			deriveWindowId(
@@ -138,7 +133,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates individual term edit URLs by the `tag_ID` query arg', () => {
-
 		const first = deriveWindowId(
 			`${ ADMIN }term.php?taxonomy=category&tag_ID=3`,
 			ADMIN,
@@ -151,7 +145,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates media detail deep links by the `item` query arg', () => {
-
 		const first = deriveWindowId( `${ ADMIN }upload.php?item=5`, ADMIN );
 		const second = deriveWindowId( `${ ADMIN }upload.php?item=9`, ADMIN );
 		expect( first ).not.toBe( second );
@@ -159,7 +152,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates individual comment edit URLs by the `c` query arg', () => {
-
 		const first = deriveWindowId(
 			`${ ADMIN }comment.php?action=editcomment&c=500`,
 			ADMIN,
@@ -185,7 +177,6 @@ describe( 'utils/deriveWindowId', () => {
 	} );
 
 	test( 'separates site-editor entities by the `p` route', () => {
-
 		const home = deriveWindowId(
 			`${ ADMIN }site-editor.php?p=/wp_template/twentytwentyfive//home`,
 			ADMIN,
@@ -250,7 +241,6 @@ describe( 'utils/urlMatchKey', () => {
 	} );
 
 	test( 'unparseable input falls back to the raw string', () => {
-
 		const weird = 'not a\0 url';
 		expect( urlMatchKey( weird ) ).toBeTypeOf( 'string' );
 	} );
@@ -303,7 +293,6 @@ describe( 'utils/sanitizeIconSvg', () => {
 	} );
 
 	test( 'returns empty string for malformed markup', () => {
-
 		const out = sanitizeIconSvg( '<svg><path' );
 		expect( out ).toBe( '' );
 	} );

@@ -1,5 +1,9 @@
-<?php
 
+<?php
+/**
+ * @group openstation
+ * @group os-default-window
+ */
 class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -10,7 +14,6 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 	}
 
@@ -21,6 +24,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_get_default_window
+	 */
 	public function test_get_returns_sane_defaults_for_unconfigured_user() {
 		$pref = openstation_get_default_window( self::$admin_id );
 
@@ -28,6 +34,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertSame( admin_url( 'index.php' ), $pref['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_default_window
+	 */
 	public function test_get_falls_back_when_meta_value_is_not_an_array() {
 		update_user_meta( self::$admin_id, OPENSTATION_DEFAULT_WINDOW_META, 'garbage' );
 
@@ -37,6 +46,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertSame( admin_url( 'index.php' ), $pref['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_set_default_window
+	 */
 	public function test_set_stores_an_enabled_preference_with_url() {
 		$ok = openstation_set_default_window( self::$admin_id, admin_url( 'edit.php' ) );
 
@@ -46,21 +58,29 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'edit.php', $pref['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_set_default_window
+	 */
 	public function test_set_null_disables_the_preference() {
 		openstation_set_default_window( self::$admin_id, admin_url( 'edit.php' ) );
 		openstation_set_default_window( self::$admin_id, null );
 
 		$pref = openstation_get_default_window( self::$admin_id );
 		$this->assertFalse( $pref['enabled'] );
-
 		$this->assertSame( admin_url( 'index.php' ), $pref['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_set_default_window
+	 */
 	public function test_set_rejects_invalid_user_id() {
 		$this->assertFalse( openstation_set_default_window( 0, admin_url( 'edit.php' ) ) );
 		$this->assertFalse( openstation_set_default_window( -1, admin_url( 'edit.php' ) ) );
 	}
 
+	/**
+	 * @covers ::openstation_validate_default_window_url
+	 */
 	public function test_validate_accepts_same_origin_admin_url() {
 		$clean = openstation_validate_default_window_url( admin_url( 'edit.php?post_type=page' ) );
 
@@ -68,6 +88,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'edit.php', $clean );
 	}
 
+	/**
+	 * @covers ::openstation_validate_default_window_url
+	 */
 	public function test_validate_rejects_cross_origin_url() {
 		$this->assertSame(
 			'',
@@ -75,6 +98,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_validate_default_window_url
+	 */
 	public function test_validate_rejects_non_admin_paths() {
 		$this->assertSame(
 			'',
@@ -82,6 +108,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_validate_default_window_url
+	 */
 	public function test_validate_rejects_non_http_schemes() {
 		$this->assertSame(
 			'',
@@ -93,6 +122,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_validate_default_window_url
+	 */
 	public function test_validate_preserves_query_string() {
 		$clean = openstation_validate_default_window_url( admin_url( 'edit.php?post_type=page&orderby=date' ) );
 
@@ -100,6 +132,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'orderby=date', $clean );
 	}
 
+	/**
+	 * @covers ::openstation_portal_entry_url
+	 */
 	public function test_portal_entry_url_honors_disabled_preference() {
 		openstation_set_default_window( self::$admin_id, null );
 
@@ -108,6 +143,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertSame( admin_url( 'index.php' ), $url );
 	}
 
+	/**
+	 * @covers ::openstation_portal_entry_url
+	 */
 	public function test_portal_entry_url_uses_configured_preference() {
 		openstation_set_default_window( self::$admin_id, admin_url( 'plugins.php' ) );
 
@@ -116,19 +154,27 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'plugins.php', $url );
 	}
 
+	/**
+	 * @covers ::openstation_validate_default_window_url
+	 */
 	public function test_validate_accepts_native_marker() {
 		$clean = openstation_validate_default_window_url( 'native:os-settings' );
 		$this->assertSame( 'native:os-settings', $clean );
 	}
 
+	/**
+	 * @covers ::openstation_validate_default_window_url
+	 */
 	public function test_validate_rejects_native_marker_with_unsafe_slug() {
-
 		$this->assertSame( '', openstation_validate_default_window_url( 'native:' ) );
 		$this->assertSame( '', openstation_validate_default_window_url( 'native:foo/bar' ) );
 		$this->assertSame( '', openstation_validate_default_window_url( 'native:foo bar' ) );
 		$this->assertSame( '', openstation_validate_default_window_url( 'native:../etc/passwd' ) );
 	}
 
+	/**
+	 * @covers ::openstation_portal_entry_url
+	 */
 	public function test_portal_entry_url_falls_back_for_native_marker() {
 		openstation_set_default_window( self::$admin_id, 'native:os-settings' );
 
@@ -137,6 +183,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertSame( admin_url(), $url );
 	}
 
+	/**
+	 * @covers ::openstation_rest_set_default_window
+	 */
 	public function test_rest_set_default_window_with_url() {
 		wp_set_current_user( self::$admin_id );
 
@@ -152,6 +201,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'tools.php', $data['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_set_default_window
+	 */
 	public function test_rest_set_default_window_with_null() {
 		wp_set_current_user( self::$admin_id );
 		openstation_set_default_window( self::$admin_id, admin_url( 'edit.php' ) );
@@ -167,6 +219,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertFalse( $data['enabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_set_default_window
+	 */
 	public function test_rest_set_default_window_with_missing_url() {
 		wp_set_current_user( self::$admin_id );
 		openstation_set_default_window( self::$admin_id, admin_url( 'edit.php' ) );
@@ -182,6 +237,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertFalse( $data['enabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_set_default_window
+	 */
 	public function test_rest_rejects_cross_origin_url() {
 		wp_set_current_user( self::$admin_id );
 
@@ -196,6 +254,9 @@ class Tests_OpenStation_DefaultWindow extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_rest_set_default_window
+	 */
 	public function test_rest_rejects_anonymous() {
 		wp_set_current_user( 0 );
 

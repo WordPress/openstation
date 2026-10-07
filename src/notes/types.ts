@@ -4,18 +4,15 @@ export interface Note {
 	id: number;
 	text: string;
 	color: string;
-
 	x: number;
 	y: number;
 	z: number;
 	public: boolean;
-
 	seed: number;
 	ownerId: number;
 	ownerName: string;
 	ownerAvatar: string;
 	canEdit: boolean;
-
 	updatedAtMs: number;
 }
 

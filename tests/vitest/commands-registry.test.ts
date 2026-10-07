@@ -6,7 +6,6 @@ type CommandsModule = typeof import( '../../src/commands' );
 async function load(): Promise< CommandsModule > {
 	vi.resetModules();
 	const mod = await import( '../../src/commands' );
-
 	for ( const cmd of mod.listCommands() ) {
 		mod.unregisterCommand( cmd.slug );
 	}

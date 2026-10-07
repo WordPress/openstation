@@ -41,7 +41,6 @@ function rest_extras( \WP_Post $post ) {
 			$meta[ $key ] = get_post_meta( $post->ID, $key, true );
 		}
 	}
-
 	$extras = array( 'meta' => array() === $meta ? new \stdClass() : $meta );
 	foreach ( get_object_taxonomies( $post->post_type, 'objects' ) as $taxonomy ) {
 		if ( empty( $taxonomy->show_in_rest ) ) {
@@ -67,7 +66,6 @@ function tiebroken( $by, $order, $tiebreak ) {
 }
 
 function fetch( Os $os, array $section, State $state ) {
-
 	$woo_page = woo_list( $os, $section, $state );
 	if ( null !== $woo_page ) {
 		return $woo_page;
@@ -83,13 +81,11 @@ function fetch( Os $os, array $section, State $state ) {
 				'number'      => PER_PAGE,
 				'offset'      => ( $page - 1 ) * PER_PAGE,
 				'search'      => '' !== $query ? '*' . $query . '*' : '',
-
 				'orderby'     => tiebroken( $by, $order, 'ASC' ),
 				'count_total' => true,
 			)
 		);
 		$results = $users->get_results();
-
 		$counts = count_many_users_posts( wp_list_pluck( $results, 'ID' ), 'post', true );
 		$items  = array();
 		foreach ( $results as $user ) {
@@ -112,10 +108,8 @@ function fetch( Os $os, array $section, State $state ) {
 		's'              => $query,
 		'posts_per_page' => $per_page,
 		'paged'          => $page,
-
 		'orderby'        => tiebroken( $by, $order, 'DESC' ),
 	);
-
 	$posts = new \WP_Query( woo_query_args( $args, $section, $state ) );
 	$items = array();
 	foreach ( $posts->posts as $post ) {
@@ -125,13 +119,12 @@ function fetch( Os $os, array $section, State $state ) {
 			'subtitle'  => $is_media
 				? (string) $post->post_mime_type
 				: sprintf(
-
+					/* translators: 1: author display name, 2: date. */
 					__( '%1$s — %2$s', 'desktop-mode' ),
 					openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $post->post_author ) ),
 					(string) get_the_date( '', $post )
 				),
 			'status'    => $is_media ? '' : (string) $post->post_status,
-
 			'excerpt'   => $is_media
 				? ''
 				: mb_substr(
@@ -150,12 +143,9 @@ function fetch( Os $os, array $section, State $state ) {
 			'canEdit'   => allowed( $os, $section, (int) $post->ID, 'edit' ),
 			'canDelete' => allowed( $os, $section, (int) $post->ID, 'delete' ),
 		);
-
 		$items[ count( $items ) - 1 ] += $is_media ? media_facts( $post ) : post_facts( $post );
 		if ( ! $is_media ) {
-
 			$items[ count( $items ) - 1 ] += rest_extras( $post );
-
 			$items[ count( $items ) - 1 ] += woo_extras( $post );
 		}
 	}
@@ -204,7 +194,6 @@ function user_row( \WP_User $user, callable $can_edit, $post_count = null ) {
 	return array(
 		'id'         => (int) $user->ID,
 		'title'      => openstation_plain_text_title( $user->display_name ),
-
 		'name'       => openstation_plain_text_title( $user->display_name ),
 		'subtitle'   => (string) $user->user_email,
 		'status'     => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
@@ -215,11 +204,9 @@ function user_row( \WP_User $user, callable $can_edit, $post_count = null ) {
 		'lockedBy'   => '',
 		'canEdit'    => (bool) $can_edit( (int) $user->ID ),
 		'canDelete'  => false,
-
 		'login'      => (string) $user->user_login,
 		'email'      => (string) $user->user_email,
 		'roles'      => array_values( array_map( 'strval', (array) $user->roles ) ),
-
 		'registered' => (string) get_date_from_gmt( (string) $user->user_registered, 'c' ),
 		'posts'      => null === $post_count
 			? (int) count_user_posts( $user->ID, 'post', true )
@@ -233,7 +220,6 @@ function count_of( array $section ) {
 		return $woo;
 	}
 	if ( 'agent' === $section['kind'] ) {
-
 		return function_exists( 'openstation_agent_get_agents' )
 			? count( openstation_agent_get_agents() )
 			: 0;
@@ -265,7 +251,6 @@ function edit_url( array $section, $id ) {
 }
 
 function edit_title( array $section, $id ) {
-
 	if ( woo_section_is( $section, 'wc-orders' ) ) {
 		$detail = woo_detail( $section, (int) $id );
 		return $detail ? (string) $detail['title'] : '';
@@ -291,7 +276,6 @@ function detail( Os $os, array $section, $id ) {
 		if ( ! $user ) {
 			return null;
 		}
-
 		return array(
 			'kind'      => 'user',
 			'id'        => $id,
@@ -352,6 +336,7 @@ function detail( Os $os, array $section, $id ) {
 		);
 	}
 
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying Core's own content pipeline (blocks, shortcodes, embeds), not declaring a hook.
 	$content = apply_filters( 'the_content', (string) $post->post_content );
 
 	return array(

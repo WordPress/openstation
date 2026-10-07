@@ -23,7 +23,6 @@ describe( 'games/dictionary.ts', () => {
 	test( 'parser skips comments and blanks, trims CRLF', () => {
 		const dictionary = parseDictionary( FIXTURE );
 		expect( dictionary.size ).toBe( 7 );
-
 		expect( dictionary.pick( 3, 3, seededRng( [ 0.6 ] ) ) ).toBe( 'dog' );
 	} );
 
@@ -44,14 +43,12 @@ describe( 'games/dictionary.ts', () => {
 	} );
 
 	test( 'earlier (more frequent) entries are favored', () => {
-
 		const dictionary = parseDictionary( FIXTURE );
 		expect( dictionary.pick( 3, 3, seededRng( [ 0.5 ] ) ) ).toBe( 'dog' );
 	} );
 
 	test( 'avoidInitials redraws up to three times', () => {
 		const dictionary = parseDictionary( FIXTURE );
-
 		const word = dictionary.pick(
 			3,
 			3,

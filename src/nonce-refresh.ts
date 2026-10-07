@@ -48,6 +48,7 @@ export function bootNonceRefresh(): void {
 				try {
 					updater( value );
 				} catch ( err ) {
+					// eslint-disable-next-line no-console
 					console.error(
 						`[desktop-mode/nonce-refresh] updater for "${ action }" threw:`,
 						err,
@@ -101,7 +102,6 @@ function writeWindowConfigField(
 		return;
 	}
 	const record = blob as Record< string, unknown >;
-
 	const extra = record.extra;
 	let written = false;
 	if ( extra && typeof extra === 'object' && field in ( extra as Record< string, unknown > ) ) {

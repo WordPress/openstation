@@ -50,7 +50,6 @@ export abstract class Component extends HTMLElement {
 		}
 		const prop = camel( name );
 		this._propValues[ prop ] = newValue;
-
 		this.requestUpdate();
 	}
 
@@ -116,7 +115,6 @@ export abstract class Component extends HTMLElement {
 					} else {
 						this.setAttribute( attr, str );
 					}
-
 					this.requestUpdate();
 				},
 				enumerable: true,
@@ -149,7 +147,6 @@ export abstract class Component extends HTMLElement {
 				.map( ( s ) => s.sheet )
 				.filter( ( s ): s is CSSStyleSheet => s !== null );
 			this.shadowRoot.adoptedStyleSheets = sheets;
-
 			if ( sheets.length !== ctor.styles.length ) {
 				for ( const s of ctor.styles ) {
 					if ( ! s.sheet ) {

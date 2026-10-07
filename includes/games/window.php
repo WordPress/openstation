@@ -12,12 +12,9 @@ function openstation_games_style_handles( $set = null ) {
 
 function openstation_games_icon_svg() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-
 		. '<path d="M21 21h22a13 13 0 0 1 12.6 9.8l2.8 11.2a7.5 7.5 0 0 1-13.6 5.8L40.5 41h-17l-4.3 6.8A7.5 7.5 0 0 1 5.6 42l2.8-11.2A13 13 0 0 1 21 21z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'
-
 		. '<rect x="14" y="28.5" width="14" height="4.6" rx="2.3" fill="currentColor"/>'
 		. '<rect x="18.7" y="23.8" width="4.6" height="14" rx="2.3" fill="currentColor"/>'
-
 		. '<circle cx="40.5" cy="34" r="3.1" fill="currentColor"/>'
 		. '<circle cx="47.5" cy="28.5" r="3.1" fill="currentColor"/>'
 		. '</svg>';
@@ -57,13 +54,11 @@ function openstation_games_register_window() {
 		'icon'       => $icon_uri,
 		'template'   => 'openstation_games_render_template',
 		'script'     => 'desktop-mode-games',
-
 		'styles'     => array( 'desktop-mode-games' ),
 		'width'      => 900,
 		'height'     => 600,
 		'min_width'  => 560,
 		'min_height' => 400,
-
 		'placement'  => 'none',
 	);
 
@@ -73,7 +68,7 @@ function openstation_games_register_window() {
 
 	$registered = openstation_register_window( 'desktop-mode-games', $window_args );
 	if ( is_wp_error( $registered ) ) {
-
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Games window registration failed: ' . $registered->get_error_message() );
 		return;
 	}
@@ -107,5 +102,4 @@ function openstation_games_localize_config() {
 		)
 	);
 }
-
 add_action( 'admin_enqueue_scripts', 'openstation_games_localize_config', 5 );

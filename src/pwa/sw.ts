@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import {
 	classifyAdminAssetRequest,
 	isCacheableResponse,
@@ -39,7 +41,6 @@ interface SWExtendableEvent {
 }
 interface SWMessageEvent {
 	data?: unknown;
-
 	source?: { postMessage: ( data: unknown ) => void } | null;
 	waitUntil: ( p: Promise< unknown > ) => void;
 }
@@ -60,7 +61,6 @@ interface SWGlobal {
 	clients: SWClients;
 	location: { origin: string; pathname: string };
 	registration: { scope: string };
-
 	__OS_SW_CONFIG?: unknown;
 }
 
@@ -70,7 +70,6 @@ const VERSION = '0.8.0-pwa-6';
 const STATIC_CACHE = `os-static-${ VERSION }`;
 const RUNTIME_CACHE = `os-runtime-${ VERSION }`;
 const ADMIN_CACHE = `os-admin-${ VERSION }`;
-
 const SCOPE_PATH = ( () => {
 	try {
 		const path = new URL( sw.registration.scope ).pathname;
@@ -116,7 +115,6 @@ sw.addEventListener( 'activate', ( event: SWExtendableEvent ) => {
 					.filter( ( k ) => ! k.endsWith( VERSION ) )
 					.map( ( k ) => caches.delete( k ) ),
 			);
-
 			await pruneAdminCache();
 			await sw.clients.claim();
 		} )(),
@@ -186,7 +184,7 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 					if ( res ) {
 						return res;
 					}
-
+					// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 					return fetch( req );
 				} ),
 			);
@@ -196,7 +194,6 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 
 	if ( req.mode === 'navigate' && req.destination === 'document' ) {
 		event.waitUntil( replayRestoreTargets() );
-
 		event.respondWith( networkFirstWithOfflineFallback( req ) );
 	}
 } );
@@ -238,11 +235,9 @@ async function replayRestoreTargets(): Promise< void > {
 					beginSpeculation( url.toString() );
 				}
 			} catch {
-
 			}
 		}
 	} catch {
-
 	}
 }
 
@@ -258,7 +253,6 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 				shellBuild: CONFIG.shellBuild,
 			} );
 		} catch {
-
 		}
 		return;
 	}
@@ -300,7 +294,6 @@ sw.addEventListener( 'message', ( event: SWMessageEvent ) => {
 						} ),
 					);
 				} catch {
-
 				}
 			} )(),
 		);
@@ -334,11 +327,11 @@ function beginSpeculation( href: string ): Promise< Response | null > | null {
 	}
 	const inFlight = ( async () => {
 		try {
+			// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 			const res = await fetch( href, {
 				credentials: 'same-origin',
 				redirect: 'follow',
 			} );
-
 			if ( res.status !== 200 || res.redirected ) {
 				return null;
 			}
@@ -385,11 +378,9 @@ sw.addEventListener( 'notificationclick', ( event: SWNotificationEvent ) => {
 async function precache(): Promise< void > {
 	try {
 		const cache = await caches.open( STATIC_CACHE );
-
 		const base = pluginAssetBase();
 		await cache.addAll( PRECACHE_PATHS.map( ( p ) => base + p ) );
 	} catch {
-
 	}
 }
 
@@ -410,6 +401,7 @@ function isJsAssetPath( pathname: string ): boolean {
 async function networkFirstForAsset( req: Request ): Promise< Response > {
 	const cache = await caches.open( RUNTIME_CACHE );
 	try {
+		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 		const fresh = await fetch( req.url, { cache: 'reload' } );
 		if ( fresh && fresh.status === 200 ) {
 			cache.put( req, fresh.clone() ).catch( () => undefined );
@@ -434,9 +426,8 @@ async function staleWhileRevalidate(
 	cacheName: string,
 ): Promise< Response > {
 	const cache = await caches.open( cacheName );
-
 	const cached = await cache.match( req );
-
+	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 	const network = fetch( req )
 		.then( ( res ) => {
 			if (
@@ -479,7 +470,7 @@ async function cacheFirstAdminAsset( req: Request ): Promise< Response > {
 	if ( cached ) {
 		return cached;
 	}
-
+	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available; raw fetch is the API.
 	const fresh = await fetch( req );
 	if (
 		isCacheableResponse(
@@ -517,14 +508,12 @@ async function pruneAdminCache(): Promise< void > {
 		if ( keys.length <= ADMIN_CACHE_MAX_ENTRIES ) {
 			return;
 		}
-
 		const excess = keys.slice(
 			0,
 			keys.length - ADMIN_CACHE_MAX_ENTRIES + ADMIN_CACHE_PRUNE_BATCH,
 		);
 		await Promise.all( excess.map( ( k ) => cache.delete( k ) ) );
 	} catch {
-
 	}
 }
 
@@ -532,6 +521,7 @@ async function networkFirstWithOfflineFallback(
 	req: Request,
 ): Promise< Response > {
 	try {
+		// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.os` global available.
 		const fresh = await fetch( req );
 		return fresh;
 	} catch {

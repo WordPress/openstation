@@ -42,7 +42,6 @@ function run(
 						id: w,
 						title: w,
 						icon: 'dashicons-admin-generic',
-
 						fromAdminUrl: true,
 					}
 				: w,
@@ -132,7 +131,6 @@ describe( 'zones', () => {
 } );
 
 describe( 'a core tile among the core menus', () => {
-
 	const withTile = () => [
 		item( 'index.php', 'core' ),
 		item( 'edit.php', 'core' ),
@@ -159,7 +157,6 @@ describe( 'running windows', () => {
 		const open = run( [ games ], { open: [ 'games-window' ] } );
 		expect( ids( open.dock.apps ) ).toEqual( [ 'games' ] );
 		expect( open.ephemeral.has( 'games' ) ).toBe( true );
-
 		expect( ids( open.desktop ) ).toEqual( [ 'games' ] );
 	} );
 
@@ -202,7 +199,6 @@ describe( 'running windows', () => {
 
 describe( 'a window nothing launches', () => {
 	test( 'gets a tile of its own while it is open', () => {
-
 		const nav = run( [], {
 			open: [
 				{
@@ -220,18 +216,15 @@ describe( 'a window nothing launches', () => {
 		expect( nav.ephemeral.has( 'desktop-mode-os-settings' ) ).toBe(
 			true,
 		);
-
 		expect( ids( nav.desktop ) ).toEqual( [] );
 	} );
 
 	test( 'an admin page gets none — its menu already answers for it', () => {
-
 		const nav = run( [], { open: [ 'post-php' ] } );
 		expect( ids( nav.dock.apps ) ).toEqual( [] );
 	} );
 
 	test( 'a tile answers for what its submenu rows open', () => {
-
 		const system = item( 'os-system', 'control', {
 			answersFor: [ 'desktop-mode-os-settings' ],
 		} );
@@ -266,7 +259,6 @@ describe( 'a window nothing launches', () => {
 				],
 			},
 		);
-
 		expect( ids( nav.dock.apps ) ).toEqual( [ 'games' ] );
 	} );
 
@@ -285,7 +277,6 @@ describe( 'a window nothing launches', () => {
 				],
 			},
 		);
-
 		expect( ids( nav.dock.apps ) ).toEqual( [ 'os-system' ] );
 		expect( nav.ephemeral.has( 'os-system' ) ).toBe( true );
 	} );
@@ -332,7 +323,6 @@ describe( 'ordering', () => {
 	} );
 
 	test( 'the item\'s own order is the baseline within a zone', () => {
-
 		const nav = run( [
 			item( 'os-system', 'control', { order: 30 } ),
 			item( 'os-mio', 'control', { order: 10 } ),
@@ -430,7 +420,6 @@ describe( 'buildNavItems', () => {
 		expect( items[ 0 ].kind ).toBe( 'app' );
 		expect( items[ 0 ].tile ).toBeTruthy();
 		expect( items[ 0 ].entry ).toBeTruthy();
-
 		const nav = run( items );
 		expect( ids( nav.dock.apps ) ).toEqual( [] );
 		expect( ids( nav.desktop ) ).toEqual( [ 'desktop-mode-games' ] );
@@ -448,7 +437,6 @@ describe( 'buildNavItems', () => {
 	} );
 
 	test( 'a window that asked for a launcher keeps it on the rail', () => {
-
 		const items = buildNavItems( {
 			menuItems: [],
 			systemTiles: [

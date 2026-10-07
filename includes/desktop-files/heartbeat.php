@@ -66,10 +66,8 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 		},
 		$visible
 	);
-
 	$placement_upserts = array();
 	if ( ! $truncated ) {
-
 		if ( empty( $visible_folder_ids ) ) {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
@@ -92,7 +90,7 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 				array_map( 'intval', $visible_folder_ids ),
 				array( $placements_version, $cap )
 			);
-
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM {$tables['placements']}
@@ -108,7 +106,6 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 		}
 		foreach ( (array) $rows as $row ) {
 			$row = openstation_files_normalize_placement_row( $row );
-
 			$file = openstation_resolve_file( $row['file_type'], $row['file_ref'] );
 			if ( $file && ! $file->can_read( $user_id ) ) {
 				continue;
@@ -192,7 +189,6 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 			}
 		}
 	}
-
 	if ( $sharing_enabled && ! $truncated && function_exists( 'openstation_files_get_pending_file_shares_for_user' ) ) {
 		$pending_files = openstation_files_get_pending_file_shares_for_user( $user_id, $shares_version );
 		foreach ( $pending_files as $row ) {
@@ -224,7 +220,6 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 				}
 			)
 		);
-
 		openstation_files_purge_stale_tombstones( 'placement', $upsert_placement_ids );
 	}
 	if ( ! empty( $upsert_folder_ids ) ) {
@@ -259,7 +254,7 @@ function openstation_files_purge_stale_tombstones( $kind, $ids ) {
 	global $wpdb;
 	$tables       = openstation_files_table_names();
 	$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$wpdb->query(
 		$wpdb->prepare(
 			"DELETE FROM {$tables['tombstones']}

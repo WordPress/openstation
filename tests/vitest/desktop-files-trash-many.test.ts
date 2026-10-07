@@ -56,7 +56,6 @@ async function load(): Promise< {
 	wp.os = {
 		showToast: ( t: Toast ) => toasts.push( t ),
 	};
-
 	if ( broadcastListener ) {
 		document.removeEventListener( 'os-broadcast', broadcastListener );
 	}
@@ -71,7 +70,6 @@ async function load(): Promise< {
 	document.addEventListener( 'os-broadcast', broadcastListener );
 	const store = await import( '../../src/desktop-files/store' );
 	store.__resetFilesStoreForTests();
-
 	vi.doMock( '../../src/desktop-files/layer-deps', () => ( {
 		rest,
 		store: {
@@ -116,7 +114,6 @@ describe( 'trashManyWithUndo', () => {
 		expect( rest.deletePlacement ).toHaveBeenCalledTimes( 3 );
 		expect( toasts ).toHaveLength( 1 );
 		expect( toasts[ 0 ].message ).toBe( '3 items moved to Trash' );
-
 		expect( store.getFilesState().placementsByFolder.get( 0 ) ).toEqual( [] );
 
 		await toasts[ 0 ].action?.onClick();
@@ -131,7 +128,6 @@ describe( 'trashManyWithUndo', () => {
 
 		expect( rest.deletePlacement ).toHaveBeenCalledWith( 1 );
 		expect( rest.deleteFolder ).toHaveBeenCalledWith( 7 );
-
 		const trashed = broadcasts.filter(
 			( b ) => b.payload.action === 'trashed',
 		);
@@ -160,13 +156,11 @@ describe( 'trashManyWithUndo', () => {
 		expect( toasts[ 0 ].message ).toBe(
 			'1 item moved to Trash · 1 could not be moved',
 		);
-
 		expect( rest.listPlacements ).toHaveBeenCalledWith( 0 );
 		spy.mockRestore();
 	} );
 
 	test( 'Undo announces only what actually came back', async () => {
-
 		const { trash, store } = await load();
 		const items = [ placement( 1 ), placement( 2 ), placement( 3 ) ];
 		store.setFolderPlacements( 0, items as never );
@@ -176,7 +170,6 @@ describe( 'trashManyWithUndo', () => {
 		const spy = vi
 			.spyOn( console, 'error' )
 			.mockImplementation( () => undefined );
-
 		rest.restoreTrashedItem.mockImplementationOnce( async () => {
 			throw new Error( 'network' );
 		} );
@@ -188,10 +181,8 @@ describe( 'trashManyWithUndo', () => {
 		const untrashed = broadcasts.filter(
 			( b ) => b.payload.action === 'untrashed',
 		);
-
 		expect( untrashed ).toHaveLength( 1 );
 		expect( untrashed[ 0 ].payload.ids ).toEqual( [ 2, 3 ] );
-
 		expect( toasts[ 0 ]?.message ).toContain( 'could not be restored' );
 	} );
 

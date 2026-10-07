@@ -145,7 +145,6 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'the panel only ever touches the look, never the springs', async () => {
-
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
@@ -169,7 +168,6 @@ describe( 'Mio style panel', () => {
 		}
 
 		expect( state.writes.length ).toBeGreaterThan( 0 );
-
 		for ( const write of state.writes ) {
 			const split = splitMioLook( write );
 			expect(
@@ -181,7 +179,6 @@ describe( 'Mio style panel', () => {
 		const appearanceKeys = new Set(
 			state.appearanceWrites.flatMap( ( w ) => Object.keys( w ) ),
 		);
-
 		expect( appearanceKeys.has( 'radius' ) ).toBe( false );
 
 		expect( state.physicsWrites.length ).toBeGreaterThan( 0 );
@@ -194,7 +191,6 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'every styling aspect has a control', async () => {
-
 		const OMITTED = [ 'radius', 'glowBlur' ];
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
@@ -220,7 +216,6 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'every checkbox is laid out as a full-width row', async () => {
-
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
 
@@ -234,7 +229,6 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'no control can switch the glow blur off', async () => {
-
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
@@ -253,7 +247,6 @@ describe( 'Mio style panel', () => {
 	} );
 
 	test( 'every look-physics key has a control too', async () => {
-
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
 		openMioStylePanel();
@@ -353,7 +346,6 @@ describe( 'Mio style panel', () => {
 		restore!.dispatchEvent( new MouseEvent( 'click' ) );
 
 		expect( state.resets ).toBe( 1 );
-
 		const repainted = Array.from(
 			panel()!.querySelectorAll( 'os-range-field' ),
 		).find( ( el ) => el.getAttribute( 'label' ) === 'Glow' )!;
@@ -449,7 +441,6 @@ describe( 'Mio style panel', () => {
 			( el ) => el.getAttribute( 'label' ) === 'Change shape on its own',
 		);
 		expect( auto ).toBeDefined();
-
 		expect( auto!.hasAttribute( 'checked' ) ).toBe( true );
 
 		auto!.dispatchEvent(
@@ -479,10 +470,8 @@ describe( 'Mio style panel', () => {
 		expect( state.writes ).toHaveLength( 1 );
 		expect( state.appearanceWrites ).toHaveLength( 1 );
 		expect( state.physicsWrites ).toHaveLength( 1 );
-
 		expect( state.physicsWrites[ 0 ].shapeAngle ).toBe( 0 );
 		expect( state.appearanceWrites[ 0 ].hueLoop ).toBe( true );
-
 		expect(
 			panel()!.querySelector( 'os-select' )!.getAttribute( 'value' ),
 		).toBe( state.physicsWrites[ 0 ].shapePreset );

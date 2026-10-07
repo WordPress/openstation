@@ -105,12 +105,9 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 		] );
 
 		tile.dispatchEvent( pointerEvent( 'pointerdown', 50, 50, tile ) );
-
 		document.dispatchEvent( pointerEvent( 'pointermove', 80, 50 ) );
 		expect( onDrop ).not.toHaveBeenCalled();
-
 		document.dispatchEvent( pointerEvent( 'pointermove', 500, 500 ) );
-
 		document.dispatchEvent( pointerEvent( 'pointerup', 500, 500 ) );
 
 		expect( onDrop ).toHaveBeenCalledTimes( 1 );
@@ -145,7 +142,6 @@ describe( 'My WordPress entity-tile drag (regression)', () => {
 	} );
 
 	test( 'reject-claimant on the window body flips the hint chip to "Can\'t drop here"', () => {
-
 		const manager = new DragManager();
 
 		const myWordpressWindow = document.createElement( 'div' );

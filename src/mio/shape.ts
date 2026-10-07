@@ -94,11 +94,9 @@ function presetDeviation( angle: number, physics: MioPhysics ): number {
 			if ( lobes < 2 ) {
 				return 0;
 			}
-
 			return ( 1 / ( 1 + lobes * lobes ) ) * Math.cos( lobes * angle );
 		}
 		default:
-
 			return BLOB_AMPLITUDE * Math.cos( 3 * ( angle + HALF_PI ) );
 	}
 }
@@ -122,7 +120,6 @@ export function presetRimPoints( physics: MioPhysics ): number {
 		case 'custom':
 			return Math.max( 12, Math.round( physics.shapeLobes ) * 7 );
 		default:
-
 			return 12;
 	}
 }

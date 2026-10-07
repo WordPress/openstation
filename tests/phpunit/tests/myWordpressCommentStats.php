@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -107,26 +110,41 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		return rest_get_server()->dispatch( $request );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_comment_stats_route
+	 */
 	public function test_logged_out_request_is_rejected() {
 		wp_set_current_user( 0 );
 		$this->assertSame( 401, $this->dispatch( $this->published_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_comment_stats_route
+	 */
 	public function test_subscriber_is_rejected_by_route() {
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertSame( 403, $this->dispatch( $this->published_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_comment_stats_callback
+	 */
 	public function test_author_cannot_read_comment_on_private_post() {
 		wp_set_current_user( self::$author_id );
 		$this->assertSame( 403, $this->dispatch( $this->private_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_comment_stats_callback
+	 */
 	public function test_author_cannot_read_comment_on_protected_post() {
 		wp_set_current_user( self::$author_id );
 		$this->assertSame( 403, $this->dispatch( $this->protected_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_can_read_comment_post
+	 */
 	public function test_author_reads_comment_on_unlocked_protected_post() {
 		wp_set_current_user( self::$author_id );
 
@@ -140,6 +158,9 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		$this->assertSame( 200, $status );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_can_read_comment_post
+	 */
 	public function test_author_cannot_read_comment_on_internal_post_type() {
 		wp_set_current_user( self::$author_id );
 
@@ -150,11 +171,17 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->dispatch( $this->internal_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_can_read_comment_post
+	 */
 	public function test_admin_reads_comment_on_internal_post_type() {
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( 200, $this->dispatch( $this->internal_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_comment_stats_callback
+	 */
 	public function test_author_reads_comment_on_public_post() {
 		wp_set_current_user( self::$author_id );
 		$response = $this->dispatch( $this->published_comment_id );
@@ -162,12 +189,18 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		$this->assertSame( $this->published_comment_id, $response->get_data()['comment']['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_comment_stats_callback
+	 */
 	public function test_admin_reads_comment_on_restricted_posts() {
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( 200, $this->dispatch( $this->private_comment_id )->get_status() );
 		$this->assertSame( 200, $this->dispatch( $this->protected_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_can_read_comment_post
+	 */
 	public function test_orphaned_comment_is_moderators_only() {
 		wp_set_current_user( self::$author_id );
 		$this->assertSame( 403, $this->dispatch( $this->orphan_comment_id )->get_status() );
@@ -182,6 +215,9 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		$this->assertNull( $response->get_data()['post'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_comment_stats_callback
+	 */
 	public function test_thread_does_not_cross_into_an_unreadable_post() {
 		$on_private = self::factory()->comment->create(
 			array(
@@ -190,7 +226,6 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 				'comment_content'  => 'Secret thread content.',
 			)
 		);
-
 		$child = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $this->published_post_id,
@@ -198,7 +233,6 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 				'comment_approved' => '1',
 			)
 		);
-
 		$cross_reply = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $this->private_post_id,
@@ -221,6 +255,9 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_comment_is_visible
+	 */
 	public function test_pending_thread_parent_is_hidden_from_non_moderators() {
 		$pending = self::factory()->comment->create(
 			array(
@@ -243,6 +280,9 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		$this->assertSame( $pending, $this->dispatch( $child )->get_data()['parent']['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_comment_stats_callback
+	 */
 	public function test_zero_id_is_not_found_even_with_a_global_comment() {
 		wp_set_current_user( self::$admin_id );
 
@@ -253,6 +293,10 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		$this->assertSame( 404, $status );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_comment_stats_route
+	 * @covers ::openstation_my_wordpress_comment_stats_callback
+	 */
 	public function test_filter_widened_route_still_enforces_parent_post_gate() {
 		add_filter( 'openstation_my_wordpress_user_can_use', '__return_true' );
 
@@ -262,6 +306,9 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->dispatch( $this->protected_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_comment_stats_route
+	 */
 	public function test_filter_narrowed_route_refuses_admins() {
 		add_filter( 'openstation_my_wordpress_user_can_use', '__return_false' );
 
@@ -269,6 +316,9 @@ class Tests_OpenStation_MyWordpressCommentStats extends WP_UnitTestCase {
 		$this->assertSame( 403, $this->dispatch( $this->published_comment_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_comment_stats_callback
+	 */
 	public function test_missing_comment_is_not_found() {
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( 404, $this->dispatch( 999999 )->get_status() );

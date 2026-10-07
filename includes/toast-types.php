@@ -3,7 +3,6 @@
 defined( 'ABSPATH' ) || exit;
 
 function openstation_get_toast_types() {
-
 	$defaults = array(
 		array(
 			'id'    => 'success',

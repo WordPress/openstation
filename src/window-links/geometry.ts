@@ -113,9 +113,7 @@ export function visibleBorderAnchor(
 	const sides: Array< {
 		side: LinkSide;
 		base: Interval;
-
 		at: number;
-
 		horizontal: boolean;
 	} > = [
 		{
@@ -156,7 +154,6 @@ export function visibleBorderAnchor(
 			if ( ! coversLine ) {
 				continue;
 			}
-
 			holes.push(
 				horizontal
 					? { start: o.x, end: o.x + o.width }

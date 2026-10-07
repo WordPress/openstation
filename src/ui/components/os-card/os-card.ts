@@ -120,7 +120,6 @@ export class OsCard extends Component {
 
 	protected render() {
 		this._syncRoles();
-
 		return html`<span class="os-holo-glint" aria-hidden="true"></span
 			><slot name="header"></slot><slot></slot><slot name="footer"></slot>`;
 	}
@@ -132,7 +131,6 @@ export class OsCard extends Component {
 			if ( ! this.hasAttribute( 'role' ) ) {
 				this.setAttribute( 'role', 'button' );
 			}
-
 			this.setAttribute( 'tabindex', disabled ? '-1' : '0' );
 			this.setAttribute( 'aria-disabled', disabled ? 'true' : 'false' );
 		} else {
@@ -164,7 +162,6 @@ export class OsCard extends Component {
 		if ( target && target !== this && target.closest( NOCLICK_SELECTOR ) ) {
 			return;
 		}
-
 		if (
 			target instanceof HTMLElement &&
 			target !== this &&

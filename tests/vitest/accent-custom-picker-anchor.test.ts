@@ -31,7 +31,6 @@ let showPicker: ReturnType< typeof vi.fn >;
 beforeEach( () => {
 	stub = installOsSettingsStub( { accent: 'pulse', customAccent: '#f252fc' } );
 	showPicker = vi.fn();
-
 	( HTMLInputElement.prototype as unknown as { showPicker: unknown } ).showPicker = showPicker;
 } );
 

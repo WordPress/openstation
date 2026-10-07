@@ -20,14 +20,12 @@ type EditorContext =
 	| { kind: 'hook'; hookKind: 'action' | 'filter'; prefix: string };
 
 function detectHookContext( textBefore: string ): EditorContext | null {
-
 	const action = textBefore.match(
 		/(add_action|do_action|do_action_ref_array)\s*\(\s*(['"])([^'"]*)$/,
 	);
 	if ( action ) {
 		return { kind: 'hook', hookKind: 'action', prefix: action[ 3 ] };
 	}
-
 	const filter = textBefore.match(
 		/(add_filter|apply_filters|apply_filters_ref_array)\s*\(\s*(['"])([^'"]*)$/,
 	);
@@ -88,9 +86,7 @@ function entryToCompletionItem(
 		insertText,
 		insertTextRules,
 		range,
-
 		documentation: undefined,
-
 		sortText:
 			context.kind === 'hook' && isHook ? `0_${ entry.name }` : `1_${ entry.name }`,
 	};
@@ -143,7 +139,6 @@ function registerStatelessProviders( monaco: typeof Monaco ): void {
 	const detailLatest = new CancellableLatest< { doc: string; signature: string; since: string } | null >();
 
 	monaco.languages.registerCompletionItemProvider( 'php', {
-
 		triggerCharacters: [
 			'_',
 			'\'',
@@ -198,7 +193,6 @@ function registerStatelessProviders( monaco: typeof Monaco ): void {
 			};
 		},
 		async resolveCompletionItem( item ) {
-
 			try {
 				const label = typeof item.label === 'string' ? item.label : item.label.label;
 				const detail = await fetchPhpSymbolDetail( label );
@@ -240,7 +234,6 @@ function registerStatelessProviders( monaco: typeof Monaco ): void {
 						since: d.since,
 					} ) )
 					.catch( ( err ) => {
-
 						if ( err instanceof RestError && err.status === 404 ) {
 							return null;
 						}
@@ -295,7 +288,6 @@ function registerDefinitionProvider( monaco: typeof Monaco ): void {
 			const file = ( detail as unknown as { file?: string } ).file;
 			const line = ( detail as unknown as { line?: number } ).line;
 			if ( typeof file !== 'string' || ! file || typeof line !== 'number' ) {
-
 				return null;
 			}
 

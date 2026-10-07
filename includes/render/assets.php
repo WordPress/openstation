@@ -38,7 +38,6 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-openstation-layout' );
 	wp_enqueue_style( 'os-files' );
 	wp_enqueue_style( 'os-notes' );
-
 	wp_enqueue_style( 'os-mobile' );
 
 	$solo_window = openstation_solo_window_id();
@@ -64,7 +63,6 @@ function openstation_enqueue_assets() {
 	$command_palette = openstation_build_command_palette_assets_payload();
 
 	if ( function_exists( 'wp_enqueue_command_palette_assets' ) ) {
-
 		$menu_map = openstation_build_command_menu_map();
 		wp_add_inline_script(
 			'openstation',
@@ -157,7 +155,6 @@ function openstation_enqueue_assets() {
 	$server_games                      = isset( $menu_payload['serverGames'] )
 		? $menu_payload['serverGames']
 		: array();
-
 	$server_desktop_themes = isset( $menu_payload['serverDesktopThemes'] )
 		? $menu_payload['serverDesktopThemes']
 		: array();
@@ -180,7 +177,6 @@ function openstation_enqueue_assets() {
 	$server_file_openers         = function_exists( 'openstation_build_file_openers_payload' )
 		? openstation_build_file_openers_payload()
 		: array();
-
 	$script_dep_payloads         = isset( $menu_payload['scriptDepPayloads'] )
 		? (array) $menu_payload['scriptDepPayloads']
 		: array();
@@ -194,13 +190,11 @@ function openstation_enqueue_assets() {
 	$drop_allowed_mimes_map = current_user_can( 'upload_files' )
 		? get_allowed_mime_types( get_current_user_id() )
 		: array();
-
 	$drop_allowed_mimes_map = apply_filters( 'openstation_drop_allowed_mimes', $drop_allowed_mimes_map, get_current_user_id() );
 	$drop_allowed_mimes_map = is_array( $drop_allowed_mimes_map ) ? $drop_allowed_mimes_map : array();
 	$drop_allowed_mimes     = array_values( array_unique( array_values( $drop_allowed_mimes_map ) ) );
 
 	$drop_max_size = (int) wp_max_upload_size();
-
 	$drop_max_size = (int) apply_filters( 'openstation_drop_max_size', $drop_max_size, get_current_user_id() );
 
 	$drop_enabled = (bool) apply_filters(
@@ -247,19 +241,15 @@ function openstation_enqueue_assets() {
 			'currentPage'                   => esc_url( $current_page ),
 			'currentTitle'                  => $current_title,
 			'currentIcon'                   => sanitize_html_class( $menu_icon ),
-
 			'adminUrl'                      => esc_url( self_admin_url() ),
 			'homeUrl'                       => esc_url( home_url( '/' ) ),
-
 			'logoutUrl'                     => esc_url_raw(
 				html_entity_decode( wp_logout_url(), ENT_QUOTES, 'UTF-8' )
 			),
 			'colorScheme'                   => sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' ),
 			'dockItems'                     => $dock_items,
-
 			'menuSig'                       => isset( $menu_payload['menuSig'] ) ? (string) $menu_payload['menuSig'] : '',
 			'nativeWindows'                 => $native_windows,
-
 			'nativeWindowScriptData'        => $native_window_script_data,
 			'serverWidgets'                 => $server_widgets,
 			'serverWallpapers'              => $server_wallpapers,
@@ -279,19 +269,15 @@ function openstation_enqueue_assets() {
 			'serverWindowChromeScripts'     => $server_window_chrome_scripts,
 			'serverWindowChromes'           => $server_window_chromes,
 			'serverWindowNotices'           => $server_window_notices,
-
 			'serverGames'                   => $server_games,
 			'serverDesktopThemes'           => $server_desktop_themes,
 			'desktopIcons'                  => $desktop_icons,
 			'serverFileTypes'               => $server_file_types,
 			'serverFileOpeners'             => $server_file_openers,
-
 			'scriptDepPayloads'             => (object) $script_dep_payloads,
 			'userFileAssociations'          => $user_file_associations,
 			'filesUrl'                      => esc_url_raw( rest_url( 'desktop-mode/v1/files' ) ),
-
 			'notesUrl'                      => esc_url_raw( rest_url( 'desktop-mode/v1/notes' ) ),
-
 			'canCreatePosts'                => current_user_can( 'edit_posts' ),
 			'serverWallpaperMenuItems'      => $server_wallpaper_menu_items,
 			'accentColors'                  => openstation_get_accent_colors(),
@@ -301,7 +287,6 @@ function openstation_enqueue_assets() {
 			'pluginNotices'                 => openstation_get_plugin_notices(),
 			'defaultWallpaper'              => openstation_get_default_wallpaper(),
 			'session'                       => openstation_get_session( get_current_user_id() ),
-
 			'sessionUrl'                    => esc_url_raw(
 				is_network_admin()
 					? add_query_arg( 'network', '1', rest_url( 'desktop-mode/v1/session' ) )
@@ -325,100 +310,70 @@ function openstation_enqueue_assets() {
 				)
 			),
 			'iframeBridgeUrl'               => $lazy_bundle_url( 'iframe-bridge' ),
-
 			'aiAssistantBundleUrl'          => $lazy_bundle_url( 'ai-assistant' ),
-
 			'shellOverlaysBundleUrl'        => $lazy_bundle_url( 'shell-overlays' ),
-
 			'fileDropBundleUrl'             => $lazy_bundle_url( 'file-drop' ),
 			'filesOverlaysBundleUrl'        => $lazy_bundle_url( 'files-overlays' ),
 			'notesBundleUrl'                => $lazy_bundle_url( 'notes' ),
 			'dockConstellationBundleUrl'    => $lazy_bundle_url( 'dock-constellation' ),
 			'windowLinkVisualsBundleUrl'    => $lazy_bundle_url( 'window-link-visuals' ),
-
 			'hasNotes'                      => function_exists( 'openstation_notes_user_has_any' )
 				? openstation_notes_user_has_any()
 				: false,
-
 			'componentsBundleUrl'           => $lazy_bundle_url( 'os-components' ),
-
 			'mio'                           => openstation_mio_config(),
 			'mioBundleUrl'                  => $lazy_bundle_url( 'mio' ),
-
 			'windowSystemBundleUrl'         => $lazy_bundle_url( 'window-system' ),
-
 			'mobileBundleUrl'               => $lazy_bundle_url( 'mobile' ),
 			'mode'                          => openstation_mode_config( get_current_user_id() ),
-
 			'itemVisibilityMenuBundleUrl'   => $lazy_bundle_url( 'item-visibility-menu' ),
-
 			'workspaceWizardBundleUrl'      => $lazy_bundle_url( 'workspace-wizard' ),
-
 			'workspacePresets'              => openstation_workspace_presets(),
-
 			'releaseCardBundleUrl'          => $lazy_bundle_url( 'release-card' ),
 			'restNonce'                     => wp_create_nonce( 'wp_rest' ),
-
 			'soloWindow'                    => openstation_solo_window_id(),
 			'osSettings'                    => openstation_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
 			'seenIntros'                    => openstation_get_seen_intros( get_current_user_id() ),
 			'seenIntrosUrl'                 => esc_url_raw( rest_url( 'desktop-mode/v1/intros' ) ),
-
 			'rebrandNotice'                 => $show_rebrand_notice,
-
 			'shellTour'                     => openstation_should_offer_shell_tour( get_current_user_id() ),
 			'shellTourBundleUrl'            => $lazy_bundle_url( 'shell-tour' ),
-
 			'firstRun'                      => openstation_first_run_config( get_current_user_id() ),
-
 			'usageFeedback'                 => function_exists( 'openstation_usage_feedback_config' ) ? openstation_usage_feedback_config() : null,
 			'usageFeedbackBundleUrl'        => $lazy_bundle_url( 'usage-feedback' ),
 			'aiSearchUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
-
 			'aiAssistant'                   => function_exists( 'openstation_ai_assistant_config' )
 				? openstation_ai_assistant_config()
 				: null,
-
 			'aiStatusUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
 			'extendedOptions'               => current_user_can( 'manage_options' ) ? openstation_get_extended_options() : null,
 			'extendedOptionsUrl'            => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
-
 			'gamesEnabled'                  => openstation_games_enabled(),
 			'currentUserIsAdmin'            => current_user_can( 'manage_options' ),
-
 			'multisite'                     => openstation_multisite_payload(),
 			'portalUrl'                     => esc_url( openstation_portal_url() ),
 			'fromPortal'                    => $from_portal,
 			'fromPortalIntent'              => $from_portal_intent,
-
 			'landInOverview'                => openstation_shell_lands_in_overview(),
 			'arrivalDirection'              => openstation_shell_arrival_direction(),
 			'hopLinkOffer'                  => function_exists( 'openstation_network_link_offer' ) ? openstation_network_link_offer() : null,
 			'pwa'                           => array(
 				'manifestUrl'    => esc_url_raw( openstation_pwa_manifest_url() ),
 				'swUrl'          => esc_url_raw( openstation_pwa_sw_url() ),
-
 				'swFallbackUrl'  => esc_url_raw( openstation_pwa_sw_fallback_url() ),
-
 				'swScope'        => openstation_pwa_sw_scope(),
-
 				'swConfig'       => array(
 					'adminAssetCache' => (bool) openstation_pwa_admin_asset_cache_enabled(),
 					'windowPrewarm'   => ! empty( openstation_get_os_settings( get_current_user_id() )['windowPrewarmEnabled'] ),
 				),
-
 				'shellBuild'     => openstation_shell_build_stamp(),
 				'stateUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/pwa-state' ) ),
 				'state'          => openstation_pwa_get_user_state( get_current_user_id() ),
-
 				'appName'        => get_bloginfo( 'name' ),
-
 				'forceReplaceSw' => openstation_pwa_force_replace_sw(),
 			),
-
 			'commandPalette'                => $command_palette,
-
 			'gameStyleHandles'              => function_exists( 'openstation_games_style_handles' )
 				? openstation_games_style_handles()
 				: array(),
@@ -427,10 +382,8 @@ function openstation_enqueue_assets() {
 					array(
 						'desktop-mode-ai-assistant',
 						'desktop-mode-bug-report',
-
 						'desktop-mode-my-wordpress',
 					),
-
 					function_exists( 'openstation_games_style_handles' )
 						? openstation_games_style_handles()
 						: array()
@@ -467,7 +420,6 @@ function openstation_print_preload_hints() {
 	};
 
 	$hints = array(
-
 		array(
 			'href' => $build_url( 'assets/js/desktop' . $suffix . '.js' ),
 			'as'   => 'script',
@@ -478,7 +430,6 @@ function openstation_print_preload_hints() {
 			'as'   => 'style',
 			'rel'  => 'preload',
 		),
-
 		array(
 			'href' => $build_url( 'assets/js/window-system' . $suffix . '.js' ),
 			'as'   => 'script',
@@ -514,7 +465,6 @@ function openstation_print_preload_hints() {
 		if ( '' === $href || '' === $as ) {
 			continue;
 		}
-
 		$rel = isset( $hint['rel'] ) ? (string) $hint['rel'] : 'preload';
 		if ( 'prefetch' !== $rel ) {
 			$rel = 'preload';
@@ -530,7 +480,6 @@ function openstation_print_preload_hints() {
 add_action( 'admin_print_styles', 'openstation_print_preload_hints', 1 );
 
 function openstation_defer_non_critical_styles( $html, $handle, $href, $media ) {
-
 	if ( ! openstation_is_enabled() ) {
 		return $html;
 	}
@@ -556,6 +505,7 @@ function openstation_defer_non_critical_styles( $html, $handle, $href, $media ) 
 	$resolved_media = $media ? $media : 'all';
 	$id             = $handle . '-css';
 
+	// phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- This filter rewrites a tag WordPress is in the process of emitting for an already-registered+enqueued stylesheet handle; the linter doesn't trace the `style_loader_tag` filter context, so the raw <link rel="stylesheet"> output is a false-positive.
 	$markup = sprintf(
 		'<link rel=\'stylesheet\' id=\'%1$s\' href=\'%2$s\' media=\'print\' onload="this.media=\'%3$s\'; this.onload=null;" />' . "\n" .
 			'<noscript><link rel=\'stylesheet\' id=\'%1$s-noscript\' href=\'%2$s\' media=\'%4$s\' /></noscript>' . "\n",
@@ -564,6 +514,7 @@ function openstation_defer_non_critical_styles( $html, $handle, $href, $media ) 
 		esc_js( $resolved_media ),
 		esc_attr( $resolved_media )
 	);
+	// phpcs:enable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet
 
 	return $markup;
 }
@@ -617,7 +568,6 @@ function openstation_build_command_menu_map() {
 		$menu_label = $extract_root_text( $menu_item[0] );
 		$menu_slug  = $menu_item[2];
 		$menu_url   = '';
-
 		if ( ( ! isset( $_parent_pages[ $menu_slug ] ) || openstation_is_admin_file_slug( $menu_slug ) ) && ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) ) {
 			$menu_url = $menu_slug;
 		} elseif ( ! empty( menu_page_url( $menu_slug, false ) ) ) {
@@ -641,7 +591,6 @@ function openstation_build_command_menu_map() {
 				$submenu_label = $extract_root_text( $submenu_item[0] );
 				$submenu_slug  = $submenu_item[2];
 				$submenu_url   = '';
-
 				if ( ( ! isset( $_parent_pages[ $submenu_slug ] ) || openstation_is_admin_file_slug( $submenu_slug ) ) && ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) ) {
 					$submenu_url = $submenu_slug;
 				} elseif ( ! empty( menu_page_url( $submenu_slug, false ) ) ) {
@@ -652,7 +601,7 @@ function openstation_build_command_menu_map() {
 				}
 				$out[] = array(
 					'label' => sprintf(
-
+						/* translators: 1: parent menu label, 2: submenu label */
 						__( '%1$s > %2$s', 'desktop-mode' ),
 						$menu_label,
 						$submenu_label

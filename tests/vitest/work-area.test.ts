@@ -56,7 +56,6 @@ describe( 'computeInsets', () => {
 	} );
 
 	test( 'a side rail beside the area (no overlap) claims nothing', () => {
-
 		const rail = rectLike( -56, AREA.top, 56, AREA.height );
 		expect( computeInsets( AREA, [ rail ] ) ).toEqual( {
 			top: 0,
@@ -67,7 +66,6 @@ describe( 'computeInsets', () => {
 	} );
 
 	test( 'a one-tile pill, taller than wide, is still the bottom edge', () => {
-
 		const tiny = bottomPill( 24, 60 );
 		expect( edgeFor( AREA, tiny ) ).toBe( 'bottom' );
 		const insets = computeInsets( AREA, [ tiny ] );
@@ -94,7 +92,6 @@ describe( 'computeInsets', () => {
 	} );
 
 	test( 'collapsed (zero-size) chrome claims nothing', () => {
-
 		const collapsed = rectLike( 800, AREA.bottom - 76, 0, 64 );
 		expect( computeInsets( AREA, [ collapsed ] ).bottom ).toBe( 0 );
 	} );
@@ -135,7 +132,6 @@ describe( 'rectFromInsets / elementInsets', () => {
 
 	test( 'elementInsets reports the overhang per edge, clamped to the element', () => {
 		const work = rectLike( 0, 32, 1600, 816 );
-
 		const host = rectLike( 0, 32 + 40, 1600, 860 );
 		expect( elementInsets( work, host ) ).toEqual( {
 			top: 0,
@@ -143,14 +139,12 @@ describe( 'rectFromInsets / elementInsets', () => {
 			bottom: 84,
 			left: 0,
 		} );
-
 		expect( elementInsets( work, rectLike( 100, 100, 400, 300 ) ) ).toEqual( {
 			top: 0,
 			right: 0,
 			bottom: 0,
 			left: 0,
 		} );
-
 		expect( elementInsets( work, rectLike( 0, 900, 100, 50 ) ).bottom ).toBe( 50 );
 	} );
 } );
@@ -223,7 +217,6 @@ describe( 'installWorkArea', () => {
 	test( 'getWorkArea / workAreaRectOf / workAreaInsetsOf read the snapshot', () => {
 		const ctl = installWorkArea( { shell, shellBody: body, area } );
 		expect( getWorkArea().rect ).toEqual( { x: 0, y: 0, width: 1600, height: 816 } );
-
 		getWorkArea().insets.bottom = 999;
 		expect( getWorkArea().insets.bottom ).toBe( 84 );
 
@@ -241,7 +234,6 @@ describe( 'installWorkArea', () => {
 		const host = document.createElement( 'div' );
 		stubRect( host, () => fakeRect( 0, 0, 100, 100 ) );
 		expect( workAreaInsetsOf( host ) ).toEqual( { top: 0, right: 0, bottom: 0, left: 0 } );
-
 		expect( workAreaRectOf( area ) ).toEqual( { x: 0, y: 0, width: 1600, height: 900 } );
 	} );
 
@@ -283,7 +275,6 @@ describe( 'installWorkArea', () => {
 	test( 'the dock moving to a side edge releases the bottom band', () => {
 		const ctl = installWorkArea( { shell, shellBody: body, area } );
 		expect( getWorkArea().insets.bottom ).toBe( 84 );
-
 		stubRect( area, () => fakeRect( 56, 32, 1544, 900 ) );
 		stubRect( dock, () => fakeRect( 0, 32, 56, 900 ) );
 		document.dispatchEvent( new CustomEvent( 'os-layout-changed' ) );
@@ -340,7 +331,6 @@ describe( 'installWorkArea', () => {
 	test( 'a dynamic rail claims nothing', () => {
 		const ctl = installWorkArea( { shell, shellBody: body, area } );
 		expect( getWorkArea().insets.bottom ).toBe( 84 );
-
 		dock.setAttribute( 'data-os-dock-behavior', 'dynamic' );
 		ctl.refresh();
 		expect( getWorkArea().insets ).toEqual( { top: 0, right: 0, bottom: 0, left: 0 } );

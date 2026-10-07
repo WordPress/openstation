@@ -30,9 +30,7 @@ describe( 'alphabet-soup/scoring.ts', () => {
 
 	test( 'a find pays with the PRE-find streak multiplier', () => {
 		const state = createSoupScore();
-
 		expect( recordFind( state, 4 ) ).toBe( wordPoints( 4, 0 ) );
-
 		expect( recordFind( state, 4 ) ).toBe( wordPoints( 4, 1 ) );
 		expect( state.wordsFound ).toBe( 2 );
 		expect( state.streak ).toBe( 2 );

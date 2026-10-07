@@ -5,7 +5,6 @@ type ConstellationDeps = Parameters<
 >[ 0 ];
 
 export function installDockConstellationSentinel( args: {
-
 	bundleUrl: string;
 	deps: ConstellationDeps;
 } ): () => void {
@@ -41,7 +40,6 @@ export function installDockConstellationSentinel( args: {
 				loading = false;
 			} );
 	};
-
 	document.addEventListener( 'pointerover', onFirstDockHover, true );
 	document.addEventListener( 'focusin', onFirstDockHover, true );
 	return () => {

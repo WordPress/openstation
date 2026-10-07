@@ -23,7 +23,6 @@ export const styles = css`
 		align-items: center;
 		justify-content: center;
 	}
-
 	.os-icon__glyph--char {
 		font-family: dashicons;
 		font-style: normal;
@@ -34,7 +33,6 @@ export const styles = css`
 		-moz-osx-font-smoothing: grayscale;
 		speak: none;
 	}
-
 	.os-icon__glyph.dashicons {
 		font-family: dashicons;
 	}

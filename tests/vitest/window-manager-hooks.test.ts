@@ -35,7 +35,6 @@ describe( 'WindowManager — hook firing', async () => {
 		hooks = installHooksStub();
 		desktop = document.createElement( 'div' );
 		desktop.id = 'os-area';
-
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
 			value: () =>
 				( {
@@ -50,7 +49,6 @@ describe( 'WindowManager — hook firing', async () => {
 					toJSON: () => ( {} ),
 				} ) as DOMRect,
 		} );
-
 		Object.defineProperty( desktop, 'clientWidth', { value: 1600, configurable: true } );
 		Object.defineProperty( desktop, 'clientHeight', { value: 900, configurable: true } );
 		document.body.appendChild( desktop );
@@ -94,7 +92,6 @@ describe( 'WindowManager — hook firing', async () => {
 		const focusedIdx = names.indexOf( 'os.window.focused' );
 		expect( openedIdx ).toBeGreaterThanOrEqual( 0 );
 		expect( focusedIdx ).toBeGreaterThanOrEqual( 0 );
-
 		expect( focusedIdx ).not.toBe( -1 );
 	} );
 
@@ -212,7 +209,6 @@ describe( 'WindowManager — hook firing', async () => {
 			( ( geometry: unknown, ctx: unknown ) => {
 				seen.push( { geometry, ctx } );
 				const g = geometry as { x: number; y: number; width: number; height: number };
-
 				const desktop = ( ctx as { desktopRect: { width: number; height: number } } ).desktopRect;
 				return {
 					...g,
@@ -274,7 +270,6 @@ describe( 'WindowManager — hook firing', async () => {
 	} );
 
 	test( 'WINDOW_GEOMETRY filter can override the registry-pinned dimensions of a native-style open', async () => {
-
 		hooks.addFilter(
 			HOOKS.WINDOW_GEOMETRY,
 			'vitest/native-override',
@@ -322,13 +317,11 @@ describe( 'WindowManager — hook firing', async () => {
 		await manager.open( openConfig( 'tinybox' ) );
 
 		const win = manager.getById( 'tinybox' );
-
 		expect( win!.config.width ).toBe( 320 );
 		expect( win!.config.height ).toBe( 200 );
 	} );
 
 	test( 'WINDOW_GEOMETRY filter — partial return drops back to pre-filter values', async () => {
-
 		hooks.addFilter(
 			HOOKS.WINDOW_GEOMETRY,
 			'vitest/geometry-partial',
@@ -339,7 +332,6 @@ describe( 'WindowManager — hook firing', async () => {
 
 		const win = manager.getById( 'partial' );
 		expect( win!.config.width ).toBe( 800 );
-
 		expect( Number.isFinite( win!.config.x ) ).toBe( true );
 		expect( Number.isFinite( win!.config.y ) ).toBe( true );
 		expect( Number.isFinite( win!.config.height ) ).toBe( true );
@@ -383,7 +375,6 @@ describe( 'WindowManager — hook firing', async () => {
 				errors.push( args[ 0 ] );
 			},
 		);
-
 		const origErr = console.error;
 		console.error = () => undefined;
 
@@ -395,7 +386,6 @@ describe( 'WindowManager — hook firing', async () => {
 
 		const win = manager.getById( 'crasher' );
 		expect( win ).toBeDefined();
-
 		expect( Number.isFinite( win!.config.x ) ).toBe( true );
 		expect( win!.config.width ).toBeGreaterThanOrEqual( 320 );
 		const reported = errors.find(
@@ -410,7 +400,6 @@ describe( 'WindowManager — hook firing', async () => {
 		hooks.addFilter(
 			HOOKS.WINDOW_GEOMETRY,
 			'vitest/geometry-nonsense',
-
 			( ( () => undefined ) as ( ...a: unknown[] ) => unknown ),
 		);
 
@@ -442,7 +431,6 @@ describe( 'WindowManager — hook firing', async () => {
 	} );
 
 	test( 'WINDOW_GEOMETRY ctx.hasSavedGeometry is true when localStorage has saved geometry', async () => {
-
 		const STORAGE_KEY = 'desktop-mode-native-window-geometry';
 		const saved = JSON.stringify( {
 			'restoreme': { x: 100, y: 100, width: 700, height: 500, state: 'normal' },
@@ -450,7 +438,6 @@ describe( 'WindowManager — hook firing', async () => {
 		try {
 			window.localStorage.setItem( STORAGE_KEY, saved );
 		} catch {
-
 		}
 
 		const seen: Array< { hasSavedGeometry: boolean; callerPinned: boolean } > = [];
@@ -468,7 +455,6 @@ describe( 'WindowManager — hook firing', async () => {
 		try {
 			window.localStorage.removeItem( STORAGE_KEY );
 		} catch {
-
 		}
 
 		expect( seen ).toHaveLength( 1 );
@@ -494,7 +480,6 @@ describe( 'WindowManager — hook firing', async () => {
 			'vitest/geometry-second',
 			( ( geometry: unknown ) => {
 				const g = geometry as { width: number };
-
 				return { ...g, width: g.width * 2 };
 			} ) as ( ...a: unknown[] ) => unknown,
 			10,

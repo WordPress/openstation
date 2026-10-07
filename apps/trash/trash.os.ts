@@ -4,7 +4,6 @@ import { toastRestFailure } from '../../src/core/rest-failure';
 import { beginTrashChange, projectTrash, trashKey, watchTrashChanges } from '../../src/desktop-files/trash-optimistic';
 import { isMobileStamped } from '../../src/mode/stamp';
 import { stackOnPhone } from '../../src/ui/components/os-table/stack-on-phone';
-
 import '../../src/ui/components/os-table/os-table';
 import { runEmptyLoop } from './parts/empty-loop';
 import * as realtime from './parts/realtime';
@@ -37,19 +36,12 @@ interface AppData {
 type Ctx = ViewContext< AppState, AppData >;
 
 interface UiState {
-
 	selected: RecycleBinItemRef[];
-
 	listKey: string;
-
 	fingerprint: string;
-
 	empty: { mode: 'idle' | 'starting' | 'progress'; purged: number; total: number };
-
 	refreshTimer: number | null;
-
 	lastArt: string;
-
 	phoneColumns: boolean | null;
 }
 
@@ -127,19 +119,18 @@ async function removeRefs( ctx: Ctx, refs: RecycleBinItemRef[], action: 'restore
 		if ( changed > 0 ) {
 			emitChanged( action, changed );
 		}
-
 		const kept = ok ? operations.length - changed : 0;
 		if ( kept > 0 ) {
 			ctx.host.toast?.( {
 				message:
 					action === 'restore'
 						? sprintf(
-
+							/* translators: %d: number of items. */
 							_n( '%d item could not be restored.', '%d items could not be restored.', kept ),
 							kept,
 						)
 						: sprintf(
-
+							/* translators: %d: number of items. */
 							_n( '%d item could not be deleted.', '%d items could not be deleted.', kept ),
 							kept,
 						),
@@ -170,7 +161,7 @@ async function purgeRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void >
 	const confirmed = await ctx.host.confirm?.( {
 		title: __( 'Delete forever?' ),
 		message: sprintf(
-
+			/* translators: %d: row count. */
 			__( 'Permanently delete %d item(s)? This cannot be undone.' ),
 			refs.length,
 		),
@@ -212,6 +203,7 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 			}
 			result = ( await response.json() ) as BulkResponse;
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[trash] pin-to-desktop restore failed', err );
 			failedRestores += 1;
 			firstFailure ??= err;
@@ -233,6 +225,7 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 				y: 16 + Math.floor( placed / 5 ) * 110,
 			} );
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[trash] pin-to-desktop placement failed', err );
 		}
 		placed += 1;
@@ -241,7 +234,7 @@ async function pinRefs( ctx: Ctx, refs: RecycleBinItemRef[] ): Promise< void > {
 	if ( failedRestores > 0 ) {
 		toastRestFailure( ctx.host.toast, firstFailure, {
 			fallback: sprintf(
-
+				/* translators: %d: number of items. */
 				_n( '%d item could not be restored.', '%d items could not be restored.', failedRestores ),
 				failedRestores,
 			),
@@ -295,13 +288,14 @@ async function emptyAll( ctx: Ctx ): Promise< void > {
 		if ( loop.skipped > 0 ) {
 			ctx.host.toast?.( {
 				message: sprintf(
-
+					/* translators: %d: skipped count. */
 					__( '%d item(s) skipped (insufficient permissions).' ),
 					loop.skipped,
 				),
 			} );
 		}
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[trash] empty failed', err );
 		toastRestFailure( ctx.host.toast, err, { fallback: __( 'Could not empty the Recycle Bin.' ) } );
 	} finally {
@@ -324,7 +318,7 @@ function emptyButtonLabel( ui: UiState ): string {
 		return __( 'Emptying…' );
 	}
 	return sprintf(
-
+		/* translators: 1: items purged so far, 2: items in bin when emptying began. */
 		__( 'Emptying… %1$d of %2$d' ),
 		ui.empty.purged,
 		ui.empty.total,
@@ -334,7 +328,7 @@ function emptyButtonLabel( ui: UiState ): string {
 function bulkActions( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 	return html`
 		<span class="os-recycle-bin__count">${ sprintf(
-
+			/* translators: %d: selected row count. */
 			__( '%d selected' ),
 			ui.selected.length,
 		) }</span>
@@ -434,7 +428,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 
 	mounted: ( ctx ) => {
 		realtime.start();
-
 		void ctx.dispatch( 'refresh' );
 		let refreshing: Promise< unknown > | null = null;
 		const unwatch = watchTrashChanges( () => ctx.repaint(), () => {
@@ -447,7 +440,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		const ui = ctx.ui( freshUi );
 		const onExternalChange = ( e: Event ): void => {
 			const detail = ( e as CustomEvent< { source?: string } > ).detail;
-
 			if ( ! detail?.source || detail.source === 'local' ) {
 				return;
 			}
@@ -460,7 +452,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			}, 200 );
 		};
 		document.addEventListener( 'os-recycle-bin-changed', onExternalChange );
-
 		const onModeChange = (): void => ctx.repaint();
 		document.addEventListener( 'os-mode-changed', onModeChange );
 		return () => {
@@ -480,7 +471,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			return;
 		}
 		const ui = ctx.ui( freshUi );
-
 		const phone = stackOnPhone( el );
 		if ( phone !== ui.phoneColumns ) {
 			ui.phoneColumns = phone;
@@ -492,7 +482,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 				{ phone },
 			);
 		}
-
 		if ( ! el.hasAttribute( 'data-os-trash-wired' ) ) {
 			el.setAttribute( 'data-os-trash-wired', '' );
 			el.getRowId = ( row ) => `${ row.type }:${ row.id }`;
@@ -502,7 +491,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 				ctx.repaint();
 			} );
 		}
-
 		const listKey = `${ ctx.state.filter }|${ ctx.state.search }`;
 		if ( listKey !== ui.listKey ) {
 			ui.listKey = listKey;
@@ -511,13 +499,11 @@ export default defineApp< AppState, AppData >( APP_ID, {
 			}
 			ui.selected = [];
 		}
-
 		const projected = projectTrash( ctx.data.items, ctx.data.total, ctx.state.filter, ctx.state.search );
 		const next = fingerprint( projected.items );
 		if ( next !== ui.fingerprint ) {
 			ui.fingerprint = next;
 			el.data = projected.items;
-
 			const visible = new Set(
 				( el.visibleRows ?? [] ).map( ( row ) => `${ row.type }:${ row.id }` ),
 			);
@@ -529,7 +515,6 @@ export default defineApp< AppState, AppData >( APP_ID, {
 				ui.selected = collectSelected( ctx );
 			}
 		}
-
 		const art = String( ctx.extra[ projected.total > 0 ? 'full' : 'empty' ] ?? '' );
 		if ( art && art !== ui.lastArt ) {
 			ui.lastArt = art;

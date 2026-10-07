@@ -1,5 +1,4 @@
 .os-area--overview {
-
 	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
 	transition: background-color 0.28s ease;
 }
@@ -11,9 +10,7 @@
 		box-shadow 0.2s ease,
 		opacity 0.2s ease;
 	cursor: pointer;
-
 	box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.35 );
-
 	user-select: none;
 	-webkit-user-select: none;
 }
@@ -466,6 +463,7 @@
 	box-shadow: inset 0 0 0 1px rgba( 255, 255, 255, 0.28 );
 }
 
+
 .os-overview-top-bar__list:has(
 		.os-overview-top-bar__tile-wrapper:only-of-type
 	)
@@ -481,7 +479,6 @@
 
 .os-overview-top-bar__tile--add .os-overview-top-bar__tile-preview {
 	background: none;
-
 	border-bottom-color: transparent;
 }
 

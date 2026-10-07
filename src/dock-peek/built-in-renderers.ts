@@ -13,7 +13,6 @@ interface PeekCardContext {
 }
 
 interface RegisterOpts {
-
 	getRecycleBinCount: CountReader;
 }
 
@@ -111,6 +110,7 @@ function renderRecycleBin(
 	} else if ( count > 99 ) {
 		label.textContent = '99+ items';
 	} else {
+		// translators: %d is the number of items in the recycle bin.
 		label.textContent = `${ count } items`;
 	}
 	root.appendChild( label );

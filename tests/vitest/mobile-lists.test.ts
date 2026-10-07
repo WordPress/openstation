@@ -10,7 +10,6 @@ const read = ( rel: string ): string => readFileSync( join( ROOT, rel ), 'utf8' 
 
 const table = String( ( styles as unknown as { cssText?: string } ).cssText ?? styles );
 const bin = read( 'assets/css/recycle-bin.css' );
-
 const lists = read( 'assets/css/app-runtime.css' );
 const posts = read( 'apps/posts/posts.css' );
 const plugins = read( 'apps/plugins/plugins.css' ) + libraryStyles.cssText;
@@ -26,7 +25,6 @@ function block( css: string, selector: string ): string {
 
 describe( '<os-table stacked> is a card list', () => {
 	test( 'every :host() argument is one compound selector', () => {
-
 		expect( table ).not.toMatch( /:host\(\s*\[[^\]]*\]\s+\[/ );
 	} );
 
@@ -45,7 +43,6 @@ describe( '<os-table stacked> is a card list', () => {
 		expect( body ).not.toMatch( /\bdisplay\s*:/ );
 		expect( body ).not.toMatch( /\bwidth\s*:/ );
 		expect( body ).not.toMatch( /\bvertical-align\s*:/ );
-
 		const base = block( table, ':host( [ stacked ] ) tbody td {' );
 		expect( base ).toMatch( /display:\s*block/ );
 		expect( base ).toMatch( /width:\s*auto/ );
@@ -117,7 +114,6 @@ describe( 'Posts, Pages and Users', () => {
 	} );
 
 	test( 'the Categories and Tags editors fold under the stage on a phone, and only while a term is focused', () => {
-
 		expect( block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__layout {' ) ).toMatch( /flex-direction:\s*column/ );
 		const sidebar = block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__sidebar {' );
 		expect( sidebar ).toMatch( /max-block-size:\s*50%/ );
@@ -126,7 +122,6 @@ describe( 'Posts, Pages and Users', () => {
 		expect(
 			block( posts, 'html[data-os-mode="mobile"] .os-term-canvas__sidebar:has( > .os-term-canvas__sidebar-empty ) {' ),
 		).toMatch( /display:\s*none/ );
-
 		expect( posts ).toMatch( /@container \( max-width: 640px \)[\s\S]*\.os-term-canvas__layout \{/ );
 	} );
 } );
@@ -146,7 +141,6 @@ describe( 'Plugins', () => {
 	test( 'a narrow window gives the inspector a full pane and clears the library', () => {
 		expect( plugins ).toMatch( /@container \( max-width: 760px \)/ );
 		expect( block( plugins, '.os-plugins__workspace[data-detail-open="true"] > .os-plugins__library {' ) ).toMatch( /display:\s*none/ );
-
 		expect( read( 'apps/plugins/parts/installed-library.ts' ) ).toContain( '<os-grid class="os-plugins__module-grid" min-item-width="310" gap="12">' );
 	} );
 } );

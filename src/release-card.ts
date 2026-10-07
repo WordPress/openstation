@@ -3,15 +3,11 @@ import { __ } from './i18n';
 import { osIconSvg } from './ui/icons';
 
 export interface ReleaseCardOptions {
-
 	message: string;
 	artUrl: string;
-
 	dismissKey: string;
-
 	accent?: string;
 	accentInk?: string;
-
 	onUpdate: () => void;
 }
 
@@ -134,7 +130,6 @@ function ensureHost(): HTMLElement {
 	}
 	const el = document.createElement( 'div' );
 	el.className = HOST_CLASS;
-
 	el.style.cssText =
 		'position:fixed;' +
 		'top:calc(var(--os-admin-bar-height,var(--wp-admin--admin-bar--height,32px)) + 16px);' +
@@ -226,7 +221,6 @@ function paintSleeve(
 				}
 
 				const side = Math.max( 1, Math.min( right - left + 1, bottom - top + 1 ) );
-
 				ctx.clearRect( 0, 0, size, size );
 				ctx.drawImage( img, left, top, side, side, 0, 0, size, size );
 
@@ -234,7 +228,6 @@ function paintSleeve(
 					extractAccent( root, ctx, size );
 				}
 			} catch {
-
 			}
 		},
 		{ once: true },
@@ -364,7 +357,6 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 				return;
 			}
 			done = true;
-
 			root.style.animation = 'none';
 			root.style.transition = 'opacity 0.2s ease';
 			requestAnimationFrame( () => {

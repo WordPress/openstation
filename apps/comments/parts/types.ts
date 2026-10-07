@@ -20,7 +20,6 @@ export interface CommentRow {
 	author_avatar_urls: Record< string, string >;
 	date_gmt: string;
 	content: { rendered?: string; raw?: string };
-
 	status: string;
 	openstation_post_title: string;
 	openstation_post_link: string;
@@ -53,9 +52,7 @@ export interface Thread {
 export interface AppData {
 	rail?: PageEnvelope< CommentRow > & { error: string; code: string };
 	railKey?: string;
-
 	thread?: Thread | null;
-
 	counts?: CommentCounts;
 }
 
@@ -68,31 +65,19 @@ export interface AppExtra {
 export type Ctx = ViewContext< AppState, AppData >;
 
 export interface UiState {
-
 	pane: 'rail' | 'convo';
-
 	status: string;
-
 	draft: string;
 	replyTo: number;
-
 	editing: number;
 	editSeed: string;
 	editDraft: string;
-
 	busy: string;
-
 	loadingMore: boolean;
-
 	list: PagedList< CommentRow >;
-
 	thread: Thread | null;
-
 	tree: { rows: CommentRow[] | null; byParent: Map< number, CommentRow[] > };
-
 	announcedPost: number;
-
 	draftFor: number;
-
 	bodies: Map< number, { html: string; el: HTMLElement } >;
 }

@@ -181,7 +181,7 @@ function tail( $path, $max_bytes ) {
 	if ( 0 === $size ) {
 		return $result;
 	}
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming the tail of a multi-megabyte log; WP_Filesystem has no seek-and-read.
 	$handle = fopen( $path, 'rb' );
 	if ( ! $handle ) {
 		return $result;
@@ -192,7 +192,7 @@ function tail( $path, $max_bytes ) {
 		$result['truncated'] = true;
 	}
 	$raw = stream_get_contents( $handle );
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Pairs with the fopen above.
 	fclose( $handle );
 	if ( false === $raw ) {
 		return $result;
@@ -254,7 +254,7 @@ function sources( Os $os ) {
 			'path'     => $path,
 			'exists'   => $exists,
 			'readable' => $exists && is_readable( $path ),
-
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- Probing a server-side log path from the host-agnostic model; `wp_is_writable()` does not exist on a standalone host.
 			'writable' => $exists && is_writable( $path ),
 			'size'     => $exists ? (int) filesize( $path ) : 0,
 			'mtime'    => $exists ? (int) filemtime( $path ) : 0,
@@ -286,7 +286,6 @@ function read( Os $os, array $source ) {
 	$max_bytes   = max( 4096, (int) $os->filter( 'openstation_code_blue_max_bytes', MAX_BYTES ) );
 	$max_entries = max( 100, (int) $os->filter( 'openstation_code_blue_max_entries', MAX_ENTRIES ) );
 	$tail        = tail( $source['path'], $max_bytes );
-
 	$entries = (array) $os->filter( 'openstation_code_blue_entries', parse( $tail['raw'] ), $source, $tail['raw'] );
 
 	$content_dir = $os->env->content_dir();
@@ -316,17 +315,15 @@ function clear( Os $os, array $source ) {
 	if ( ! $source['writable'] ) {
 		return __( 'The log file is not writable, so it cannot be cleared.', 'desktop-mode' );
 	}
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Truncating a server-side log the descriptor already validated.
 	if ( false === file_put_contents( $source['path'], '' ) ) {
 		return __( 'Clearing the log file failed.', 'desktop-mode' );
 	}
-
 	$os->action( 'openstation_code_blue_log_cleared', $source['id'], $source['path'] );
 	return true;
 }
 
 function search_url( Os $os ) {
-
 	return (string) $os->filter( 'openstation_code_blue_search_url', 'https://duckduckgo.com/?q=%s' );
 }
 

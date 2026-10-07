@@ -265,7 +265,6 @@ describe( 'user preview pane', () => {
 		expect( labels ).not.toContain( 'View activity footprint' );
 		const seenCtx = seen as unknown as { entityId: string; item: Record< string, unknown > };
 		expect( seenCtx.entityId ).toBe( 'wc-customers' );
-
 		expect( seenCtx.item.openstation_woo_customer ).toMatchObject( { band: 'vip' } );
 	} );
 
@@ -328,7 +327,6 @@ describe( 'user preview pane', () => {
 
 		const ctx = mount( state( { section: 'wc-customers', item: 8 } ), withStats() );
 		const text = ctx.root.textContent ?? '';
-
 		const statText = Array.from( ctx.root.querySelectorAll( 'os-stat' ) )
 			.map( ( s ) => `${ s.getAttribute( 'value' ) } ${ s.getAttribute( 'label' ) } ${ s.getAttribute( 'caption' ) ?? '' }` )
 			.join( ' ' );
@@ -350,7 +348,6 @@ describe( 'user preview pane', () => {
 		const gatedText = gated.root.textContent ?? '';
 		expect( factLabels( gated.root ) ).toContain( 'Email' );
 		expect( gatedText ).toContain( 'AUTHOR' );
-
 		expect( gated.root.querySelector( 'os-stat' ) ).toBeNull();
 		expect( gatedText ).not.toContain( 'Comments received' );
 		expect( gatedText ).not.toContain( 'Activity (last 12 months)' );

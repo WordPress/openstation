@@ -15,7 +15,6 @@ const bundle = join(
 
 describe( 'the built connect-screen script', () => {
 	test( 'exists — `npm run build:connect` produces it', () => {
-
 		expect(
 			existsSync( bundle ),
 			'app/dist/renderer/connect.js is missing. Run `npm run build:app`.',
@@ -31,7 +30,6 @@ describe( 'the built connect-screen script', () => {
 	} );
 
 	test( 'has no ES-module syntax either', () => {
-
 		const code = readFileSync( bundle, 'utf8' );
 
 		expect( code ).not.toMatch( /^\s*import\s/m );

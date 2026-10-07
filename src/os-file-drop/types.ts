@@ -1,35 +1,22 @@
 export interface DropConfig {
-
 	enabled: boolean;
-
 	allowedMimes: string[];
-
 	extToMime?: Record< string, string >;
-
 	maxSize: number;
 }
 
 export interface DropDialogFields {
-
 	title: string;
-
 	altText: string;
-
 	caption: string;
-
 	description: string;
-
 	filename: string;
 }
 
 export interface DropFileEntry {
-
 	file: File;
-
 	mime: string;
-
 	fields: DropDialogFields;
-
 	relativePath?: string;
 }
 
@@ -47,13 +34,9 @@ export interface DropRejection {
 }
 
 export interface DropContext {
-
 	surface: 'wallpaper' | 'window' | 'folder' | 'iframe' | 'unknown';
-
 	windowId?: string;
-
 	folderId?: number;
-
 	x: number;
 	y: number;
 }

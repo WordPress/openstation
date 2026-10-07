@@ -123,7 +123,6 @@ describe( 'freeing a window', () => {
 	} );
 
 	test( 'refuses a URL the app is not allowed to open', () => {
-
 		const h = harness( { allow: ( url ) => url.startsWith( 'https://example.test' ) } );
 
 		const result = h.registry.free( { ...REQ, url: 'https://evil.test/' } );
@@ -215,7 +214,6 @@ describe( 'docking back', () => {
 	} );
 
 	test( 'quitting closes everything without docking anything back', () => {
-
 		const h = harness();
 		h.registry.free( REQ );
 		h.registry.free( { ...REQ, windowId: 'os-files' } );
@@ -249,7 +247,6 @@ describe( 'window events', () => {
 	} );
 
 	test( 'an iframe window follows the page, minus WordPress’s tab suffix', () => {
-
 		const h = harness();
 		h.registry.free( REQ );
 		const prevented = vi.fn();
@@ -265,7 +262,6 @@ describe( 'window events', () => {
 	} );
 
 	test( 'a native window keeps its OpenStation name', () => {
-
 		const h = harness();
 		h.registry.free( { ...REQ, windowId: 'os-files', title: 'Trash', native: true } );
 
@@ -306,7 +302,6 @@ describe( 'screenNameFrom', () => {
 	} );
 
 	test( 'takes a title without the separator whole rather than mangling it', () => {
-
 		expect( screenNameFrom( 'My Plugin Dashboard', 'x' ) ).toBe(
 			'My Plugin Dashboard',
 		);

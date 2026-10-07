@@ -22,6 +22,5 @@ export function paintTitleBarButtonIcon(
 		host.appendChild( wrapper );
 		return;
 	}
-
 	host.setAttribute( 'icon', icon );
 }

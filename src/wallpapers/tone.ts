@@ -92,7 +92,6 @@ export async function toneFromImage( url: string ): Promise< WallpaperTone | nul
 	}
 	try {
 		const image = new Image();
-
 		image.crossOrigin = 'anonymous';
 		const loaded = await new Promise< boolean >( ( resolve ) => {
 			const timer = setTimeout( () => resolve( false ), LOAD_TIMEOUT_MS );
@@ -154,7 +153,6 @@ export async function resolveWallpaperTone(
 	} catch {
 		value = '';
 	}
-
 	if ( value === '' ) {
 		value = readAppliedBackground();
 	}

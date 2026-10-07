@@ -301,7 +301,6 @@ describe( 'createSession', () => {
 			const h = harness(
 				'<os-text-field os-bind="query" os-action="search"></os-text-field><button os-action="refresh">r</button>',
 			);
-
 			let release!: () => void;
 			const gate = new Promise< void >( ( resolve ) => {
 				release = resolve;
@@ -409,7 +408,6 @@ describe( 'createSession', () => {
 				host,
 				session,
 				respond: () => undefined,
-
 				fire: ( topic ) => {
 					subscribers.get( topic )?.( topic );
 					subscribers.get( '*' )?.( topic );
@@ -446,7 +444,6 @@ describe( 'createSession', () => {
 			h.session.setPaused( false );
 			await flush();
 			expect( h.host.sent.map( ( s ) => s.action ) ).toEqual( [ 'set' ] );
-
 			h.session.setPaused( true );
 			h.session.setPaused( false );
 			await flush();
@@ -461,7 +458,6 @@ describe( 'createSession', () => {
 			h.fire( 'os-window-focused' );
 			h.fire( 'os.data-refresh' );
 			await flush();
-
 			expect( h.host.sent ).toHaveLength( 1 );
 		} );
 
@@ -535,7 +531,6 @@ describe( 'createSession', () => {
 			await h.session.dispatch( 'mount' );
 			const first = h.ctx().ui( () => ( { open: false } ) );
 			first.open = true;
-
 			expect( h.ctx().ui( () => ( { open: false } ) ) ).toBe( first );
 			const before = h.renders();
 			const requests = h.fetches.length;
@@ -553,7 +548,6 @@ describe( 'createSession', () => {
 			const headers = new Headers( call?.init?.headers );
 			expect( headers.get( 'X-WP-Nonce' ) ).toBe( 'nonce' );
 			expect( headers.get( 'Accept' ) ).toBe( 'application/json' );
-
 			await h.ctx().fetch( 'https://elsewhere.test/x' );
 			expect( h.fetches.at( -1 )?.input ).toBe( 'https://elsewhere.test/x' );
 		} );
@@ -606,7 +600,6 @@ describe( 'createSession', () => {
 			document.body.appendChild( root );
 			let captured: Ctx | undefined;
 			const host: RuntimeHost = {
-
 				fetch: async ( _input, init ) => {
 					const body = JSON.parse( String( init?.body ) ) as {
 						state: Record< string, unknown >;
@@ -631,7 +624,6 @@ describe( 'createSession', () => {
 					hasLocal: () => false,
 					runLocal: ( _a, s ) => s,
 					render: ( c ) => {
-
 						captured ??= c as Ctx;
 					},
 					mounted: () => undefined,
@@ -639,9 +631,7 @@ describe( 'createSession', () => {
 			} );
 			await session.dispatch( 'mount' );
 			expect( ( captured!.state as { selected: number[] } ).selected ).toEqual( [] );
-
 			await session.dispatch( 'select', { selected: [ 1, 2, 3, 4 ] } );
-
 			expect( ( captured!.state as { selected: number[] } ).selected ).toEqual( [ 1, 2, 3, 4 ] );
 			expect( captured!.data ).toEqual( { selected: [ 1, 2, 3, 4 ] } );
 			session.dispose();

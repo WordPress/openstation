@@ -74,7 +74,6 @@ describe( 'child windows — the owner cannot come to the front', () => {
 
 		expect( child.isFocused() ).toBe( true );
 		expect( owner.isFocused() ).toBe( false );
-
 		expect( zOrder( manager ).at( -1 ) ).toBe( 'child' );
 	} );
 
@@ -96,7 +95,6 @@ describe( 'child windows — the owner cannot come to the front', () => {
 		const other = await manager.open( cfg( 'other' ) );
 
 		expect( other.isFocused() ).toBe( true );
-
 		const order = zOrder( manager );
 		expect( order.indexOf( 'child' ) ).toBeGreaterThan(
 			order.indexOf( 'owner' ),
@@ -119,7 +117,6 @@ describe( 'child windows — the owner cannot come to the front', () => {
 	test( 'a cycle in declared ownership does not hang the focus path', async () => {
 		const a = await manager.open( cfg( 'a' ) );
 		const b = await manager.open( cfg( 'b', { parentWindowId: 'a' } ) );
-
 		a.config.parentWindowId = 'b';
 
 		expect( () => manager.focus( a ) ).not.toThrow();
@@ -148,7 +145,6 @@ describe( 'child windows — the owner cannot come to the front', () => {
 		const owner = await manager.open(
 			cfg( 'owner', { x: 100, y: 100, width: 800, height: 600 } ),
 		);
-
 		owner.element.style.left = '400px';
 		owner.element.style.top = '200px';
 		owner.element.style.width = '600px';
@@ -189,7 +185,6 @@ describe( 'child windows — the owner cannot come to the front', () => {
 		const owner = await manager.open(
 			cfg( 'owner', { width: 800, height: 600 } ),
 		);
-
 		owner.element.style.left = '1500px';
 		owner.element.style.top = '800px';
 		owner.element.style.width = '800px';
@@ -222,7 +217,6 @@ describe( 'child windows — the owner cannot come to the front', () => {
 	} );
 
 	test( "a child's remembered geometry wins over centering", async () => {
-
 		window.localStorage.setItem(
 			NATIVE_GEOMETRY_STORAGE_KEY,
 			JSON.stringify( {
@@ -284,7 +278,6 @@ describe( 'child windows — a cascade is one focus change', () => {
 		const focusEvents = countFocusEvents( () => owner.minimize() );
 
 		expect( focusEvents ).toBe( 1 );
-
 		expect( other.isFocused() ).toBe( true );
 	} );
 
@@ -312,7 +305,6 @@ describe( 'child windows — a cascade is one focus change', () => {
 		const focusEvents = countFocusEvents( () => owner.restore() );
 
 		expect( focusEvents ).toBe( 1 );
-
 		expect( owner.isFocused() ).toBe( false );
 		expect( c3.state ).not.toBe( 'minimized' );
 		expect( manager.blockingChildOf( owner ) ).toBeDefined();

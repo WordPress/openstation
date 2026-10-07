@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-solo-window
+ */
 class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -11,7 +14,6 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-
 		$GLOBALS['wp_styles'] = null;
 	}
 
@@ -23,6 +25,10 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 * @covers ::openstation_is_solo_request
+	 */
 	public function test_no_flag_means_no_solo_request() {
 		wp_set_current_user( self::$admin_id );
 
@@ -30,6 +36,10 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_solo_request() );
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 * @covers ::openstation_is_solo_request
+	 */
 	public function test_flag_is_read_for_an_enabled_user() {
 		wp_set_current_user( self::$admin_id );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
@@ -38,6 +48,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertTrue( openstation_is_solo_request() );
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 */
 	public function test_value_is_sanitized_to_a_safe_key() {
 		wp_set_current_user( self::$admin_id );
 
@@ -48,6 +61,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/^[a-z0-9_\-]*$/', openstation_solo_window_id() );
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 */
 	public function test_an_array_shaped_value_is_rejected_outright() {
 		wp_set_current_user( self::$admin_id );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = array( 'os-files' );
@@ -55,6 +71,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_solo_window_id() );
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 */
 	public function test_flag_is_ignored_when_openstation_is_off() {
 		$plain_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $plain_id );
@@ -64,6 +83,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_solo_request() );
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 */
 	public function test_flag_is_ignored_for_a_logged_out_visitor() {
 		wp_set_current_user( 0 );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
@@ -71,6 +93,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_solo_window_id() );
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 */
 	public function test_filter_can_turn_solo_mode_off() {
 		wp_set_current_user( self::$admin_id );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
@@ -81,6 +106,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_solo_request() );
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 */
 	public function test_filter_receives_the_sanitized_id_and_the_request_value() {
 		wp_set_current_user( self::$admin_id );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
@@ -101,6 +129,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertSame( array( 'os-files', 'os-files' ), $seen );
 	}
 
+	/**
+	 * @covers ::openstation_solo_window_id
+	 */
 	public function test_shell_config_carries_the_solo_window_id() {
 		wp_set_current_user( self::$admin_id );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
@@ -113,6 +144,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertSame( 'os-files', $config['soloWindow'] );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_solo_mode_emits_a_rule_hiding_every_other_window() {
 		wp_set_current_user( self::$admin_id );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-game-inkfall';
@@ -129,11 +163,13 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 			$css,
 			'Solo mode must hide every window but its own, by id.'
 		);
-
 		$this->assertStringContainsString( 'visibility:hidden', $css );
 		$this->assertStringNotContainsString( 'display:none', $css );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_a_normal_shell_gets_no_such_rule() {
 		wp_set_current_user( self::$admin_id );
 
@@ -147,10 +183,12 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '.os-window:not(', $css );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_body_gets_the_solo_class_in_solo_mode() {
 		wp_set_current_user( self::$admin_id );
 		$_GET[ OPENSTATION_SOLO_FLAG ] = 'os-files';
-
 		set_current_screen( 'dashboard' );
 
 		$classes = openstation_admin_body_classes( '' );
@@ -159,6 +197,9 @@ class Tests_OpenStation_SoloWindow extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'os-solo', $classes );
 	}
 
+	/**
+	 * @covers ::openstation_admin_body_classes
+	 */
 	public function test_body_has_no_solo_class_on_a_normal_request() {
 		wp_set_current_user( self::$admin_id );
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );

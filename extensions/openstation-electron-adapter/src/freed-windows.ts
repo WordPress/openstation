@@ -17,13 +17,9 @@ export interface WindowManagerPort {
 
 export interface FreedWindowsDeps {
 	manager: WindowManagerPort;
-
 	focusNative: ( windowId: string ) => void;
-
 	closeNative: ( windowId: string ) => void;
-
 	onFreed?: ( windowId: string ) => void;
-
 	onDocked?: ( windowId: string ) => void;
 }
 

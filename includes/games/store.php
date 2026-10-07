@@ -22,7 +22,6 @@ function openstation_games_sanitize_score_meta( $meta ) {
 		} elseif ( is_string( $value ) ) {
 			$out[ $key ] = mb_substr( sanitize_text_field( $value ), 0, 200 );
 		}
-
 	}
 	return $out;
 }
@@ -99,13 +98,14 @@ function openstation_games_get_scores( $game, $args = array() ) {
 		$params[] = $user_id;
 	}
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	$total = (int) $wpdb->get_var(
 		$wpdb->prepare( "SELECT COUNT(*) FROM {$tables['scores']} WHERE {$where}", $params )
 	);
 
 	$params[] = $per_page;
 	$params[] = ( $page - 1 ) * $per_page;
-
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['scores']}
@@ -249,10 +249,8 @@ function openstation_games_set_challenge_state( $id, $state ) {
 	);
 
 	if ( 'accepted' === $state ) {
-
 		do_action( 'openstation_game_challenge_accepted', (int) $id, $row );
 	} else {
-
 		do_action( 'openstation_game_challenge_declined', (int) $id, $row );
 	}
 

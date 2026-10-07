@@ -81,7 +81,6 @@ describe( 'effects/server-sync.ts', () => {
 		await run( [] );
 
 		expect( registry.getUnfocusEffect( 'a-glow' ) ).toBeUndefined();
-
 		expect( registry.getUnfocusEffect( 'untagged' ) ).toBeDefined();
 	} );
 

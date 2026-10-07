@@ -3,7 +3,6 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { CHANNELS, osLabelFor } from '../lib/protocol';
 
 let windowId = '';
-
 const waiting: Array< ( id: string ) => void > = [];
 
 ipcRenderer.on(
@@ -24,7 +23,6 @@ ipcRenderer.on(
 contextBridge.exposeInMainWorld( 'openStationChromelessHost', true );
 
 contextBridge.exposeInMainWorld( 'openStationDesktopFrame', {
-
 	isFreedWindow: true,
 
 	platform: process.platform,

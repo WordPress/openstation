@@ -39,11 +39,8 @@ export function baseWordCount( size: SoupSize ): number {
 }
 
 export interface WaveConfig {
-
 	gridSize: number;
-
 	wordCount: number;
-
 	minLen: number;
 	maxLen: number;
 }
@@ -64,7 +61,6 @@ export function waveConfig(
 			maxLen: Math.min( gridSize, 9, 6 + step ),
 		};
 	}
-
 	return {
 		gridSize,
 		wordCount: base + step,

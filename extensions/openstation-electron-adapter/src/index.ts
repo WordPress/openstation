@@ -14,9 +14,7 @@ import type {
 const NONCE_RETRY_MS = 60000;
 
 export const EVENT_FREED = 'os-desktop-host-freed';
-
 export const EVENT_DOCKED = 'os-desktop-host-docked';
-
 export const EVENT_CONNECTION = 'os-desktop-host-connection';
 
 interface ShellApi {
@@ -166,7 +164,6 @@ export function boot(
 	bridge.onWindowDocked( ( { windowId } ) => freed.release( windowId ) );
 
 	bridge.onWindowFreed( ( { windowId } ) => {
-
 		freed.adopt( windowId );
 	} );
 
@@ -177,7 +174,6 @@ export function boot(
 			const now = Date.now();
 			if ( now - lastNonceRetry >= NONCE_RETRY_MS ) {
 				lastNonceRetry = now;
-
 				handshake();
 			}
 		}
@@ -240,7 +236,6 @@ export function boot(
 			freed.adoptExisting( result?.freedWindows ?? [] );
 		} )
 		.catch( () => {
-
 		} )
 		.then( handshake );
 
@@ -248,7 +243,6 @@ export function boot(
 }
 
 const SHELL_WAIT_MS = 15000;
-
 const SHELL_POLL_MS = 50;
 
 const RETRY_MS = 1500;
@@ -285,7 +279,6 @@ function waitForShell(): Promise< ShellApi | null > {
 }
 
 export function start(): void {
-
 	if ( document.body ) {
 		markSoloHost();
 	} else {
@@ -324,7 +317,6 @@ export function start(): void {
 
 		const preload = getHostBridge();
 		if ( preload ) {
-
 			os.ready( () => boot( preload, os, config ) );
 			return;
 		}
@@ -345,7 +337,6 @@ export function start(): void {
 				let bridge = await connectToAgent( pairing );
 
 				if ( ! bridge ) {
-
 					const fresh = await fetchPairing(
 						config.restUrl,
 						os.config.restNonce,

@@ -171,7 +171,6 @@ test( 'capture loss without pointerup commits the last visible position exactly 
 	capture();
 	const change = vi.fn();
 	split.addEventListener( 'os-split-change', change );
-
 	pointer( 'pointerdown', 350 );
 	pointer( 'pointermove', 550 );
 	pointer( 'pointerup', 550 );
@@ -180,7 +179,6 @@ test( 'capture loss without pointerup commits the last visible position exactly 
 	pointer( 'pointermove', 440 );
 	await tick();
 	expect( Number( split.getAttribute( 'position' ) ) ).toBe( 44 );
-
 	pointer( 'lostpointercapture', 0 );
 	await tick();
 	expect( Number( split.getAttribute( 'position' ) ) ).toBe( 44 );
@@ -188,7 +186,6 @@ test( 'capture loss without pointerup commits the last visible position exactly 
 	pointer( 'pointerup', 440 );
 	pointer( 'lostpointercapture', 440 );
 	expect( change.mock.calls.map( ( [ event ] ) => event.detail.position ) ).toEqual( [ 55, 44 ] );
-
 	pointer( 'pointerdown', 440 );
 	pointer( 'pointermove', 480 );
 	pointer( 'pointerup', 480 );

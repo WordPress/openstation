@@ -97,7 +97,6 @@ export class FireflyLayer {
 				fly.ty = this.randomY();
 				fly.retarget = 2 + Math.random() * 4;
 			}
-
 			fly.x += ( fly.tx - fly.x ) * dt * 0.4 + Math.sin( t * 2.2 + fly.phase ) * 0.35;
 			fly.y += ( fly.ty - fly.y ) * dt * 0.4 + Math.cos( t * 1.7 + fly.phase ) * 0.3;
 			fly.sprite.x = fly.x;

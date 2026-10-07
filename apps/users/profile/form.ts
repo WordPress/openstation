@@ -17,7 +17,6 @@ const HEADING =
 	'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--os-ui-fg-muted, #50575e);';
 
 export interface ProfileFormHooks {
-
 	onSaved?: ( user: UserEditRecord ) => void;
 }
 
@@ -42,7 +41,7 @@ export async function mountProfileFormAt(
 		el.replaceChildren();
 		const msg = document.createElement( 'p' );
 		msg.style.cssText = 'padding:32px;color:var(--os-ui-danger, #b32d2e);font-size:13px;text-align:center;';
-
+		// translators: %s is an error message.
 		msg.textContent = sprintf( __( 'Could not load profile (%s).' ), String( ( err as Error ).message ?? err ) );
 		el.appendChild( msg );
 		throw err;
@@ -254,11 +253,9 @@ function mountProfileForm( el: HTMLElement, user: UserEditRecord, userId: number
 			}
 			patch.password = values.password;
 		}
-
 		if ( typeof values[ 'roles[0]' ] === 'string' && values[ 'roles[0]' ] ) {
 			patch.roles = [ values[ 'roles[0]' ] ];
 		}
-
 		const metaPatch: Record< string, unknown > = {};
 		for ( const [ k, v ] of Object.entries( values ) ) {
 			if ( ! k.startsWith( 'meta.' ) ) {
@@ -288,9 +285,8 @@ function mountProfileForm( el: HTMLElement, user: UserEditRecord, userId: number
 			for ( const field of Object.keys( result.fieldErrors ?? {} ) ) {
 				form.setFieldInvalid( field );
 			}
-
 			picker.revert();
-
+			// eslint-disable-next-line no-console
 			console.warn( '[user-edit] save failed', { code: result.error, message: result.message } );
 			return;
 		}
@@ -303,7 +299,6 @@ function mountProfileForm( el: HTMLElement, user: UserEditRecord, userId: number
 			field.value = '';
 			field.setAttribute( 'value', '' );
 		}
-
 		if ( result.user ) {
 			Object.assign( user, result.user );
 			const next = buildProfileHeader( user, cfg );

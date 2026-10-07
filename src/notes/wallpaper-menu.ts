@@ -19,7 +19,6 @@ export function installNotesWallpaperMenu( layer: NotesLayer ): void {
 			if ( items.some( ( item ) => item.id === MENU_ITEM_ID ) ) {
 				return items;
 			}
-
 			const { x, y } = context ?? { x: 0, y: 0 };
 			return [
 				...items,

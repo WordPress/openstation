@@ -5,25 +5,16 @@ defined( 'ABSPATH' ) || exit;
 require_once OPENSTATION_DIR . 'includes/agents/guard.php';
 
 const OPENSTATION_AGENT_DESCRIPTION_META = '_desktop_mode_agent_description';
-
 const OPENSTATION_AGENT_INSTRUCTIONS_META = '_desktop_mode_agent_instructions';
-
 const OPENSTATION_AGENT_ABILITIES_META = '_desktop_mode_agent_abilities';
-
 const OPENSTATION_AGENT_TRIGGERS_META = '_desktop_mode_agent_triggers';
-
 const OPENSTATION_AGENT_MODEL_META = '_desktop_mode_agent_model';
-
 const OPENSTATION_AGENT_RATE_LIMIT_META = '_desktop_mode_agent_rate_limit';
-
 const OPENSTATION_AGENT_CREATED_BY_META = '_desktop_mode_agent_created_by';
-
 const OPENSTATION_AGENT_VIBES_META = '_desktop_mode_agent_vibes';
 
 const OPENSTATION_AGENT_VIBES_MAX_LENGTH = 120;
-
 const OPENSTATION_AGENT_FACE_META = '_desktop_mode_agent_face';
-
 const OPENSTATION_AGENT_FACE_SEED_META = '_desktop_mode_agent_face_seed';
 
 function openstation_agent_meta_keys() {
@@ -551,8 +542,8 @@ function openstation_agent_user_can_invoke_agent( $agent_user_id, $source = 'cha
 
 function openstation_agent_get_agents( $args = array() ) {
 	$defaults = array(
-		'meta_key'   => OPENSTATION_AGENT_USER_MARKER_META,
-		'meta_value' => '1',
+		'meta_key'   => OPENSTATION_AGENT_USER_MARKER_META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		'meta_value' => '1', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 		'orderby'    => 'display_name',
 		'order'      => 'ASC',
 		'number'     => 200,
@@ -581,7 +572,6 @@ function openstation_agent_create( $args ) {
 	$triggers     = isset( $args['triggers'] ) ? openstation_agent_sanitize_triggers( $args['triggers'] ) : array();
 	$vibes        = isset( $args['vibes'] ) ? openstation_agent_sanitize_vibes( $args['vibes'] ) : '';
 	$face         = isset( $args['face'] ) ? openstation_agent_sanitize_face_json( $args['face'] ) : '';
-
 	$seed = isset( $args['faceSeed'] ) ? absint( $args['faceSeed'] ) : 0;
 	if ( 0 === $seed ) {
 		$seed = crc32( (string) $user->user_login );
@@ -646,7 +636,6 @@ function openstation_agent_update( $user_id, array $fields ) {
 				__( 'Agent name cannot be empty.', 'desktop-mode' )
 			);
 		}
-
 		if ( openstation_plain_text_title( $name ) !== openstation_plain_text_title( $user->display_name ) ) {
 			$changed['name'] = array(
 				'from' => (string) $user->display_name,
@@ -805,7 +794,6 @@ function openstation_agent_update( $user_id, array $fields ) {
 	}
 
 	if ( ! empty( $changed ) ) {
-
 		do_action( 'openstation_agent_updated', (int) $user->ID, $changed, get_current_user_id() );
 	}
 

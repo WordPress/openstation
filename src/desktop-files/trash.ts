@@ -58,11 +58,12 @@ export async function trashPlacementWithUndo(
 				void undo?.finish( true );
 			} catch ( err ) {
 				void undo?.finish( false );
-
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] restore failed:', err );
 			}
 		} );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] deletePlacement failed:', err );
 		void optimistic.finish( false );
 		filesStoreApi.upsertPlacement( placement );
@@ -104,11 +105,12 @@ export async function trashFolderWithUndo(
 				void undo?.finish( true );
 			} catch ( err ) {
 				void undo?.finish( false );
-
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] restore folder failed:', err );
 			}
 		} );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] deleteFolder failed:', err );
 		if ( folder ) {
 			filesStoreApi.upsertFolder( folder );
@@ -140,7 +142,6 @@ export async function trashManyWithUndo(
 	const parentIds = new Set< number >();
 	for ( const placement of placements ) {
 		parentIds.add( placement.parentId );
-
 		filesStoreApi.removePlacement( placement.id );
 		if ( placement.file?.type === 'folder' ) {
 			const folderId = parseInt( placement.file.ref, 10 );
@@ -156,6 +157,7 @@ export async function trashManyWithUndo(
 				const res = await rest.listPlacements( parentId );
 				filesStoreApi.setFolderPlacements( parentId, res.placements );
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] files: re-hydrate failed:', err );
 			}
 		}
@@ -212,7 +214,7 @@ export async function trashManyWithUndo(
 			deleted.push( result.value );
 		} else {
 			failed += 1;
-
+			// eslint-disable-next-line no-console
 			console.error(
 				'[openstation] trash (bulk) failed for one item:',
 				result.reason,
@@ -267,6 +269,7 @@ export async function trashManyWithUndo(
 		const stillTrashed = deleted.length - restored.length;
 		for ( const result of restores ) {
 			if ( result.status === 'rejected' ) {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] restore (bulk) failed for one item:',
 					result.reason,

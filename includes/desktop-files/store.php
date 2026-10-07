@@ -79,7 +79,6 @@ function openstation_files_place( $user_id, $parent_id, $type, $ref, $args = arr
 	}
 	list( $ok, $id ) = $result;
 	if ( false === $ok ) {
-
 		$existing = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$tables['placements']}
@@ -168,7 +167,6 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 					array( 'status' => 403 )
 				);
 			}
-
 			if ( $is_row_owner && ! $is_folder_owner && 'write' !== $source_cap ) {
 				return new WP_Error(
 					'openstation_files_no_write_in_shared_folder',
@@ -178,7 +176,6 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 			}
 		}
 	} elseif ( ! $is_row_owner ) {
-
 		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot edit this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	if ( isset( $changes['parent_id'] ) ) {
@@ -198,7 +195,6 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 				}
 			}
 		}
-
 		if ( 'folder' === (string) $row['file_type'] && $target_parent > 0 ) {
 			$moving_folder_id = (int) $row['file_ref'];
 			if ( $moving_folder_id > 0 ) {
@@ -243,7 +239,6 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 
 	$set['updated_at_ms'] = openstation_files_now_ms();
 	$fmt[]                = '%d';
-
 	$set['updated_by'] = $user_id;
 	$fmt[]             = '%d';
 
@@ -268,12 +263,10 @@ function openstation_files_remove( $placement_id, $user_id ) {
 	if ( ! $row ) {
 		return new WP_Error( 'openstation_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-
 	$upload_lock = openstation_files_upload_owner_lock( $row, $user_id );
 	if ( is_wp_error( $upload_lock ) ) {
 		return $upload_lock;
 	}
-
 	$is_row_owner = (int) $row['owner_id'] === $user_id;
 	$allowed      = $is_row_owner;
 	if ( ! $allowed && (int) $row['parent_id'] > 0 ) {
@@ -365,11 +358,9 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 		'parent_id'  => $parent_id,
 		'share_view' => $share_view,
 	);
-
 	$args = (array) apply_filters( 'openstation_files_query_args', $args, $user_id, $parent_id );
 
 	if ( ! empty( $args['share_view'] ) || (int) $args['parent_id'] > 0 ) {
-
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$tables['placements']}
@@ -402,12 +393,10 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 		$normalized = openstation_files_normalize_placement_row( $row );
 		$file       = openstation_resolve_file( $normalized['file_type'], $normalized['file_ref'] );
 		if ( empty( $args['share_view'] ) ) {
-
 			if ( $file && ! $file->can_read( $user_id ) ) {
 				continue;
 			}
 		} elseif ( $file && ! $file->can_read( $user_id ) ) {
-
 			$normalized['access_gated'] = true;
 		}
 		$out[] = $normalized;
@@ -444,7 +433,6 @@ function openstation_files_auto_place_orphans( $user_id ) {
 		? openstation_desktop_icon_registry()
 		: array();
 	if ( is_array( $registry ) ) {
-
 		$registry = (array) apply_filters( 'openstation_icons', $registry );
 	}
 	if ( is_array( $registry ) && ! empty( $registry ) ) {
@@ -516,7 +504,6 @@ function openstation_files_auto_place_orphans( $user_id ) {
 	$pinned_set = array_flip( $pinned_ids );
 	$pinned_idx = 0;
 	foreach ( $pinned_ids as $id ) {
-
 		$occupied[ "0,$pinned_idx" ] = true;
 		$emit_at( 'shortcut', $id, 0, $pinned_idx );
 		++$pinned_idx;
@@ -544,7 +531,6 @@ function openstation_files_normalize_placement_row( $row ) {
 	return array(
 		'id'            => (int) $row['id'],
 		'owner_id'      => (int) $row['owner_id'],
-
 		'updated_by'    => isset( $row['updated_by'] ) ? (int) $row['updated_by'] : null,
 		'parent_id'     => (int) $row['parent_id'],
 		'file_type'     => (string) $row['file_type'],
@@ -617,18 +603,15 @@ function openstation_files_would_create_folder_cycle( $user_id, $moving_folder_i
 	$tables  = openstation_files_table_names();
 	$visited = array();
 	$cursor  = $target_parent_id;
-
 	$max_depth = 256;
 	while ( $cursor > 0 && $max_depth-- > 0 ) {
 		if ( $cursor === $moving_folder_id ) {
 			return true;
 		}
 		if ( isset( $visited[ $cursor ] ) ) {
-
 			return true;
 		}
 		$visited[ $cursor ] = true;
-
 		$parent_of_cursor = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT parent_id FROM {$tables['placements']}
@@ -642,7 +625,6 @@ function openstation_files_would_create_folder_cycle( $user_id, $moving_folder_i
 			)
 		);
 		if ( null === $parent_of_cursor ) {
-
 			return false;
 		}
 		$cursor = (int) $parent_of_cursor;

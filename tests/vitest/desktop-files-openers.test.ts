@@ -332,7 +332,6 @@ describe( 'desktop-files openers registry', async () => {
 		expect( openers.resolveOpener( 'user', special )?.id ).toBe(
 			'special-open',
 		);
-
 		expect(
 			openers.getOpenersForType( 'user' ).map( ( o ) => o.id ),
 		).toEqual( [ 'plain-open' ] );
@@ -408,7 +407,6 @@ describe( 'desktop-files openers registry', async () => {
 	} );
 
 	test( 'openUrl routes through tryNativeUrlRemap so user shortcuts open the native window', async () => {
-
 		const { openers, open, file } = await load();
 		vi.resetModules();
 		const remap = await import( '../../src/native-url-remap' );
@@ -462,7 +460,6 @@ describe( 'desktop-files openers registry', async () => {
 		const opened = await open.openFile( fakeFile( 'user', '42', file ) );
 		expect( opened ).toBe( true );
 		expect( openByIdSpy ).toHaveBeenCalledWith( 'desktop-mode-user-edit' );
-
 		expect( managerOpenSpy ).not.toHaveBeenCalled();
 
 		remap._resetNativeUrlRemap();

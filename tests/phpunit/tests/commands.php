@@ -1,19 +1,23 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-commands
+ */
 class Tests_OpenStation_Commands extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		openstation_flush_script_handle_registries();
 	}
 
 	public function tear_down() {
-
 		openstation_flush_script_handle_registries();
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_register_command_script
+	 */
 	public function test_register_command_script_stores_handle() {
 		$handle = 'cmd-test-a-' . uniqid();
 		$result = openstation_register_command_script( $handle );
@@ -22,12 +26,18 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 		$this->assertTrue( openstation_desktop_command_script_registry( $handle ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_command_script
+	 */
 	public function test_register_command_script_rejects_empty_handle() {
 		$result = openstation_register_command_script( '' );
 		$this->assertInstanceOf( 'WP_Error', $result );
 		$this->assertSame( 'openstation_missing_handle', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_command_scripts_payload
+	 */
 	public function test_payload_resolves_registered_handle_to_absolute_url() {
 		$handle = 'cmd-test-b-' . uniqid();
 		wp_register_script( $handle, 'https://example.test/cmd.js', array(), '1.0.0', true );
@@ -46,6 +56,9 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'cmd.js', $entry['scriptUrl'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_command_scripts_payload
+	 */
 	public function test_payload_ships_the_dependency_closure() {
 		$alias  = 'cmd-test-config-' . uniqid();
 		$handle = 'cmd-test-d-' . uniqid();
@@ -68,11 +81,13 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 		$this->assertSame( array( 'window.cmdTestConfig={};' ), $entry['scriptDeps'][0]['before'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_command_scripts_payload
+	 */
 	public function test_payload_omits_unresolvable_handles() {
 		$this->setExpectedIncorrectUsage( 'openstation_register_command_script' );
 
 		$handle = 'cmd-test-c-' . uniqid();
-
 		openstation_register_command_script( $handle );
 
 		$payload = openstation_build_desktop_command_scripts_payload();
@@ -81,6 +96,9 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_register_command
+	 */
 	public function test_register_desktop_command_stores_metadata() {
 		$slug = 'cmd-test-d-' . uniqid();
 		$result = openstation_register_command( array(
@@ -97,6 +115,9 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-lightbulb', $entry['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_command
+	 */
 	public function test_register_desktop_command_implicitly_registers_its_script() {
 		$slug   = 'cmd-test-e-' . uniqid();
 		$handle = 'cmd-script-e-' . uniqid();
@@ -109,6 +130,9 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 		$this->assertTrue( openstation_desktop_command_script_registry( $handle ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_command
+	 */
 	public function test_register_desktop_command_requires_slug_and_label() {
 		$no_slug = openstation_register_command( array( 'label' => 'x' ) );
 		$this->assertInstanceOf( 'WP_Error', $no_slug );
@@ -119,6 +143,9 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_label', $no_label->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_command
+	 */
 	public function test_registered_action_fires_on_implicit_script_registration() {
 		$calls = array();
 		add_action( 'openstation_command_script_registered', function ( $handle ) use ( &$calls ) {
@@ -135,6 +162,9 @@ class Tests_OpenStation_Commands extends WP_UnitTestCase {
 		$this->assertContains( $handle, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_register_command_script
+	 */
 	public function test_registered_action_fires_per_call() {
 		$calls = array();
 		add_action( 'openstation_command_script_registered', function ( $handle ) use ( &$calls ) {

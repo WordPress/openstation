@@ -129,7 +129,6 @@ export class OsChip extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
 		this.addEventListener( 'keydown', this._onHostKeyDown );
 	}
 
@@ -191,7 +190,6 @@ export class OsChip extends Component {
 		if ( ! dismissible ) {
 			return;
 		}
-
 		if ( e.key === 'Backspace' || e.key === 'Delete' ) {
 			e.preventDefault();
 			const disabled =

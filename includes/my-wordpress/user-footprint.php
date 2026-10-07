@@ -10,7 +10,6 @@ function openstation_my_wordpress_register_user_footprint_route() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_my_wordpress_user_footprint_callback',
 			'permission_callback' => static function () {
-
 				return openstation_my_wordpress_user_can_use();
 			},
 			'args'                => array(
@@ -133,7 +132,6 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	$open_stati = array_values( get_post_stati( array( 'public' => true ) ) );
 	$open_types = array_values( array_filter( get_post_types(), 'is_post_type_viewable' ) );
 	if ( ! $open_types ) {
-
 		$open_types = array( '' );
 	}
 	$open_stati_in = implode( ', ', array_fill( 0, count( $open_stati ), '%s' ) );
@@ -287,7 +285,6 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 			$prev_day_active = false;
 		}
 	}
-
 	for ( $i = count( $daily ) - 1; $i >= 0; --$i ) {
 		if ( $is_active( $daily[ $i ] ) ) {
 			++$current;
@@ -331,7 +328,6 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
-
 	$timeline_updates = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT r.post_parent AS parent_id, MAX(r.post_date_gmt) AS last_save, p.post_title, p.post_status, p.post_type
@@ -356,7 +352,6 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		ARRAY_A
 	);
 	$timeline         = array();
-
 	$timeline_ids = array_filter(
 		array_map(
 			'intval',
@@ -368,7 +363,6 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		)
 	);
 	if ( $timeline_ids ) {
-
 		_prime_post_caches( array_unique( $timeline_ids ), false, false );
 	}
 	foreach ( (array) $timeline_posts as $p ) {
@@ -460,7 +454,6 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		ARRAY_A
 	);
 	$totals_comments = openstation_my_wordpress_footprint_visible_counts( $comment_totals, true, $verdicts )['total'];
-
 	$update_totals  = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT CASE WHEN p.post_status IN ( {$open_stati_in} ) AND p.post_type IN ( {$open_types_in} ) THEN 0 ELSE p.ID END AS post_id,

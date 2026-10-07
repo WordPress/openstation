@@ -74,7 +74,6 @@ describe( 'createObstacleTrack', () => {
 	} );
 
 	test( 'a short gap after a long one still hands off without a seam', () => {
-
 		const track = createObstacleTrack( INTERVAL );
 		track.sample( [ obstacle( { x: 100 } ) ], 1000 );
 		track.sample( [ obstacle( { x: 150 } ) ], 1066.7 );
@@ -150,7 +149,6 @@ describe( 'createObstacleTrack', () => {
 	test( 'a long gap between samples is taken at face value', () => {
 		const track = createObstacleTrack( INTERVAL );
 		track.sample( [ obstacle( { x: 100 } ) ], 1000 );
-
 		track.sample( [ obstacle( { x: 900 } ) ], 3000 );
 
 		expect( only( track, 3125 ).x ).toBe( 900 );

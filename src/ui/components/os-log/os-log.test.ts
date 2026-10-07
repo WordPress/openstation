@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-
 import './os-log';
-
+// eslint-disable-next-line no-duplicate-imports
 import type { OsLog } from './os-log';
 
 const tick = (): Promise< void > =>
@@ -81,7 +80,6 @@ describe( '<os-log>', () => {
 		log.push( 'a' );
 		await tick();
 		const row = log.shadowRoot!.querySelector< HTMLElement >( '.row' )!;
-
 		expect( row.style.height ).toBe( 'auto' );
 	} );
 
@@ -93,7 +91,6 @@ describe( '<os-log>', () => {
 		log.push( 2 );
 		log.push( 3 );
 		expect( log.entries ).toEqual( [ 2, 3 ] );
-
 		const internal = log as unknown as { _heights: number[] };
 		expect( internal._heights.length ).toBeLessThanOrEqual( 2 );
 	} );

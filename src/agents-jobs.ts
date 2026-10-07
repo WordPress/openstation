@@ -48,7 +48,7 @@ async function request(
 	input?: AgentJobInput & { async: true; requestId: string },
 ): Promise< AgentJobStatus | AgentInvokeResult > {
 	const controller = new AbortController();
-
+	// eslint-disable-next-line @wordpress/no-unused-vars-before-return
 	const timeout = window.setTimeout( () => controller.abort(), 15000 );
 	try {
 		const response = await trackedFetch(
@@ -106,7 +106,6 @@ export async function runAgentJob(
 				submitted ? `${ base }/jobs/${ requestId }` : `${ base }/invoke`,
 				submitted ? undefined : { ...input, async: true, requestId },
 			);
-
 			if ( ! ( 'jobId' in body ) ) {
 				return body;
 			}

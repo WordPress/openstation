@@ -11,18 +11,13 @@ let _registration: ServiceWorkerRegistration | null = null;
 let _registrationFailed = false;
 let _updatesBound = false;
 let _shellUpdateAnnounced = false;
-
 let _waitingWorker: ServiceWorker | null = null;
-
 let _swapExpected = false;
-
 let _swapListeners: Array< () => void > = [];
 let _status: SwRegistrationStatus = 'pending';
 
 export interface ShellUpdateInfo {
-
 	current: string;
-
 	served: string;
 }
 
@@ -93,7 +88,6 @@ function watchForUpdates(
 			}
 			return;
 		}
-
 		const controller = navigator.serviceWorker.controller;
 		if ( controller ) {
 			consider( controller, false );
@@ -172,7 +166,6 @@ function bindResumeUpdateCheck( registration: ServiceWorkerRegistration ): void 
 	if ( _unbindResumeCheck ) {
 		return;
 	}
-
 	_lastResumeCheckAt = Date.now();
 
 	const check = (): void => {
@@ -186,10 +179,8 @@ function bindResumeUpdateCheck( registration: ServiceWorkerRegistration ): void 
 		_lastResumeCheckAt = now;
 		try {
 			void registration.update().catch( () => {
-
 			} );
 		} catch {
-
 		}
 	};
 
@@ -212,7 +203,6 @@ function isOwnSwScriptUrl(
 	}
 	try {
 		const parsed = new URL( url );
-
 		if (
 			parsed.pathname.endsWith( '/openstation/sw.js' ) ||
 			parsed.searchParams.has( 'openstation_sw' )
@@ -250,7 +240,6 @@ export async function registerServiceWorker(
 	config: PwaConfig | undefined,
 	options: {
 		forceReplace?: boolean;
-
 		onShellUpdated?: ( info: ShellUpdateInfo ) => void;
 	} = {},
 ): Promise< ServiceWorkerRegistration | null > {
@@ -295,7 +284,6 @@ export async function registerServiceWorker(
 		url: string,
 	): Promise< ServiceWorkerRegistration > =>
 		navigator.serviceWorker.register( url, {
-
 			scope: config.swScope || '/',
 			updateViaCache: 'none',
 		} );
@@ -310,11 +298,8 @@ export async function registerServiceWorker(
 			_registration = await attempt( config.swFallbackUrl );
 		}
 		_status = 'registered';
-
 		watchForUpdates( _registration, config, options.onShellUpdated );
-
 		bindResumeUpdateCheck( _registration );
-
 		sendCurrentConfigToWorker();
 		navigator.serviceWorker.addEventListener(
 			'controllerchange',
@@ -338,7 +323,6 @@ export function notifyServiceWorkerPrewarm( enabled: boolean ): void {
 			enabled,
 		} );
 	} catch {
-
 	}
 }
 
@@ -352,7 +336,6 @@ export function notifyServiceWorkerConfig( config: {
 			...config,
 		} );
 	} catch {
-
 	}
 }
 

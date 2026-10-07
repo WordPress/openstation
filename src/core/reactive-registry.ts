@@ -1,33 +1,22 @@
 import { createSharedStore } from '../shared-store';
 
 export interface ReactiveRegistry< T > {
-
 	register( entry: T ): void;
-
 	unregister( id: string ): void;
-
 	get( id: string ): T | undefined;
-
 	all(): T[];
-
 	subscribe( listener: () => void ): () => void;
-
 	reset(): void;
 }
 
 interface RegistryState< T > {
-
 	entries: T[];
 }
 
 export interface CreateReactiveRegistryOptions< T > {
-
 	key: string;
-
 	idOf: ( entry: T ) => string;
-
 	validate?: ( entry: T ) => string[] | undefined;
-
 	label?: string;
 }
 

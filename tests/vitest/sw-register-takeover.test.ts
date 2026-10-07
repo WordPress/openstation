@@ -41,7 +41,6 @@ function makeWorker( state = 'installed' ) {
 				cb( {} );
 			}
 		},
-
 		sent( type: string ) {
 			return worker.postMessage.mock.calls.filter(
 				( [ msg ] ) => ( msg as { type?: string } )?.type === type,
@@ -92,17 +91,14 @@ function installSwStub( opts: { controlled?: boolean; waiting?: Worker | null } 
 	return {
 		reg,
 		controller,
-
 		reply: ( shellBuild: string ) =>
 			fire( containerListeners, 'message', { data: { type: 'os-sw-build', shellBuild } } ),
-
 		controllerChange: ( next?: Worker ) => {
 			if ( next ) {
 				( navigator.serviceWorker as unknown as { controller: Worker } ).controller = next;
 			}
 			fire( containerListeners, 'controllerchange' );
 		},
-
 		updateFound: ( installing: Worker ) => {
 			reg.installing = installing;
 			fire( registrationListeners, 'updatefound' );
@@ -138,7 +134,6 @@ describe( 'registerServiceWorker — a new worker', () => {
 
 		expect( onShellUpdated ).toHaveBeenCalledTimes( 1 );
 		expect( onShellUpdated ).toHaveBeenCalledWith( { current: CURRENT, served: NEWER } );
-
 		expect( waiting.sent( 'os-sw-skip-waiting' ) ).toBe( 0 );
 
 		let swapped = false;
@@ -151,7 +146,6 @@ describe( 'registerServiceWorker — a new worker', () => {
 		stub.controllerChange( waiting );
 		await applying;
 		expect( swapped ).toBe( true );
-
 		expect( waiting.sent( 'os-sw-get-build' ) ).toBe( 1 );
 	} );
 
@@ -249,7 +243,6 @@ describe( 'registerServiceWorker — a new worker', () => {
 		await settle();
 
 		expect( onShellUpdated ).toHaveBeenCalledTimes( 1 );
-
 		await applyPendingUpdate();
 		expect( next.sent( 'os-sw-skip-waiting' ) ).toBe( 0 );
 	} );
@@ -274,7 +267,6 @@ describe( 'registerServiceWorker — a new worker', () => {
 } );
 
 describe( 'the shell never reloads itself', () => {
-
 	test( 'nothing under src/pwa/ calls location.reload()', () => {
 		const dir = join( __dirname, '..', '..', 'src', 'pwa' );
 		const offenders: string[] = [];

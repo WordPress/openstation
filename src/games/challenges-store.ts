@@ -2,9 +2,7 @@ import { createSharedStore } from '../shared-store';
 import type { GameChallengeRow } from './types';
 
 export interface ChallengesState {
-
 	rows: Map< number, GameChallengeRow >;
-
 	version: number;
 	listeners: Set< () => void >;
 }

@@ -51,7 +51,7 @@ export function tabs( ctx: Ctx, ui: UiState ): TemplateResult {
 				count === null
 					? tab.label()
 					: sprintf(
-
+						/* translators: 1: tab label, 2: comment count. */
 						__( '%1$s (%2$s)' ),
 						tab.label(),
 						String( count ),
@@ -97,7 +97,7 @@ function filterBanner( ctx: Ctx, ui: UiState, rows: CommentRow[] ): TemplateResu
 	return html`<div class="${ NS }__rail-filter">
 		<span class="${ NS }__rail-filter-label">${
 			title
-				? sprintf( __( 'On: %s' ), decodeHTML( title ) )
+				? /* translators: %s: post title. */ sprintf( __( 'On: %s' ), decodeHTML( title ) )
 				: __( 'Comments on this post' )
 		}</span>
 		<os-button class="${ NS }__rail-filter-clear" variant="link" @click=${ clear }>${ __( 'Show all' ) }</os-button>
@@ -115,7 +115,6 @@ function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 		void ctx.dispatch( 'select', { id: row.id } );
 	};
 	const replies = row.openstation_replies_count ?? 0;
-
 	return html`<div role="listitem" class="${ NS }__thread-slot">
 		<button
 			type="button"
@@ -134,7 +133,7 @@ function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 				${ timestamp( row.date_gmt, `${ NS }__thread-time`, true ) }
 				${ replies > 0
 					? html`<os-badge class="${ NS }__reply-count" tone="neutral" no-dot>${ replies }<span class="screen-reader-text">${ sprintf(
-
+						/* translators: %d: number of direct replies. */
 						__( '%d replies' ),
 						replies,
 					) }</span></os-badge>`

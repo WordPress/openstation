@@ -40,18 +40,15 @@ export class DragManager implements DragManagerApi {
 	private readonly _registry = new DropTargetRegistry();
 	private _active: InternalSession | null = null;
 	private _docListenersAttached = false;
-
 	private _lastLiftedEndAt = 0;
 
 	start( opts: StartOpts ): DragSession | null {
 		if ( this._active ) {
 			return null;
 		}
-
 		if ( opts.origin.button !== 0 ) {
 			return null;
 		}
-
 		if ( isMobileStamped() ) {
 			return null;
 		}
@@ -158,11 +155,11 @@ export class DragManager implements DragManagerApi {
 			try {
 				session._callbacks.onClickOnly?.();
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] drag onClickOnly threw:', err );
 			}
 			return;
 		}
-
 		const hit = this._hitTestNow( session, e.clientX, e.clientY );
 		if ( hit && hit.accepted && hit.target ) {
 			this._commit( session, hit.target, e.clientX, e.clientY );
@@ -183,7 +180,6 @@ export class DragManager implements DragManagerApi {
 		session._lifted = true;
 		session.payload.source.classList.add( SOURCE_DRAGGING_CLASS );
 		session._ghost = mountGhost( session.payload, e.clientX, e.clientY );
-
 		if ( typeof document !== 'undefined' && document.body ) {
 			document.body.setAttribute( BODY_DRAGGING_ATTR, '' );
 			document.body.setAttribute(
@@ -210,11 +206,11 @@ export class DragManager implements DragManagerApi {
 			try {
 				accepted = target.accept( session.payload );
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] drop target accept() threw:', target.id, err );
 			}
 			return { target, accepted };
 		};
-
 		if ( session._ghost ) {
 			return session._ghost.withHidden( run );
 		}
@@ -236,7 +232,6 @@ export class DragManager implements DragManagerApi {
 		if ( next.target ) {
 			if ( next.accepted ) {
 				fireEnter( next.target, session );
-
 				session._ghost?.setMode( 'accept', {
 					acceptLabel: next.target.acceptLabel,
 				} );
@@ -265,9 +260,7 @@ export class DragManager implements DragManagerApi {
 		clientY: number,
 	): void {
 		session._finished = true;
-
 		this._lastLiftedEndAt = Date.now();
-
 		fireLeave( target, session );
 		this._cleanupDom( session );
 		const prevActive = this._active;
@@ -275,11 +268,13 @@ export class DragManager implements DragManagerApi {
 		try {
 			void target.onDrop( session, { clientX, clientY } );
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] drop target onDrop threw:', target.id, err );
 		}
 		try {
 			session._callbacks.onCommit?.( target );
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] drag onCommit threw:', err );
 		}
 		dispatchOnDocument( DRAG_EVENTS.COMMIT, {
@@ -287,7 +282,6 @@ export class DragManager implements DragManagerApi {
 			targetId: target.id,
 		} );
 		dispatchOnDocument( DRAG_EVENTS.END, { payload: session.payload, reason: 'commit' } );
-
 		if ( this._active === prevActive ) {
 			this._active = null;
 		}
@@ -298,7 +292,6 @@ export class DragManager implements DragManagerApi {
 			return;
 		}
 		session._finished = true;
-
 		if ( session._lifted ) {
 			this._lastLiftedEndAt = Date.now();
 		}
@@ -310,6 +303,7 @@ export class DragManager implements DragManagerApi {
 		try {
 			session._callbacks.onCancel?.( reason );
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] drag onCancel threw:', err );
 		}
 		dispatchOnDocument( DRAG_EVENTS.CANCEL, { payload: session.payload, reason } );
@@ -320,19 +314,16 @@ export class DragManager implements DragManagerApi {
 		try {
 			session.payload.source.classList.remove( SOURCE_DRAGGING_CLASS );
 		} catch {
-
 		}
 		session._ghost?.dispose();
 		session._ghost = null;
 		session._currentTarget = null;
 		session._currentAccepted = false;
-
 		if ( typeof document !== 'undefined' && document.body ) {
 			document.body.removeAttribute( BODY_DRAGGING_ATTR );
 			document.body.removeAttribute( BODY_DRAG_TYPE_ATTR );
 			document.body.removeAttribute( BODY_DRAG_MODE_ATTR );
 		}
-
 		scrubOrphans();
 	}
 }
@@ -348,6 +339,7 @@ function fireEnter( target: DropTarget, session: DragSession ): void {
 	try {
 		target.onEnter?.( session );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] drop target onEnter threw:', target.id, err );
 	}
 	dispatchOnDocument( DRAG_EVENTS.ENTER, {
@@ -360,6 +352,7 @@ function fireLeave( target: DropTarget, session: DragSession ): void {
 	try {
 		target.onLeave?.( session );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] drop target onLeave threw:', target.id, err );
 	}
 	dispatchOnDocument( DRAG_EVENTS.LEAVE, {

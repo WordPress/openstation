@@ -101,7 +101,6 @@ describe( 'desktop-icons render — data URI handling', () => {
 
 	test( 'DESKTOP_ICONS_RENDERED payload carries ids + container + tiles map', () => {
 		const hooks = installHooksStub();
-
 		const log = recordActions( hooks, [ HOOKS.DESKTOP_ICONS_RENDERED ] );
 		renderDesktopIcons(
 			host,
@@ -125,7 +124,6 @@ describe( 'desktop-icons render — data URI handling', () => {
 		expect( payload.tiles.size ).toBe( 2 );
 		expect( payload.tiles.get( 'a' )?.getAttribute( 'data-icon-id' ) ).toBe( 'a' );
 		expect( payload.tiles.get( 'b' )?.getAttribute( 'data-icon-id' ) ).toBe( 'b' );
-
 		expect( payload.container.contains( payload.tiles.get( 'a' )! ) ).toBe( true );
 	} );
 
@@ -148,9 +146,7 @@ describe( 'desktop-icons render — data URI handling', () => {
 		const tile = host.querySelector< HTMLElement >( '[data-icon-id="bogus"]' );
 		const iconEl = tile!.querySelector< HTMLElement >( '.os-icon__image' );
 		expect( iconEl ).not.toBeNull();
-
 		expect( iconEl!.classList.contains( 'os-icon-letter' ) ).toBe( true );
-
 		expect( iconEl!.textContent ).toBe( 'BP' );
 	} );
 } );

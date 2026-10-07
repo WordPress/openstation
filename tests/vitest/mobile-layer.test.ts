@@ -167,7 +167,6 @@ describe( 'mountMobileLayer', () => {
 		expect( shell.querySelector( '.os-mobile-top' ) ).not.toBeNull();
 		expect( ( shell.querySelector( '.os-mobile-top' ) as HTMLElement ).hidden ).toBe( true );
 		expect( ( shell.querySelector( '.os-mobile-home' ) as HTMLElement ).hidden ).toBe( false );
-
 		expect(
 			Array.from( shell.querySelectorAll< HTMLElement >( '.os-mobile-tabs__item' ) ).map( ( b ) => b.dataset.tab ),
 		).toEqual( [ 'home', 'edit.php', 'switcher' ] );
@@ -258,7 +257,6 @@ describe( 'mountMobileLayer', () => {
 		const only = fakeWin( 'only', 'Only' );
 		const wins = [ only ];
 		const { d, shell } = deps( wins );
-
 		only.close = vi.fn( () => {
 			wins.splice( wins.indexOf( only ), 1 );
 			document.dispatchEvent( new CustomEvent( 'os-window-closed' ) );
@@ -304,14 +302,12 @@ describe( 'mountMobileLayer', () => {
 		const { d, shell } = deps( [ w ] );
 		const layer = mountMobileLayer( d );
 		const top = shell.querySelector( '.os-mobile-top' ) as HTMLElement;
-
 		expect( top.querySelectorAll( 'button' ).length ).toBe( 1 );
 		expect( top.querySelector( '.os-mobile-top__minimize' ) ).toBeNull();
 
 		const close = top.querySelector( '.os-mobile-top__close' ) as HTMLButtonElement;
 		expect( close.getAttribute( 'aria-label' ) ).toBe( 'Close app' );
 		close.click();
-
 		expect( w.minimize ).toHaveBeenCalledTimes( 1 );
 		expect( w.close ).toHaveBeenCalledTimes( 1 );
 		layer.unmount();

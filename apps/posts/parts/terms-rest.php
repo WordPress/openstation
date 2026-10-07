@@ -21,7 +21,6 @@ function openstation_posts_window_register_count_field() {
 				),
 			)
 		);
-
 		register_rest_field(
 			$taxonomy,
 			'openstation_is_default',
@@ -43,7 +42,6 @@ function openstation_posts_window_terms_cache_version() {
 	$v = (int) get_option( 'desktop_mode_terms_cache_version', 0 );
 	if ( $v <= 0 ) {
 		$v = 1;
-
 		update_option( 'desktop_mode_terms_cache_version', $v, false );
 	}
 	return $v;
@@ -57,16 +55,12 @@ function openstation_posts_window_terms_cache_invalidate() {
 		false
 	);
 }
-
 add_action( 'set_object_terms', 'openstation_posts_window_terms_cache_invalidate' );
-
 add_action( 'created_term', 'openstation_posts_window_terms_cache_invalidate' );
 add_action( 'edited_term', 'openstation_posts_window_terms_cache_invalidate' );
 add_action( 'delete_term', 'openstation_posts_window_terms_cache_invalidate' );
-
 add_action( 'wp_trash_post', 'openstation_posts_window_terms_cache_invalidate' );
 add_action( 'untrashed_post', 'openstation_posts_window_terms_cache_invalidate' );
-
 add_action( 'before_delete_post', 'openstation_posts_window_terms_cache_invalidate' );
 
 function openstation_posts_window_register_term_counts_route() {
@@ -117,14 +111,12 @@ function openstation_posts_window_term_counts_callback( $request ) {
 	if ( count( $ids ) === 0 ) {
 		return array();
 	}
-
 	$ids = array_slice( $ids, 0, 500 );
 
 	$cache_version = openstation_posts_window_terms_cache_version();
 	$cache_key     = sprintf( 'dmtcnt_v%d_%s', $cache_version, $taxonomy );
 	$counts        = get_transient( $cache_key );
 	if ( ! is_array( $counts ) ) {
-
 		$object_types = array_map(
 			'sanitize_key',
 			(array) $tax_obj->object_type
@@ -208,7 +200,6 @@ function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 	if ( $limit <= 0 ) {
 		$limit = 8;
 	}
-
 	$limit = min( 24, $limit );
 
 	$cache_version = openstation_posts_window_terms_cache_version();
@@ -302,7 +293,6 @@ function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 	}
 
 	$payload = array( 'pairs' => $result );
-
 	set_transient( $cache_key, $payload, DAY_IN_SECONDS );
 
 	return rest_ensure_response( $payload );
@@ -336,7 +326,6 @@ function openstation_posts_window_term_count_any( $term ) {
 	if ( $tt_id <= 0 ) {
 		return 0;
 	}
-
 	$tax_obj      = $taxonomy ? get_taxonomy( $taxonomy ) : null;
 	$object_types = $tax_obj
 		? array_filter( (array) $tax_obj->object_type, 'post_type_exists' )

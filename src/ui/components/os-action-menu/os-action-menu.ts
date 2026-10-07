@@ -47,7 +47,6 @@ export class OsActionMenu extends Component {
 		this.trigger?.setAttribute( 'aria-haspopup', 'menu' );
 		this.trigger?.setAttribute( 'aria-expanded', String( this.opened ) );
 	}
-
 	show( last = false ): void {
 		if ( this.opened || ! this.panel ) {
 			return;
@@ -84,7 +83,6 @@ export class OsActionMenu extends Component {
 		this.addEventListener( 'keydown', this.onKey, { signal } );
 		this.addEventListener( 'os-context-menu-pick', () => this.close(), { capture: true, signal } );
 	}
-
 	close( restore = true ): void {
 		if ( ! this.opened ) {
 			return;

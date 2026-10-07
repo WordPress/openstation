@@ -15,7 +15,6 @@ const def: WallpaperDef = {
 	label: 'Animated WordPress Logo',
 	type: 'canvas',
 	preview: PREVIEW,
-
 	renderPreview: async (
 		container: HTMLElement,
 		ctx: WallpaperPreviewContext,

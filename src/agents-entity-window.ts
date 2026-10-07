@@ -64,7 +64,6 @@ export function attachmentUrl( attachment: AgentChatAttachment ): string {
 			return `${ adminBase() }user-edit.php?user_id=${ id }`;
 		case 'comment':
 			return `${ adminBase() }comment.php?action=editcomment&c=${ id }`;
-
 		default:
 			return `${ adminBase() }post.php?post=${ id }&action=edit`;
 	}

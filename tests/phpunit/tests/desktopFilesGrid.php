@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 
 	protected static $grid_ts;
@@ -30,6 +33,9 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 		return (int) $m[1];
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_cell_to_point
+	 */
 	public function test_pitch_mirrors_the_typescript() {
 		$tile_w = $this->ts_const( 'TILE_W' );
 		$tile_h = $this->ts_const( 'TILE_H' );
@@ -37,11 +43,13 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 		$gap_y  = $this->ts_const( 'GRID_GAP_Y' );
 
 		$this->assertSame( $this->ts_const( 'GRID_PADDING' ), OPENSTATION_GRID_PADDING );
-
 		$this->assertSame( $tile_w + $gap_x, OPENSTATION_GRID_CELL_W );
 		$this->assertSame( $tile_h + $gap_y, OPENSTATION_GRID_CELL_H );
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_next_free
+	 */
 	public function test_fallback_bounds_mirror_the_typescript() {
 		$this->assertSame(
 			$this->ts_const( 'GRID_FALLBACK_ROWS' ),
@@ -51,15 +59,16 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 			$this->ts_const( 'GRID_FALLBACK_COLS' ),
 			OPENSTATION_GRID_FALLBACK_COLS
 		);
-
 		$this->assertGreaterThan( 1, OPENSTATION_GRID_FALLBACK_ROWS );
 		$this->assertGreaterThan( 1, OPENSTATION_GRID_FALLBACK_COLS );
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_order
+	 */
 	public function test_the_desktop_reads_in_columns_and_a_folder_in_rows() {
 		$this->assertSame( 'column', openstation_files_grid_order( 0 ) );
 		$this->assertSame( 'row', openstation_files_grid_order( 7 ) );
-
 		$this->assertSame(
 			1,
 			preg_match(
@@ -74,6 +83,10 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_point_to_cell
+	 * @covers ::openstation_files_grid_cell_to_point
+	 */
 	public function test_a_cell_round_trips_through_pixels() {
 		foreach ( array( array( 0, 0 ), array( 0, 4 ), array( 3, 2 ) ) as $cell ) {
 			list( $col, $row ) = $cell;
@@ -85,8 +98,10 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_point_to_cell
+	 */
 	public function test_off_grid_coordinates_snap_to_the_nearest_cell() {
-
 		$this->assertSame(
 			array( 0, 1 ),
 			openstation_files_grid_point_to_cell( 16, 126 )
@@ -97,17 +112,18 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_next_free
+	 */
 	public function test_the_desktop_scan_fills_a_column_then_wraps() {
 		$occupied = array();
 		$cells    = array();
 		for ( $i = 0; $i < OPENSTATION_GRID_FALLBACK_ROWS + 2; $i++ ) {
 			$cells[] = openstation_files_grid_next_free( $occupied, 'column' );
 		}
-
 		for ( $row = 0; $row < OPENSTATION_GRID_FALLBACK_ROWS; $row++ ) {
 			$this->assertSame( array( 0, $row ), $cells[ $row ] );
 		}
-
 		$this->assertSame(
 			array( 1, 0 ),
 			$cells[ OPENSTATION_GRID_FALLBACK_ROWS ]
@@ -118,6 +134,9 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_next_free
+	 */
 	public function test_a_folder_scan_fills_a_row_then_wraps() {
 		$occupied = array();
 		$cells    = array();
@@ -133,8 +152,10 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_next_free
+	 */
 	public function test_no_slot_is_ever_invented_past_the_assumed_canvas() {
-
 		$occupied = array();
 		$max_y    = OPENSTATION_GRID_PADDING
 			+ ( OPENSTATION_GRID_FALLBACK_ROWS - 1 ) * OPENSTATION_GRID_CELL_H;
@@ -145,6 +166,9 @@ class Tests_OpenStation_DesktopFilesGrid extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_files_grid_occupied
+	 */
 	public function test_occupancy_is_built_from_stored_coordinates() {
 		$occupied = openstation_files_grid_occupied(
 			array(

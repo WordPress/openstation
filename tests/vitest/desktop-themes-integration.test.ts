@@ -75,7 +75,6 @@ describe( 'renderIcon — slot substitution', () => {
 	} );
 
 	test( 'substitution happens BEFORE the shape dispatcher', () => {
-
 		activate( { OS_SETTINGS: 'https://x.test/settings.svg' } );
 		const el = renderIcon( 'dashicons-original', {
 			title: 'Settings',
@@ -96,7 +95,6 @@ describe( 'renderIcon — slot substitution', () => {
 } );
 
 describe( '<os-window-button icon-src>', () => {
-
 	async function flush() {
 		await Promise.resolve();
 		await Promise.resolve();
@@ -110,7 +108,6 @@ describe( '<os-window-button icon-src>', () => {
 
 		const span = btn.shadowRoot?.querySelector( '.themed-icon' ) as HTMLElement;
 		expect( span ).toBeTruthy();
-
 		expect( span.getAttribute( 'style' ) ).toContain( 'https://x.test/close.svg' );
 		expect( btn.shadowRoot?.querySelector( 'svg' ) ).toBeNull();
 	} );
@@ -151,7 +148,6 @@ describe( '<os-window-button icon-src>', () => {
 		await flush();
 
 		expect( btn.shadowRoot?.querySelector( '.themed-icon' ) ).toBeNull();
-
 		expect( btn.shadowRoot?.querySelector( 'svg' ) ).toBeTruthy();
 	} );
 
@@ -224,7 +220,6 @@ describe( 'menu-refresh-apply — serverDesktopThemes', () => {
 	} );
 
 	test( 'callers that predate desktop themes still work', () => {
-
 		const apply = createApplyPayload( makeDeps() );
 		expect( () =>
 			apply( { dockItems: DOCK, serverDesktopThemes: [ rawTheme( {} ) ] } ),

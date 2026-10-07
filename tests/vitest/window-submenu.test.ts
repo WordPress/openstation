@@ -76,7 +76,6 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 	} );
 
 	test( 'prepends a synthetic parent tab when submenu omits the self-link', async () => {
-
 		const win = await manager.open( {
 			id: 'edit.php',
 			url: 'http://example.test/wp-admin/edit.php',
@@ -95,7 +94,6 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		expect( tabs[ 0 ].textContent ).toBe( 'Posts' );
 		expect( tabs[ 0 ].dataset.url ).toBe( 'http://example.test/wp-admin/edit.php' );
 		expect( tabs[ 0 ].dataset.kind ).toBe( 'submenu' );
-
 		expect( tabs[ 0 ].classList.contains( 'os-window__tab--active' ) ).toBe( true );
 	} );
 
@@ -134,7 +132,6 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 	} );
 
 	test( 'synthetic parent tab uses parentUrl when iframe is on a sub-page', async () => {
-
 		const win = await manager.open( {
 			id: 'themes-php',
 			url: 'http://example.test/wp-admin/theme-install.php?browse=popular',
@@ -149,19 +146,15 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		} );
 
 		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
-
 		expect( tabs.length ).toBe( 3 );
 		expect( tabs[ 0 ].textContent ).toBe( 'Appearance' );
 		expect( tabs[ 0 ].dataset.url ).toBe( 'http://example.test/wp-admin/themes.php' );
-
 		expect( tabs[ 1 ].textContent ).toBe( 'Add Theme' );
 		expect( tabs[ 1 ].classList.contains( 'os-window__tab--active' ) ).toBe( true );
-
 		expect( tabs[ 0 ].classList.contains( 'os-window__tab--active' ) ).toBe( false );
 	} );
 
 	test( 'synthetic parent tab is suppressed when parentUrl already in submenu (WC shape)', async () => {
-
 		const win = await manager.open( {
 			id: 'wc-admin',
 			url: 'http://example.test/wp-admin/admin.php?page=wc-orders',
@@ -177,16 +170,13 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		} );
 
 		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
-
 		expect( tabs.length ).toBe( 3 );
 		expect( tabs[ 0 ].textContent ).toBe( 'Home' );
-
 		expect( tabs[ 1 ].textContent ).toBe( 'Orders' );
 		expect( tabs[ 1 ].classList.contains( 'os-window__tab--active' ) ).toBe( true );
 	} );
 
 	test( 'parentUrl absent — synthetic logic falls back to url (legacy behaviour)', async () => {
-
 		const win = await manager.open( {
 			id: 'edit.php',
 			url: 'http://example.test/wp-admin/edit.php',
@@ -200,7 +190,6 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		} );
 
 		const tabs = win.element.querySelectorAll< HTMLElement >( '.os-window__tab' );
-
 		expect( tabs.length ).toBe( 2 );
 		expect( tabs[ 0 ].textContent ).toBe( 'All Posts' );
 	} );
@@ -217,7 +206,6 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 			],
 		} );
 		first.close();
-
 		const second = await manager.open( {
 			id: 'plugins.php',
 			url: 'http://example.test/wp-admin/plugins.php',
@@ -233,7 +221,6 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 	} );
 
 	test( 'opens a fresh singleton instance on each virtual desktop', async () => {
-
 		const baseCfg = {
 			id: 'plugins-php',
 			baseId: 'plugins-php',
@@ -285,7 +272,6 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 	} );
 
 	test( '"Open in new window" item renders for every iframe window', async () => {
-
 		const win = await manager.open( {
 			id: 'edit-comments.php',
 			url: 'http://example.test/wp-admin/edit-comments.php',
@@ -315,7 +301,6 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 
 		expect( manager.getAll().length ).toBe( 1 );
 		win.onOpenInNewWindow!( win );
-
 		await Promise.resolve();
 		await Promise.resolve();
 
@@ -323,14 +308,12 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		expect( all.length ).toBe( 2 );
 		const sibling = all.find( ( w ) => w !== win )!;
 		expect( sibling ).toBeDefined();
-
 		expect( sibling.config.baseId ).toBe( 'edit.php' );
 		expect( sibling.config.url ).toBe( navigatedUrl );
 		expect( sibling.id ).not.toBe( win.id );
 	} );
 
 	test( 'a menu refresh re-seeds an open window whose dock entry lost rows', async () => {
-
 		const admin = 'http://example.test/wp-admin/';
 		const themes = { title: 'Themes', url: `${ admin }themes.php` };
 		const editor = { title: 'Editor', url: `${ admin }site-editor.php` };

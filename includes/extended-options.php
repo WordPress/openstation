@@ -17,7 +17,6 @@ function openstation_get_extended_options() {
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
 	}
-
 	$clean = array();
 	foreach ( $defaults as $key => $default ) {
 		$clean[ $key ] = array_key_exists( $key, $raw )
@@ -31,7 +30,6 @@ function openstation_save_extended_options( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return false;
 	}
-
 	$clean = openstation_get_extended_options();
 	foreach ( $clean as $key => $current ) {
 		if ( array_key_exists( $key, $raw ) ) {

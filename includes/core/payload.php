@@ -2,6 +2,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
+
 function openstation_build_dock_items() {
 	global $menu, $submenu;
 
@@ -12,7 +13,6 @@ function openstation_build_dock_items() {
 	$items = array();
 
 	foreach ( $menu as $item ) {
-
 		if ( ! empty( $item[4] ) && false !== strpos( $item[4], 'wp-menu-separator' ) ) {
 			continue;
 		}
@@ -67,13 +67,11 @@ function openstation_build_dock_items() {
 				if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
 					continue;
 				}
-
 				$sub_url      = openstation_menu_item_url( $sub_item[2] );
 				$sub_external = openstation_menu_item_is_external( $sub_url );
 
 				if ( $sub_external && ! $allow_external_subs ) {
 					++$dropped_off_site;
-
 					$dropped_title = openstation_menu_item_title( $sub_item[0] );
 					if ( '' !== $dropped_title && ! isset( $restore_slots[ $dropped_title ] ) ) {
 						$rows[]                          = array( 'restore' => $dropped_title );
@@ -107,7 +105,6 @@ function openstation_build_dock_items() {
 				$rows[ $restore_slots[ $row_title ] ] = $row;
 				$restored[ $row_title ]               = true;
 			} elseif ( $parent_external && $row_title === $title ) {
-
 				$keep[ $i ]             = true;
 				$restored[ $row_title ] = true;
 			}
@@ -164,23 +161,18 @@ function openstation_build_dock_items() {
 		foreach ( $rows as $row ) {
 			$sub_url = $row['url'];
 			if ( $parent_is_container && $sub_url === $parent_url ) {
-
 				continue;
 			}
-
 			if ( null === $first_visible_sub_url && ! $row['external'] ) {
 				$first_visible_sub_url = $sub_url;
 			}
-
 			if ( $sub_url === $parent_url ) {
 				$has_self_link = true;
-
 				if ( '' === $self_label ) {
 					$self_label = openstation_menu_item_title( $row['raw_title'] );
 				}
 				continue;
 			}
-
 			$sub_title = openstation_menu_item_title( $row['raw_title'] );
 			if ( '' === $sub_title ) {
 				continue;
@@ -188,11 +180,9 @@ function openstation_build_dock_items() {
 			$sub_entry = array(
 				'title' => $sub_title,
 				'url'   => $sub_url,
-
 				'slug'  => (string) $row['slug'],
 			);
 			if ( $row['external'] ) {
-
 				$sub_entry['offSite'] = true;
 			}
 			$sub_items[] = $sub_entry;
@@ -219,7 +209,6 @@ function openstation_build_dock_items() {
 					$claimed[] = $tab['page'];
 				}
 			}
-
 			$kept = array();
 			foreach ( $sub_items as $sub_entry ) {
 				if ( ! in_array( $sub_entry['slug'], $claimed, true ) ) {
@@ -246,7 +235,6 @@ function openstation_build_dock_items() {
 			'url'        => $url,
 			'badge'      => $badge,
 			'submenu'    => $sub_items,
-
 			'selfLabel'  => $self_label,
 			'multi'      => openstation_dock_item_is_multi( $identity_slug ),
 			'placement'  => openstation_dock_placement( $identity_slug ),
@@ -339,7 +327,6 @@ function openstation_snapshot_menu_icons() {
 		$map[ $slug ] = $icon;
 	}
 }
-
 foreach ( array( 11, 100, 1000, 99998, PHP_INT_MAX ) as $openstation_icon_snapshot_priority ) {
 	add_action( 'admin_menu', 'openstation_snapshot_menu_icons', $openstation_icon_snapshot_priority );
 }
@@ -358,7 +345,6 @@ function openstation_sanitize_dock_icon( $icon ) {
 	}
 
 	if ( 0 === strpos( $icon, 'dashicons-' ) ) {
-
 		return preg_replace( '/[^a-z0-9_-]/', '', $icon );
 	}
 
@@ -374,14 +360,12 @@ function openstation_sanitize_dock_icon( $icon ) {
 		) {
 			return $icon;
 		}
-
 	}
 
 	return $fallback;
 }
 
 function openstation_dock_item_is_multi( $menu_slug ) {
-
 	$multi_files = array(
 		'edit.php',
 		'edit-tags.php',
@@ -632,7 +616,6 @@ function openstation_install_menu_attribution_tracker() {
 							if ( ! isset( $map[ $slug ] ) ) {
 								$map[ $slug ] = $plugin_file;
 							}
-
 						}
 						if (
 							! in_array( $parent, $before_submenu_keys, true )
@@ -749,7 +732,6 @@ function openstation_record_type_registrant( $type_or_post_type, $kind ) {
 	if ( ! openstation_should_track_type_registrants() ) {
 		return;
 	}
-
 	if ( 'post_type' === $kind ) {
 		$obj = get_post_type_object( $type_or_post_type );
 		if ( $obj && ! empty( $obj->_builtin ) ) {
@@ -783,7 +765,6 @@ function openstation_extension_dirs() {
 		$dirs[] = wp_normalize_path( WPMU_PLUGIN_DIR ) . '/';
 	}
 	foreach ( (array) get_theme_roots() as $theme_root ) {
-
 		$dirs[] = wp_normalize_path( get_theme_root( (string) $theme_root ) ) . '/';
 	}
 	$dirs = array_values( array_unique( array_filter( $dirs ) ) );
@@ -872,7 +853,6 @@ function openstation_callback_source_file( $callback ) {
 }
 
 function openstation_dock_placement( $menu_slug ) {
-
 	$filtered = apply_filters( 'openstation_dock_placement', 'dock', $menu_slug );
 	return 'hidden' === $filtered ? 'hidden' : 'dock';
 }
@@ -947,7 +927,7 @@ function openstation_build_menu_payload() {
 			'total'     => $update_total,
 			'formatted' => number_format_i18n( $update_total ),
 			'text'      => sprintf(
-
+				/* translators: %s: number of pending updates. */
 				_n( '%s update available', '%s updates available', $update_total, 'desktop-mode' ),
 				number_format_i18n( $update_total )
 			),
@@ -974,7 +954,6 @@ function openstation_menu_signature() {
 	}
 
 	$clean_title = static function ( $raw ) {
-
 		$stripped = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', (string) $raw );
 		return trim( wp_strip_all_tags( (string) $stripped ) );
 	};
@@ -1023,7 +1002,6 @@ function openstation_collect_script_dependency_closure( $dependencies, $handles,
 		if ( isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-
 		$seen[ $handle ] = true;
 		if ( ! isset( $dependencies->registered[ $handle ] ) ) {
 			continue;
@@ -1055,14 +1033,12 @@ function openstation_resolve_script_dependencies( $handle ) {
 			continue;
 		}
 		$payload = openstation_resolve_script_payload( $dep_handle );
-
 		if ( '' === $payload['url']
 			&& empty( $payload['before'] )
 			&& empty( $payload['after'] )
 			&& empty( $payload['l10n'] ) ) {
 			continue;
 		}
-
 		$payload['handle'] = (string) $dep_handle;
 		$out[]             = $payload;
 	}
@@ -1113,7 +1089,6 @@ function openstation_compact_script_dep_list( array $deps, array &$map ) {
 			$handles[] = $handle;
 			continue;
 		}
-
 		$handles[] = $dep;
 	}
 	return $handles;
@@ -1141,7 +1116,6 @@ function openstation_resolve_script_payload( $handle ) {
 
 	$resolved = '';
 	if ( '' !== $src ) {
-
 		$resolved = $src;
 		if ( 0 === strpos( $resolved, '/' ) && 0 !== strpos( $resolved, '//' ) ) {
 			$resolved = site_url( $resolved );
@@ -1171,7 +1145,6 @@ function openstation_resolve_script_payload( $handle ) {
 			}
 		}
 	}
-
 	if ( ! empty( $registered->extra['data'] ) && is_string( $registered->extra['data'] ) ) {
 		$l10n[] = $registered->extra['data'];
 	}
@@ -1248,13 +1221,14 @@ function openstation_build_command_palette_assets_payload() {
 	}
 
 	global $menu, $submenu;
-
+	// phpcs:disable WordPress.WP.GlobalVariablesOverride.Prohibited -- initializing an unset global to its documented empty shape, not replacing a built menu.
 	if ( ! isset( $submenu ) || ! is_array( $submenu ) ) {
 		$submenu = array();
 	}
 	if ( ! isset( $menu ) || ! is_array( $menu ) ) {
 		$menu = array();
 	}
+	// phpcs:enable WordPress.WP.GlobalVariablesOverride.Prohibited
 
 	$script_queue_before = $scripts->queue;
 	$style_queue_before  = $styles->queue;
@@ -1278,14 +1252,12 @@ function openstation_build_command_palette_assets_payload() {
 	$script_probe->all_deps( $script_roots );
 	foreach ( $script_probe->to_do as $handle ) {
 		$payload = openstation_resolve_script_payload( $handle );
-
 		if ( '' === $payload['url']
 			&& empty( $payload['before'] )
 			&& empty( $payload['after'] )
 			&& empty( $payload['l10n'] ) ) {
 			continue;
 		}
-
 		if ( 'wp-core-commands' === $handle ) {
 			foreach ( array( 'before', 'after' ) as $position ) {
 				$payload[ $position ] = array_values(
@@ -1354,7 +1326,6 @@ function openstation_warn_unresolvable_script_handle( $function_name, $kind, $ha
 	$warned[ $cache_key ] = true;
 
 	if ( '__flush__' === $handle ) {
-
 		$warned = array();
 		return;
 	}
@@ -1362,7 +1333,7 @@ function openstation_warn_unresolvable_script_handle( $function_name, $kind, $ha
 	_doing_it_wrong(
 		esc_html( $function_name ),
 		sprintf(
-
+			/* translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle. */
 			esc_html__( '%1$s script handle "%2$s" could not be resolved: no `wp_register_script( \'%2$s\', … )` call had run by the time the shell harvested its payload. Register the handle on `admin_enqueue_scripts` at priority 5 or earlier — the harvest itself runs at priority 10, and a handle registered alongside it may or may not exist yet depending on plugin load order. Until then the script will not load.', 'desktop-mode' ),
 			esc_html( $kind ),
 			esc_html( $handle )
@@ -1526,9 +1497,7 @@ function openstation_collect_native_windows_payload() {
 			'title'            => $entry['title'],
 			'icon'             => $entry['icon'],
 			'placement'        => $entry['placement'],
-
 			'navKind'          => isset( $entry['nav_kind'] ) ? $entry['nav_kind'] : 'app',
-
 			'dockOrder'        => isset( $entry['dock_order'] ) ? (int) $entry['dock_order'] : 0,
 			'placeable'        => ! empty( $entry['placeable'] ),
 			'width'            => $entry['width'],
@@ -1541,7 +1510,6 @@ function openstation_collect_native_windows_payload() {
 			'scriptHandle'     => $script_handle,
 			'ownerHandle'      => $owner_handle,
 			'companionScripts' => $companion_scripts,
-
 			'preloadScript'    => ! empty( $entry['preload_script'] ),
 			'styleUrl'         => $style_payload['url'],
 			'styleHandle'      => $style_handle,
@@ -1603,7 +1571,6 @@ function openstation_menu_admin_url( $path = '' ) {
 }
 
 function openstation_menu_item_url( $slug ) {
-
 	if ( str_starts_with( $slug, 'http://' ) || str_starts_with( $slug, 'https://' ) ) {
 		return esc_url_raw( $slug );
 	}

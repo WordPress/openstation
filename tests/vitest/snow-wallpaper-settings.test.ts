@@ -56,7 +56,6 @@ describe( 'sanitizeSnowSettings', () => {
 
 describe( 'backdropCss', () => {
 	test( 'default background reproduces the canonical gradient exactly', () => {
-
 		expect( backdropCss( SNOW_DEFAULTS.background ) ).toBe(
 			'linear-gradient(180deg, #0c1a36 0%, #1d355e 55%, #425d8a 100%)',
 		);
@@ -67,7 +66,6 @@ describe( 'backdropCss', () => {
 		const stops = css.match( /#[0-9a-f]{6}/g );
 		expect( css ).toMatch( /^linear-gradient\(180deg, #301a0c 0%, / );
 		expect( stops ).toHaveLength( 3 );
-
 		const luma = ( hex: string ): number =>
 			parseInt( hex.slice( 1, 3 ), 16 ) +
 			parseInt( hex.slice( 3, 5 ), 16 ) +

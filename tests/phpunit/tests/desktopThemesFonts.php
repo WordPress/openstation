@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 
 	private function rrmdir( $dir ) {
@@ -40,6 +43,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_fonts
+	 */
 	public function test_minimal_face_survives() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -56,19 +62,24 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_font_format
+	 */
 	public function test_format_is_derived_from_the_extension() {
 		$this->assertSame( 'woff2', openstation_desktop_theme_font_format( 'a/b.woff2' ) );
 		$this->assertSame( 'woff', openstation_desktop_theme_font_format( 'a/b.WOFF' ) );
 		$this->assertSame( 'truetype', openstation_desktop_theme_font_format( 'a/b.ttf' ) );
 		$this->assertSame( 'opentype', openstation_desktop_theme_font_format( 'a/b.otf' ) );
 		$this->assertSame( '', openstation_desktop_theme_font_format( 'a/b.png' ) );
-
 		$this->assertSame(
 			'woff2',
 			openstation_desktop_theme_font_format( 'https://x.test/f/n.woff2?ver=7' )
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_fonts
+	 */
 	public function test_author_supplied_format_is_ignored() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -82,6 +93,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'woff2', $fonts[0]['src'][0]['format'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_fonts
+	 */
 	public function test_src_accepts_a_list_in_preference_order() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -94,6 +108,10 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'fonts/neon.woff', $fonts[0]['src'][1]['path'] );
 	}
 
+	/**
+	 * @dataProvider data_bad_family_names
+	 * @covers ::openstation_sanitize_desktop_theme_fonts
+	 */
 	public function test_bad_family_names_drop_the_face( $family ) {
 		$this->assertSame(
 			array(),
@@ -120,6 +138,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_fonts
+	 */
 	public function test_face_with_no_usable_source_is_dropped() {
 		$reject = static function () {
 			return false;
@@ -136,6 +157,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_fonts
+	 */
 	public function test_descriptor_grammar() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -156,6 +180,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'U+0000-00FF, U+2000-206F', $fonts[0]['unicodeRange'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_fonts
+	 */
 	public function test_bad_descriptors_drop_without_dropping_the_face() {
 		$fonts = $this->sanitize_fonts( array(
 			array(
@@ -176,6 +203,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_fonts
+	 */
 	public function test_face_and_source_caps_are_enforced() {
 		$caps = openstation_desktop_theme_font_caps();
 
@@ -192,6 +222,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertCount( $caps['max_sources'], $fonts[0]['src'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_fonts_block_is_wired_into_the_manifest() {
 		$manifest = openstation_sanitize_desktop_theme_manifest(
 			array(
@@ -209,6 +242,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'Neon', $manifest['fonts'][0]['family'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_fonts_key_always_exists() {
 		$manifest = openstation_sanitize_desktop_theme_manifest(
 			array( 'manifestVersion' => 1, 'id' => 'acme/neon', 'name' => 'Neon' ),
@@ -218,6 +254,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array(), $manifest['fonts'] );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_asset_extensions
+	 */
 	public function test_image_and_font_extension_lists_are_disjoint() {
 		$images = openstation_desktop_theme_asset_extensions( 'image' );
 		$fonts  = openstation_desktop_theme_asset_extensions( 'font' );
@@ -232,6 +271,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_staging_asset_resolver
+	 */
 	public function test_staging_resolver_separates_kinds() {
 		$base = get_temp_dir() . 'dm-theme-fonts-' . wp_generate_uuid4();
 		wp_mkdir_p( $base . '/fonts' );
@@ -245,12 +287,14 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertFalse( $resolve( 'fonts/n.woff2', 'image' ), 'Font refused as an image.' );
 		$this->assertSame( 'icons/x.svg', $resolve( 'icons/x.svg', 'image' ) );
 		$this->assertFalse( $resolve( 'icons/x.svg', 'font' ), 'SVG refused as a font.' );
-
 		$this->assertFalse( $resolve( '../n.woff2', 'font' ) );
 
 		$this->rrmdir( $base );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_url_asset_resolver
+	 */
 	public function test_url_resolver_separates_kinds() {
 		$resolve = openstation_desktop_theme_url_asset_resolver();
 
@@ -263,6 +307,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertFalse( $resolve( 'fonts/n.woff2', 'font' ), 'Relative URL refused.' );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_zip_caps
+	 */
 	public function test_zip_caps_admit_fonts_and_licence_files() {
 		$caps = openstation_desktop_theme_zip_caps();
 
@@ -275,6 +322,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_font_face_is_emitted() {
 		$css = $this->compile( $this->sanitize_fonts( array(
 			array(
@@ -300,6 +350,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_fonts_alone_still_compile() {
 		$css = $this->compile( $this->sanitize_fonts( array(
 			array( 'family' => 'Neon', 'src' => 'fonts/n.woff2' ),
@@ -309,6 +362,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '.os-shell[', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_font_faces_precede_the_token_rule() {
 		$css = openstation_desktop_theme_compile_css(
 			array(
@@ -333,6 +389,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_font_urls_carry_the_cache_buster() {
 		$css = $this->compile(
 			$this->sanitize_fonts( array(
@@ -348,6 +407,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_code_theme_font_urls_pass_through() {
 		$css = $this->compile(
 			$this->sanitize_fonts(
@@ -360,6 +422,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'url("https://cdn.test/n.woff2")', $css );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_no_at_rules_other_than_font_face() {
 		$css = $this->compile( $this->sanitize_fonts( array(
 			array(
@@ -373,6 +438,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array( '@font-face' ), array_unique( $matches[0] ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_desktop_theme
+	 */
 	public function test_code_registration_accepts_fonts() {
 		openstation_register_desktop_theme( 'acme/fonted', array(
 			'name'  => 'Fonted',
@@ -381,7 +449,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 					'family' => 'Neon Grotesk',
 					'src'    => array( 'https://cdn.test/neon.woff2' ),
 				),
-
 				array(
 					'family' => 'Neon Grotesk',
 					'weight' => '700',
@@ -412,6 +479,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
+	 */
 	public function test_every_author_shape_normalizes_to_a_list() {
 		$bare = $this->sanitize_wallpapers( 'textures/desk.png' );
 		$this->assertCount( 1, $bare );
@@ -435,6 +505,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array( 'dusk', 'dawn' ), wp_list_pluck( $map, 'id' ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
+	 */
 	public function test_ids_are_stable_not_positional() {
 		$before = $this->sanitize_wallpapers( array( 'aurora.png', 'dusk.png' ) );
 		$after  = $this->sanitize_wallpapers( array( 'dusk.png', 'aurora.png' ) );
@@ -457,6 +530,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( 'deep-field', $labelled[0]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
+	 */
 	public function test_duplicate_ids_and_unresolvable_assets_drop() {
 		$dupes = $this->sanitize_wallpapers( array( 'a.png', 'a.png' ) );
 		$this->assertCount( 1, $dupes, 'A duplicate id drops rather than shadowing.' );
@@ -468,6 +544,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array(), $this->sanitize_wallpapers( null ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
+	 */
 	public function test_wallpaper_count_is_capped() {
 		$many = array();
 		for ( $i = 0; $i < 40; $i++ ) {
@@ -483,6 +562,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		remove_filter( 'openstation_desktop_theme_max_wallpapers', $cap );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_wallpapers
+	 */
 	public function test_wallpapers_use_the_image_extension_gate() {
 		$seen = array();
 		$spy  = static function ( $path, $kind = 'image' ) use ( &$seen ) {
@@ -493,6 +575,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( array( 'image' ), $seen );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_singular_and_plural_manifest_keys_both_work() {
 		foreach ( array( 'wallpaper', 'wallpapers' ) as $key ) {
 			$manifest = openstation_sanitize_desktop_theme_manifest(
@@ -508,6 +593,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_wallpaper_css
+	 */
 	public function test_wallpaper_css_is_a_background_shorthand() {
 		$css = openstation_desktop_theme_wallpaper_css(
 			array( 'path' => 'textures/desk.png' ),
@@ -533,6 +621,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_desktop_theme_wallpaper_css( array(), '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_wallpaper_label
+	 */
 	public function test_wallpaper_label_marks_its_origin() {
 		$this->assertSame(
 			'Neon Glass - (theme)',
@@ -554,6 +645,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		remove_filter( 'openstation_desktop_theme_wallpaper_label', $filter );
 	}
 
+	/**
+	 * @covers ::openstation_register_desktop_theme_wallpapers
+	 */
 	public function test_theme_wallpapers_reach_the_picker() {
 		openstation_register_desktop_theme( 'acme/papered', array(
 			'name'       => 'Papered',
@@ -586,6 +680,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		openstation_unregister_desktop_theme( 'acme/papered' );
 	}
 
+	/**
+	 * @covers ::openstation_rest_install_desktop_theme
+	 */
 	public function test_install_response_carries_the_rebuilt_wallpaper_list() {
 		$zip = $this->make_theme_zip( array(
 			'manifestVersion' => 1,
@@ -610,6 +707,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		unlink( $zip );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_sweep_staging
+	 */
 	public function test_staging_sweep_collects_only_stale_orphans() {
 		$base = openstation_desktop_themes_ensure_dir();
 		$this->assertNotWPError( $base );
@@ -620,7 +720,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		wp_mkdir_p( $stale );
 		wp_mkdir_p( $fresh );
 		wp_mkdir_p( $theme );
-
 		touch( $stale, time() - ( 2 * DAY_IN_SECONDS ) );
 
 		$removed = openstation_desktop_theme_sweep_staging();
@@ -634,11 +733,13 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		openstation_desktop_theme_rmdir( $theme );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_is_safe_css_value
+	 */
 	public function test_quotes_are_allowed_but_cannot_break_out() {
 		$this->assertTrue(
 			openstation_desktop_theme_is_safe_css_value( '"Segoe UI", sans-serif' )
 		);
-
 		foreach ( array(
 			'"; background: url( evil.png ); x: "',
 			'"} body { display: none } .x{"',
@@ -651,6 +752,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_label_is_stripped_not_escaped() {
 		openstation_register_wallpaper( 'acme/labelled', array(
 			'label'   => '<b>Bold</b> Black & White',
@@ -679,7 +783,6 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		$dir = get_temp_dir() . 'dm-theme-zip-' . wp_generate_uuid4();
 		wp_mkdir_p( $dir );
 		file_put_contents( $dir . '/theme.json', wp_json_encode( $manifest ) );
-
 		file_put_contents(
 			$dir . '/desk.png',
 			base64_decode( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' )
@@ -695,6 +798,9 @@ class Tests_OpenStation_DesktopThemesFonts extends WP_UnitTestCase {
 		return $zip_path;
 	}
 
+	/**
+	 * @covers ::openstation_register_desktop_theme_wallpapers
+	 */
 	public function test_theme_without_a_wallpaper_adds_no_entry() {
 		openstation_register_desktop_theme( 'acme/bare', array( 'name' => 'Bare' ) );
 		openstation_register_desktop_theme_wallpapers();

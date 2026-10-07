@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-recycle-bin
+ */
 class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -23,6 +26,9 @@ class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_files_list_trashed_for_recycle_bin
+	 */
 	public function test_link_placement_carries_url_type_label() {
 		$placement_id = $this->create_placement( 'link', 'https://example.com/' );
 		openstation_files_trash_placement( self::$admin_id, $placement_id );
@@ -36,6 +42,9 @@ class Tests_OpenStation_RecycleBinTrashView extends WP_UnitTestCase {
 		$this->assertSame( 'URL', $item['type_label'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_list_trashed_for_recycle_bin
+	 */
 	public function test_non_link_placement_has_no_url_type_label() {
 		$post_id      = self::factory()->post->create();
 		$placement_id = $this->create_placement( 'post', (string) $post_id );

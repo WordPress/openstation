@@ -58,7 +58,6 @@
 .os-app-list {
 	display: flex;
 	flex-direction: column;
-
 	container-type: inline-size;
 	height: 100%;
 	width: 100%;
@@ -119,7 +118,6 @@
 
 .os-app-list__body {
 	flex: 1 1 auto;
-
 	min-width: 0;
 	min-height: 0;
 	display: flex;
@@ -241,7 +239,6 @@ html[data-os-mode="mobile"] .os-app-list__toolbar-right {
 	flex: 1 1 100%;
 	flex-wrap: wrap;
 }
-
 html[data-os-mode="mobile"] .os-app-list__body {
 	padding: 0;
 }

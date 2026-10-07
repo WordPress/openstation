@@ -43,7 +43,7 @@ describe( 'os-user-search', () => {
 				{ headers: { 'Content-Type': 'application/json' } },
 			),
 		);
-
+		// eslint-disable-next-line no-restricted-syntax -- test mock
 		( globalThis as unknown as { fetch: typeof fetch } ).fetch = fetchSpy as unknown as typeof fetch;
 
 		const el = document.createElement( 'os-user-search' );
@@ -74,7 +74,7 @@ describe( 'os-user-search', () => {
 				{ headers: { 'Content-Type': 'application/json' } },
 			),
 		);
-
+		// eslint-disable-next-line no-restricted-syntax -- test mock
 		( globalThis as unknown as { fetch: typeof fetch } ).fetch = fetchSpy as unknown as typeof fetch;
 
 		const el = document.createElement( 'os-user-search' );

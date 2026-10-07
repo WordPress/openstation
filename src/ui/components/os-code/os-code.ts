@@ -92,7 +92,6 @@ export class OsCode extends Component {
 			if ( this._resetTimer ) {
 				clearTimeout( this._resetTimer );
 			}
-
 			this._resetTimer = setTimeout( () => {
 				this._copied = false;
 				this._resetTimer = null;

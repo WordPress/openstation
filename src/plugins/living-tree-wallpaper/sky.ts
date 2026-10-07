@@ -7,13 +7,10 @@ import type {
 
 interface SkyKeyframe {
 	h: number;
-
 	top: number;
 	mid: number;
 	bottom: number;
-
 	star: number;
-
 	light: number;
 }
 
@@ -33,18 +30,14 @@ export interface SkyState {
 	top: number;
 	mid: number;
 	bottom: number;
-
 	starAlpha: number;
-
 	light01: number;
 	sunAlpha: number;
 	moonAlpha: number;
-
 	sunX01: number;
 	sunY01: number;
 	moonX01: number;
 	moonY01: number;
-
 	starAngle: number;
 }
 
@@ -228,7 +221,6 @@ function buildBrightStarTexture( pixi: PixiNamespace ): PixiTexture {
 	gradient.addColorStop( 1, 'rgba(255, 255, 255, 0)' );
 	ctx.fillStyle = gradient;
 	ctx.fillRect( 0, 0, size, size );
-
 	ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
 	ctx.lineWidth = 1;
 	ctx.beginPath();
@@ -250,7 +242,6 @@ function buildCloudTexture( pixi: PixiNamespace ): PixiTexture {
 	if ( ! ctx ) {
 		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
 	}
-
 	const lobes: Array< [ number, number, number, number ] > = [
 		[ 0.36, 0.52, 0.19, 0.85 ],
 		[ 0.5, 0.42, 0.22, 0.9 ],
@@ -300,9 +291,7 @@ function buildStreakTexture( pixi: PixiNamespace ): PixiTexture {
 
 interface Star {
 	sprite: PixiSprite;
-
 	theta: number;
-
 	r01: number;
 	phase: number;
 	baseAlpha: number;
@@ -321,12 +310,9 @@ interface ShootingStar {
 
 interface Cloud {
 	sprite: PixiSprite;
-
 	y01: number;
-
 	speed: number;
 	baseAlpha: number;
-
 	offset01: number;
 	width: number;
 }
@@ -394,7 +380,6 @@ export class SkyLayer {
 				: 0.3 + Math.random() * 0.42;
 			sprite.scale.set( scale );
 			this.starRoot.addChild( sprite );
-
 			this.stars.push( {
 				sprite,
 				theta: Math.random() * Math.PI * 2,
@@ -471,7 +456,6 @@ export class SkyLayer {
 		this.groundLine = groundLine ?? this.height * 0.94;
 		this.gradient.scale.x = this.width / 8;
 		this.gradient.scale.y = this.height / 256;
-
 		const bandTop = this.groundLine - 10;
 		this.earth.x = 0;
 		this.earth.y = bandTop;
@@ -484,7 +468,6 @@ export class SkyLayer {
 	private layoutStars(): void {
 		const poleX = this.width * 0.5;
 		const poleY = this.height * 1.3;
-
 		const fieldRadius = Math.hypot( this.width * 0.5, poleY ) + 40;
 		this.starRoot.pivot?.set( poleX, poleY );
 		this.starRoot.x = poleX;
@@ -505,7 +488,6 @@ export class SkyLayer {
 
 		this.starAlpha = state.starAlpha;
 		this.starRoot.alpha = state.starAlpha;
-
 		this.starRoot.rotation = state.starAngle;
 
 		this.earth.tint = lerpColor( EARTH_NIGHT, EARTH_DAY, state.light01 );
@@ -517,7 +499,6 @@ export class SkyLayer {
 		}
 
 		const discSize = Math.max( 70, Math.min( this.width, this.height ) * 0.16 );
-
 		const altitude01 = Math.min(
 			1,
 			Math.max( 0, ( 0.86 - state.sunY01 ) / 0.64 ),
@@ -594,7 +575,6 @@ export class SkyLayer {
 			this.cloudTexture.destroy( true );
 			this.streakTexture.destroy( true );
 		} catch {
-
 		}
 	}
 }

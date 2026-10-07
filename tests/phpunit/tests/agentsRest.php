@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-agents
+ */
 class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -50,6 +53,9 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		return $response->get_data();
 	}
 
+	/**
+	 * @covers ::openstation_agents_register_rest_routes
+	 */
 	public function test_routes_registered() {
 		$routes = rest_get_server()->get_routes();
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents', $routes );
@@ -62,8 +68,12 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents/roles', $routes );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_read_permission
+	 * @covers ::openstation_agents_rest_write_permission
+	 * @covers ::openstation_agents_rest_invoke_permission
+	 */
 	public function test_permission_matrix() {
-
 		$this->assertTrue( openstation_agents_rest_read_permission() );
 		$this->assertTrue( openstation_agents_rest_write_permission() );
 		$this->assertTrue( openstation_agents_rest_invoke_permission() );
@@ -85,6 +95,10 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( 401, $read->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_create
+	 * @covers ::openstation_agents_rest_shape_user
+	 */
 	public function test_create_returns_canonical_shape() {
 		$shape = $this->create_agent_via_rest();
 
@@ -101,6 +115,9 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertTrue( openstation_agent_is_agent( $shape['id'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_create
+	 */
 	public function test_create_keeps_the_face_and_the_voice() {
 		$face = array(
 			'appearance' => array( 'hueStart' => 200 ),
@@ -127,6 +144,9 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_create
+	 */
 	public function test_create_accepts_triggers() {
 		$data = $this->create_agent_via_rest(
 			array(
@@ -141,12 +161,18 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( 'chat', $data['triggers'][0]['kind'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_create
+	 */
 	public function test_create_without_a_face_still_seeds_one() {
 		$data = $this->create_agent_via_rest( array( 'name' => 'Seedless' ) );
 
 		$this->assertGreaterThan( 0, (int) $data['faceSeed'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_create
+	 */
 	public function test_create_rejects_disallowed_role() {
 		$result = openstation_agents_rest_create(
 			$this->request(
@@ -162,6 +188,10 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_invalid_role', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_list
+	 * @covers ::openstation_agents_rest_get
+	 */
 	public function test_list_and_get() {
 		$shape = $this->create_agent_via_rest();
 
@@ -191,6 +221,9 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertWPError( $human );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_patch
+	 */
 	public function test_patch_updates_fields() {
 		$shape = $this->create_agent_via_rest();
 
@@ -222,6 +255,10 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( 'chat', $data['triggers'][0]['kind'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_shape_user
+	 * @covers ::openstation_agent_update
+	 */
 	public function test_name_is_plain_text_and_saving_it_back_is_not_a_rename() {
 		$shape = $this->create_agent_via_rest( array( 'name' => 'Q&A Helper' ) );
 		$this->assertSame( 'Q&A Helper', $shape['name'] );
@@ -242,6 +279,9 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( 0, $fired );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_delete
+	 */
 	public function test_delete_removes_agent() {
 		$shape = $this->create_agent_via_rest();
 
@@ -253,6 +293,9 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertFalse( get_userdata( $shape['id'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_invoke
+	 */
 	public function test_invoke_round_trip() {
 		$shape = $this->create_agent_via_rest();
 
@@ -281,6 +324,9 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( 'invoked!', $response->get_data()['text'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_invoke
+	 */
 	public function test_invoke_propagates_runner_errors() {
 		$shape = $this->create_agent_via_rest();
 		openstation_agent_update( $shape['id'], array( 'rateLimit' => 1 ) );
@@ -307,6 +353,11 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( 429, $second->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_trigger_kinds
+	 * @covers ::openstation_agents_rest_hooks_catalogue
+	 * @covers ::openstation_agents_rest_roles
+	 */
 	public function test_catalogues() {
 		$kinds = openstation_agents_rest_trigger_kinds()->get_data();
 		$slugs = wp_list_pluck( $kinds, 'slug' );
@@ -334,6 +385,9 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertNotContains( 'subscriber', wp_list_pluck( $roles, 'slug' ) );
 	}
 
+	/**
+	 * @covers ::openstation_agents_abilities_catalogue
+	 */
 	public function test_abilities_catalogue_readonly_badges() {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			$this->markTestSkipped( 'Abilities API not available (requires WordPress 7.0+).' );

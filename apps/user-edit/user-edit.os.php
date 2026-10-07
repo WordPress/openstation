@@ -13,7 +13,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/parts/permissions.php';
 require_once __DIR__ . '/parts/account.php';
 require_once __DIR__ . '/parts/insights.php';
-
 require_once dirname( __DIR__ ) . '/users/parts/permissions.php';
 require_once dirname( __DIR__ ) . '/users/parts/color-schemes.php';
 require_once dirname( __DIR__ ) . '/users/parts/fields.php';
@@ -31,18 +30,15 @@ return App::define( 'desktop-mode-user-edit' )
 	->size( 1100, 760 )
 	->min_size( 720, 520 )
 	->placement( 'none' )
-
 	->style( dirname( __DIR__ ) . '/users/users.css' )
 	->can(
 		static function () {
 			return openstation_user_edit_window_user_can_register();
 		}
 	)
-
 	->config( 'openstation_users_profile_facts' )
 	->state( array( 'userId' => 0 ) )
 	->mount( __NAMESPACE__ . '\retarget' )
-
 	->action( 'reopen', __NAMESPACE__ . '\retarget' )
 	->data(
 		static function ( State $state ) {

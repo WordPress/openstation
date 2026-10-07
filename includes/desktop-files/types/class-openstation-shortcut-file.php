@@ -31,17 +31,14 @@ class OpenStation_Shortcut_File extends OpenStation_File {
 	}
 
 	public function can_read( int $user_id ): bool {
-
 		return null !== $this->entry();
 	}
 
 	public function serialize(): array {
 		$shape = parent::serialize();
 		$entry = $this->entry();
-
 		$shape['shortcutWindow'] = $entry ? (string) $entry['window'] : '';
 		$shape['shortcutUrl']    = $entry ? (string) $entry['url'] : '';
-
 		$shape['pinned'] = $entry ? ! empty( $entry['pinned'] ) : false;
 		return $shape;
 	}

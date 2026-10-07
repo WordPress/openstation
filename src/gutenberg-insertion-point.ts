@@ -1,7 +1,5 @@
 export interface InsertionPoint {
-
 	rootClientId: string;
-
 	index: number;
 }
 

@@ -4,25 +4,15 @@ import { createSharedStore } from '../shared-store';
 import type { Window as DesktopWindow } from '../window';
 
 export interface WindowActionDef {
-
 	id: string;
-
 	label: string | ( ( window: DesktopWindow ) => string );
-
 	icon?: string | ( ( window: DesktopWindow ) => string );
-
 	order?: number;
-
 	isVisible?: ( window: DesktopWindow ) => boolean;
-
 	checkable?: boolean;
-
 	checked?: ( window: DesktopWindow ) => boolean;
-
 	closeOnSelect?: boolean;
-
 	onSelect: ( window: DesktopWindow ) => void;
-
 	owner?: string;
 }
 
@@ -44,7 +34,6 @@ function notify(): void {
 		try {
 			listener();
 		} catch {
-
 		}
 	}
 }

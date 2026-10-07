@@ -8,9 +8,7 @@ import type { NotesLayer } from './layer';
 import type { BootNotesOptions } from './index';
 
 interface SentinelArgs extends BootNotesOptions {
-
 	bundleUrl: string;
-
 	hasNotes: boolean;
 }
 
@@ -20,7 +18,6 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 	}
 	let loading: Promise< NotesLayer | null > | null = null;
 	const stashedCreations: Event[] = [];
-
 	let firstNoteWatcher: ( () => void ) | null = null;
 
 	const ensure = (): Promise< NotesLayer | null > => {
@@ -36,7 +33,6 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 						config: args.config,
 						onError: args.onError,
 					} );
-
 					document.removeEventListener(
 						NOTE_CREATED_EVENT,
 						onNoteCreated,
@@ -50,7 +46,7 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 				} )
 				.catch( ( err ) => {
 					loading = null;
-
+					// eslint-disable-next-line no-console -- silently missing notes would read as data loss.
 					console.warn(
 						'[openstation] notes bundle failed to load',
 						err,
@@ -74,7 +70,6 @@ export function installNotesSentinel( args: SentinelArgs ): () => void {
 	const onDragStart = (): void => {
 		void ensure();
 	};
-
 	window.addEventListener( 'dragstart', onDragStart, true );
 	document.addEventListener( DRAG_EVENTS.START, onDragStart );
 

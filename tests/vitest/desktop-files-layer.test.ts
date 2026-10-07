@@ -120,7 +120,6 @@ describe( 'FilesLayer', () => {
 		const host = document.createElement( 'div' );
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 5 );
-
 		await Promise.resolve();
 		await Promise.resolve();
 		expect( fetchSpy ).toHaveBeenCalled();
@@ -177,7 +176,6 @@ describe( 'FilesLayer', () => {
 	} );
 
 	test( 'heartbeat upsert arriving BEFORE REST hydration still surfaces in the open folder', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -220,7 +218,6 @@ describe( 'FilesLayer', () => {
 	} );
 
 	test( 'live upsertPlacement repaints the open folder layer (heartbeat → live update)', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -253,7 +250,6 @@ describe( 'FilesLayer', () => {
 	} );
 
 	test( 'in-place rename repaints the tile label without rebuilding the tile', async () => {
-
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -277,7 +273,6 @@ describe( 'FilesLayer', () => {
 		expect(
 			tile.querySelector( '.os-file-tile__label' )?.textContent,
 		).toBe( 'Old name' );
-
 		tile.dataset.testMark = 'kept';
 
 		store.upsertPlacement( placement( 1, { file: folderFile( 'New name' ) } ) );
@@ -344,7 +339,6 @@ describe( 'FilesLayer', () => {
 		document.body.appendChild( host );
 		const handle = layer.mountFilesLayer( host, 0 );
 		const tile = host.querySelector< HTMLElement >( '.os-file-tile' )!;
-
 		tile.dataset.testMark = 'x';
 
 		store.setFolderPlacements( 0, [ placement( 1 ) ] );
@@ -361,7 +355,6 @@ describe( 'FilesLayer', () => {
 		const fetchSpy = setupRestStub();
 		const shortcut = ( id: number, ref: string, x: number, y: number ) =>
 			placement( id, { x, y, file: { type: 'shortcut', ref } } );
-
 		store.setFolderPlacements( 0, [
 			shortcut( 1, 'a', 16, 16 ),
 			shortcut( 2, 'b', 16, 256 ),
@@ -377,7 +370,6 @@ describe( 'FilesLayer', () => {
 		const bucket = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
 		const moved = bucket.find( ( p ) => p.id === 3 );
 		expect( moved ).toMatchObject( { x: 16, y: 136 } );
-
 		const patches = fetchSpy.mock.calls.filter(
 			( call ) => ( call[ 1 ] as RequestInit | undefined )?.method === 'PATCH',
 		);

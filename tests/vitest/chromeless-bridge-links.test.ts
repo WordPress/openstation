@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment-options { "url": "http://localhost/wp-admin/upload.php?openstation_chromeless=1" }
+ */
 import { describe, expect, test, beforeAll, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -14,7 +17,6 @@ function emittedBridgeScript(): string {
 }
 
 beforeAll( () => {
-
 	Object.defineProperty( window, 'parent', {
 		value: {
 			postMessage: ( data: Record< string, unknown > ) => {
@@ -37,6 +39,7 @@ beforeAll( () => {
 		window as unknown as { __openStationScreenMetaInstalled: boolean }
 	).__openStationScreenMetaInstalled = true;
 
+	// eslint-disable-next-line no-eval -- the point is to exercise the
 	( 0, eval )( emittedBridgeScript() );
 
 	document.addEventListener( 'click', ( e ) => e.preventDefault() );
@@ -89,7 +92,6 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 	} );
 
 	test( 'core JS buttons are yielded to the script that owns them', () => {
-
 		clickLink(
 			'<a href="/wp-admin/media-new.php" class="page-title-action aria-button-if-js">Add Media File</a>'
 		);
@@ -169,13 +171,11 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 } );
 
 describe( 'chromeless bridge: the label a link ships to the shell', () => {
-
 	function label(): unknown {
 		return adminLinkMessages()[ 0 ]?.label;
 	}
 
 	test( 'screen-reader text is not part of the visible label', () => {
-
 		clickLink(
 			'<a href="/wp-admin/revision.php?revision=24"><span aria-hidden="true">Browse</span> <span class="screen-reader-text">Browse revisions</span></a>'
 		);
@@ -201,7 +201,6 @@ describe( 'chromeless bridge: the label a link ships to the shell', () => {
 } );
 
 describe( 'chromeless bridge: links that name another browsing context', () => {
-
 	test( 'a _blank admin link is claimed for a desktop window', () => {
 		clickLink(
 			'<a href="/wp-admin/revision.php?revision=24" target="_blank" rel="external noopener">Open classic revisions screen</a>'
@@ -212,12 +211,10 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 			'/wp-admin/revision.php'
 		);
 		expect( adminLinkMessages()[ 0 ].url ).toContain( 'revision=24' );
-
 		expect( adminLinkMessages()[ 0 ].newContext ).toBe( true );
 	} );
 
 	test( 'a _blank to another view of the same admin file is left to the browser', () => {
-
 		clickLink(
 			'<a href="/wp-admin/upload.php?mode=grid" target="_blank">Grid view</a>'
 		);
@@ -232,7 +229,6 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 	} );
 
 	test( 'another admin is handed to the shell for its own instance', () => {
-
 		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
 
 		try {
@@ -269,7 +265,6 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 	} );
 
 	test( 'a _blank non-admin link still opens a real browser tab', () => {
-
 		clickLink(
 			'<a href="https://wordpress.org/documentation/" target="_blank">Documentation</a>'
 		);
@@ -278,7 +273,6 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 	} );
 
 	test( 'a _top admin link keeps its escape from the shell', () => {
-
 		clickLink(
 			'<a href="/wp-admin/options-general.php" target="_top">Settings</a>'
 		);
@@ -287,7 +281,6 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 	} );
 
 	test( 'a named target is left to the tab it reuses', () => {
-
 		clickLink(
 			'<a href="/wp-admin/edit.php" target="wp-preview-4">Preview</a>'
 		);
@@ -297,7 +290,6 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 } );
 
 describe( 'chromeless bridge: the referer stamp on unowned links', () => {
-
 	const DELETE_LINK =
 		'<a href="/wp-admin/post.php?action=delete&post=7&_wpnonce=abc" class="submitdelete aria-button-if-js">Delete Permanently</a>';
 
@@ -309,7 +301,6 @@ describe( 'chromeless bridge: the referer stamp on unowned links', () => {
 	} );
 
 	test( 'the hint drops the chromeless flag it inherits from this page', () => {
-
 		const href = clickLink( DELETE_LINK );
 
 		expect( referer( href ) ).not.toContain( 'openstation_chromeless' );
@@ -324,7 +315,6 @@ describe( 'chromeless bridge: the referer stamp on unowned links', () => {
 	} );
 
 	test( 'destructive links without the class still go to the shell', () => {
-
 		clickLink(
 			'<a href="/wp-admin/post.php?action=trash&post=7&_wpnonce=abc" class="submitdelete">Trash</a>'
 		);
@@ -333,7 +323,6 @@ describe( 'chromeless bridge: the referer stamp on unowned links', () => {
 	} );
 
 	test( 'owned JS buttons are not stamped', () => {
-
 		const href = clickLink(
 			'<a href="/wp-admin/comment.php?action=unapprovecomment&c=3&_wpnonce=abc" class="vim-u aria-button-if-js" data-wp-lists="dim:the-comment-list:comment-3">Unapprove</a>'
 		);
@@ -343,7 +332,6 @@ describe( 'chromeless bridge: the referer stamp on unowned links', () => {
 } );
 
 describe( 'chromeless bridge: which submits light the status ring', () => {
-
 	test( 'a settings POST opens an activity the next document closes', () => {
 		submitForm(
 			'<form method="post" action="options.php"><input name="blogname"></form>'
@@ -355,7 +343,6 @@ describe( 'chromeless bridge: which submits light the status ring', () => {
 	} );
 
 	test( 'a bulk action reports, even over GET', () => {
-
 		submitForm(
 			'<form id="posts-filter" method="get">' +
 				'<select name="action">' +
@@ -368,7 +355,6 @@ describe( 'chromeless bridge: which submits light the status ring', () => {
 	} );
 
 	test( 'the Filter button is not a bulk action, whatever is selected', () => {
-
 		document.body.innerHTML =
 			'<form id="posts-filter" method="get">' +
 			'<select name="action">' +
@@ -391,17 +377,13 @@ describe( 'chromeless bridge: which submits light the status ring', () => {
 	} );
 
 	test.each( [
-
 		[ 'a GET form is a read', '<form method="get" action="edit.php"><input name="s"></form>', undefined ],
-
 		[
 			'a GET form with no bulk action picked',
 			'<form method="get"><select name="action"><option value="-1" selected>Bulk actions</option></select><input name="s"></form>',
 			undefined,
 		],
-
 		[ 'a submit aimed elsewhere', '<form method="post" action="options.php" target="_blank"></form>', undefined ],
-
 		[
 			'a submit a script handles itself',
 			'<form method="post" action="options.php"></form>',
@@ -424,7 +406,6 @@ describe( 'chromeless bridge: a content-change broadcast', () => {
 		document.body.innerHTML = '<div id="wpbody-content">Draft</div>';
 
 		try {
-
 			window.dispatchEvent(
 				new MessageEvent( 'message', {
 					origin: window.location.origin,

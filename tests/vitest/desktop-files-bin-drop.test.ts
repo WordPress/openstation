@@ -139,7 +139,6 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 
 		document.dispatchEvent( pointerEvent( 'pointermove', 110, 100 ) );
 		document.dispatchEvent( pointerEvent( 'pointermove', 300, 300 ) );
-
 		expect(
 			dockTile.hasAttribute( 'data-os-trash-drop-active' ),
 		).toBe( true );
@@ -312,7 +311,6 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 				deleted.some( ( u ) => u.endsWith( `/placements/${ id }` ) ),
 			).toBe( true );
 		}
-
 		expect(
 			store.getFilesState().placementsByFolder.get( 0 )?.length,
 		).toBe( 0 );
@@ -348,7 +346,6 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		binTargets.installRecycleBinDropTargets( manager );
 
 		const ok = placement( 21, 'link' );
-
 		const denied = { ...placement( 22, 'link' ), canTrash: false };
 		const sourceTile = document.createElement( 'div' );
 		sourceTile.className = 'os-file-tile';
@@ -373,7 +370,6 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		} );
 		document.dispatchEvent( pointerEvent( 'pointermove', 110, 100 ) );
 		document.dispatchEvent( pointerEvent( 'pointermove', 300, 300 ) );
-
 		expect( dockTile.hasAttribute( 'data-os-trash-drop-active' ) ).toBe(
 			false,
 		);
@@ -382,7 +378,6 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 	} );
 
 	test( 'dragging the recycle bin onto itself is rejected — no self-trash', async () => {
-
 		const { store, rest, binTargets } = await load();
 		store.__resetFilesStoreForTests();
 		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
@@ -513,7 +508,6 @@ describe( 'recycle-bin dock icon drop (user regression)', () => {
 		).toBe( tile2 );
 	} );
 	test( 'every bin surface gets its own target, not just the first', async () => {
-
 		const { binTargets } = await load();
 		const manager = new DragManager();
 		installManagerOnWindow( manager );

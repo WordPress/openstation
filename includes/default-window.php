@@ -98,7 +98,6 @@ function openstation_validate_default_window_url( $url ) {
 	if ( '' !== $url_scheme && ! in_array( $url_scheme, array( 'http', 'https' ), true ) ) {
 		return '';
 	}
-
 	$admin_path = wp_parse_url( admin_url(), PHP_URL_PATH );
 	if ( ! is_string( $admin_path ) ) {
 		return '';
@@ -118,9 +117,7 @@ function openstation_register_default_window_routes() {
 		array(
 			'methods'             => 'POST',
 			'callback'            => 'openstation_rest_set_default_window',
-
 			'permission_callback' => 'openstation_rest_require_enabled',
-
 			'args'                => array(
 				'url' => array(
 					'description' => __( 'Admin URL to open on portal entry, or null to disable.', 'desktop-mode' ),

@@ -182,7 +182,6 @@
 }
 
 .os-content-graph__group-by {
-
 	max-width: 180px;
 }
 
@@ -222,7 +221,6 @@
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-
 	z-index: 2;
 	overflow: hidden;
 }
@@ -245,9 +243,7 @@
 	white-space: nowrap;
 	box-shadow: 0 0 0 1.5px rgba( 255, 255, 255, 0.85 ),
 		0 1px 3px rgba( 0, 0, 0, 0.18 );
-
 	opacity: 0.85;
-
 	transition: opacity 120ms ease-out;
 	will-change: transform, opacity;
 }
@@ -264,7 +260,6 @@
 	min-width: 0;
 	min-height: 0;
 	overflow: hidden;
-
 	background:
 		radial-gradient(
 			circle,
@@ -296,7 +291,6 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-
 	background: color-mix(
 		in srgb,
 		var( --os-ui-surface, #f7f8fb ) 72%,
@@ -417,7 +411,6 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
-
 	transition:
 		width 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
 		border-left-width 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
@@ -434,19 +427,16 @@
 }
 
 .os-content-graph__panel[ hidden ] {
-
 	transition: none;
 }
 
 .os-content-graph__panel-frame {
-
 	display: flex;
 	flex-direction: column;
 	flex: 1 1 0;
 	min-height: 0;
 	width: 320px;
 	overflow: hidden;
-
 	transition:
 		transform 220ms cubic-bezier( 0.32, 0.72, 0, 1 ),
 		opacity 180ms ease-out;
@@ -512,7 +502,6 @@
 .os-content-graph__panel-body {
 	flex: 1;
 	min-height: 0;
-
 	position: relative;
 	overflow: hidden;
 	padding: 0;
@@ -527,7 +516,6 @@
 	flex-direction: column;
 	gap: 14px;
 	background: var( --os-ui-surface-elevated, #fff );
-
 	transition:
 		transform 240ms cubic-bezier( 0.32, 0.72, 0, 1 ),
 		opacity 200ms ease-out;
@@ -543,7 +531,6 @@
 }
 .os-content-graph__page-to-right {
 	transform: translateX( 100% );
-
 	z-index: 2;
 }
 .os-content-graph__page-to-left {

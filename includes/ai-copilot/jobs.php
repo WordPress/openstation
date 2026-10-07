@@ -18,7 +18,7 @@ function openstation_ai_job_analyze_comment( $comment_id, $user_id ) {
 	$result = openstation_ai_analyze_comment_now( $comment, $user_id );
 
 	if ( is_wp_error( $result ) ) {
-
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[WP OpenStation AI] Comment ' . $comment_id . ' analysis failed: ' . $result->get_error_message() );
 		return;
 	}

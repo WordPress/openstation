@@ -60,7 +60,6 @@ export function openPreview( ctx: Ctx, item: number ): void {
 					}
 					break;
 				}
-
 				ctx.local( 'preview', { item: ui.previewTarget } );
 				if ( revision === ui.previewRevision ) {
 					ui.previewError = ! ok;
@@ -79,7 +78,6 @@ export function visibleExplorerItems( ctx: Ctx, section: SectionDef, items: List
 	const ui = uiOf( ctx );
 	const key = listKey( ctx.state );
 	const hidden = ui.trashHidden.get( key ) ?? new Set< number >();
-
 	if ( ui.trashPage !== ctx.data.list ) {
 		ui.trashPage = ctx.data.list;
 		for ( const row of ctx.data.list?.items ?? [] ) {
@@ -133,7 +131,7 @@ export async function trashExplorerItems( ctx: Ctx, section: SectionDef, rows: L
 	}
 	const confirmed = await ctx.host.confirm?.( {
 		message: rows.length > 1
-			? sprintf( __( 'Move %d items to the Trash?' ), rows.length )
+			? sprintf( /* translators: %d: selected item count. */ __( 'Move %d items to the Trash?' ), rows.length )
 			: __( 'Move this to the Trash?' ),
 		confirmLabel: __( 'Trash' ), danger: true,
 	} );
@@ -150,7 +148,6 @@ export async function trashExplorerItems( ctx: Ctx, section: SectionDef, rows: L
 	if ( operations.length === 0 ) {
 		return;
 	}
-
 	if ( ! section.restPath ) {
 		let ok = false;
 		try {
@@ -185,7 +182,7 @@ export async function trashExplorerItems( ctx: Ctx, section: SectionDef, rows: L
 	const failed = results.length - ids.length;
 	ctx.host.toast?.( {
 		message: failed > 0
-			? sprintf( __( '%d item(s) could not be moved to Trash.' ), failed )
-			: sprintf( __( 'Moved %d item(s) to the Trash.' ), ids.length ),
+			? sprintf( /* translators: %d: failed item count. */ __( '%d item(s) could not be moved to Trash.' ), failed )
+			: sprintf( /* translators: %d: trashed item count. */ __( 'Moved %d item(s) to the Trash.' ), ids.length ),
 	} );
 }

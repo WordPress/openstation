@@ -160,7 +160,6 @@ describe( '<os-text-field>', () => {
 		const el = host.querySelector( 'os-text-field' )!;
 		expect( el.shadowRoot!.querySelector( 'label' ) ).toBeNull();
 		const input = el.shadowRoot!.querySelector( 'input' ) as HTMLInputElement;
-
 		expect( input.getAttribute( 'aria-label' ) ).toBeNull();
 	} );
 

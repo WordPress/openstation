@@ -11,7 +11,6 @@ import type {
 	WallpaperTeardown,
 } from '../../../src/wallpapers/types';
 import { render } from '../../../src/ui/core';
-
 import '../../../src/ui/components/os-modal/os-modal';
 import '../../../src/ui/components/os-button/os-button';
 import { CUSTOM_GRADIENT_ID, CUSTOM_IMAGE_ID } from '../../../src/settings/constants';
@@ -42,7 +41,6 @@ export function syncEditor( ctx: Ctx ): void {
 	}
 	const ui = uiOf( ctx );
 	const id = settings().wallpaper;
-
 	if ( ui.editor.id === id && slot.firstElementChild ) {
 		return;
 	}
@@ -67,6 +65,7 @@ export function syncEditor( ctx: Ctx ): void {
 			ui.editor.teardown = result;
 		}
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( `[openstation] Wallpaper "${ def.id }" renderEditor threw:`, err );
 	}
 }
@@ -77,6 +76,7 @@ export function teardownEditor( ctx: Ctx ): void {
 		try {
 			ui.editor.teardown();
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] Wallpaper editor teardown threw:', err );
 		}
 	}
@@ -121,7 +121,6 @@ export function renderGradientEditor( container: HTMLElement ): WallpaperTeardow
 		);
 	};
 	paint();
-
 	return () => undefined;
 }
 
@@ -134,7 +133,7 @@ export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 	modal.setAttribute(
 		'title',
 		sprintf(
-
+			/* translators: %s: wallpaper name. */
 			__( '%s settings' ),
 			def.label,
 		),
@@ -160,6 +159,7 @@ export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 		try {
 			configTeardown?.();
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( `[openstation] Wallpaper "${ def.id }" config teardown threw:`, err );
 		}
 		configTeardown = null;
@@ -192,7 +192,6 @@ export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 					try {
 						teardown();
 					} catch {
-
 					}
 					return;
 				}
@@ -202,6 +201,7 @@ export function openWallpaperConfigDialog( def: WallpaperDef ): void {
 			configTeardown = result;
 		}
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( `[openstation] Wallpaper "${ def.id }" renderConfig threw:`, err );
 		close();
 	}
@@ -221,7 +221,6 @@ export const wallpaperSection: Section = ( s, ctx ) => {
 	const tiles = registry
 		.all()
 		.filter( ( def ) => def.id !== CUSTOM_IMAGE_ID )
-
 		.sort(
 			( a, b ) =>
 				Number( a.id === CUSTOM_GRADIENT_ID ) - Number( b.id === CUSTOM_GRADIENT_ID ),

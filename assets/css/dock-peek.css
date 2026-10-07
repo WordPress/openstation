@@ -46,7 +46,6 @@
 	display: flex;
 	flex-direction: column;
 	transition: opacity 160ms ease-out;
-
 	max-height: min( 80vh, 480px );
 	max-width: min( 90vw, 320px );
 }
@@ -87,12 +86,10 @@
 	flex-direction: column;
 	gap: 8px;
 	min-width: 280px;
-
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
 	overflow-x: hidden;
-
 	scrollbar-width: thin;
 	scrollbar-color: rgba( 255, 255, 255, 0.18 ) transparent;
 }
@@ -106,11 +103,9 @@
 }
 
 .os-dock-peek[ data-orientation = "bottom" ] .os-dock-peek__card {
-
 	flex: 0 0 auto;
 	width: 200px;
 	min-height: 116px;
-
 	transform: translateY( 10px ) scale( 0.96 );
 }
 
@@ -143,7 +138,6 @@
 }
 
 .os-dock-peek__card {
-
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -158,7 +152,6 @@
 	text-align: start;
 	cursor: pointer;
 	view-transition-name: var( --peek-card-vt-name, none );
-
 	opacity: 0;
 	transform: translateX( -10px ) scale( 0.96 );
 	transition:
@@ -190,7 +183,6 @@
 	align-items: center;
 	gap: 8px;
 	padding: 8px 10px;
-
 	background: var(
 		--os-titlebar-bg-focused,
 		linear-gradient(
@@ -430,7 +422,6 @@
 	padding: 16px;
 	border-style: dashed;
 	border-color: rgba( 255, 255, 255, 0.34 );
-
 	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.32 ) );
 	color: var( --os-ui-fg-on-accent, #fff );
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.45 );
@@ -459,7 +450,6 @@
 	font-size: 22px;
 	line-height: 1;
 	font-weight: 300;
-
 	color: rgba( 255, 255, 255, 0.78 );
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.45 );
 	transition: color 160ms ease-out;

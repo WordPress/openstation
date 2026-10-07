@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_build_dock_items
+ */
 class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -17,7 +20,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		global $menu, $submenu;
 		$this->original_menu    = $menu;
 		$this->original_submenu = $submenu;
@@ -83,7 +85,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 	public function test_filters_items_by_capability() {
 		global $menu;
-
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
@@ -125,7 +126,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		}
 
 		global $menu;
-
 		$menu = array(
 			array(
 				'Plugins <span class="update-plugins count-3"><span class="plugin-count">3</span></span>',
@@ -140,7 +140,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		$installed = get_plugins();
-
 		$this->assertArrayHasKey( 'desktop-mode/desktop-mode.php', $installed );
 
 		set_site_transient(
@@ -210,7 +209,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	public function test_falls_back_to_generic_icon_when_unset() {
 		global $menu;
 		$menu = array(
-
 			array( 'Custom', 'read', 'custom.php', '', '', 'menu-custom', '' ),
 		);
 
@@ -222,7 +220,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		global $menu, $submenu;
 		$menu               = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 		$submenu['edit.php'] = array(
-
 			array( 'All Posts', 'edit_posts', 'edit.php' ),
 			array( 'Add New', 'edit_posts', 'post-new.php' ),
 			array( 'Tags', 'manage_categories', 'edit-tags.php?taxonomy=post_tag' ),
@@ -266,7 +263,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'All Posts', $items[0]['selfLabel'] );
-
 		$this->assertSame(
 			array( 'Tags' ),
 			wp_list_pluck( $items[0]['submenu'], 'title' )
@@ -306,7 +302,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertContains( 'Extensions', $titles );
 		$this->assertNotContains( '', $titles );
 		$this->assertNotContains( null, $titles );
-
 		$this->assertCount( 2, $items[0]['submenu'] );
 	}
 
@@ -363,7 +358,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$items[0]['url'],
 			'Parent URL should be rewritten to the first visible submenu (mirrors wp-admin/menu-header.php).'
 		);
-
 		$this->assertCount( 3, $items[0]['submenu'] );
 	}
 
@@ -378,7 +372,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$items = openstation_build_dock_items();
 
 		$this->assertSame( admin_url( 'edit.php' ), $items[0]['url'] );
-
 		$this->assertCount( 1, $items[0]['submenu'] );
 		$this->assertSame( 'Add New', $items[0]['submenu'][0]['title'] );
 	}
@@ -436,6 +429,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'replaced', $items[0]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_dock_icon
+	 */
 	public function test_icon_dashicon_class_preserved() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php', '', '', '', 'dashicons-admin-post' ) );
@@ -445,6 +441,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-post', $items[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_dock_icon
+	 */
 	public function test_icon_falls_back_to_generic_when_empty() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php', '', '', '', '' ) );
@@ -454,6 +453,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_dock_icon
+	 */
 	public function test_icon_none_and_div_collapse_to_generic() {
 		global $menu;
 		$menu = array(
@@ -467,6 +469,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $items[1]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_dock_icon
+	 */
 	public function test_icon_http_url_preserved_after_sanitizing() {
 		global $menu;
 		$menu = array(
@@ -478,6 +483,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'https://example.com/icon.png', $items[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_dock_icon
+	 */
 	public function test_icon_well_formed_svg_data_uri_passes_through() {
 		global $menu;
 		$svg  = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
@@ -488,6 +496,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( $svg, $items[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_dock_icon
+	 */
 	public function test_icon_javascript_url_is_rejected() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Z', 'read', 'z.php', '', '', 'hook-z', 'javascript:alert(1)' ) );
@@ -497,6 +508,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_dock_icon
+	 */
 	public function test_icon_non_svg_data_uri_is_rejected() {
 		global $menu;
 		$menu = array(
@@ -508,6 +522,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_dock_icon
+	 */
 	public function test_icon_dashicon_breakout_attempt_is_scrubbed() {
 		global $menu;
 		$menu = array(
@@ -521,6 +538,11 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( ' ', $items[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_dock_items
+	 * @covers ::openstation_is_core_menu_slug
+	 * @covers ::openstation_dock_placement
+	 */
 	public function test_placement_distinguishes_core_from_plugin_menus() {
 		global $menu;
 		$menu = array(
@@ -528,7 +550,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 			$this->make_menu_row( 'Settings', 'manage_options', 'options-general.php' ),
 			$this->make_menu_row( 'Plugins', 'activate_plugins', 'plugins.php' ),
-
 			$this->make_menu_row( 'WooCommerce', 'read', 'woocommerce' ),
 			$this->make_menu_row( 'Yoast SEO', 'read', 'wpseo_dashboard' ),
 		);
@@ -554,11 +575,17 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertFalse( $by_id['menu-wpseo_dashboard']['isCore'] );
 	}
 
+	/**
+	 * @covers ::openstation_is_core_menu_slug
+	 */
 	public function test_cpt_routes_count_as_core() {
 		$this->assertTrue( openstation_is_core_menu_slug( 'edit.php?post_type=product' ) );
 		$this->assertTrue( openstation_is_core_menu_slug( 'edit.php?post_type=wp_block' ) );
 	}
 
+	/**
+	 * @covers ::openstation_dock_placement
+	 */
 	public function test_placement_filter_can_hide_items() {
 		add_filter(
 			'openstation_dock_placement',
@@ -573,11 +600,13 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 'hidden', openstation_dock_placement( 'background-tool' ) );
-
 		$this->assertSame( 'dock', openstation_dock_placement( 'edit.php' ) );
 		$this->assertSame( 'dock', openstation_dock_placement( 'jetpack' ) );
 	}
 
+	/**
+	 * @covers ::openstation_compat_elementor_dock_placement
+	 */
 	public function test_elementor_4_legacy_menus_stay_out_of_the_dock() {
 		global $admin_page_hooks;
 
@@ -593,6 +622,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_dock_placement
+	 */
 	public function test_placement_filter_rejects_unknown_values() {
 		add_filter(
 			'openstation_dock_placement',
@@ -604,6 +636,10 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 'dock', openstation_dock_placement( 'some-plugin' ) );
 	}
 
+	/**
+	 * @covers ::openstation_dock_placement
+	 * @covers ::openstation_build_menu_payload
+	 */
 	public function test_hidden_placement_removes_item_from_dock() {
 		add_filter(
 			'openstation_dock_placement',
@@ -632,6 +668,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertContains( 'menu-other-plugin', $dock_ids );
 	}
 
+	/**
+	 * @covers ::openstation_build_menu_payload
+	 */
 	public function test_payload_carries_update_counts() {
 		require_once ABSPATH . 'wp-admin/includes/update.php';
 
@@ -664,6 +703,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertSame( 0, $payload['updateCounts']['total'] );
 	}
 
+	/**
+	 * @covers ::openstation_resolve_menu_plugin_file
+	 */
 	public function test_resolve_plugin_file_returns_null_for_core_slugs() {
 		$this->assertNull( openstation_resolve_menu_plugin_file( 'index.php' ) );
 		$this->assertNull( openstation_resolve_menu_plugin_file( 'plugins.php' ) );
@@ -671,12 +713,22 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$this->assertNull( openstation_resolve_menu_plugin_file( 'edit.php?post_type=page' ) );
 	}
 
+	/**
+	 * @covers ::openstation_resolve_menu_plugin_file
+	 */
 	public function test_resolve_plugin_file_returns_null_for_unknown_slug() {
 		$this->assertNull(
 			openstation_resolve_menu_plugin_file( 'nonexistent-menu-slug-xyz' )
 		);
 	}
 
+	/**
+	 * @covers ::openstation_resolve_menu_plugin_file
+	 */
+	/**
+	 * @covers ::openstation_resolve_menu_plugin_file
+	 * @covers ::openstation_plugin_file_for_path
+	 */
 	public function test_resolve_plugin_file_returns_plugin_basename_when_callback_lives_in_plugin_dir() {
 		$fake_folder   = 'dm-positive-resolver-fixture';
 		$fake_dir      = WP_PLUGIN_DIR . '/' . $fake_folder;
@@ -686,7 +738,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		if ( ! is_dir( $fake_dir ) ) {
 			mkdir( $fake_dir, 0755, true );
 		}
-
 		file_put_contents(
 			$fake_file,
 			"<?php\n/**\n * Plugin Name: DM Positive Resolver Fixture\n * Version: 0.0.0\n */\nfunction dm_positive_resolver_fixture_render() {}\n"
@@ -702,7 +753,6 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			return $plugins;
 		};
 		add_filter( 'all_plugins', $inject );
-
 		wp_cache_delete( 'plugins', 'plugins' );
 
 		$slug     = 'dm-positive-resolver-fixture-page';
@@ -716,13 +766,16 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			remove_action( $hookname, 'dm_positive_resolver_fixture_render' );
 			remove_filter( 'all_plugins', $inject );
 			wp_cache_delete( 'plugins', 'plugins' );
-
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
 			@unlink( $fake_file );
-
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.rmdir_rmdir
 			@rmdir( $fake_dir );
 		}
 	}
 
+	/**
+	 * @covers ::openstation_resolve_menu_plugin_file
+	 */
 	public function test_resolve_plugin_file_excludes_openstation_itself() {
 		$slug     = 'os-self-exclusion-test';
 		$hookname = get_plugin_page_hookname( $slug, '' );

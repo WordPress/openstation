@@ -3,7 +3,6 @@ import { getStore } from './registry';
 
 export function resolveThemedIcon( slot: string ): string | null {
 	const state = getStore().state;
-
 	if ( state.activeIcons === null ) {
 		return null;
 	}
@@ -49,7 +48,6 @@ function sanitizeIconColor( value: string ): string | null {
 	if ( /[;{}<>"'\\]/.test( trimmed ) ) {
 		return null;
 	}
-
 	let depth = 0;
 	for ( const char of trimmed ) {
 		if ( char === '(' ) {

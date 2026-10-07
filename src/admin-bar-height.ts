@@ -3,16 +3,12 @@ export const ADMIN_BAR_HEIGHT_PROP = '--os-admin-bar-height';
 export const ADMIN_BAR_ID = 'wpadminbar';
 
 export interface AdminBarHeightDeps {
-
 	bar?: HTMLElement | null;
-
 	root?: HTMLElement;
 }
 
 export interface AdminBarHeightController {
-
 	refresh(): void;
-
 	destroy(): void;
 }
 
@@ -21,7 +17,6 @@ export function measureAdminBarBottom( bar: Element ): number | null {
 	if ( rect.height <= 0 || rect.top < 0 ) {
 		return null;
 	}
-
 	return Math.round( rect.bottom * 100 ) / 100;
 }
 
@@ -60,7 +55,6 @@ export function installAdminBarHeight(
 	let resizeObserver: ResizeObserver | null = null;
 	if ( typeof ResizeObserver !== 'undefined' ) {
 		resizeObserver = new ResizeObserver( measure );
-
 		resizeObserver.observe( bar, { box: 'border-box' } );
 	}
 

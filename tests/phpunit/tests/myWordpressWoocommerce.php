@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -21,6 +24,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_entity_icon
+	 */
 	public function test_woo_post_types_get_meaningful_icons() {
 		register_post_type( 'shop_coupon', array( 'public' => false, 'show_ui' => true ) );
 
@@ -30,12 +36,14 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 'dashicons-tickets-alt', $entity['icon'] );
-
 		$this->assertFalse( $entity['thumbnails'] );
 
 		unregister_post_type( 'shop_coupon' );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_entity_icon
+	 */
 	public function test_products_declare_their_extra_list_field() {
 		register_post_type( 'product', array( 'public' => true, 'show_ui' => true ) );
 
@@ -50,6 +58,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		unregister_post_type( 'product' );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_entity_icon
+	 */
 	public function test_non_woo_types_keep_their_icon() {
 		register_post_type( 'dm_book', array( 'public' => true, 'show_ui' => true ) );
 
@@ -64,16 +75,25 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		unregister_post_type( 'dm_book' );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_active
+	 */
 	public function test_inert_without_woocommerce() {
 		$this->assertFalse( openstation_my_wordpress_woo_active() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_entities
+	 */
 	public function test_no_orders_section_without_woocommerce() {
 		$ids = wp_list_pluck( openstation_my_wordpress_entities(), 'id' );
 
 		$this->assertNotContains( 'wc-orders', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_register_routes
+	 */
 	public function test_no_routes_without_woocommerce() {
 		do_action( 'rest_api_init' );
 		$routes = rest_get_server()->get_routes();
@@ -82,6 +102,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( '/desktop-mode/v1/woocommerce/store', $routes );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_enqueue
+	 */
 	public function test_no_assets_enqueued_without_woocommerce() {
 		openstation_my_wordpress_woo_register_assets();
 		openstation_my_wordpress_woo_enqueue();
@@ -90,6 +113,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		$this->assertFalse( wp_style_is( 'os-my-wordpress-woocommerce', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_app_window_args
+	 */
 	public function test_bundle_is_attached_to_the_explorer_window_not_enqueued() {
 		$args = openstation_my_wordpress_woo_app_window_args(
 			array( 'title' => 'WP Explorer' ),
@@ -99,6 +125,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'scripts', $args );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_enqueue
+	 */
 	public function test_config_attach_runs_before_the_payload_is_built() {
 		$this->assertSame(
 			5,
@@ -106,6 +135,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_group
+	 */
 	public function test_group_is_relabelled_and_reiconed() {
 		$group = openstation_my_wordpress_woo_group(
 			array(
@@ -122,6 +154,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		$this->assertSame( 15, $group['order'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_group
+	 */
 	public function test_group_ignores_other_plugins() {
 		$original = array(
 			'id'    => 'plugin:acme',
@@ -137,6 +172,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		$this->assertNull( openstation_my_wordpress_woo_group( null, 'acme_thing' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_is_banded_request
+	 */
 	public function test_band_ordering_only_claims_marked_requests() {
 		$marked = new WP_REST_Request( 'GET', '/wp/v2/product' );
 		$marked->set_param( OPENSTATION_WOO_BANDED_PARAM, '1' );
@@ -155,6 +193,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_order_products
+	 */
 	public function test_unmarked_product_queries_are_untouched() {
 		$args    = array( 'orderby' => 'price', 'order' => 'ASC' );
 		$request = new WP_REST_Request( 'GET', '/wp/v2/product' );
@@ -165,6 +206,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_icon
+	 */
 	public function test_icon_is_tintable() {
 		$uri = openstation_my_wordpress_woo_icon();
 		$svg = base64_decode( substr( $uri, strlen( 'data:image/svg+xml;base64,' ) ) );
@@ -174,6 +218,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<svg', $svg );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_is_purchase
+	 */
 	public function test_refunds_are_not_purchases() {
 		$this->assertTrue(
 			openstation_my_wordpress_woo_is_purchase(
@@ -203,14 +250,11 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 }
 
 if ( ! class_exists( 'WC_Abstract_Order' ) ) {
-
 	abstract class WC_Abstract_Order {}
 }
 
 if ( ! class_exists( 'WC_Order' ) ) {
-
 	class WC_Order extends WC_Abstract_Order {
-
 		public function get_order_number() {
 			return '1234';
 		}
@@ -218,7 +262,6 @@ if ( ! class_exists( 'WC_Order' ) ) {
 }
 
 if ( ! class_exists( 'WC_Order_Refund' ) ) {
-
 	class WC_Order_Refund extends WC_Abstract_Order {}
 }
 

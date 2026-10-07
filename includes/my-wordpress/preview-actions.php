@@ -3,7 +3,6 @@
 defined( 'ABSPATH' ) || exit;
 
 function openstation_my_wordpress_collect_preview_actions() {
-
 	$actions = (array) apply_filters( 'openstation_my_wordpress_preview_actions', array() );
 
 	$out = array();

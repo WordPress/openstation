@@ -48,7 +48,6 @@ function openstation_my_wordpress_post_attached_media( $post_id ) {
 
 	$content = isset( $post->post_content ) ? (string) $post->post_content : '';
 	if ( '' !== $content ) {
-
 		$patterns = array(
 			'/wp-image-(\d+)/',
 			'/id="attachment_(\d+)"/',
@@ -89,7 +88,6 @@ function openstation_my_wordpress_post_attached_media( $post_id ) {
 	if ( ! is_array( $filtered ) ) {
 		return $out;
 	}
-
 	$dedup = array();
 	foreach ( $filtered as $id ) {
 		$id = (int) $id;
@@ -109,7 +107,6 @@ function openstation_my_wordpress_resolve_attachment_url( $url ) {
 	if ( isset( $cache[ $url ] ) ) {
 		return (int) $cache[ $url ];
 	}
-
 	$strip_query = static function ( $u ) {
 		$pos = strpos( $u, '?' );
 		return false === $pos ? $u : substr( $u, 0, $pos );
@@ -121,11 +118,9 @@ function openstation_my_wordpress_resolve_attachment_url( $url ) {
 	if ( preg_match( '/^(.*)-\d+x\d+(\.[a-zA-Z0-9]+)$/', $clean, $m ) ) {
 		$candidates[] = $m[1] . $m[2];
 	}
-
 	if ( preg_match( '/^(.*)-scaled(\.[a-zA-Z0-9]+)$/', $clean, $m ) ) {
 		$candidates[] = $m[1] . $m[2];
 	}
-
 	if ( preg_match( '/^(.*)(\.[a-zA-Z0-9]+)$/', $clean, $m )
 		&& ! preg_match( '/-scaled$/', $m[1] )
 	) {

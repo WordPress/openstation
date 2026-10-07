@@ -38,7 +38,6 @@ export class OsRatingSummary extends Component {
 			{ name: '--os-ui-rating-fg', description: 'Primary text color.' },
 			{ name: '--os-ui-rating-fg-muted', description: 'Secondary text color.' },
 		],
-
 		example: html`<os-rating-summary rating="92" total="184"></os-rating-summary>`,
 		exampleInit: ( root: HTMLElement ) => {
 			const summary = root.querySelector( 'os-rating-summary' );

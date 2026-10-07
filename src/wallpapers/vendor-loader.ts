@@ -5,17 +5,11 @@ const pending = new Map<string, Promise<void>>();
 const replayedAliases = new Set< string >();
 
 export interface ScriptExtras {
-
 	handle?: string;
-
 	translations?: string;
-
 	l10n?: string[];
-
 	before?: string[];
-
 	after?: string[];
-
 	deps?: Array< { url: string } & ScriptExtras >;
 }
 
@@ -45,7 +39,6 @@ export function loadVendorScript(
 				( prev, dep ) => prev.then( () => loadDep( dep ) ),
 				Promise.resolve< void >( undefined ),
 			)
-
 			.then( () => injectScriptTag( url, extras ) );
 		pending.set( url, withDeps );
 		return withDeps;
@@ -123,7 +116,6 @@ function injectScriptTag( url: string, extras?: ScriptExtras ): Promise< void > 
 			'load',
 			() => {
 				script.dataset.loaded = '1';
-
 				for ( const code of extras?.after ?? [] ) {
 					injectInline( code );
 				}

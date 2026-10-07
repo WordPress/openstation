@@ -2,9 +2,7 @@ import { createSharedStore } from '../shared-store';
 import type { DragPayload, DragSession } from '../drag';
 
 export interface CanvasPayloadContext {
-
 	folderId: number;
-
 	host: HTMLElement;
 }
 

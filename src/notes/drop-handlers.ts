@@ -38,7 +38,6 @@ function handleDraftDrop(
 		return;
 	}
 	const { x, y } = normalizedDropPosition( layer, session, ev );
-
 	layer.createNoteAt( {
 		x,
 		y,
@@ -93,7 +92,6 @@ export function installNoteDropHandlers( layer: NotesLayer ): () => void {
 					return;
 				}
 				const note = controller.note;
-
 				void controller.playCrumpleAt( ev.clientX, ev.clientY );
 				layer.trashNote( note );
 			},

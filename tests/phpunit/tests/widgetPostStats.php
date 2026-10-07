@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_WidgetPostStats extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -27,6 +29,9 @@ class Tests_OpenStation_WidgetPostStats extends WP_UnitTestCase {
 		delete_transient( 'desktop_mode_post_stats_own_' . self::$author_id );
 	}
 
+	/**
+	 * @covers ::openstation_post_stats_callback
+	 */
 	public function test_six_zero_filled_buckets_oldest_first() {
 		$result = openstation_post_stats_callback();
 
@@ -43,6 +48,9 @@ class Tests_OpenStation_WidgetPostStats extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_post_stats_callback
+	 */
 	public function test_counts_land_in_the_current_month_bucket() {
 		self::factory()->post->create_many( 2, array( 'post_status' => 'publish' ) );
 		self::factory()->post->create( array( 'post_status' => 'draft' ) );
@@ -56,6 +64,9 @@ class Tests_OpenStation_WidgetPostStats extends WP_UnitTestCase {
 		$this->assertSame( 1, $current['pending'] );
 	}
 
+	/**
+	 * @covers ::openstation_post_stats_callback
+	 */
 	public function test_drafts_are_own_only_without_edit_others_posts() {
 		self::factory()->post->create( array(
 			'post_status' => 'draft',
@@ -79,6 +90,9 @@ class Tests_OpenStation_WidgetPostStats extends WP_UnitTestCase {
 		$this->assertSame( 1, $author_current['publish'] );
 	}
 
+	/**
+	 * @covers ::openstation_post_stats_callback
+	 */
 	public function test_result_is_served_from_the_transient() {
 		$first = openstation_post_stats_callback();
 

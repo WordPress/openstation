@@ -1,6 +1,5 @@
 import { __, formatDate, sprintf } from '@openstation/app';
 import { osIconSvg } from '../../../src/ui/icons';
-
 import '../../../src/ui/components/os-tabs/os-tabs';
 import { pluginActionButtons, setBusy } from './actions';
 import { buildStarCluster, pickIcon } from './card';
@@ -128,7 +127,7 @@ function buildHeroSkeleton( hint?: WpOrgBrowsePlugin ): HeroParts {
 function paintIdentity( parts: HeroParts, plugin: WpOrgBrowsePlugin ): void {
 	parts.title.textContent = stripHtml( plugin.name );
 	parts.byline.textContent = sprintf(
-
+		/* translators: %s: plugin author */
 		__( 'by %s', 'desktop-mode' ),
 		stripHtml( plugin.author ?? '' ),
 	);
@@ -155,13 +154,13 @@ function paintHero( parts: HeroParts, info: WpOrgPluginInfo ): void {
 	metaRow.className = 'os-plugins__flyout-meta-row';
 	const installs = document.createElement( 'span' );
 	installs.textContent = sprintf(
-
+		/* translators: %s: comma-grouped active install count */
 		__( '%s+ active', 'desktop-mode' ),
 		new Intl.NumberFormat().format( info.active_installs ?? 0 ),
 	);
 	const updated = document.createElement( 'span' );
 	updated.textContent = sprintf(
-
+		/* translators: %s: date the plugin was last updated */
 		__( 'Updated %s', 'desktop-mode' ),
 		info.last_updated ? formatDate( info.last_updated.slice( 0, 10 ), 'long' ) : '—',
 	);
@@ -169,7 +168,7 @@ function paintHero( parts: HeroParts, info: WpOrgPluginInfo ): void {
 	if ( info.tested ) {
 		const tested = document.createElement( 'span' );
 		tested.textContent = sprintf(
-
+			/* translators: %s: maximum tested WordPress version */
 			__( 'Tested up to WordPress %s', 'desktop-mode' ),
 			info.tested,
 		);
@@ -323,7 +322,6 @@ function paintFooter(
 		btn.textContent = __( 'Install', 'desktop-mode' );
 		btn.addEventListener( 'click', () => {
 			setBusy( btn, __( 'Installing…', 'desktop-mode' ) );
-
 			void installBySlug( host, slug, info?.name ?? slug )
 				.catch( ( err ) => host.toast( describeError( err ), 6000 ) )
 				.finally( repaint );

@@ -77,7 +77,6 @@ export const styles = css`
 	.os-tag-input__input {
 		appearance: none;
 		font: inherit;
-
 		font-size: var( --os-ui-field-font-size-compact, 12px );
 		line-height: 1.4;
 		padding: 2px 8px;

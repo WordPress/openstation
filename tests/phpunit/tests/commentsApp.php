@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group comments-app
+ */
 
 class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 
@@ -68,6 +72,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		return array_map( 'intval', wp_list_pluck( $response['data']['rail']['items'], 'id' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_manifest_mirrors_the_legacy_windows_registration() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-comments' );
 		$this->assertNotNull( $app );
@@ -78,15 +85,12 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 760, $manifest['height'] );
 		$this->assertSame( 760, $manifest['min_width'] );
 		$this->assertSame( 480, $manifest['min_height'] );
-
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame( array( 'comment' ), $manifest['watch'] );
 		foreach ( array( 'reopen', 'filter', 'page', 'select', 'moderate', 'reply', 'edit' ) as $action ) {
 			$this->assertContains( $action, $manifest['actions'] );
 		}
-
 		$this->assertContains( 'reopen', $manifest['lifecycle'] );
-
 		$this->assertSame( array( 'currentUserId', 'canModerate', 'canEditComments' ), array_keys( $manifest['config'] ) );
 		$this->assertTrue( $manifest['config']['canModerate'] );
 		$this->assertTrue( $manifest['config']['canEditComments'] );
@@ -96,6 +100,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 0, $manifest['state']['post'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::allows
+	 */
 	public function test_gate_follows_the_legacy_capability_filter() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-comments' );
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
@@ -108,6 +115,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_mount_serves_the_pending_rail_with_the_computed_fields() {
 		$pending  = $this->comment( self::$post_id, '0' );
 		$approved = $this->comment( self::$post_id, '1' );
@@ -121,7 +131,6 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( '', $response['data']['rail']['error'] );
 		$this->assertSame( '', $response['data']['rail']['code'] );
 		$this->assertSame( 'pending', $response['state']['tab'] );
-
 		$this->assertSame( $ids[0], $response['state']['selected'] );
 
 		$row = $response['data']['rail']['items'][ array_search( $pending, $ids, true ) ];
@@ -129,7 +138,6 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertTrue( $row['openstation_can_edit'] );
 		$this->assertSame( 0, $row['openstation_replies_count'] );
 		$this->assertSame( 0, $row['parent'] );
-
 		$this->assertArrayNotHasKey( 'openstation_can_moderate', $row );
 
 		$this->assertGreaterThanOrEqual( 1, $response['data']['counts']['pending'] );
@@ -137,13 +145,15 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertStringStartsWith( 'pending|', $response['data']['railKey'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\Comments\reply_counts
+	 */
 	public function test_reply_counts_are_one_query_for_the_whole_page() {
 		global $wpdb;
 		$roots = array();
 		for ( $i = 0; $i < 5; $i++ ) {
 			$roots[] = $this->comment( self::$post_id, '1' );
 		}
-
 		$this->comment( self::$post_id, '1', $roots[0] );
 		$this->comment( self::$post_id, '1', $roots[0] );
 		$this->comment( self::$post_id, '0', $roots[1] );
@@ -166,13 +176,15 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 1, $by_id[ $roots[1] ] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_the_post_param_scopes_the_rail_and_a_changed_scope_reopens_it() {
 		$here  = $this->comment( self::$post_id, '1' );
 		$there = $this->comment( self::$other_post_id, '1' );
 
 		$response = $this->dispatch( 'mount', array(), array(), array( 'post' => self::$post_id ) );
 		$this->assertTrue( $response['ok'] );
-
 		$this->assertSame( 'all', $response['state']['tab'] );
 		$this->assertSame( self::$post_id, $response['state']['post'] );
 		$ids = $this->rail_ids( $response );
@@ -184,6 +196,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertContains( $there, $this->rail_ids( $response ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_reopen_with_an_unchanged_scope_keeps_pages_and_selection() {
 		$this->comment( self::$post_id, '1' );
 		$state = array(
@@ -205,6 +220,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( self::$post_id, $scoped['state']['post'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_filter_switches_tabs_and_restarts_the_accumulation() {
 		$spam    = $this->comment( self::$post_id, 'spam' );
 		$pending = $this->comment( self::$post_id, '0' );
@@ -220,10 +238,12 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertNotContains( $pending, $ids );
 		$this->assertSame( 1, $response['state']['page'] );
 		$this->assertGreaterThan( $mounted['state']['gen'], $response['state']['gen'] );
-
 		$this->assertSame( $spam, $response['state']['selected'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_mine_and_search_narrow_the_rail() {
 		$mine   = $this->comment( self::$post_id, '0', 0, array( 'user_id' => self::$admin_id, 'comment_content' => 'Needle in mine' ) );
 		$theirs = $this->comment( self::$post_id, '0', 0, array( 'user_id' => self::$contributor_id, 'comment_content' => 'Needle in theirs' ) );
@@ -242,6 +262,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertNotContains( $other, $ids );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\Comments\rail_query
+	 */
 	public function test_the_query_args_filter_sets_the_page_size() {
 		for ( $i = 0; $i < 3; $i++ ) {
 			$this->comment( self::$post_id, '0' );
@@ -259,6 +282,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 2, $response['data']['rail']['pages'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_select_serves_the_whole_thread_and_leaves_the_rail_out() {
 		$root  = $this->comment( self::$post_id, '1' );
 		$reply = $this->comment( self::$post_id, '0', $root );
@@ -269,15 +295,16 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( $root, $response['state']['selected'] );
 		$this->assertFalse( $response['data']['thread']['truncated'] );
 		$thread = array_map( 'intval', wp_list_pluck( $response['data']['thread']['rows'], 'id' ) );
-
 		$this->assertSame( array( $root, $reply, $deep ), $thread );
 		$this->assertArrayNotHasKey( 'openstation_replies_count', $response['data']['thread']['rows'][0] );
-
 		$this->assertArrayNotHasKey( 'rail', $response['data'] );
 		$this->assertArrayNotHasKey( 'railKey', $response['data'] );
 		$this->assertArrayHasKey( 'counts', $response['data'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_load_more_serves_the_next_rail_page_and_leaves_the_thread_out() {
 		for ( $i = 0; $i < 3; $i++ ) {
 			$this->comment( self::$post_id, '0' );
@@ -298,6 +325,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'thread', $response['data'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_edit_after_load_more_keeps_the_page_and_the_accumulation() {
 		$id    = $this->comment( self::$post_id, '1' );
 		$state = array(
@@ -316,6 +346,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 'Rewritten', get_comment( $id )->comment_content );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_moderate_approves_announces_and_fires_after_bulk() {
 		$pending = $this->comment( self::$post_id, '0' );
 		$fired   = array();
@@ -348,10 +381,12 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 'comment', $announce['contentType'] );
 		$this->assertSame( 'updated', $announce['action'] );
 		$this->assertSame( array( $pending ), $announce['ids'] );
-
 		$this->assertNotContains( $pending, $this->rail_ids( $response ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_moderate_skips_what_it_cannot_and_refuses_an_unknown_verb() {
 		$pending = $this->comment( self::$post_id, '0' );
 		$fired   = array();
@@ -369,6 +404,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 'action_failed', $refused['error'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_moderate_is_refused_without_moderate_comments() {
 		$pending = $this->comment( self::$post_id, '0' );
 		wp_set_current_user( self::$contributor_id );
@@ -386,6 +424,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 'unapproved', wp_get_comment_status( $pending ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_reply_creates_a_child_comment_and_announces_it() {
 		$root = $this->comment( self::$post_id, '1' );
 
@@ -422,6 +463,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertFalse( $refused['ok'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_an_author_can_reply_on_their_own_post_but_not_elsewhere() {
 		wp_set_current_user( self::$contributor_id );
 		$own_post = self::factory()->post->create(
@@ -446,6 +490,9 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertCount( 0, get_comments( array( 'parent' => $on_other, 'status' => 'all' ) ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_edit_rewrites_the_body_through_the_core_controller() {
 		$id = $this->comment( self::$post_id, '1' );
 
@@ -473,6 +520,10 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 		$this->assertSame( 'Rewritten body', get_comment( $id )->comment_content );
 	}
 
+	/**
+	 * @covers ::openstation_comments_window_rest_bulk
+	 * @covers ::openstation_comments_window_rest_counts
+	 */
 	public function test_the_bulk_and_counts_routes_still_answer() {
 		$pending = $this->comment( self::$post_id, '0' );
 

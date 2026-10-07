@@ -40,7 +40,6 @@ function fakeMatchMedia( width: { value: number } ) {
 	};
 	return {
 		matchMedia,
-
 		resize( next: number ) {
 			width.value = next;
 			for ( const l of lists ) {
@@ -118,7 +117,6 @@ describe( 'installMode', () => {
 		expect( ctl.api.get() ).toBe( 'mobile' );
 		expect( ctl.api.isMobile() ).toBe( true );
 		expect( ctl.api.getPreference() ).toBe( 'auto' );
-
 		expect( mm.lists.map( ( l ) => l.px ).filter( ( px ) => px > 0 ) ).toEqual( [ 767, 1024 ] );
 		ctl.dispose();
 	} );

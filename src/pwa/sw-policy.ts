@@ -2,13 +2,9 @@ import { urlActs } from './acting-url';
 import { isShellDocumentUrl } from '../shell-url';
 
 export interface SwConfig {
-
 	adminAssetCache: boolean;
-
 	windowPrewarm: boolean;
-
 	pluginUrl: string;
-
 	shellBuild: string;
 }
 
@@ -54,7 +50,6 @@ export function readSwConfig(
 				? obj.pluginUrl
 				: obj.pluginUrl + '/';
 		} catch {
-
 		}
 	}
 	return cfg;
@@ -102,7 +97,6 @@ export function isSpeculatableDocument( url: URL ): boolean {
 	if ( ! url.searchParams.has( 'openstation_chromeless' ) ) {
 		return false;
 	}
-
 	if ( isShellDocumentUrl( url ) ) {
 		return false;
 	}

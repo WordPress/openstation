@@ -76,7 +76,6 @@ describe( 'Dock — minimized window indicator', () => {
 		const win = makeWin( 'edit-php', 'edit-php', 'normal' );
 		const manager = makeManager( [ win ] );
 		const { container } = mount( manager );
-
 		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
@@ -181,7 +180,6 @@ describe( 'Dock — minimized window indicator', () => {
 		document.dispatchEvent( new CustomEvent( 'os-window-opened' ) );
 
 		const tile = tileFor( container, 'menu-posts' );
-
 		expect( tile.classList.contains( 'os-dock__item--focused' ) ).toBe( false );
 	} );
 
@@ -247,7 +245,6 @@ describe( 'Dock — minimized window indicator', () => {
 	} );
 
 	test( 'dock listens to WINDOW_MINIMIZED via the hook bus, not just DOM events', () => {
-
 		const win = makeWin( 'edit-php', 'edit-php', 'normal' );
 		const manager = makeManager( [ win ] );
 		const { container } = mount( manager );
@@ -267,7 +264,6 @@ describe( 'Dock — minimized window indicator', () => {
 	} );
 
 	test( 'a tile whose target is a window lights up from windowId, not from its url', () => {
-
 		const win = makeWin( 'os-settings', 'os-settings', 'normal' );
 		const manager = makeManager( [ win ] );
 		const item: DockItem = {

@@ -140,9 +140,7 @@ export interface PhpSymbolDetail extends PhpSymbolMatch {
 		by_ref: boolean;
 		type: string | null;
 	} >;
-
 	file?: string;
-
 	line?: number;
 }
 

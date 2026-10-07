@@ -10,52 +10,34 @@ import { backdropCss, SNOW_LIMITS, type SnowSettings } from './settings';
 const TEXTURE_SIZE = 64;
 
 const TUNING = {
-
 	spawnPerSecondAtDefault: 90,
-
 	spawnCalibrationCount: 660,
-
 	gravityMin: 28,
 	gravityMax: 72,
-
 	windPeriodSec: 11,
-
 	driftAmplitude: 32,
 	driftPeriodMin: 2.5,
 	driftPeriodMax: 5.5,
-
 	rotationMax: 0.2,
 	alphaMin: 0.7,
 	alphaMax: 1.0,
-
 	meltDurationSec: 1.8,
-
 	stuckLifeSec: 9.0,
 	stuckLifeJitter: 2.5,
-
 	collisionMarginY: 2,
-
 	pileBucketPx: 8,
-
 	pileMaxPx: 48,
-
 	pileContribution: 0.1,
-
 	pileSpread: 0.4,
 } as const;
 
 const POOL_SIZE = SNOW_LIMITS.particleCount.max;
 
 export interface SnowScene {
-
 	setAnimating( animating: boolean ): void;
-
 	applySettings( settings: SnowSettings ): void;
-
 	markSurfacesDirty(): void;
-
 	detachFlakesAnchoredTo( element: HTMLElement ): void;
-
 	destroy(): void;
 }
 
@@ -64,7 +46,6 @@ export interface SnowSceneOptions {
 	pixi: PixiNamespace;
 	settings: SnowSettings;
 	prefersReducedMotion: boolean;
-
 	getSurfaces: ( () => WallpaperSurface[] ) | null;
 }
 
@@ -79,16 +60,12 @@ function buildSnowflakeTexture( pixi: PixiNamespace ) {
 	}
 	const cx = size / 2;
 	const cy = size / 2;
-
 	const radius = size / 2 - 1;
 
 	const grad = ctx.createRadialGradient( cx, cy, 0, cx, cy, radius );
-
 	grad.addColorStop( 0, 'rgba(255, 255, 255, 1)' );
 	grad.addColorStop( 0.3, 'rgba(250, 252, 255, 0.9)' );
-
 	grad.addColorStop( 0.6, 'rgba(235, 245, 255, 0.32)' );
-
 	grad.addColorStop( 0.88, 'rgba(220, 232, 255, 0.07)' );
 	grad.addColorStop( 1, 'rgba(210, 228, 255, 0)' );
 	ctx.fillStyle = grad;
@@ -157,21 +134,15 @@ export async function mountSnowScene(
 	const pDriftFreq = new Float32Array( MAX );
 	const pDriftAmp = new Float32Array( MAX );
 	const pBaseAlpha = new Float32Array( MAX );
-
 	const pState = new Uint8Array( MAX );
-
 	const pAnchor: Array< HTMLElement | null > = new Array( MAX );
 	const pAnchorDX = new Float32Array( MAX );
 	const pAnchorDY = new Float32Array( MAX );
 	const pStuckLife = new Float32Array( MAX );
 	const pMelt = new Float32Array( MAX );
-
 	const pSurfaceId: Array< string | null > = new Array( MAX );
-
 	const pBucket = new Int32Array( MAX );
-
 	const pPileAdd = new Float32Array( MAX );
-
 	const pPileRemaining = new Float32Array( MAX );
 
 	const particles: Array< PixiParticle | null > = new Array( MAX );
@@ -181,7 +152,6 @@ export async function mountSnowScene(
 			texture,
 			anchorX: 0.5,
 			anchorY: 0.5,
-
 			alpha: 0,
 			tint: 0xffffff,
 		} );
@@ -193,7 +163,6 @@ export async function mountSnowScene(
 		pBucket[ i ] = -1;
 		pPileAdd[ i ] = 0;
 		pPileRemaining[ i ] = 0;
-
 		freeList[ i ] = MAX - 1 - i;
 	}
 	let freeCount: number = MAX;
@@ -221,7 +190,6 @@ export async function mountSnowScene(
 		let liveIds: Set< string > | null = null;
 		for ( let k = 0; k < all.length; k++ ) {
 			const s = all[ k ];
-
 			if ( s.face !== 'top' ) {
 				continue;
 			}
@@ -236,7 +204,6 @@ export async function mountSnowScene(
 				liveIds.add( s.id );
 			}
 		}
-
 		if ( pileHeights.size > 0 ) {
 			pileHeights.forEach( ( _arr, id ) => {
 				if ( ! liveIds || ! liveIds.has( id ) ) {
@@ -276,7 +243,6 @@ export async function mountSnowScene(
 		const sizeMax = tunables.flakeSize;
 		const sizeMin = sizeMax / 2;
 		pX[ idx ] = Math.random() * w;
-
 		pY[ idx ] = -rand( 50, 180 );
 		pVX[ idx ] = rand( -8, 8 );
 		pVY[ idx ] = rand( TUNING.gravityMin, TUNING.gravityMax );
@@ -347,7 +313,6 @@ export async function mountSnowScene(
 		pBucket[ idx ] = -1;
 		pPileAdd[ idx ] = 0;
 		pPileRemaining[ idx ] = 0;
-
 		const particle = particles[ idx ];
 		if ( particle ) {
 			particle.alpha = 0;
@@ -367,7 +332,6 @@ export async function mountSnowScene(
 		pState[ idx ] = 2;
 		pAnchor[ idx ] = anchorEl;
 		pAnchorDX[ idx ] = dx;
-
 		pAnchorDY[ idx ] = TUNING.collisionMarginY - pileHeight;
 		pSurfaceId[ idx ] = surfaceId;
 		pBucket[ idx ] = bucket;
@@ -514,7 +478,6 @@ export async function mountSnowScene(
 				const sway =
 					Math.sin( elapsed * pDriftFreq[ idx ] + pDriftPhase[ idx ] ) *
 					pDriftAmp[ idx ];
-
 				pVX[ idx ] +=
 					( wind + sway - pVX[ idx ] ) * Math.min( 1, dt * 1.5 );
 
@@ -529,7 +492,6 @@ export async function mountSnowScene(
 				}
 
 				if ( collideWithSurfaces( idx, prevY ) ) {
-
 				} else if ( pY[ idx ] > h + 24 ) {
 					release( idx );
 					continue;
@@ -551,7 +513,6 @@ export async function mountSnowScene(
 						startMelt( idx );
 					} else {
 						const arect = anchorEl.getBoundingClientRect();
-
 						if (
 							pAnchorDX[ idx ] < 0 ||
 							pAnchorDX[ idx ] > arect.width
@@ -668,7 +629,6 @@ export async function mountSnowScene(
 			if ( destroyed ) {
 				return;
 			}
-
 			tunables.wind = next.wind;
 			tunables.particleCount = next.particleCount;
 			tunables.flakeSize = next.flakeSize;
@@ -698,12 +658,10 @@ export async function mountSnowScene(
 			destroyed = true;
 			app.ticker.stop();
 			app.ticker.remove( tick );
-
 			app.destroy(
 				{ removeView: true },
 				{ children: true, texture: true, textureSource: true },
 			);
-
 			for ( let i = 0; i < MAX; i++ ) {
 				particles[ i ] = null;
 				pAnchor[ i ] = null;

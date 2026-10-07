@@ -24,7 +24,6 @@ const TOOLTIPS: Array< {
 	label: string;
 	file: string;
 	selector: string;
-
 	bgFallback: string;
 	fgFallback: string;
 } > = [
@@ -60,7 +59,6 @@ describe( 'tooltip tokens', () => {
 	);
 
 	test( 'only variables.css declares them, so one palette owns the look', () => {
-
 		const consumers = [
 			...TOOLTIPS.map( ( t ) => t.file ),
 			'my-wordpress.css',
@@ -88,7 +86,6 @@ describe( 'tooltip tokens', () => {
 } );
 
 describe( 'My WordPress hover card tokens', () => {
-
 	const DERIVED: Array< [ string, string ] > = [
 		[ '--os-my-wordpress-card-bg', '--os-my-wordpress-bg' ],
 		[ '--os-my-wordpress-card-fg', '--os-my-wordpress-fg' ],
@@ -116,13 +113,11 @@ describe( 'My WordPress hover card tokens', () => {
 
 		expect( body ).toContain( 'background: var( --os-my-wordpress-card-bg,' );
 		expect( body ).toContain( 'color: var( --os-my-wordpress-card-fg,' );
-
 		expect( body ).toContain( '--os-tooltip-bg' );
 		expect( body ).toContain( '--os-tooltip-fg' );
 	} );
 
 	test( 'the border and the shadow are what lift the card off the window', () => {
-
 		const body = flat(
 			ruleBody( readCss( 'my-wordpress.css' ), '.os-my-wordpress__tooltip' )
 		);
@@ -139,7 +134,6 @@ describe( 'My WordPress hover card tokens', () => {
 	} );
 
 	test( 'no feature stylesheet declares a card token', () => {
-
 		for ( const file of [ 'my-wordpress.css', 'desktop-files.css' ] ) {
 			expect(
 				/--os-my-wordpress-card-[a-z-]+\s*:/.test( readCss( file ) ),

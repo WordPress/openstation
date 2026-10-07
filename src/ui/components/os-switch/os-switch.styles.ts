@@ -5,17 +5,12 @@ export const styles = css`
 	${ holoTokens }
 
 	:host {
-
 		--_h: 22px;
-
 		--_pad: 2px;
-
 		--_knob: calc( var( --_h ) - 2 * var( --_pad ) );
 		--_travel: calc( var( --_w ) - var( --_knob ) - 2 * var( --_pad ) );
 		--_w: calc( var( --_h ) * 1.85 );
-
 		--_drag: 0px;
-
 		--_dir: 1;
 
 		display: inline-flex;
@@ -25,7 +20,6 @@ export const styles = css`
 		line-height: 1.3;
 		color: var( --os-ui-fg, #1d2327 );
 		cursor: pointer;
-
 		-webkit-user-select: none;
 		user-select: none;
 	}
@@ -80,7 +74,6 @@ export const styles = css`
 		border-radius: 999px;
 		background-color: var( --_holo-track );
 		background-image: none;
-
 		box-shadow: inset 0 0 0 1px var( --_holo-track-edge );
 		cursor: inherit;
 		outline: none;

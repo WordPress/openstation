@@ -33,7 +33,6 @@ function openstation_my_wordpress_register_media_usage_route() {
 add_action( 'rest_api_init', 'openstation_my_wordpress_register_media_usage_route' );
 
 function openstation_my_wordpress_media_usage_ttl( $attachment_id ) {
-
 	return (int) apply_filters( 'openstation_my_wordpress_media_usage_cache_ttl', 300, $attachment_id );
 }
 
@@ -87,7 +86,6 @@ function openstation_my_wordpress_media_usage_collect( $attachment ) {
 	$file_basename = '' !== $file_url ? wp_basename( $file_url ) : '';
 
 	$public_types = array_values( get_post_types( array( 'public' => true ), 'names' ) );
-
 	$public_types = array_values( array_diff( $public_types, array( 'attachment' ) ) );
 	if ( empty( $public_types ) ) {
 		return array();
@@ -127,6 +125,7 @@ function openstation_my_wordpress_media_usage_collect( $attachment ) {
 		$type_holders   = implode( ',', array_fill( 0, count( $public_types ), '%s' ) );
 		$query_args     = array_merge( $pattern_args, $public_types );
 
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$content_rows = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT ID FROM {$wpdb->posts}
@@ -200,7 +199,6 @@ function openstation_my_wordpress_media_usage_build( $attachment, $rows_by_post 
 	}
 
 	$public_types = array_values( get_post_types( array( 'public' => true ), 'names' ) );
-
 	$public_types = array_values( array_diff( $public_types, array( 'attachment' ) ) );
 
 	$type_objects = array();
@@ -261,7 +259,6 @@ function openstation_my_wordpress_media_usage_extract_refs( $post ) {
 		return $ids;
 	}
 	if ( ! function_exists( 'openstation_my_wordpress_post_attached_media' ) ) {
-
 		$thumb = (int) get_post_meta( (int) $obj->ID, '_thumbnail_id', true );
 		if ( $thumb > 0 ) {
 			$ids[ $thumb ] = true;
@@ -315,7 +312,6 @@ function openstation_my_wordpress_media_usage_bust_for_post( $post_id ) {
 	}
 }
 add_action( 'save_post', 'openstation_my_wordpress_media_usage_bust_for_post' );
-
 add_action( 'before_delete_post', 'openstation_my_wordpress_media_usage_bust_for_post' );
 
 function openstation_my_wordpress_media_usage_bust_for_attachment( $post_id ) {

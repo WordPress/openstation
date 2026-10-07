@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-agents
+ */
 class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 
 	protected static $author_id;
@@ -35,6 +38,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_agents_register_abilities
+	 */
 	public function test_registration_and_annotations() {
 		$expectations = array(
 			'desktop-mode/get-post'     => true,
@@ -53,6 +59,10 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_post
+	 * @covers ::openstation_agents_ability_get_post_can
+	 */
 	public function test_get_post_returns_body_for_subscriber_on_public_post() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -64,6 +74,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( self::$post_id, $out['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_post_can
+	 */
 	public function test_get_post_denies_subscriber_on_password_protected_post() {
 		$protected_id = self::factory()->post->create(
 			array(
@@ -81,6 +94,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertWPError( $out );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_post_can
+	 */
 	public function test_get_post_allows_editor_on_password_protected_post() {
 		$protected_id = self::factory()->post->create(
 			array(
@@ -99,6 +115,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'Secret body.', $out['content'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_post_can
+	 */
 	public function test_get_post_denies_subscriber_on_non_viewable_post_type() {
 		$ledger_id = $this->create_non_viewable_post();
 		wp_set_current_user( self::$subscriber_id );
@@ -112,6 +131,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'Ledger body.', (string) wp_json_encode( $out->get_all_error_data() ) );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_post_can
+	 */
 	public function test_get_post_allows_editor_on_non_viewable_post_type() {
 		$ledger_id = $this->create_non_viewable_post();
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
@@ -142,6 +164,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_media
+	 */
 	public function test_get_media_returns_details_for_author() {
 		wp_set_current_user( self::$author_id );
 
@@ -159,6 +184,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( self::$post_id, $out['attachedTo'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_media_can
+	 */
 	public function test_get_media_denied_without_upload_files() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -169,6 +197,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertWPError( $out );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_media_can
+	 */
 	public function test_get_media_denied_when_parent_post_is_unreadable() {
 		$private_parent = self::factory()->post->create(
 			array(
@@ -196,6 +227,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'Private caption.', (string) wp_json_encode( $out->get_all_error_data() ) );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_media
+	 */
 	public function test_get_media_unknown_id_errors() {
 		wp_set_current_user( self::$author_id );
 
@@ -207,6 +241,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_media_not_found', $out->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_get_media
+	 */
 	public function test_get_media_rejects_non_attachment() {
 		wp_set_current_user( self::$author_id );
 
@@ -218,6 +255,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_media_not_found', $out->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_update_media
+	 */
 	public function test_update_media_writes_alt_and_title() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
@@ -238,6 +278,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'Portrait, cropped', get_post( self::$attachment_id )->post_title );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_update_media_can
+	 */
 	public function test_update_media_denied_without_edit_capability() {
 		wp_set_current_user( self::$author_id );
 
@@ -250,6 +293,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertWPError( $out );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_create_post
+	 */
 	public function test_create_post_is_always_a_draft_by_the_caller() {
 		wp_set_current_user( self::$author_id );
 
@@ -270,6 +316,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'Traducción: hola', $post->post_title );
 	}
 
+	/**
+	 * @covers ::openstation_agents_ability_create_post_can
+	 */
 	public function test_create_page_denied_for_authors() {
 		wp_set_current_user( self::$author_id );
 
@@ -283,6 +332,9 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$this->assertWPError( $out );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_dispatch_tool
+	 */
 	public function test_agent_can_dispatch_get_media() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 		$agent = openstation_agent_create(

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group admin-bar
+ */
 class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -16,12 +19,10 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
-
 		wp_styles()->remove( 'admin-bar' );
 		wp_scripts()->remove( 'admin-bar' );
 		wp_register_style( 'admin-bar', false );
 		wp_register_script( 'admin-bar', false );
-
 		foreach ( array( 'openstation', 'os-windows', 'os-window-overview', 'os-settings', 'os-dock', 'os-dock-peek', 'os-openstation-layout', 'os-chromeless', 'os-mobile' ) as $handle ) {
 			wp_dequeue_style( $handle );
 			wp_dequeue_script( $handle );
@@ -41,6 +42,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		return $admin_bar;
 	}
 
+	/**
+	 * @covers ::openstation_admin_bar_toggle
+	 */
 	public function test_toggle_is_added_for_admin_in_admin() {
 		wp_set_current_user( self::$admin_id );
 		$bar = $this->build_admin_bar();
@@ -50,12 +54,18 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertSame( 'top-secondary', $node->parent );
 	}
 
+	/**
+	 * @covers ::openstation_admin_bar_toggle
+	 */
 	public function test_toggle_is_not_added_for_logged_out_user() {
 		wp_set_current_user( 0 );
 		$bar = $this->build_admin_bar();
 		$this->assertNull( $bar->get_node( 'os-toggle' ) );
 	}
 
+	/**
+	 * @covers ::openstation_admin_bar_toggle
+	 */
 	public function test_toggle_is_not_added_on_front_end() {
 		wp_set_current_user( self::$admin_id );
 		set_current_screen( 'front' );
@@ -63,6 +73,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertNull( $bar->get_node( 'os-toggle' ) );
 	}
 
+	/**
+	 * @covers ::openstation_admin_bar_toggle
+	 */
 	public function test_toggle_is_not_added_when_openstation_is_active() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -71,6 +84,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertNull( $bar->get_node( 'os-toggle' ) );
 	}
 
+	/**
+	 * @covers ::openstation_admin_bar_toggle
+	 */
 	public function test_toggle_is_added_on_a_classic_override_request() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -82,6 +98,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertNotNull( $bar->get_node( 'os-toggle' ) );
 	}
 
+	/**
+	 * @covers ::openstation_admin_bar_toggle
+	 */
 	public function test_toggle_title_advertises_openstation() {
 		wp_set_current_user( self::$admin_id );
 		$bar  = $this->build_admin_bar();
@@ -90,6 +109,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'OpenStation', $node->title );
 	}
 
+	/**
+	 * @covers ::openstation_admin_bar_toggle
+	 */
 	public function test_toggle_is_registered_on_admin_bar_menu_action() {
 		wp_set_current_user( self::$admin_id );
 		$admin_bar = new WP_Admin_Bar();
@@ -101,6 +123,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_toggle_assets
+	 */
 	public function test_toggle_assets_are_added_to_admin_bar_style() {
 		wp_set_current_user( self::$admin_id );
 
@@ -111,6 +136,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertStringContainsString( '#wp-admin-bar-os-toggle', $inline );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_toggle_assets
+	 */
 	public function test_toggle_items_are_block_level_flex() {
 		wp_set_current_user( self::$admin_id );
 
@@ -131,6 +159,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_toggle_assets
+	 */
 	public function test_toggle_assets_nonce_is_baked_into_inline_script() {
 		wp_set_current_user( self::$admin_id );
 
@@ -142,6 +173,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertStringContainsString( '"nonce":"' . $expected_nonce . '"', $data );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_toggle_assets
+	 */
 	public function test_toggle_assets_config_is_json_encoded() {
 		wp_set_current_user( self::$admin_id );
 
@@ -156,6 +190,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertStringContainsString( '"ajaxUrl":"', $data );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_toggle_assets
+	 */
 	public function test_toggle_assets_skipped_for_logged_out_user() {
 		wp_set_current_user( 0 );
 
@@ -166,6 +203,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '#wp-admin-bar-os-toggle', $inline );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_assets_not_enqueued_when_mode_off() {
 		wp_set_current_user( self::$admin_id );
 
@@ -175,6 +215,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( 'openstation', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_assets_enqueued_when_mode_on() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -187,6 +230,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'openstation', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_chromeless_request_enqueues_chromeless_style_only() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -200,6 +246,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( 'openstation', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_openstation_assets_localize_shell_config() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -212,6 +261,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'dockItems', (string) $data );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_shell_config_filter_can_replace_entire_config() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -229,6 +281,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Filtered Title', $data );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_default_filters_wire_enqueue_callbacks_to_admin_enqueue_scripts() {
 		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'openstation_enqueue_toggle_assets' ) );
 		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'openstation_enqueue_assets' ) );

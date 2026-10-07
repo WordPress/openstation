@@ -1,17 +1,11 @@
 import { buildLoadingSpinner } from './inline-loader';
 
 export interface SurfacePlaceholderOptions {
-
 	id: string;
-
 	label: string;
-
 	layerStyle: string[];
-
 	scrimStyle: string[];
-
 	cardStyle: string[];
-
 	onCancel?: () => void;
 }
 
@@ -20,7 +14,6 @@ export const SURFACE_HANDOFF_MS = 200;
 interface Painted {
 	el: HTMLElement;
 	onKey: ( e: KeyboardEvent ) => void;
-
 	leaving?: number;
 }
 
@@ -51,7 +44,6 @@ export function showSurfacePlaceholder( options: SurfacePlaceholderOptions ): vo
 	el.style.cssText = [
 		'position:fixed',
 		'inset:0',
-
 		'z-index:9999',
 		'display:flex',
 		'box-sizing:border-box',
@@ -86,7 +78,6 @@ export function showSurfacePlaceholder( options: SurfacePlaceholderOptions ): vo
 	card.appendChild( label );
 	el.appendChild( scrim );
 	el.appendChild( card );
-
 	el.addEventListener( 'click', ( e ) => {
 		if ( ! ( e.target instanceof Node && card.contains( e.target ) ) ) {
 			cancel();
@@ -121,6 +112,5 @@ export function hideSurfacePlaceholder( id: string, afterMs = 0 ): void {
 		current.el.remove();
 		painted.delete( id );
 	}
-
 	document.getElementById( id )?.remove();
 }

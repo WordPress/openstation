@@ -1,5 +1,4 @@
 import { __, sprintf } from '@openstation/app';
-
 import '../../../src/ui/components/os-card/os-card';
 import { decodeHTML } from '../../../src/utils';
 import { fallbackGlyph, stripHtml } from './html';
@@ -25,7 +24,7 @@ export function buildCard(
 	card.setAttribute(
 		'aria-label',
 		sprintf(
-
+			/* translators: %s: plugin name */
 			__( 'View details for %s', 'desktop-mode' ),
 			plugin.name,
 		),
@@ -61,7 +60,7 @@ export function buildCard(
 	const byline = document.createElement( 'p' );
 	byline.className = 'os-plugins__card-byline';
 	byline.textContent = sprintf(
-
+		/* translators: %s: plugin author name (HTML-stripped) */
 		__( 'by %s', 'desktop-mode' ),
 		stripHtml( plugin.author ?? '' ),
 	);
@@ -149,7 +148,7 @@ export function buildStarCluster( rating0to100: number, totalRatings: number ): 
 	wrap.setAttribute(
 		'aria-label',
 		sprintf(
-
+			/* translators: %s: rating out of 5 (one decimal) */
 			__( 'Rated %s out of 5', 'desktop-mode' ),
 			stars5.toFixed( 1 ),
 		),
@@ -203,14 +202,14 @@ function formatInstalls( n: number ): string {
 	}
 	if ( n >= 1_000_000 ) {
 		return sprintf(
-
+			/* translators: %d: integer number of millions of active installs */
 			__( '%d+ million active', 'desktop-mode' ),
 			Math.floor( n / 1_000_000 ),
 		);
 	}
 	const shown = n >= 1000 ? roundTo3SigFigs( n ) : n;
 	return sprintf(
-
+		/* translators: %s: comma-grouped active install count */
 		__( '%s+ active', 'desktop-mode' ),
 		formatThousands( shown ),
 	);

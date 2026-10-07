@@ -29,13 +29,11 @@ describe( 'brand palette', () => {
 		[ '--os-ui-border', '#33303a' ],
 		[ '--os-ui-border-strong', '#4d4a52' ],
 		[ '--os-ui-info-fg', '#c2f1f1' ],
-
 		[ '--os-ui-field-bg', '#33303a' ],
 		[ '--os-ui-field-border', '#4d4a52' ],
 		[ '--os-ui-field-fg', '#fffbff' ],
 		[ '--os-backstop', '#0c0b0f' ],
 		[ '--os-window-bg', '#1a1721' ],
-
 		[ '--os-titlebar-bg-focused', '#1a1721' ],
 		[ '--os-titlebar-bg', '#0c0b0f' ],
 		[ '--os-tabs-bg', '#1a1721' ],
@@ -44,7 +42,6 @@ describe( 'brand palette', () => {
 	} );
 
 	test( 'on-accent text is Starlight, and the bright fills opt out', () => {
-
 		expect( declared( '--os-ui-fg-on-accent' ) ).toBe( '#fffbff' );
 		expect( declared( '--os-ui-ribbon-fg' ) ).toBe( '#0c0b0f' );
 		expect( declared( '--os-ui-step-chip-fg' ) ).toBe( '#0c0b0f' );
@@ -61,7 +58,6 @@ describe( 'brand palette', () => {
 	test( 'both typefaces are declared and self-hosted', () => {
 		expect( CSS ).toContain( "url('../fonts/Geist-Variable.woff2')" );
 		expect( CSS ).toContain( "url('../fonts/GeistMono-Variable.woff2')" );
-
 		expect( CSS ).toContain( 'font-weight: 100 900' );
 		expect( declared( '--os-ui-font' ) ).toContain( "'Geist'" );
 		expect( declared( '--os-ui-font-mono' ) ).toContain( "'Geist Mono'" );
@@ -69,7 +65,6 @@ describe( 'brand palette', () => {
 	} );
 
 	test( 'the palette is scoped to the shell document, not :root', () => {
-
 		expect( CSS ).toContain( 'body.os-active {' );
 		expect( CSS ).not.toMatch( /^:root\s*\{/m );
 
@@ -83,7 +78,6 @@ describe( 'brand palette', () => {
 	} );
 
 	test( 'nothing but the per-scheme accent is scoped to the shell root', () => {
-
 		expect( CSS ).not.toMatch( /\.os-shell\[[^\]]*\]\s*\{[^}]*--os-ui-/ );
 	} );
 } );
@@ -109,7 +103,6 @@ describe( 'Legacy still reverts the brand', () => {
 	} );
 
 	test( 'the focused title bar goes back to WordPress blue', () => {
-
 		expect( LEGACY.tokens[ '--os-titlebar-bg-focused' ] ).toBe( '#2271b1' );
 		expect( LEGACY.tokens[ '--os-titlebar-color-focused' ] ).toBe( '#fff' );
 	} );

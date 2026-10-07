@@ -15,7 +15,6 @@ import '../ui/components/os-color-field/os-color-field';
 import '../ui/components/os-select/os-select';
 
 import { __ } from '../i18n';
-
 import {
 	createWallpaperPreviewManager,
 	type WallpaperPreviewManager,
@@ -35,9 +34,7 @@ export interface WorkspaceWizardApp {
 	title: string;
 	kind: NavKind;
 	locked?: boolean;
-
 	url?: string;
-
 	windowId?: string;
 }
 
@@ -61,38 +58,26 @@ export interface WorkspaceWizardAccent {
 
 export interface WorkspaceWizardResult {
 	label: string;
-
 	profile: WorkspaceProfile | null;
-
 	preset?: string;
 }
 
 export interface WorkspaceWizardOptions {
 	mode: 'create' | 'edit';
-
 	desktopId?: string;
-
 	label?: string;
-
 	profile?: WorkspaceProfile;
 	presets: WorkspacePreset[];
 	apps: WorkspaceWizardApp[];
 	widgets: WorkspaceWizardWidget[];
-
 	enabledWidgetIds: string[];
 	wallpapers: WorkspaceWizardWallpaper[];
 	accents: WorkspaceWizardAccent[];
-
 	resolvePreset: ( preset: WorkspacePreset ) => WorkspaceProfile;
-
 	captureAppearance: () => WorkspaceAppearance;
-
 	captureWindows?: () => WorkspaceLaunch[];
-
 	onCreate?: ( result: WorkspaceWizardResult ) => void;
-
 	onSave?: ( result: WorkspaceWizardResult ) => void;
-
 	onDelete?: () => void;
 }
 
@@ -243,12 +228,9 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 
 	let label = options.label ?? '';
 	let draft = cloneProfile( options.profile ?? blankWorkspaceProfile() );
-
 	let start = BLANK;
-
 	let customized = isEdit;
 	let stepIndex = 0;
-
 	let previews: WallpaperPreviewManager | null = null;
 	const disposePreviews = (): void => {
 		previews?.dispose();
@@ -307,7 +289,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			if ( i === stepIndex ) {
 				step.setAttribute( 'current', '' );
 			}
-
 			if ( i !== stepIndex ) {
 				step.setAttribute( 'interactive', '' );
 				step.addEventListener( 'os-step-click', () => go( i ) );
@@ -337,7 +318,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			const card = el( 'os-card', `${ ROOT_CLASS }__card` );
 			card.setAttribute( 'interactive', '' );
 			card.setAttribute( 'compact', '' );
-
 			const header = el( 'div', `${ ROOT_CLASS }__card-header` );
 			header.slot = 'header';
 			const glyph = el( 'os-icon', `${ ROOT_CLASS }__card-icon` );
@@ -405,7 +385,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			sw.setAttribute( 'value', icon.id );
 			sw.setAttribute( 'label', icon.label );
 			sw.setAttribute( 'size', 'small' );
-
 			sw.setAttribute( 'variant', 'accent' );
 			sw.setAttribute( 'preview', 'transparent' );
 			if ( draft.icon === icon.id ) {
@@ -544,7 +523,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			isOn: () => 'only' === draft.apps.mode,
 			setOn: ( on ) => {
 				draft.apps.mode = on ? 'only' : 'all';
-
 				if ( on && draft.apps.ids.length === 0 ) {
 					draft.apps.ids = options.apps
 						.filter( ( a ) => 'control' !== a.kind && ! a.locked )
@@ -635,7 +613,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 
 			const walls = el( 'os-swatch-grid', `${ ROOT_CLASS }__wallpapers` );
 			walls.setAttribute( 'label', __( 'Wallpaper' ) );
-
 			walls.setAttribute( 'columns', '6' );
 			for ( const w of options.wallpapers ) {
 				const sw = el( 'os-swatch' );
@@ -643,12 +620,10 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				sw.setAttribute( 'label', w.label );
 				sw.setAttribute( 'variant', 'wallpaper' );
 				sw.setAttribute( 'preview', w.preview );
-
 				sw.dataset.wallpaperId = w.id;
 				if ( a.wallpaper === w.id ) {
 					sw.setAttribute( 'selected', '' );
 				}
-
 				const name = el( 'span', `${ ROOT_CLASS }__swatch-label` );
 				name.textContent = w.label;
 				sw.appendChild( name );
@@ -659,7 +634,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				walls.appendChild( sw );
 			}
 			pickers.appendChild( labelled( __( 'Wallpaper' ), walls ) );
-
 			previews ??= createWallpaperPreviewManager( pickers );
 			previews.sync();
 
@@ -789,13 +763,11 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 				if ( ! app ) {
 					return;
 				}
-
 				const entry: WorkspaceLaunch = { match: app.id, title: app.title };
 				if ( app.url ) {
 					entry.url = app.url;
 				}
 				draft.windows = [ ...draft.windows, entry ];
-
 				draft.provisioned = false;
 				paintChips();
 				add.removeAttribute( 'value' );
@@ -810,7 +782,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			capture.textContent = __( 'Use the windows I have open now' );
 			capture.addEventListener( 'click', () => {
 				draft.windows = options.captureWindows?.() ?? [];
-
 				draft.provisioned = true;
 				paintChips();
 			} );
@@ -887,7 +858,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 
 	const go = ( index: number ): void => {
 		const leaving = steps[ stepIndex ];
-
 		if ( 'start' === leaving && index > 0 && ! customized ) {
 			customized = true;
 			if ( start !== BLANK ) {
@@ -901,7 +871,6 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			}
 		}
 		stepIndex = Math.max( 0, Math.min( steps.length - 1, index ) );
-
 		disposePreviews();
 		pane.replaceChildren();
 		RENDER[ steps[ stepIndex ] ]();

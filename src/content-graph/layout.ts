@@ -74,7 +74,6 @@ export interface Viewport {
 }
 
 export interface FrameOptions {
-
 	padding: number;
 	minScale: number;
 	maxScale: number;

@@ -86,7 +86,6 @@ const def: WallpaperDef = {
 	type: 'canvas',
 	preview: PREVIEW,
 	previewParams: PREVIEW_PARAMS,
-
 	renderPreview: async (
 		container: HTMLElement,
 		ctx: WallpaperPreviewContext,

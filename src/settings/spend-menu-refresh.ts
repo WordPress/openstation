@@ -10,6 +10,5 @@ export function spendMenuRefresh(): void {
 	try {
 		void refreshMenu();
 	} catch {
-
 	}
 }

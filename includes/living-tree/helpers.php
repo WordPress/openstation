@@ -84,7 +84,6 @@ function openstation_living_tree_active_users() {
 }
 
 function openstation_living_tree_seo_health() {
-
 	$health = (float) apply_filters( 'openstation_living_tree_seo_health', 0.7 );
 	return min( 1.0, max( 0.0, $health ) );
 }
@@ -104,7 +103,6 @@ function openstation_living_tree_site_health_performance() {
 	if ( is_string( $raw ) && '' !== $raw ) {
 		$counts = json_decode( $raw, true );
 	} elseif ( is_array( $raw ) ) {
-
 		$counts = $raw;
 	} else {
 		return null;

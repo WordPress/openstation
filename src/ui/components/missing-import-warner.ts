@@ -46,7 +46,6 @@ function suggest( tag: string ): string | null {
 			best = known;
 		}
 	}
-
 	return bestD > 0 && bestD <= 3 ? best : null;
 }
 
@@ -120,7 +119,6 @@ function checkElement( el: Element ): void {
 		if ( customElements.get( tag ) ) {
 			return;
 		}
-
 		warnFor( tag, el );
 	}, WARN_GRACE_MS );
 }

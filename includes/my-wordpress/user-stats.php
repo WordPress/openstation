@@ -10,7 +10,6 @@ function openstation_my_wordpress_register_user_stats_route() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_my_wordpress_user_stats_callback',
 			'permission_callback' => static function () {
-
 				return openstation_my_wordpress_user_can_use();
 			},
 			'args'                => array(
@@ -147,7 +146,6 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	}
 
 	if ( ! $can_see_private ) {
-
 		$post_counts = array(
 			'publish' => $post_counts['publish'],
 			'total'   => $post_counts['publish'],

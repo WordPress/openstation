@@ -7,7 +7,6 @@ export type AutosaveStatus =
 
 export interface AutosaveResult {
 	status: AutosaveStatus;
-
 	previewUrl?: string;
 }
 

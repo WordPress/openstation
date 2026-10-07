@@ -18,7 +18,7 @@ describe( 'renderMarkdown', () => {
 		expect( renderMarkdown( '[ok](https://example.test)' ) ).toContain(
 			'<a href="https://example.test"',
 		);
-
+		// eslint-disable-next-line no-script-url -- asserting the guard.
 		const unsafe = renderMarkdown( '[bad](javascript:alert(1))' );
 		expect( unsafe ).not.toContain( '<a' );
 		expect( unsafe ).not.toContain( 'javascript' );
@@ -39,7 +39,6 @@ describe( 'renderMarkdown', () => {
 	} );
 
 	test( 'handles a heading packed against bullets with no blank line', () => {
-
 		const html = renderMarkdown(
 			'### 1. Detection\n* **Format:** CLASSIC\n* **Reasoning:** tags',
 		);

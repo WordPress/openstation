@@ -13,7 +13,6 @@ export function languageFor( path: string ): string {
 		case 'cjs':
 			return 'javascript';
 		case 'jsx':
-
 			return 'javascript';
 		case 'ts':
 			return 'typescript';
@@ -63,7 +62,6 @@ export function createModelCache(): ModelCache {
 		monaco: typeof Monaco,
 		path: string,
 	): Monaco.Uri => {
-
 		return monaco.Uri.parse( `file:///workspace/${ path }` );
 	};
 
@@ -80,7 +78,6 @@ export function createModelCache(): ModelCache {
 		open( monaco, path, content ) {
 			const cached = cache.get( path );
 			if ( cached && ! cached.isDisposed() ) {
-
 				if ( cached.getValue() !== content ) {
 					cached.setValue( content );
 				}

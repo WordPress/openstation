@@ -2,7 +2,6 @@ import type { TermNeighbor } from './types';
 
 const MIN_FONT_SIZE = 11;
 const MAX_FONT_SIZE = 28;
-
 const SPIRAL_PADDING = 14;
 
 export interface Aabb {
@@ -57,7 +56,6 @@ export function findSpiralSlot( w: number, h: number, placed: Aabb[], anchorX = 
 		const aabb = { x: cx - w / 2 - padding, y: cy - h / 2 - padding, w: w + padding * 2, h: h + padding * 2 };
 		return ! placed.some( ( p ) => aabbIntersect( aabb, p ) );
 	};
-
 	if ( free( anchorX, anchorY ) ) {
 		return { x: anchorX, y: anchorY };
 	}
@@ -71,7 +69,6 @@ export function findSpiralSlot( w: number, h: number, placed: Aabb[], anchorX = 
 			return { x: cx, y: cy };
 		}
 	}
-
 	return { x: anchorX, y: anchorY + ( placed.length + 1 ) * ( h + padding ) };
 }
 
@@ -158,7 +155,6 @@ export function readPersistedPositions( key: string ): Map< number, PersistedPos
 			}
 		}
 	} catch {
-
 	}
 	return out;
 }
@@ -171,6 +167,5 @@ export function writePersistedPositions( key: string, positions: Map< number, Pe
 		}
 		window.localStorage.setItem( key, JSON.stringify( obj ) );
 	} catch {
-
 	}
 }

@@ -4,20 +4,14 @@ import type { NavItem, NavKind } from './types';
 
 export interface NavSystemTile {
 	item: SystemDockItem;
-
 	kind: Extract< NavKind, 'core' | 'app' | 'control' >;
-
 	locked?: boolean;
 }
 
 export interface NavSources {
-
 	menuItems: readonly DockItem[];
-
 	systemTiles: readonly NavSystemTile[];
-
 	icons: readonly DesktopIconServerEntry[];
-
 	resolveMenuWindowId?: ( item: DockItem ) => string;
 }
 

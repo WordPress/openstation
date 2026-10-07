@@ -128,9 +128,7 @@ describe( 'media menu items', () => {
 	test( 'the isMedia flag is the gate, not the kind', async () => {
 		setConfig( { currentUserId: 5, desktopStorage: allFlags } );
 		const { applyMenu } = await loadAndInstall();
-
 		expect( applyMenu( imagePlacement( { file: { isMedia: false } } ) ) ).toEqual( [] );
-
 		const legacy = imagePlacement();
 		delete ( legacy.file as { isMedia?: boolean } ).isMedia;
 		expect( applyMenu( legacy ) ).toEqual( [] );

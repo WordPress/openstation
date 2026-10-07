@@ -7,12 +7,10 @@ const OPENSTATION_FEEDBACK_ENDPOINT = 'https://openstation.blog/wp-json/openstat
 const OPENSTATION_USAGE_FEEDBACK_ENDPOINT = 'https://openstation.blog/wp-json/openstation-feedback/v1/usage';
 
 function openstation_deactivation_feedback_enabled() {
-
 	return (bool) apply_filters( 'openstation_deactivation_feedback_enabled', true );
 }
 
 function openstation_usage_feedback_enabled() {
-
 	return (bool) apply_filters( 'openstation_usage_feedback_enabled', true );
 }
 

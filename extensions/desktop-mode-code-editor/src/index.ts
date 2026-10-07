@@ -36,7 +36,6 @@ interface OpenFile {
 	path: string;
 	mtime: number;
 	size: number;
-
 	savedVersionId: number;
 }
 
@@ -110,7 +109,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	const root = body.querySelector< HTMLElement >( ROOT_SELECTOR );
 	const monacoSlot = body.querySelector< HTMLElement >( MONACO_MOUNT_SELECTOR );
 	if ( ! root || ! monacoSlot ) {
-
+		// eslint-disable-next-line no-console
 		console.error(
 			'[os-code-editor] Template mount nodes missing; ensure openstation_code_editor_render_template ran.',
 		);
@@ -148,11 +147,9 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	const editor = monaco.editor.create( editorMount, {
 		model: placeholder,
 		theme: monacoThemeForScheme( currentColorScheme() ),
-
 		automaticLayout: false,
 		minimap: {
 			enabled: true,
-
 			renderCharacters: false,
 		},
 		fontSize: 13,
@@ -180,7 +177,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 
 	const models = createModelCache();
 	const openFiles = new Map< string, OpenFile >();
-	const modelChangeDisposers = new Map< string, () => void >();
+	const modelChangeDisposers = new Map< string, () => void >(); // eslint-disable-line func-call-spacing
 	const openControllers = new Map< string, AbortController >();
 	let saveController: AbortController | null = null;
 
@@ -255,7 +252,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		}
 		const dirty = model.getVersionId() !== file.savedVersionId;
 		tabs.setDirty( path, dirty );
-
 		if ( tabs.getActive() === path ) {
 			refreshWindowTitle();
 		}
@@ -279,7 +275,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	};
 
 	const onTabClose = ( path: string ): void => {
-
 		openControllers.get( path )?.abort();
 		openControllers.delete( path );
 		modelChangeDisposers.get( path )?.();
@@ -309,7 +304,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		if ( ! model ) {
 			return;
 		}
-
 		modelChangeDisposers.get( path )?.();
 		const sub = model.onDidChangeContent( () => {
 			recomputeDirty( path );
@@ -320,7 +314,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	const openFile = async (
 		path: string,
 	): Promise< Monaco.editor.ITextModel | null > => {
-
 		if ( tabs.has( path ) ) {
 			tabs.open( tabMetaForPath( path ) );
 			showFile( path );
@@ -377,7 +370,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 		if ( ! model ) {
 			return null;
 		}
-
 		requestAnimationFrame( () => {
 			editor.revealLineInCenter( line );
 			editor.setPosition( { lineNumber: line, column: 1 } );
@@ -413,7 +405,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 				path: result.path,
 				mtime: result.mtime,
 				size: result.size,
-
 				savedVersionId: model.getVersionId(),
 			};
 			openFiles.set( file.path, updated );
@@ -460,7 +451,6 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 					renderFileStatus( reloaded, ' · reloaded from disk' );
 					return;
 				}
-
 				openFiles.set( file.path, {
 					...file,
 					mtime: data.server_mtime,
@@ -484,7 +474,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	};
 
 	editor.addCommand(
-
+		// eslint-disable-next-line no-bitwise
 		monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
 		() => {
 			void saveActiveFile();
@@ -493,7 +483,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	editor.addAction( {
 		id: 'osc.saveFile',
 		label: 'Save File',
-
+		// eslint-disable-next-line no-bitwise
 		keybindings: [ monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS ],
 		contextMenuGroupId: 'navigation',
 		run: () => {

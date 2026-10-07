@@ -34,7 +34,6 @@ export function speculateDocument( url: string ): void {
 			url: absolute,
 		} );
 	} catch {
-
 	}
 }
 
@@ -60,7 +59,6 @@ export function rememberRestoreTargets( urls: string[] ): void {
 				absolute.push( parsed.toString() );
 			}
 		} catch {
-
 		}
 	}
 	try {
@@ -69,6 +67,5 @@ export function rememberRestoreTargets( urls: string[] ): void {
 			urls: absolute,
 		} );
 	} catch {
-
 	}
 }

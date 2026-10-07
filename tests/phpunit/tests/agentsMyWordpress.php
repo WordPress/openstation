@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-agents
+ */
 class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -53,6 +56,9 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_agents_my_wordpress_entity
+	 */
 	public function test_entity_is_appended_for_a_reader() {
 		$entities = openstation_agents_my_wordpress_entity( array() );
 
@@ -63,18 +69,27 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		$this->assertNotEmpty( $entities[0]['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_my_wordpress_entity
+	 */
 	public function test_entity_is_listed_while_the_framework_is_off() {
 		$this->disable_agents();
 
 		$this->assertSame( array( 'agents' ), $this->entity_ids() );
 	}
 
+	/**
+	 * @covers ::openstation_agents_my_wordpress_entity
+	 */
 	public function test_entity_is_withheld_from_users_who_cannot_read_agents() {
 		wp_set_current_user( self::$subscriber_id );
 
 		$this->assertSame( array(), $this->entity_ids() );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
+	 */
 	public function test_window_config_reports_enabled_when_the_flag_is_on() {
 		$config = $this->agents_config();
 
@@ -84,6 +99,9 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		$this->assertTrue( $config['canInvoke'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
+	 */
 	public function test_window_config_reports_disabled_when_the_flag_is_off() {
 		$this->disable_agents();
 		$config = $this->agents_config();
@@ -92,6 +110,10 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		$this->assertFalse( $config['enabled'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
+	 * @covers ::openstation_agents_preview_cast
+	 */
 	public function test_the_roster_is_previewed_while_the_flag_is_off() {
 		$this->disable_agents();
 		$config = $this->agents_config();
@@ -113,10 +135,16 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
+	 */
 	public function test_the_preview_is_not_sent_once_the_framework_is_on() {
 		$this->assertArrayNotHasKey( 'preview', $this->agents_config() );
 	}
 
+	/**
+	 * @covers ::openstation_agents_preview_cast
+	 */
 	public function test_the_preview_carries_only_what_a_card_draws() {
 		foreach ( openstation_agents_preview_cast() as $member ) {
 			$this->assertArrayNotHasKey( 'instructions', $member );
@@ -125,6 +153,9 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_agents_preview_cast
+	 */
 	public function test_a_previewed_face_is_the_face_the_seeder_stores() {
 		$preview = openstation_agents_preview_cast();
 
@@ -140,6 +171,9 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_agents_preview_cast
+	 */
 	public function test_the_previewed_role_arrives_translated() {
 		$names = wp_roles()->get_names();
 
@@ -152,6 +186,9 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
+	 */
 	public function test_can_enable_tracks_manage_options() {
 		wp_set_current_user( self::$editor_id );
 		$config = $this->agents_config();
@@ -162,12 +199,21 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		$this->assertTrue( $config['canInvoke'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\agents_payload
+	 */
 	public function test_window_config_is_withheld_from_users_who_cannot_read_agents() {
 		wp_set_current_user( self::$subscriber_id );
 
 		$this->assertNull( $this->agents_config() );
 	}
 
+	/**
+	 * @covers ::openstation_agent_avatar_url
+	 * @covers ::openstation_agents_user_can_read
+	 * @covers ::openstation_agents_user_can_manage
+	 * @covers ::openstation_agents_user_can_invoke
+	 */
 	public function test_descriptor_helpers_are_declared_in_the_always_loaded_bootstrap() {
 		$always_loaded = array(
 			'openstation_agent_avatar_url',
@@ -191,6 +237,9 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @coversNothing
+	 */
 	public function test_no_unguarded_agents_calls_from_outside_the_module() {
 		$always_loaded = array( 'guard.php', 'bootstrap.php' );
 		$root          = dirname( __DIR__, 3 ) . '/includes';
@@ -218,7 +267,6 @@ class Tests_OpenStation_AgentsMyWordpress extends WP_UnitTestCase {
 				if ( in_array( $declared_in, $always_loaded, true ) ) {
 					continue;
 				}
-
 				if ( false !== strpos( $source, "function_exists( '{$function}' )" ) ) {
 					continue;
 				}

@@ -92,7 +92,6 @@ describe( 'registry — normalization', () => {
 	} );
 
 	test( 'drops icon values that are not paintable', () => {
-
 		const entry = normalizeEntry(
 			rawTheme( {
 				icons: {
@@ -347,7 +346,6 @@ describe( 'cssDeferred hydration', () => {
 		] );
 
 		applyDesktopTheme( 'acme-deferred' );
-
 		applyDesktopTheme( '' );
 
 		resolveFetch( {
@@ -503,7 +501,6 @@ describe( 'applyDesktopTheme', () => {
 	} );
 
 	test( 'adopts a PHP-pre-stamped boot state instead of re-requesting', () => {
-
 		const shell = mountShell();
 		shell.setAttribute( 'data-os-desktop-theme', 'acme-neon' );
 		const bootLink = document.createElement( 'link' );
@@ -522,7 +519,6 @@ describe( 'applyDesktopTheme', () => {
 	} );
 
 	test( 'a theme with no icon overrides publishes {} — never null', () => {
-
 		mountShell();
 		setDesktopThemes( [ rawTheme( { icons: {} } ) ] );
 		applyDesktopTheme( 'acme-neon' );
@@ -587,7 +583,6 @@ describe( 'slot maps', () => {
 		expect( slotForFileType( 'attachment' ) ).toBe(
 			DESKTOP_THEME_SLOTS.FILE_ATTACHMENT,
 		);
-
 		expect( slotForFileType( 'acme-widget' ) ).toBe( '' );
 		expect( slotForFileType( '' ) ).toBe( '' );
 	} );

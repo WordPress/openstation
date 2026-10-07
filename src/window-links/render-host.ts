@@ -51,12 +51,10 @@ export function startWindowLinkRenderHost( {
 	let elevatedLayer: HTMLElement | null = null;
 	let mountedId: string | null = null;
 	let teardown: ( () => void ) | null = null;
-
 	let mountToken = 0;
 	const frameSubscribers = new Set<( frame: WindowLinkFrame ) => void >();
 	let framePending = false;
 	const linkedWindows = new Set< string >();
-
 	let overviewActive = false;
 
 	const rectOf = (
@@ -67,7 +65,6 @@ export function startWindowLinkRenderHost( {
 			! el ||
 			! el.isConnected ||
 			win.state === 'minimized' ||
-
 			el.offsetParent === null
 		) {
 			return null;
@@ -159,7 +156,6 @@ export function startWindowLinkRenderHost( {
 				to: drawableRectOf( toWin ),
 				fromZIndex: zOf( fromWin ),
 				toZIndex: zOf( toWin ),
-
 				elevated:
 					focusedId !== null &&
 					( edge.fromWindowId === focusedId ||
@@ -229,13 +225,11 @@ export function startWindowLinkRenderHost( {
 		layer.id = LAYER_ID;
 		layer.className = 'os-window-links';
 		layer.setAttribute( 'aria-hidden', 'true' );
-
 		elevatedLayer = document.createElement( 'div' );
 		elevatedLayer.id = `${ LAYER_ID }-elevated`;
 		elevatedLayer.className =
 			'os-window-links os-window-links--elevated';
 		elevatedLayer.setAttribute( 'aria-hidden', 'true' );
-
 		const widgets = document.getElementById( 'os-widgets' );
 		if ( widgets && widgets.parentElement === area ) {
 			widgets.insertAdjacentElement( 'afterend', elevatedLayer );
@@ -257,7 +251,6 @@ export function startWindowLinkRenderHost( {
 		if ( getWindowLinkRenderer( id ) ) {
 			return id;
 		}
-
 		return getWindowLinkRenderer( WINDOW_LINK_RENDERER_DEFAULT )
 			? WINDOW_LINK_RENDERER_DEFAULT
 			: WINDOW_LINK_RENDERER_NONE;
@@ -279,7 +272,6 @@ export function startWindowLinkRenderHost( {
 			teardown = null;
 		}
 		mountedId = null;
-
 		layer?.replaceChildren();
 		elevatedLayer?.replaceChildren();
 	};
@@ -522,7 +514,6 @@ export function startWindowLinkRenderHost( {
 		() => {
 			overviewActive = false;
 			applyVisibility();
-
 			emitFrame();
 		},
 	);

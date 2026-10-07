@@ -331,7 +331,6 @@ add_filter( 'openstation_shell_config', 'openstation_files_inject_boot_folders',
 function openstation_files_rest_list_placements( WP_REST_Request $req ) {
 	$user_id   = get_current_user_id();
 	$parent_id = (int) $req->get_param( 'folder' );
-
 	if ( 0 === $parent_id ) {
 		openstation_files_auto_place_orphans( $user_id );
 	}
@@ -415,7 +414,6 @@ function openstation_files_rest_update_placement( WP_REST_Request $req ) {
 function openstation_files_rest_delete_placement( WP_REST_Request $req ) {
 	$id      = (int) $req['id'];
 	$user_id = get_current_user_id();
-
 	$force = '1' === (string) $req->get_param( 'force' )
 		|| true === $req->get_param( 'force' );
 	$ok    = $force
@@ -490,7 +488,6 @@ function openstation_files_rest_delete_folder( WP_REST_Request $req ) {
 	$user_id = get_current_user_id();
 	$force   = '1' === (string) $req->get_param( 'force' )
 		|| true === $req->get_param( 'force' );
-
 	$ok = $force
 		? openstation_files_purge_folder( $user_id, $id )
 		: openstation_files_trash_folder( $user_id, $id );
@@ -528,7 +525,6 @@ function openstation_files_shape_placement( $row ) {
 	if ( ! is_array( $row ) ) {
 		return array();
 	}
-
 	$access_gated = ! empty( $row['access_gated'] );
 	if ( $access_gated ) {
 		$shape = array(
@@ -550,7 +546,6 @@ function openstation_files_shape_placement( $row ) {
 			'exists'     => false,
 		);
 	}
-
 	$viewer_id = (int) get_current_user_id();
 	$can_trash = false;
 	if ( $viewer_id > 0 && function_exists( 'openstation_files_user_can_trash_placement' ) ) {
@@ -566,7 +561,6 @@ function openstation_files_shape_placement( $row ) {
 		'updatedAtMs' => (int) $row['updated_at_ms'],
 		'meta'        => isset( $row['meta'] ) ? $row['meta'] : null,
 		'file'        => $shape,
-
 		'accessGated' => $access_gated,
 		'canTrash'    => $can_trash,
 	);
@@ -584,7 +578,6 @@ function openstation_files_shape_folder( $row ) {
 		'shareMeta'   => isset( $row['share_meta'] ) ? $row['share_meta'] : null,
 		'updatedAtMs' => (int) $row['updated_at_ms'],
 	);
-
 	if ( function_exists( 'openstation_files_folder_share_summary' ) ) {
 		$shape['shareSummary'] = openstation_files_folder_share_summary( $row );
 	}
@@ -600,7 +593,6 @@ function openstation_files_check_if_match( $current_ms, WP_REST_Request $req, $r
 	if ( $expected === (int) $current_ms ) {
 		return null;
 	}
-
 	$actor_id = 0;
 	if ( isset( $row['updated_by'] ) && (int) $row['updated_by'] > 0 ) {
 		$actor_id = (int) $row['updated_by'];
@@ -808,7 +800,6 @@ function openstation_files_rest_purge_sharing_tables() {
 	$tables = openstation_files_table_names();
 
 	$to_drop = array( $tables['shares'], $tables['decisions'] );
-
 	$to_drop = (array) apply_filters( 'openstation_files_sharing_tables_for_purge', $to_drop );
 
 	$dropped = array();
@@ -819,7 +810,6 @@ function openstation_files_rest_purge_sharing_tables() {
 		if ( '' === $tbl ) {
 			continue;
 		}
-
 		if (
 			! preg_match( '/^[A-Za-z0-9_]+$/', $tbl ) ||
 			0 !== strpos( $tbl, $prefix )
@@ -828,7 +818,7 @@ function openstation_files_rest_purge_sharing_tables() {
 			continue;
 		}
 		$prev_suppress = $wpdb->suppress_errors( true );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$wpdb->query( "DROP TABLE IF EXISTS `{$tbl}`" );
 		$wpdb->suppress_errors( $prev_suppress );
 		$dropped[] = $tbl;
@@ -870,13 +860,12 @@ function openstation_files_rest_search_users( WP_REST_Request $req ) {
 		'order'      => 'ASC',
 		'exclude'    => $exclude,
 		'capability' => 'edit_posts',
-		'meta_query' => array(
+		'meta_query' => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- agents are excluded in SQL so they cannot use up the page.
 			array(
 				'key'     => OPENSTATION_AGENT_USER_MARKER_META,
 				'compare' => 'NOT EXISTS',
 			),
 		),
-
 		'fields'     => 'all',
 	);
 	if ( '' !== $q ) {
@@ -893,7 +882,6 @@ function openstation_files_rest_search_users( WP_REST_Request $req ) {
 		if ( ! openstation_files_share_user_is_eligible( $user ) ) {
 			continue;
 		}
-
 		$out[] = array(
 			'id'        => (int) $user->ID,
 			'name'      => openstation_plain_text_title( $user->display_name ),

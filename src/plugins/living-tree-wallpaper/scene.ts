@@ -38,7 +38,6 @@ import { WindField } from './wind';
 
 interface SceneOptions {
 	container: HTMLElement;
-
 	snapshot: TreeSnapshot | null;
 	prefersReducedMotion: boolean;
 }
@@ -114,10 +113,8 @@ export async function mountScene(
 		countWithinDepth( fullNodes, depthCap ),
 		hormones.age01,
 	);
-
 	let revealCount = prefersReducedMotion ? targetCount : 2;
 	let revealed: BranchNode[] = revealSkeleton( fullNodes, revealCount, depthCap );
-
 	let finalRevealed: BranchNode[] = revealSkeleton( fullNodes, targetCount, depthCap );
 
 	const currentTrunkBase = (): number => trunkGirthForAge( hormones.age01 );
@@ -143,7 +140,6 @@ export async function mountScene(
 	const ivyLayer: PixiContainer = new pixi.Container();
 	const leafLayer: PixiContainer = new pixi.Container();
 	const flowerLayer: PixiContainer = new pixi.Container();
-
 	const butterflyLayer: PixiContainer = new pixi.Container();
 	const fireflyLayer: PixiContainer = new pixi.Container();
 	treeBody.addChild(
@@ -168,7 +164,6 @@ export async function mountScene(
 
 	const ground = new GroundLayer( groundLayer, pixi );
 	const flowerField = new FlowerField( flowerFieldLayer, pixi );
-
 	let meadowDepth = 20;
 	const buildGround = (): void => {
 		const scale = treeRoot.scale.x || 1;
@@ -176,7 +171,6 @@ export async function mountScene(
 		const canvasH = app.canvas.clientHeight || container.clientHeight || 600;
 		const span = finalExtent().halfWidth * 1.3 + 80;
 		const coverHalfWidth = canvasW / ( 2 * scale ) + 40;
-
 		meadowDepth = Math.max( 0, canvasH - treeRoot.y ) / scale + 8;
 		ground.build( {
 			span,
@@ -186,7 +180,6 @@ export async function mountScene(
 			health01: hormones.health01,
 			siteKey: `${ dna.siteUrl }|${ dna.siteName }`,
 		} );
-
 		flowerField.build( {
 			categories: dna.totalCategories,
 			fieldHalf: Math.min( coverHalfWidth * 0.95, span * 1.35 + 90 ),
@@ -221,13 +214,11 @@ export async function mountScene(
 		const scale = Math.min(
 			( h * 0.84 ) / Math.max( 160, extent.height ),
 			( w * 0.8 ) / Math.max( 160, extent.halfWidth * 2 ),
-
 			1.6,
 		);
 		treeRoot.scale.set( scale );
 		treeRoot.x = w / 2;
 		treeRoot.y = h - Math.max( 12, h * 0.04 );
-
 		sky.resize( w, h, treeRoot.y - 4 * scale );
 	};
 	fit();
@@ -243,7 +234,6 @@ export async function mountScene(
 	const decorate = (): void => {
 		decorated = true;
 		computeGirth( revealed, currentTrunkBase() );
-
 		drawBranches( branchGraphics, currentChains(), revealed, null );
 		branchGraphics.cacheAsTexture?.( true );
 		leaves.populate( revealed, hormones, canopy, dna, rng );
@@ -251,7 +241,6 @@ export async function mountScene(
 		ivy.populate( revealed, hormones.structure01, rng );
 		bloom.apply( hormones.bloom01, leaves.placements(), rng );
 		const extent = finalExtent();
-
 		butterflies.populate(
 			dna.totalTags,
 			flowerField.targets(),
@@ -303,7 +292,6 @@ export async function mountScene(
 		if ( ! decorated ) {
 			decorate();
 		}
-
 		foliageDt += dt;
 		foliageFlip = ! foliageFlip;
 		if ( foliageFlip ) {
@@ -326,7 +314,6 @@ export async function mountScene(
 		computeGirth( revealed, currentTrunkBase() );
 		drawBranches( branchGraphics, currentChains(), revealed, null );
 		decorate();
-
 		leaves.update( 60, wind, t );
 		ivy.update( 60, t );
 		bloom.update( 60, t, () => ( { x: 0, y: 0 } ) );
@@ -341,7 +328,6 @@ export async function mountScene(
 		cfg = buildGrowthConfig( envelope, hormones.vigor01 );
 		canopy = canopyHue( `${ dna.siteUrl }|${ dna.siteName }` );
 		wind.setStrength( prefersReducedMotion ? 0 : hormones.wind01 );
-
 		branchGraphics.cacheAsTexture?.( false );
 		fullNodes = growCanonical();
 		depthCap = maxDepthForAge( hormones.age01 );
@@ -354,7 +340,6 @@ export async function mountScene(
 		revealed = revealSkeleton( fullNodes, revealCount, depthCap );
 		chainNodeCount = -1;
 		decorated = false;
-
 		leaves.populate( [], hormones, canopy, dna, rng );
 		falling.setSources( [] );
 		ivy.populate( [], 0, rng );
@@ -401,7 +386,6 @@ export async function mountScene(
 				ly: ( clientY - rect.top - treeRoot.y ) / scale,
 			};
 		},
-
 		isHit: ( lx, ly ) => {
 			const extent = finalExtent();
 			return isTrunkHit( lx, ly, {
@@ -424,7 +408,6 @@ export async function mountScene(
 				},
 				onClose: () => {
 					disposeTuner = null;
-
 					setHourOverride( null );
 					refreshSky();
 				},
@@ -452,7 +435,6 @@ export async function mountScene(
 			flowerField.destroy();
 			ground.destroy();
 			sky.destroy();
-
 			app.destroy( { removeView: true }, { children: true, texture: true } );
 			container.style.background = priorBackground;
 		},

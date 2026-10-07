@@ -22,7 +22,6 @@ describe( 'hooks.ts', () => {
 
 	test( 'throws a readable error when wp.hooks is missing', () => {
 		clearHooksStub();
-
 		expect( () => doAction( 'whatever' ) ).toThrow(
 			/wp\.hooks.*is not available/
 		);
@@ -70,7 +69,6 @@ describe( 'hooks.ts', () => {
 		whenReady( () => {
 			fired = true;
 		} );
-
 		await Promise.resolve();
 		expect( fired ).toBe( true );
 	} );
@@ -87,7 +85,6 @@ describe( 'hooks.ts', () => {
 	} );
 
 	test( 'HOOKS catalog carries stable hook-name constants', () => {
-
 		expect( HOOKS.INIT ).toBe( 'os.init' );
 		expect( HOOKS.WALLPAPERS ).toBe( 'os.wallpapers' );
 		expect( HOOKS.WINDOW_OPENED ).toBe( 'os.window.opened' );

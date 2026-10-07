@@ -52,7 +52,6 @@ function openstation_rest_require_enabled() {
 }
 
 function openstation_get_default_wallpaper() {
-
 	$id = apply_filters( 'openstation_default_wallpaper', 'galaxy' );
 	if ( ! is_string( $id ) ) {
 		return '';

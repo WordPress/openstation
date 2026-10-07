@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group content-graph
+ */
 class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 	protected static $author_a_id;
@@ -22,7 +25,6 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		openstation_content_graph_flush_cache();
 	}
 
@@ -60,7 +62,6 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 				'post_type'   => 'post',
 			)
 		);
-
 		wp_insert_post(
 			array(
 				'post_type'    => 'revision',
@@ -78,9 +79,7 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 		$this->assertSame( self::$author_a_id, $node['author_id'] );
 		$this->assertContains( self::$author_b_id, $node['contributor_ids'] );
-
 		$this->assertNotContains( self::$author_a_id, $node['contributor_ids'] );
-
 		$this->assertSame(
 			'Bob Example',
 			$payload['groups']['authors'][ self::$author_b_id ]['name']
@@ -88,7 +87,6 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 	}
 
 	public function test_post_with_no_category_falls_back_to_default_category() {
-
 		update_option( 'default_category', 1 );
 
 		$post_id = self::factory()->post->create(
@@ -98,7 +96,6 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 				'post_type'   => 'post',
 			)
 		);
-
 		wp_set_object_terms( $post_id, array(), 'category' );
 		wp_set_object_terms( $post_id, array(), 'post_tag' );
 
@@ -135,7 +132,6 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 	}
 
 	public function test_post_type_not_supporting_category_keeps_empty_category_ids() {
-
 		register_post_type(
 			'dm_test_no_cat',
 			array(
@@ -268,12 +264,10 @@ class Tests_OpenStation_ContentGraphGroupBy extends WP_UnitTestCase {
 
 	public function test_post_types_normalizes_legacy_filtered_descriptors() {
 		$filter_callback = function( $types ) {
-
 			$types[] = array(
 				'slug'  => 'dm_legacy',
 				'label' => 'Legacy',
 				'icon'  => 'dashicons-admin-page',
-
 			);
 			return $types;
 		};

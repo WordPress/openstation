@@ -1,21 +1,14 @@
 import { applyFilters, doAction } from '../hooks';
-
 import { focusField, readFieldValue, setControlDisabled } from './dialog-fields';
 
 const ROOT_CLASS = 'os-create-folder-dialog';
 
 export interface CreateFolderDialogOptions {
-
 	initialName?: string;
-
 	onSubmit: ( name: string ) => Promise< unknown > | unknown;
-
 	onCancel?: () => void;
-
 	title?: string;
-
 	label?: string;
-
 	submitLabel?: string;
 }
 
@@ -71,7 +64,6 @@ export function openCreateFolderDialog( options: CreateFolderDialogOptions ): vo
 	field.setAttribute( 'label', options.label ?? 'Folder name' );
 	field.setAttribute( 'value', initial );
 	field.setAttribute( 'autocomplete', 'off' );
-
 	field.setAttribute( 'spellcheck', 'false' );
 	dialog.appendChild( field );
 

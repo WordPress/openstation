@@ -60,7 +60,6 @@ function openstation_favicon_request_args( $limit_response_size = OPENSTATION_FA
 function openstation_favicon_extract_link_href( $html, $base_url ) {
 	$dom         = new DOMDocument();
 	$prev_errors = libxml_use_internal_errors( true );
-
 	$dom->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOWARNING | LIBXML_NOERROR );
 	libxml_clear_errors();
 	libxml_use_internal_errors( $prev_errors );
@@ -85,7 +84,6 @@ function openstation_favicon_extract_link_href( $html, $base_url ) {
 		if ( '' === $rel || '' === $href ) {
 			continue;
 		}
-
 		foreach ( $buckets as $key => $existing ) {
 			if ( '' !== $existing ) {
 				continue;
@@ -115,10 +113,8 @@ function openstation_favicon_absolutize_url( $href, $base_url ) {
 		return '';
 	}
 	if ( 0 === strpos( $href, 'data:' ) ) {
-
 		return '';
 	}
-
 	if ( preg_match( '#^https?://#i', $href ) ) {
 		return $href;
 	}
@@ -131,11 +127,9 @@ function openstation_favicon_absolutize_url( $href, $base_url ) {
 	if ( 0 === strpos( $href, '//' ) ) {
 		return $base['scheme'] . ':' . $href;
 	}
-
 	if ( 0 === strpos( $href, '/' ) ) {
 		return $origin . $href;
 	}
-
 	$path = isset( $base['path'] ) ? $base['path'] : '/';
 	$dir  = '/' === substr( $path, -1 ) ? $path : ( '' === dirname( $path ) || '.' === dirname( $path ) ? '/' : dirname( $path ) . '/' );
 	return $origin . $dir . $href;
@@ -153,7 +147,6 @@ function openstation_favicon_fetch_as_data_uri( $icon_url ) {
 		return null;
 	}
 	$content_type = strtolower( (string) wp_remote_retrieve_header( $response, 'content-type' ) );
-
 	$content_type = trim( explode( ';', $content_type )[0] );
 	if ( 0 !== strpos( $content_type, 'image/' ) ) {
 		return null;
@@ -166,7 +159,6 @@ function openstation_favicon_fetch_as_data_uri( $icon_url ) {
 	if ( null === $subtype ) {
 		return null;
 	}
-
 	if ( 'svg+xml' !== $subtype ) {
 		$dimensions = @getimagesizefromstring( $body );
 		if ( false === $dimensions ) {

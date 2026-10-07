@@ -53,7 +53,6 @@ afterEach( () => {
 
 describe( 'resolveWindowControls', () => {
 	test( 'returns built-ins in registered order for an iframe window', () => {
-
 		registerBuiltInControls();
 		const win = fakeWin( 'edit-post' );
 		const resolved = resolveWindowControls(
@@ -68,7 +67,6 @@ describe( 'resolveWindowControls', () => {
 	} );
 
 	test( 'native windows still get the basic control cluster', () => {
-
 		registerBuiltInControls();
 		const win = fakeWin( 'os-settings', { native: true } );
 		const resolved = resolveWindowControls(
@@ -113,7 +111,6 @@ describe( 'resolveWindowControls', () => {
 			'core/minimize',
 			'core/maximize',
 		] );
-
 		expect( resolved.controls.map( ( c ) => c.id ).slice( 3 ) ).toEqual( [
 			'core/focus-tab',
 		] );
@@ -199,7 +196,6 @@ describe( 'paintWindowControls', () => {
 	} );
 
 	test( 'core/reload + core/detach are no longer registered', () => {
-
 		registerBuiltInControls();
 		const ids = listWindowControls().map( ( c ) => c.id );
 		expect( ids ).not.toContain( 'core/reload' );
@@ -207,7 +203,6 @@ describe( 'paintWindowControls', () => {
 	} );
 
 	test( 'Window class still exposes reload() + detach() (menu click targets)', async () => {
-
 		const mod = await import( '../../src/window' );
 		expect( typeof mod.Window.prototype.reload ).toBe( 'function' );
 		expect( typeof mod.Window.prototype.detach ).toBe( 'function' );
@@ -238,7 +233,6 @@ describe( 'paintWindowControls', () => {
 		firstClose.dispatchEvent(
 			new CustomEvent( 'os-button-activate', { bubbles: true } ),
 		);
-
 		secondClose.dispatchEvent(
 			new CustomEvent( 'os-button-activate', { bubbles: true } ),
 		);
@@ -354,7 +348,6 @@ describe( 'paintWindowControls', () => {
 			win as unknown as Parameters< typeof paintWindowControls >[ 0 ],
 			host,
 		);
-
 		expect( ( host.children[ 0 ] as HTMLElement ).className ).toContain(
 			'os-window__btn--plug-info',
 		);

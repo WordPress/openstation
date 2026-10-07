@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 
 	protected static $editor_id;
@@ -16,7 +18,6 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		global $wp_rest_server;
 		$wp_rest_server = new WP_REST_Server();
 		do_action( 'rest_api_init' );
@@ -36,6 +37,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		return rest_do_request( $request );
 	}
 
+	/**
+	 * @covers ::openstation_register_drafts_widget
+	 */
 	public function test_registers_for_a_user_who_can_edit_posts() {
 		wp_set_current_user( self::$editor_id );
 
@@ -48,6 +52,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertTrue( $entry['resizable'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_drafts_widget
+	 */
 	public function test_is_denied_for_a_user_who_cannot_edit_posts() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -57,6 +64,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_capability_denied', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_drafts_widget_assets
+	 */
 	public function test_registers_its_script_and_style() {
 		openstation_register_drafts_widget_assets();
 
@@ -68,6 +78,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertTrue( (bool) $script->extra['group'], 'script loads in the footer' );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_apply
+	 */
 	public function test_apply_writes_title_and_excerpt() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -92,6 +105,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'A crisp summary.', get_post_field( 'post_excerpt', $post_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_apply
+	 */
 	public function test_apply_appends_tags() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -106,6 +122,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertContains( 'fresh', $tags );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_apply
+	 */
 	public function test_apply_creates_category_for_privileged_user() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -118,6 +137,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertContains( 'Brand New Cat', wp_get_post_categories( $post_id, array( 'fields' => 'names' ) ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_apply
+	 */
 	public function test_apply_does_not_create_category_for_unprivileged_user() {
 		$existing = self::factory()->term->create(
 			array( 'taxonomy' => 'category', 'name' => 'Existing Cat' )
@@ -135,10 +157,12 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		);
 
 		$this->assertFalse( get_term_by( 'name', 'Author Cannot Create This', 'category' ) );
-
 		$this->assertContains( $existing, wp_get_post_categories( $post_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_apply_permission
+	 */
 	public function test_apply_forbidden_for_user_who_cannot_edit() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -154,6 +178,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( $original, get_post_field( 'post_title', $post_id ), 'title unchanged' );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_apply
+	 */
 	public function test_apply_sanitizes_the_title() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -170,6 +197,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'Clean title', get_post_field( 'post_title', $post_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_apply
+	 */
 	public function test_apply_ignores_an_empty_title() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -185,6 +215,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'Keep me', get_post_field( 'post_title', $post_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_apply
+	 */
 	public function test_apply_fires_the_applied_action() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -208,6 +241,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( array( 'title' => 'Hooked' ), $seen[0][1] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_suggestions_permission
+	 */
 	public function test_suggestions_forbidden_for_user_who_cannot_edit() {
 		wp_set_current_user( self::$editor_id );
 		$post_id = self::factory()->post->create(
@@ -220,6 +256,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 403, $response->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_suggestions_permission
+	 */
 	public function test_suggestions_unavailable_without_a_provider() {
 		if ( openstation_ai_provider_configured() ) {
 			$this->markTestSkipped( 'This environment has an AI provider configured.' );
@@ -236,6 +275,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_ai_unavailable', $response->as_error()->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_drafts_ai_prompt_text
+	 */
 	public function test_prompt_text_includes_title_content_and_existing_categories() {
 		self::factory()->term->create(
 			array( 'taxonomy' => 'category', 'name' => 'Field Notes' )
@@ -258,6 +300,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Field Notes', $text );
 	}
 
+	/**
+	 * @covers ::openstation_drafts_ai_prompt_text
+	 */
 	public function test_content_limit_filter_truncates_the_prompt() {
 		$post = get_post(
 			self::factory()->post->create(
@@ -280,6 +325,10 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		return 10;
 	}
 
+	/**
+	 * @covers ::openstation_drafts_ai_instructions
+	 * @covers ::openstation_drafts_ai_schema
+	 */
 	public function test_instructions_and_schema_are_filterable() {
 		$post = get_post(
 			self::factory()->post->create( array( 'post_status' => 'draft' ) )
@@ -300,6 +349,10 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		return array( 'type' => 'marker' );
 	}
 
+	/**
+	 * @dataProvider data_provider_failures
+	 * @covers ::openstation_drafts_ai_failure
+	 */
 	public function test_provider_failure_is_mapped_to_a_reason( $code, $status, $detail, $reason, $provider_status ) {
 		$raw = new WP_Error( $code, $detail, null === $status ? array() : array( 'status' => $status ) );
 
@@ -324,6 +377,9 @@ class Tests_OpenStation_WidgetDrafts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_drafts_clean_list
+	 */
 	public function test_clean_list_normalizes_model_output() {
 		$out = openstation_drafts_clean_list(
 			array( '  spaced  ', '<b>bold</b>', '', array( 'nested' ), 'third', 'fourth' ),

@@ -33,7 +33,6 @@ const server = createServer( ( req, res ) => {
 	}
 	res.writeHead( 200, {
 		'content-type': TYPES[ path.extname( file ) ] || 'application/octet-stream',
-
 		'cache-control': 'no-store',
 	} );
 	createReadStream( file ).pipe( res );

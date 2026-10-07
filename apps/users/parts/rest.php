@@ -27,7 +27,6 @@ function openstation_users_window_apply_bulk_role( array $ids, $role ) {
 
 	$results = array();
 	foreach ( $ids as $id ) {
-
 		if ( ! current_user_can( 'edit_user', $id ) ) {
 			$results[ (string) $id ] = array(
 				'ok'    => false,
@@ -43,7 +42,6 @@ function openstation_users_window_apply_bulk_role( array $ids, $role ) {
 			);
 			continue;
 		}
-
 		if ( $id === $viewer_id && in_array( 'administrator', (array) $user->roles, true ) && 'administrator' !== $role ) {
 			$results[ (string) $id ] = array(
 				'ok'    => false,
@@ -51,7 +49,6 @@ function openstation_users_window_apply_bulk_role( array $ids, $role ) {
 			);
 			continue;
 		}
-
 		$user->set_role( $role );
 		$results[ (string) $id ] = array( 'ok' => true );
 	}
@@ -132,7 +129,6 @@ function openstation_users_window_apply_bulk_delete( array $ids, $reassign = 0 )
 
 	$results = array();
 	foreach ( $ids as $id ) {
-
 		if ( $id === $viewer_id ) {
 			$results[ (string) $id ] = array(
 				'ok'    => false,
@@ -210,7 +206,6 @@ function openstation_users_window_create_user( array $args ) {
 
 	$user_id = wp_insert_user( $userdata );
 	if ( is_wp_error( $user_id ) ) {
-
 		return $user_id;
 	}
 
@@ -218,7 +213,6 @@ function openstation_users_window_create_user( array $args ) {
 		update_user_meta( (int) $user_id, 'locale', $locale );
 	}
 	if ( $notify ) {
-
 		wp_new_user_notification( (int) $user_id, null, 'both' );
 	}
 

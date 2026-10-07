@@ -17,21 +17,14 @@ export function selectionStepFrequency( index: number ): number {
 }
 
 export interface SoupAudio {
-
 	cellTouch: ( index: number ) => void;
-
 	found: ( length: number ) => void;
-
 	invalid: () => void;
-
 	waveClear: () => void;
-
 	tick: () => void;
-
 	gameOver: () => void;
 	setEnabled: ( enabled: boolean ) => void;
 	isEnabled: () => boolean;
-
 	dispose: () => void;
 }
 
@@ -59,7 +52,6 @@ function storeEnabled( enabled: boolean ): void {
 	try {
 		window.localStorage.setItem( SOUND_STORAGE_KEY, enabled ? '1' : '0' );
 	} catch {
-
 	}
 }
 

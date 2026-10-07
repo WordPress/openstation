@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -37,7 +39,7 @@ class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 	protected static function create_vendor_index() {
 		$vendor = openstation_phpmyadmin_vendor_dir();
 		wp_mkdir_p( $vendor );
-		file_put_contents( $vendor . '/index.php', "<?php // test sentinel\n" );
+		file_put_contents( $vendor . '/index.php', "<?php // test sentinel\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		clearstatcache();
 	}
 
@@ -53,6 +55,9 @@ class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		return 'local' === wp_get_environment_type();
 	}
 
+	/**
+	 * @covers ::openstation_phpmyadmin_user_can_use
+	 */
 	public function test_filter_cannot_bypass_vendor_gate() {
 		wp_set_current_user( self::$admin_id );
 
@@ -62,6 +67,9 @@ class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		$this->assertFalse( openstation_phpmyadmin_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_phpmyadmin_user_can_use
+	 */
 	public function test_filter_cannot_bypass_environment_gate() {
 		if ( $this->environment_is_local() ) {
 			$this->markTestSkipped( 'Requires a non-local environment; wp_get_environment_type() is cached and cannot be changed mid-process.' );
@@ -75,6 +83,9 @@ class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		$this->assertFalse( openstation_phpmyadmin_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_phpmyadmin_user_can_use
+	 */
 	public function test_filter_can_narrow() {
 		wp_set_current_user( self::$admin_id );
 		self::create_vendor_index();
@@ -84,6 +95,9 @@ class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		$this->assertFalse( openstation_phpmyadmin_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_phpmyadmin_user_can_use
+	 */
 	public function test_subscriber_denied_by_default() {
 		wp_set_current_user( self::$subscriber_id );
 		self::create_vendor_index();
@@ -91,6 +105,9 @@ class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		$this->assertFalse( openstation_phpmyadmin_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_phpmyadmin_user_can_use
+	 */
 	public function test_admin_allowed_when_all_gates_pass() {
 		if ( ! $this->environment_is_local() ) {
 			$this->markTestSkipped( 'Requires a local environment; wp_get_environment_type() is cached and cannot be changed mid-process.' );
@@ -102,6 +119,9 @@ class Tests_OpenStation_PhpMyAdminUserCanUse extends WP_UnitTestCase {
 		$this->assertTrue( openstation_phpmyadmin_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_phpmyadmin_user_can_use
+	 */
 	public function test_filter_can_widen_capability_when_hard_gates_pass() {
 		if ( ! $this->environment_is_local() ) {
 			$this->markTestSkipped( 'Requires a local environment; wp_get_environment_type() is cached and cannot be changed mid-process.' );

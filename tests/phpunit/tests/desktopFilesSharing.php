@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -15,7 +18,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		openstation_files_install_schema();
-
 		foreach ( array( self::$owner_id, self::$editor_id, self::$subscriber_id ) as $uid ) {
 			delete_user_meta( $uid, OPENSTATION_OS_SETTINGS_META_KEY );
 			wp_cache_delete( $uid, 'user_meta' );
@@ -31,12 +33,18 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_visible_folders
+	 */
 	public function test_private_folder_is_invisible_to_non_owner() {
 		openstation_files_create_folder( self::$owner_id, array( 'name' => 'Private' ) );
 		$visible = openstation_files_get_visible_folders( self::$editor_id );
 		$this->assertSame( array(), $visible );
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_visible_folders
+	 */
 	public function test_all_share_mode_is_visible_to_anyone() {
 		$id = openstation_files_create_folder( self::$owner_id, array(
 			'name'       => 'Public',
@@ -47,8 +55,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertContains( $id, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_visible_folders
+	 */
 	public function test_users_share_mode_filters_by_id() {
-
 		$id    = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Shared with editor' ) );
 		$share = openstation_folder_share_invite(
 			$id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
@@ -60,8 +70,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotContains( $id, $visible_to_sub );
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_visible_folders
+	 */
 	public function test_roles_share_mode_filters_by_role() {
-
 		$other_editor = self::factory()->user->create( array( 'role' => 'editor' ) );
 		$id           = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Editors only' ) );
 		$share        = openstation_folder_share_invite(
@@ -75,6 +87,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotContains( $id, $visible_to_sub );
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_visible_folders
+	 */
 	public function test_owner_always_sees_their_own() {
 		$id = openstation_files_create_folder( self::$owner_id, array(
 			'name'       => 'My folder',
@@ -84,6 +99,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertContains( $id, $visible );
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_heartbeat_delta
+	 */
 	public function test_heartbeat_delta_returns_new_folders_since_version() {
 		$id = openstation_files_create_folder( self::$owner_id, array(
 			'name'       => 'Public',
@@ -108,6 +126,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( array(), $delta2['folders'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_heartbeat_delta
+	 */
 	public function test_heartbeat_delta_includes_tombstones_after_remove() {
 		$post_id = self::factory()->post->create();
 		$pid = openstation_files_place( self::$owner_id, 0, 'post', (string) $post_id );
@@ -122,8 +143,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertContains( $pid, $delta['removed']['placements'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_heartbeat_delta
+	 */
 	public function test_heartbeat_delta_truncated_flag() {
-
 		for ( $i = 0; $i < 7; $i++ ) {
 			openstation_files_create_folder( self::$owner_id, array(
 				'name'       => 'F' . $i,
@@ -140,6 +163,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertCount( 5, $delta['folders'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_shape_placement
+	 */
 	public function test_shape_placement_carries_can_trash_for_share_recipient() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -181,6 +207,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_share_gate_trash
+	 * @covers ::openstation_files_shape_placement
+	 */
 	public function test_root_shared_folder_placement_can_trash_respects_capability() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -233,6 +263,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_install_schema
+	 */
 	public function test_install_schema_is_idempotent_on_repeated_calls() {
 		global $wpdb;
 		$show_prev = $wpdb->show_errors( false );
@@ -240,7 +273,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		openstation_files_install_schema();
 		$first_error = (string) $wpdb->last_error;
 		$wpdb->last_error = '';
-
 		delete_option( OPENSTATION_FILES_SCHEMA_OPTION );
 		openstation_files_install_schema();
 		$second_error = (string) $wpdb->last_error;
@@ -253,6 +285,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_delete_folder
+	 */
 	public function test_delete_folder_cascade_revokes_shares_and_recipient_placements() {
 		global $wpdb;
 		$tables = openstation_files_table_names();
@@ -260,7 +295,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
 		) );
-
 		$second_editor = self::factory()->user->create( array( 'role' => 'editor' ) );
 		$user_share = openstation_folder_share_invite(
 			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
@@ -325,6 +359,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_delete_folder
+	 */
 	public function test_delete_parent_cascades_into_shared_subfolder() {
 		global $wpdb;
 		$tables = openstation_files_table_names();
@@ -335,14 +372,12 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$shared_sub_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Shared sub',
 		) );
-
 		openstation_files_place(
 			self::$owner_id,
 			$parent_id,
 			'folder',
 			(string) $shared_sub_id
 		);
-
 		$sub_share = openstation_folder_share_invite(
 			$shared_sub_id,
 			self::$owner_id,
@@ -355,12 +390,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		openstation_files_delete_folder( $parent_id, self::$owner_id );
 
 		$this->assertNull( openstation_files_get_folder( $parent_id ) );
-
 		$this->assertNull(
 			openstation_files_get_folder( $shared_sub_id ),
 			'Cascade must delete the shared sub-folder when its owner-side parent is deleted.'
 		);
-
 		$share_rows = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$tables['shares']} WHERE folder_id = %d",
@@ -370,15 +403,16 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( 0, $share_rows );
 	}
 
+	/**
+	 * @covers ::openstation_files_delete_folder
+	 */
 	public function test_delete_parent_leaves_other_owner_subfolder_intact() {
 		$parent_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Workspace',
 		) );
-
 		$other_id = openstation_files_create_folder( self::$editor_id, array(
 			'name' => 'Editor folder',
 		) );
-
 		openstation_files_place(
 			self::$editor_id,
 			$parent_id,
@@ -389,13 +423,15 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		openstation_files_delete_folder( $parent_id, self::$owner_id );
 
 		$this->assertNull( openstation_files_get_folder( $parent_id ) );
-
 		$this->assertNotNull(
 			openstation_files_get_folder( $other_id ),
 			'Cascade must NOT delete sub-folders owned by another user.'
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_update_folder
+	 */
 	public function test_rename_folder_bumps_pointing_placements() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Old name',
@@ -435,8 +471,11 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( 'New name', $folder_placement['file']['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_move
+	 * @covers ::openstation_files_check_if_match
+	 */
 	public function test_updated_by_attributes_conflict_to_mutator_not_row_owner() {
-
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
 		) );
@@ -477,6 +516,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_folder_share_accept
+	 */
 	public function test_shared_subfolder_lands_at_recipient_root() {
 		$parent_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Workspace',
@@ -484,14 +526,12 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$sub_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
 		) );
-
 		openstation_files_place(
 			self::$owner_id,
 			$parent_id,
 			'folder',
 			(string) $sub_id
 		);
-
 		$share_id = openstation_folder_share_invite(
 			$sub_id, self::$owner_id, 'user', (string) self::$editor_id, 'read'
 		);
@@ -507,7 +547,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			$folder_refs,
 			'Shared sub-folder must appear at recipient root regardless of where the owner has it placed.'
 		);
-
 		$this->assertNotContains(
 			(string) $parent_id,
 			$folder_refs,
@@ -515,6 +554,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_move
+	 */
 	public function test_owner_moving_shared_folder_does_not_touch_recipient_placement() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -560,6 +602,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( 0, (int) $recipient_row_after['parent_id'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_move
+	 * @covers ::openstation_folder_share_user_capability
+	 */
 	public function test_recipient_can_move_shared_folder_into_their_own_folder() {
 		$shared_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -621,6 +667,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotInstanceOf( WP_Error::class, $placement_for_add );
 	}
 
+	/**
+	 * @covers ::openstation_folder_share_user_capability
+	 */
 	public function test_cascade_grants_access_to_subfolders_of_shared_folder() {
 		$shared_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Workspace',
@@ -628,7 +677,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$nested_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Inside',
 		) );
-
 		openstation_files_place( self::$owner_id, $shared_id, 'folder', (string) $nested_id );
 
 		$share_id = openstation_folder_share_invite(
@@ -663,8 +711,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_folder_share_user_capability_cascade
+	 */
 	public function test_cascade_capability_is_batched_into_few_queries() {
-
 		$root  = openstation_files_create_folder( self::$owner_id, array( 'name' => 'root' ) );
 		$a     = openstation_files_create_folder( self::$owner_id, array( 'name' => 'a' ) );
 		$b     = openstation_files_create_folder( self::$owner_id, array( 'name' => 'b' ) );
@@ -688,7 +738,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$fired  = $wpdb->num_queries - $before;
 
 		$this->assertSame( 'write', $cap, 'Cascade through 5 ancestors must inherit write.' );
-
 		$this->assertLessThanOrEqual(
 			20,
 			$fired,
@@ -696,6 +745,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_sharing_enabled_for
+	 * @covers ::openstation_files_compute_heartbeat_delta
+	 */
 	public function test_folder_sharing_kill_switch_suppresses_heartbeat_payload() {
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'X' ) );
 		openstation_folder_share_invite(
@@ -726,6 +779,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_share_inject_shell_config
+	 */
 	public function test_shell_config_seeds_pending_invites_for_recipient() {
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Brief' ) );
 		openstation_folder_share_invite(
@@ -748,6 +804,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( array(), $config['serverPendingShares'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_share_inject_shell_config
+	 */
 	public function test_shell_config_kill_switch_suppresses_pending_invites() {
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Y' ) );
 		openstation_folder_share_invite(
@@ -764,6 +823,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( array(), $config['serverPendingShares'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_purge_sharing_tables
+	 */
 	public function test_purge_sharing_tables_drops_and_clears_version() {
 		$tables = openstation_files_table_names();
 
@@ -784,6 +846,13 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( '', (string) get_option( OPENSTATION_FILES_SCHEMA_OPTION, '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_resolve_share_in_folder
+	 * @covers ::openstation_files_rest_update_share
+	 * @covers ::openstation_files_rest_delete_share
+	 * @covers ::openstation_files_rest_accept_share
+	 * @covers ::openstation_files_rest_deny_share
+	 */
 	public function test_share_routes_reject_folder_id_mismatch() {
 		$folder_a = openstation_files_create_folder( self::$owner_id, array( 'name' => 'A' ) );
 		$folder_b = openstation_files_create_folder( self::$owner_id, array( 'name' => 'B' ) );
@@ -824,6 +893,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( 'read', $row['capability'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_search_users
+	 */
 	public function test_user_search_does_not_leak_user_login() {
 		wp_set_current_user( self::$owner_id );
 		$req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/users/search' );
@@ -838,6 +910,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_search_users
+	 */
 	public function test_user_search_skips_agents_and_fills_page_past_ineligible_users() {
 		for ( $i = 0; $i < 22; $i++ ) {
 			self::factory()->user->create(
@@ -865,6 +940,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertNotContains( $agent_id, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_files_rest_purge_sharing_tables
+	 */
 	public function test_purge_filter_rejects_unsafe_table_names() {
 		global $wpdb;
 		$prefix = $wpdb->prefix;
@@ -888,12 +966,14 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		foreach ( $data['skipped'] as $skipped ) {
 			$this->assertNotContains( $skipped, $data['dropped'] );
 		}
-
 		$users_table = $wpdb->users;
 		$row = $wpdb->get_var( "SELECT COUNT(*) FROM {$users_table}" );
 		$this->assertNotNull( $row, 'wp_users must survive a malicious filter.' );
 	}
 
+	/**
+	 * @covers ::openstation_files_delete_folder
+	 */
 	public function test_can_delete_folder_filter_veto_blocks_cascade() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Important',
@@ -918,6 +998,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_delete_folder
+	 */
 	public function test_cascade_fires_share_revoked_and_summary_actions() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -966,6 +1049,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertCount( 2, $summary_captured['shares_revoked'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_update_folder
+	 */
 	public function test_rename_fires_folder_renamed_action() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Old name',
@@ -987,8 +1073,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		$this->assertSame( self::$owner_id, $captured['uid'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_heartbeat_delta
+	 */
 	public function test_heartbeat_surfaces_new_file_added_to_shared_folder() {
-
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing assets',
 		) );
@@ -1038,6 +1126,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_get_for_user_folder
+	 * @covers ::openstation_files_compute_heartbeat_delta
+	 */
 	public function test_new_file_in_shared_folder_visible_via_rest_and_heartbeat_with_both_principals() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -1057,7 +1149,6 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			'editor',
 			'read'
 		);
-
 		openstation_folder_share_accept( $user_share, self::$editor_id );
 
 		$first = openstation_files_compute_heartbeat_delta(
@@ -1100,6 +1191,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_get_for_user_folder
+	 */
 	public function test_owner_lists_what_a_writer_added_to_their_shared_folder() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -1126,6 +1220,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_heartbeat_delta
+	 * @covers ::openstation_files_trash_folder_for_user
+	 */
 	public function test_leave_then_reaccept_does_not_send_active_placement_as_removed() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Marketing',
@@ -1168,6 +1266,10 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_files_get_for_user_folder
+	 * @covers ::openstation_files_get_visible_folders
+	 */
 	public function test_adding_link_to_shared_folder_keeps_folder_visible_to_recipient() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Shared with links',
@@ -1229,6 +1331,9 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_compute_heartbeat_delta
+	 */
 	public function test_heartbeat_surfaces_new_file_for_role_principal_recipient() {
 		$folder_id = openstation_files_create_folder( self::$owner_id, array(
 			'name' => 'Editors workspace',

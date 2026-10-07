@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -36,6 +39,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		return $folder;
 	}
 
+	/**
+	 * @covers OpenStation_Folder_File::serialize
+	 */
 	public function test_folder_file_shape_carries_the_share_summary() {
 		wp_set_current_user( self::$owner_id );
 		$folder = $this->shared_folder();
@@ -45,6 +51,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		$this->assertTrue( $shape['shareSummary']['shared'] );
 	}
 
+	/**
+	 * @covers OpenStation_Folder_File::serialize
+	 */
 	public function test_recipient_also_sees_the_shared_flag() {
 		$folder = $this->shared_folder();
 
@@ -53,6 +62,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		$this->assertTrue( $shape['shareSummary']['shared'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_folder_share_summary
+	 */
 	public function test_recipient_count_is_owner_only() {
 		$folder = $this->shared_folder();
 
@@ -63,6 +75,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		$this->assertSame( 0, $this->file_shape( $folder )['shareSummary']['recipientCount'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_folder_share_summary
+	 */
 	public function test_pending_invitation_is_not_shared_yet() {
 		wp_set_current_user( self::$owner_id );
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Pending' ) );
@@ -71,6 +86,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		$this->assertFalse( $this->file_shape( $folder )['shareSummary']['shared'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_folder_share_summary
+	 */
 	public function test_private_folder_is_not_shared() {
 		wp_set_current_user( self::$owner_id );
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Mine' ) );
@@ -80,6 +98,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		$this->assertSame( 0, $summary['recipientCount'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_folder_share_summary
+	 */
 	public function test_share_mode_all_counts_as_shared() {
 		wp_set_current_user( self::$owner_id );
 		$folder = openstation_files_create_folder(
@@ -93,6 +114,10 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		$this->assertTrue( $this->file_shape( $folder )['shareSummary']['shared'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_shape_folder
+	 * @covers OpenStation_Folder_File::serialize
+	 */
 	public function test_folder_response_and_placement_shape_agree() {
 		wp_set_current_user( self::$owner_id );
 		$folder = $this->shared_folder();
@@ -108,6 +133,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_inject_boot_folders
+	 */
 	public function test_boot_config_carries_the_viewers_folders() {
 		wp_set_current_user( self::$owner_id );
 		$folder = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Mine' ) );
@@ -119,6 +147,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		$this->assertContains( $folder, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_files_inject_boot_folders
+	 */
 	public function test_boot_folders_carry_owner_id() {
 		wp_set_current_user( self::$owner_id );
 		openstation_files_create_folder( self::$owner_id, array( 'name' => 'Mine' ) );
@@ -130,6 +161,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_files_inject_boot_folders
+	 */
 	public function test_boot_folders_include_accepted_shares_for_the_recipient() {
 		$folder = $this->shared_folder();
 
@@ -149,6 +183,9 @@ class Tests_OpenStation_FilesShareSummary extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_inject_boot_folders
+	 */
 	public function test_boot_folders_absent_for_anonymous_requests() {
 		wp_set_current_user( 0 );
 		$this->assertArrayNotHasKey(

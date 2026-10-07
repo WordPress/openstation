@@ -61,7 +61,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	afterEach( async () => {
-
 		manager.destroy();
 		vi.useRealTimers();
 		for ( const win of manager.getAll() ) {
@@ -252,7 +251,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'closing the active desktop while in overview re-lays out the survivor', async () => {
-
 		await manager.open( openConfig( 'a' ) );
 		await manager.open( openConfig( 'b' ) );
 		const second = manager.createDesktop();
@@ -265,7 +263,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const b = manager.getById( 'b' )!;
 		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe( true );
 		expect( b.element.classList.contains( 'os-window--overview' ) ).toBe( true );
-
 		expect( c.element.style.display ).toBe( 'none' );
 		expect( c.element.classList.contains( 'os-window--overview' ) ).toBe( false );
 
@@ -274,7 +271,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( manager.getActiveDesktopId() ).toBe( second.id );
 		expect( a.config.desktopId ).toBe( second.id );
 		expect( b.config.desktopId ).toBe( second.id );
-
 		expect( a.element.style.display ).toBe( '' );
 		expect( b.element.style.display ).toBe( '' );
 		expect( c.element.style.display ).toBe( '' );
@@ -284,7 +280,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'enterOverview shows minimized windows in grid without restoring them', async () => {
-
 		const a = await manager.open( openConfig( 'a' ) );
 		const b = await manager.open( openConfig( 'b' ) );
 		a.minimize();
@@ -296,7 +291,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		expect( a.state ).toBe( 'minimized' );
 		expect( b.state ).toBe( 'minimized' );
-
 		expect(
 			a.element.classList.contains( 'os-window--overview' ),
 		).toBe( true );
@@ -306,7 +300,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'enterOverview makes completed-minimize windows renderable for thumbnails', async () => {
-
 		const a = await manager.open( openConfig( 'a' ) );
 		a.minimize();
 		dispatchOpacityTransitionEnd( a.element );
@@ -331,7 +324,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'pending minimize transition does not re-hide an overview thumbnail', async () => {
-
 		const a = await manager.open( openConfig( 'a' ) );
 		a.minimize();
 
@@ -350,7 +342,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'selecting a minimized fullscreen thumbnail restores fullscreen class before restore', async () => {
-
 		const a = await manager.open( openConfig( 'a' ) );
 		a.toggleFullscreen();
 		a.minimize();
@@ -502,7 +493,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 're-entering overview mid-exit does not re-fullscreen a thumbnail', async () => {
-
 		vi.useFakeTimers();
 		const a = await manager.open( openConfig( 'a' ) );
 		a.toggleFullscreen();
@@ -523,7 +513,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect(
 			document.body.classList.contains( 'os-has-fullscreen-window' ),
 		).toBe( false );
-
 		expect( a.element.classList.contains( 'os-window--overview' ) ).toBe(
 			true,
 		);
@@ -556,7 +545,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 			HOOKS.OVERVIEW_EXITED,
 			HOOKS.OVERVIEW_ENTERING,
 		] );
-
 		expect( firstTopBar?.isConnected ).toBe( false );
 		expect(
 			desktopArea.querySelectorAll( '.os-overview-top-bar' ),
@@ -579,7 +567,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'enterOverview includes minimized windows in the grid thumbnails', async () => {
-
 		const a = await manager.open( openConfig( 'a' ) );
 		const b = await manager.open( openConfig( 'b' ) );
 		const c = await manager.open( openConfig( 'c' ) );
@@ -605,9 +592,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'snapshot preserves geometry for windows on non-active desktops', async () => {
-
 		const a = await manager.open( openConfig( 'a' ) );
-
 		a.element.style.left = '180px';
 		a.element.style.top = '120px';
 		a.element.style.width = '640px';
@@ -615,7 +600,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		const second = manager.createDesktop();
 		manager.switchDesktop( second.id );
-
 		expect( a.element.style.display ).toBe( 'none' );
 
 		const snap = manager.snapshot();
@@ -682,7 +666,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	test( 'isActive stops reporting true once its desktop is no longer active', async () => {
-
 		const a = await manager.open( openConfig( 'a' ) );
 		expect( manager.isActive( 'a' ) ).toBe( true );
 
@@ -760,7 +743,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	describe( 'Overview inert + tile structure', () => {
-
 		test( 'enterOverview inerts background chrome, exitOverview restores it', async () => {
 			const toRemove: HTMLElement[] = [];
 
@@ -807,7 +789,6 @@ describe( 'WindowManager — virtual desktops', async () => {
 				expect( sideDock.inert ).toBe( true );
 				expect( widgets.inert ).toBe( true );
 				expect( notice.inert ).toBe( true );
-
 				expect( a.element.inert ).toBeFalsy();
 				expect( b.element.inert ).toBeFalsy();
 				expect( ( a.element.children[ 0 ] as HTMLElement ).inert ).toBe( true );
@@ -1119,7 +1100,6 @@ describe( 'WindowManager — cross-desktop window focus', () => {
 	} );
 
 	test( 'session restore stays on the saved active desktop', async () => {
-
 		const session: Session = {
 			windows: [
 				{

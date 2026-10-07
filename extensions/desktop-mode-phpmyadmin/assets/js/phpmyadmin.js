@@ -28,12 +28,10 @@
       );
       return;
     }
-
     root.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;";
     root.innerHTML = "";
     const iframe = document.createElement("iframe");
     iframe.className = "osc-phpmyadmin__frame";
-
     iframe.style.cssText = "flex:1 1 auto;width:100%;height:100%;border:0;display:block;";
     iframe.src = cfg.vendorUrl + "/index.php?_=" + Date.now();
     iframe.title = "phpMyAdmin";

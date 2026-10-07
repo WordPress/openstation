@@ -1,6 +1,5 @@
 ( function() {
 	var __OS_DATA = window.__osChromelessData || {};
-
 	if ( ! window.parent || window.parent === window ) {
 		if ( ! window.openStationChromelessHost ) {
 			try {
@@ -11,10 +10,8 @@
 					window.location.replace( here.toString() );
 				}
 			} catch ( err ) {
-
 			}
 		}
-
 		return;
 	}
 
@@ -26,7 +23,7 @@
 			},
 			window.location.origin
 		);
-	} catch ( _err ) {                                   }
+	} catch ( _err ) { }
 
 	window.addEventListener( 'load', function () {
 		try {
@@ -87,7 +84,7 @@
 							},
 							window.location.origin
 						);
-					} catch ( _err ) {                   }
+					} catch ( _err ) { }
 				}
 				inFlight = true;
 				wpg
@@ -106,14 +103,12 @@
 						}
 					} )
 					.catch( function () {
-
 					} )
 					.finally( function () {
 						inFlight = false;
 					} );
 			} );
 		} catch ( _err ) {
-
 		}
 	} );
 
@@ -124,9 +119,9 @@
 					{ type: 'os-iframe-unloading' },
 					window.location.origin
 				);
-			} catch ( _err ) {                   }
+			} catch ( _err ) { }
 		} );
-	} catch ( _err ) {               }
+	} catch ( _err ) { }
 
 	try {
 		window.addEventListener( 'error', function ( e ) {
@@ -140,7 +135,7 @@
 					colno: e && typeof e.colno === 'number' ? e.colno : null,
 					stack: e && e.error && e.error.stack ? String( e.error.stack ) : null
 				}, window.location.origin );
-			} catch ( _err ) {                                                       }
+			} catch ( _err ) { }
 		} );
 
 		window.addEventListener( 'unhandledrejection', function ( e ) {
@@ -163,7 +158,7 @@
 					colno: null,
 					stack: stack
 				}, window.location.origin );
-			} catch ( _err ) {               }
+			} catch ( _err ) { }
 		} );
 
 		window.__wpdInstrument = window.__wpdInstrument || { headers: {}, observe: false };
@@ -181,7 +176,7 @@
 					observe: !! d.observe
 				};
 			} );
-		} catch ( _err ) {                                                }
+		} catch ( _err ) { }
 
 		var osReportNetwork = function ( method, url, status, duration, failed, extra ) {
 			try {
@@ -202,7 +197,7 @@
 					}
 				}
 				window.parent.postMessage( msg, window.location.origin );
-			} catch ( _err ) {               }
+			} catch ( _err ) { }
 		};
 
 		var osIsReadRequest = function ( method ) {
@@ -221,7 +216,7 @@
 				if ( body && typeof body.get === 'function' && body.get( 'action' ) === 'heartbeat' ) {
 					return true;
 				}
-			} catch ( _bgErr ) {                                             }
+			} catch ( _bgErr ) { }
 			return false;
 		};
 
@@ -234,7 +229,7 @@
 					{ type: 'os-iframe-activity', phase: 'start' },
 					window.location.origin
 				);
-			} catch ( _sErr ) {                                                }
+			} catch ( _sErr ) { }
 			return true;
 		};
 
@@ -252,7 +247,7 @@
 					},
 					window.location.origin
 				);
-			} catch ( _eErr ) {               }
+			} catch ( _eErr ) { }
 		};
 
 		var osAuthCheckCooldownUntil = 0;
@@ -264,13 +259,11 @@
 			if ( ! urlStr ) {
 				return;
 			}
-
 			try {
 				var resolved = new URL( urlStr, window.location.href );
 				if ( resolved.origin !== window.location.origin ) {
 					return;
 				}
-
 				if (
 					resolved.pathname.indexOf( '/wp-admin/admin-ajax.php' ) !== -1
 					&& /(?:^|&|\?)action=heartbeat(?:&|$)/.test( resolved.search )
@@ -296,7 +289,7 @@
 				) {
 					window.wp.heartbeat.connectNow();
 				}
-			} catch ( _err ) {               }
+			} catch ( _err ) { }
 		};
 
 		var osHeadersToObject = function ( h ) {
@@ -307,7 +300,7 @@
 			if ( typeof Headers !== 'undefined' && h instanceof Headers ) {
 				try {
 					h.forEach( function ( v, k ) { out[ k ] = v; } );
-				} catch ( _e ) {               }
+				} catch ( _e ) { }
 				return out;
 			}
 			if ( Array.isArray( h ) ) {
@@ -418,10 +411,9 @@
 									res.headers.forEach( function ( v, k ) { rh[ k ] = v; } );
 								}
 								extra.responseHeaders = rh;
-							} catch ( _hErr ) {               }
+							} catch ( _hErr ) { }
 						}
 						osReportNetwork( method, url, res.status, Math.round( dur ), ! res.ok, extra );
-
 						osActivityEnd( tracked, ! res.ok, res.status );
 						osMaybeForceAuthCheck( res.status, url, background );
 						return res;
@@ -447,7 +439,7 @@
 					this.__wpdMethod = method;
 					this.__wpdUrl = url;
 					this.__wpdReqHeaders = {};
-				} catch ( _err ) {                              }
+				} catch ( _err ) { }
 				return osOrigOpen.apply( this, arguments );
 			};
 			XMLHttpRequest.prototype.setRequestHeader = function ( name, value ) {
@@ -456,7 +448,7 @@
 						this.__wpdReqHeaders = {};
 					}
 					this.__wpdReqHeaders[ name ] = value;
-				} catch ( _err ) {               }
+				} catch ( _err ) { }
 				return osOrigSetHeader.apply( this, arguments );
 			};
 			XMLHttpRequest.prototype.send = function ( body ) {
@@ -464,7 +456,6 @@
 				var start = ( typeof performance !== 'undefined' && performance.now )
 					? performance.now()
 					: Date.now();
-
 				var background = osIsBackgroundRequest( xhr.__wpdUrl, body );
 				var tracked = osActivityBegin( xhr.__wpdMethod, background );
 
@@ -478,7 +469,7 @@
 								xhr.__wpdReqHeaders = {};
 							}
 							xhr.__wpdReqHeaders[ hk ] = contributed[ hk ];
-						} catch ( _hErr ) {                                                         }
+						} catch ( _hErr ) { }
 					}
 				}
 
@@ -505,7 +496,7 @@
 								}
 							}
 							extra.responseHeaders = resHeaders;
-						} catch ( _rErr ) {               }
+						} catch ( _rErr ) { }
 					}
 					var failed = xhr.status === 0 || xhr.status >= 400;
 					osReportNetwork(
@@ -521,7 +512,7 @@
 				};
 				try {
 					xhr.addEventListener( 'loadend', fire );
-				} catch ( _err ) {               }
+				} catch ( _err ) { }
 				try {
 					return osOrigSend.apply( this, arguments );
 				} catch ( sync ) {
@@ -588,12 +579,10 @@
 			};
 		}
 	} catch ( _err ) {
-
 	}
 
 	var __OPENSTATION_MENU_PAYLOAD__ = ( '_menuPayload' in __OS_DATA ) ? __OS_DATA._menuPayload : null;
 	var __OPENSTATION_MENU_SIG__ = ( '_menuSig' in __OS_DATA ) ? __OS_DATA._menuSig : null;
-
 	try {
 		if (
 			__OPENSTATION_MENU_PAYLOAD__
@@ -637,18 +626,16 @@
 							__wpdHarvest[ __wpdKey ] = __wpdBg;
 							continue;
 						}
-
 						var __wpdMask = __wpdBefore && ( __wpdBefore.maskImage || __wpdBefore.webkitMaskImage );
 						if ( __wpdMask && __wpdMask !== 'none' && __wpdMask.indexOf( 'url("")' ) === -1 ) {
 							__wpdHarvest[ __wpdKey ] = __wpdMask;
 							continue;
 						}
-
 						var __wpdWrapBg = window.getComputedStyle( __wpdImgWrap ).backgroundImage;
 						if ( __wpdWrapBg && __wpdWrapBg !== 'none' && __wpdWrapBg.indexOf( 'url("")' ) === -1 ) {
 							__wpdHarvest[ __wpdKey ] = __wpdWrapBg;
 						}
-					} catch ( __wpdE2 ) {                                                    }
+					} catch ( __wpdE2 ) { }
 				}
 
 				var __wpdItems = __OPENSTATION_MENU_PAYLOAD__.dockItems;
@@ -662,14 +649,12 @@
 						if ( __wpdHarvest[ __wpdItemKey ] ) {
 							__wpdItem.icon = __wpdHarvest[ __wpdItemKey ];
 						}
-					} catch ( __wpdE3 ) {                                        }
+					} catch ( __wpdE3 ) { }
 				}
 			}
 		}
 	} catch ( __wpdHarvestErr ) {
-
 	}
-
 	try {
 		var __wpdShell = window.top || window.parent;
 		if ( __OPENSTATION_MENU_PAYLOAD__ ) {
@@ -690,7 +675,6 @@
 			);
 		}
 	} catch ( err ) {
-
 	}
 
 	function adminScope( pathname ) {
@@ -780,7 +764,6 @@
 			);
 			link.setAttribute( 'href', target.toString() );
 		} catch ( err ) {
-
 		}
 	}
 
@@ -823,7 +806,6 @@
 		if ( ! link ) {
 			return;
 		}
-
 		var newContext = false;
 		var linkTarget = link.target || '';
 		if ( linkTarget !== '' && linkTarget !== '_self' ) {
@@ -840,7 +822,6 @@
 		if ( link.hasAttribute( 'download' ) ) {
 			return;
 		}
-
 		var footprintAttr = link.getAttribute( 'data-os-footprint' );
 		if ( footprintAttr ) {
 			var footprintUid = parseInt( footprintAttr, 10 );
@@ -856,19 +837,16 @@
 						window.location.origin
 					);
 				} catch ( footprintErr ) {
-
 				}
 				return;
 			}
 		}
-
 		if ( link.classList.contains( 'aria-button-if-js' ) ) {
 			if ( link.classList.contains( 'submitdelete' ) ) {
 				stampSourceRefererOnLink( link );
 			}
 			return;
 		}
-
 		if ( link.classList.contains( 'upload-view-toggle' ) ) {
 			var uploadWrap = link.closest( '.wrap' );
 			if (
@@ -878,7 +856,6 @@
 				return;
 			}
 		}
-
 		if (
 			link.closest( '#welcome-panel' ) &&
 			( link.classList.contains( 'welcome-panel-close' ) ||
@@ -886,7 +863,6 @@
 		) {
 			return;
 		}
-
 		if (
 			link.classList.contains( 'install-now' ) ||
 			link.classList.contains( 'update-link' ) ||
@@ -901,7 +877,6 @@
 		) {
 			return;
 		}
-
 		if ( isJetpackAppRoute( link ) ) {
 			return;
 		}
@@ -912,11 +887,9 @@
 			if ( rewritten ) {
 				link.setAttribute( 'href', rewritten );
 			}
-
 			e.preventDefault();
 			try {
 				var absolute = new URL( rewritten || href, window.location.href ).toString();
-
 				var adminLabel = visibleLinkText( link ) ||
 					link.getAttribute( 'title' ) ||
 					link.getAttribute( 'aria-label' ) ||
@@ -926,13 +899,11 @@
 						type: 'os-iframe-admin-link',
 						url: absolute,
 						label: adminLabel.slice( 0, 80 ),
-
 						newContext: newContext
 					},
 					window.location.origin
 				);
 			} catch ( bridgeErr ) {
-
 			}
 			return;
 		}
@@ -944,7 +915,6 @@
 			} catch ( err ) {
 				return;
 			}
-
 			other.searchParams.delete( 'openstation_chromeless' );
 			window.parent.postMessage(
 				{
@@ -957,7 +927,6 @@
 		}
 		if ( kind === 'external' ) {
 			e.preventDefault();
-
 			var externalAbsolute;
 			try {
 				externalAbsolute = new URL( href, window.location.href ).toString();
@@ -999,7 +968,6 @@
 		if ( target && '_self' !== target ) {
 			return;
 		}
-
 		if ( 'POST' !== String( form.getAttribute( 'method' ) || 'get' ).toUpperCase() ) {
 			if ( e.submitter && 'filter_action' === e.submitter.name ) {
 				return;
@@ -1020,7 +988,7 @@
 				{ type: 'os-iframe-activity', phase: 'start', navigation: true },
 				window.location.origin
 			);
-		} catch ( _subErr ) {                                                }
+		} catch ( _subErr ) { }
 	} );
 
 	function postFocusRequest() {
@@ -1030,7 +998,6 @@
 				window.location.origin
 			);
 		} catch ( err ) {
-
 		}
 	}
 
@@ -1109,7 +1076,6 @@
 		}
 		return false;
 	}
-
 	var bridgeDropPassthroughSelectors = [
 		'.components-drop-zone',
 		'[data-drop-zone]',
@@ -1127,7 +1093,6 @@
 		}
 		return false;
 	}
-
 	function bridgeNativeFileInputFor( target ) {
 		if ( ! target || ! target.closest ) {
 			return null;
@@ -1155,7 +1120,6 @@
 		}
 		return input;
 	}
-
 	function bridgeHandFilesToInput( input, list ) {
 		if ( ! list || list.length === 0 ) {
 			return false;
@@ -1179,7 +1143,6 @@
 		input.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 		return true;
 	}
-
 	var bridgeDropZoneAttr = 'data-os-file-drop-active';
 	var bridgeDropZone = null;
 	var bridgeDropZoneWatchdog = null;
@@ -1214,7 +1177,6 @@
 			bridgeDropZoneWatchdog = setTimeout( bridgeClearDropZone, 250 );
 		}
 	}
-
 	document.addEventListener( 'dragover', function ( ev ) {
 		if ( ! bridgeHasFiles( ev ) ) {
 			return;
@@ -1274,7 +1236,7 @@
 				},
 				window.location.origin
 			);
-		} catch ( err ) {                                    }
+		} catch ( err ) { }
 	}, false );
 
 	if ( ! window.__openStationDragHoverForwarderInstalled ) {
@@ -1294,7 +1256,7 @@
 					},
 					window.location.origin
 				);
-			} catch ( err ) {                                    }
+			} catch ( err ) { }
 		}, true );
 	}
 
@@ -1310,7 +1272,6 @@
 		document.addEventListener( 'pointermove', function ( ev ) {
 			if ( ! pointerTrackOn ) return;
 			var now = Date.now();
-
 			if ( now - pointerLastSent < 40 ) return;
 			pointerLastSent = now;
 			try {
@@ -1322,7 +1283,7 @@
 					},
 					window.location.origin
 				);
-			} catch ( err ) {                                    }
+			} catch ( err ) { }
 		}, { capture: true, passive: true } );
 	}
 
@@ -1339,14 +1300,13 @@
 				{ type: 'os-palette-cycle' },
 				window.location.origin
 			);
-		} catch ( err ) {                                    }
+		} catch ( err ) { }
 	}, true );
 
 	var __wpdCommandsSubscribed   = false;
 	var __wpdCommandsLastPayload  = '';
 	var __wpdCommandsDebounceId   = null;
 	var __wpdCommandsOrigin       = window.location.origin;
-
 	var __wpdCommandsKindCache    = Object.create( null );
 
 	function __wpdRenderIconElement( icon ) {
@@ -1357,11 +1317,10 @@
 		}
 		try {
 			var rendered = window.wp.element.renderToString( icon );
-
 			if ( typeof rendered === 'string' && rendered.toLowerCase().indexOf( '<svg' ) === 0 ) {
 				return rendered;
 			}
-		} catch ( _err ) {               }
+		} catch ( _err ) { }
 		return '';
 	}
 
@@ -1409,7 +1368,6 @@
 	}
 
 	var __wpdLastRawCommands = [];
-
 	var __wpdCommandCallbacks = Object.create( null );
 
 	function __wpdFinalizeCommands( raw ) {
@@ -1432,7 +1390,6 @@
 	}
 
 	var __wpdReactMounted = false;
-
 	var __wpdReactRoot    = null;
 	var __wpdReactHost    = null;
 
@@ -1462,7 +1419,6 @@
 
 		function commandsFingerprint( cmds ) {
 			if ( ! Array.isArray( cmds ) || cmds.length === 0 ) return '';
-
 			var keys = new Array( cmds.length );
 			for ( var i = 0; i < cmds.length; i++ ) {
 				var c = cmds[ i ];
@@ -1483,7 +1439,6 @@
 			if ( Array.isArray( resultsBucket.statics ) ) {
 				merged = merged.concat( resultsBucket.statics );
 			}
-
 			__wpdCommandCallbacks = Object.create( null );
 			for ( var j = 0; j < merged.length; j++ ) {
 				var cc = merged[ j ];
@@ -1501,7 +1456,6 @@
 			try {
 				result = loader.hook( { search: '' } );
 			} catch ( _err ) {
-
 			}
 			var cmds = ( result && Array.isArray( result.commands ) ) ? result.commands : [];
 			var key  = useMemo( function () { return commandsFingerprint( cmds ); }, [ cmds ] );
@@ -1582,7 +1536,7 @@
 
 	function __wpdUnmountReactHarvester() {
 		if ( __wpdReactRoot ) {
-			try { __wpdReactRoot.unmount(); } catch ( _err ) {               }
+			try { __wpdReactRoot.unmount(); } catch ( _err ) { }
 		}
 		__wpdReactRoot = null;
 		if ( __wpdReactHost && __wpdReactHost.parentNode ) {
@@ -1596,7 +1550,6 @@
 
 	function __wpdPostCommandsList() {
 		var list = __wpdHarvestCommands();
-
 		var key = '';
 		for ( var k = 0; k < list.length; k++ ) {
 			var lc = list[ k ];
@@ -1614,7 +1567,6 @@
 				__wpdCommandsOrigin
 			);
 		} catch ( _err ) {
-
 		}
 	}
 
@@ -1644,7 +1596,6 @@
 				}
 				return;
 			}
-
 			__wpdMountReactHarvester();
 		}
 		tryBind();
@@ -1654,10 +1605,9 @@
 		__wpdCommandsSubscribed  = false;
 		__wpdCommandsLastPayload = '';
 		if ( __wpdCommandsDebounceId !== null ) {
-			try { window.clearTimeout( __wpdCommandsDebounceId ); } catch ( _err ) {               }
+			try { window.clearTimeout( __wpdCommandsDebounceId ); } catch ( _err ) { }
 			__wpdCommandsDebounceId = null;
 		}
-
 		__wpdUnmountReactHarvester();
 	}
 
@@ -1667,11 +1617,9 @@
 			try {
 				cb( { close: function () {} } );
 			} catch ( _err ) {
-
 			}
 			return;
 		}
-
 		if ( ! window.wp || ! window.wp.data ) {
 			return;
 		}
@@ -1686,7 +1634,6 @@
 				try {
 					raw[ i ].callback( { close: function () {} } );
 				} catch ( _err ) {
-
 				}
 				return;
 			}
@@ -1711,7 +1658,6 @@
 			__wpdCommandsOrigin
 		);
 	} catch ( _err ) {
-
 	}
 
 	( function () {
@@ -1742,7 +1688,6 @@
 					savedInterval = null;
 				}
 			} catch ( _err ) {
-
 			}
 		} );
 	} () );
@@ -1779,7 +1724,7 @@
 				},
 				window.location.origin
 			);
-		} catch ( err ) {                                    }
+		} catch ( err ) { }
 	}, true );
 
 	document.addEventListener( 'keydown', function ( e ) {
@@ -1795,7 +1740,7 @@
 				{ type: 'os-window-close-all' },
 				window.location.origin
 			);
-		} catch ( err ) {                                    }
+		} catch ( err ) { }
 	}, true );
 
 	var origin = window.location.origin;
@@ -1811,7 +1756,7 @@
 			document.dispatchEvent( new CustomEvent( 'os-broadcast', {
 				detail: { topic: e.data.topic, payload: e.data.payload }
 			} ) );
-		} catch ( _err ) {                                                     }
+		} catch ( _err ) { }
 	} );
 
 	var OPENSTATION_SOFT_RELOAD_EXTRAS = ( '_softReload' in __OS_DATA ) ? __OS_DATA._softReload : [];
@@ -1831,7 +1776,6 @@
 		if ( _openstationEndsWith( location.pathname, '/wp-admin/plugins.php' ) ) {
 			return 'plugin';
 		}
-
 		return null;
 	}
 
@@ -1951,7 +1895,6 @@
 			if ( ! fresh || ! live ) {
 				return;
 			}
-
 			live.replaceChildren.apply( live, Array.prototype.slice.call( fresh.childNodes ) );
 			_openstationReinitListTables();
 			try {
@@ -1986,10 +1929,8 @@
 
 	function hasScreenOptionsContent() {
 		var wrap = document.getElementById( 'screen-options-wrap' );
-
 		return !! wrap && !! wrap.querySelector( 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea' );
 	}
-
 	function hasHelpContent() {
 		var wrap = document.getElementById( 'contextual-help-wrap' );
 		if ( ! wrap ) {
@@ -2116,7 +2057,7 @@
 		for ( var i = 0; i < waiters.length; i++ ) {
 			try {
 				waiters[ i ]( id );
-			} catch ( _err ) {               }
+			} catch ( _err ) { }
 		}
 	}
 
@@ -2128,7 +2069,7 @@
 				topic: topic,
 				payload: payload
 			}, _wpdParentOrigin );
-		} catch ( _err ) {                   }
+		} catch ( _err ) { }
 	}
 
 	window.addEventListener( 'message', function ( ev ) {
@@ -2200,7 +2141,7 @@
 					reply.requestId = data.requestId;
 				}
 				window.parent.postMessage( reply, _wpdParentOrigin );
-			} catch ( _err ) {               }
+			} catch ( _err ) { }
 			return;
 		}
 
@@ -2214,7 +2155,7 @@
 						type: 'os-bridge-handshake-ack',
 						connectionId: data.connectionId
 					}, _wpdParentOrigin );
-				} catch ( _err ) {               }
+				} catch ( _err ) { }
 				return;
 			}
 			var conn = {
@@ -2227,14 +2168,14 @@
 					type: 'os-bridge-handshake-ack',
 					connectionId: conn.id
 				}, _wpdParentOrigin );
-			} catch ( _err ) {               }
+			} catch ( _err ) { }
 			for ( var i = 0; i < _wpdConnectionListeners.length; i++ ) {
 				try {
 					_wpdConnectionListeners[ i ]( {
 						id: conn.id,
 						topics: conn.topics.slice()
 					} );
-				} catch ( _err ) {                        }
+				} catch ( _err ) { }
 			}
 			return;
 		}
@@ -2245,7 +2186,7 @@
 				for ( var j = 0; j < bucket.length; j++ ) {
 					try {
 						bucket[ j ]( data.payload, { topic: data.topic, connectionId: data.connectionId } );
-					} catch ( _err ) {                          }
+					} catch ( _err ) { }
 				}
 			}
 			var wildcard = _wpdSubs[ '*' ];
@@ -2253,7 +2194,7 @@
 				for ( var k = 0; k < wildcard.length; k++ ) {
 					try {
 						wildcard[ k ]( data.payload, { topic: data.topic, connectionId: data.connectionId } );
-					} catch ( _err ) {               }
+					} catch ( _err ) { }
 				}
 			}
 			return;
@@ -2272,7 +2213,7 @@
 				for ( var ci = 0; ci < cBucketSnap.length; ci++ ) {
 					try {
 						cBucketSnap[ ci ]( data.payload, meta );
-					} catch ( _err ) {               }
+					} catch ( _err ) { }
 				}
 			}
 			var cWildcard = _wpdChannelSubs[ '*' ];
@@ -2281,14 +2222,13 @@
 				for ( var cw = 0; cw < cWildcardSnap.length; cw++ ) {
 					try {
 						cWildcardSnap[ cw ]( data.payload, meta );
-					} catch ( _err ) {               }
+					} catch ( _err ) { }
 				}
 			}
 		}
 	} );
 
 	var iframeApi = {
-
 		publish: function ( topic, payload ) {
 			if ( typeof topic !== 'string' || topic === '' ) {
 				return;
@@ -2298,7 +2238,6 @@
 				_wpdEmitToParent( ids[ i ], topic, payload );
 			}
 		},
-
 		subscribe: function ( topic, cb ) {
 			if ( typeof topic !== 'string' || topic === '' || typeof cb !== 'function' ) {
 				return function () {};
@@ -2316,13 +2255,11 @@
 				}
 			};
 		},
-
 		onConnection: function ( cb ) {
 			if ( typeof cb !== 'function' ) {
 				return function () {};
 			}
 			_wpdConnectionListeners.push( cb );
-
 			var ids = Object.keys( _wpdConnections );
 			for ( var i = 0; i < ids.length; i++ ) {
 				try {
@@ -2330,7 +2267,7 @@
 						id: _wpdConnections[ ids[ i ] ].id,
 						topics: _wpdConnections[ ids[ i ] ].topics.slice()
 					} );
-				} catch ( _err ) {               }
+				} catch ( _err ) { }
 			}
 			return function () {
 				var idx = _wpdConnectionListeners.indexOf( cb );
@@ -2339,7 +2276,6 @@
 				}
 			};
 		},
-
 		requestConnection: function ( opts ) {
 			opts = opts || {};
 			var topics = Array.isArray( opts.topics ) ? opts.topics.slice() : [];
@@ -2384,7 +2320,7 @@
 							topics: topics.slice()
 						};
 						if ( typeof opts.onOpen === 'function' ) {
-							try { opts.onOpen( summary ); } catch ( _err ) {               }
+							try { opts.onOpen( summary ); } catch ( _err ) { }
 						}
 						settle( true, summary );
 					} else {
@@ -2408,7 +2344,6 @@
 				}
 			} );
 		},
-
 		chrome: {
 			setTheme: function ( tokens ) {
 				try {
@@ -2416,7 +2351,7 @@
 						type: 'os-chrome-theme',
 						tokens: tokens || {}
 					}, _wpdParentOrigin );
-				} catch ( _err ) {                   }
+				} catch ( _err ) { }
 			},
 			setControls: function ( config ) {
 				try {
@@ -2424,7 +2359,7 @@
 						type: 'os-chrome-controls',
 						config: config === undefined ? null : config
 					}, _wpdParentOrigin );
-				} catch ( _err ) {                   }
+				} catch ( _err ) { }
 			},
 			setSlot: function ( name, html ) {
 				if ( typeof name !== 'string' || name === '' ) {
@@ -2436,14 +2371,12 @@
 						slot: name,
 						html: typeof html === 'string' ? html : ''
 					}, _wpdParentOrigin );
-				} catch ( _err ) {                   }
+				} catch ( _err ) { }
 			}
 		},
-
 		get windowId() {
 			return _wpdWindowId;
 		},
-
 		whenWindowId: function () {
 			if ( _wpdWindowId !== null ) {
 				return Promise.resolve( _wpdWindowId );
@@ -2452,7 +2385,6 @@
 				_wpdWindowIdWaiters.push( resolve );
 			} );
 		},
-
 		isParentReachable: function () {
 			if ( ! window.parent || window.parent === window ) {
 				return false;
@@ -2480,7 +2412,7 @@
 					channel: channel,
 					payload: payload
 				}, _wpdParentOrigin );
-			} catch ( _err ) {                   }
+			} catch ( _err ) { }
 		};
 	}
 	if ( typeof window.wp.os.on !== 'function' ) {
@@ -2521,7 +2453,6 @@
 				}
 				if ( sawLoggedOut && data[ 'wp-auth-check' ] === true ) {
 					sawLoggedOut = false;
-
 					try {
 						if ( window.parent && window.parent !== window ) {
 							window.parent.postMessage(
@@ -2529,8 +2460,8 @@
 								window.location.origin
 							);
 						}
-					} catch ( _err ) {                   }
-					try { window.location.reload(); } catch ( _err ) {               }
+					} catch ( _err ) { }
+					try { window.location.reload(); } catch ( _err ) { }
 				}
 			} );
 		}
@@ -2549,7 +2480,7 @@
 				if ( queue && queue.length > 0 ) {
 					return;
 				}
-			} catch ( _err ) {                                          }
+			} catch ( _err ) { }
 			try {
 				var shell = window.top || window.parent;
 				if ( shell && shell !== window ) {
@@ -2558,7 +2489,7 @@
 						window.location.origin
 					);
 				}
-			} catch ( _err ) {                                  }
+			} catch ( _err ) { }
 		}
 		function notifyPluginInstall() {
 			try {
@@ -2573,7 +2504,7 @@
 						window.location.origin
 					);
 				}
-			} catch ( _err ) {                                  }
+			} catch ( _err ) { }
 		}
 		function attach() {
 			if ( attached || ! window.jQuery ) {
@@ -2607,5 +2538,5 @@
 				window.location.origin
 			);
 		}
-	} catch ( _err ) {                                   }
+	} catch ( _err ) { }
 } )();

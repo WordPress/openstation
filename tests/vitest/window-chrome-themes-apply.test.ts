@@ -109,7 +109,6 @@ describe( 'applyWindowTheme', () => {
 		expect( el.style.getPropertyValue( '--os-titlebar-bg' ) ).toBe(
 			'#fff',
 		);
-
 		expect( el.style.getPropertyValue( '--os-window-radius' ) ).toBe(
 			'',
 		);
@@ -130,7 +129,6 @@ describe( 'applyWindowTheme', () => {
 			tokens: { '--os-titlebar-bg': '#000' },
 			match: () => true,
 		} );
-
 		window.wp!.hooks!.addFilter(
 			'os.window.chrome.theme',
 			'test/brand',

@@ -82,7 +82,6 @@ export class OsTile extends Component {
 			{ name: 'drag-title', type: 'string' },
 			{ name: 'drag-icon', type: 'string' },
 		],
-
 		example: html`
 			<div
 				style="display:flex;gap:18px;flex-wrap:wrap;padding:16px;border-radius:8px;background:var( --os-ui-surface-sunken, #101018 );"
@@ -152,7 +151,6 @@ export class OsTile extends Component {
 			this.addEventListener( 'keydown', this._keydownHandler as EventListener );
 		}
 		document.addEventListener( 'os-settings-save-lifecycle', this._onSettingsSave );
-
 		this._paint();
 	}
 
@@ -272,7 +270,6 @@ export class OsTile extends Component {
 		if ( ! this.hasAttribute( 'tabindex' ) ) {
 			this.setAttribute( 'tabindex', '0' );
 		}
-
 		const accessGatedTitle =
 			'You don’t have permission to open this — ask the folder owner for access.';
 		if ( accessGated ) {

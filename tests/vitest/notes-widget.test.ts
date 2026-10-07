@@ -106,11 +106,9 @@ describe( 'note pad widget', () => {
 		expect( container.querySelector( '.dm-notes-pad__sheet' ) ).not.toBeNull();
 		expect( container.querySelectorAll( '.dm-notes-pad__under' ).length ).toBe( 2 );
 		expect( container.querySelectorAll( '.dm-notes-pad__swatch' ).length ).toBe( 6 );
-
 		expect( container.querySelector( '.dm-notes-pad__footer' )?.children.length ).toBe( 1 );
 		expect( container.querySelector( 'button:not(.dm-notes-pad__swatch):not(.dm-notes-pad__corner)' ) ).toBeNull();
 		expect( container.querySelector( 'os-checkbox-label' ) ).toBeNull();
-
 		const sheet = container.querySelector( '.dm-notes-pad__sheet' ) as HTMLElement;
 		const under1 = container.querySelector( '.dm-notes-pad__under--1' ) as HTMLElement;
 		expect( sheet.dataset.noteColor ).toBe( 'butter' );
@@ -135,7 +133,6 @@ describe( 'note pad widget', () => {
 			color: 'butter',
 			isPublic: false,
 		} );
-
 		expect( opts.payload.ghost?.offsetX ).toBe( 104 );
 		expect( opts.payload.ghost?.offsetY ).toBe( 10 );
 		expect(
@@ -150,11 +147,9 @@ describe( 'note pad widget', () => {
 		const peel = container.querySelector( '.dm-notes-pad__peel' ) as HTMLElement;
 		pointerDown( peel );
 		const opts = dragStart.mock.calls[ 0 ][ 0 ] as StartOpts;
-
 		opts.onCommit?.( { id: 'x', element: document.createElement( 'div' ), accept: () => true, onDrop: () => undefined } );
 		const editor = container.querySelector( '.dm-notes-pad__editor' ) as HTMLElement;
 		expect( editor.getAttribute( 'value' ) ).toBe( '' );
-
 		pointerDown( peel );
 		expect( dragStart ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -183,7 +178,6 @@ describe( 'note pad widget', () => {
 		editor.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Enter', ctrlKey: true, cancelable: true } ),
 		);
-
 		editor.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Enter', ctrlKey: true, cancelable: true } ),
 		);
@@ -198,7 +192,6 @@ describe( 'note pad widget', () => {
 		expect( seen ).toHaveBeenCalledTimes( 1 );
 		const detail = ( seen.mock.calls[ 0 ][ 0 ] as CustomEvent< { note: { id: number } } > ).detail;
 		expect( detail.note.id ).toBe( 31 );
-
 		expect( editor.getAttribute( 'value' ) ).toBe( '' );
 	} );
 } );

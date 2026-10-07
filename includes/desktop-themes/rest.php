@@ -23,13 +23,11 @@ function openstation_register_desktop_themes_rest_routes() {
 		'/desktop-themes',
 		array(
 			array(
-
 				'methods'             => WP_REST_Server::READABLE,
 				'permission_callback' => 'openstation_rest_require_enabled',
 				'callback'            => 'openstation_rest_list_desktop_themes',
 			),
 			array(
-
 				'methods'             => WP_REST_Server::CREATABLE,
 				'permission_callback' => 'openstation_desktop_themes_rest_permission',
 				'callback'            => 'openstation_rest_upload_desktop_theme',
@@ -118,7 +116,7 @@ function openstation_rest_upload_desktop_theme( WP_REST_Request $request ) {
 		return new WP_Error(
 			'openstation_desktop_theme_too_large',
 			sprintf(
-
+				/* translators: %s: formatted maximum file size. */
 				__( 'That theme archive is larger than the allowed maximum of %s.', 'desktop-mode' ),
 				size_format( $max )
 			),
@@ -161,7 +159,6 @@ function openstation_rest_delete_desktop_theme( WP_REST_Request $request ) {
 	if ( is_wp_error( $deleted ) ) {
 		return $deleted;
 	}
-
 	$prefix     = OPENSTATION_DESKTOP_THEME_WALLPAPER_PREFIX . $slug . '/';
 	$wallpapers = array();
 	foreach ( openstation_build_desktop_wallpapers_payload() as $wallpaper ) {

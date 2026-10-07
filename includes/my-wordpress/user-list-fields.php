@@ -45,6 +45,7 @@ function openstation_my_wordpress_user_summary_prime( $user_ids ) {
 		);
 	}
 
+	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder lists are built from counts, values are passed through prepare().
 	$counts = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_author, COUNT(*) AS total FROM {$wpdb->posts}
@@ -66,6 +67,7 @@ function openstation_my_wordpress_user_summary_prime( $user_ids ) {
 			array_merge( $ids, $types )
 		)
 	);
+	// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 	foreach ( (array) $counts as $row ) {
 		$user_id = (int) $row->post_author;
@@ -138,7 +140,7 @@ function openstation_my_wordpress_user_summary_payload( $user_id ) {
 		$type_slots      = implode( ',', array_fill( 0, count( $types ), '%s' ) );
 		$last_active_raw = $wpdb->get_var(
 			$wpdb->prepare(
-
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder list is built from a count, values pass through prepare().
 				"SELECT MAX(post_date_gmt) FROM {$wpdb->posts}
 				WHERE post_author = %d
 					AND post_status = 'publish'

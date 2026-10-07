@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-ai
+ */
 class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 
 	public function set_up() {
@@ -9,6 +12,9 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_ability_names
+	 */
 	public function test_only_readonly_abilities_are_offered() {
 		$names = openstation_ai_search_ability_names();
 
@@ -23,10 +29,16 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_ai_register_ability_category
+	 */
 	public function test_category_is_registered() {
 		$this->assertInstanceOf( 'WP_Ability_Category', wp_get_ability_category( 'openstation' ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_register_abilities
+	 */
 	public function test_all_abilities_registered_with_schemas() {
 		$names = array_merge(
 			openstation_ai_search_ability_names(),
@@ -43,6 +55,9 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_ai_ability_tool_name
+	 */
 	public function test_tool_name_derivation() {
 		$this->assertSame( 'search_posts', openstation_ai_ability_tool_name( 'desktop-mode/search-posts' ) );
 		$this->assertSame( 'search_comments_by_post', openstation_ai_ability_tool_name( 'desktop-mode/search-comments-by-post' ) );
@@ -52,6 +67,9 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/^[a-z0-9_]+$/', openstation_ai_ability_tool_name( 'x/A B!C' ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_register_abilities
+	 */
 	public function test_search_posts_executes_for_reader() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
@@ -62,6 +80,9 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'has_more', $result );
 	}
 
+	/**
+	 * @covers ::openstation_ai_register_abilities
+	 */
 	public function test_error_log_ability_permission_gate() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 		$denied = wp_get_ability( 'desktop-mode/get-php-error-log' )->execute( array( 'lines' => 10 ) );
@@ -73,6 +94,9 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'log_available', $allowed );
 	}
 
+	/**
+	 * @covers ::openstation_ai_register_comment_analysis_ability
+	 */
 	public function test_analyze_comment_ability_requires_moderation_cap() {
 		$comment_id = self::factory()->comment->create();
 
@@ -82,6 +106,9 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'ability_invalid_permissions', $denied->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_ai_register_abilities
+	 */
 	public function test_mcp_exposure_is_limited_to_safe_abilities() {
 		$public = wp_get_ability( 'desktop-mode/search-posts' )->get_meta();
 		$this->assertArrayHasKey( 'mcp', $public );

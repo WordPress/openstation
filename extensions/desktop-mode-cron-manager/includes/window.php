@@ -18,7 +18,6 @@ function openstation_cron_manager_register_assets() {
 	wp_register_script(
 		'desktop-mode-cron-manager',
 		$bundle_url,
-
 		array( 'wp-i18n', 'openstation' ),
 		OPENSTATION_CRON_MANAGER_VERSION,
 		true
@@ -44,6 +43,7 @@ function openstation_cron_manager_serve_bundle() {
 	header( 'Content-Type: application/javascript; charset=utf-8' );
 	header( 'Vary: Cookie' );
 
+	echo '/* desktop-mode-cron-manager config + bundle */' . "\n";
 	echo 'window.openStationCronManagerConfig = ' . wp_json_encode( $config ) . ';' . "\n";
 
 	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
@@ -52,7 +52,7 @@ function openstation_cron_manager_serve_bundle() {
 		$bundle = OPENSTATION_CRON_MANAGER_DIR . 'assets/js/cron-manager.js';
 	}
 	if ( file_exists( $bundle ) ) {
-		readfile( $bundle );
+		readfile( $bundle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 	}
 
 	echo "\n" . '(function(){var r=window.openStationNativeWindows=window.openStationNativeWindows||{};var orig=r["wpdm-cron-manager"];if(!orig){return;}r["wpdm-cron-manager"]=function(body){if(window.customElements&&typeof customElements.whenDefined==="function"){customElements.whenDefined("os-table").then(function(){orig(body);});}else{orig(body);}};})();';
@@ -139,7 +139,7 @@ function openstation_cron_manager_render_template() {
 	<?php
 	$html = (string) ob_get_clean();
 
-	echo apply_filters( 'openstation_cron_manager_template_html', $html );
+	echo apply_filters( 'openstation_cron_manager_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 function openstation_cron_manager_register_window() {
@@ -164,7 +164,7 @@ function openstation_cron_manager_register_window() {
 
 	$registered = openstation_register_window( 'wpdm-cron-manager', $window_args );
 	if ( is_wp_error( $registered ) ) {
-
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[desktop-mode-cron-manager] window registration failed: ' . $registered->get_error_message() );
 		return;
 	}

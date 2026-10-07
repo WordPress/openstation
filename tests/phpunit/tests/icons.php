@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-icons
+ */
 class Tests_OpenStation_Icons extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -13,7 +16,6 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
-
 	}
 
 	public function tear_down() {
@@ -22,6 +24,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_success_with_window_target() {
 		$result = openstation_register_icon( 'jorvy', array(
 			'title'    => 'Jorvy',
@@ -39,6 +44,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 10, $entry['position'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_success_with_url_target() {
 		$url = admin_url( 'edit.php' );
 		$result = openstation_register_icon( 'posts-shortcut', array(
@@ -53,6 +61,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( '', $entry['window'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_both_window_and_url_returns_wp_error() {
 		$result = openstation_register_icon( 'both', array(
 			'title'  => 'Both',
@@ -64,6 +75,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_conflicting_target', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_neither_window_nor_url_returns_wp_error() {
 		$result = openstation_register_icon( 'neither', array(
 			'title' => 'Neither',
@@ -73,6 +87,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_target', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_missing_title_returns_wp_error() {
 		$result = openstation_register_icon( 'no-title', array(
 			'window' => 'jorvy',
@@ -82,6 +99,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_title', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_missing_id_returns_wp_error() {
 		$result = openstation_register_icon( '', array(
 			'title'  => 'X',
@@ -92,6 +112,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_id', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_invalid_url_returns_wp_error() {
 		$result = openstation_register_icon( 'bad-url', array(
 			'title' => 'Bad URL',
@@ -102,6 +125,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_url', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_malformed_svg_data_uri_falls_back_to_generic() {
 		$result = openstation_register_icon( 'svg-attempt', array(
 			'title'  => 'SVG Attempt',
@@ -114,6 +140,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-generic', $entry['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_well_formed_svg_data_uri_is_preserved() {
 		$svg = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
 		$result = openstation_register_icon( 'svg-ok', array(
@@ -127,6 +156,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( $svg, $entry['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_icon_svg_shorthand_encodes_to_data_uri() {
 		$svg    = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>';
 		$result = openstation_register_icon( 'svg-shorthand', array(
@@ -141,6 +173,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( $expected, $entry['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_icon_svg_wins_over_icon() {
 		$svg    = '<svg xmlns="http://www.w3.org/2000/svg"/>';
 		$result = openstation_register_icon( 'svg-wins', array(
@@ -155,6 +190,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertStringStartsWith( 'data:image/svg+xml;base64,', $entry['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_icon_svg_rejects_embedded_script() {
 		$result = openstation_register_icon( 'svg-script', array(
 			'title'    => 'SVG with script',
@@ -166,6 +204,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_icon_svg', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_icon_svg_rejects_non_svg_markup() {
 		$result = openstation_register_icon( 'svg-bogus', array(
 			'title'    => 'Not an SVG',
@@ -177,6 +218,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_icon_svg', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_capability_gate_denies_subscriber() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -190,6 +234,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_capability_denied', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_registered_action_fires_on_success() {
 		$calls = array();
 		add_action( 'openstation_icon_registered', static function ( $id, $entry ) use ( &$calls ) {
@@ -205,6 +252,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertSame( 'fire', $calls[0]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 */
 	public function test_registered_action_does_not_fire_on_error() {
 		$count = 0;
 		add_action( 'openstation_icon_registered', static function () use ( &$count ) {
@@ -212,13 +262,15 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		} );
 
 		openstation_register_icon( 'broken', array(
-
 			'title' => 'Broken',
 		) );
 
 		$this->assertSame( 0, $count );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_icons_payload
+	 */
 	public function test_payload_sorts_by_position() {
 		openstation_register_icon( 'second', array(
 			'title'    => 'Second',
@@ -248,6 +300,10 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertLessThan( $found_second, $found_first );
 	}
 
+	/**
+	 * @covers ::openstation_register_icon
+	 * @covers ::openstation_build_desktop_icons_payload
+	 */
 	public function test_pinned_icon_sorts_before_unpinned() {
 		openstation_register_icon( 'unpinned-low', array(
 			'title'    => 'Unpinned Low',
@@ -283,6 +339,9 @@ class Tests_OpenStation_Icons extends WP_UnitTestCase {
 		$this->assertLessThan( $unpinned_idx, $pinned_idx );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_icons_payload
+	 */
 	public function test_filter_can_remove_icon() {
 		openstation_register_icon( 'filtered-out', array(
 			'title'  => 'Filtered Out',

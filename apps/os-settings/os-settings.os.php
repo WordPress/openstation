@@ -64,7 +64,7 @@ function purge_shares_action( State $state, Os $os ) {
 	$dropped  = $response instanceof \WP_REST_Response ? (array) $response->get_data()['dropped'] : array();
 	$os->toast(
 		sprintf(
-
+			/* translators: %d: number of tables dropped. */
 			__( 'Folder sharing data deleted. (%d tables)', 'desktop-mode' ),
 			count( $dropped )
 		)
@@ -72,21 +72,15 @@ function purge_shares_action( State $state, Os $os ) {
 }
 
 return App::define( ID )
-
 	->title( 'OpenStation Preferences' )
 	->icon( gear_svg() )
 	->size( 820, 720 )
 	->min_size( 560, 480 )
-
 	->placement( 'none' )
-
 	->admin( 'any' )
 	->capabilities( 'read' )
-
 	->prefetch()
-
 	->state( array( 'tab' => 'appearance' ) )
-
 	->mount(
 		static function ( State $state, Os $os ) {
 			$tab = sanitize_key( (string) $os->param( 'tab', '' ) );
@@ -105,10 +99,8 @@ return App::define( ID )
 		}
 	)
 	->action( 'purge-shares', __NAMESPACE__ . '\purge_shares_action' )
-
 	->action( 'focus', static function () {} )
 	->data( __NAMESPACE__ . '\data' )
-
 	->config(
 		array(
 			'mediaUrl'         => esc_url_raw( rest_url( 'wp/v2/media' ) ),

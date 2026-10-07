@@ -38,7 +38,6 @@ export function clampToViewport( menu: HTMLElement ): void {
 
 export function positionFlyout( fly: HTMLElement, anchor: HTMLElement ): void {
 	const ar = anchor.getBoundingClientRect();
-
 	fly.style.position = 'fixed';
 	fly.style.left = `${ ar.right }px`;
 	fly.style.top = `${ ar.top }px`;

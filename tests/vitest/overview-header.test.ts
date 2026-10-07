@@ -59,7 +59,6 @@ describe( 'the overview header row', () => {
 		bar = desktopArea.querySelector( '.os-overview-top-bar' );
 		const header = bar?.querySelector( '.os-overview-top-bar__header' );
 		expect( header?.firstElementChild ).toBe( switcher );
-
 		expect( bar?.firstElementChild ).toBe( header );
 		expect( bar?.querySelector( '.os-overview-top-bar__list' ) ).not.toBeNull();
 		expect( overviewTopBarReserve( bar as HTMLElement ) ).toBe(

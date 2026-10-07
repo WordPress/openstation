@@ -7,9 +7,7 @@ import { deleteNote, restoreNote } from './rest';
 import { NOTES_POST_TYPE, type Note } from './types';
 
 export interface TrashNoteCallbacks {
-
 	onEvict( noteId: number ): void;
-
 	onRestore( note: Note ): void;
 }
 
@@ -24,7 +22,6 @@ export async function trashNoteWithUndo(
 	callbacks.onEvict( note.id );
 	try {
 		await deleteNote( note.id );
-
 		broadcastNotesChange( 'trashed', [ note.id ] );
 		void optimistic.finish( true );
 		shellToast( {
@@ -42,12 +39,11 @@ export async function trashNoteWithUndo(
 						} )
 						.catch( ( err: unknown ) => {
 							void undo?.finish( false );
-
+							// eslint-disable-next-line no-console
 							console.error(
 								'[openstation] notes: restore failed:',
 								err,
 							);
-
 							toastRestFailure( shellToast, err, {
 								fallback: __( 'Could not restore the note.', 'desktop-mode' ),
 								duration: 5000,
@@ -57,6 +53,7 @@ export async function trashNoteWithUndo(
 			},
 		} );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] notes: trash failed:', err );
 		void optimistic.finish( false );
 		callbacks.onRestore( note );

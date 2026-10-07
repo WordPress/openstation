@@ -27,7 +27,6 @@ describe( '<os-empty-state>', () => {
 		expect( sr.querySelector( 'h3' )?.textContent ).toBe( 'No plugins' );
 		expect( sr.querySelector( 'p' )?.textContent ).toBe( 'Install something.' );
 		expect( sr.querySelector( 'os-icon' ) ).not.toBeNull();
-
 		expect( empty.querySelector( '.go' ) ).not.toBeNull();
 	} );
 

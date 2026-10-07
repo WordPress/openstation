@@ -4,28 +4,18 @@ import type { OsSettingsState } from './types';
 export type OsSettingsSnapshot = OsSettingsState;
 
 export interface SettingsTabRenderCtx {
-
 	isAdmin: boolean;
-
 	getOsSettings(): OsSettingsSnapshot;
-
 	subscribeOsSettings( cb: ( snapshot: OsSettingsSnapshot ) => void ): () => void;
 }
 
 export interface DesktopSettingsTab {
-
 	id: string;
-
 	label: string;
-
 	capability?: string;
-
 	order?: number;
-
 	icon?: string;
-
 	owner?: string;
-
 	render( body: HTMLElement, ctx: SettingsTabRenderCtx ): void;
 }
 

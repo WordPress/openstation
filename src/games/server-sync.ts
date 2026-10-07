@@ -14,7 +14,6 @@ export function stubFromServerEntry(
 			? entry.scoreColumns
 			: [],
 		config: entry.config ?? {},
-
 		window:
 			entry.window && Object.keys( entry.window ).length > 0
 				? entry.window
@@ -37,7 +36,6 @@ export function createGamesRegistrySync(): (
 		try {
 			const existing = registry.get( entry.id );
 			const stub = stubFromServerEntry( entry );
-
 			registry.register(
 				existing && typeof existing.render === 'function'
 					? { ...stub, render: existing.render, window: existing.window }

@@ -39,23 +39,58 @@ function openstation_compat_divi_vb_iframe_signal() {
 	if ( ! openstation_is_enabled() ) {
 		return;
 	}
-
 	if ( ! openstation_compat_divi_is_active() ) {
 		return;
 	}
-
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only flag set by Divi itself when constructing the inner iframe.
 	$is_app_frame = isset( $_GET['app_window'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['app_window'] ) );
 	?>
 <script id="os-compat-divi-vb">
 ( function () {
 	if ( window.top === window ) { return; }
 	<?php if ( $is_app_frame ) : ?>
-
+	// Inside Divi's own inner builder iframe. We only want to
+	// taint window.top with the Cypress flag when DM is wrapping
+	// the whole stack (3 frames deep: shell, chromeless,
+	// builder). At top-level VB flow (2 frames deep: builder-top,
+	// builder) window.parent === window.top AND window.top is
+	// the actual builder-top frame. Tainting it there would
+	// mistrain Divi's frame-helpers: it would hit the Cypress
+	// branch, see parent equals top, and resolve top_window =
+	// window (the inner self) instead of the parent. Divi then
+	// can't communicate inner-to-top and the preloader sits up
+	// forever. Bail before doing anything in this case.
 	if ( window.parent === window.top ) { return; }
 	<?php endif; ?>
 	try { window.top.__Cypress__ = window.top.__Cypress__ || true; } catch ( e ) {}
 	<?php if ( ! $is_app_frame ) : ?>
-
+	/*
+	 * VB-top preloader bridge.
+	 *
+	 * Divi's `visual-builder/build/root.js` clears the preloader by
+	 * removing the `et-fb-page-preloading` class from `#et-fb-app`
+	 * and `#et-fb-app-body-root` in two places: its own document AND
+	 * `window.top.document`. The intent is "and also clear it on the
+	 * outer VB-top frame I'm rendered into." In classic admin
+	 * `window.top` IS the VB-top, so that works.
+	 *
+	 * In a OpenStation chromeless iframe, the nesting is one deeper
+	 * — the inner React app's `window.top` is the desktop shell,
+	 * which has no Divi elements. Root.js cleans its own doc and
+	 * no-ops on the shell, leaving THIS document's preloader stuck
+	 * forever.
+	 *
+	 * Mirror the removal here: once the inner app-frame's
+	 * `#et-fb-app` loses the preloading class (the canonical signal
+	 * that Divi finished mounting), strip it from this document's
+	 * `#et-fb-app` / `#et-fb-app-body-root`. Same-origin gives us
+	 * direct access to the child iframe's document, so a
+	 * MutationObserver on the child suffices. A 30s watchdog
+	 * timeout strips the preloader even if the observer never fires
+	 * (e.g. Divi's React errors out silently inside the inner
+	 * frame) — better a broken builder visible than an invisible
+	 * spinner forever.
+	 */
 	function clearLocalPreloader() {
 		[ 'et-fb-app', 'et-fb-app-body-root' ].forEach( function ( id ) {
 			var el = document.getElementById( id );
@@ -201,7 +236,14 @@ function openstation_compat_divi_eject_parent_listener() {
 	?>
 <script id="os-compat-divi-vb-handoff-parent">
 ( function () {
-
+	// Reshape the iframe's URL into a top-level classic-admin URL.
+	// The iframe carries `openstation_chromeless=1`, which would
+	// keep the chromeless render alive even at top level — leaving
+	// the user on what looks like the same headless Gutenberg they
+	// already had inside the window. We want a normal wp-admin page
+	// instead, so strip that flag and add `desktop_mode_classic=1`
+	// so our own `openstation_redirect_plain_admin_to_portal()` in
+	// `includes/portal.php` skips its portal-bounce for this load.
 	function handoffUrl( raw ) {
 		try {
 			var parsed = new URL( String( raw || '' ), window.location.href );
@@ -226,7 +268,12 @@ function openstation_compat_divi_eject_parent_listener() {
 				dismissable: true,
 			} );
 		} else {
-
+			// Defense-in-depth no-op. `wp.os.confirm` is
+			// reliably present on every shell page where this
+			// listener emits, so this branch is unreachable in
+			// practice. A `window.confirm` here would violate the
+			// codebase-wide "no native dialogs" rule (see CLAUDE.md);
+			// resolving false is the safer empty fallback.
 			promptUser = Promise.resolve( false );
 		}
 		Promise.resolve( promptUser ).then( function ( ok ) {
@@ -238,6 +285,7 @@ function openstation_compat_divi_eject_parent_listener() {
 	<?php
 }
 add_action( 'admin_footer', 'openstation_compat_divi_eject_parent_listener', 1 );
+
 
 function openstation_compat_divi_is_active() {
 	$theme = wp_get_theme();

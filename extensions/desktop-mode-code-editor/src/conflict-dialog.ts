@@ -84,7 +84,6 @@ export function showConflictDialog(
 		document.addEventListener( 'keydown', onKey );
 
 		document.body.append( overlay );
-
 		cancel.focus();
 	} );
 }

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-script-dep-payloads
+ */
 class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 
 	const ENTRIES = 20;
@@ -15,13 +18,11 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-
 		openstation_register_assets();
 		wp_scripts()->add_data( 'openstation', 'data', '' );
 	}
 
 	public function tear_down() {
-
 		openstation_flush_desktop_command_script_registry();
 		parent::tear_down();
 	}
@@ -40,6 +41,10 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		return array( $config, $handles );
 	}
 
+	/**
+	 * @covers ::openstation_build_menu_payload
+	 * @covers ::openstation_compact_script_deps
+	 */
 	public function test_menu_payload_serializes_a_shared_dependency_once() {
 		list( $config, $handles ) = $this->register_shared_dependency();
 
@@ -61,6 +66,9 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		$this->assertSame( self::ENTRIES, $seen );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_boot_config_serializes_a_shared_dependency_once() {
 		$this->register_shared_dependency();
 
@@ -72,6 +80,9 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		$this->assertSame( 1, substr_count( $blob, 'sdpsharedmarker' ) );
 	}
 
+	/**
+	 * @covers ::openstation_compact_script_deps
+	 */
 	public function test_compaction_keeps_order_and_keys_by_handle() {
 		$a   = array( 'handle' => 'a', 'url' => 'https://example.test/a.js' );
 		$b   = array( 'handle' => 'b', 'url' => '', 'l10n' => array( 'var b=1;' ) );
@@ -82,7 +93,6 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 					array( 'handle' => 'x', 'scriptDeps' => array( $a, $b ) ),
 					array( 'handle' => 'y', 'scriptDeps' => array( $b ) ),
 				),
-
 				'serverSettingsTabs'   => array( 'general' => array( 'scriptDeps' => array( $a ) ) ),
 			),
 			$map
@@ -93,6 +103,9 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		$this->assertSame( array( 'a' => $a, 'b' => $b ), $map );
 	}
 
+	/**
+	 * @covers ::openstation_compact_script_deps
+	 */
 	public function test_nested_scriptDeps_is_plugin_data_and_is_left_alone() {
 		$foreign = array( array( 'handle' => 'wp-hooks', 'foo' => 1 ) );
 		$real    = array( 'handle' => 'wp-hooks', 'url' => 'https://example.test/hooks.js' );
@@ -113,6 +126,9 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		$this->assertSame( array( 'wp-hooks' => $real ), $map, 'The map holds the real payload, not the plugin\'s.' );
 	}
 
+	/**
+	 * @covers ::openstation_compact_script_dep_list
+	 */
 	public function test_bare_handle_is_resolved_into_the_map() {
 		wp_register_script( 'sdp-bare', 'https://example.test/bare.js', array(), '1', true );
 		wp_register_script( 'sdp-empty-alias', false, array(), '1', true );
@@ -125,7 +141,6 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 			),
 			$map
 		);
-
 		$this->assertSame( array( 'sdp-bare' ), $out['serverCommandScripts'][0]['scriptDeps'] );
 		$this->assertArrayHasKey( 'sdp-bare', $map );
 		$this->assertStringContainsString( 'bare.js', $map['sdp-bare']['url'] );
@@ -134,6 +149,9 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		wp_deregister_script( 'sdp-empty-alias' );
 	}
 
+	/**
+	 * @covers ::openstation_build_menu_payload
+	 */
 	public function test_no_scriptDeps_list_is_left_uncompacted_in_a_real_payload() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 		$payload = openstation_build_menu_payload();

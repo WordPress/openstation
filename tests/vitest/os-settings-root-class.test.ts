@@ -28,7 +28,6 @@ describe( 'OS Settings root class', () => {
 	} );
 
 	test( 'the stylesheet has no orphaned root scope of its own', () => {
-
 		const roots = new Set(
 			Array.from(
 				css.matchAll( /^\.(os-settings|desktop-mode-os-settings)(?![\w-])/gm ),
@@ -55,7 +54,6 @@ describe( 'OS Settings root class', () => {
 	} );
 
 	test( 'the sheet rides the app, not a shell enqueue', () => {
-
 		const assets = readFileSync( join( root, 'includes/assets.php' ), 'utf8' );
 		expect( assets ).not.toMatch( /wp_register_style\(\s*'os-settings'/ );
 	} );

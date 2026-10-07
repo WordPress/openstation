@@ -36,7 +36,6 @@ describe( 'effects/registry.ts', () => {
 		expect( getUnfocusEffect( 'grayscale' )?.className ).toBe(
 			'os-window--fx-grayscale',
 		);
-
 		const ids = listUnfocusEffects().map( ( e ) => e.id );
 		expect( ids ).toEqual(
 			expect.arrayContaining( [ 'darken', 'frost', 'grayscale' ] ),

@@ -116,25 +116,17 @@ export type FilesLayerSortMode =
 export interface FilesLayer {
 	host: HTMLElement;
 	folderId: number;
-
 	onSelectionChange: (
 		cb: ( placement: RestPlacementShape | null ) => void,
 	) => () => void;
-
 	onSelectionChanged: (
 		cb: ( placements: RestPlacementShape[] ) => void,
 	) => () => void;
-
 	getSelection: () => RestPlacementShape[];
-
 	selectAll: () => void;
-
 	clearSelection: () => void;
-
 	sort: ( mode: FilesLayerSortMode ) => void;
-
 	reflow: () => void;
-
 	readonly hydrated: Promise< void >;
 	dispose: () => void;
 }
@@ -214,12 +206,12 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		keyOf: ( el ) => el.dataset.placementId ?? null,
 		onChange: ( keys ) => {
 			const placements = placementsForKeys( keys );
-
 			const single = placements.length === 1 ? placements[ 0 ] : null;
 			for ( const cb of selectionListeners ) {
 				try {
 					cb( single );
 				} catch ( err ) {
+					// eslint-disable-next-line no-console
 					console.error(
 						'[openstation] files: selection listener threw:',
 						err,
@@ -230,6 +222,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				try {
 					cb( placements );
 				} catch ( err ) {
+					// eslint-disable-next-line no-console
 					console.error(
 						'[openstation] files: selection listener threw:',
 						err,
@@ -364,7 +357,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				try {
 					folderDereg();
 				} catch {
-
 				}
 				folderDropDeregisters.delete( id );
 			}
@@ -373,7 +365,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				try {
 					rejectDereg();
 				} catch {
-
 				}
 				tileRejectDeregisters.delete( id );
 			}
@@ -406,7 +397,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 	const repaint = ( state: FilesState ): void => {
 		const raw = state.placementsByFolder.get( folderId ) ?? [];
-
 		const list = raw.slice().sort( ( a, b ) => {
 			const ap = isPinned( a ) ? 0 : 1;
 			const bp = isPinned( b ) ? 0 : 1;
@@ -427,12 +417,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		}
 
 		container.replaceChildren();
-
 		for ( const [ , deregister ] of folderDropDeregisters ) {
 			try {
 				deregister();
 			} catch {
-
 			}
 		}
 		folderDropDeregisters.clear();
@@ -440,7 +428,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			try {
 				deregister();
 			} catch {
-
 			}
 		}
 		tileRejectDeregisters.clear();
@@ -452,7 +439,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				wireTile( placement, pinnedSlots, displaced ),
 			);
 		}
-
 		selection.refresh();
 		doAction( 'os.files.grid-rendered', {
 			folderId,
@@ -461,9 +447,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	};
 
 	const dropTargetDeregisters: Array< () => void > = [];
-
 	const folderDropDeregisters: Map< number, () => void > = new Map();
-
 	const tileRejectDeregisters: Map< number, () => void > = new Map();
 
 	let dropPreviewEl: HTMLElement | null = null;
@@ -472,7 +456,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		if ( dropPreviewEl ) {
 			return;
 		}
-
 		if ( session.payload.type !== 'desktop-file' ) {
 			return;
 		}
@@ -530,10 +513,8 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			if ( payload.type !== 'desktop-file' && payload.type !== 'shortcut' ) {
 				return canvasPayloadAccepts( payload, { folderId, host } );
 			}
-
 			if ( folderId > 0 && payload.type === 'desktop-file' ) {
 				const data = payload.data as unknown as DesktopFileDragData;
-
 				for ( const placement of dragPlacements( data ) ) {
 					if ( placement.file?.type !== 'folder' ) {
 						continue;
@@ -551,7 +532,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		},
 		onEnter: ( session ) => {
 			host.setAttribute( 'data-files-drop-active', '' );
-
 			if (
 				session.payload.type === 'desktop-file' ||
 				session.payload.type === 'shortcut'
@@ -574,7 +554,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				return;
 			}
 			const rect = container.getBoundingClientRect();
-
 			const ghost = session.payload.ghost;
 			const offsetX = ghost?.offsetX ?? 0;
 			const offsetY = ghost?.offsetY ?? 0;
@@ -587,7 +566,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				const data = session.payload.data as unknown as DesktopFileDragData;
 				const moving = dragPlacements( data );
 				const movingIds = new Set( moving.map( ( p ) => p.id ) );
-
 				const occupied = buildVisualOccupiedSet( peers, movingIds );
 				const primaryCell = snapToEmptyCell(
 					rawX,
@@ -619,7 +597,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 						parentId: folderId,
 					};
 					filesStoreApi.upsertPlacement( next );
-
 					doAction( 'os.files.tile-manually-placed', {
 						folderId,
 						placementId: placement.id,
@@ -652,6 +629,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 							if ( isConflict( err ) ) {
 								showConflictToast( err );
 							} else {
+								// eslint-disable-next-line no-console
 								console.error(
 									'[openstation] files: drag persist failed',
 									err,
@@ -665,9 +643,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 			if ( session.payload.type === 'shortcut' ) {
 				const data = session.payload.data as unknown as ShortcutDragData;
-
 				fileShortcutEntities( dragShortcutItems( data ), folderId, host );
-
 				void rawX;
 				void rawY;
 			}
@@ -703,7 +679,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	}
 
 	repaint( filesStoreApi.getState() );
-
 	queueMicrotask( () => reflow() );
 	const off = filesStoreApi.subscribe( ( state ) => {
 		repaint( state );
@@ -721,6 +696,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				filesStoreApi.setFolderPlacements( folderId, res.placements );
 			} )
 			.catch( ( err ) => {
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] files: failed to hydrate folder', folderId, err );
 			} )
 			.finally( () => {
@@ -769,7 +745,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		if ( ! live || live.length === 0 ) {
 			return;
 		}
-
 		const pinned = live.filter( ( p ) => isPinned( p ) );
 		const draggable = live.filter( ( p ) => ! isPinned( p ) );
 		const sorted = sortPlacements( draggable, mode );
@@ -796,6 +771,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			void rest
 				.updatePlacement( p.id, { x, y, sortOrder: i } )
 				.catch( ( err: unknown ) => {
+					// eslint-disable-next-line no-console
 					console.error(
 						'[openstation] files: sort persist failed',
 						err,
@@ -812,14 +788,12 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		const size = canvasSize( canvas );
 		const w = size.width > 0 ? size.width : Infinity;
 		const h = size.height > 0 ? size.height : Infinity;
-
 		const overflowing = live.some(
 			( p ) => p.x + TILE_W > w || p.y + TILE_H > h,
 		);
 		if ( ! overflowing ) {
 			return;
 		}
-
 		const pinned = live.filter( ( p ) => isPinned( p ) );
 		const draggable = live.filter( ( p ) => ! isPinned( p ) );
 		const cells = packCells(
@@ -881,7 +855,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				try {
 					deregister();
 				} catch {
-
 				}
 			}
 			dropTargetDeregisters.length = 0;
@@ -889,7 +862,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				try {
 					deregister();
 				} catch {
-
 				}
 			}
 			folderDropDeregisters.clear();
@@ -897,7 +869,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 				try {
 					deregister();
 				} catch {
-
 				}
 			}
 			tileRejectDeregisters.clear();
@@ -927,9 +898,7 @@ function isPinned( placement: RestPlacementShape ): boolean {
 }
 
 interface TileLayout {
-
 	pinnedSlots: Map< number, { x: number; y: number } >;
-
 	displaced: Map< number, { x: number; y: number } >;
 }
 
@@ -1016,6 +985,7 @@ export function settleArrivedShortcuts(
 		void rest
 			.updatePlacement( placement.id, { x: cell.x, y: cell.y } )
 			.catch( ( err: unknown ) => {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] files: placing a new desktop icon failed',
 					err,
@@ -1042,14 +1012,12 @@ function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
 
 function buildVisualOccupiedSet(
 	placements: ReadonlyArray< RestPlacementShape >,
-
 	excludeId?: number | ReadonlySet< number >,
 ): Set< string > {
 	const excluded =
 		typeof excludeId === 'number'
 			? new Set( [ excludeId ] )
 			: excludeId ?? null;
-
 	const sorted = placements.slice().sort( ( a, b ) => {
 		const ap = isPinned( a ) ? 0 : 1;
 		const bp = isPinned( b ) ? 0 : 1;
@@ -1101,6 +1069,7 @@ function fileShortcutEntities(
 				} );
 			} )
 			.catch( ( err: unknown ) => {
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] shortcut drop failed:', err );
 			} );
 	}
@@ -1116,7 +1085,6 @@ function wouldCreateFolderCycle(
 	if ( movingFolderId === targetParentId ) {
 		return true;
 	}
-
 	const parentByFolderId = new Map< number, number >();
 	const state = filesStoreApi.getState();
 	for ( const bucket of state.placementsByFolder.values() ) {
@@ -1128,7 +1096,6 @@ function wouldCreateFolderCycle(
 			if ( Number.isNaN( fid ) || fid <= 0 ) {
 				continue;
 			}
-
 			if ( ! parentByFolderId.has( fid ) ) {
 				parentByFolderId.set( fid, p.parentId );
 			}
@@ -1209,7 +1176,6 @@ function tryPatchPositions(
 	for ( const tile of tiles ) {
 		const raw = tile.dataset.placementId ?? '';
 		const id = parseInt( raw, 10 );
-
 		if ( raw === '' || ( Number.isNaN( id ) && raw !== '-0' ) ) {
 			return false;
 		}
@@ -1227,7 +1193,6 @@ function tryPatchPositions(
 		if ( tile.dataset.fileRef !== placement.file.ref ) {
 			return false;
 		}
-
 		const wasPinned = tile.classList.contains( `${ TILE_CLASS }--pinned` );
 		if ( wasPinned !== isPinned( placement ) ) {
 			return false;
@@ -1270,7 +1235,6 @@ function registerTileRejectTarget(
 	placement: RestPlacementShape,
 ): () => void {
 	const ctx = { placement };
-
 	let hoveredType: string | null = null;
 	return dragManager.registerDropTarget( {
 		id: `os-files-tile-${ placement.id }-reject`,
@@ -1312,7 +1276,6 @@ function registerFolderDropTarget(
 			}
 			if ( payload.type === 'desktop-file' ) {
 				const data = payload.data as unknown as DesktopFileDragData;
-
 				for ( const placement of dragPlacements( data ) ) {
 					if (
 						placement.file.type === 'folder' &&
@@ -1320,15 +1283,12 @@ function registerFolderDropTarget(
 					) {
 						return false;
 					}
-
 					if ( placement.parentId === targetFolderId ) {
 						return false;
 					}
-
 					if ( isSyntheticPlacement( placement ) ) {
 						return false;
 					}
-
 					if ( placement.file.type === 'folder' ) {
 						const movingFolderId = parseInt( placement.file.ref, 10 );
 						if (
@@ -1352,7 +1312,6 @@ function registerFolderDropTarget(
 			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
 			if ( session.payload.type === 'desktop-file' ) {
 				const data = session.payload.data as unknown as DesktopFileDragData;
-
 				const peers =
 					filesStoreApi
 						.getState()
@@ -1385,6 +1344,7 @@ function registerFolderDropTarget(
 							if ( isConflict( err ) ) {
 								showConflictToast( err );
 							} else {
+								// eslint-disable-next-line no-console
 								console.error(
 									'[openstation] files: move-into-folder persist failed',
 									err,
@@ -1397,12 +1357,10 @@ function registerFolderDropTarget(
 			}
 			if ( session.payload.type === 'shortcut' ) {
 				const data = session.payload.data as unknown as ShortcutDragData;
-
 				fileShortcutEntities( dragShortcutItems( data ), targetFolderId );
 			}
 		},
 	};
-
 	void currentFolderId;
 	return dragManager.registerDropTarget( target );
 }
@@ -1418,7 +1376,6 @@ function attachTileDrag(
 		if ( e.button !== 0 ) {
 			return;
 		}
-
 		if ( e.shiftKey || e.ctrlKey || e.metaKey ) {
 			return;
 		}
@@ -1426,12 +1383,10 @@ function attachTileDrag(
 		if ( ! dragManager ) {
 			return;
 		}
-
 		const liveBucket =
 			filesStoreApi.getState().placementsByFolder.get( folderId );
 		const livePlacement =
 			liveBucket?.find( ( p ) => p.id === placement.id ) ?? placement;
-
 		const visibleX = parseFloat( tile.style.left ) || livePlacement.x;
 		const visibleY = parseFloat( tile.style.top ) || livePlacement.y;
 
@@ -1448,7 +1403,6 @@ function attachTileDrag(
 				selection.model.set( [ String( livePlacement.id ) ] );
 			};
 			document.addEventListener( 'os.drag.start', syncSelection );
-
 			const cancelSync = (): void => {
 				document.removeEventListener( 'os.drag.start', syncSelection );
 				document.removeEventListener( 'pointerup', cancelSync );
@@ -1480,7 +1434,6 @@ function attachTileDrag(
 			};
 			document.addEventListener( 'os.drag.start', dim );
 			document.addEventListener( 'os.drag.end', undim );
-
 			document.addEventListener( 'pointerup', undim );
 		}
 
@@ -1490,10 +1443,8 @@ function attachTileDrag(
 				source: tile,
 				data: {
 					placement: livePlacement,
-
 					...( placements.length > 1 ? { placements } : {} ),
 					sourceFolderId: folderId,
-
 					bridgePayload: buildBridgePayloadFromPlacement( livePlacement ),
 				} satisfies DesktopFileDragData,
 				ghost: {
@@ -1503,7 +1454,6 @@ function attachTileDrag(
 						placements.length > 1
 							? buildDragStackGhost( tile, placements.length )
 							: undefined,
-
 					hint:
 						placements.length > 1
 							? {
@@ -1515,9 +1465,7 @@ function attachTileDrag(
 				},
 			},
 			origin: e,
-
 		} );
-
 		void session;
 		void visibleX;
 		void visibleY;
@@ -1533,7 +1481,6 @@ function attachContextMenu(
 	tile.addEventListener( 'contextmenu', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
-
 		const placement = filesStoreApi.currentPlacement( wiredPlacement );
 		if ( ! selection.model.has( String( placement.id ) ) ) {
 			selection.model.set( [ String( placement.id ) ] );

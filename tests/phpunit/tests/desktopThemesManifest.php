@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 
 	private function rrmdir( $dir ) {
@@ -33,6 +36,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_valid_manifest_sanitizes() {
 		$out = $this->sanitize( $this->valid_manifest() );
 		$this->assertIsArray( $out );
@@ -41,16 +47,25 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( 'Neon', $out['name'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_non_array_manifest_is_fatal() {
 		$this->assertWPError( $this->sanitize( 'not-a-manifest' ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_wrong_manifest_version_is_fatal() {
 		$error = $this->sanitize( $this->valid_manifest( array( 'manifestVersion' => 3 ) ) );
 		$this->assertWPError( $error );
 		$this->assertSame( 'openstation_desktop_theme_bad_version', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_manifest_version_two_is_accepted() {
 		$manifest = $this->sanitize( $this->valid_manifest( array( 'manifestVersion' => 2 ) ) );
 		$this->assertNotWPError( $manifest );
@@ -58,12 +73,18 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( 'acme/neon', $manifest['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_missing_manifest_version_is_fatal() {
 		$raw = $this->valid_manifest();
 		unset( $raw['manifestVersion'] );
 		$this->assertWPError( $this->sanitize( $raw ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_missing_name_is_fatal() {
 		$raw = $this->valid_manifest();
 		unset( $raw['name'] );
@@ -72,6 +93,10 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_missing_name', $error->get_error_code() );
 	}
 
+	/**
+	 * @dataProvider data_bad_ids
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_bad_ids_are_fatal( $id ) {
 		$error = $this->sanitize( $this->valid_manifest( array( 'id' => $id ) ) );
 		$this->assertWPError( $error, "Expected id '{$id}' to be rejected." );
@@ -91,6 +116,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_tokens
+	 */
 	public function test_valid_tokens_survive() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'tokens' => array(
@@ -103,6 +131,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( '14px', $out['tokens']['--os-window-radius'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_tokens
+	 */
 	public function test_out_of_namespace_token_keys_are_dropped() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'tokens' => array(
@@ -118,6 +149,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_tokens
+	 */
 	public function test_wpd_component_tokens_are_accepted() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'tokens' => array(
@@ -137,6 +171,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( '#161634', $out['tokens']['--os-ui-surface'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_tokens
+	 */
 	public function test_wpd_tokens_still_obey_the_value_grammar() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'tokens' => array(
@@ -148,6 +185,10 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( array( '--os-ui-border' => '#2f2a63' ), $out['tokens'] );
 	}
 
+	/**
+	 * @dataProvider data_unsafe_css_values
+	 * @covers ::openstation_desktop_theme_is_safe_css_value
+	 */
 	public function test_unsafe_css_values_are_rejected( $value ) {
 		$this->assertFalse(
 			openstation_desktop_theme_is_safe_css_value( $value ),
@@ -180,6 +221,10 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @dataProvider data_safe_css_values
+	 * @covers ::openstation_desktop_theme_is_safe_css_value
+	 */
 	public function test_safe_css_values_are_accepted( $value ) {
 		$this->assertTrue(
 			openstation_desktop_theme_is_safe_css_value( $value ),
@@ -201,6 +246,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_known_icon_slots_survive() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'icons' => array(
@@ -214,6 +262,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-edit-large', $out['icons']['APP:edit-php']['name'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_unknown_icon_slot_is_dropped() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'icons' => array(
@@ -224,6 +275,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( array( 'OS_SETTINGS' ), array_keys( $out['icons'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_bad_dashicon_name_is_dropped() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'icons' => array(
@@ -233,6 +287,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( array(), $out['icons'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_resolver_rejection_drops_only_that_icon() {
 		$resolver = static function ( $path ) {
 			return 'icons/ok.svg' === $path ? $path : false;
@@ -249,6 +306,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( array( 'OS_SETTINGS' ), array_keys( $out['icons'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_icons
+	 */
 	public function test_app_slot_slug_is_sanitized() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'icons' => array(
@@ -258,6 +318,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'APP:editphp', $out['icons'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_textures
+	 */
 	public function test_image_texture_grammar() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'textures' => array(
@@ -273,6 +336,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( 'auto 100%', $out['textures']['TITLEBAR']['size'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_textures
+	 */
 	public function test_bad_texture_property_drops_without_dropping_texture() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'textures' => array(
@@ -289,6 +355,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'size', $out['textures']['TITLEBAR'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_textures
+	 */
 	public function test_border_image_grammar() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'textures' => array(
@@ -307,6 +376,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( 'round', $entry['repeat'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_textures
+	 */
 	public function test_texture_type_must_match_the_slot() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'textures' => array(
@@ -316,6 +388,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( array(), $out['textures'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_textures
+	 */
 	public function test_unknown_texture_slot_is_dropped() {
 		$out = $this->sanitize( $this->valid_manifest( array(
 			'textures' => array(
@@ -325,6 +400,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertSame( array(), $out['textures'] );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_staging_asset_resolver
+	 */
 	public function test_staging_resolver_containment() {
 		$base = get_temp_dir() . 'dm-theme-resolver-' . wp_generate_uuid4();
 		wp_mkdir_p( $base . '/icons' );
@@ -345,6 +423,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->rrmdir( $base );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_url_asset_resolver
+	 */
 	public function test_url_resolver() {
 		$resolve = openstation_desktop_theme_url_asset_resolver();
 
@@ -359,6 +440,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertFalse( $resolve( 'data:image/svg+xml;base64,AAAA' ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_manifest_filter_receives_raw_and_slug() {
 		$seen = array();
 		add_filter(
@@ -381,6 +465,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_desktop_theme_manifest' );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_icon_slots
+	 */
 	public function test_icon_slot_allowlist_is_filterable() {
 		add_filter(
 			'openstation_desktop_theme_icon_slots',
@@ -400,6 +487,9 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_desktop_theme_icon_slots' );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_icon_slots
+	 */
 	public function test_php_and_ts_slot_lists_match() {
 		$ts = OPENSTATION_DIR . 'src/desktop-themes/slots.ts';
 		$this->assertFileExists( $ts );

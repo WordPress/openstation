@@ -1,7 +1,13 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-ai
+ */
 class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 
+	/**
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
 	public function test_type_union_becomes_object() {
 		$out = openstation_ai_normalize_tool_schema( array(
 			'type'       => array( 'object', 'null' ),
@@ -9,13 +15,15 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		) );
 
 		$this->assertSame( 'object', $out['type'] );
-
 		$this->assertSame(
 			array( 'range' => array( 'type' => 'integer' ) ),
 			$out['properties']
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
 	public function test_top_level_combinators_are_stripped() {
 		$out = openstation_ai_normalize_tool_schema( array(
 			'type'  => 'object',
@@ -34,11 +42,13 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'anyOf', $out );
 		$this->assertArrayNotHasKey( 'oneOf', $out );
 		$this->assertArrayNotHasKey( 'allOf', $out );
-
 		$this->assertArrayHasKey( 'post_id', $out['properties'] );
 		$this->assertArrayHasKey( 'slug', $out['properties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
 	public function test_nested_combinators_are_preserved() {
 		$nested = array(
 			'type'       => 'object',
@@ -57,6 +67,9 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'anyOf', $out['properties']['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
 	public function test_empty_properties_array_becomes_object() {
 		$out = openstation_ai_normalize_tool_schema( array(
 			'type'       => 'object',
@@ -67,6 +80,9 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		$this->assertSame( '{}', wp_json_encode( $out['properties'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
 	public function test_empty_or_non_array_becomes_object_schema() {
 		foreach ( array( array(), null, '', 0, false ) as $empty ) {
 			$out = openstation_ai_normalize_tool_schema( $empty );
@@ -79,6 +95,9 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
 	public function test_combinator_only_schema_gets_empty_properties() {
 		$out = openstation_ai_normalize_tool_schema( array(
 			'oneOf' => array(
@@ -100,6 +119,9 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
 	public function test_missing_properties_key_is_defaulted() {
 		$out = openstation_ai_normalize_tool_schema( array(
 			'type' => array( 'object', 'null' ),
@@ -109,6 +131,9 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		$this->assertSame( '{}', wp_json_encode( $out['properties'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
 	public function test_idempotent() {
 		$once  = openstation_ai_normalize_tool_schema( array(
 			'type'       => array( 'object', 'null' ),
@@ -121,6 +146,9 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		$this->assertSame( wp_json_encode( $once ), wp_json_encode( $twice ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_strip_wp_schema_keys
+	 */
 	public function test_wp_callback_keys_are_stripped_recursively() {
 		$out = openstation_ai_normalize_tool_schema( array(
 			'type'              => 'object',
@@ -168,6 +196,9 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		$this->assertSame( 'integer', $out['properties']['id']['anyOf'][0]['type'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_strip_wp_schema_keys
+	 */
 	public function test_property_named_like_a_callback_key_is_preserved() {
 		$out = openstation_ai_normalize_tool_schema( array(
 			'type'       => 'object',
@@ -187,6 +218,9 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_strip_wp_schema_keys
+	 */
 	public function test_tuple_items_are_cleaned_per_entry() {
 		$out = openstation_ai_normalize_tool_schema( array(
 			'type'       => 'object',

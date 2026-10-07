@@ -146,7 +146,6 @@ describe( 'usage feedback — the form', () => {
 		for ( const name of [ 'requests', 'use_case', 'blockers' ] ) {
 			expect( control( name )?.tagName.toLowerCase() ).toBe( 'os-textarea' );
 		}
-
 		expect( control( 'email' )?.getAttribute( 'value' ) ).toBeNull();
 	} );
 
@@ -159,7 +158,6 @@ describe( 'usage feedback — the form', () => {
 			[ SEND_URL, { requests: 'Faster windows.', use_case: '', blockers: '', email: '' } ],
 		] );
 		expect( form() ).toBeNull();
-
 		expect( showToast ).toHaveBeenCalledTimes( 1 );
 	} );
 
@@ -199,7 +197,6 @@ describe( 'usage feedback — the form', () => {
 
 		expect( form() ).not.toBeNull();
 		expect( errorLine()?.hidden ).toBe( false );
-
 		expect( trackedFetch ).toHaveBeenCalledTimes( 1 );
 	} );
 

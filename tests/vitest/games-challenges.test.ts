@@ -92,7 +92,6 @@ describe( 'games/challenges-store.ts', () => {
 		store.subscribeChallenges( listener );
 
 		store.ingestChallenges( [ makeRow( { id: 1, updatedAtMs: 1000 } ) ] );
-
 		store.ingestChallenges( [ makeRow( { id: 1, updatedAtMs: 1000 } ) ] );
 		expect( listener ).toHaveBeenCalledTimes( 1 );
 

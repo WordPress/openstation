@@ -50,7 +50,10 @@
 	<arg value="sp"/>
 
 	<!-- Inherit the WordPress plugin standard. -->
-	<rule ref="WordPress"/>
+	<rule ref="WordPress">
+		<exclude name="Squiz.Commenting.VariableComment.Missing"/>
+		<exclude name="Squiz.Commenting.ClassComment.Missing"/>
+	</rule>
 
 	<!--
 		Custom prefix allowlist.

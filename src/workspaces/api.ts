@@ -23,37 +23,21 @@ import type {
 } from './types';
 
 export interface WorkspacesApi {
-
 	list(): Desktop[];
-
 	active(): Desktop | null;
-
 	getProfile( desktopId: string ): WorkspaceProfile | null;
-
 	setProfile( desktopId: string, profile: WorkspaceProfile | null ): boolean;
-
 	create( options?: CreateWorkspaceOptions ): Desktop;
-
 	switchTo( desktopId: string ): void;
-
 	arrange( layout: WorkspaceLayoutId ): void;
-
 	provision( desktopId: string, opts?: { force?: boolean } ): void;
-
 	capture( desktopId: string ): WorkspaceProfile[ 'windows' ];
-
 	captureAppearance(): WorkspaceProfile[ 'appearance' ];
-
 	edit( desktopId: string ): void;
-
 	openCreator(): void;
-
 	saveDesk( desktopId?: string ): boolean;
-
 	presets(): WorkspacePreset[];
-
 	registerPreset( preset: WorkspacePreset ): void;
-
 	unregisterPreset( id: string ): void;
 }
 

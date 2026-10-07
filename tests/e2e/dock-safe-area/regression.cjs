@@ -69,7 +69,6 @@ const id = 'openstation-dock-safe-area-regression';
 		console.log( 'PASS maximize clears the visible bottom dock' );
 		await page.evaluate( () => window.wp.os.updateOsSettings( { dockSize: 'large' } ) );
 		await checkBounds( 'maximized' );
-
 		const originalInset = await page.evaluate( () => window.wp.os.workArea.get().insets.bottom );
 		await page.evaluate( () => { document.querySelector( '#os-dock' ).style.paddingBlock = '24px'; } );
 		await page.waitForFunction( previous => window.wp.os.workArea.get().insets.bottom > previous, originalInset );

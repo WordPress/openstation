@@ -36,7 +36,6 @@ export interface PixiApp {
 		autoDensity?: boolean;
 		resolution?: number;
 	} ): Promise< void >;
-
 	destroy(
 		rendererOpts?: { removeView?: boolean },
 		opts?: { children?: boolean; texture?: boolean; textureSource?: boolean },
@@ -45,7 +44,6 @@ export interface PixiApp {
 
 export interface PixiNamespace {
 	Application: new () => PixiApp;
-
 	ParticleContainer: new ( opts: {
 		dynamicProperties: {
 			position?: boolean;

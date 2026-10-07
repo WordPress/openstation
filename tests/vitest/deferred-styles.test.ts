@@ -54,7 +54,6 @@ describe( 'ensureDeferredStyle', () => {
 			'style[data-os-style-handle="os-settings"]',
 		);
 		expect( style?.textContent ).toBe( '.os-settings{color:red}' );
-
 		expect(
 			link &&
 				style &&

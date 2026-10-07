@@ -17,7 +17,6 @@
 
 .os-woo-panel__rows {
 	display: grid;
-
 	grid-template-columns: minmax( 90px, auto ) 1fr;
 	gap: 6px 14px;
 	margin: 0;
@@ -113,7 +112,6 @@
 }
 
 os-ribbon.os-woo-ribbon {
-
 	--os-ui-ribbon-size: 64px;
 	--os-ui-ribbon-banner-width: 92px;
 	--os-ui-ribbon-padding: 3px 0;
@@ -139,7 +137,6 @@ os-ribbon.os-woo-ribbon {
 }
 
 .os-woo-panel--store .os-woo-panel__rows {
-
 	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
 	gap: 4px 24px;
 }
@@ -157,7 +154,6 @@ os-ribbon.os-woo-ribbon {
 
 .os-woo-customer-avatar {
 	position: relative;
-
 	overflow: visible;
 }
 

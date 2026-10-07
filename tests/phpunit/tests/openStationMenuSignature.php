@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_menu_signature
+ */
 class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 
 	protected static $admin_id;

@@ -58,7 +58,6 @@ export function applyServerWindowNotices(
 			continue;
 		}
 		wanted.add( entry.id.toLowerCase() );
-
 		registerWindowNotice( {
 			id: entry.id,
 			message: entry.message,
@@ -67,7 +66,6 @@ export function applyServerWindowNotices(
 			icon: entry.icon,
 			match: buildMatcher( entry.match ),
 			order: typeof entry.order === 'number' ? entry.order : undefined,
-
 			owner: '__server__',
 		} );
 	}

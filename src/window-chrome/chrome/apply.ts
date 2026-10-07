@@ -51,7 +51,6 @@ export function mountWindowChrome(
 	} catch {
 		return null;
 	}
-
 	win.element.classList.add( CUSTOM_CHROME_CLASS );
 	let handle: ChromeRenderHandle;
 	try {

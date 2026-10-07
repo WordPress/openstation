@@ -39,14 +39,12 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 			searchAria: __( 'Search tags in the cloud' ),
 			hint: __( 'Click a tag to focus + edit · drag to reposition · scroll or pinch to zoom' ),
 		},
-
 		layers: [ 'postEdge', 'chip', 'post', 'postChip' ],
 		fan: { chipFontSize: 12, chipTextRes: CHIP_TEXT_RES, pagerLabelSize: 12, pagerGlyphSize: 14 },
 	} );
 	if ( ! built ) {
 		return () => {};
 	}
-
 	const canvas: TermCanvas = built;
 	const { pixi, layers, fan, camera, interaction, world, palette } = canvas;
 	const { client } = env;
@@ -59,7 +57,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 	let draft = false;
 	const positionsKey = computePositionsKey();
 	const persistedPositions = readPersistedPositions( positionsKey );
-
 	let cooccurrenceMap: Map< number, TermNeighbor[] > = new Map();
 	let themeHue = readAdminThemeHue( host );
 	const focused = ( id: number ): boolean => fan.focusId === id;
@@ -76,9 +73,7 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 				tags.delete( id );
 			}
 		}
-
 		const maxCount = Math.max( 1, ...terms.map( ( t ) => t.count ) );
-
 		const fresh: TagBox[] = [];
 		for ( const term of terms ) {
 			const fontSize = fontSizeFor( term.count, maxCount );
@@ -135,7 +130,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 			box.x = box.tx;
 			box.y = box.ty;
 		}
-
 		canvas.syncEmptyHint( terms.length === 0 );
 	}
 
@@ -195,7 +189,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 			const c = box.chip.container;
 			c.x = box.x;
 			c.y = box.y;
-
 			c.scale.set( 1 );
 			c.rotation = box.rotation;
 			const targetAlpha = ! anyFocus || fan.focusId === box.id ? 1 : 0.32;
@@ -250,7 +243,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 			box.name = patch.name;
 			box.description = patch.description;
 			box.slug = patch.slug;
-
 			box.hue = tagHue( box.slug || box.name, themeHue );
 			box.rotation = tagRotation( box.slug || box.name );
 			layoutChip( box );
@@ -301,7 +293,6 @@ export async function mountTagsCloud( host: HTMLElement, env: CanvasEnv ): Promi
 				relayoutWithCooccurrence();
 			}
 		} catch {
-
 		}
 	}
 

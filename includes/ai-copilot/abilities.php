@@ -46,7 +46,6 @@ function openstation_ai_ability_tool_name( $ability_name ) {
 	if ( false !== $pos ) {
 		$slug = substr( $slug, $pos + 1 );
 	}
-
 	$slug = strtolower( str_replace( '-', '_', $slug ) );
 	$slug = preg_replace( '/[^a-z0-9_]+/', '_', $slug );
 	return trim( (string) $slug, '_' );
@@ -60,7 +59,6 @@ function openstation_ai_ability_output_schema( array $properties = array() ) {
 	return array(
 		'type'                 => 'object',
 		'additionalProperties' => true,
-
 		'properties'           => $properties,
 	);
 }
@@ -213,7 +211,6 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/list-admin-pages',
 		array(
 			'label'               => __( 'List admin pages', 'desktop-mode' ),
-
 			'description'         => 'Returns the full catalog of WordPress admin (wp-admin) destinations — pages for managing posts, categories, users, plugins, themes, settings, etc. Call this when the user asks "where can I find X?", "how do I get to Y?", "where are the settings for Z?" — any navigational question about the admin UI. Each entry carries a title, url, icon, and description, so pick the few most relevant to the query. The catalog is small and stable so one call is enough.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
@@ -301,7 +298,6 @@ function openstation_ai_register_abilities() {
 			'execute_callback'    => static function ( $input ) {
 				return openstation_ai_search_dispatch_tool( 'get_php_error_log', (array) $input );
 			},
-
 			'permission_callback' => static function () {
 				return current_user_can( 'manage_options' );
 			},

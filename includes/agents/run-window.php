@@ -65,13 +65,11 @@ function openstation_agent_run_window_register() {
 			'min_width'  => 540,
 			'min_height' => 380,
 			'placement'  => 'none',
-
 			'autofocus'  => true,
 			'config'     => array(
 				'restRoot'    => esc_url_raw( rest_url() ),
 				'restNonce'   => wp_create_nonce( 'wp_rest' ),
 				'canManage'   => openstation_agents_user_can_manage(),
-
 				'currentUser' => array(
 					'id'        => (int) get_current_user_id(),
 					'name'      => openstation_plain_text_title( wp_get_current_user()->display_name ),
@@ -81,7 +79,7 @@ function openstation_agent_run_window_register() {
 		)
 	);
 	if ( is_wp_error( $registered ) ) {
-
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Agent chat window registration failed: ' . $registered->get_error_message() );
 	}
 }

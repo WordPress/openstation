@@ -95,7 +95,6 @@ function openstation_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	if ( ! $tmp ) {
 		return new WP_Error( 'openstation_stored_files_zip_failed', __( 'Could not create the archive.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
-
 	register_shutdown_function( 'wp_delete_file', $tmp );
 
 	$zip = new ZipArchive();
@@ -109,20 +108,18 @@ function openstation_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	foreach ( $manifest['entries'] as $entry_name => $abs_path ) {
 		$zip->addFile( $abs_path, $entry_name );
 		if ( method_exists( $zip, 'setCompressionName' ) ) {
-
 			if ( preg_match( '/\.(zip|gz|bz2|7z|rar|jpe?g|png|gif|webp|avif|mp3|mp4|m4a|mov|webm|ogg|pdf)$/i', $entry_name ) ) {
 				$zip->setCompressionName( $entry_name, ZipArchive::CM_STORE );
 			}
 		}
 	}
-
 	$is_empty = 0 === $zip->numFiles;
 	if ( ! $zip->close() ) {
 		wp_delete_file( $tmp );
 		return new WP_Error( 'openstation_stored_files_zip_failed', __( 'Could not finish the archive (disk full?).', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 	if ( $is_empty ) {
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		file_put_contents( $tmp, "PK\x05\x06" . str_repeat( "\0", 18 ) );
 	}
 
@@ -171,7 +168,6 @@ function openstation_files_collect_zip_entries( $folder_id, $user_id, $prefix, $
 				return $manifest;
 			}
 			if ( count( $manifest['entries'] ) + count( $manifest['empty_dirs'] ) === $before ) {
-
 				$manifest['empty_dirs'][] = $prefix . $dir_name . '/';
 			}
 			continue;
@@ -276,15 +272,16 @@ add_filter( 'rest_pre_serve_request', 'openstation_files_serve_download', 10, 3 
 function openstation_files_emit_download( $path, $name, $mime ) {
 	$size = (int) filesize( $path );
 
+	// phpcs:ignore Generic.CodeAnalysis.EmptyStatement
 	while ( ob_get_level() > 0 ) {
 		ob_end_clean();
 	}
 	if ( function_exists( 'apache_setenv' ) ) {
-
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		@apache_setenv( 'no-gzip', '1' );
 	}
-
-	@ini_set( 'zlib.output_compression', 'Off' );
+	// phpcs:ignore WordPress.PHP.IniSet.Risky
+	@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 
 	nocache_headers();
 	header( 'X-Content-Type-Options: nosniff' );
@@ -299,6 +296,7 @@ function openstation_files_emit_download( $path, $name, $mime ) {
 		. "; filename*=UTF-8''" . rawurlencode( $name )
 	);
 
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 	readfile( $path );
 }
 

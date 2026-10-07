@@ -3,36 +3,23 @@ import { isRestError, type RestError } from './api-client';
 import type { ToastOptions } from '../toast';
 
 export type RestFailureKind =
-
 	| 'offline'
-
 	| 'session'
-
 	| 'unreadable'
-
 	| 'gone'
-
 	| 'refused'
-
 	| 'server'
-
 	| 'unknown';
 
 export interface RestFailureDescription {
-
 	message: string;
-
 	reason: string;
-
 	kind: RestFailureKind;
-
 	type: 'error' | 'warning';
 }
 
 export interface DescribeRestFailureOptions {
-
 	fallback: string;
-
 	lead?: string;
 }
 
@@ -118,14 +105,14 @@ export function describeRestFailure(
 				standsAlone = false;
 			} else if ( kind === 'server' ) {
 				reason = sprintf(
-
+					/* translators: %d: HTTP status code. */
 					__( 'The server answered with error %d.', 'desktop-mode' ),
 					error.status,
 				);
 				standsAlone = false;
 			} else {
 				reason = sprintf(
-
+					/* translators: %d: HTTP status code. */
 					__( 'The server refused the request (HTTP %d).', 'desktop-mode' ),
 					error.status,
 				);

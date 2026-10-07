@@ -1,44 +1,28 @@
 export interface InfiniteListPage< TItem > {
-
 	items: readonly TItem[];
-
 	nextCursor?: string | null;
 }
 
 export interface InfiniteListOptions< TItem > {
-
 	root: HTMLElement;
-
 	fetchPage: (
 		cursor: string | null,
 		signal: AbortSignal,
 	) => Promise< InfiniteListPage< TItem > >;
-
 	getId: ( item: TItem ) => string | number;
-
 	renderItem: ( item: TItem, index: number ) => HTMLElement;
-
 	sentinel?: HTMLElement;
-
 	rootMargin?: string;
-
 	initialCursor?: string | null;
-
 	onLoadingChange?: ( loading: boolean ) => void;
-
 	onError?: ( err: unknown ) => void;
 }
 
 export interface InfiniteList {
-
 	reset(): void;
-
 	loadMore(): Promise< void >;
-
 	hasMore(): boolean;
-
 	isLoading(): boolean;
-
 	destroy(): void;
 }
 
@@ -64,7 +48,6 @@ export function createInfiniteList< TItem >(
 	if ( ! sentinel ) {
 		sentinel = document.createElement( 'div' );
 		sentinel.dataset.osInfiniteListSentinel = '';
-
 		sentinel.style.height = '1px';
 		root.appendChild( sentinel );
 	}
@@ -168,14 +151,12 @@ export function createInfiniteList< TItem >(
 		if ( destroyed ) {
 			return;
 		}
-
 		controller?.abort();
 		controller = null;
 		seen.clear();
 		cursor = initialCursor;
 		hasMoreInternal = true;
 		renderedCount = 0;
-
 		const sentinelInRoot = sentinel && sentinel.parentNode === root;
 		while ( root.firstChild ) {
 			root.removeChild( root.firstChild );
@@ -184,7 +165,6 @@ export function createInfiniteList< TItem >(
 			root.appendChild( sentinel );
 		}
 		setLoading( false );
-
 		ensureObserver();
 		void loadMore();
 	};
@@ -197,7 +177,6 @@ export function createInfiniteList< TItem >(
 		detachObserver();
 		controller?.abort();
 		controller = null;
-
 		if ( ! options.sentinel && sentinel && sentinel.parentNode === root ) {
 			root.removeChild( sentinel );
 		}

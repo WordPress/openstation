@@ -11,7 +11,6 @@ import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 const AREA_W = 1600;
 const AREA_H = 700;
-
 const INSET = 12 + 64 + 8;
 
 function fakeRect( left: number, top: number, width: number, height: number ): DOMRect {
@@ -82,7 +81,6 @@ describe( 'WindowManager.open() — default placement fits the work area', () =>
 	} );
 
 	test( 'a registered size taller than the reachable height is fitted, and lands above the dock', async () => {
-
 		const win = await manager.open( openConfig( 'corkboard', { width: 1080, height: 720, minHeight: 480 } ) );
 		const reachable = AREA_H - INSET;
 		expect( win.config.width ).toBe( 1080 );
@@ -98,7 +96,6 @@ describe( 'WindowManager.open() — default placement fits the work area', () =>
 
 	test( 'the default size is derived from the work area, not the whole desktop', async () => {
 		const win = await manager.open( openConfig( 'edit-php' ) );
-
 		expect( win.config.height ).toBe( Math.round( ( AREA_H - INSET ) * 0.8 ) );
 		expect( win.config.y ).toBe( 40 );
 	} );

@@ -5,7 +5,6 @@ defined( 'ABSPATH' ) || exit;
 const OPENSTATION_LEGACY_THEME_ID = 'desktop-mode/legacy';
 
 function openstation_legacy_theme_manifest_path() {
-
 	return (string) apply_filters(
 		'openstation_legacy_theme_manifest_path',
 		OPENSTATION_DIR . 'assets/desktop-themes/legacy/theme.json'
@@ -56,7 +55,6 @@ function openstation_register_builtin_desktop_themes() {
 			'version'               => '1.0.0',
 			'author'                => 'OpenStation',
 			'description'           => __( 'The look Desktop Mode had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.', 'desktop-mode' ),
-
 			'preview'               => OPENSTATION_URL . 'assets/desktop-themes/legacy/preview.svg',
 			'tokens'                => $tokens,
 			'recommendedOsSettings' => $recommended,

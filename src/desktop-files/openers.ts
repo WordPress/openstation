@@ -3,24 +3,18 @@ import type { DesktopFile } from './file';
 
 export interface UrlOpenerHandler {
 	kind: 'url';
-
 	url: ( file: DesktopFile ) => string | Promise< string >;
-
 	windowId?: ( file: DesktopFile ) => string;
-
 	title?: ( file: DesktopFile ) => string;
 }
 
 export interface NativeWindowOpenerHandler {
 	kind: 'window';
-
 	windowId: string;
-
 	config?: ( file: DesktopFile ) => unknown;
 }
 
 export interface OpenerContext {
-
 	placement?: {
 		id: number;
 		x: number;
@@ -31,7 +25,6 @@ export interface OpenerContext {
 
 export interface JsOpenerHandler {
 	kind: 'js';
-
 	open: ( file: DesktopFile, ctx?: OpenerContext ) => void | Promise< void >;
 }
 
@@ -43,13 +36,9 @@ export type OpenerHandler =
 export interface FileOpenerDef {
 	id: string;
 	label: string;
-
 	types: string[];
-
 	isDefault?: boolean;
-
 	sort?: number;
-
 	appliesTo?: ( file: DesktopFile ) => boolean;
 	handler: OpenerHandler;
 }
@@ -149,11 +138,9 @@ export function resolveOpener(
 	if ( override ) {
 		resolved = candidates.find( ( e ) => e.id === override ) ?? null;
 	}
-
 	if ( ! resolved ) {
 		resolved = candidates.find( ( e ) => e.isDefault ) ?? null;
 	}
-
 	if ( ! resolved ) {
 		resolved = candidates[ 0 ];
 	}
@@ -176,6 +163,7 @@ function notify(): void {
 		try {
 			cb();
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] openers subscriber threw:', err );
 		}
 	}

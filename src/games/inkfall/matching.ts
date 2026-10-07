@@ -1,9 +1,6 @@
 export interface MatchableWord {
-
 	id: number;
-
 	text: string;
-
 	y: number;
 }
 
@@ -15,15 +12,10 @@ export type MatchResult =
 	| { kind: 'ignored' };
 
 export interface Matcher {
-
 	handleKey: ( ch: string, live: readonly MatchableWord[] ) => MatchResult;
-
 	handleBackspace: () => void;
-
 	release: () => void;
-
 	forget: ( wordId: number ) => void;
-
 	state: () => { targetId: number | null; matchedCount: number };
 }
 

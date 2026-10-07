@@ -120,7 +120,6 @@ async function clickEye(
 	document.body.appendChild( host );
 	def.render!( host, win as never );
 	host.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
-
 	for ( let i = 0; i < 6; i++ ) {
 		await Promise.resolve();
 	}
@@ -435,7 +434,6 @@ describe( 'eye click', () => {
 		document.body.appendChild( host );
 		def.render!( host, editor as never );
 		host.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
-
 		for ( let i = 0; i < 6; i++ ) {
 			await Promise.resolve();
 		}
@@ -464,7 +462,6 @@ describe( 'eye click', () => {
 
 		const host = document.createElement( 'os-window-button' );
 		def.render!( host, editor as never );
-
 		manager.remove( 'w1' );
 		host.dispatchEvent( new MouseEvent( 'click' ) );
 		for ( let i = 0; i < 6; i++ ) {
@@ -555,7 +552,6 @@ describe( 'pairing lifecycle', () => {
 		expect( log[ 0 ].args[ 0 ] ).toMatchObject( {
 			reason: 'preview-closed',
 		} );
-
 		expect( editor.renderCustomTitleBarButtons ).toHaveBeenCalled();
 	} );
 
@@ -617,7 +613,6 @@ describe( 'save-driven reload', () => {
 
 		expect( preview.swapReload ).not.toHaveBeenCalled();
 		vi.advanceTimersByTime( 500 );
-
 		expect( preview.swapReload ).toHaveBeenCalledTimes( 1 );
 		expect( preview.swapReload ).toHaveBeenCalledWith( undefined );
 		expect( preview.reload ).not.toHaveBeenCalled();

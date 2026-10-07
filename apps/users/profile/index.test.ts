@@ -5,7 +5,6 @@ import '../../../src/ui/components/os-text-field/os-text-field';
 import '../../../src/ui/components/os-textarea/os-textarea';
 import '../../../src/ui/components/os-checkbox-label/os-checkbox-label';
 import '../../../src/ui/components/os-button/os-button';
-
 import './index';
 import type { OsUserProfile } from './index';
 import type { ProfileConfig } from './types';
@@ -128,7 +127,6 @@ describe( '<os-user-profile>', () => {
 	test( 'mounts once per id, fetching the record and the insights ONCE each through the host’s fetch', async () => {
 		const { fetch, calls } = fakeFetch();
 		const el = mountProfile( 2, { fetch } );
-
 		await wait( 10 );
 		expect( calls.filter( ( c ) => c.includes( '/insights' ) ) ).toEqual( [ 'GET desktop-mode/v1/users/2/insights' ] );
 		expect( calls.filter( ( c ) => c.startsWith( 'GET wp/v2/users/2' ) ).length ).toBe( 1 );

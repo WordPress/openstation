@@ -3,7 +3,6 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'OPENSTATION_GAMES_SCHEMA_VERSION', '1' );
-
 define( 'OPENSTATION_GAMES_SCHEMA_OPTION', 'desktop_mode_games_schema_version' );
 
 function openstation_games_table_names() {
@@ -82,7 +81,7 @@ function openstation_games_ensure_table( $table, $sql ) {
 	}
 	$create        = str_replace( 'CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ', $sql );
 	$prev_suppress = $wpdb->suppress_errors( true );
-
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$wpdb->query( $create );
 	$wpdb->suppress_errors( $prev_suppress );
 }
@@ -95,7 +94,6 @@ function openstation_games_maybe_install_schema() {
 	openstation_games_install_schema();
 }
 add_action( 'admin_init', 'openstation_games_maybe_install_schema' );
-
 add_action( 'rest_api_init', 'openstation_games_maybe_install_schema' );
 add_action( 'init', 'openstation_games_maybe_install_schema', 1 );
 register_activation_hook( OPENSTATION_FILE, 'openstation_games_install_schema' );

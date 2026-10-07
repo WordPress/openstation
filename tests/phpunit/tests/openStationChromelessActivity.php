@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-chromeless
+ */
 class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -35,6 +38,9 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_the_bridge_brackets_requests_for_the_status_ring() {
 		$markup = $this->bridge_markup();
 
@@ -42,6 +48,9 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		$this->assertStringContainsString( "phase: 'end'", $markup );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_reads_never_reach_the_ring() {
 		$markup = $this->bridge_markup();
 
@@ -55,6 +64,9 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_the_end_is_gated_on_the_begin_token() {
 		$markup = $this->bridge_markup();
 
@@ -62,6 +74,9 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'if ( ! tracked ) {', $markup );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_an_http_error_settles_as_a_failure() {
 		$markup = $this->bridge_markup();
 
@@ -74,6 +89,9 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		return (string) ob_get_clean();
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_navigation_ping_script
+	 */
 	public function test_a_landing_document_reports_from_the_head() {
 		$markup = $this->navigation_ping_markup();
 
@@ -82,6 +100,9 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'window.location.origin', $markup );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_navigation_ping_script
+	 */
 	public function test_classic_admin_is_left_alone() {
 		unset( $_GET['openstation_chromeless'] );
 

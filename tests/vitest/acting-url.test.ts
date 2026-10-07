@@ -20,7 +20,6 @@ describe( 'urlActs', () => {
 	} );
 
 	it( 'flags screens that act merely by rendering', () => {
-
 		expect( urlActs( at( '/wp-admin/post-new.php' ) ) ).toBe( true );
 		expect( urlActs( at( '/wp-admin/user-new.php' ) ) ).toBe( true );
 		expect( urlActs( at( '/wp-admin/media-new.php' ) ) ).toBe( true );
@@ -35,9 +34,7 @@ describe( 'urlActs', () => {
 	} );
 
 	it( 'reads the filename, not the whole path', () => {
-
 		expect( urlActs( at( '/blog/wp-admin/post-new.php' ) ) ).toBe( true );
-
 		expect( actsOnLoad( '/wp-admin/post-new.php/inner.php' ) ).toBe( false );
 	} );
 } );

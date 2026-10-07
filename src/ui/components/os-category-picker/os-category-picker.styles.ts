@@ -35,6 +35,7 @@ export const styles = css`
 		min-width: 0;
 	}
 
+
 	.os-cat__viz-host {
 		display: flex;
 		align-items: center;
@@ -312,7 +313,6 @@ export const styles = css`
 		min-width: 0;
 		appearance: none;
 		font: inherit;
-
 		font-size: var( --os-ui-field-font-size-compact, 12px );
 		padding: 3px 6px;
 		border: 0;

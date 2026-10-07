@@ -174,7 +174,7 @@ function openstation_network_verify_hop( $token ) {
 function openstation_network_hop_claim( $jti, $exp ) {
 	global $wpdb;
 	$dead = time() - OPENSTATION_NETWORK_HOP_SKEW;
-
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery -- The unique key IS the check; there is no option cache to keep in step for rows nothing reads.
 	$wpdb->query(
 		$wpdb->prepare(
 			"DELETE FROM {$wpdb->base_prefix}options WHERE option_name LIKE %s AND option_value < %d",
@@ -189,7 +189,7 @@ function openstation_network_hop_claim( $jti, $exp ) {
 			(string) (int) $exp
 		)
 	);
-
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery
 	return 1 === (int) $won;
 }
 
@@ -200,8 +200,8 @@ function openstation_network_link_key( $iss, $sub ) {
 function openstation_network_hop_user( array $payload ) {
 	$ids = get_users(
 		array(
-			'meta_key'   => OPENSTATION_NETWORK_LINK_META,
-			'meta_value' => openstation_network_link_key( (string) $payload['iss'], (string) $payload['sub'] ),
+			'meta_key'   => OPENSTATION_NETWORK_LINK_META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- One exact row per link; this IS the index.
+			'meta_value' => openstation_network_link_key( (string) $payload['iss'], (string) $payload['sub'] ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
 			'number'     => 1,
 			'fields'     => 'ID',
 			'blog_id'    => 0,
@@ -336,7 +336,6 @@ function openstation_network_answer_link( $user_id, $accept ) {
 }
 
 function openstation_network_hop_landing( $direction = '' ) {
-
 	$args = array(
 		OPENSTATION_NETWORK_HOP_ARG      => false,
 		OPENSTATION_NETWORK_HOP_FROM_ARG => false,
@@ -348,7 +347,7 @@ function openstation_network_hop_landing( $direction = '' ) {
 }
 
 function openstation_network_redeem_hop() {
-
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- The token IS the credential; every other arg is read-only routing.
 	if ( ! is_admin() || empty( $_GET[ OPENSTATION_NETWORK_HOP_ARG ] ) || ! is_scalar( $_GET[ OPENSTATION_NETWORK_HOP_ARG ] ) ) {
 		return;
 	}
@@ -358,6 +357,7 @@ function openstation_network_redeem_hop() {
 		return;
 	}
 	$token = sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_NETWORK_HOP_ARG ] ) );
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 	$payload   = openstation_network_verify_hop( $token );
 	$direction = '';

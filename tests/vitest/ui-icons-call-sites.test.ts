@@ -39,7 +39,6 @@ describe( 'icon call sites', () => {
 	const sites = callSites();
 
 	test( 'the scan finds the call sites at all', () => {
-
 		expect( sites.length ).toBeGreaterThan( 20 );
 	} );
 

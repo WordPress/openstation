@@ -54,12 +54,12 @@ function openstation_register_drafts_widget() {
 			'min_height'     => 180,
 			'default_width'  => 300,
 			'default_height' => 320,
-
 			'capabilities'   => array( 'edit_posts' ),
 		)
 	);
 }
 add_action( 'init', 'openstation_register_drafts_widget', 6 );
+
 
 function openstation_register_drafts_ai_routes() {
 	register_rest_route(
@@ -272,7 +272,6 @@ function openstation_drafts_ai_failure( WP_Error $error ) {
 		$reason  = 'auth';
 		$message = __( 'The AI provider rejected this site’s API key. Check the key in Settings → Connectors.', 'desktop-mode' );
 	} elseif ( null === $provider_status && preg_match( '/quota|credits?\b|billing|rate limit/i', $detail ) ) {
-
 		$reason  = 'quota';
 		$message = __( 'The AI provider has no credits left or is rate limiting this site. Check its plan and billing, or try again later.', 'desktop-mode' );
 	} else {
@@ -396,7 +395,6 @@ function openstation_rest_draft_apply( WP_REST_Request $request ) {
 			}
 		}
 		if ( ! empty( $clean ) ) {
-
 			wp_set_post_tags( $post_id, $clean, true );
 			$applied['tags'] = $clean;
 		}
@@ -417,17 +415,14 @@ function openstation_rest_draft_apply( WP_REST_Request $request ) {
 				$cat_ids[]  = (int) $term->term_id;
 				$assigned[] = $cat;
 			} elseif ( $can_create ) {
-
 				$new = wp_insert_term( $cat, 'category' );
 				if ( ! is_wp_error( $new ) && isset( $new['term_id'] ) ) {
 					$cat_ids[]  = (int) $new['term_id'];
 					$assigned[] = $cat;
 				}
 			}
-
 		}
 		if ( ! empty( $cat_ids ) ) {
-
 			wp_set_post_categories( $post_id, $cat_ids, true );
 			$applied['categories'] = $assigned;
 		}

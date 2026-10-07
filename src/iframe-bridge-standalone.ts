@@ -30,11 +30,8 @@ interface IframeApi {
 		opts: RequestConnectionOptions,
 	): Promise< ConnectionRecord >;
 	chrome: IframeChromeApi;
-
 	readonly windowId: string | null;
-
 	whenWindowId(): Promise< string >;
-
 	isParentReachable(): boolean;
 }
 
@@ -109,7 +106,6 @@ export function installEditorAutosaveHandler(): void {
 		try {
 			window.parent.postMessage( message, origin );
 		} catch {
-
 		}
 	};
 
@@ -127,7 +123,6 @@ export function installEditorAutosaveHandler(): void {
 			const dispatch = editorWp.data.dispatch?.( 'core/editor' );
 			let timer: number | null = null;
 			let stopped = false;
-
 			let lastBlocks = blockSelect?.getBlocks?.();
 			let lastTitle = select.getEditedPostAttribute?.( 'title' );
 			let absorbSettleTick = false;
@@ -137,7 +132,6 @@ export function installEditorAutosaveHandler(): void {
 				if ( stopped ) {
 					return;
 				}
-
 				if (
 					( select.isSavingPost?.() ?? false ) ||
 					( select.isAutosavingPost?.() ?? false )
@@ -145,7 +139,6 @@ export function installEditorAutosaveHandler(): void {
 					timer = window.setTimeout( save, 1000 );
 					return;
 				}
-
 				if (
 					typeof select.isEditedPostAutosaveable === 'function' &&
 					! select.isEditedPostAutosaveable()
@@ -166,7 +159,6 @@ export function installEditorAutosaveHandler(): void {
 							}
 						} )
 						.catch( () => {
-
 						} );
 					return;
 				}
@@ -242,7 +234,6 @@ export function installEditorAutosaveHandler(): void {
 
 			let timer: number | null = null;
 			let stopped = false;
-
 			let inFlight = false;
 
 			interface TinyEditor {
@@ -292,7 +283,6 @@ export function installEditorAutosaveHandler(): void {
 							text = ed.getContent?.() ?? null;
 						}
 					} catch {
-
 					}
 					if ( text === null ) {
 						text = fieldValue( field );
@@ -302,16 +292,13 @@ export function installEditorAutosaveHandler(): void {
 					}
 					parts.push( text ?? '' );
 				}
-
 				return found
 					? parts.map( ( p ) => `${ p.length }:${ p }` ).join( '' )
 					: null;
 			};
 
 			let announced = contentFingerprint();
-
 			let pending: string | null = null;
-
 			let sawEdit = false;
 
 			const save = (): void => {
@@ -323,7 +310,6 @@ export function installEditorAutosaveHandler(): void {
 					timer = window.setTimeout( save, 1000 );
 					return;
 				}
-
 				const current = contentFingerprint();
 				if ( current !== null && current === announced ) {
 					return;
@@ -331,7 +317,6 @@ export function installEditorAutosaveHandler(): void {
 				try {
 					editorWp.autosave?.server?.triggerSave?.();
 				} catch {
-
 				}
 			};
 
@@ -349,7 +334,6 @@ export function installEditorAutosaveHandler(): void {
 			const ns = `.os-live-${ watchId }`;
 			jq( document ).on( `before-autosave${ ns }`, () => {
 				inFlight = true;
-
 				pending = contentFingerprint();
 			} );
 			jq( document ).on( `after-autosave${ ns }`, () => {
@@ -357,11 +341,9 @@ export function installEditorAutosaveHandler(): void {
 				const saved = pending;
 				pending = null;
 				const unchanged = saved !== null && saved === announced;
-
 				if ( saved !== null ) {
 					announced = saved;
 				}
-
 				if ( unchanged || ! sawEdit ) {
 					return;
 				}
@@ -410,7 +392,6 @@ export function installEditorAutosaveHandler(): void {
 					try {
 						ed.off?.( tinyEvents, schedule );
 					} catch {
-
 					}
 				}
 				tiny?.off?.( 'AddEditor', onAddEditor );
@@ -453,7 +434,6 @@ export function installEditorAutosaveHandler(): void {
 					liveWatches.set( data.watchId, teardown );
 				}
 			} catch {
-
 			}
 			return;
 		}
@@ -465,7 +445,6 @@ export function installEditorAutosaveHandler(): void {
 			try {
 				liveWatches.get( data.watchId )?.();
 			} catch {
-
 			}
 			liveWatches.delete( data.watchId );
 			return;
@@ -499,7 +478,6 @@ export function installEditorAutosaveHandler(): void {
 					origin,
 				);
 			} catch {
-
 			}
 		};
 
@@ -543,7 +521,6 @@ export function installEditorAutosaveHandler(): void {
 							respond( 'saved' );
 						}
 					} );
-
 					window.setTimeout( () => {
 						unsubscribe();
 						respond( 'saved' );
@@ -568,7 +545,6 @@ export function installEditorAutosaveHandler(): void {
 					jq( document ).one( 'after-autosave.os-editor-preview', () =>
 						respond( 'saved' ),
 					);
-
 					window.setTimeout( () => respond( 'not-dirty' ), 5000 );
 				} else {
 					window.setTimeout( () => respond( 'saved' ), 5000 );
@@ -613,7 +589,6 @@ export function installEditorAutosaveHandler(): void {
 			try {
 				waiter( id );
 			} catch {
-
 			}
 		}
 	};
@@ -636,7 +611,6 @@ export function installEditorAutosaveHandler(): void {
 				parentOrigin,
 			);
 		} catch {
-
 		}
 	};
 
@@ -676,7 +650,6 @@ export function installEditorAutosaveHandler(): void {
 						parentOrigin,
 					);
 				} catch {
-
 				}
 				return;
 			}
@@ -694,13 +667,11 @@ export function installEditorAutosaveHandler(): void {
 					parentOrigin,
 				);
 			} catch {
-
 			}
 			for ( const listener of connectionListeners ) {
 				try {
 					listener( { id: conn.id, topics: conn.topics.slice() } );
 				} catch {
-
 				}
 			}
 			return;
@@ -762,7 +733,6 @@ export function installEditorAutosaveHandler(): void {
 				}
 				window.parent.postMessage( reply, parentOrigin );
 			} catch {
-
 			}
 			return;
 		}
@@ -781,7 +751,6 @@ export function installEditorAutosaveHandler(): void {
 					try {
 						cb( data.payload, meta );
 					} catch {
-
 					}
 				}
 			}
@@ -791,7 +760,6 @@ export function installEditorAutosaveHandler(): void {
 					try {
 						cb( data.payload, meta );
 					} catch {
-
 					}
 				}
 			}
@@ -817,7 +785,6 @@ export function installEditorAutosaveHandler(): void {
 					try {
 						cb( d.payload, meta );
 					} catch {
-
 					}
 				}
 			}
@@ -827,7 +794,6 @@ export function installEditorAutosaveHandler(): void {
 					try {
 						cb( d.payload, meta );
 					} catch {
-
 					}
 				}
 			}
@@ -841,6 +807,7 @@ export function installEditorAutosaveHandler(): void {
 			}
 			const ids = Object.keys( connections );
 			if ( ids.length === 0 ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					'[openstation] wp.os.iframe.publish dropped: no open connection for topic "%s". The parent shell must call `wp.os.connect(windowId)` first.',
 					topic,
@@ -877,7 +844,6 @@ export function installEditorAutosaveHandler(): void {
 				return () => {};
 			}
 			connectionListeners.push( cb );
-
 			for ( const id of Object.keys( connections ) ) {
 				try {
 					cb( {
@@ -885,7 +851,6 @@ export function installEditorAutosaveHandler(): void {
 						topics: connections[ id ].topics.slice(),
 					} );
 				} catch {
-
 				}
 			}
 			return () => {
@@ -895,7 +860,6 @@ export function installEditorAutosaveHandler(): void {
 				}
 			};
 		},
-
 		chrome: {
 			setTheme( tokens ) {
 				try {
@@ -907,7 +871,6 @@ export function installEditorAutosaveHandler(): void {
 						parentOrigin,
 					);
 				} catch {
-
 				}
 			},
 			setControls( config ) {
@@ -920,7 +883,6 @@ export function installEditorAutosaveHandler(): void {
 						parentOrigin,
 					);
 				} catch {
-
 				}
 			},
 			setSlot( name, html ) {
@@ -937,7 +899,6 @@ export function installEditorAutosaveHandler(): void {
 						parentOrigin,
 					);
 				} catch {
-
 				}
 			},
 		},
@@ -1002,7 +963,6 @@ export function installEditorAutosaveHandler(): void {
 							try {
 								o.onOpen( summary );
 							} catch {
-
 							}
 						}
 						settle( true, summary );
@@ -1077,7 +1037,6 @@ export function installEditorAutosaveHandler(): void {
 					parentOrigin,
 				);
 			} catch {
-
 			}
 		};
 	}
@@ -1163,7 +1122,6 @@ export function installEditorAutosaveHandler(): void {
 			}
 			return false;
 		};
-
 		const nativeFileInputFor = (
 			target: EventTarget | null,
 		): HTMLInputElement | null => {
@@ -1196,7 +1154,6 @@ export function installEditorAutosaveHandler(): void {
 			}
 			return input;
 		};
-
 		const handFilesToInput = (
 			input: HTMLInputElement,
 			list: FileList,
@@ -1223,7 +1180,6 @@ export function installEditorAutosaveHandler(): void {
 			input.dispatchEvent( new Event( 'change', { bubbles: true } ) );
 			return true;
 		};
-
 		const dropZoneAttr = 'data-os-file-drop-active';
 		let dropZone: Element | null = null;
 		let dropZoneWatchdog: ReturnType< typeof setTimeout > | null = null;
@@ -1254,7 +1210,6 @@ export function installEditorAutosaveHandler(): void {
 				dropZoneWatchdog = setTimeout( clearDropZone, 250 );
 			}
 		};
-
 		document.addEventListener(
 			'dragover',
 			( ev: DragEvent ) => {
@@ -1321,7 +1276,6 @@ export function installEditorAutosaveHandler(): void {
 						parentOrigin,
 					);
 				} catch {
-
 				}
 			},
 			false,
@@ -1362,7 +1316,6 @@ export function installEditorAutosaveHandler(): void {
 						parentOrigin,
 					);
 				} catch {
-
 				}
 			},
 			true,
@@ -1390,7 +1343,6 @@ export function installEditorAutosaveHandler(): void {
 					return;
 				}
 				const now = Date.now();
-
 				if ( now - pointerLastSent < 40 ) {
 					return;
 				}
@@ -1405,7 +1357,6 @@ export function installEditorAutosaveHandler(): void {
 						parentOrigin,
 					);
 				} catch {
-
 				}
 			},
 			{ capture: true, passive: true },
@@ -1422,11 +1373,9 @@ export function installEditorAutosaveHandler(): void {
 					);
 				}
 			} catch {
-
 			}
 		} );
 	} catch {
-
 	}
 
 	try {
@@ -1437,13 +1386,11 @@ export function installEditorAutosaveHandler(): void {
 			);
 		}
 	} catch {
-
 	}
 
 	function installScreenMetaHoist( origin: string ): void {
 		const hasScreenOptionsContent = (): boolean => {
 			const wrap = document.getElementById( 'screen-options-wrap' );
-
 			return (
 				!! wrap &&
 				!! wrap.querySelector(
@@ -1451,7 +1398,6 @@ export function installEditorAutosaveHandler(): void {
 				)
 			);
 		};
-
 		const hasHelpContent = (): boolean => {
 			const wrap = document.getElementById( 'contextual-help-wrap' );
 			if ( ! wrap ) {
@@ -1490,7 +1436,6 @@ export function installEditorAutosaveHandler(): void {
 					origin,
 				);
 			} catch {
-
 			}
 
 			if ( panels.length === 0 ) {
@@ -1522,7 +1467,6 @@ export function installEditorAutosaveHandler(): void {
 						origin,
 					);
 				} catch {
-
 				}
 			};
 			reportState();
@@ -1557,7 +1501,6 @@ export function installEditorAutosaveHandler(): void {
 					try {
 						jq( panel ).stop( true, false );
 					} catch {
-
 					}
 				}
 				panel.style.display = 'none';

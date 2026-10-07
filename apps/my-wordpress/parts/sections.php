@@ -21,7 +21,6 @@ function sections( Os $os ) {
 			'post_type'  => 'post',
 			'capability' => 'edit_posts',
 			'thumbnails' => true,
-
 			'restPath'   => 'wp/v2/posts',
 		),
 		array(
@@ -32,7 +31,6 @@ function sections( Os $os ) {
 			'post_type'    => 'page',
 			'capability'   => 'edit_pages',
 			'thumbnails'   => true,
-
 			'hierarchical' => true,
 			'restPath'     => 'wp/v2/pages',
 		),
@@ -53,7 +51,6 @@ function sections( Os $os ) {
 			'post_type'  => '',
 			'capability' => 'list_users',
 			'thumbnails' => true,
-
 			'canAdd'     => current_user_can( 'create_users' )
 				|| ( is_multisite() && current_user_can( 'promote_users' ) ),
 		),
@@ -64,7 +61,6 @@ function sections( Os $os ) {
 	if ( function_exists( 'openstation_my_wordpress_eligible_post_types' ) ) {
 		$claimed = array_column( $sections, 'post_type' );
 		foreach ( openstation_my_wordpress_eligible_post_types() as $name => $post_type ) {
-
 			if ( in_array( (string) $name, $claimed, true ) ) {
 				continue;
 			}
@@ -162,7 +158,6 @@ function sort_options( array $section ) {
 	if ( null !== $woo ) {
 		return $woo;
 	}
-
 	if ( 'user' === $section['kind'] ) {
 		return array(
 			'default'    => array( __( 'Name A–Z', 'desktop-mode' ), 'display_name', 'ASC' ),

@@ -1,13 +1,8 @@
 export interface ConfirmDialogArgs {
-
 	title: string;
-
 	body: string;
-
 	confirmLabel?: string;
-
 	cancelLabel?: string;
-
 	danger?: boolean;
 }
 
@@ -78,7 +73,6 @@ export function showConfirm( args: ConfirmDialogArgs ): Promise< boolean > {
 		document.addEventListener( 'keydown', onKey );
 
 		document.body.append( overlay );
-
 		cancel.focus();
 	} );
 }

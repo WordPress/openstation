@@ -8,7 +8,6 @@ export async function copyText( text: string ): Promise< boolean > {
 			await clipboard.writeText( text );
 			return true;
 		} catch {
-
 		}
 	}
 	return copyThroughSelection( text );

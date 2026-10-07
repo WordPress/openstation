@@ -1,11 +1,8 @@
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 
 export interface ModuleDef {
-
 	id: string;
-
 	url: string;
-
 	isReady?: () => boolean;
 }
 

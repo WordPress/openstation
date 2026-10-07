@@ -41,9 +41,7 @@ function placementToSpec(
 		type: placement.file.type,
 		ref: placement.file.ref,
 		label,
-
 		thumbnail: previewUrl || undefined,
-
 		icon: previewUrl
 			? undefined
 			: ( getIconArt( placement.file.ref ) ||
@@ -90,7 +88,6 @@ export function buildTile(
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		e.stopPropagation();
-
 		const live = currentPlacement( placement );
 		const file = resolveFileType( live.file );
 		if ( live.accessGated ) {

@@ -60,7 +60,6 @@ export class OsDisplay extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback?.();
-
 		if ( ! this.hasAttribute( 'aria-live' ) ) {
 			this.setAttribute( 'aria-live', 'polite' );
 		}

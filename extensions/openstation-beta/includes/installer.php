@@ -65,7 +65,7 @@ function openstation_beta_resolve_target( $source, $id ) {
 					return new WP_Error(
 						'openstation_beta_build_pending',
 						sprintf(
-
+							/* translators: %d: Pull request number. */
 							__( 'No build exists yet for the latest commit of PR #%d — the build usually lands a few minutes after a push. Try again shortly.', 'openstation-beta' ),
 							$number
 						),
@@ -87,7 +87,7 @@ function openstation_beta_resolve_target( $source, $id ) {
 			return new WP_Error(
 				'openstation_beta_pr_missing',
 				sprintf(
-
+					/* translators: %d: Pull request number. */
 					__( 'PR #%d is not an open pull request on the repository.', 'openstation-beta' ),
 					$number
 				),
@@ -103,7 +103,6 @@ function openstation_beta_resolve_target( $source, $id ) {
 }
 
 function openstation_beta_switch( $source, $id ) {
-
 	$blocked = openstation_beta_install_blocked();
 	if ( null !== $blocked ) {
 		return new WP_Error(
@@ -167,7 +166,7 @@ function openstation_beta_switch( $source, $id ) {
 		return new WP_Error(
 			'openstation_beta_wrong_plugin',
 			sprintf(
-
+				/* translators: %s: Plugin file resolved from the installed zip. */
 				__( 'The downloaded zip installed "%s" instead of OpenStation.', 'openstation-beta' ),
 				$plugin_file
 			),

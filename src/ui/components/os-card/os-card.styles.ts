@@ -13,14 +13,12 @@ export const styles = css`
 	:host {
 		display: flex;
 		flex-direction: column;
-
 		position: relative;
 		gap: var( --os-ui-card-gap, 12px );
 		padding: var( --os-ui-card-padding, 16px );
 		border: 1px solid var( --os-ui-card-border, var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) );
 		border-radius: var( --os-ui-card-radius, 12px );
 		background: var( --os-ui-card-bg, var( --os-ui-surface, #fff ) );
-
 		background-image: var( --os-ui-panel-bg-image, none );
 		background-repeat: var( --os-ui-panel-bg-image-repeat, repeat );
 		background-size: var( --os-ui-panel-bg-image-size, auto );

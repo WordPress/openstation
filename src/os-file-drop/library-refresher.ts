@@ -60,6 +60,5 @@ function isMediaLibraryUrl( url: string ): boolean {
 	if ( ! url ) {
 		return false;
 	}
-
 	return /\/wp-admin\/upload\.php(?:[?#]|$)/.test( url );
 }

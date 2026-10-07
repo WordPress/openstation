@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group my-wordpress-app
+ */
 
 use OpenStation\App;
 use function OpenStation\Apps\MyWordPress\woo_allowed;
@@ -38,7 +42,6 @@ class Tests_OpenStation_MyWordPressAppWoocommerce extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_app_window_args' );
 		unregister_post_type( 'product' );
 		unregister_post_type( 'shop_coupon' );
-
 		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
 			openstation_unregister_icon( $id );
 			if ( 0 === strpos( $id, 'demo-woo' ) ) {
@@ -75,6 +78,10 @@ class Tests_OpenStation_MyWordPressAppWoocommerce extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\woo_ready
+	 * @covers \OpenStation\Apps\MyWordPress\woo_sections
+	 */
 	public function test_no_woo_sections_without_woocommerce() {
 		$this->assertFalse( woo_ready() );
 		$this->assertSame( array(), woo_sections( openstation_apps_os() ) );
@@ -85,6 +92,15 @@ class Tests_OpenStation_MyWordPressAppWoocommerce extends WP_UnitTestCase {
 		$this->assertNotContains( 'wc-customers', $ids );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\woo_list
+	 * @covers \OpenStation\Apps\MyWordPress\woo_count
+	 * @covers \OpenStation\Apps\MyWordPress\woo_extras
+	 * @covers \OpenStation\Apps\MyWordPress\woo_user_extras
+	 * @covers \OpenStation\Apps\MyWordPress\woo_allowed
+	 * @covers \OpenStation\Apps\MyWordPress\woo_edit_url
+	 * @covers \OpenStation\Apps\MyWordPress\woo_sort_options
+	 */
 	public function test_helpers_stand_down_without_woocommerce() {
 		$os     = openstation_apps_os();
 		$orders = $this->section( array( 'id' => 'wc-orders' ) );
@@ -103,6 +119,9 @@ class Tests_OpenStation_MyWordPressAppWoocommerce extends WP_UnitTestCase {
 		$this->assertNull( woo_sort_options( $this->section( array( 'id' => 'cpt-product' ) ) ) );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\woo_decorate_section
+	 */
 	public function test_decoration_maps_icons_and_strips_entity_keys() {
 		register_post_type( 'product', array( 'public' => true, 'show_ui' => true ) );
 		register_post_type( 'shop_coupon', array( 'public' => false, 'show_ui' => true ) );
@@ -127,6 +146,11 @@ class Tests_OpenStation_MyWordPressAppWoocommerce extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-post', $plain['icon'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\quick_edit_action
+	 * @covers \OpenStation\Apps\MyWordPress\bulk_trash_action
+	 * @covers \OpenStation\Apps\MyWordPress\trash_action
+	 */
 	public function test_flat_sections_refuse_post_mutations() {
 		add_filter(
 			'openstation_my_wordpress_app_sections',
@@ -168,6 +192,9 @@ class Tests_OpenStation_MyWordPressAppWoocommerce extends WP_UnitTestCase {
 		$this->assertSame( 'publish', get_post_status( self::$post_id ), 'Trash refuses a flat section.' );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\payload
+	 */
 	public function test_flat_sections_never_navigate_into() {
 		add_filter(
 			'openstation_my_wordpress_app_sections',
@@ -193,6 +220,9 @@ class Tests_OpenStation_MyWordPressAppWoocommerce extends WP_UnitTestCase {
 		$this->assertIsArray( $response['data']['list'], 'The flat list stays on screen.' );
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_app_window_args_filter_reaches_the_registry() {
 		wp_register_script( 'demo-woo-companion', 'https://example.test/companion.js', array(), '1.0', true );
 
@@ -222,6 +252,9 @@ class Tests_OpenStation_MyWordPressAppWoocommerce extends WP_UnitTestCase {
 		wp_deregister_script( 'demo-woo-companion' );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_woo_app_window_args
+	 */
 	public function test_woo_subscriber_is_inert_without_woocommerce() {
 		$args = array( 'scripts' => array( 'openstation-app-my-wordpress-client' ) );
 		$this->assertSame(

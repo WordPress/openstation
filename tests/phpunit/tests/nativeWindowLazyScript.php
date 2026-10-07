@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-native-window-lazy-script
+ */
 class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -11,7 +14,6 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
-
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 
 		wp_scripts()->registered = array();
@@ -47,6 +49,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		return $bundle['scriptData'];
 	}
 
+	/**
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_preload_script_defaults_to_false() {
 		$this->register_demo_window( 'demo-lazy-default' );
 
@@ -55,6 +60,10 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertFalse( $entry['preloadScript'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_preload_script_opt_in_reaches_the_payload() {
 		$this->register_demo_window(
 			'demo-lazy-optin',
@@ -66,6 +75,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertTrue( $entry['preloadScript'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_companion_scripts_default_to_empty() {
 		$this->register_demo_window( 'demo-companion-none' );
 
@@ -74,6 +86,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertSame( array(), $entry['companionScripts'] );
 	}
 
+	/**
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
 	public function test_companion_scripts_resolve_with_inline_data() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
 		$this->register_demo_script( 'demo-extra', 'https://example.test/extra.js' );
@@ -100,6 +115,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_companion_scripts_keep_declaration_order() {
 		$this->register_demo_script( 'demo-a', 'https://example.test/a.js' );
 		$this->register_demo_script( 'demo-b', 'https://example.test/b.js' );
@@ -114,6 +132,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertSame( array( 'demo-b', 'demo-a' ), $entry['companionScripts'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_unregistered_companion_handle_drops_silently() {
 		$this->register_demo_script( 'demo-real', 'https://example.test/real.js' );
 
@@ -128,6 +149,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'never-registered', $this->script_data() );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
 	public function test_enqueue_hook_does_not_print_a_deferred_bundle() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
 		$this->register_demo_window( 'demo-enqueue-lazy', array( 'script' => 'demo-main' ) );
@@ -138,6 +162,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( 'demo-main', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
 	public function test_enqueue_hook_attaches_data_to_the_deferred_handle() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
 		$this->register_demo_window( 'demo-enqueue-data', array( 'script' => 'demo-main' ) );
@@ -150,6 +177,10 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'openStationNativeWindow_', $data );
 	}
 
+	/**
+	 * @covers ::openstation_filter_native_window_config
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_config_filter_reaches_the_lazy_l10n() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
 		$this->register_demo_window(
@@ -179,6 +210,10 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'snapshot', $l10n );
 	}
 
+	/**
+	 * @covers ::openstation_filter_native_window_config
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
 	public function test_config_filter_reaches_the_eager_inline() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
 		$this->register_demo_window(
@@ -212,6 +247,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'emit-time', $blob );
 	}
 
+	/**
+	 * @covers ::openstation_filter_native_window_config
+	 */
 	public function test_config_filter_non_array_return_ships_nothing() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
 		$this->register_demo_window(
@@ -232,6 +270,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
 	public function test_enqueue_hook_runs_before_the_payload_is_built() {
 		$this->assertSame(
 			5,
@@ -242,6 +283,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
 	public function test_enqueue_hook_prints_preloaded_bundles_and_companions() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
 		$this->register_demo_script( 'demo-extra', 'https://example.test/extra.js' );
@@ -261,6 +305,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertTrue( wp_script_is( 'demo-extra', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_duplicate_and_empty_companion_handles_are_dropped() {
 		$this->register_demo_script( 'demo-dup', 'https://example.test/dup.js' );
 
@@ -274,6 +321,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertSame( array( 'demo-dup' ), $entry['companionScripts'] );
 	}
 
+	/**
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
 	public function test_windows_sharing_a_bundle_share_one_config_set() {
 		$this->register_demo_script( 'demo-shared', 'https://example.test/shared.js' );
 		$this->register_demo_window(
@@ -295,7 +345,6 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$pages = $this->payload_entry( 'demo-shared-pages' );
 		$this->assertNotNull( $posts );
 		$this->assertNotNull( $pages );
-
 		$this->assertArrayNotHasKey( 'scriptL10n', $posts );
 		$this->assertSame( 'demo-shared', $posts['scriptHandle'] );
 		$this->assertSame( 'demo-shared', $pages['scriptHandle'] );
@@ -305,11 +354,13 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$l10n = implode( "\n", $data['demo-shared']['l10n'] );
 		$this->assertStringContainsString( '"demo-shared-posts"', $l10n );
 		$this->assertStringContainsString( '"demo-shared-pages"', $l10n );
-
 		$this->assertSame( 1, substr_count( $l10n, '"demo-shared-posts"' ) );
 		$this->assertSame( 1, substr_count( $l10n, '"demo-shared-pages"' ) );
 	}
 
+	/**
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_companion_styles_default_to_empty() {
 		$this->register_demo_window( 'demo-style-none' );
 
@@ -318,6 +369,10 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertSame( array(), $entry['companionStyles'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 * @covers ::openstation_build_native_windows_payload
+	 */
 	public function test_companion_styles_resolve_with_inline_data() {
 		wp_register_style( 'demo-style-extra', 'https://example.test/extra.css', array(), '1.0.0' );
 		wp_add_inline_style( 'demo-style-extra', '.demo{color:red}' );
@@ -338,6 +393,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		wp_deregister_style( 'demo-style-extra' );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_native_window_scripts
+	 */
 	public function test_preload_enqueues_companion_styles() {
 		wp_register_style( 'demo-style-preload', 'https://example.test/preload.css', array(), '1.0.0' );
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
@@ -359,6 +417,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		wp_deregister_style( 'demo-style-preload' );
 	}
 
+	/**
+	 * @covers ::openstation_menu_refresh_probe_payload
+	 */
 	public function test_probe_payload_carries_data_attached_on_admin_enqueue_scripts() {
 		$this->register_demo_script( 'demo-main', 'https://example.test/main.js' );
 		$this->register_demo_script( 'demo-extra', 'https://example.test/extra.js' );
@@ -396,6 +457,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
 	public function test_script_ships_its_dependency_closure() {
 		$this->register_demo_script( 'demo-base', 'https://example.test/base.js' );
 		wp_register_script( 'demo-config', false, array( 'demo-base' ), '1.0.0', true );
@@ -416,6 +480,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertSame( array( 'window.demoConfig={c:3};' ), $data['demo-config']['before'] );
 	}
 
+	/**
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
 	public function test_a_dependency_named_as_a_script_resolves_its_own_closure() {
 		$this->register_demo_script( 'demo-base', 'https://example.test/base.js' );
 		$this->register_demo_script( 'demo-shared', 'https://example.test/shared.js' );
@@ -431,6 +498,9 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertSame( array( 'demo-base' ), $data['demo-shared']['deps'] );
 	}
 
+	/**
+	 * @covers ::openstation_collect_native_windows_payload
+	 */
 	public function test_alias_as_a_window_script_is_still_nothing_to_load() {
 		wp_register_script( 'demo-alias-only', false, array(), '1.0.0', true );
 		wp_add_inline_script( 'demo-alias-only', 'window.demoAlias=1;', 'before' );

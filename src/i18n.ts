@@ -1,3 +1,5 @@
+/* eslint-disable @wordpress/i18n-text-domain, @wordpress/i18n-no-variables */
+
 export const TEXT_DOMAIN = 'desktop-mode';
 
 interface WpI18n {
@@ -71,7 +73,6 @@ export function sprintf( format: string, ...args: unknown[] ): string {
 	if ( impl ) {
 		return impl( format, ...args );
 	}
-
 	let i = 0;
 	return format.replace( /%(?:(\d+)\$)?[sd]/g, ( _match, pos ) => {
 		const idx = pos ? Number.parseInt( pos, 10 ) - 1 : i++;

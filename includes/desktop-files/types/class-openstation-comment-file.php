@@ -31,7 +31,6 @@ class OpenStation_Comment_File extends OpenStation_File {
 		if ( ! $c ) {
 			return false;
 		}
-
 		if ( '1' === (string) $c->comment_approved ) {
 			return true;
 		}

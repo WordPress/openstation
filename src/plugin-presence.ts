@@ -15,7 +15,6 @@ const MAX_NEGATIVE_CONFIRMS = 3;
 
 interface PresenceState {
 	confirmInFlight: boolean;
-
 	lastConfirmAt: number | null;
 	exiting: boolean;
 	booted: boolean;
@@ -96,7 +95,6 @@ async function confirmAbsence(): Promise< void > {
 			s.negativeConfirms += 1;
 			return;
 		}
-
 		const body = ( await res.json() ) as { code?: string } | null;
 		if ( body?.code !== 'rest_no_route' ) {
 			s.negativeConfirms += 1;
@@ -104,7 +102,6 @@ async function confirmAbsence(): Promise< void > {
 		}
 		exitToClassicAdmin();
 	} catch {
-
 	} finally {
 		s.confirmInFlight = false;
 	}
@@ -126,7 +123,6 @@ function exitToClassicAdmin(): void {
 			duration: LEAVE_DELAY_MS,
 		} );
 	} catch {
-
 	}
 }
 
@@ -143,7 +139,6 @@ export function noteFrameLoaded( frame: HTMLIFrameElement ): void {
 	if ( ! doc?.body || ! doc.location ) {
 		return;
 	}
-
 	if ( ! doc.location.pathname.startsWith( adminPath() ) ) {
 		return;
 	}

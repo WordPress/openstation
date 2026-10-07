@@ -125,7 +125,7 @@ function openstation_core_notice_deactivated_plugins() {
 			'id'          => 'deactivated-plugins',
 			'title'       => __( 'Plugins', 'desktop-mode' ),
 			'message'     => sprintf(
-
+				/* translators: %s: comma-separated list of plugin names. */
 				__( 'Deactivated during a WordPress upgrade for incompatibility: %s.', 'desktop-mode' ),
 				implode( ', ', $names )
 			),

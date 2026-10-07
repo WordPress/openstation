@@ -51,7 +51,6 @@ describe( 'floating menus clamp to the viewport', () => {
 			if ( el.tagName.toLowerCase() !== 'os-context-menu' ) {
 				return originalRect.call( this );
 			}
-
 			const rendered = el.shadowRoot?.querySelector( 'slot' ) !== null;
 			const left = parseFloat( el.style.left ) || 0;
 			const top = parseFloat( el.style.top ) || 0;
@@ -73,7 +72,6 @@ describe( 'floating menus clamp to the viewport', () => {
 		const { openWallpaperMenu } = await import(
 			'../../src/desktop-files/wallpaper-menu'
 		);
-
 		const clickY = window.innerHeight - 60;
 		openWallpaperMenu( document.body, { x: 20, y: clickY }, [
 			{ id: 'a', label: 'A', onClick: () => {} },
@@ -197,7 +195,6 @@ describe( 'floating menus clamp to the viewport', () => {
 } );
 
 describe( 'a menu taller than the screen', () => {
-
 	test( 'caps itself to the viewport and scrolls inside', () => {
 		const open = menuStyles.cssText.split( ':host( [ open ] ) {' )[ 1 ]?.split( '}' )[ 0 ] ?? '';
 		expect( open ).toContain( 'max-block-size: calc( 100vh - 16px )' );

@@ -89,7 +89,6 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 	beforeEach( () => {
 		installHooksStub();
 		__resetNativeWindowGeometryForTests();
-
 		vi.spyOn( vendorLoader, 'loadVendorScript' ).mockResolvedValue( undefined );
 	} );
 	afterEach( () => {
@@ -192,7 +191,6 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 
 	describe( 'styleUrl lazy injection', () => {
 		beforeEach( () => {
-
 			document.head
 				.querySelectorAll( 'link[rel="stylesheet"], style[data-os-style-handle]' )
 				.forEach( ( n ) => n.remove() );
@@ -357,7 +355,6 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 		} );
 
 		test( 'openById does not pin x / y, so createWindow can apply the saved position', async () => {
-
 			const h = setupHarness();
 			const { sync, openById } = createNativeWindowSync(
 				depsFromHarness( h ),
@@ -376,7 +373,6 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 		} );
 
 		test( 'a stored size smaller than the current minimum is clamped up', async () => {
-
 			saveNativeWindowGeometry( 'calculator', {
 				width: 320,
 				height: 240,
@@ -525,7 +521,6 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 		} );
 
 		test( 'WINDOW_DRAG_END seeds size + position even when nothing was previously stored', async () => {
-
 			const h = setupHarness();
 			const element = document.createElement( 'div' );
 			Object.defineProperty( element, 'offsetLeft', { value: 1200, configurable: true } );

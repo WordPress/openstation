@@ -7,13 +7,9 @@ export type { OsIconDef, OsIconName } from './set';
 export type OsIconRotation = 90 | 180 | 270;
 
 export interface OsIconOptions {
-
 	size?: number | null;
-
 	className?: string;
-
 	title?: string;
-
 	rotate?: OsIconRotation;
 }
 
@@ -71,7 +67,6 @@ export function osIcon(
 ): SVGSVGElement {
 	const markup = osIconSvg( name, options );
 	const host = document.createElement( 'div' );
-
 	host.innerHTML = markup;
 	const svg = host.firstElementChild;
 	if ( svg instanceof SVGSVGElement ) {
@@ -95,17 +90,11 @@ export function osIconDataUri(
 }
 
 export interface OsIconSetApi {
-
 	svg: ( name: string, options?: OsIconOptions ) => string;
-
 	node: ( name: string, options?: OsIconOptions ) => SVGSVGElement;
-
 	dataUri: ( name: string, options?: OsIconOptions ) => string;
-
 	names: readonly string[];
-
 	ours: readonly string[];
-
 	has: ( name: string ) => boolean;
 }
 

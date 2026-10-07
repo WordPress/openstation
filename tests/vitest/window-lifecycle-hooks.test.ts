@@ -89,7 +89,6 @@ describe( 'Window — lifecycle hook firing', () => {
 	} );
 
 	test( 'restore (from minimized) fires window.restored; no-op when already normal fires nothing', () => {
-
 		handle.win.minimize();
 		const log = recordActions( hooks, LIFECYCLE_HOOKS );
 		handle.win.restore();
@@ -160,7 +159,6 @@ describe( 'Window — lifecycle hook firing', () => {
 	} );
 
 	test( 'detach fires window.detached with { windowId, url } stripped of chromeless flags', () => {
-
 		handle.cleanup();
 		handle = mountWindow(
 			baseConfig( {
@@ -188,7 +186,6 @@ describe( 'Window — lifecycle hook firing', () => {
 	} );
 
 	test( 'detach opens the page an unreadable frame reported, not the one the window opened on', () => {
-
 		const origin = window.location.origin;
 		handle.cleanup();
 		handle = mountWindow( baseConfig( { id: 'post-2', url: `${ origin }/wp-admin/post.php?post=2&action=edit` } ) );
@@ -208,7 +205,6 @@ describe( 'Window — lifecycle hook firing', () => {
 		handle.win.detach();
 
 		expect( openSpy ).toHaveBeenCalledWith( `${ elementor }&desktop_mode_classic=1`, '_blank', 'noopener' );
-
 		iframe.src = `${ origin }/wp-admin/edit.php`;
 		expect( handle.win.getCurrentUrl() ).toBe( iframe.src );
 		openSpy.mockRestore();

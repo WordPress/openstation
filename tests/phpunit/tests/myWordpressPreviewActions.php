@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -16,6 +19,9 @@ class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_collect_preview_actions
+	 */
 	public function test_capability_gating_drops_actions_for_subscriber() {
 		add_filter(
 			'openstation_my_wordpress_preview_actions',
@@ -45,6 +51,9 @@ class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 		$this->assertContains( 'b', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_collect_preview_actions
+	 */
 	public function test_sections_pass_through_verbatim() {
 		add_filter(
 			'openstation_my_wordpress_preview_actions',
@@ -65,6 +74,9 @@ class Tests_OpenStation_MyWordpressPreviewActions extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_collect_preview_actions
+	 */
 	public function test_invalid_entries_are_dropped() {
 		add_filter(
 			'openstation_my_wordpress_preview_actions',

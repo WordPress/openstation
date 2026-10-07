@@ -82,7 +82,6 @@ describe( 'native window params', () => {
 				params: { userId: 12 },
 			} ),
 		);
-
 		const again = await manager.open(
 			nativeConfig( 'desktop-mode-user-edit' ),
 		);
@@ -132,7 +131,6 @@ describe( 'native window params', () => {
 			nativeConfig( 'desktop-mode-woo-customer', {
 				params: {
 					customerId: 7,
-
 					node: document.createElement( 'div' ),
 					cb: () => undefined,
 					cyclic,

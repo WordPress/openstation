@@ -22,7 +22,6 @@ function openstation_users_profile_window_args( $window_args, $app_id ) {
 	if ( ! is_array( $window_args ) || ! in_array( (string) $app_id, array( 'desktop-mode-users', 'desktop-mode-user-edit' ), true ) ) {
 		return $window_args;
 	}
-
 	if ( ! wp_script_is( OPENSTATION_USER_PROFILE_HANDLE, 'registered' ) ) {
 		openstation_users_profile_register_script();
 	}

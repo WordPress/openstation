@@ -67,18 +67,13 @@ describe( 'close-all shortcut — chord matching', () => {
 	} );
 
 	test( 'ignores near misses', () => {
-
 		expect( isCloseAllChord( chord( { altKey: false } ) ) ).toBe( false );
-
 		expect( isCloseAllChord( chord( { ctrlKey: false } ) ) ).toBe( false );
-
 		expect( isCloseAllChord( chord( { shiftKey: true } ) ) ).toBe( false );
-
 		expect( isCloseAllChord( chord( { code: 'KeyQ' } ) ) ).toBe( false );
 	} );
 
 	test( 'ignores AltGr, which Windows and Linux report as Ctrl+Alt', () => {
-
 		const altGr = new KeyboardEvent( 'keydown', {
 			code: 'KeyW',
 			ctrlKey: true,
@@ -97,7 +92,6 @@ describe( 'close-all shortcut — chord matching', () => {
 	} );
 
 	test( 'reads the physical key, not the typed character', () => {
-
 		const e = new KeyboardEvent( 'keydown', {
 			code: 'KeyW',
 			key: '∑',

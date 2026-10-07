@@ -119,39 +119,26 @@ export class AiAssistant implements AiAssistantApi {
 	private _closeFadeCleanup: ( () => void ) | null = null;
 	private _aiSearchUrl: string;
 	private _restNonce: string;
-
 	private _searchAbort: AbortController | null = null;
 	private _adminUrl: string;
-
 	private _isAiSupported: () => boolean;
-
 	private _canConnectProvider: () => boolean;
-
 	private _isAiAvailable: () => boolean;
-
 	private _isOverrideEnabled: () => boolean;
-
 	private _mode: 'commands' | 'ai' = 'commands';
-
 	private _modeInput: { commands: string; ai: string } = {
 		commands: '',
 		ai: '',
 	};
-
 	private _lastAiResult: { query: string; data: SearchResult } | null = null;
 	private _currentRemoteCommands: DesktopCommand[] = [];
 	private _remoteSearchToken = 0;
-
 	private _baselineLoading = false;
 
 	private _selectedCommand = 0;
-
 	private _keyboardNav = false;
-
 	private _selectedSuggestion = 0;
-
 	private _currentSuggestions: CommandSuggestion[] = [];
-
 	private _suggestToken = 0;
 
 	constructor( config: AiAssistantConfig ) {
@@ -177,7 +164,6 @@ export class AiAssistant implements AiAssistantApi {
 			if ( ! this._isOpen || this._isShowingOutcome() ) {
 				return;
 			}
-
 			this._renderForMode();
 		} );
 	}
@@ -205,7 +191,6 @@ export class AiAssistant implements AiAssistantApi {
 		this._remoteSearchToken++;
 		this._selectedCommand = 0;
 		this._submitBtn.classList.remove( 'has-value' );
-
 		this._mode = this._defaultMode();
 		this._updateModeUI();
 		this._renderForMode();
@@ -326,7 +311,6 @@ export class AiAssistant implements AiAssistantApi {
 		this._selectedCommand = 0;
 		this._selectedSuggestion = 0;
 		this._updateModeUI();
-
 		if (
 			this._mode === 'ai' &&
 			this._lastAiResult &&
@@ -347,10 +331,8 @@ export class AiAssistant implements AiAssistantApi {
 				b.classList.toggle( 'is-active', active );
 				b.setAttribute( 'aria-pressed', String( active ) );
 			} );
-
 		const needsSetup = this._aiNeedsSetup();
 		this._input.readOnly = needsSetup;
-
 		if ( needsSetup ) {
 			this._input.setAttribute( 'aria-describedby', 'os-ai-setup-message' );
 		} else {
@@ -362,7 +344,6 @@ export class AiAssistant implements AiAssistantApi {
 			this._input.placeholder =
 				this._mode === 'ai' ? __( 'How can I help?' ) : __( 'Search commands…' );
 		}
-
 		const inputIcon = this._el.querySelector< HTMLElement >(
 			'.os-ai__input-icon',
 		);
@@ -423,7 +404,6 @@ export class AiAssistant implements AiAssistantApi {
 			this._renderAiSetup();
 			return;
 		}
-
 		const hasEager = listEagerCommands().length > 0;
 		if ( this._input.value.trim() === '' ) {
 			if ( hasEager ) {
@@ -433,7 +413,6 @@ export class AiAssistant implements AiAssistantApi {
 			}
 			return;
 		}
-
 		if ( this._resultsEl.querySelector( '.os-ai__bubble' ) ) {
 			return;
 		}
@@ -472,7 +451,6 @@ export class AiAssistant implements AiAssistantApi {
 			if ( e.key !== 'Tab' ) {
 				return;
 			}
-
 			const focusable = [
 				this._input,
 				this._submitBtn,
@@ -541,9 +519,9 @@ export class AiAssistant implements AiAssistantApi {
 					e.preventDefault();
 					if ( matches.length === 0 ) {
 						if ( parsed.isCommand ) {
+							/* translators: %s: command slug, without the leading slash. */
 							this._showError( sprintf( __( 'Unknown command: /%s' ), parsed.slug ) );
 						}
-
 						return;
 					}
 					const pick = matches[ this._selectedCommand ] ?? matches[ 0 ];
@@ -599,7 +577,6 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.addEventListener( 'input', () => {
 			const hasValue = this._input.value.trim().length > 0;
 			this._submitBtn.classList.toggle( 'has-value', hasValue );
-
 			this._selectedCommand = 0;
 			this._selectedSuggestion = 0;
 
@@ -657,6 +634,7 @@ export class AiAssistant implements AiAssistantApi {
 		if ( parsed.isCommand ) {
 			const cmd = findCommand( parsed.slug );
 			if ( ! cmd ) {
+				/* translators: %s: command slug, without the leading slash. */
 				this._showError( sprintf( __( 'Unknown command: /%s' ), parsed.slug ) );
 				return;
 			}
@@ -685,7 +663,7 @@ export class AiAssistant implements AiAssistantApi {
 		if ( gate && gate.proceed === false ) {
 			this._showError(
 				gate.reason ??
-
+					/* translators: %s: command slug, without the leading slash. */
 					sprintf( __( 'Command /%s was cancelled.' ), cmd.slug ),
 			);
 			return;
@@ -694,11 +672,10 @@ export class AiAssistant implements AiAssistantApi {
 		this._isSearching = true;
 		this._submitBtn.disabled = true;
 		this._input.disabled = true;
-
+		/* translators: %s: command slug, without the leading slash. */
 		this._showThinking( sprintf( __( 'Running /%s…' ), cmd.slug ) );
 
 		const ctx: CommandContext = {
-
 			close: () => {
 				this._previousFocus = null;
 				this.close();
@@ -719,7 +696,7 @@ export class AiAssistant implements AiAssistantApi {
 		} catch ( err ) {
 			const msg = err instanceof Error ? err.message : String( err );
 			this._showError(
-
+				/* translators: 1: command slug, without the leading slash. 2: error message. */
 				sprintf( __( 'Command /%1$s failed: %2$s' ), cmd.slug, msg ),
 			);
 			doAction( HOOKS.COMMAND_ERROR, {
@@ -737,6 +714,7 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	private _warnBusy( what: string ): void {
+		// eslint-disable-next-line no-console -- a dropped action is otherwise indistinguishable from a no-op; see the doc block.
 		console.warn(
 			`[openstation] command palette is busy — ignored: ${ what }. A search or command is still running.`,
 		);
@@ -849,7 +827,7 @@ export class AiAssistant implements AiAssistantApi {
 				};
 				this._showError(
 					err.message ??
-
+						/* translators: %d: HTTP status code. */
 						sprintf( __( 'Server returned %d' ), res.status ),
 					err.data?.settings_tab,
 				);
@@ -883,7 +861,6 @@ export class AiAssistant implements AiAssistantApi {
 			}
 
 			const res = await trackedFetch(
-
 				`/wp-json/wp/v2/search?search=${ encodeURIComponent( query ) }&subtype=post,page&_embed=self`,
 				{
 					headers: { 'X-WP-Nonce': this._restNonce },
@@ -915,7 +892,6 @@ export class AiAssistant implements AiAssistantApi {
 
 			this._currentRemoteCommands = items.map( ( item ) => {
 				const isPage = item.subtype === 'page';
-
 				const allow =
 					item._embedded?.self?.[ 0 ]?._links?.self?.[ 0 ]?.targetHints?.allow;
 				const canEdit = ! allow || allow.includes( 'PUT' );
@@ -948,7 +924,6 @@ export class AiAssistant implements AiAssistantApi {
 				this._renderForMode();
 			}
 		} catch ( err ) {
-
 		}
 	}
 
@@ -972,7 +947,6 @@ export class AiAssistant implements AiAssistantApi {
 			window.open( url, '_blank', 'noopener' );
 			return;
 		}
-
 		const id = shell.deriveWindowId
 			? shell.deriveWindowId( url, this._adminUrl )
 			: 'os-ai-' + url.replace( /[^a-z0-9]+/gi, '-' ).slice( 0, 80 );
@@ -1010,7 +984,7 @@ export class AiAssistant implements AiAssistantApi {
 		if ( matches.length === 0 ) {
 			const q = parsed.isCommand ? `/${ parsed.slug }` : this._input.value.trim();
 			const message = sprintf(
-
+				/* translators: %s: the text the user typed, wrapped in <strong>. */
 				__( 'No commands matching %s.' ),
 				`<strong>${ this._esc( q ) }</strong>`,
 			);
@@ -1176,7 +1150,7 @@ export class AiAssistant implements AiAssistantApi {
 						: '' }
 					${ standalone
 						? `<span class="os-ai__cmd-enter-hint">${ sprintf(
-
+							/* translators: %s: the Enter key, rendered as a <kbd> glyph. */
 							__( 'Press %s to run' ),
 							'<kbd>↵</kbd>',
 						) }</span>`
@@ -1189,7 +1163,7 @@ export class AiAssistant implements AiAssistantApi {
 	private _renderSuggestionList( suggestions: CommandSuggestion[] ): string {
 		if ( suggestions.length === 0 ) {
 			const message = sprintf(
-
+				/* translators: %s: the Enter key, rendered as a <kbd> glyph. */
 				__( 'No suggestions — press %s to run with the text you typed.' ),
 				'<kbd>↵</kbd>',
 			);
@@ -1241,7 +1215,6 @@ export class AiAssistant implements AiAssistantApi {
 		items.forEach( ( el, i ) => {
 			el.classList.toggle( 'is-selected', i === this._selectedCommand );
 		} );
-
 		const list = this._resultsEl.querySelector< HTMLElement >( '.os-ai__cmd-list' );
 		if ( list ) {
 			list.classList.toggle( 'os-ai__cmd-list--kb-nav', this._keyboardNav );
@@ -1291,7 +1264,6 @@ export class AiAssistant implements AiAssistantApi {
 		if ( ! this._isAiSupported() ) {
 			return 'unavailable';
 		}
-
 		if ( ! this._isAiAvailable() && ! this._canConnectProvider() ) {
 			return 'ask-admin';
 		}
@@ -1319,7 +1291,7 @@ export class AiAssistant implements AiAssistantApi {
 		this._resultsEl.innerHTML = `
 			<div class="os-ai__state">
 				<span id="os-ai-setup-message">${ sprintf(
-
+					/* translators: %s: "Set up the AI assistant", a link to Preferences. */
 					this._esc( __( '%s to find content and ask questions about your site.' ) ),
 					link,
 				) }</span>
@@ -1465,7 +1437,7 @@ export class AiAssistant implements AiAssistantApi {
 		const isComment = e.type === 'comment';
 		const title = isComment
 			? sprintf(
-
+				/* translators: %s: title of the post the comment was left on. */
 				__( 'Comment on “%s”' ),
 				this._esc(
 					e.post_title ??

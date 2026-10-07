@@ -1,10 +1,12 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-games
+ */
 class Tests_OpenStation_GamesEnabledOption extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		remove_all_filters( 'openstation_games_enabled' );
 	}
 
@@ -14,18 +16,29 @@ class Tests_OpenStation_GamesEnabledOption extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_get_extended_options
+	 * @covers ::openstation_games_enabled
+	 */
 	public function test_games_default_to_disabled() {
 		$options = openstation_get_extended_options();
 		$this->assertFalse( $options['games'] );
 		$this->assertFalse( openstation_games_enabled() );
 	}
 
+	/**
+	 * @covers ::openstation_save_extended_options
+	 * @covers ::openstation_get_extended_options
+	 */
 	public function test_explicit_true_survives_the_default_being_false() {
 		openstation_save_extended_options( array( 'games' => true ) );
 		$options = openstation_get_extended_options();
 		$this->assertTrue( $options['games'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_extended_options
+	 */
 	public function test_save_without_the_key_keeps_the_stored_value() {
 		openstation_save_extended_options( array( 'games' => true ) );
 		openstation_save_extended_options( array( 'media_library_enhanced' => true ) );
@@ -35,6 +48,9 @@ class Tests_OpenStation_GamesEnabledOption extends WP_UnitTestCase {
 		$this->assertTrue( $options['media_library_enhanced'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_enabled
+	 */
 	public function test_enabled_reflects_the_option() {
 		openstation_save_extended_options( array( 'games' => true ) );
 		$this->assertTrue( openstation_games_enabled() );
@@ -43,6 +59,9 @@ class Tests_OpenStation_GamesEnabledOption extends WP_UnitTestCase {
 		$this->assertFalse( openstation_games_enabled() );
 	}
 
+	/**
+	 * @covers ::openstation_games_enabled
+	 */
 	public function test_filter_overrides_the_option_both_ways() {
 		add_filter( 'openstation_games_enabled', '__return_true' );
 		$this->assertTrue( openstation_games_enabled() );
@@ -53,6 +72,9 @@ class Tests_OpenStation_GamesEnabledOption extends WP_UnitTestCase {
 		$this->assertFalse( openstation_games_enabled() );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_games_payload
+	 */
 	public function test_payload_is_empty_while_disabled() {
 		openstation_register_game(
 			'kill-switch-game',

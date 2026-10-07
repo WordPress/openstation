@@ -12,7 +12,6 @@ export type OsTooltipSource =
 	| ( () => string | OsTooltipContent | null );
 
 export interface AttachTooltipOptions {
-
 	delay?: number;
 }
 
@@ -169,7 +168,6 @@ function showTooltip( anchor: HTMLElement, source: OsTooltipSource ): void {
 	} else {
 		tip.removeAttribute( 'text' );
 	}
-
 	positionFrame = requestAnimationFrame( () => {
 		positionFrame = null;
 		if ( owner !== anchor || ! anchor.isConnected ) {

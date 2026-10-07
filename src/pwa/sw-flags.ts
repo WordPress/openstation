@@ -1,16 +1,11 @@
 export interface SwFlags {
-
 	windowPrewarm: boolean;
-
 	adminAssetCache: boolean;
 }
 
 export interface SwFlagUpdate {
-
 	flags: SwFlags;
-
 	clearSpeculative: boolean;
-
 	dropSessionCache: boolean;
 }
 

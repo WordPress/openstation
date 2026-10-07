@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-posts-window
+ */
 class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -82,7 +85,6 @@ class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 		$tags = array();
 		for ( $i = 0; $i < 5; $i++ ) {
 			$tag = self::factory()->tag->create();
-
 			for ( $j = 0; $j < $i; $j++ ) {
 				$p = self::factory()->post->create();
 				wp_set_object_terms( $p, array( $tag ), 'post_tag' );

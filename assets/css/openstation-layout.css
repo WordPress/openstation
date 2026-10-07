@@ -6,7 +6,6 @@ body.os-constellation-open .os-dock__tooltip {
 .os-constellation {
 	position: fixed;
 	z-index: var( --os-cn-z, 2147483000 );
-
 	transform: translate(
 			calc( -50% + var( --os-cn-shift, 0px ) ),
 			-100%
@@ -84,9 +83,7 @@ body.os-constellation-open .os-dock__tooltip {
 	flex-direction: column;
 	min-width: 232px;
 	max-width: min( 340px, calc( 100vw - 24px ) );
-
 	max-height: var( --os-cn-max-h, min( 78vh, 620px ) );
-
 	padding: 6px;
 	border-radius: var( --os-cn-radius, 14px );
 	background-color: var( --os-cn-surface, rgba( 26, 23, 33, 0.82 ) );
@@ -237,7 +234,6 @@ body.os-constellation-open .os-dock__tooltip {
 	align-items: center;
 	gap: 10px;
 	width: 100%;
-
 	flex: 0 0 auto;
 	padding: 8px 10px;
 	border: none;
@@ -249,7 +245,6 @@ body.os-constellation-open .os-dock__tooltip {
 	line-height: 1.3;
 	text-align: start;
 	cursor: pointer;
-
 	opacity: 0;
 	transform: translateY( 6px );
 	transition:
@@ -271,7 +266,6 @@ body.os-constellation-open .os-dock__tooltip {
 .os-constellation__row:hover,
 .os-constellation__row:focus-visible {
 	outline: none;
-
 	background-image: var(
 		--os-cn-row-fill,
 		var( --os-ui-holo-fill, linear-gradient( 124deg, #afa2e8, #c3b8ef ) )
@@ -341,7 +335,6 @@ body.os-constellation-open .os-dock__tooltip {
 	height: 34px;
 	border-radius: 10px;
 	color: var( --os-ui-holo-ink, #0c0b0f );
-
 	background-image: var(
 		--os-cn-row-fill,
 		var( --os-ui-holo-fill, linear-gradient( 124deg, #afa2e8, #c3b8ef ) )
@@ -391,12 +384,12 @@ body.os-constellation-open .os-dock__tooltip {
 	font-weight: 600;
 }
 
+
 .os-constellation__group {
 	display: flex;
 	flex-direction: column;
 	padding-top: 4px;
 	border-top: 1px solid var( --os-cn-divider, rgba( 255, 251, 255, 0.1 ) );
-
 	flex: 0 1 auto;
 	min-height: 0;
 	max-height: min( 46vh, 360px );
@@ -428,7 +421,6 @@ body.os-constellation-open .os-dock__tooltip {
 
 .os-constellation__row--sub:hover .os-constellation__orbit,
 .os-constellation__row--sub:focus-visible .os-constellation__orbit {
-
 	box-shadow: 0 0 0 3px rgba( 12, 11, 15, 0.25 );
 }
 

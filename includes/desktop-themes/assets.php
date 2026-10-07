@@ -38,7 +38,6 @@ function openstation_enqueue_desktop_theme_style() {
 	}
 	$slug = openstation_active_desktop_theme_slug();
 	if ( '' === $slug ) {
-
 		return;
 	}
 
@@ -56,7 +55,6 @@ function openstation_enqueue_desktop_theme_style() {
 
 	$code = openstation_desktop_theme_registry( $slug );
 	if ( is_array( $code ) && ! empty( $code['cssText'] ) ) {
-
 		wp_register_style(
 			OPENSTATION_DESKTOP_THEME_STYLE_HANDLE,
 			false,

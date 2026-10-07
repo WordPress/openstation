@@ -21,39 +21,24 @@ import {
 import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
 import { zoneFor } from './nav/defaults';
 import type { NavPlacement } from './nav/types';
-
 import { NAV_ZONES as DOCK_ZONE_ORDER } from './nav/compute';
 import { urlActs } from './pwa/acting-url';
 import { isShellDocumentUrl } from './shell-url';
 
 export interface SystemDockItem {
-
 	id: string;
-
 	title: string;
-
 	icon: string;
-
 	onOpen: ( event?: MouseEvent ) => void;
-
 	isOpen?: () => boolean;
-
 	multi?: boolean;
-
 	onOpenNew?: () => void;
-
 	placeable?: boolean;
-
 	submenu?: SubmenuItem[];
-
 	order?: number;
-
 	windowId?: string;
-
 	navKind?: 'core' | 'app' | 'control';
-
 	locked?: boolean;
-
 	defaultPlacement?: NavPlacement;
 }
 
@@ -62,11 +47,8 @@ export type DockEntry =
 	| { type: 'system'; item: SystemDockItem };
 
 export interface DockZones {
-
 	core: DockEntry[];
-
 	apps: DockEntry[];
-
 	controls: DockEntry[];
 }
 
@@ -79,38 +61,23 @@ export function zoneForSystemTile(
 export interface SubmenuItem {
 	title: string;
 	url: string;
-
 	onSelect?: ( event?: MouseEvent ) => void;
-
 	windowId?: string;
-
 	offSite?: boolean;
 }
 
 export interface DockItem {
-
 	id: string;
-
 	title: string;
-
 	icon: string;
-
 	url: string;
-
 	windowId?: string;
-
 	selfLabel?: string;
-
 	badge: number;
-
 	submenu: { title: string; url: string; offSite?: boolean }[];
-
 	multi?: boolean;
-
 	isCore?: boolean;
-
 	pluginFile?: string | null;
-
 	pluginName?: string | null;
 }
 
@@ -138,17 +105,13 @@ export type DockAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
 export type DockAttentionIntensity = 'subtle' | 'normal' | 'strong';
 
 export interface DockAttentionOptions {
-
 	durationMs?: number;
-
 	intensity?: DockAttentionIntensity;
 }
 
 export class Dock {
 	private container: HTMLElement;
-
 	private itemHost: HTMLElement;
-
 	private systemHost: HTMLElement;
 	private windowManager: WindowManager;
 	private items: DockItem[];
@@ -156,13 +119,10 @@ export class Dock {
 	private itemElements: Map<string, HTMLElement> = new Map();
 	private adminUrl: string;
 	private orientation: DockOrientation;
-
 	private rail: 'dock' | 'taskbar';
 	private systemItems: SystemDockItem[] = [];
 	private systemItemElements: Map<string, HTMLElement> = new Map();
-
 	private zones: DockZones = { core: [], apps: [], controls: [] };
-
 	private badgeOverrides: Map<string, number> = new Map();
 
 	private artOverrides: Map<string, string> = new Map();
@@ -223,7 +183,6 @@ export class Dock {
 		this.tooltip = document.createElement( 'div' );
 		this.tooltip.className = 'os-dock__tooltip';
 		this.tooltip.setAttribute( 'role', 'tooltip' );
-
 		if ( orientation === 'bottom' ) {
 			this.tooltip.classList.add( 'os-dock__tooltip--above' );
 		} else if ( orientation === 'right' ) {
@@ -326,7 +285,6 @@ export class Dock {
 		if ( ! found ) {
 			return;
 		}
-
 		this.badgeOverrides.delete( id );
 		this.artOverrides.delete( id );
 		this.render();
@@ -336,7 +294,6 @@ export class Dock {
 
 	public setBadge( itemId: string, count: number ): void {
 		const tile = this._resolveTileElement( itemId );
-
 		if ( ! tile ) {
 			return;
 		}
@@ -412,7 +369,6 @@ export class Dock {
 		const primary =
 			tile.querySelector< HTMLElement >( '.os-dock__item-primary' ) ??
 			tile;
-
 		const next = this.resolveIcon(
 			svg,
 			this._declaredTitle( itemId ),
@@ -492,7 +448,6 @@ export class Dock {
 	public appendSystemItem( item: SystemDockItem ): void {
 		const zone = zoneForSystemTile( item );
 		const entry: DockEntry = { type: 'system', item };
-
 		for ( const z of DOCK_ZONE_ORDER ) {
 			this.zones[ z ] = this.zones[ z ].filter(
 				( e ) => 'system' !== e.type || e.item.id !== item.id,
@@ -500,7 +455,6 @@ export class Dock {
 		}
 		const list = this.zones[ zone ];
 		const order = item.order ?? 0;
-
 		const at = list.findIndex(
 			( e ) => 'system' === e.type && ( e.item.order ?? 0 ) > order,
 		);
@@ -558,7 +512,6 @@ export class Dock {
 				'controls' === zone ? this.systemHost : this.itemHost;
 			if ( painted ) {
 				const sep = document.createElement( 'div' );
-
 				sep.className =
 					'controls' === zone
 						? 'os-dock__separator'
@@ -592,7 +545,6 @@ export class Dock {
 			'menu' === entry.type
 				? this.createItemButton( entry.item )
 				: this.createSystemItemButton( entry.item );
-
 		tile.dataset.zone = zone;
 		tile.dataset.navId = id;
 		const locked =
@@ -601,7 +553,6 @@ export class Dock {
 			tile.dataset.navLocked = 'true';
 		} else {
 			this.attachDragReorder( tile, id, zone );
-
 			tile.addEventListener( 'contextmenu', ( ev: MouseEvent ) => {
 				ev.preventDefault();
 				openItemVisibilityMenu( {
@@ -667,9 +618,7 @@ export class Dock {
 		);
 		tile.className = filteredClasses.join( ' ' );
 		tile.dataset.systemId = item.id;
-
 		( tile.dataset as unknown as Record< string, string > ).osWindowBaseId = item.id;
-
 		if ( item.submenu && item.submenu.length > 0 ) {
 			tile.dataset.constellationId = item.id;
 		}
@@ -687,7 +636,6 @@ export class Dock {
 				slotForTileId( item.id ),
 			),
 		);
-
 		primary.addEventListener( 'click', ( event ) => item.onOpen( event ) );
 
 		tile.appendChild( primary );
@@ -701,7 +649,6 @@ export class Dock {
 				icon: item.icon,
 				url: '',
 			},
-
 			getInstances: () => this.windowManager.getAllByBaseIdOnActiveDesktop( item.id ),
 			enableGhost: !! item.multi,
 			windowManager: this.windowManager,
@@ -770,7 +717,7 @@ export class Dock {
 			badge.setAttribute(
 				'aria-label',
 				sprintf(
-
+					// translators: %d is the number of pending updates / items.
 					_n( '%d update', '%d updates', item.badge ),
 					item.badge,
 				),
@@ -787,7 +734,6 @@ export class Dock {
 		this.bindTooltipFiltered( tile, item.title, ctx );
 
 		const baseId = this.resolveItemBaseId( item );
-
 		( tile.dataset as unknown as Record< string, string > ).osWindowBaseId = baseId;
 		const teardown = attachDockPeek( {
 			tile,
@@ -797,9 +743,7 @@ export class Dock {
 				icon: item.icon,
 				url: item.url,
 			},
-
 			getInstances: () => this.windowManager.getAllByBaseIdOnActiveDesktop( baseId ),
-
 			enableGhost: true,
 			windowManager: this.windowManager,
 			getOrientation: () => this.orientation,
@@ -838,7 +782,6 @@ export class Dock {
 		let pointerId = -1;
 		let originRect: DOMRect | null = null;
 		let justDragged = false;
-
 		const hardReset = (): void => {
 			active = false;
 			tile.classList.remove( 'os-dock__item--dragging' );
@@ -906,7 +849,6 @@ export class Dock {
 				}
 				sib.style.transition = 'none';
 				sib.style.transform = `translate(${ dx }px, ${ dy }px)`;
-
 				void sib.offsetHeight;
 				sib.style.transition = `transform ${ FLIP_MS }ms cubic-bezier(0.2, 0.7, 0.3, 1)`;
 				sib.style.transform = '';
@@ -929,13 +871,11 @@ export class Dock {
 				if ( dx * dx + dy * dy < THRESHOLD * THRESHOLD ) {
 					return;
 				}
-
 				active = true;
 				originalOrder = snapshotZoneOrder();
 				originalNext = tile.nextSibling;
 				originRect = tile.getBoundingClientRect();
 				tile.classList.add( 'os-dock__item--dragging' );
-
 				this.tooltip.classList.remove(
 					'os-dock__tooltip--visible',
 				);
@@ -1086,13 +1026,11 @@ export class Dock {
 			if ( ev.button !== 0 || isMobileStamped() ) {
 				return;
 			}
-
 			if ( Dock.activeDragReset ) {
 				const prev = Dock.activeDragReset;
 				Dock.activeDragReset = null;
 				prev();
 			}
-
 			if ( active || pointerId !== -1 ) {
 				hardReset();
 			}
@@ -1304,12 +1242,10 @@ export class Dock {
 		el.setAttribute( 'aria-hidden', 'true' );
 
 		const trimmed = title.trim();
-
 		const firstCodePoint = trimmed ? Array.from( trimmed )[ 0 ] : '?';
 		el.textContent = firstCodePoint.toUpperCase();
 
 		const hue = hashTitleToHue( trimmed );
-
 		el.style.background = `linear-gradient(135deg, hsl(${ hue } 62% 55%), hsl(${ ( hue + 24 ) % 360 } 58% 42%))`;
 
 		return el;
@@ -1367,17 +1303,14 @@ export class Dock {
 				this.prewarmNativeWindow( nativeId );
 				return;
 			}
-
 			try {
 				const parsed = new URL( item.url, window.location.href );
 				if ( parsed.origin !== window.location.origin ) {
 					return;
 				}
-
 				if ( urlActs( parsed ) ) {
 					return;
 				}
-
 				if ( isShellDocumentUrl( parsed ) ) {
 					return;
 				}
@@ -1385,7 +1318,6 @@ export class Dock {
 				return;
 			}
 			const baseId = this.deriveWindowId( item.url );
-
 			void this.windowManager.prewarm( {
 				id: baseId,
 				baseId,
@@ -1544,7 +1476,6 @@ export class Dock {
 		document.addEventListener( 'os-window-opened', refresh );
 		document.addEventListener( 'os-window-closed', refresh );
 		document.addEventListener( 'os-window-focused', refresh );
-
 		window.wp?.hooks?.addAction?.(
 			'os.os.switched',
 			this.hooksNamespace,
@@ -1565,7 +1496,6 @@ export class Dock {
 			this.hooksNamespace,
 			refresh,
 		);
-
 		window.wp?.hooks?.addAction?.(
 			HOOKS.DOCK_REFRESH_ACTIVE,
 			this.hooksNamespace,
@@ -1627,7 +1557,6 @@ export class Dock {
 
 	private updateActiveStates(): void {
 		const focused = this.windowManager.getFocused();
-
 		const activeDesktopId = this.windowManager.getActiveDesktopId();
 		const onActiveDesktop = ( w: { config: { desktopId?: string } } ): boolean =>
 			( w.config.desktopId || activeDesktopId ) === activeDesktopId;
@@ -1653,7 +1582,6 @@ export class Dock {
 						if ( wBase === baseId || wBase === derivedId || wBase === item.id ) {
 							return true;
 						}
-
 						if (
 							w.config.parentUrl &&
 							this.deriveWindowId( w.config.parentUrl ) === derivedId
@@ -1742,7 +1670,7 @@ function _applyBadgeNode( host: HTMLElement, count: number ): void {
 		existing.setAttribute(
 			'aria-label',
 			sprintf(
-
+				// translators: %d is the number of pending items in a dock badge.
 				_n( '%d notification', '%d notifications', count ),
 				count,
 			),
@@ -1755,7 +1683,7 @@ function _applyBadgeNode( host: HTMLElement, count: number ): void {
 	badge.setAttribute(
 		'aria-label',
 		sprintf(
-
+			// translators: %d is the number of pending items in a dock badge.
 			_n( '%d notification', '%d notifications', count ),
 			count,
 		),

@@ -66,7 +66,6 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 		const win = await manager.open( openConfig( 'edit-php' ) );
 
 		expect( win.config.width ).toBe( 1200 );
-
 		expect( win.config.height ).toBe( 720 );
 	} );
 
@@ -83,7 +82,6 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 	} );
 
 	test( 'explicit width / height from the caller wins over the saved entry', async () => {
-
 		saveNativeWindowGeometry( 'edit-php', {
 			width: 1400,
 			height: 880,
@@ -190,7 +188,6 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 		} );
 
 		test( 'a saved position outside the current viewport is clamped back inside', async () => {
-
 			saveNativeWindowGeometry( 'edit-php', {
 				width: 800,
 				height: 600,
@@ -200,7 +197,6 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 			const win = await manager.open( openConfig( 'edit-php' ) );
 
 			expect( win.config.x ).toBe( 788 );
-
 			expect( win.config.y ).toBe( 288 );
 		} );
 
@@ -250,7 +246,6 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 	} );
 
 	test( '"Open windows as" maximizes a fresh window, and Focused minimizes the rest', async () => {
-
 		const frame = () => new Promise< void >( ( r ) => requestAnimationFrame( () => r() ) );
 		const first = await manager.openNew( openConfig( 'edit' ) );
 		manager.openWindowsAs = () => 'maximized';

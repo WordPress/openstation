@@ -46,7 +46,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 	}
 
 	const teardowns: Array< () => void > = [];
-
 	let detailTeardowns: Array< () => void > = [];
 	let selectedId: string | null = null;
 
@@ -55,7 +54,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 			try {
 				fn();
 			} catch {
-
 			}
 		}
 		detailTeardowns = [];
@@ -73,7 +71,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		if ( ! best ) {
 			showToast( {
 				message: sprintf(
-
+					/* translators: %s: game title. */
 					__( 'Play %s first — you need a score to challenge with.' ),
 					game.title,
 				),
@@ -163,7 +161,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 				playtime.hidden = false;
 			} )
 			.catch( () => {
-
 			} );
 		hero.appendChild( info );
 
@@ -288,7 +285,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 		for ( const entry of games ) {
 			grid.appendChild( buildTile( entry ) );
 		}
-
 		const keep =
 			selectedId && games.some( ( game ) => game.id === selectedId )
 				? selectedId
@@ -305,7 +301,6 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 			try {
 				fn();
 			} catch {
-
 			}
 		}
 	};

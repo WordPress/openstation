@@ -77,7 +77,7 @@ export function agentsAbilityChecklist(
 		${ groups.size === 0
 			? html`<p class="dm-agents__hint">
 					${ sprintf(
-
+						/* translators: %s: the text typed into the ability filter. */
 						__( 'No ability matches "%s".' ),
 						ui.abilityQuery.trim(),
 					) }
@@ -85,11 +85,10 @@ export function agentsAbilityChecklist(
 			: '' }
 		${ [ ...groups.entries() ].map( ( [ category, abilities ] ) => {
 			const chosen = abilities.filter( ( a ) => picked.includes( a.slug ) ).length;
-
 			const count =
 				chosen > 0
 					? sprintf(
-
+						/* translators: 1: ticked abilities in this group, 2: abilities in the group. */
 						__( '%1$d of %2$d' ),
 						chosen,
 						abilities.length,
@@ -184,7 +183,7 @@ function agentsTriggerEditor(
 				${ names.length > 0
 					? html`<p class="dm-agents__hint">
 							${ sprintf(
-
+								/* translators: %s: comma-separated list of WordPress hook names. */
 								__( 'Suggestions: %s' ),
 								names.join( ', ' ),
 							) }

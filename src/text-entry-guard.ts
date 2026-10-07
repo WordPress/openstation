@@ -6,7 +6,6 @@ export function isShadowTextEntryKeydown( e: KeyboardEvent ): boolean {
 	if ( e.ctrlKey || e.metaKey || e.altKey ) {
 		return false;
 	}
-
 	if ( e.key.length !== 1 ) {
 		return false;
 	}

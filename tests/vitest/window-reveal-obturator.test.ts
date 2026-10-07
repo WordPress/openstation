@@ -23,7 +23,6 @@ for ( let x = 2; x <= 98; x += 4 ) {
 
 describe( 'reveals/obturator.ts — the mechanism', () => {
 	test( 'closed, the six wedges tile the whole window between them', () => {
-
 		for ( const [ x, y ] of GRID ) {
 			expect( leavesCovering( 0, x, y ), `${ x },${ y }` ).toBeGreaterThan(
 				0,
@@ -32,14 +31,12 @@ describe( 'reveals/obturator.ts — the mechanism', () => {
 	} );
 
 	test( 'fully open, no wedge still covers any of the window', () => {
-
 		for ( const [ x, y ] of GRID ) {
 			expect( leavesCovering( 1, x, y ), `${ x },${ y }` ).toBe( 0 );
 		}
 	} );
 
 	test( 'the wedges stay flush the whole way — no gap opens off-centre', () => {
-
 		for ( const t of [ 0.15, 0.3, 0.45, 0.6, 0.8 ] ) {
 			for ( const [ x, y ] of GRID ) {
 				if ( leavesCovering( t, x, y ) !== 0 ) {
@@ -70,7 +67,6 @@ describe( 'reveals/obturator.ts — the mechanism', () => {
 	} );
 
 	test( 'it opens from the centre and stays centred', () => {
-
 		expect( leavesCovering( 0, 50, 50 ) ).toBeGreaterThan( 0 );
 		for ( const t of [ 0.5, 0.75, 1 ] ) {
 			expect( leavesCovering( t, 50, 50 ), `t=${ t }` ).toBe( 0 );
@@ -88,7 +84,6 @@ describe( 'reveals/obturator.ts — the rendering strategy', () => {
 	} );
 
 	test( 'the visible group is masked to the wedges’ union', () => {
-
 		const { element } = renderObturator();
 		const mask = element.querySelector( 'mask' )!;
 		const group = element.querySelector( 'g[mask]' )!;
@@ -98,14 +93,12 @@ describe( 'reveals/obturator.ts — the rendering strategy', () => {
 	} );
 
 	test( 'two windows never share a mask id', () => {
-
 		const a = renderObturator().element.querySelector( 'mask' )!;
 		const b = renderObturator().element.querySelector( 'mask' )!;
 		expect( a.getAttribute( 'id' ) ).not.toBe( b.getAttribute( 'id' ) );
 	} );
 
 	test( 'every wedge is a triangle', () => {
-
 		const { element } = renderObturator();
 		for ( const wedge of Array.from(
 			element.querySelectorAll< SVGPathElement >( 'g[mask] > path' ),
@@ -117,7 +110,6 @@ describe( 'reveals/obturator.ts — the rendering strategy', () => {
 	} );
 
 	test( 'each wedge carries its own tone and a seam', () => {
-
 		const { element } = renderObturator();
 		const wedges = Array.from(
 			element.querySelectorAll< SVGPathElement >( 'g[mask] > path' ),
@@ -126,7 +118,6 @@ describe( 'reveals/obturator.ts — the rendering strategy', () => {
 		expect( new Set( fills ).size ).toBe( 6 );
 		for ( const wedge of wedges ) {
 			expect( wedge.getAttribute( 'stroke' ) ).toBeTruthy();
-
 			expect( wedge.getAttribute( 'vector-effect' ) ).toBe(
 				'non-scaling-stroke',
 			);
@@ -134,7 +125,6 @@ describe( 'reveals/obturator.ts — the rendering strategy', () => {
 	} );
 
 	test( 'play animates translation ONLY, on every wedge and its mask twin', () => {
-
 		const calls: { keyframes: Keyframe[]; options: KeyframeAnimationOptions }[] =
 			[];
 		( Element.prototype as unknown as { animate: unknown } ).animate =
@@ -165,10 +155,8 @@ describe( 'reveals/obturator.ts — the rendering strategy', () => {
 			expect( call.options.duration ).toBe( 500 );
 			expect( call.options.easing ).toBe( 'linear' );
 			expect( call.options.delay ).toBe( 120 );
-
 			expect( call.options.fill ).toBe( 'both' );
 		}
-
 		expect( destinations.size ).toBe( 6 );
 
 		delete ( Element.prototype as unknown as { animate?: unknown } ).animate;

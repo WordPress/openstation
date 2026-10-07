@@ -60,7 +60,6 @@ class OpenStation_Attachment_File extends OpenStation_File {
 		$shape         = parent::serialize();
 		$post          = $this->attachment();
 		$shape['mime'] = $post ? (string) $post->post_mime_type : '';
-
 		$shape['sourceUrl'] = $post ? (string) wp_get_attachment_url( $post->ID ) : '';
 		$shape['alt']       = $post ? (string) get_post_meta( $post->ID, '_wp_attachment_image_alt', true ) : '';
 		return $shape;

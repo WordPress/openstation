@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-notes
+ */
 class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 
 	protected static $user_id;
@@ -20,6 +23,9 @@ class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_notes_register_cpt
+	 */
 	public function test_cpt_is_registered_and_fully_non_public() {
 		$this->assertTrue( post_type_exists( OPENSTATION_NOTES_POST_TYPE ) );
 		$type = get_post_type_object( OPENSTATION_NOTES_POST_TYPE );
@@ -31,6 +37,9 @@ class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 		$this->assertTrue( $type->delete_with_user );
 	}
 
+	/**
+	 * @covers ::openstation_notes_colors
+	 */
 	public function test_default_palette_has_six_pastels() {
 		$this->assertSame(
 			array( 'butter', 'blush', 'sky', 'mint', 'lilac', 'peach' ),
@@ -38,6 +47,9 @@ class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_notes_colors
+	 */
 	public function test_palette_is_filterable_and_sanitized() {
 		add_filter(
 			'openstation_notes_colors',
@@ -52,6 +64,9 @@ class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 		$this->assertNotContains( '', $colors );
 	}
 
+	/**
+	 * @covers ::openstation_notes_sanitize_color
+	 */
 	public function test_color_sanitizer_whitelists() {
 		$this->assertSame( 'mint', openstation_notes_sanitize_color( 'mint' ) );
 		$this->assertSame( 'butter', openstation_notes_sanitize_color( 'chartreuse' ) );
@@ -59,6 +74,9 @@ class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 		$this->assertSame( 'butter', openstation_notes_sanitize_color( array( 'mint' ) ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_sanitize_fraction
+	 */
 	public function test_fraction_sanitizer_clamps_to_unit_range() {
 		$this->assertSame( 0.5, openstation_notes_sanitize_fraction( 0.5 ) );
 		$this->assertSame( 0.0, openstation_notes_sanitize_fraction( -3 ) );
@@ -66,6 +84,9 @@ class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 		$this->assertSame( 0.0, openstation_notes_sanitize_fraction( 'not-a-number' ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_untrash_status
+	 */
 	public function test_untrash_restores_publish_status() {
 		$note_id = wp_insert_post(
 			array(
@@ -82,6 +103,9 @@ class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 		$this->assertSame( 'publish', get_post_status( $note_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_untrash_status
+	 */
 	public function test_untrash_restores_private_status() {
 		$note_id = wp_insert_post(
 			array(
@@ -97,11 +121,13 @@ class Tests_OpenStation_NotesCpt extends WP_UnitTestCase {
 		$this->assertSame( 'private', get_post_status( $note_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_untrash_status
+	 */
 	public function test_untrash_leaves_other_post_types_alone() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		wp_trash_post( $post_id );
 		wp_untrash_post( $post_id );
-
 		$this->assertSame( 'draft', get_post_status( $post_id ) );
 	}
 }

@@ -20,21 +20,13 @@ function secretEquals( a: string, b: string ): boolean {
 }
 
 export interface AgentDeps {
-
 	token: string;
-
 	allowedOrigin: () => string;
-
 	free: ( req: Partial< FreeWindowRequest > ) => FreeWindowResult;
-
 	dock: ( windowId: string ) => boolean;
-
 	focus: ( windowId: string ) => boolean;
-
 	list: () => string[];
-
 	describe: () => Record< string, unknown >;
-
 	onActivity?: () => void;
 }
 
@@ -90,13 +82,11 @@ export class LocalAgent {
 			res.setHeader( 'Vary', 'Origin' );
 			res.setHeader( 'Access-Control-Allow-Headers', 'authorization, content-type' );
 			res.setHeader( 'Access-Control-Allow-Methods', 'GET, POST, OPTIONS' );
-
 			res.setHeader( 'Access-Control-Allow-Private-Network', 'true' );
 			res.setHeader( 'Access-Control-Max-Age', '600' );
 		}
 
 		if ( 'OPTIONS' === req.method ) {
-
 			res.writeHead( originOk ? 204 : 403 );
 			res.end();
 			return;
@@ -159,7 +149,6 @@ export class LocalAgent {
 			.catch( ( err ) => {
 				const tooLarge = err instanceof BodyTooLargeError;
 				if ( tooLarge ) {
-
 					res.once( 'finish', () => req.destroy() );
 				}
 				this.json( res, tooLarge ? 413 : 400, {
@@ -170,7 +159,6 @@ export class LocalAgent {
 
 	private readBody( req: IncomingMessage ): Promise< unknown > {
 		return new Promise( ( resolve, reject ) => {
-
 			const chunks: Buffer[] = [];
 			let size = 0;
 			let done = false;
@@ -190,7 +178,6 @@ export class LocalAgent {
 				chunks.push( chunk );
 				size += chunk.length;
 				if ( size > MAX_BODY ) {
-
 					settle( () => reject( new BodyTooLargeError( 'body too large' ) ) );
 					req.pause();
 				}
@@ -213,7 +200,6 @@ export class LocalAgent {
 	}
 
 	private json( res: ServerResponse, status: number, body: unknown ): void {
-
 		if ( res.writableEnded || res.destroyed ) {
 			return;
 		}
@@ -221,7 +207,6 @@ export class LocalAgent {
 		res.writeHead( status, {
 			'Content-Type': 'application/json; charset=utf-8',
 			'Content-Length': Buffer.byteLength( payload ),
-
 			'Cache-Control': 'no-store',
 		} );
 		res.end( payload );

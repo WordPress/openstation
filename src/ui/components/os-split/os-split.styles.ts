@@ -33,7 +33,6 @@ export const styles = css`
 		touch-action: none;
 		user-select: none;
 	}
-
 	.divider.enabled::before, .divider.enabled::after {
 		content: '';
 		position: absolute;

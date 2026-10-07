@@ -16,7 +16,6 @@ describe( 'alphabet-soup/seed.ts', () => {
 	} );
 
 	test( 'uses the UTC calendar date, not the local one', () => {
-
 		expect(
 			formatDailySeed( new Date( Date.UTC( 2026, 6, 19, 2, 0, 0 ) ) ),
 		).toBe( '19-07-2026' );

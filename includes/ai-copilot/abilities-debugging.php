@@ -75,7 +75,6 @@ function openstation_ai_debug_group( array $entries, $since = 0 ) {
 		}
 		$issue = &$issues[ $key ];
 		++$issue['count'];
-
 		if ( strlen( (string) $entry['trace'] ) > strlen( $issue['trace'] ) ) {
 			$issue['trace'] = (string) $entry['trace'];
 		}
@@ -138,7 +137,6 @@ function openstation_ai_debug_known_paths( array $entries ) {
 		if ( empty( $entry['trace'] ) ) {
 			continue;
 		}
-
 		if ( preg_match_all( '#(/[^\s:()\'"]+\.(?:php|inc))#', (string) $entry['trace'], $found ) ) {
 			foreach ( $found[1] as $path ) {
 				$paths[ $path ] = true;
@@ -191,7 +189,7 @@ function openstation_ai_debug_resolve_source_path( $file, array $allowed ) {
 }
 
 function openstation_ai_debug_excerpt( $path, $line, $context ) {
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file -- Reading a source file already resolved and allowlisted above; WP_Filesystem adds nothing here and is not available this early on every host.
 	$all = file( $path, FILE_IGNORE_NEW_LINES );
 	if ( false === $all ) {
 		return array(
@@ -445,7 +443,6 @@ function openstation_ai_debug_list_issues( $input ) {
 	$limit  = max( 1, min( 50, (int) $input['limit'] ) );
 	$issues = array_slice( $issues, 0, $limit );
 	foreach ( $issues as $index => $issue ) {
-
 		unset( $issues[ $index ]['trace'] );
 		$issues[ $index ]['origin'] = openstation_ai_debug_name_origin( (array) $issue['origin'] );
 	}

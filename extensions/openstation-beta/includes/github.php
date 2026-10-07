@@ -7,7 +7,6 @@ const OPENSTATION_BETA_CI_TAG = 'ci-artifacts';
 const OPENSTATION_BETA_CURRENT_OPTION = 'openstation_beta_current';
 
 function openstation_beta_repo() {
-
 	return (string) apply_filters( 'openstation_beta_repo', 'WordPress/openstation' );
 }
 
@@ -66,7 +65,7 @@ function openstation_beta_api_get( $path, $cache_key, $ttl, $force = false ) {
 		return new WP_Error(
 			'openstation_beta_github_http',
 			sprintf(
-
+				/* translators: 1: HTTP status code, 2: API path. */
 				__( 'GitHub API returned HTTP %1$d for %2$s.', 'openstation-beta' ),
 				$code,
 				$path
@@ -116,7 +115,6 @@ function openstation_beta_fetch_open_prs( $force = false ) {
 			'sha'        => $sha,
 			'draft'      => ! empty( $pr['draft'] ),
 			'author'     => sanitize_text_field( isset( $pr['user']['login'] ) ? (string) $pr['user']['login'] : '' ),
-
 			'member'     => in_array(
 				isset( $pr['author_association'] ) ? (string) $pr['author_association'] : '',
 				array( 'OWNER', 'MEMBER', 'COLLABORATOR' ),
@@ -184,7 +182,6 @@ function openstation_beta_fetch_stable( $force = false ) {
 			}
 		}
 	}
-
 	$url = '';
 	foreach ( array( 'openstation.zip', 'desktop-mode.zip' ) as $name ) {
 		if ( ! empty( $by_name[ $name ] ) ) {
@@ -243,7 +240,6 @@ function openstation_beta_assets_exist( $assets, $force = false ) {
 	}
 
 	if ( array() !== $pending ) {
-
 		$map = array_intersect_key( $map, $out );
 		set_transient( $transient, $map, 12 * HOUR_IN_SECONDS );
 	}
@@ -325,7 +321,7 @@ function openstation_beta_install_blocked() {
 		return array(
 			'code'   => 'dev-checkout',
 			'reason' => sprintf(
-
+				/* translators: %s: File or directory name found in the plugin folder (e.g. ".git"). */
 				__( 'The installed OpenStation plugin is a development checkout ("%s" found in its folder) — installing a build here would overwrite that working tree. Switch builds on a site running a packaged install instead.', 'openstation-beta' ),
 				$marker
 			),
@@ -447,14 +443,14 @@ function openstation_beta_admin_notice() {
 	}
 
 	$label = 'pr' === $current['source']
-
+		/* translators: %s: Pull request number. */
 		? sprintf( __( 'pull request #%s', 'openstation-beta' ), $current['id'] )
 		: __( 'trunk', 'openstation-beta' );
 	printf(
 		'<div class="notice notice-warning"><p>%s</p></div>',
 		esc_html(
 			sprintf(
-
+				/* translators: %s: Build description (e.g. "pull request #123" or "trunk"). */
 				__( 'OpenStation is running a beta build from %s. Updating it from this screen replaces the build under test — use the OpenStation Beta page under Tools to manage it.', 'openstation-beta' ),
 				$label
 			)

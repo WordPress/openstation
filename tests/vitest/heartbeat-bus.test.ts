@@ -122,7 +122,6 @@ describe( 'heartbeat bus', () => {
 		bootHeartbeatBus();
 		const firstSend = handlers[ 'heartbeat-send' ];
 		bootHeartbeatBus();
-
 		expect( handlers[ 'heartbeat-send' ] ).toBe( firstSend );
 	} );
 

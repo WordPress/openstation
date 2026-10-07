@@ -11,7 +11,6 @@ export function followMioChat( frame: HTMLElement, panel: HTMLElement, handle: (
 		}
 		const currentBounds = frame.getBoundingClientRect();
 		const rect = panel.getBoundingClientRect();
-
 		let target = resting ? { x: currentBounds.left + resting.x, y: currentBounds.top + resting.y } : null;
 		if ( rect.left - currentBounds.left >= 140 ) {
 			target = { x: rect.left - 70, y: Math.min( rect.top + 70, currentBounds.bottom - 70 ) };

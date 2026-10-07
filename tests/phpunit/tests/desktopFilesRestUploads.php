@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -16,7 +19,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 		parent::set_up();
 		openstation_files_install_schema();
 		wp_set_current_user( self::$admin_id );
-
 		add_filter( 'openstation_stored_files_upload_overrides', array( $this, 'use_sideload_action' ) );
 	}
 
@@ -109,7 +111,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 	}
 
 	public function test_disallowed_mime_rejected_by_wp_policy() {
-
 		$req = $this->upload_request( 'setup.exe', 'MZbinary' );
 		$res = openstation_files_rest_upload( $req );
 		$this->assertWPError( $res );
@@ -147,7 +148,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 	}
 
 	public function test_subscriber_fails_permission_gate() {
-
 		update_user_meta( self::$subscriber_id, 'desktop_mode_mode', '1' );
 		wp_set_current_user( self::$subscriber_id );
 		$result = openstation_files_rest_uploads_permission();
@@ -252,7 +252,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 	}
 
 	public function test_created_folders_take_distinct_grid_slots() {
-
 		$res_a = openstation_files_rest_upload( $this->upload_request( 'a.pdf', '%PDF-1.4 fake', array( 'relativePath' => 'alpha/a.pdf' ) ) );
 		$res_b = openstation_files_rest_upload( $this->upload_request( 'b.pdf', '%PDF-1.4 fake', array( 'relativePath' => 'beta/b.pdf' ) ) );
 		$this->assertNotWPError( $res_a );
@@ -307,7 +306,6 @@ class Tests_OpenStation_RestUploads extends WP_UnitTestCase {
 	}
 
 	public function test_rename_route_owner_only() {
-
 		$res = openstation_files_rest_upload( $this->upload_request( 'old.txt', 'rename me please' ) );
 		$this->assertNotWPError( $res );
 		$file_id = (int) $res->get_data()['storedFileId'];

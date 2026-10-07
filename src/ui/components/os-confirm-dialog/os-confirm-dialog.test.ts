@@ -95,11 +95,9 @@ describe( 'os-confirm-dialog', () => {
 		const promise = osConfirm( { message: 'X' } );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
-
 		const inner = dialog.shadowRoot!.querySelector< HTMLElement >( '.dialog' )!;
 		inner.click();
 		expect( document.querySelector( 'os-confirm-dialog' ) ).not.toBeNull();
-
 		dialog.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		await expect( promise ).resolves.toBe( false );
 	} );
@@ -111,7 +109,6 @@ describe( 'os-confirm-dialog', () => {
 		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
 		const cancelBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' );
 		expect( cancelBtn ).toBeNull();
-
 		const confirmBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--primary' );
 		expect( confirmBtn ).not.toBeNull();
 		confirmBtn!.click();
@@ -198,16 +195,13 @@ describe( 'os-confirm-dialog', () => {
 		const dangerBtn = dialog.shadowRoot!.querySelector< HTMLButtonElement >(
 			'.btn--danger',
 		)!;
-
 		expect( dialog.shadowRoot!.activeElement ).not.toBe( dangerBtn );
-
 		dialog.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Enter', bubbles: true } ),
 		);
 		await tick();
 		expect( settled ).toBeNull();
 		expect( document.querySelector( 'os-confirm-dialog' ) ).not.toBeNull();
-
 		dangerBtn.click();
 		await expect( promise ).resolves.toBe( true );
 	} );
@@ -232,7 +226,6 @@ describe( 'os-confirm-dialog', () => {
 			} ),
 		);
 		await tick();
-
 		expect( settled ).toBeNull();
 		expect( document.querySelector( 'os-confirm-dialog' ) ).not.toBeNull();
 		cancelBtn.click();
@@ -272,7 +265,6 @@ describe( 'os-confirm-dialog', () => {
 			new KeyboardEvent( 'keydown', { key: 'Tab', bubbles: true, composed: true } ),
 		);
 		expect( dialog.shadowRoot!.activeElement ).toBe( first );
-
 		first.dispatchEvent(
 			new KeyboardEvent( 'keydown', {
 				key: 'Tab',
@@ -392,7 +384,6 @@ describe( 'os-confirm-dialog', () => {
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		const dialog = document.querySelector< HTMLElement >( 'os-confirm-dialog' )!;
 		expect( dialog.shadowRoot!.querySelector( '.close' ) ).toBeNull();
-
 		dialog.shadowRoot!.querySelector< HTMLButtonElement >( '.btn--secondary' )!.click();
 		await promise;
 	} );

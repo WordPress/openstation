@@ -144,7 +144,6 @@ describe( 'folder status bar', () => {
 				},
 			},
 		} );
-
 		expect(
 			host.querySelector( '[data-segment-id="selection"]' ),
 		).toBeNull();
@@ -197,7 +196,6 @@ describe( 'folder status bar', () => {
 		expect( host.querySelector( '.os-folder-status-bar' ) ).not.toBeNull();
 		handle.dispose();
 		expect( host.querySelector( '.os-folder-status-bar' ) ).toBeNull();
-
 		store.setFolderPlacements( 0, [ placement( 9 ) ] );
 		expect( host.querySelector( '.os-folder-status-bar' ) ).toBeNull();
 	} );

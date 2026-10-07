@@ -24,8 +24,8 @@ test( 'chat submits with kit events, formats assistant text safely, and closes w
 	expect( document.querySelector( '.os-mio-chat' ) ).toBeNull();
 } );
 
-test.each( [ 0, 40 ] )( 'a long reply reveals its beginning and leaves subsequent scrolling to the reader (%i existing messages)', async ( count ) => {
 
+test.each( [ 0, 40 ] )( 'a long reply reveals its beginning and leaves subsequent scrolling to the reader (%i existing messages)', async ( count ) => {
 	vi.spyOn( HTMLElement.prototype, 'offsetTop', 'get' ).mockImplementation( function () {
 		return this.classList.contains( 'os-mio-chat__message--assistant' ) ? 180 : 0;
 	} );

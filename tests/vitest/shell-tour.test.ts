@@ -52,7 +52,6 @@ describe( 'shell tour', () => {
 		closePalette: ReturnType< typeof vi.fn >;
 		refreshDesktopIcons: ReturnType< typeof vi.fn >;
 	};
-
 	let layoutTarget: Element | null;
 
 	beforeEach( () => {
@@ -84,7 +83,6 @@ describe( 'shell tour', () => {
 	} );
 
 	const mark = (): OsCoachmark => document.querySelector( 'os-coachmark' ) as OsCoachmark;
-
 	const posted = (): string[] =>
 		fetchSpy.mock.calls.map(
 			( [ , init ] ) => ( JSON.parse( String( ( init as RequestInit ).body ) ) as { slug: string } ).slug,
@@ -128,7 +126,6 @@ describe( 'shell tour', () => {
 		await settle();
 		const [ url ] = fetchSpy.mock.calls[ 0 ] as [ string, RequestInit ];
 		expect( url ).toBe( 'https://example.test/wp-json/desktop-mode/v1/intros/seen' );
-
 		expect( posted() ).toEqual( [ SHELL_TOUR_INTRO_SLUG, 'shell-tour-done' ] );
 		expect( deps.refreshDesktopIcons ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -139,7 +136,6 @@ describe( 'shell tour', () => {
 		const m = mark();
 		m.shadowRoot!.querySelector< HTMLElement >( 'os-button.secondary' )!.click();
 		await settle();
-
 		expect( posted() ).toEqual( [ SHELL_TOUR_INTRO_SLUG, 'shell-tour-skipped' ] );
 		expect( deps.refreshDesktopIcons ).toHaveBeenCalledTimes( 1 );
 
@@ -169,7 +165,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'step 1 also advances when the screen was already open (reopen, not open)', async () => {
-
 		startShellTour( deps );
 		await settle();
 		skipIntroCards();
@@ -180,12 +175,10 @@ describe( 'shell tour', () => {
 		hooks.doAction( HOOKS.WINDOW_REOPENED, { windowId: 'w9' } );
 
 		expect( mark().getAttribute( 'step' ) ).toBe( '4' );
-
 		expect( mark().anchor ).toBe( win.element );
 	} );
 
 	test( '"Do it for me" on the open-window card activates the dock tile\'s primary button, else the fallback', async () => {
-
 		const dock = document.createElement( 'div' );
 		dock.className = 'os-dock';
 		dock.innerHTML =
@@ -196,21 +189,18 @@ describe( 'shell tour', () => {
 
 		startShellTour( deps );
 		await settle();
-
 		expect( mark().anchor ).toBe( dock );
 		skipIntroCards();
 		expect( mark().anchor ).toBe( dock.querySelector( '.os-dock__item' ) );
 		primary().click();
 		expect( opened ).toHaveBeenCalledTimes( 1 );
 		expect( deps.openFallbackWindow ).not.toHaveBeenCalled();
-
 		expect( mark().getAttribute( 'step' ) ).toBe( '3' );
 
 		endShellTour();
 		dock.remove();
 		startShellTour( deps );
 		await settle();
-
 		const latest = (): HTMLElement => {
 			const marks = document.querySelectorAll< OsCoachmark >( 'os-coachmark' );
 			return marks[ marks.length - 1 ].shadowRoot!.querySelector< HTMLElement >(
@@ -235,7 +225,6 @@ describe( 'shell tour', () => {
 		await settle();
 		expect( mark().getAttribute( 'heading' ) ).toBe( 'All your menu items are here' );
 		expect( mark().anchor ).toBe( dock );
-
 		expect( deps.findLayoutTarget ).toBeDefined();
 
 		const systemTile = document.createElement( 'div' );
@@ -263,7 +252,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'the window the layout card opens does not complete the card after it', async () => {
-
 		startShellTour( deps );
 		await settle();
 		skipIntroCards();
@@ -280,7 +268,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'a window already snapped to the edge is floated before the snap card', async () => {
-
 		startShellTour( deps );
 		await settle();
 		skipIntroCards();
@@ -327,14 +314,12 @@ describe( 'shell tour', () => {
 		expect( isShellTourRunning() ).toBe( false );
 
 		const closed = deps.closeWindow.mock.calls.map( ( c ) => c[ 0 ] );
-
 		expect( closed ).toEqual( [ 'os-settings' ] );
 		expect( closed ).not.toContain( 'theirs' );
 		expect( deps.closePalette ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'the layout card closes Preferences when it is done, once, even one the user had', async () => {
-
 		deps.openLayoutSettings = vi.fn( () => ( {
 			windowId: 'os-settings',
 			wasAlreadyOpen: true,
@@ -353,7 +338,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'the layout card waits for the section, not just for any target', async () => {
-
 		const systemTile = document.createElement( 'div' );
 		const section = document.createElement( 'div' );
 		document.body.append( systemTile, section );
@@ -375,13 +359,11 @@ describe( 'shell tour', () => {
 		deps.mio = true;
 		startShellTour( deps );
 		await settle();
-
 		expect( mark().getAttribute( 'highlight' ) ).toBe( 'none' );
 		expect( mark().querySelector( '[slot="peek"]' ) ).not.toBeNull();
 		expect( mark().getAttribute( 'total' ) ).toBe( '5' );
 
 		skipIntroCards();
-
 		expect( mark().querySelector( '[slot="peek"]' ) ).not.toBeNull();
 	} );
 
@@ -393,7 +375,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'the closing card goes under the assistant, once its panel has painted', async () => {
-
 		let panel: Element | null = null;
 		deps.findAssistant = () => panel;
 		startShellTour( deps );
@@ -403,7 +384,6 @@ describe( 'shell tour', () => {
 		windows.set( 'w6', win );
 		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: 'w6' } );
 		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, { windowId: 'w6', zone: 'left' } );
-
 		expect( mark().hasAttribute( 'placement' ) ).toBe( false );
 
 		document.dispatchEvent( new CustomEvent( 'os-palette-opened', { detail: { id: 'x' } } ) );
@@ -418,7 +398,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'a window the user opened is theirs to keep; one "Do it for me" opened is closed', async () => {
-
 		startShellTour( deps );
 		await settle();
 		skipIntroCards();
@@ -447,7 +426,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'Preferences landing while its own card is up does not eat a later open of it', async () => {
-
 		startShellTour( deps );
 		await settle();
 		primary().click();
@@ -469,7 +447,6 @@ describe( 'shell tour', () => {
 		expect( shouldAutoStartShellTour( { ...base, shellTour: false }, desktop ) ).toBe( false );
 		expect( shouldAutoStartShellTour( { ...base, seenIntros: [ 'shell-tour' ] }, desktop ) ).toBe( false );
 		expect( shouldAutoStartShellTour( { ...base, rebrandNotice: true }, desktop ) ).toBe( false );
-
 		const feedback = { restUrl: 'u' };
 		expect( shouldAutoStartShellTour( { ...base, usageFeedback: feedback }, desktop ) ).toBe( false );
 		expect(
@@ -483,7 +460,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'the first-boot start yields to the core-update notice only when it showed something', async () => {
-
 		vi.useFakeTimers();
 		const start = vi.fn();
 		( window as unknown as { openStationShellTour: unknown } ).openStationShellTour = {
@@ -512,7 +488,6 @@ describe( 'shell tour', () => {
 	} );
 
 	test( 'no route starts the tour on the phone layer, and a flip to it ends a running one', () => {
-
 		const start = vi.fn();
 		const end = vi.fn();
 		( window as unknown as { openStationShellTour: unknown } ).openStationShellTour = {

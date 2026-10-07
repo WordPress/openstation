@@ -2,7 +2,6 @@ import { applyDesktopTheme } from './apply';
 import { getStore, setDesktopThemes } from './registry';
 
 export interface DesktopThemeSyncDeps {
-
 	deactivate?: () => void;
 }
 

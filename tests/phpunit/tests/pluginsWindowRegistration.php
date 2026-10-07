@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-plugins-window
+ */
 class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -19,7 +22,6 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-
 		remove_all_filters( 'openstation_plugins_window_user_can_register' );
 		remove_all_filters( 'openstation_plugins_window_user_can_use' );
 		remove_all_filters( 'openstation_plugins_window_auto_updates_enabled' );
@@ -30,33 +32,50 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_register
+	 */
 	public function test_register_gate_open_for_admin_without_opt_in() {
 		wp_set_current_user( $this->admin_id );
 		$this->assertTrue( openstation_plugins_window_user_can_register() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_register
+	 */
 	public function test_register_gate_closed_for_editor() {
-
 		wp_set_current_user( $this->editor_id );
 		$this->assertFalse( openstation_plugins_window_user_can_register() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_register
+	 */
 	public function test_register_gate_closed_for_subscriber() {
 		wp_set_current_user( $this->subscriber_id );
 		$this->assertFalse( openstation_plugins_window_user_can_register() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_register
+	 */
 	public function test_register_gate_closed_for_logged_out_user() {
 		wp_set_current_user( 0 );
 		$this->assertFalse( openstation_plugins_window_user_can_register() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_register
+	 */
 	public function test_register_filter_can_block_a_capable_user() {
 		wp_set_current_user( $this->admin_id );
 		add_filter( 'openstation_plugins_window_user_can_register', '__return_false' );
 		$this->assertFalse( openstation_plugins_window_user_can_register() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_use
+	 */
 	public function test_gate_closed_by_default_until_admin_opts_in() {
 		wp_set_current_user( $this->admin_id );
 		$this->assertFalse( openstation_plugins_window_user_can_use() );
@@ -68,6 +87,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertTrue( openstation_plugins_window_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_use
+	 */
 	public function test_gate_closes_when_admin_opts_out() {
 		wp_set_current_user( $this->admin_id );
 		openstation_save_os_settings(
@@ -77,32 +99,42 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertFalse( openstation_plugins_window_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_use
+	 */
 	public function test_gate_closed_for_logged_out_user() {
 		wp_set_current_user( 0 );
 		$this->assertFalse( openstation_plugins_window_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_use
+	 */
 	public function test_filter_can_force_gate_open() {
 		wp_set_current_user( $this->editor_id );
-
 		$this->assertFalse( openstation_plugins_window_user_can_use() );
 
 		add_filter( 'openstation_plugins_window_user_can_use', '__return_true' );
 		$this->assertTrue( openstation_plugins_window_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_user_can_use
+	 */
 	public function test_filter_can_force_gate_closed() {
 		wp_set_current_user( $this->admin_id );
 		add_filter( 'openstation_plugins_window_user_can_use', '__return_false' );
 		$this->assertFalse( openstation_plugins_window_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_caps
+	 */
 	public function test_caps_admin_has_every_action() {
 		wp_set_current_user( $this->admin_id );
 		$caps = openstation_plugins_window_caps();
 		$this->assertTrue( $caps['activate'] );
 		if ( is_multisite() ) {
-
 			$this->assertFalse( $caps['install'] );
 			$this->assertFalse( $caps['delete'] );
 			$this->assertFalse( $caps['upload'] );
@@ -113,6 +145,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_caps
+	 */
 	public function test_caps_editor_has_no_plugin_actions() {
 		wp_set_current_user( $this->editor_id );
 		$caps = openstation_plugins_window_caps();
@@ -122,6 +157,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertFalse( $caps['upload'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_caps
+	 */
 	public function test_caps_logged_out_user_returns_false_for_every_action() {
 		wp_set_current_user( 0 );
 		$caps = openstation_plugins_window_caps();
@@ -131,6 +169,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertFalse( $caps['upload'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_editor_url
+	 */
 	public function test_editor_url_follows_cores_plugins_menu_row() {
 		foreach ( array( 'twentytwentyone', 'twentytwentyfive' ) as $slug ) {
 			if ( ! wp_get_theme( $slug )->exists() ) {
@@ -155,6 +196,10 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		wp_clean_themes_cache();
 	}
 
+	/**
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_native_plugins_enabled_round_trips_through_os_settings() {
 		openstation_save_os_settings(
 			$this->admin_id,
@@ -172,12 +217,18 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertTrue( $loaded['nativePluginsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
 	public function test_native_plugins_enabled_defaults_off() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'nativePluginsEnabled', $defaults );
 		$this->assertFalse( $defaults['nativePluginsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_can_manage
+	 */
 	public function test_can_manage_field_for_active_plugin_row() {
 		wp_set_current_user( $this->admin_id );
 		$row = array(
@@ -190,6 +241,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertFalse( $flags['delete'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_can_manage
+	 */
 	public function test_can_manage_field_for_inactive_plugin_row() {
 		wp_set_current_user( $this->admin_id );
 		$row = array(
@@ -199,12 +253,13 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$flags = openstation_plugins_window_field_can_manage( $row );
 		$this->assertTrue( $flags['activate'] );
 		$this->assertFalse( $flags['deactivate'] );
-
 		$this->assertSame( ! is_multisite(), $flags['delete'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_update_available
+	 */
 	public function test_update_available_field_reports_false_when_no_update() {
-
 		set_site_transient(
 			'update_plugins',
 			(object) array(
@@ -218,13 +273,15 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertNull( $out['new_version'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_update_available
+	 */
 	public function test_update_available_field_reports_true_when_transient_has_entry() {
 		set_site_transient(
 			'update_plugins',
 			(object) array(
 				'last_checked' => time(),
 				'response'     => array(
-
 					'hello-dolly/hello.php' => (object) array(
 						'new_version' => '99.0.0',
 						'package'     => 'https://downloads.wordpress.org/plugin/hello-dolly.99.0.0.zip',
@@ -233,7 +290,6 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 				),
 			)
 		);
-
 		$row = array( 'plugin' => 'hello-dolly/hello' );
 		$out = openstation_plugins_window_field_update_available( $row );
 		$this->assertTrue( $out['available'] );
@@ -246,6 +302,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertSame( 'hello-dolly', $out['slug'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_update_available
+	 */
 	public function test_update_available_field_handles_missing_package() {
 		set_site_transient(
 			'update_plugins',
@@ -254,7 +313,6 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 				'response'     => array(
 					'premium/premium.php' => (object) array(
 						'new_version' => '2.0',
-
 					),
 				),
 			)
@@ -266,6 +324,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertSame( '', $out['package'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_caps
+	 */
 	public function test_caps_surface_includes_update_for_admins() {
 		wp_set_current_user( $this->admin_id );
 		$caps = openstation_plugins_window_caps();
@@ -273,12 +334,18 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertTrue( $caps['update'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_caps
+	 */
 	public function test_caps_surface_denies_update_for_editor() {
 		wp_set_current_user( $this->editor_id );
 		$caps = openstation_plugins_window_caps();
 		$this->assertFalse( $caps['update'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_maybe_refresh_update_transient
+	 */
 	public function test_maybe_refresh_respects_12h_throttle() {
 		$snapshot = (object) array(
 			'last_checked' => time() - 60,
@@ -292,6 +359,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertEquals( $snapshot, $after, 'Fresh transient should not be refreshed.' );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_maybe_refresh_update_transient
+	 */
 	public function test_maybe_refresh_filter_can_opt_out() {
 		$snapshot = (object) array(
 			'last_checked' => time() - DAY_IN_SECONDS,
@@ -311,6 +381,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
 	public function test_wporg_slug_reads_the_response_bucket() {
 		set_site_transient(
 			'update_plugins',
@@ -324,13 +397,15 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 				),
 			)
 		);
-
 		$this->assertSame(
 			'hello-dolly',
 			openstation_plugins_window_field_wporg_slug( array( 'plugin' => 'hello' ) )
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
 	public function test_wporg_slug_reads_the_no_update_bucket() {
 		set_site_transient(
 			'update_plugins',
@@ -350,6 +425,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
 	public function test_wporg_slug_is_null_for_a_plugin_not_on_the_directory() {
 		set_site_transient(
 			'update_plugins',
@@ -371,6 +449,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
 	public function test_wporg_slug_prefers_the_api_slug_over_the_folder_name() {
 		set_site_transient(
 			'update_plugins',
@@ -390,6 +471,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_wporg_slug
+	 */
 	public function test_wporg_slug_is_null_when_the_transient_is_empty() {
 		set_site_transient(
 			'update_plugins',
@@ -402,6 +486,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
 	public function test_icon_url_derives_from_folder_slug() {
 		$row = array(
 			'plugin'     => 'akismet/akismet.php',
@@ -414,6 +501,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
 	public function test_icon_url_prefers_folder_over_mismatched_textdomain() {
 		$row = array(
 			'plugin'     => 'woocommerce/woocommerce.php',
@@ -426,6 +516,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
 	public function test_icon_url_works_without_textdomain() {
 		$row = array( 'plugin' => 'something/something.php' );
 		$this->assertSame(
@@ -434,6 +527,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
 	public function test_icon_url_single_file_uses_textdomain_fallback() {
 		$row = array(
 			'plugin'     => 'hello.php',
@@ -449,6 +545,10 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 * @covers ::openstation_plugins_window_directory_icon_url
+	 */
 	public function test_icon_url_prefers_directory_icons_over_guess() {
 		$icons = array(
 			'1x' => 'https://ps.w.org/gutenberg/assets/icon-128x128.jpg',
@@ -473,6 +573,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
 	public function test_icon_url_survives_a_slug_that_is_not_the_folder() {
 		$this->prime_update_transient(
 			'hello.php',
@@ -488,6 +591,10 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 * @covers ::openstation_plugins_window_directory_icon_url
+	 */
 	public function test_icon_url_is_null_when_wporg_reports_no_art() {
 		$this->prime_update_transient(
 			'plain/plain.php',
@@ -501,6 +608,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
 	public function test_icon_url_still_guesses_when_wporg_says_nothing() {
 		$this->prime_update_transient( 'plain/plain.php', array() );
 
@@ -528,6 +638,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 */
 	public function test_icon_url_filter_can_override() {
 		add_filter(
 			'openstation_plugins_window_icon_url',
@@ -546,6 +659,10 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_plugins_window_icon_url' );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 * @covers ::openstation_plugins_window_local_icon_url
+	 */
 	public function test_icon_url_prefers_local_assets_icon_svg() {
 		$folder = 'dm-local-icon-fixture';
 		$root   = WP_PLUGIN_DIR . '/' . $folder;
@@ -568,6 +685,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_local_icon_url
+	 */
 	public function test_icon_url_falls_through_to_local_png_variants() {
 		$folder = 'dm-local-icon-png-fixture';
 		$root   = WP_PLUGIN_DIR . '/' . $folder;
@@ -586,8 +706,11 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_icon_url
+	 * @covers ::openstation_plugins_window_local_icon_url
+	 */
 	public function test_icon_url_falls_back_to_wp_org_when_no_local_icon() {
-
 		$row = array( 'plugin' => 'this-plugin-folder-does-not-exist-on-disk/main.php' );
 		$this->assertSame(
 			'https://ps.w.org/this-plugin-folder-does-not-exist-on-disk/assets/icon.svg',
@@ -595,6 +718,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_local_icon_url
+	 */
 	public function test_icon_url_local_candidates_filter() {
 		$folder = 'dm-local-icon-custom-fixture';
 		$root   = WP_PLUGIN_DIR . '/' . $folder;
@@ -622,6 +748,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_local_icon_url
+	 */
 	public function test_icon_url_single_file_plugin_skips_local_probe() {
 		$this->assertNull(
 			openstation_plugins_window_local_icon_url( 'hello.php' )
@@ -631,6 +760,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_auto_update
+	 */
 	public function test_auto_update_field_reports_enabled_when_in_option_and_supported() {
 		update_site_option( 'auto_update_plugins', array( 'akismet/akismet.php' ) );
 		set_site_transient(
@@ -638,13 +770,11 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 			(object) array(
 				'last_checked' => time(),
 				'response'     => array(),
-
 				'no_update'    => array(
 					'akismet/akismet.php' => (object) array( 'slug' => 'akismet' ),
 				),
 			)
 		);
-
 		$row = array(
 			'plugin'     => 'akismet/akismet',
 			'textdomain' => 'akismet',
@@ -655,6 +785,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertNull( $out['forced'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_auto_update
+	 */
 	public function test_auto_update_field_reports_disabled_when_not_in_option() {
 		update_site_option( 'auto_update_plugins', array() );
 		set_site_transient(
@@ -677,6 +810,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertNull( $out['forced'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_auto_update
+	 */
 	public function test_auto_update_field_reports_unsupported_when_not_in_transient() {
 		update_site_option( 'auto_update_plugins', array() );
 		set_site_transient(
@@ -694,6 +830,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertNull( $out['forced'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_auto_update
+	 */
 	public function test_auto_update_field_respects_filter_forcing_enabled() {
 		update_site_option( 'auto_update_plugins', array() );
 		set_site_transient(
@@ -726,8 +865,10 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_field_auto_update
+	 */
 	public function test_auto_update_field_respects_filter_forcing_disabled() {
-
 		update_site_option( 'auto_update_plugins', array( 'forced/forced.php' ) );
 		set_site_transient(
 			'update_plugins',
@@ -756,6 +897,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_auto_updates_enabled
+	 */
 	public function test_auto_updates_enabled_filter_can_force_off() {
 		wp_set_current_user( $this->admin_id );
 		add_filter( 'openstation_plugins_window_auto_updates_enabled', '__return_false' );
@@ -766,6 +910,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_auto_updates_enabled
+	 */
 	public function test_auto_updates_enabled_closed_for_users_without_update_cap() {
 		wp_set_current_user( $this->editor_id );
 		$this->assertFalse( openstation_plugins_window_auto_updates_enabled() );
@@ -773,8 +920,10 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$this->assertFalse( openstation_plugins_window_auto_updates_enabled() );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_maybe_refresh_update_transient
+	 */
 	public function test_force_refresh_deletes_the_update_plugins_transient_and_calls_wp_update_plugins() {
-
 		set_site_transient(
 			'update_plugins',
 			(object) array(
@@ -787,7 +936,6 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		$http_attempts = 0;
 		$blocker       = static function () use ( &$http_attempts ) {
 			++$http_attempts;
-
 			return new WP_Error( 'http_blocked', 'blocked in tests' );
 		};
 		add_filter( 'pre_http_request', $blocker );
@@ -814,6 +962,9 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_maybe_refresh_update_transient
+	 */
 	public function test_force_refresh_respects_short_circuit_filter() {
 		$initial = (object) array(
 			'last_checked' => time() - DAY_IN_SECONDS,
@@ -840,7 +991,6 @@ class Tests_OpenStation_PluginsWindowRegistration extends WP_UnitTestCase {
 		}
 
 		$this->assertTrue( $saw_force, 'Filter must receive the force flag.' );
-
 		$this->assertEquals(
 			$initial,
 			get_site_transient( 'update_plugins' ),

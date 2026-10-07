@@ -71,7 +71,7 @@ export function mountPageAtlas( host: HTMLElement, ctx: Ctx ): () => void {
 		const incoming = page ? data.edges.filter( ( e ) => e.to === page.id && e.kind === 'link' ).length : 0;
 		const outgoing = page ? data.edges.filter( ( e ) => e.from === page.id && e.kind === 'link' ).length : 0;
 		const url = page && previewUrl( page );
-		render( page ? html`<strong>${ pageTitle( page ) }</strong><p>${ sprintf( __( '%1$d incoming · %2$d outgoing content links' ), incoming, outgoing ) }</p>
+		render( page ? html`<strong>${ pageTitle( page ) }</strong><p>${ sprintf( /* translators: 1: inbound links, 2: outbound links. */ __( '%1$d incoming · %2$d outgoing content links' ), incoming, outgoing ) }</p>
 			<os-button variant="primary" @click=${ () => ctx.host.openUrl?.( buildEditPostUrl( ctx.extra, page.id ), pageTitle( page ), 'dashicons-admin-page' ) }>${ __( 'Open editor' ) } ↗</os-button>
 			${ url ? html`<os-button variant="ghost" @click=${ () => ctx.host.openUrl?.( url, pageTitle( page ), 'dashicons-visibility' ) }>${ __( 'Open preview' ) } ↗</os-button>` : '' }
 			<p>${ __( 'Connections come from page parents and links in page bodies. Menus are not included.' ) }</p>` : html`<strong>${ __( 'Follow a thread.' ) }</strong><p>${ __( 'Choose a page to bring it closer and trace its connections. Pages with no connections remain visible.' ) }</p>`, selection );
@@ -96,7 +96,6 @@ export function mountPageAtlas( host: HTMLElement, ctx: Ctx ): () => void {
 			if ( ! data.pages.length ) {
 				message.textContent = __( 'No pages yet. Create your first page to start the atlas.' ); return;
 			}
-
 			const surface = document.createElement( 'div' );
 			surface.className = 'os-page-atlas__surface';
 			surface.tabIndex = 0;
@@ -111,7 +110,7 @@ export function mountPageAtlas( host: HTMLElement, ctx: Ctx ): () => void {
 			}
 			scene = mounted; scene?.filter( kind, search );
 			message.hidden = data.total <= data.pages.length;
-			message.textContent = sprintf( __( 'Showing %1$d of %2$d pages. Connections outside this set are not shown.' ), data.pages.length, data.total );
+			message.textContent = sprintf( /* translators: 1: loaded pages, 2: total pages. */ __( 'Showing %1$d of %2$d pages. Connections outside this set are not shown.' ), data.pages.length, data.total );
 		} catch ( error ) {
 			if ( signal.aborted || disposed ) {
 				return;

@@ -11,11 +11,8 @@ import type { DesktopIconServerEntry } from './types';
 import type { WindowManager } from './window-manager';
 
 export interface DesktopIconRenderDeps {
-
 	openWindow: ( id: string ) => boolean;
-
 	manager: WindowManager;
-
 	deriveWindowId: ( url: string ) => string;
 }
 
@@ -107,7 +104,6 @@ function _paintArtNodes( iconId: string, svg: string ): void {
 		} );
 		img.replaceWith( next );
 	}
-
 	document
 		.querySelectorAll< HTMLElement >(
 			`os-tile[data-file-ref="${ _escapeAttr( iconId ) }"]`,
@@ -146,7 +142,6 @@ function fingerprintIcons(
 	if ( ! icons || icons.length === 0 ) {
 		return '';
 	}
-
 	const themePrefix = `${ getActiveDesktopThemeId() ?? '' }::`;
 	return themePrefix + icons
 		.map(
@@ -249,7 +244,7 @@ function _paintBadgeNode( host: HTMLElement, count: number ): void {
 	}
 	const display = count > 99 ? '99+' : String( count );
 	const ariaLabel = sprintf(
-
+		// translators: %d is the number of pending items in a desktop-icon badge.
 		_n( '%d notification', '%d notifications', count ),
 		count,
 	);
@@ -348,9 +343,7 @@ function openTarget(
 		}
 		try {
 			const parsed = new URL( entry.url, window.location.origin );
-
 			const windowId = deps.deriveWindowId( parsed.toString() );
-
 			const menuEntry = findMenuEntryForUrl( parsed.toString() );
 			void deps.manager.open( {
 				id: windowId,
@@ -364,7 +357,6 @@ function openTarget(
 				multi: !! menuEntry?.multi,
 			} );
 		} catch {
-
 		}
 	}
 }

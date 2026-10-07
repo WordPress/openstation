@@ -76,7 +76,6 @@ describe( 'dock glyph tokens', () => {
 	} );
 
 	test( 'the active-tile indicator family reads --os-dock-item-outline on all three placements', () => {
-
 		const css = readCss( 'dock.css' );
 
 		expect(
@@ -104,7 +103,6 @@ describe( 'dock glyph tokens', () => {
 	} );
 
 	test( 'dock-peek re-states hover with the same two tokens', () => {
-
 		const body = ruleBody(
 			readCss( 'dock-peek.css' ),
 			'.os-dock__item[data-peek-active] .os-dock__item-primary',
@@ -182,7 +180,6 @@ describe( 'focused title-bar control tokens', () => {
 	] )(
 		'screen-meta buttons take the same tokens (%s)',
 		( _label, selector, token ) => {
-
 			const body = ruleBody(
 				readCss( 'window-chrome.css' ),
 				selector,
@@ -208,7 +205,6 @@ describe( 'one palette owns them', () => {
 	];
 
 	test( 'only variables.css declares them', () => {
-
 		const sheets = readdirSync( CSS_DIR ).filter(
 			( f ) => f.endsWith( '.css' ) && f !== 'variables.css'
 		);

@@ -175,10 +175,8 @@ describe( 'multi-item drag', () => {
 
 		expect( started ).toHaveLength( 1 );
 		const data = started[ 0 ].payload.data;
-
 		expect( data.placements ).toBeUndefined();
 		expect( ( data.placement as { id: number } ).id ).toBe( 1 );
-
 		expect( dragPlacements( data as never ).map( ( p ) => p.id ) ).toEqual( [
 			1,
 		] );
@@ -202,7 +200,6 @@ describe( 'multi-item drag', () => {
 		expect( dragPlacements( data as never ).map( ( p ) => p.id ) ).toEqual( [
 			1, 2,
 		] );
-
 		expect( ( data.placement as { id: number } ).id ).toBe( 2 );
 		handle.dispose();
 	} );
@@ -225,7 +222,6 @@ describe( 'multi-item drag', () => {
 		expect( dragPlacements( data as never ).map( ( p ) => p.id ) ).toEqual( [
 			3,
 		] );
-
 		expect( handle.getSelection().map( ( p ) => p.id ) ).toEqual( [ 1, 2 ] );
 
 		document.dispatchEvent( new CustomEvent( 'os.drag.start' ) );
@@ -245,14 +241,12 @@ describe( 'multi-item drag', () => {
 		rect( tile, 100, 0, 88, 96 );
 		tile.dispatchEvent( pointerEvent( 'pointerdown', 140, 40, tile ) );
 		document.dispatchEvent( pointerEvent( 'pointerup', 140, 40 ) );
-
 		document.dispatchEvent( new CustomEvent( 'os.drag.start' ) );
 		expect( handle.getSelection().map( ( p ) => p.id ) ).toEqual( [ 1 ] );
 		handle.dispose();
 	} );
 
 	test( 'a selection change never rebuilds the tile’s children', async () => {
-
 		installRecordingManager();
 		const { host, handle } = await mount( [
 			placement( 1, 0, 0 ),
@@ -265,7 +259,6 @@ describe( 'multi-item drag', () => {
 
 		click( tile );
 		expect( tile.hasAttribute( 'selected' ) ).toBe( true );
-
 		expect( tile.querySelector( '.os-file-tile__visual' ) ).toBe(
 			visualBefore,
 		);
@@ -328,7 +321,6 @@ describe( 'multi-item drag', () => {
 			tileFor( host, 2 ).classList.contains( 'os-file-tile--dragging' ),
 		).toBe( false );
 		document.dispatchEvent( new CustomEvent( 'os.drag.start' ) );
-
 		expect(
 			tileFor( host, 2 ).classList.contains( 'os-file-tile--dragging' ),
 		).toBe( true );
@@ -375,7 +367,6 @@ describe( 'multi-item drag', () => {
 	} );
 
 	test( 'dropping a set on the canvas moves every item', async () => {
-
 		const { DragManager } = await import( '../../src/drag/manager' );
 		const { __resetRecoveryForTests } = await import(
 			'../../src/drag/recovery'
@@ -414,7 +405,6 @@ describe( 'multi-item drag', () => {
 					( call[ 1 ] as RequestInit | undefined )?.method === 'PATCH',
 			)
 			.map( ( call ) => String( call[ 0 ] ) );
-
 		expect( patched.some( ( u ) => u.includes( '/placements/1' ) ) ).toBe(
 			true,
 		);
@@ -457,18 +447,15 @@ describe( 'multi-item drag', () => {
 		const list = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
 		const a = list.find( ( p ) => p.id === 1 )!;
 		const b = list.find( ( p ) => p.id === 2 )!;
-
 		expect( b.y ).toBe( a.y );
 		expect( b.x ).toBeGreaterThan( a.x );
 		handle.dispose();
 	} );
 
 	test( 'shortcut payloads expose their set the same way', () => {
-
 		expect(
 			dragShortcutItems( { kind: 'post', ref: '7' } ).map( ( i ) => i.ref ),
 		).toEqual( [ '7' ] );
-
 		expect(
 			dragShortcutItems( {
 				kind: 'post',

@@ -313,14 +313,11 @@ function openstation_ai_search_fetch_posts( $post_type, $query, $offset ) {
 	$items = array();
 	foreach ( $wp_query->posts as $post ) {
 		$items[] = array(
-
 			'id'       => $post->ID,
 			'type'     => $post->post_type,
-
 			'title'    => wp_strip_all_tags( $post->post_title ),
 			'excerpt'  => openstation_ai_search_excerpt( $post->post_content ),
 			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
-
 			'url'      => (string) get_permalink( $post ),
 			'edit_url' => (string) get_edit_post_link( $post->ID, 'raw' ),
 		);
@@ -347,7 +344,6 @@ function openstation_ai_search_excerpt( $content ) {
 }
 
 function openstation_ai_can_read_post( $post ) {
-
 	if ( is_numeric( $post ) && (int) $post <= 0 ) {
 		return false;
 	}
@@ -417,19 +413,15 @@ function openstation_ai_search_fetch_comments( $query, $offset ) {
 
 	$items = array();
 	foreach ( $comments as $comment ) {
-
 		$parent_post  = get_post( $comment->comment_post_ID );
 		$parent_title = wp_strip_all_tags( $parent_post->post_title );
 
 		$items[] = array(
 			'id'          => (int) $comment->comment_ID,
 			'type'        => 'comment',
-
 			'post_title'  => $parent_title,
-
 			'author_name' => openstation_plain_text_title( get_comment_author( $comment ) ),
 			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content ),
-
 			'url'         => (string) get_comment_link( $comment ),
 			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
 			'post_id'     => (int) $comment->comment_post_ID,
@@ -597,13 +589,13 @@ function openstation_ai_search_build_entity( $entity_type, $entity_id ) {
 function openstation_ai_continue_label( $resume_tool, $from_item ) {
 	switch ( $resume_tool ) {
 		case 'search_pages':
-
+			/* translators: %d: 1-based index of the next page to search. */
 			return sprintf( __( 'Continue searching in pages (from item %d)', 'desktop-mode' ), $from_item );
 		case 'search_comments':
-
+			/* translators: %d: 1-based index of the next comment to search. */
 			return sprintf( __( 'Continue searching in comments (from item %d)', 'desktop-mode' ), $from_item );
 		default:
-
+			/* translators: %d: 1-based index of the next post to search. */
 			return sprintf( __( 'Continue searching in posts (from item %d)', 'desktop-mode' ), $from_item );
 	}
 }
@@ -650,7 +642,6 @@ function openstation_ai_strip_wp_schema_keys( array $schema ) {
 		$items   = $schema['items'];
 		$is_list = array_keys( $items ) === range( 0, count( $items ) - 1 );
 		if ( $is_list && array() !== $items ) {
-
 			foreach ( $items as $i => $sub ) {
 				if ( is_array( $sub ) ) {
 					$items[ $i ] = openstation_ai_strip_wp_schema_keys( $sub );
@@ -809,7 +800,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		if ( '' === $slug || ! preg_match( '/^[a-z0-9_\-]+$/', $slug ) ) {
 			continue;
 		}
-
 		$allowed = apply_filters(
 			'openstation_ai_command_allowed',
 			$cmd,
@@ -926,7 +916,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		$function_calls = is_array( $turn['function_calls'] ?? null ) ? $turn['function_calls'] : array();
 
 		if ( empty( $function_calls ) ) {
-
 			$text = (string) ( $turn['text'] ?? '' );
 
 			$answer = json_decode( $text, true );
@@ -1079,7 +1068,6 @@ The message field is always a friendly sentence or two shown directly to the use
 
 			$ability = isset( $ability_by_tool[ $tool_name ] ) ? wp_get_ability( $ability_by_tool[ $tool_name ] ) : null;
 			if ( $ability instanceof WP_Ability ) {
-
 				$input  = empty( $ability->get_input_schema() ) ? null : $args;
 				$result = $ability->execute( $input );
 			} else {
@@ -1144,7 +1132,6 @@ The message field is always a friendly sentence or two shown directly to the use
 	$continue = null;
 	if ( $last_has_more ) {
 		$next_offset = $last_offset + OPENSTATION_AI_SEARCH_BATCH_SIZE;
-
 		$resume_tool = 'search_comments_by_post' === $last_tool ? 'search_comments' : $last_tool;
 		$continue    = array(
 			'tool'        => $resume_tool,
@@ -1210,7 +1197,6 @@ function openstation_ai_compose_instructions( $core, array $context, array $clie
 
 	if ( '' !== $client_text ) {
 		if ( 'replace' === $client_mode ) {
-
 			$required_cap = (string) apply_filters(
 				'openstation_ai_system_prompt_replace_capability',
 				'manage_options',
@@ -1219,7 +1205,6 @@ function openstation_ai_compose_instructions( $core, array $context, array $clie
 			if ( '' === $required_cap || ( $user_id > 0 && user_can( $user_id, $required_cap ) ) ) {
 				$instructions = $client_text;
 			} else {
-
 				$instructions .= "\n\n" . $client_text;
 			}
 		} else {
@@ -1351,7 +1336,6 @@ Rules:
 	$text     = $empty_answer ? null : ( $turn['text'] ?? null );
 	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
-
 		$text     = 'Done.';
 		$fallback = true;
 	}
@@ -1416,7 +1400,6 @@ function openstation_register_ai_search_rest_route() {
 						return is_string( $v ) && trim( $v ) !== '';
 					},
 				),
-
 				'resume_tool'        => array(
 					'required'          => false,
 					'type'              => array( 'string', 'null' ),
@@ -1432,7 +1415,6 @@ function openstation_register_ai_search_rest_route() {
 					'default'           => 0,
 					'sanitize_callback' => 'absint',
 				),
-
 				'command_tools'      => array(
 					'required' => false,
 					'type'     => 'array',
@@ -1447,7 +1429,6 @@ function openstation_register_ai_search_rest_route() {
 						),
 					),
 				),
-
 				'system_prompt_text' => array(
 					'required' => false,
 					'type'     => 'string',
@@ -1461,7 +1442,6 @@ function openstation_register_ai_search_rest_route() {
 						return in_array( $v, array( 'append', 'replace' ), true ) ? $v : 'append';
 					},
 				),
-
 				'follow_up'          => array(
 					'required' => false,
 					'type'     => array( 'object', 'null' ),
@@ -1489,7 +1469,6 @@ function openstation_rest_ai_search_permission() {
 		);
 	}
 	if ( ! openstation_ai_is_enabled( get_current_user_id() ) ) {
-
 		return new WP_Error(
 			'openstation_ai_disabled',
 			__(
@@ -1506,8 +1485,7 @@ function openstation_rest_ai_search_permission() {
 }
 
 function openstation_rest_ai_search( WP_REST_Request $request ) {
-
-	@set_time_limit( 120 );
+	@set_time_limit( 120 ); // phpcs:ignore
 
 	$user_id      = get_current_user_id();
 	$query        = $request->get_param( 'query' );
@@ -1633,7 +1611,6 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 	$results = array();
 	$plugins = isset( $api->plugins ) && is_array( $api->plugins ) ? $api->plugins : array();
 	foreach ( $plugins as $p ) {
-
 		$p = (array) $p;
 
 		$slug = isset( $p['slug'] ) ? (string) $p['slug'] : '';
@@ -1740,7 +1717,6 @@ function openstation_ai_fetch_error_log( $lines = 50 ) {
 }
 
 function openstation_ai_parse_log_line( $line ) {
-
 	$line = mb_substr( $line, 0, 600 );
 
 	$entry = array(

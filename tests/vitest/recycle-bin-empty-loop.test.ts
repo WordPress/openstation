@@ -59,7 +59,6 @@ describe( 'runEmptyLoop', () => {
 	} );
 
 	test( 'stops when no progress is possible (everything skipped)', async () => {
-
 		const emptyBin = vi.fn(
 			async (): Promise< EmptyResponse > => ( {
 				purged: 0,
@@ -76,7 +75,6 @@ describe( 'runEmptyLoop', () => {
 	} );
 
 	test( 'still makes progress on partial-skip chunks', async () => {
-
 		let n = 0;
 		const emptyBin = vi.fn( async (): Promise< EmptyResponse > => {
 			n++;
@@ -95,7 +93,6 @@ describe( 'runEmptyLoop', () => {
 	} );
 
 	test( 'respects the iteration cap to guard against a buggy server', async () => {
-
 		const emptyBin = vi.fn(
 			async (): Promise< EmptyResponse > => ( {
 				purged: 1,

@@ -46,7 +46,6 @@ export function physicsStep( nodes: Map< number, MindNode >, dt: number, ctx: Ph
 			fx += -a.x * 0.0008;
 			fy += -a.y * 0.0008;
 		}
-
 		if ( ctx.nudge && a.id !== ctx.focusId ) {
 			const ndx = a.x - ctx.nudge.x;
 			const ndy = a.y - ctx.nudge.y;

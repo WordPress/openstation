@@ -1,12 +1,8 @@
 export interface RowActionButtonOptions {
-
 	label: string;
-
 	glyph: Node;
 	onClick: () => void;
-
 	variant?: string;
-
 	labelled?: boolean;
 }
 

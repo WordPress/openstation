@@ -69,7 +69,6 @@ function openstation_agents_rest_job( WP_REST_Request $request ) {
 function openstation_agent_job_release( array $job ) {
 	global $wpdb;
 	$key = 'openstation_agent_job_active_' . $job['owner'] . '_' . $job['agent'];
-
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", $key, $job['id'] . '|' . $job['deadline'] ) );
 	wp_cache_delete( $key, 'options' );
 }
@@ -147,7 +146,6 @@ function openstation_agents_rest_enqueue_job( WP_REST_Request $request ) {
 }
 
 function openstation_agent_job_wake( $id ) {
-
 	if ( ! ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) && ! ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) ) {
 		spawn_cron();
 	}
@@ -174,7 +172,6 @@ function openstation_agent_job_finish( array $job, $result ) {
 	) : null;
 	update_option( 'openstation_agent_job_' . $job['id'], $job, false );
 	openstation_agent_job_release( $job );
-
 	do_action( 'openstation_agent_job_finished', $job['id'], $job['owner'], openstation_agent_job_status( $job ) );
 }
 

@@ -31,7 +31,6 @@ function isValidItem( item: unknown ): item is RelatedEntityItem {
 		requiredString( candidate.id ) &&
 		requiredString( candidate.group ) &&
 		requiredString( candidate.label ) &&
-
 		( requiredString( candidate.url ) ||
 			requiredString( candidate.windowId ) ) &&
 		( candidate.url === undefined ||
@@ -55,7 +54,6 @@ export function resolveRelatedItems(
 ): RelatedEntityItem[] {
 	const content: WindowContentRef | null =
 		getWindowContent( windowId ) ?? null;
-
 	const base =
 		content && Array.isArray( content.related )
 			? content.related.map( ( item ) => ( { ...item } ) )
@@ -158,7 +156,6 @@ function openRelatedMenu(
 		}
 		close();
 	};
-
 	setTimeout( () => {
 		if ( onDocPointerDown ) {
 			document.addEventListener( 'pointerdown', onDocPointerDown, true );
@@ -211,7 +208,6 @@ export function bootRelatedEntities( {
 			if ( ! win ) {
 				return;
 			}
-
 			closePanels( win.element );
 			win.renderCustomTitleBarButtons?.();
 		},

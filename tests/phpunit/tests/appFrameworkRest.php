@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group app-framework
+ */
 
 use OpenStation\App;
 
@@ -15,6 +19,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest
+	 */
 	public function test_get_returns_the_collection_with_fields_applied_and_totals() {
 		$ids = self::factory()->post->create_many( 3 );
 
@@ -34,11 +41,13 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertCount( 2, $result['data'] );
 		$this->assertSame( 3, $result['total'] );
 		$this->assertSame( 2, $result['pages'] );
-
 		$this->assertSame( array( 'id', 'title' ), array_keys( $result['data'][0] ) );
 		$this->assertContains( $result['data'][0]['id'], $ids );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest
+	 */
 	public function test_embed_expands_the_linked_resources_like_the_browser_sees_them() {
 		self::factory()->post->create( array( 'post_author' => self::$admin_id ) );
 
@@ -58,6 +67,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, (int) $row['_embedded']['author'][0]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest
+	 */
 	public function test_a_refused_request_comes_back_as_an_error_not_an_exception() {
 		wp_set_current_user( 0 );
 
@@ -70,6 +82,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertNull( $result['data'] );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest
+	 */
 	public function test_a_write_reaches_the_controller_with_its_body() {
 		$post_id = self::factory()->post->create( array( 'post_title' => 'Before' ) );
 
@@ -79,6 +94,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertSame( 'After', get_post( $post_id )->post_title );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest_page
+	 */
 	public function test_page_builds_the_paged_list_envelope() {
 		self::factory()->post->create_many( 5 );
 
@@ -102,6 +120,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertSame( '', $page['code'] );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest_page
+	 */
 	public function test_page_sends_its_defaults_so_the_envelope_describes_the_page_served() {
 		self::factory()->post->create_many( 12 );
 
@@ -112,6 +133,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertSame( 1, $page['pages'] );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest_page_is_out_of_range
+	 */
 	public function test_a_page_past_the_end_is_out_of_range_but_a_refusal_is_not() {
 		self::factory()->post->create_many( 2 );
 
@@ -128,6 +152,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertFalse( openstation_app_rest_page_is_out_of_range( openstation_app_rest_page( 'wp/v2/posts', array( '_fields' => 'id' ) ) ) );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest
+	 */
 	public function test_a_single_resource_is_one_thing_however_many_fields_it_has() {
 		$post_id = self::factory()->post->create();
 
@@ -138,6 +165,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertSame( 1, $result['pages'] );
 	}
 
+	/**
+	 * @covers ::openstation_app_rest_page
+	 */
 	public function test_page_reports_a_refusal_instead_of_an_empty_table() {
 		wp_set_current_user( 0 );
 
@@ -148,6 +178,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertNotSame( '', $page['error'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::config
+	 */
 	public function test_a_callable_config_is_resolved_when_the_manifest_is_built() {
 		$calls = 0;
 		$app   = App::define( 'lazy-config' )
@@ -166,7 +199,6 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$config = $app->manifest()['config'];
 		$this->assertSame( 1, $calls );
 		$this->assertSame( 1, $config['static'] );
-
 		$this->assertSame( 'lazy', $config['shared'] );
 		$this->assertSame( self::$admin_id, $config['viewer'] );
 
@@ -174,6 +206,9 @@ class Tests_OpenStation_AppFrameworkRest extends WP_UnitTestCase {
 		$this->assertSame( 0, $app->manifest()['config']['viewer'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_reopen_is_a_lifecycle_action_only_when_declared() {
 		$silent = App::define( 'reopen-silent' )->action( 'noop', static function () {} );
 		$this->assertSame( array(), $silent->manifest()['lifecycle'] );

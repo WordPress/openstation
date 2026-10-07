@@ -54,7 +54,6 @@ export const accentSection: Section = ( s ) => {
 			return;
 		}
 		update( { accent: id } );
-
 		if ( id === CUSTOM_ACCENT_ID ) {
 			openWheel( e.currentTarget as Element );
 		}
@@ -64,7 +63,6 @@ export const accentSection: Section = ( s ) => {
 		if ( ! /^#[0-9a-fA-F]{6}$/.test( value ) ) {
 			return;
 		}
-
 		update( { customAccent: value, accent: CUSTOM_ACCENT_ID } );
 	};
 	return html`
@@ -108,19 +106,16 @@ export const accentSection: Section = ( s ) => {
 
 interface PreviewShape {
 	kind: 'win' | 'bar';
-
 	rail?: 'dock' | 'sidebar';
 	style: string;
 }
 
 const PREVIEWS: Readonly< Record< string, readonly PreviewShape[] > > = {
-
 	unified: [
 		{ kind: 'win', style: 'left:12%;top:14%;width:44%;height:42%' },
 		{ kind: 'win', style: 'left:30%;top:30%;width:44%;height:42%' },
 		{ kind: 'bar', rail: 'dock', style: 'left:24%;bottom:10%;width:52%;height:9%' },
 	],
-
 	classic: [
 		{ kind: 'bar', rail: 'sidebar', style: 'left:0;top:0;bottom:0;width:5%' },
 		{ kind: 'win', style: 'left:14%;top:14%;width:44%;height:42%' },
@@ -204,7 +199,9 @@ export const layoutSection: Section = ( s ) => {
 			) }
 		</div>`;
 	return html`
-
+		<!-- The id is a deep-link target: the shell tour's layout card
+		     scrolls to it, because this section sits below a fourteen-tile
+		     wallpaper grid and landing on the page alone never shows it. -->
 		<os-section id="os-settings-layout" heading=${ __( 'Desktop layout' ) } description=${ __( 'Where the menus live.' ) }>
 			<div class="os-settings__layout-grid" role="radiogroup" aria-label=${ __( 'Desktop layout' ) }>
 				${ DESKTOP_LAYOUTS.map( ( l ) => {

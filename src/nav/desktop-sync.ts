@@ -18,7 +18,6 @@ function buildSyntheticPlacement(
 	persistedPositions: Record< string, { x: number; y: number } >,
 ): RestPlacementShape {
 	const isTile = !! item.tile;
-
 	const saved = persistedPositions[ item.id ];
 	return {
 		id: hashToNegativeId( item.id ),

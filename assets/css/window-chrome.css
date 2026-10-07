@@ -1,5 +1,4 @@
 .os-window {
-
 	box-sizing: border-box;
 	position: absolute;
 	display: flex;
@@ -8,7 +7,6 @@
 	border: 1px solid var(--os-window-border);
 	border-radius: var(--os-window-radius);
 	box-shadow: var(--os-window-shadow);
-
 	border-image-source: var(--os-window-border-image-source, none);
 	border-image-slice: var(--os-window-border-image-slice, 100%);
 	border-image-width: var(--os-window-border-image-width, 1);
@@ -26,7 +24,6 @@
 		transform 0.2s ease,
 		opacity 0.2s ease,
 		box-shadow 0.2s ease,
-
 		filter var( --os-fx-transition-duration, 0.5s ) ease-in-out;
 }
 
@@ -46,7 +43,6 @@
 
 .os-window--focused {
 	box-shadow: var(--os-window-shadow-focused);
-
 	border-image-source: var(
 		--os-window-border-image-focused-source,
 		var(--os-window-border-image-source, none)
@@ -67,20 +63,17 @@
 
 .os-window__titlebar {
 	position: relative;
-
 	z-index: 21;
 	display: flex;
 	align-items: center;
 	height: var(--os-titlebar-height);
 	padding: 0 8px;
 	background-color: var(--os-titlebar-bg);
-
 	background-image: var(--os-titlebar-image, none);
 	background-repeat: var(--os-titlebar-image-repeat, repeat);
 	background-size: var(--os-titlebar-image-size, auto);
 	background-position: var(--os-titlebar-image-position, center);
 	color: var(--os-titlebar-color);
-
 	font-family: var(
 		--os-titlebar-font,
 		var(--os-font, inherit)
@@ -93,7 +86,6 @@
 
 .os-window--focused .os-window__titlebar {
 	background-color: var(--os-titlebar-bg-focused);
-
 	background-image: var(
 		--os-titlebar-image-focused,
 		var(--os-titlebar-image, none)
@@ -114,9 +106,7 @@
 
 .os-window__status {
 	--os-ui-save-status-size: var(--os-titlebar-activity-size, 16px);
-
 	--os-ui-save-status-idle-color: var(--os-titlebar-activity-idle-color, #fff);
-
 	--os-ui-save-status-ring-color: var(--os-titlebar-activity-color, #2271b1);
 	--os-ui-save-status-saved-bg: var(--os-titlebar-activity-saved-color, #2271b1);
 	--os-ui-save-status-failed-bg: var(--os-titlebar-activity-failed-color, #d63638);
@@ -193,6 +183,7 @@
 	display: contents;
 }
 
+
 .os-window__slot--title {
 	flex: 1;
 	min-width: 0;
@@ -259,7 +250,6 @@
 .os-window__titlebar:has(.os-window__menu-btn) .os-window__controls {
 	margin-inline-start: 8px;
 	padding-inline-start: 8px;
-
 	border-inline-start: 1px solid
 		var( --os-titlebar-divider, rgba(255, 255, 255, 0.15) );
 }
@@ -359,7 +349,6 @@
 		rgba(0, 0, 0, 0.1)
 	);
 }
-
 .os-window:not(.os-window--focused) .os-window__meta-btn {
 	color: var( --os-titlebar-btn-color, rgba(0, 0, 0, 0.3) );
 }
@@ -373,33 +362,24 @@
 }
 
 .os-window__tabs {
-
 	--_tab-radius: var( --os-tabs-radius, 8px );
-
 	--_tab-h: 30px;
-
 	--_tab-stroke: var( --os-tabs-rail-width, 2px );
-
 	--_tab-seam: 1px;
 	position: relative;
 	display: flex;
-
 	align-items: flex-end;
 	flex-shrink: 0;
 	gap: 2px;
-
 	padding: 8px 12px 0;
 	background-color: var( --os-tabs-bg, var( --os-ui-surface-elevated, #f6f7f7 ) );
-
 	background-image: var( --os-tabs-image, none );
 	background-repeat: var( --os-tabs-image-repeat, repeat );
 	background-size: var( --os-tabs-image-size, auto );
 	background-position: var( --os-tabs-image-position, center );
-
 	overflow-x: auto;
 	overflow-y: hidden;
 	scrollbar-width: thin;
-
 	overscroll-behavior-x: contain;
 }
 
@@ -442,11 +422,9 @@
 
 .os-window__tab-plate-fill {
 	position: absolute;
-
 	inset: 0 0 calc( var( --_tab-radius ) * -1 ) 0;
 	overflow: hidden;
 	border-radius: var( --_tab-radius ) var( --_tab-radius ) 0 0;
-
 	background-color: var( --os-tabs-active-bg, #fff );
 	background-image: var( --os-tabs-active-frost, none );
 	background-size: 100% var( --_tab-h );
@@ -508,15 +486,12 @@
 	bottom: 0;
 	height: var( --_tab-stroke );
 	background-image: var( --os-tabs-rail, none );
-
 	opacity: var( --os-tabs-rail-opacity, 1 );
 	background-size: var( --_tab-strip-w, 100% ) 100%;
 	background-repeat: no-repeat;
 	pointer-events: none;
-
 	-webkit-mask-image: linear-gradient( #000 0 0 ), linear-gradient( #000 0 0 );
 	mask-image: linear-gradient( #000 0 0 ), linear-gradient( #000 0 0 );
-
 	-webkit-mask-size:
 		calc(
 			var( --_tab-plate-x, 0px ) - var( --_tab-radius ) + var( --_tab-seam )
@@ -585,7 +560,6 @@
 		calc( ( var( --_tab-radius ) + var( --_tab-stroke ) ) * -1 )
 		0;
 	background-image: var( --os-tabs-rail, none );
-
 	opacity: var( --os-tabs-rail-opacity, 1 );
 	background-size: var( --_tab-strip-w, 100% ) 100%;
 	background-position:
@@ -605,7 +579,6 @@
 		var( --_ring-bar ), var( --_ring-corner-l ), var( --_ring-corner-r ),
 		var( --_ring-bar ), var( --_ring-bar ),
 		var( --_ring-arc-out ), var( --_ring-arc-out-r );
-
 	-webkit-mask-size:
 		calc( 100% - 4 * var( --_tab-radius ) - 2 * var( --_tab-stroke ) + 2 * var( --_tab-seam ) ) var( --_tab-stroke ),
 		calc( var( --_tab-radius ) + var( --_tab-stroke ) ) calc( var( --_tab-radius ) + var( --_tab-stroke ) ),
@@ -622,7 +595,6 @@
 		var( --_tab-stroke ) calc( 100% - 2 * var( --_tab-radius ) - var( --_tab-stroke ) + 2 * var( --_tab-seam ) ),
 		var( --_tab-radius ) var( --_tab-radius ),
 		var( --_tab-radius ) var( --_tab-radius );
-
 	-webkit-mask-position:
 		left calc( 2 * var( --_tab-radius ) + var( --_tab-stroke ) - var( --_tab-seam ) ) top 0,
 		left var( --_tab-radius ) top 0,
@@ -727,7 +699,6 @@
 .os-window__tab--active {
 	color: var( --os-tabs-active-color, #1d2327 );
 	font-weight: 600;
-
 	--os-ui-fg-muted: var( --os-tabs-active-color-muted, rgba(29, 35, 39, 0.6) );
 	--os-ui-hover: color-mix(
 		in srgb,
@@ -742,7 +713,6 @@
 }
 
 .os-window__tab--external {
-
 	gap: 10px;
 	padding-inline-end: 4px;
 }
@@ -762,12 +732,10 @@ os-tab-chip + os-tab-chip {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
-
 	background-image: var( --os-window-body-image, none );
 	background-repeat: var( --os-window-body-image-repeat, repeat );
 	background-size: var( --os-window-body-image-size, auto );
 	background-position: var( --os-window-body-image-position, center );
-
 	font-family: var( --os-ui-font, inherit );
 }
 
@@ -829,9 +797,7 @@ os-tab-chip + os-tab-chip {
 	pointer-events: none;
 	background: var(--os-window-bg);
 	opacity: 0;
-
 	transition: opacity 0.25s ease;
-
 	z-index: 4;
 }
 
@@ -908,7 +874,6 @@ os-tab-chip + os-tab-chip {
 .os-window__body--native {
 	overflow: auto;
 	color: var( --os-ui-fg, #1d2327 );
-
 	background-color: var(--os-window-bg);
 }
 
@@ -934,7 +899,6 @@ os-tab-chip + os-tab-chip {
 .os-window__btn--custom {
 	margin: 0 2px;
 }
-
 .os-window__btn--custom svg:not( [ width ] ):not( [ height ] ) {
 	width: 18px;
 	height: 18px;

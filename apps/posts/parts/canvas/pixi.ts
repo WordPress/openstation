@@ -42,7 +42,6 @@ export interface PixiApp {
 	ticker?: { stop(): void };
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 export interface PixiText extends PixiContainer {
@@ -128,12 +127,10 @@ export function destroyPixiApp( app: PixiApp, host: HTMLElement, hostClasses: st
 	try {
 		app.ticker?.stop();
 	} catch {
-
 	}
 	try {
 		app.destroy( { removeView: true }, { children: true } );
 	} catch {
-
 	}
 	host.replaceChildren();
 	host.classList.remove( ...hostClasses );

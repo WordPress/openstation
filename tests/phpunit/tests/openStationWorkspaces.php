@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-workspaces
+ */
 class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -21,12 +24,18 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_workspace_presets
+	 */
 	public function test_ships_three_templates_in_order() {
 		$this->activate_template_plugins();
 		$ids = wp_list_pluck( openstation_workspace_presets(), 'id' );
 		$this->assertSame( array( 'commerce', 'learning', 'publishing' ), $ids );
 	}
 
+	/**
+	 * @covers ::openstation_workspace_presets
+	 */
 	public function test_shipped_layouts_are_valid() {
 		$this->activate_template_plugins();
 		foreach ( openstation_workspace_presets() as $preset ) {
@@ -36,6 +45,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_workspace_presets
+	 */
 	public function test_filter_can_drop_a_shipped_template() {
 		$this->activate_template_plugins();
 		add_filter(
@@ -55,6 +67,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertSame( array( 'learning', 'publishing' ), $ids );
 	}
 
+	/**
+	 * @covers ::openstation_workspace_preset_requirements_met
+	 */
 	public function test_template_is_withheld_until_its_plugin_is_active() {
 		update_option( 'active_plugins', array() );
 		$this->assertSame(
@@ -69,6 +84,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_workspace_preset_requirements_met
+	 */
 	public function test_requires_is_honoured_for_filtered_templates() {
 		update_option( 'active_plugins', array() );
 		add_filter(
@@ -96,6 +114,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertSame( array( 'commerce', 'publishing' ), $ids );
 	}
 
+	/**
+	 * @covers ::openstation_workspace_presets
+	 */
 	public function test_filter_can_add_a_complete_template() {
 		add_filter(
 			'openstation_workspace_presets',
@@ -120,6 +141,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertSame( 40, $added['order'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_preset
+	 */
 	public function test_malformed_templates_are_dropped_individually() {
 		$this->activate_template_plugins();
 		add_filter(
@@ -137,13 +161,14 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$presets = openstation_workspace_presets();
 		$ids     = wp_list_pluck( $presets, 'id' );
 		$this->assertSame( array( 'commerce', 'learning', 'publishing', 'odd' ), $ids );
-
 		$odd = end( $presets );
 		$this->assertSame( 'free', $odd['layout'] );
-
 		$this->assertSame( 'odd', $odd['label'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_place
+	 */
 	public function test_launch_entries_keep_where_the_window_goes() {
 		$profile = openstation_sanitize_workspace_profile(
 			array(
@@ -172,7 +197,6 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 							'rows'   => 6,
 						),
 					),
-
 					array(
 						'match' => 'clamped',
 						'place' => array(
@@ -182,7 +206,6 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 							'height' => 0.5,
 						),
 					),
-
 					array(
 						'match' => 'sliver',
 						'place' => array(
@@ -218,12 +241,18 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'place', $w[4] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_profile
+	 */
 	public function test_absent_profile_is_null() {
 		$this->assertNull( openstation_sanitize_workspace_profile( null ) );
 		$this->assertNull( openstation_sanitize_workspace_profile( 'nope' ) );
 		$this->assertNull( openstation_sanitize_workspace_profile( 42 ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_profile
+	 */
 	public function test_profile_is_bounded() {
 		$profile = openstation_sanitize_workspace_profile(
 			array(
@@ -248,7 +277,6 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertSame( 'columns', $profile['layout'] );
 		$this->assertSame( '#7f54b3', $profile['color'] );
 		$this->assertSame( 'only', $profile['apps']['mode'] );
-
 		$this->assertSame(
 			array( 'woocommerce', 'badid', 'wpdcEditor' ),
 			$profile['apps']['ids']
@@ -258,6 +286,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertTrue( $profile['provisioned'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_profile
+	 */
 	public function test_profile_widgets_are_bounded() {
 		$profile = openstation_sanitize_workspace_profile(
 			array(
@@ -274,12 +305,18 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_profile
+	 */
 	public function test_absent_widgets_mean_all() {
 		$profile = openstation_sanitize_workspace_profile( array( 'layout' => 'tile' ) );
 		$this->assertSame( 'all', $profile['widgets']['mode'] );
 		$this->assertSame( array(), $profile['widgets']['ids'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_profile
+	 */
 	public function test_runaway_widget_list_is_capped() {
 		$ids = array();
 		for ( $i = 0; $i < 200; $i++ ) {
@@ -296,6 +333,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertCount( OPENSTATION_WORKSPACE_MAX_WIDGETS, $profile['widgets']['ids'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_preset
+	 */
 	public function test_template_may_name_widgets() {
 		add_filter(
 			'openstation_workspace_presets',
@@ -316,6 +356,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_appearance
+	 */
 	public function test_appearance_is_restricted_to_the_allowlist() {
 		$profile = openstation_sanitize_workspace_profile(
 			array(
@@ -323,7 +366,6 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 					'wallpaper'    => 'mono',
 					'accent'       => 'rose',
 					'dockBehavior' => 'dynamic',
-
 					'navPlacement'         => array( 'edit-php' => 'hidden' ),
 					'heartbeatRate'        => 5,
 					'developerModeEnabled' => true,
@@ -336,6 +378,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_appearance
+	 */
 	public function test_appearance_arrays_are_depth_bounded() {
 		$profile = openstation_sanitize_workspace_profile(
 			array(
@@ -384,11 +429,17 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_profile
+	 */
 	public function test_absent_appearance_is_empty() {
 		$profile = openstation_sanitize_workspace_profile( array( 'layout' => 'tile' ) );
 		$this->assertSame( array(), $profile['appearance'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_preset
+	 */
 	public function test_template_may_carry_an_appearance() {
 		add_filter(
 			'openstation_workspace_presets',
@@ -409,6 +460,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertSame( array( 'wallpaper' => 'forest' ), $added['appearance'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_profile
+	 */
 	public function test_unknown_layout_and_colour_fall_back() {
 		$profile = openstation_sanitize_workspace_profile(
 			array(
@@ -418,13 +472,14 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		);
 		$this->assertSame( 'free', $profile['layout'] );
 		$this->assertSame( '', $profile['color'] );
-
 		$this->assertSame( 'all', $profile['apps']['mode'] );
 		$this->assertSame( array(), $profile['apps']['ids'] );
-
 		$this->assertFalse( $profile['provisioned'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_workspace_profile
+	 */
 	public function test_runaway_lists_are_capped() {
 		$ids     = array();
 		$windows = array();
@@ -445,6 +500,9 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 		$this->assertCount( OPENSTATION_WORKSPACE_MAX_WINDOWS, $profile['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_profile_round_trips_through_the_session() {
 		openstation_save_session(
 			self::$admin_id,
@@ -503,7 +561,6 @@ class Tests_OpenStation_Workspaces extends WP_UnitTestCase {
 			),
 			$session['desktops'][0]['profile']['appearance']
 		);
-
 		$this->assertArrayNotHasKey( 'profile', $session['desktops'][1] );
 	}
 }

@@ -22,7 +22,6 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'announces politely rather than posing as a dialog', () => {
-
 		showPalettePlaceholder();
 
 		const el = document.getElementById( ID );
@@ -38,7 +37,6 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'a click on the dimmed area cancels, a click on the card does not', () => {
-
 		let cancelled = 0;
 		showPalettePlaceholder( () => {
 			cancelled += 1;
@@ -54,7 +52,6 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'a second handoff does not cut the first one short', () => {
-
 		showPalettePlaceholder();
 		hidePalettePlaceholder( true );
 		hidePalettePlaceholder( true );
@@ -74,7 +71,6 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'Escape takes it down and reports the cancel', () => {
-
 		let cancelled = 0;
 		showPalettePlaceholder( () => {
 			cancelled += 1;
@@ -115,7 +111,6 @@ describe( 'command-palette loading placeholder', () => {
 	} );
 
 	it( 'sweeps up a stray copy it does not own', () => {
-
 		const stray = document.createElement( 'div' );
 		stray.id = ID;
 		document.body.appendChild( stray );

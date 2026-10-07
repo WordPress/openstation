@@ -4,7 +4,7 @@ import * as deferredStyles from '../../src/deferred-styles';
 import { AiAssistantStub } from '../../src/ai-assistant/stub';
 
 declare global {
-
+	// eslint-disable-next-line @typescript-eslint/no-shadow
 	interface Window {
 		openStationCreateAiAssistant?: unknown;
 	}
@@ -39,7 +39,6 @@ describe( 'AiAssistantStub palette-runtime retry', () => {
 		vi.spyOn( deferredStyles, 'ensureDeferredStyle' ).mockImplementation(
 			() => {},
 		);
-
 		vi.spyOn(
 			document.head,
 			'appendChild',
@@ -94,7 +93,6 @@ describe( 'AiAssistantStub palette-runtime retry', () => {
 
 		stub.open();
 		await settle();
-
 		expect( real.setBaselineLoading ).toHaveBeenLastCalledWith( false );
 		stub.open();
 
@@ -104,7 +102,6 @@ describe( 'AiAssistantStub palette-runtime retry', () => {
 	it( 'retries the panel bundle after a failed load', async () => {
 		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 		const append = vi.mocked( document.head.appendChild );
-
 		const scripts = (): HTMLScriptElement[] =>
 			append.mock.calls
 				.map( ( [ node ] ) => node )
@@ -124,14 +121,12 @@ describe( 'AiAssistantStub palette-runtime retry', () => {
 
 	it( 'drops a bundle that loaded without registering, so a retry fetches again', async () => {
 		vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
-
 		vi.mocked( document.head.appendChild ).mockRestore();
 		const tag = (): Element | null =>
 			document.querySelector( 'script[data-os-ai="1"]' );
 		const stub = makeStub();
 
 		stub.open();
-
 		tag()?.dispatchEvent( new Event( 'load' ) );
 		await settle();
 

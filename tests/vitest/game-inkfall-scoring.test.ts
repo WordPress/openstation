@@ -14,11 +14,8 @@ import {
 
 describe( 'inkfall/scoring.ts', () => {
 	test( 'word points formula bounds', () => {
-
 		expect( wordPoints( 4, 0, 0 ) ).toBe( 40 );
-
 		expect( wordPoints( 4, 1, 0 ) ).toBe( 60 );
-
 		expect( wordPoints( 4, 5, 0 ) ).toBe( 60 );
 		expect( wordPoints( 4, -1, 0 ) ).toBe( 40 );
 	} );

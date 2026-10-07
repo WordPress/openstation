@@ -41,6 +41,7 @@ export function setFolderPlacements( folderId: number, placements: RestPlacement
 
 export function upsertPlacement( placement: RestPlacementShape, source: 'local' | 'remote' = 'local' ): void {
 	if ( ! placement || typeof placement.id !== 'number' ) {
+		// eslint-disable-next-line no-console
 		console.warn(
 			'[openstation] upsertPlacement called with a non-placement value; ignoring.',
 			placement,
@@ -167,7 +168,6 @@ export function currentPlacement( snapshot: RestPlacementShape ): RestPlacementS
 	if ( sameFolder ) {
 		return sameFolder;
 	}
-
 	for ( const list of state.placementsByFolder.values() ) {
 		const hit = list.find( ( p ) => p && p.id === snapshot.id );
 		if ( hit ) {

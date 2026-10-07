@@ -216,11 +216,9 @@ describe( 'os-flyout', () => {
 
 		flyout.setAttribute( 'open', '' );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
-
 		expect( flyout.ownerDocument?.activeElement ).not.toBe( trigger );
 
 		flyout.removeAttribute( 'open' );
-
 		expect( flyout.ownerDocument?.activeElement ).toBe( trigger );
 	} );
 

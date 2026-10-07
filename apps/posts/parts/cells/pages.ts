@@ -18,7 +18,7 @@ export function buildParentCell( row: PostListItem, env: CellEnv ): HTMLElement 
 		return cell;
 	}
 	const known = env.parentTitles.get( pid );
-
+	/* translators: %d is the numeric id of a parent page whose title isn't on the current page roster. */
 	cell.textContent = known ? `↳ ${ known }` : sprintf( __( '↳ #%d' ), pid );
 	return cell;
 }
@@ -63,7 +63,6 @@ export function buildSlugCell( row: PostListItem, env: CellEnv ): HTMLElement {
 		if ( ! slug ) {
 			return;
 		}
-
 		void copyText( slug ).then( ( ok ) => {
 			if ( ! ok ) {
 				env.toast( __( 'Couldn’t copy the slug.' ), null );
@@ -114,7 +113,7 @@ export function buildCommentsCell( row: PostListItem ): HTMLElement {
 
 	cell.appendChild( icon );
 	cell.appendChild( label );
-
+	/* translators: %d is the comment count for a row. */
 	cell.setAttribute( 'aria-label', sprintf( _n( '%d comment', '%d comments', count ), count ) );
 	return cell;
 }

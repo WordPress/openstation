@@ -24,6 +24,7 @@ function openstation_files_compute_visible_folders( $owned, $user_id ) {
 		ARRAY_A
 	);
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$user_share_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DISTINCT f.* FROM {$tables['folders']} f
@@ -43,7 +44,7 @@ function openstation_files_compute_visible_folders( $owned, $user_id ) {
 	if ( ! empty( $roles ) ) {
 		$placeholders = implode( ',', array_fill( 0, count( $roles ), '%s' ) );
 		$role_args    = array_merge( array( $user_id, $user_id ), array_map( 'strval', $roles ) );
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		$role_share_rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT DISTINCT f.* FROM {$tables['folders']} f
@@ -92,7 +93,6 @@ function openstation_files_user_can_see_folder( $folder, $user_id, $user_roles )
 	} elseif ( 'all' === $mode ) {
 		$can = true;
 	} else {
-
 		$cap = openstation_folder_share_user_capability( (int) $folder['id'], (int) $user_id );
 		$can = 'none' !== $cap;
 	}

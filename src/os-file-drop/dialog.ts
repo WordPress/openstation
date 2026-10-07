@@ -35,16 +35,11 @@ interface OpenDialogArgs {
 	context: DropContext;
 	mediaUrl: string;
 	restNonce: string;
-
 	filesUrl?: string;
 	storage?: DesktopStorageConfig;
-
 	forceDesktop?: boolean;
-
 	preferDesktop?: boolean;
-
 	emptyDirs?: string[];
-
 	mediaMaxBytes?: number;
 }
 
@@ -90,7 +85,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 	if ( args.entries.length === 0 && ! args.emptyDirs?.length ) {
 		return;
 	}
-
 	if ( activeDialog ) {
 		activeDialog.replace( args );
 		return;
@@ -291,12 +285,9 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		let successes = 0;
 		let failures = 0;
 		let cancelled = 0;
-
 		const failureDetails: string[] = [];
-
 		const parentId = args.context.folderId ?? 0;
 		let firstFlatPlaced = false;
-
 		for ( let i = 0; i < total; i++ ) {
 			const entry = args.entries[ i ];
 			try {
@@ -348,19 +339,15 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 				failureDetails.push( `“${ entry.file.name }” — ${ message }` );
 			}
 		}
-
 		if ( destination === 'desktop' && args.emptyDirs?.length ) {
 			for ( const dir of args.emptyDirs ) {
 				try {
 					const res = await ensureUploadPath( parentId, dir );
-
 					ingestCreatedFolders( res.createdFolders, 'local' );
 				} catch {
-
 				}
 			}
 		}
-
 		const createdFolders =
 			args.entries.some( ( e ) => e.relativePath ) ||
 			!! args.emptyDirs?.length;
@@ -373,7 +360,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 				setFolders( foldersRes.folders );
 				setFolderPlacements( parentId, placementsRes.placements );
 			} catch {
-
 			}
 		}
 		modal.remove();
@@ -399,7 +385,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			for ( const entry of next.entries ) {
 				draft.push( { ...entry.fields } );
 			}
-
 			destination = resolveDefaultDestination( {
 				desktopAllowed,
 				surface: next.context.surface,
@@ -426,7 +411,6 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			modal.remove();
 			finish();
 		} );
-
 		const observer = new MutationObserver( () => {
 			if ( ! modal.isConnected ) {
 				observer.disconnect();

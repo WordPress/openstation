@@ -9,8 +9,10 @@ import type { WindowManager } from './../window-manager';
 import { deriveWindowId, sanitizeIconSvg } from './../utils';
 
 function devLog( ...args: unknown[] ) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const mode = ( typeof import.meta !== 'undefined' && ( import.meta as any ).env ) ? ( import.meta as any ).env.MODE : undefined;
 	if ( mode !== 'production' ) {
+		// eslint-disable-next-line no-console
 		console.log( ...args );
 	}
 }
@@ -46,11 +48,8 @@ const CLOSE_GRACE_MS = 250;
 export class IframeCommandBridge {
 	private readonly manager: WindowManager;
 	private readonly adminUrl: string;
-
 	private streamingWindowId: string | null = null;
-
 	private focusedWindowId: string | null = null;
-
 	private paletteOpen = false;
 	private closeGraceTimer: number | null = null;
 
@@ -127,12 +126,10 @@ export class IframeCommandBridge {
 			if ( ! Array.isArray( data.commands ) ) {
 				return;
 			}
-
 			const win = this.manager.findByIframeSource( e.source );
 			if ( ! win ) {
 				return;
 			}
-
 			if ( win.id !== this.streamingWindowId ) {
 				return;
 			}
@@ -211,7 +208,6 @@ export class IframeCommandBridge {
 					window.location.origin,
 				);
 			} catch {
-
 			}
 		}
 	}
@@ -256,16 +252,15 @@ export class IframeCommandBridge {
 				icon: iconFor( cmd ),
 				iconSvg: safeSvg !== '' ? safeSvg : undefined,
 				owner,
-
 				eager: true,
 				run: cmd.kind === 'navigate' && cmd.url
 					? this.runNavigate( cmd.url, cmd.label, iconFor( cmd ) )
 					: this.runProxy( windowId, cmd.name ),
 			};
-
 			try {
 				registerCommand( def );
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] iframe-bridge: dropping bad command',
 					def,
@@ -282,7 +277,6 @@ export class IframeCommandBridge {
 	): DesktopCommand[ 'run' ] {
 		return ( _args, ctx ) => {
 			ctx.close();
-
 			if ( tryNativeUrlRemap( url ) ) {
 				return;
 			}
@@ -307,7 +301,6 @@ export class IframeCommandBridge {
 					window.location.origin,
 				);
 			} catch {
-
 			}
 			this.manager.focus( win );
 		};

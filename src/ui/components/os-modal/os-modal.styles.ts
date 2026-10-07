@@ -11,7 +11,6 @@ export const modalStyles = css`
 		align-items: center;
 		justify-content: center;
 		background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
-
 		background-image: var( --os-ui-scrim-image, none );
 		background-repeat: var( --os-ui-scrim-image-repeat, repeat );
 		background-size: var( --os-ui-scrim-image-size, auto );
@@ -22,14 +21,11 @@ export const modalStyles = css`
 		--os-ui-fg: var( --os-ui-modal-text, #f0f0f1 );
 		--os-ui-fg-muted: var( --os-ui-modal-text-muted, #a7aaad );
 		--os-ui-border: var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
-
 		--os-window-bg: var( --os-ui-modal-field-bg, #2c3338 );
-
 		--os-ui-button-bg-hover: var(
 			--os-ui-modal-button-bg-hover,
 			rgba( 255, 255, 255, 0.08 )
 		);
-
 		--os-ui-surface: var( --os-ui-modal-surface, #2c3338 );
 		--os-ui-surface-elevated: var(
 			--os-ui-modal-surface-elevated,
@@ -39,11 +35,8 @@ export const modalStyles = css`
 			--os-ui-modal-border-strong,
 			rgba( 255, 255, 255, 0.35 )
 		);
-
 		--os-ui-hover: var( --os-ui-modal-hover, rgba( 255, 255, 255, 0.08 ) );
-
 		--os-ui-notice-color: var( --os-ui-modal-text, #f0f0f1 );
-
 		--os-ui-card-bg: var( --os-ui-modal-surface, #2c3338 );
 		--os-ui-card-fg: var( --os-ui-modal-text, #f0f0f1 );
 		--os-ui-card-border: var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
@@ -85,9 +78,7 @@ export const modalStyles = css`
 	.dialog {
 		max-width: 92vw;
 		max-height: 90vh;
-
 		background-color: var( --os-ui-modal-bg, #1d2327 );
-
 		background-image: var( --os-ui-dialog-bg-image, none );
 		background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
 		background-size: var( --os-ui-dialog-bg-image-size, auto );
@@ -165,7 +156,6 @@ export const modalStyles = css`
 		padding: 12px 20px 16px;
 		border-top: 1px solid var( --os-ui-border, rgba( 255, 255, 255, 0.06 ) );
 	}
-
 	.footer slot {
 		display: flex;
 		justify-content: flex-end;

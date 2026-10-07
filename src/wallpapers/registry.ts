@@ -28,7 +28,6 @@ export function register( def: WallpaperDef ): void {
 		collectRegistrationErrors< WallpaperDef >( def, WALLPAPER_CHECKS ),
 		def,
 	);
-
 	const idx = seed.findIndex( ( w ) => w.id === def.id );
 	if ( idx >= 0 ) {
 		seed[ idx ] = def;
@@ -72,7 +71,6 @@ function notify(): void {
 export function all(): WallpaperDef[] {
 	const copy = seed.slice();
 	const filtered = applyFilters<WallpaperDef[]>( HOOKS.WALLPAPERS, copy );
-
 	if ( ! Array.isArray( filtered ) ) {
 		if ( typeof console !== 'undefined' ) {
 			console.warn(
@@ -82,7 +80,6 @@ export function all(): WallpaperDef[] {
 		}
 		return copy;
 	}
-
 	return filtered.filter( isValidDef );
 }
 
@@ -130,7 +127,6 @@ const WALLPAPER_CHECKS = [
 			if ( d.type === 'canvas' ) {
 				return typeof ( d as { mount?: unknown } ).mount === 'function';
 			}
-
 			return true;
 		},
 	},

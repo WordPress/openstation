@@ -74,7 +74,6 @@ function openstation_usage_feedback_payload( array $answers, $email, $user_id ) 
 }
 
 function openstation_usage_feedback_forward( array $payload ) {
-
 	$endpoint = (string) apply_filters( 'openstation_usage_feedback_endpoint', OPENSTATION_USAGE_FEEDBACK_ENDPOINT );
 	if ( '' === $endpoint ) {
 		return false;
@@ -108,7 +107,6 @@ function openstation_register_usage_feedback_route() {
 				'requests' => $text,
 				'use_case' => $text,
 				'blockers' => $text,
-
 				'email'    => array(
 					'type'      => 'string',
 					'default'   => '',

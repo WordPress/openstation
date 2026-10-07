@@ -24,7 +24,6 @@ let cached: typeof Monaco | null = null;
 let pending: Promise< typeof Monaco > | null = null;
 
 function installWorkerEnvironment( monacoVendorUrl: string ): void {
-
 	const workerMainUrl = `${ monacoVendorUrl }/base/worker/workerMain.js`;
 
 	const baseUrl = monacoVendorUrl.replace( /\/vs$/, '' );
@@ -99,7 +98,6 @@ function configureLanguageServices( monaco: typeof Monaco ): void {
 	ts.typescriptDefaults.setDiagnosticsOptions( {
 		noSemanticValidation: false,
 		noSyntaxValidation: false,
-
 		diagnosticCodesToIgnore: [ 2307, 2304 ],
 	} );
 	ts.javascriptDefaults.setDiagnosticsOptions( {

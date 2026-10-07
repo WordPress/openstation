@@ -87,10 +87,8 @@ function applySnapshot( block: HeartbeatBlock ): void {
 		document.dispatchEvent(
 			new CustomEvent( 'os-presence-changed', { detail } ),
 		);
-
 		activity.publish( 'os/presence-changed', detail );
 	}
-
 	activity.publish( 'os/presence-snapshot-applied', {
 		applied: Object.keys( block.snapshot ).length,
 		transitions: transitions.length,
@@ -107,7 +105,6 @@ export function bootPresenceProbe(): void {
 		capture: true,
 		passive: true,
 	} );
-
 	window.addEventListener( 'keydown', noteUserActivity, {
 		capture: true,
 		passive: true,

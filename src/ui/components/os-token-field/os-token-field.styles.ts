@@ -2,7 +2,6 @@ import { css } from '../../core';
 
 export const styles = css`
 	:host {
-
 		--_bg: var( --os-ui-token-field-bg, var( --os-ui-field-bg, #fff ) );
 		--_border: var(
 			--os-ui-token-field-border,

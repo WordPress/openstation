@@ -205,7 +205,6 @@ export class OsSaveStatus extends Component {
 		newValue: string | null,
 	): void {
 		super.attributeChangedCallback( name, oldValue, newValue );
-
 		if ( name === 'auto' || name === 'event' ) {
 			this._removeAutoListener();
 			if ( ( this as unknown as { auto: string | null } ).auto !== null ) {

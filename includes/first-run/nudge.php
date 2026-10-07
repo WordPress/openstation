@@ -35,7 +35,6 @@ function openstation_should_show_activation_nudge() {
 	if ( openstation_has_seen_intro( $user_id, OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG ) ) {
 		return false;
 	}
-
 	if ( function_exists( 'openstation_should_show_welcome_dialog' ) && openstation_should_show_welcome_dialog() ) {
 		return false;
 	}
@@ -79,7 +78,7 @@ function openstation_render_activation_nudge() {
 			)
 		);
 	} else {
-		echo '<div id="os-activation-nudge" class="notice notice-info os-activation-nudge">' . $markup . '</div>';
+		echo '<div id="os-activation-nudge" class="notice notice-info os-activation-nudge">' . $markup . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts in openstation_activation_nudge_markup().
 	}
 
 	$rest_url   = esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) );

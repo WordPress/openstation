@@ -26,7 +26,6 @@ export const styles = css`
 		letter-spacing: var( --os-ui-ribbon-tracking, 0.06em );
 		text-transform: uppercase;
 		color: var( --os-ui-ribbon-fg, var( --os-ui-fg-on-accent, #fff ) );
-
 		background: var(
 			--os-ui-ribbon-bg,
 			var( --wp-admin-theme-color, #2271b1 )

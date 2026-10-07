@@ -58,8 +58,7 @@ function openstation_phpmyadmin_install_config() {
 
 	$config_src = OPENSTATION_PHPMYADMIN_DIR . 'includes/config.inc.php';
 	if ( is_readable( $config_src ) ) {
-
-		@copy( $config_src, $vendor . '/config.inc.php' );
+		@copy( $config_src, $vendor . '/config.inc.php' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 	}
 
 	$driver_path  = $vendor . '/libraries/classes/Dbal/DbiMysqli.php';
@@ -72,13 +71,12 @@ function openstation_phpmyadmin_install_config() {
 
 	if ( openstation_phpmyadmin_using_sqlite() ) {
 		if ( is_readable( $adapter_src ) ) {
-			@copy( $adapter_src, $driver_path );
+			@copy( $adapter_src, $driver_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 	} elseif ( is_file( $driver_path ) && is_file( $stock_backup ) ) {
-
-		$current = (string) @file_get_contents( $driver_path );
+		$current = (string) @file_get_contents( $driver_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_get_contents, WordPress.PHP.NoSilencedErrors.Discouraged
 		if ( false !== strpos( $current, 'openstation' ) || false !== strpos( $current, 'OpenStation' ) ) {
-			@copy( $stock_backup, $driver_path );
+			@copy( $stock_backup, $driver_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		}
 	}
 }
@@ -119,6 +117,7 @@ function openstation_phpmyadmin_serve_bundle() {
 	header( 'Content-Type: application/javascript; charset=utf-8' );
 	header( 'Vary: Cookie' );
 
+	echo '/* desktop-mode-phpmyadmin config + bundle */' . "\n";
 	echo 'window.openStationPhpMyAdminConfig = ' . wp_json_encode( $config ) . ';' . "\n";
 
 	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
@@ -127,7 +126,7 @@ function openstation_phpmyadmin_serve_bundle() {
 		$bundle = OPENSTATION_PHPMYADMIN_DIR . 'assets/js/phpmyadmin.js';
 	}
 	if ( file_exists( $bundle ) ) {
-		readfile( $bundle );
+		readfile( $bundle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 	}
 
 	exit;
@@ -157,7 +156,7 @@ function openstation_phpmyadmin_register_window() {
 	);
 
 	if ( is_wp_error( $registered ) ) {
-
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[desktop-mode-phpmyadmin] window registration failed: ' . $registered->get_error_message() );
 		return;
 	}

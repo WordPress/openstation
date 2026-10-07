@@ -112,7 +112,6 @@ describe( 'createSoftBody', () => {
 
 	test( 'rest area is the inscribed polygon, not the circle', () => {
 		const body = createSoftBody( 0, 0, 50, 40 );
-
 		expect( body.restArea ).toBeLessThan( Math.PI * 50 * 50 );
 		expect( body.restArea ).toBeGreaterThan( Math.PI * 50 * 50 * 0.97 );
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeCloseTo( body.restArea, 6 );
@@ -130,7 +129,6 @@ describe( 'floating', () => {
 	test( 'stays airborne — no window means no net fall', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
 		run( body, 4 );
-
 		expect( Math.abs( body.core.y - 400 ) ).toBeLessThan( 45 );
 	} );
 
@@ -146,14 +144,12 @@ describe( 'floating', () => {
 		}
 		const min = Math.min( ...samples );
 		const max = Math.max( ...samples );
-
 		expect( max - min ).toBeGreaterThan( 3 );
 		expect( max - min ).toBeLessThan( 0.6 * 2 * body.radius );
 		expect( isFiniteBody( body ) ).toBe( true );
 	} );
 
 	test( 'the wobble is smooth — every spring family agrees on the rest shape', () => {
-
 		const body = createSoftBody( 600, 400, 56, 34 );
 		run( body, 2 );
 
@@ -182,7 +178,6 @@ describe( 'floating', () => {
 		}
 
 		expect( worstStep ).toBeGreaterThan( 0.005 );
-
 		expect( worstJerk ).toBeLessThan( 0.05 );
 	} );
 
@@ -201,7 +196,6 @@ describe( 'floating', () => {
 	test( 'the wobble is deformation, not drift', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
 		run( body, 8 );
-
 		expect( Math.abs( body.core.x - 600 ) ).toBeLessThan( 40 );
 	} );
 } );
@@ -209,7 +203,6 @@ describe( 'floating', () => {
 describe( 'stepSoftBody', () => {
 	test( 'pressure re-inflates a squashed blob', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
-
 		for ( const p of body.rim ) {
 			p.y = body.core.y + ( p.y - body.core.y ) * 0.06;
 		}
@@ -234,17 +227,14 @@ describe( 'stepSoftBody', () => {
 		runMagnetised( body, 5, [ window_ ] );
 
 		expect( isFiniteBody( body ) ).toBe( true );
-
 		const lowest = Math.max( ...body.rim.map( ( p ) => p.y ) );
 		expect( lowest ).toBeLessThanOrEqual( window_.y + 0.5 );
 		expect( lowest ).toBeGreaterThan( window_.y - 8 );
-
 		expect( body.core.y ).toBeGreaterThan( window_.y - body.radius );
 		expect( body.core.y ).toBeLessThan( window_.y - body.radius * 0.5 );
 	} );
 
 	test( 'the magnet works sideways — there is no global down', () => {
-
 		const window_: Obstacle = {
 			id: 'window:tall',
 			kind: 'window',
@@ -257,7 +247,6 @@ describe( 'stepSoftBody', () => {
 		runMagnetised( body, 5, [ window_ ] );
 
 		expect( isFiniteBody( body ) ).toBe( true );
-
 		const rightmost = Math.max( ...body.rim.map( ( p ) => p.x ) );
 		expect( rightmost ).toBeLessThanOrEqual( window_.x + 0.5 );
 		expect( rightmost ).toBeGreaterThan( window_.x - 8 );
@@ -265,7 +254,6 @@ describe( 'stepSoftBody', () => {
 	} );
 
 	test( 'Mio parked in a corner comes to rest', () => {
-
 		const window_: Obstacle = {
 			id: 'window:posts',
 			kind: 'window',
@@ -332,7 +320,6 @@ describe( 'stepSoftBody', () => {
 
 	test( 'moving fast stretches the body along its heading', () => {
 		const body = createSoftBody( 150, 400, 56, 34 );
-
 		let target = 150;
 		for ( let i = 0; i < 60; i++ ) {
 			target += 14;
@@ -343,9 +330,7 @@ describe( 'stepSoftBody', () => {
 			);
 		}
 		const moving = extents( body );
-
 		expect( moving.width / moving.height ).toBeGreaterThan( 1.25 );
-
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
 			body.restArea * 0.95,
 		);
@@ -371,7 +356,6 @@ describe( 'stepSoftBody', () => {
 		expect( settled.width / settled.height ).toBeLessThan(
 			moving.width / moving.height - 0.2,
 		);
-
 		expect( settled.width / settled.height ).toBeLessThan( 1.2 );
 	} );
 
@@ -385,7 +369,6 @@ describe( 'stepSoftBody', () => {
 
 	test( 'the body is never crushed flat by an out-of-bounds drag', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
-
 		run( body, 3, { dragTarget: { x: 99999, y: 99999 } } );
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
 			body.restArea * 0.5,
@@ -414,7 +397,6 @@ describe( 'stepSoftBody', () => {
 
 	test( 'survives a hostile frame delta without exploding', () => {
 		const body = createSoftBody( 600, 200, 56, 34 );
-
 		stepSoftBody( body, 5, input() );
 		stepSoftBody( body, -1, input() );
 		stepSoftBody( body, Number.NaN, input() );
@@ -429,9 +411,7 @@ describe( 'addVelocity', () => {
 		addVelocity( body, 900, 0 );
 		expect( body.core.vx ).toBeCloseTo( 900, 6 );
 		run( body, 0.5 );
-
 		expect( body.core.x ).toBeGreaterThan( 550 );
-
 		expect( radiusError( body ) ).toBeLessThan( 25 );
 	} );
 
@@ -444,7 +424,6 @@ describe( 'addVelocity', () => {
 } );
 
 describe( 'hard stretch limits', () => {
-
 	function radialFractions( body: SoftBody ): number[] {
 		return body.rim.map(
 			( p ) =>
@@ -461,7 +440,6 @@ describe( 'hard stretch limits', () => {
 	}
 
 	test( 'a free body is pulled inside the limits within one frame', () => {
-
 		const body = createSoftBody( 600, 400, 56, 34 );
 		mangle( body );
 		expect( Math.min( ...radialFractions( body ) ) ).toBeLessThan( 0.1 );
@@ -470,7 +448,6 @@ describe( 'hard stretch limits', () => {
 		stepSoftBody( body, 1 / 60, input() );
 
 		const after = radialFractions( body );
-
 		expect( Math.min( ...after ) ).toBeGreaterThan( PHYSICS.minStretch * 0.9 );
 		expect( Math.max( ...after ) ).toBeLessThan( PHYSICS.maxStretch * 1.1 );
 	} );
@@ -527,7 +504,6 @@ describe( 'hard stretch limits', () => {
 		const limited = worstSquash( PHYSICS );
 
 		expect( unlimited ).toBeLessThan( 0.15 );
-
 		expect( limited ).toBeGreaterThan( unlimited * 2 );
 		expect( limited ).toBeGreaterThan( 0.2 );
 	} );
@@ -581,12 +557,10 @@ describe( 'hard stretch limits', () => {
 				}
 			}
 		}
-
 		expect( worstPenetration ).toBeLessThan( 1 );
 	} );
 
 	test( 'they stay out of the way in ordinary use', () => {
-
 		const window_: Obstacle = {
 			id: 'window:posts',
 			kind: 'window',
@@ -619,7 +593,6 @@ describe( 'hard stretch limits', () => {
 } );
 
 describe( 'the outline can never fold', () => {
-
 	function isSimplePolygon( body: SoftBody ): boolean {
 		const n = body.rim.length;
 		const cross = (
@@ -668,7 +641,6 @@ describe( 'the outline can never fold', () => {
 				}
 			}
 			if ( i % 240 === 100 ) {
-
 				body.rim.forEach( ( p, k ) => {
 					if ( k % 3 === 0 ) {
 						p.x = body.core.x - ( p.x - body.core.x ) * 1.4;
@@ -710,20 +682,17 @@ describe( 'the outline can never fold', () => {
 	test( 'survives torture without ever self-intersecting', () => {
 		const out = torture( PHYSICS );
 		expect( out.broken ).toBe( 0 );
-
 		expect( out.minArea ).toBeGreaterThan( 0.3 );
 		expect( isFiniteBody as unknown ).toBeTruthy();
 	} );
 
 	test( 'without the angular constraint it folds and stays folded', () => {
-
 		const out = torture( { ...PHYSICS, minAngularGap: 0 } );
 		expect( out.broken ).toBeGreaterThan( 100 );
 	} );
 
 	test( 'a hand-folded body untangles itself', () => {
 		const body = createSoftBody( 600, 400, 56, 34 );
-
 		body.rim.forEach( ( p, i ) => {
 			if ( i < 17 ) {
 				p.x = body.core.x - ( p.x - body.core.x );
@@ -738,7 +707,6 @@ describe( 'the outline can never fold', () => {
 	} );
 
 	test( 'repairing a fold does not walk Mio across the desk', () => {
-
 		const body = createSoftBody( 600, 400, 56, 34 );
 		body.rim.forEach( ( p, i ) => {
 			if ( i % 2 === 0 ) {
@@ -746,7 +714,6 @@ describe( 'the outline can never fold', () => {
 				p.y = body.core.y - ( p.y - body.core.y ) * 0.8;
 			}
 		} );
-
 		syncCore( body );
 		const start = { x: body.core.x, y: body.core.y };
 		const calm = { ...PHYSICS, idleWobble: 0, floatAmplitude: 0 };
@@ -754,12 +721,10 @@ describe( 'the outline can never fold', () => {
 
 		expect( Math.hypot( body.core.x - start.x, body.core.y - start.y ) )
 			.toBeLessThan( 15 );
-
 		expect( radiusError( body ) ).toBeLessThan( 12 );
 	} );
 
 	test( 'the repair never fires on a healthy body', () => {
-
 		const withRepair = createSoftBody( 600, 400, 56, 34 );
 		const without = createSoftBody( 600, 400, 56, 34 );
 		for ( let i = 0; i < 600; i++ ) {
@@ -788,7 +753,6 @@ describe( 'dragging against windows', () => {
 			height: 250,
 		};
 		const body = createSoftBody( 750, 300, 56, 34 );
-
 		let worstPenetration = 0;
 		for ( let i = 0; i < 600; i++ ) {
 			stepSoftBody(
@@ -819,9 +783,7 @@ describe( 'dragging against windows', () => {
 				}
 			}
 		}
-
 		expect( worstPenetration ).toBeLessThan( 2 );
-
 		expect( body.core.y ).toBeLessThan( window_.y );
 	} );
 
@@ -848,7 +810,6 @@ describe( 'dragging against windows', () => {
 			);
 			minHeight = Math.min( minHeight, extents( body ).height );
 		}
-
 		expect( minHeight ).toBeGreaterThan( 56 * 0.6 );
 		expect( minHeight ).toBeLessThan( 56 * 1.9 );
 	} );
@@ -857,7 +818,6 @@ describe( 'dragging against windows', () => {
 describe( 'resetBody', () => {
 	test( 're-forms a mangled body as a clean circle at rest', () => {
 		const body = createSoftBody( 100, 100, 50, 24 );
-
 		body.rim.forEach( ( p, i ) => {
 			p.x += i % 2 === 0 ? 60 : -60;
 			p.vx = 500;
@@ -876,7 +836,6 @@ describe( 'resetBody', () => {
 describe( 'helpers', () => {
 	test( 'translateBody lands the centroid on the target, deformation intact', () => {
 		const body = createSoftBody( 100, 100, 50, 12 );
-
 		body.rim[ 0 ].x += 17;
 		const centroidBefore = rimCentroid( body.rim );
 		const offsets = body.rim.map( ( p ) => ( {
@@ -962,7 +921,6 @@ describe( 'the rest shape', () => {
 	] as const;
 
 	test( 'zero amount is a circle whatever the preset', () => {
-
 		for ( const p of ALL_PRESETS ) {
 			const flat = { ...withPreset( p ), shapeAmount: 0 };
 			for ( const { r } of sweep( flat, 60 ) ) {
@@ -972,7 +930,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'every preset stays inside the limits the solver assumes', () => {
-
 		for ( const p of ALL_PRESETS ) {
 			for ( const { r } of sweep( withPreset( p ) ) ) {
 				expect( r ).toBeGreaterThan( MIO_DEFAULTS.physics.minStretch );
@@ -982,7 +939,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'every preset is a shape you can actually see', () => {
-
 		for ( const p of ALL_PRESETS ) {
 			if ( p === 'blob' ) {
 				continue;
@@ -994,7 +950,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'no preset is upside down', () => {
-
 		const crownIsHighest = ( p: MioShapePreset ): boolean => {
 			const at = ( angle: number ): number =>
 				shapeProfile( angle, withPreset( p ) );
@@ -1002,11 +957,9 @@ describe( 'the rest shape', () => {
 			const foot = at( Math.PI / 2 );
 			return crown > foot;
 		};
-
 		for ( const p of [ 'star', 'drop', 'cloud' ] as const ) {
 			expect( crownIsHighest( p ) ).toBe( true );
 		}
-
 		const diamond = withPreset( 'diamond' );
 		expect( shapeProfile( -Math.PI / 2, diamond ) ).toBeGreaterThan(
 			shapeProfile( -Math.PI / 4, diamond ),
@@ -1018,7 +971,6 @@ describe( 'the rest shape', () => {
 		const heart = withPreset( 'heart' );
 		expect( shapeProfile( -Math.PI / 2, heart ) ).toBeLessThan( 1 );
 		expect( shapeProfile( Math.PI / 2, heart ) ).toBeGreaterThan( 1 );
-
 		for ( let i = 1; i < 12; i++ ) {
 			const off = ( i / 12 ) * Math.PI;
 			expect( shapeProfile( -Math.PI / 2 + off, heart ) ).toBeCloseTo(
@@ -1029,7 +981,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the star has five points, the flower six petals', () => {
-
 		const crests = ( p: MioShapePreset ): number => {
 			const radii = sweep( withPreset( p ), 360 ).map( ( s ) => s.r );
 			let count = 0;
@@ -1049,7 +1000,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'a star point is narrower than a flower petal', () => {
-
 		const aboveMean = ( p: MioShapePreset ): number => {
 			const radii = sweep( withPreset( p ), 720 ).map( ( s ) => s.r );
 			const mean = radii.reduce( ( a, b ) => a + b, 0 ) / radii.length;
@@ -1067,7 +1017,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'custom at amount 1 is the flat-sided limit for any lobe count', () => {
-
 		for ( const k of [ 3, 4, 6 ] ) {
 			const at = ( angle: number ): number =>
 				shapeProfile( angle, {
@@ -1076,7 +1025,6 @@ describe( 'the rest shape', () => {
 					shapeAmount: 1,
 					shapeAngle: 0,
 				} );
-
 			expect( at( 0 ) - 1 ).toBeCloseTo( 1 / ( 1 + k * k ), 12 );
 			expect( 1 - at( Math.PI / k ) ).toBeCloseTo( 1 / ( 1 + k * k ), 12 );
 		}
@@ -1084,12 +1032,10 @@ describe( 'the rest shape', () => {
 
 	test( 'the ghost is a dome on top and feet underneath', () => {
 		const ghost = withPreset( 'ghost' );
-
 		for ( let i = 0; i <= 20; i++ ) {
 			const angle = -Math.PI + ( i / 20 ) * Math.PI;
 			expect( shapeProfile( angle, ghost ) ).toBeCloseTo( 1, 9 );
 		}
-
 		for ( const foot of [ Math.PI / 6, Math.PI / 2, ( 5 * Math.PI ) / 6 ] ) {
 			for ( const notch of [ Math.PI / 3, ( 2 * Math.PI ) / 3 ] ) {
 				expect( shapeProfile( foot, ghost ) ).toBeGreaterThan(
@@ -1097,13 +1043,11 @@ describe( 'the rest shape', () => {
 				);
 			}
 		}
-
 		expect( shapeProfile( Math.PI / 4, ghost ) ).toBeGreaterThan( 1.1 );
 	} );
 
 	test( 'the potato has no symmetry to speak of', () => {
 		const potato = withPreset( 'potato' );
-
 		for ( let a = 0; a < 12; a++ ) {
 			const axis = ( a / 12 ) * Math.PI;
 			let worst = 0;
@@ -1122,7 +1066,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the blob preset puts a corner up and a flat side down', () => {
-
 		const up = shapeProfile( -Math.PI / 2, TRIANGLE );
 		const down = shapeProfile( Math.PI / 2, TRIANGLE );
 		expect( up ).toBeGreaterThan( 1 );
@@ -1137,7 +1080,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the springs hold the shape rather than relaxing it away', () => {
-
 		const body = createSoftBody( 600, 400, 56, 36, profile );
 		run( body, 2, { physics: TRIANGLE } );
 		expect( radiusAt( body, -Math.PI / 2 ) ).toBeGreaterThan(
@@ -1146,7 +1088,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'a disc pulled into shape reaches the same silhouette', () => {
-
 		const morphed = createSoftBody( 600, 400, 56, 36 );
 		run( morphed, 3, { physics: TRIANGLE } );
 		const born = createSoftBody( 600, 400, 56, 36, profile );
@@ -1179,7 +1120,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'every preset survives being simulated', () => {
-
 		for ( const p of [ 'circle', 'ghost', 'potato' ] as const ) {
 			const physics = withPreset( p );
 			const body = createSoftBody( 600, 400, 56, 36, ( a ) =>
@@ -1194,7 +1134,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the outline never folds, even at a clover amount', () => {
-
 		const clover = { ...withPreset( 'custom' ), shapeAmount: 1.4 };
 		const body = createSoftBody( 600, 400, 56, 36, ( a ) =>
 			shapeProfile( a, clover ),
@@ -1207,7 +1146,6 @@ describe( 'the rest shape', () => {
 	} );
 
 	test( 'the pointed presets hold their shape under the springs', () => {
-
 		for ( const p of [ 'star', 'heart', 'drop', 'flower' ] as const ) {
 			const physics = {
 				...withPreset( p ),
@@ -1235,17 +1173,14 @@ describe( 'the rest shape', () => {
 
 describe( 'rim resolution', () => {
 	test( 'a preset asks for the resolution its detail needs', () => {
-
 		const at = ( shapePreset: MioShapePreset ): number =>
 			presetRimPoints( { ...MIO_DEFAULTS.physics, shapePreset } );
 
 		expect( at( 'circle' ) ).toBe( 12 );
 		expect( at( 'blob' ) ).toBe( 12 );
-
 		expect( at( 'star' ) ).toBeGreaterThanOrEqual( 5 * 6 );
 		expect( at( 'flower' ) ).toBeGreaterThanOrEqual( 6 * 6 );
 		expect( at( 'star' ) ).toBeGreaterThan( at( 'potato' ) );
-
 		expect(
 			presetRimPoints( {
 				...MIO_DEFAULTS.physics,
@@ -1262,7 +1197,6 @@ describe( 'rim resolution', () => {
 	} );
 
 	test( 'a star is unrecognisable at the shipped resolution', () => {
-
 		const physics = { ...MIO_DEFAULTS.physics, shapePreset: 'star' as const };
 		const worstError = ( count: number ): number => {
 			const sampled: number[] = [];
@@ -1272,7 +1206,6 @@ describe( 'rim resolution', () => {
 			let worst = 0;
 			for ( let i = 0; i < 720; i++ ) {
 				const angle = ( i / 720 ) * Math.PI * 2;
-
 				const u = ( angle / ( Math.PI * 2 ) ) * count;
 				const lo = Math.floor( u );
 				const t = u - lo;
@@ -1285,9 +1218,7 @@ describe( 'rim resolution', () => {
 			}
 			return worst;
 		};
-
 		expect( worstError( 12 ) ).toBeGreaterThan( 0.25 );
-
 		expect( worstError( presetRimPoints( physics ) ) ).toBeLessThan( 0.05 );
 	} );
 
@@ -1301,21 +1232,17 @@ describe( 'rim resolution', () => {
 		resampleBody( body, 40 );
 
 		expect( body.rim ).toHaveLength( 40 );
-
 		expect( body.core.x ).toBeCloseTo( before.x, 1 );
 		expect( body.core.y ).toBeCloseTo( before.y, 1 );
-
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
 			areaBefore * 0.99,
 		);
-
 		body.rim.forEach( ( p, i ) => {
 			expect( p.angle ).toBeCloseTo( ( i / 40 ) * Math.PI * 2, 12 );
 		} );
 	} );
 
 	test( 'resampling up and down again does not shrink Mio', () => {
-
 		const body = createSoftBody( 600, 400, 56, 12 );
 		const area = Math.abs( polygonArea( body.rim ) );
 		for ( let i = 0; i < 20; i++ ) {
@@ -1328,7 +1255,6 @@ describe( 'rim resolution', () => {
 	} );
 
 	test( 'the rest area follows the resolution', () => {
-
 		const body = createSoftBody( 600, 400, 56, 12 );
 		resampleBody( body, 48 );
 		expect( body.restArea ).toBeCloseTo(

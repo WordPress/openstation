@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-games
+ */
 class Tests_OpenStation_GamesHeartbeat extends WP_UnitTestCase {
 
 	protected static $challenger;
@@ -39,17 +42,26 @@ class Tests_OpenStation_GamesHeartbeat extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_games_heartbeat_received
+	 */
 	public function test_no_subscription_no_payload() {
 		$response = openstation_games_heartbeat_received( array(), array() );
 		$this->assertArrayNotHasKey( 'openstation_games', $response );
 	}
 
+	/**
+	 * @covers ::openstation_games_heartbeat_received
+	 */
 	public function test_requires_openstation_enabled() {
 		delete_user_meta( self::$recipient, 'desktop_mode_mode' );
 		$response = $this->tick();
 		$this->assertArrayNotHasKey( 'openstation_games', $response );
 	}
 
+	/**
+	 * @covers ::openstation_games_heartbeat_received
+	 */
 	public function test_recipient_sees_pending_challenge_once() {
 		openstation_games_create_challenge( 'test-game', self::$challenger, self::$recipient, 100 );
 
@@ -65,6 +77,9 @@ class Tests_OpenStation_GamesHeartbeat extends WP_UnitTestCase {
 		$this->assertSame( array(), $quiet['openstation_games']['challenges'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_heartbeat_received
+	 */
 	public function test_challenger_sees_completion() {
 		$id = openstation_games_create_challenge( 'test-game', self::$challenger, self::$recipient, 100 );
 		$created_version = (int) openstation_games_get_challenge( $id )['updated_at_ms'];
@@ -78,6 +93,9 @@ class Tests_OpenStation_GamesHeartbeat extends WP_UnitTestCase {
 		$this->assertSame( 'beaten', $payload['challenges'][0]['result'] );
 	}
 
+	/**
+	 * @covers ::openstation_games_heartbeat_received
+	 */
 	public function test_truncation_flag_past_cap() {
 		add_filter(
 			'openstation_games_heartbeat_max_rows',

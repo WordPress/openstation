@@ -197,7 +197,6 @@ export class OsRepeater extends Component {
 		const keys = this._keys;
 		const disabled = this.isDisabled;
 		const reorderable = this.hasAttribute( 'reorderable' );
-
 		const attrs = this as unknown as Record< string, string | null >;
 		const rowLabel = attrs[ 'row-label' ] || 'row';
 		const addLabel = attrs[ 'add-label' ] || 'Add row';

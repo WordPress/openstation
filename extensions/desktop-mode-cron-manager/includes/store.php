@@ -5,7 +5,6 @@ defined( 'ABSPATH' ) || exit;
 const OPENSTATION_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION = 'desktop_mode_cron_custom_schedules';
 
 function openstation_cron_manager_user_can_use() {
-
 	$can = is_multisite() ? current_user_can( 'manage_network' ) : current_user_can( 'manage_options' );
 
 	return (bool) apply_filters( 'openstation_cron_manager_user_can_use', $can );
@@ -30,7 +29,7 @@ function openstation_cron_manager_get_custom_schedules() {
 		$display = isset( $entry['display'] ) && '' !== (string) $entry['display']
 			? sanitize_text_field( (string) $entry['display'] )
 			: sprintf(
-
+				/* translators: %d: interval in seconds. */
 				__( 'Every %d seconds', 'desktop-mode-cron-manager' ),
 				$interval
 			);
@@ -75,7 +74,7 @@ function openstation_cron_manager_save_custom_schedule( $slug, $interval, $displ
 
 	if ( '' === $display ) {
 		$display = sprintf(
-
+			/* translators: %d: interval in seconds. */
 			__( 'Every %d seconds', 'desktop-mode-cron-manager' ),
 			$interval
 		);

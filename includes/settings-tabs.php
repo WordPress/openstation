@@ -122,7 +122,6 @@ function openstation_build_desktop_settings_tab_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;
@@ -159,7 +158,6 @@ function openstation_build_desktop_settings_tabs_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}

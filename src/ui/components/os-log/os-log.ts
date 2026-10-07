@@ -76,7 +76,6 @@ export class OsLog< T = unknown > extends Component {
 			{ name: '--os-ui-log-row-border', default: '1px solid rgba(0,0,0,0.04)' },
 			{ name: '--os-ui-log-min-height', default: '120px' },
 		],
-
 		example: html`
 			<div style="height:160px">
 				<os-log row-height="22" max-rows="500"></os-log>
@@ -102,7 +101,6 @@ export class OsLog< T = unknown > extends Component {
 	private _stickToBottom = true;
 
 	private _heights: number[] = [];
-
 	private _offsets: number[] = [];
 	private _offsetsValid = false;
 
@@ -117,12 +115,10 @@ export class OsLog< T = unknown > extends Component {
 	connectedCallback(): void {
 		super.connectedCallback();
 		this.addEventListener( 'scroll', this._onScroll, { passive: true } );
-
 		if ( typeof ResizeObserver !== 'undefined' ) {
 			this._resizeObserver = new ResizeObserver( () => this._paintWindow() );
 			this._resizeObserver.observe( this );
 		}
-
 		queueMicrotask( () => {
 			this._paintSpacer();
 			if ( this._stickToBottom ) {
@@ -194,7 +190,6 @@ export class OsLog< T = unknown > extends Component {
 		const cap = this._readMaxRows();
 		if ( cap > 0 && this._entries.length > cap ) {
 			const drop = this._entries.length - cap;
-
 			this._entries.splice( 0, drop );
 			if ( this._heights.length > 0 ) {
 				this._heights.splice( 0, Math.min( drop, this._heights.length ) );
@@ -342,7 +337,6 @@ export class OsLog< T = unknown > extends Component {
 			row.style.right = '0';
 			if ( auto ) {
 				row.style.top = `${ this._offsets[ i ] }px`;
-
 				row.style.height = 'auto';
 			} else {
 				row.style.top = `${ i * rowHeight }px`;
@@ -370,7 +364,6 @@ export class OsLog< T = unknown > extends Component {
 		if ( changed ) {
 			this._invalidateOffsets();
 			this._ensureOffsets();
-
 			for ( const { idx, el } of renderedRows ) {
 				el.style.top = `${ this._offsets[ idx ] }px`;
 			}

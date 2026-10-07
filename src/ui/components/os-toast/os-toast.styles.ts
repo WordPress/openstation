@@ -29,9 +29,7 @@ export const toastStyles = css`
 		min-width: 280px;
 		max-width: 420px;
 		padding: 10px 14px;
-
 		background-color: var( --os-ui-toast-bg, var( --os-ui-modal-bg, #1d2327 ) );
-
 		background-image: var( --os-ui-toast-bg-image, none );
 		background-repeat: var( --os-ui-toast-bg-image-repeat, repeat );
 		background-size: var( --os-ui-toast-bg-image-size, auto );
@@ -45,7 +43,6 @@ export const toastStyles = css`
 		font-size: 13px;
 		line-height: 1.4;
 		opacity: 0;
-
 		transform: translateY( -10px ) scale( 0.97 );
 		transition: opacity var( --_holo-t-fast ) linear,
 			transform var( --_holo-t ) var( --_holo-spring );
@@ -55,7 +52,6 @@ export const toastStyles = css`
 		opacity: 1;
 		transform: translateY( 0 ) scale( 1 );
 	}
-
 	:host( [ state='out' ] ) {
 		opacity: 0;
 		transform: translateX( 16px ) scale( 0.97 );
@@ -65,7 +61,6 @@ export const toastStyles = css`
 	.os-toast__label {
 		flex: 1;
 	}
-
 	.os-toast__icon {
 		display: inline-flex;
 		flex-shrink: 0;
@@ -94,7 +89,6 @@ export const toastStyles = css`
 	:host( [ tone='neutral' ] ) {
 		--os-ui-toast-accent: var( --os-ui-notice-neutral, var( --os-ui-fg-muted, #57606a ) );
 	}
-
 	button[ hidden ] {
 		display: none;
 	}

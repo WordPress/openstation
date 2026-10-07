@@ -7,7 +7,6 @@ export interface ReleaseArt {
 
 const CACHE_PREFIX = 'desktop-mode/release-art:v1:';
 const MISS_TTL_MS = 6 * 60 * 60 * 1000;
-
 const PENDING_MISS_TTL_MS = 30 * 60 * 1000;
 
 function str( v: unknown ): string {
@@ -46,7 +45,6 @@ export function parseReleaseArt(
 		return null;
 	}
 	const escaped = branch.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' );
-
 	const re = new RegExp(
 		'^WordPress ' + escaped + '\\s*[“"]([^”"]+)[”"]',
 	);
@@ -94,7 +92,6 @@ function writeCache( branch: string, value: object ): void {
 	try {
 		localStorage.setItem( CACHE_PREFIX + branch, JSON.stringify( value ) );
 	} catch {
-
 	}
 }
 

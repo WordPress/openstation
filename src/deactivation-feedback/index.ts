@@ -4,19 +4,14 @@ import { trackedFetch } from '../tracked-fetch';
 export type DeactivationFeedbackContext = 'classic' | 'chromeless' | 'app';
 
 export interface DeactivationFeedbackConfig {
-
 	plugin: string;
-
 	restUrl: string;
-
 	restNonce: string;
 	context: DeactivationFeedbackContext;
-
 	styleUrl?: string;
 }
 
 export interface DeactivationFeedbackApi {
-
 	ask: ( config: DeactivationFeedbackConfig ) => Promise< void >;
 }
 
@@ -54,7 +49,6 @@ interface DialogParts {
 	details: HTMLTextAreaElement;
 	skip: HTMLButtonElement;
 	send: HTMLButtonElement;
-
 	reasons: () => string[];
 }
 
@@ -122,7 +116,6 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 	details.name = 'details';
 	details.maxLength = DETAILS_MAX;
 	details.rows = 3;
-
 	details.setAttribute( 'aria-label', __( 'Details (optional)' ) );
 	details.placeholder = __( 'Anything else? (optional)' );
 	card.appendChild( details );
@@ -148,7 +141,6 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 	send.type = 'submit';
 	send.className = 'os-deactivation-feedback__btn os-deactivation-feedback__btn--primary';
 	send.textContent = __( 'Send and deactivate' );
-
 	send.disabled = true;
 	actions.appendChild( send );
 
@@ -163,7 +155,6 @@ export function buildDeactivationDialog( doc: Document = document ): DialogParts
 	const refresh = (): void => {
 		const picked = ticked();
 		send.disabled = picked.length === 0 && details.value.trim() === '';
-
 		const buggy = picked.includes( 'too_buggy' );
 		fieldHead.toggleAttribute( 'data-asking', buggy );
 		if ( buggy ) {
@@ -289,7 +280,6 @@ export function askDeactivationFeedback( config: DeactivationFeedbackConfig ): P
 }
 
 export interface InterceptDeps {
-
 	navigate?: ( href: string ) => void;
 	doc?: Document;
 }

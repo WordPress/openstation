@@ -90,16 +90,13 @@ describe( 'computeInsertionPoint', () => {
 
 	test( 'a nested block resolves against its parent list', () => {
 		mountEditor();
-
 		expect( computeInsertionPoint( document, 50, 120 ) ).toEqual( { rootClientId: 'bbb', index: 0 } );
 		expect( computeInsertionPoint( document, 50, 180 ) ).toEqual( { rootClientId: 'bbb', index: 1 } );
 	} );
 
 	test( 'the empty space of a list appends, or inserts before the first block below', () => {
 		mountEditor();
-
 		expect( computeInsertionPoint( document, 50, 250 ) ).toEqual( { rootClientId: '', index: 2 } );
-
 		expect( computeInsertionPoint( document, 50, 107 ) ).toEqual( { rootClientId: 'bbb', index: 0 } );
 	} );
 
@@ -149,7 +146,6 @@ describe( 'blocks inside the editor-canvas iframe', () => {
 		document.body.appendChild( frame );
 		setRect( frame, { left: 40, top: 60, width: 800, height: 600 } );
 		const canvasDoc = frame.contentDocument as Document;
-
 		expect( canvasDoc.body instanceof HTMLElement ).toBe( false );
 		mountEditor( canvasDoc );
 
@@ -157,13 +153,9 @@ describe( 'blocks inside the editor-canvas iframe', () => {
 			const p = resolveCanvasPoint( document, x, y );
 			return computeInsertionPoint( p.doc, p.x, p.y );
 		};
-
 		expect( lookup( 90, 80 ) ).toEqual( { rootClientId: '', index: 0 } );
-
 		expect( lookup( 90, 140 ) ).toEqual( { rootClientId: '', index: 1 } );
-
 		expect( lookup( 90, 240 ) ).toEqual( { rootClientId: 'bbb', index: 1 } );
-
 		expect( lookup( 90, 310 ) ).toEqual( { rootClientId: '', index: 2 } );
 	} );
 } );

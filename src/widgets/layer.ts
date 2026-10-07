@@ -35,11 +35,8 @@ const ADD_TILE_GAP = 12;
 interface MountedWidget {
 	id: string;
 	frame: Frame;
-
 	generation: number;
-
 	teardown: WidgetTeardown | null;
-
 	floating: boolean;
 }
 
@@ -155,12 +152,10 @@ export class WidgetLayer {
 			return;
 		}
 		saveEnabledIds( this.enabledIds );
-
 		if ( this.geometry[ id ] ) {
 			delete this.geometry[ id ];
 			saveGeometry( this.geometry );
 		}
-
 		if ( this.dockedHeights[ id ] !== undefined ) {
 			delete this.dockedHeights[ id ];
 			saveDockedHeights( this.dockedHeights );
@@ -185,13 +180,10 @@ export class WidgetLayer {
 		openWidgetPicker( {
 			anchor: this.addTile,
 			registry: () => registry.all(),
-
 			enabledIds: () => [ ...this.visibleIds() ],
 			onAdd: ( id ) => {
 				this.add( id );
-
 				closeWidgetPicker();
-
 				this.addTile.focus();
 			},
 			onClose: () =>
@@ -203,7 +195,6 @@ export class WidgetLayer {
 		if ( ! registry.get( id ) ) {
 			return;
 		}
-
 		if ( ! this.visibleIds().includes( id ) ) {
 			return;
 		}
@@ -293,7 +284,6 @@ export class WidgetLayer {
 		};
 		this.mounted.set( id, record );
 		this.placeCard( frame.card, floating );
-
 		this.stackObserver?.observe( frame.card );
 
 		const ctx = {
@@ -309,12 +299,10 @@ export class WidgetLayer {
 				try {
 					teardown();
 				} catch {
-
 				}
 				return;
 			}
 			current.teardown = teardown;
-
 			this.positionAddTile();
 			doAction( HOOKS.WIDGET_MOUNTED, { id, container: frame.body, ctx } );
 		};
@@ -364,7 +352,6 @@ export class WidgetLayer {
 				);
 			}
 		}
-
 		this.generation++;
 		this.stackObserver?.unobserve( record.frame.card );
 		record.frame.dispose();
@@ -417,7 +404,6 @@ export class WidgetLayer {
 			rect = null;
 			this.positionAddTile();
 		};
-
 		const remeasure = (): void => {
 			if ( frame ) {
 				return;
@@ -502,12 +488,10 @@ export class WidgetLayer {
 			return;
 		}
 		record.floating = false;
-
 		if ( this.geometry[ id ] ) {
 			delete this.geometry[ id ];
 			saveGeometry( this.geometry );
 		}
-
 		const card = record.frame.card;
 		card.classList.remove( 'os-widgets__card--floating' );
 		card.style.left = '';
@@ -516,7 +500,6 @@ export class WidgetLayer {
 		const dockedHeight = this.dockedHeights[ id ];
 		card.style.height =
 			dockedHeight !== undefined ? `${ dockedHeight }px` : '';
-
 		this.listEl.appendChild( card );
 		this.paintEmptyState();
 	}
@@ -567,7 +550,6 @@ export class WidgetLayer {
 				rect.bottom - colRect.top + this.root.scrollTop,
 			);
 		}
-
 		const limit =
 			colRect.height + this.root.scrollTop - this.addTile.offsetHeight;
 		const top = Math.max( 0, Math.min( bottom + ADD_TILE_GAP, limit ) );

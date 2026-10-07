@@ -23,24 +23,17 @@ interface TilePreview {
 	tile: HTMLElement;
 	overlay: HTMLElement;
 	defId: string;
-
 	generation: number;
 	teardown: WallpaperTeardown | null;
-
 	mounting: boolean;
-
 	visible: boolean;
-
 	mountWidth: number;
 	mountHeight: number;
-
 	remountTimer: ReturnType< typeof setTimeout > | null;
 }
 
 export interface WallpaperPreviewManager {
-
 	sync(): void;
-
 	dispose(): void;
 }
 
@@ -180,13 +173,11 @@ export function createWallpaperPreviewManager(
 				try {
 					teardown();
 				} catch {
-
 				}
 				return;
 			}
 			p.mounting = false;
 			p.teardown = teardown;
-
 			if ( sizeDrifted( p ) ) {
 				scheduleRemount( p );
 			}

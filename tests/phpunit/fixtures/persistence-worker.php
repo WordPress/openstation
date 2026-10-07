@@ -1,5 +1,4 @@
 <?php
-
 $config = json_decode( stream_get_contents( STDIN ), true );
 require $config['bootstrap'];
 defined( 'ABSPATH' ) || exit;

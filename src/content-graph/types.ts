@@ -16,12 +16,9 @@ export interface GraphNodePayload {
 	status: string;
 	slug: string;
 	edit_url: string;
-
 	author_id: number;
-
 	contributor_ids: number[];
 	year: number;
-
 	year_month: string;
 	category_ids: number[];
 	tag_ids: number[];
@@ -252,7 +249,6 @@ export interface ContentGraphConfig {
 	editUserUrl: string;
 	editCommentUrl: string;
 	mediaUrl: string;
-
 	siteName?: string;
 	postTypes: PostTypeDescriptor[];
 }

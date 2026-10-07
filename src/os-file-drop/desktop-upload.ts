@@ -10,21 +10,16 @@ interface DesktopUploadArgs {
 	mime: string;
 	fields: DropDialogFields;
 	context: DropContext;
-
 	filesUrl: string;
 	restNonce: string;
-
 	parentId: number;
-
 	relativePath: string;
-
 	coords?: { x: number; y: number };
 }
 
 export interface DesktopUploadResult {
 	placement: RestPlacementShape;
 	storedFileId: number;
-
 	createdFolders: RestCreatedFolderShape[];
 }
 
@@ -76,7 +71,6 @@ export async function uploadFileToDesktop(
 			try {
 				xhr.abort();
 			} catch {
-
 			}
 		};
 
@@ -140,7 +134,6 @@ export async function uploadFileToDesktop(
 			const createdFolders = Array.isArray( data.createdFolders )
 				? data.createdFolders
 				: [];
-
 			ingestCreatedFolders( createdFolders, 'local' );
 			upsertPlacement( data.placement, 'local' );
 			const result: DesktopUploadResult = {
@@ -176,7 +169,6 @@ export function extractMessage( xhr: XMLHttpRequest, fileName: string ): string 
 			return data.message;
 		}
 	} catch {
-
 	}
 	return fallback;
 }

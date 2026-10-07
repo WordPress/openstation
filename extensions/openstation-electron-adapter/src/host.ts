@@ -21,7 +21,6 @@ export function getHostBridge(
 	if ( ! Number.isFinite( protocol ) || protocol > HOST_PROTOCOL ) {
 		return null;
 	}
-
 	if ( 'function' !== typeof candidate.freeWindow ) {
 		return null;
 	}
@@ -71,7 +70,6 @@ export function freedWindowUrl(
 			if ( ! /^https?:$/.test( url.protocol ) ) {
 				return '';
 			}
-
 			url.searchParams.set( 'openstation_chromeless', '1' );
 			return url.toString();
 		} catch {

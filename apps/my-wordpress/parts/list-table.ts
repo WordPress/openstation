@@ -45,7 +45,7 @@ function titleCell( item: ListItem, section: SectionDef ): TemplateResult {
 				? html`<span
 					class="dashicons dashicons-lock os-mywp__cell-lock"
 					title=${ sprintf(
-
+						/* translators: %s: user display name. */
 						__( '%s is editing' ),
 						item.lockedBy,
 					) }
@@ -293,7 +293,6 @@ export function columnsFor( section: SectionDef ): ListColumn[] {
 		const col = c as ListColumn;
 		return typeof col.id === 'string' && col.id !== '' && typeof col.render === 'function';
 	} );
-
 	const ids = new Set( valid.map( ( c ) => c.id ) );
 	if ( ! ids.has( 'title' ) ) {
 		valid.unshift( columns.find( ( c ) => c.id === 'title' )! );
@@ -572,7 +571,6 @@ export function renderTable( ctx: Ctx, section: SectionDef, items: ListItem[] ):
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
 		ctx.repaint();
 	};
-
 	const canvasPress = longPress(
 		( x, y ) => {
 			ui.menu = { x, y, item: null };
@@ -645,7 +643,6 @@ export function renderColumnsMenu( ctx: Ctx, section: SectionDef | null ): Templ
 		} else {
 			next.add( id );
 		}
-
 		void ctx.dispatch( 'set-columns', { hidden: Array.from( next ) } );
 	};
 	const optional = all.filter( ( c ) => ! c.locked );
@@ -682,7 +679,7 @@ export function sortStatus( ctx: Ctx ): string {
 		return '';
 	}
 	return sprintf(
-
+		/* translators: %s: the sort option label. */
 		__( 'Sorted by %s' ),
 		label,
 	);
@@ -696,7 +693,7 @@ export function hiddenStatus( ctx: Ctx, section: SectionDef ): string {
 		return '';
 	}
 	return sprintf(
-
+		/* translators: %d: hidden column count. */
 		_n( '%d column hidden', '%d columns hidden', count ),
 		count,
 	);

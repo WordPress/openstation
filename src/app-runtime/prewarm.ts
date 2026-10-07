@@ -21,7 +21,6 @@ export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch'
 	if ( config.restNonce ) {
 		headers[ 'X-WP-Nonce' ] = config.restNonce;
 	}
-
 	const promise = hostFetch(
 		config.endpoint,
 		{

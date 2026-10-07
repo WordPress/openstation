@@ -55,7 +55,6 @@ function bridgePayloadOf( section: SectionDef | null, item: ListItem ): DragBrid
 	if ( section.kind === 'user' ) {
 		return { kind: 'user', id: item.id, url: item.link, title: item.title };
 	}
-
 	if ( section.kind === 'post' && ! section.flat ) {
 		return { kind: 'post', id: item.id, postType: section.post_type, url: item.link, title: item.title };
 	}
@@ -86,7 +85,6 @@ export function wire( ctx: Ctx ): () => void {
 		if ( ! item ) {
 			return;
 		}
-
 		const section = sectionOf( ctx.data, ctx.state.section );
 		const entityId = section?.id ?? '';
 		const restPath = String( section?.restPath ?? '' );
@@ -202,7 +200,7 @@ export function wire( ctx: Ctx ): () => void {
 			banner.appendChild( icon );
 			const text = document.createElement( 'span' );
 			text.textContent = sprintf(
-
+				/* translators: %s: the user name currently editing the post. */
 				__( '%s is currently editing' ),
 				item.lockedBy,
 			);
@@ -216,7 +214,6 @@ export function wire( ctx: Ctx ): () => void {
 			img.alt = '';
 			tip.appendChild( img );
 		}
-
 		const excerpt = item.excerpt || item.subtitle;
 		if ( excerpt ) {
 			const p = document.createElement( 'p' );
@@ -231,7 +228,6 @@ export function wire( ctx: Ctx ): () => void {
 		const cell = ( e.target as Element | null )?.closest< HTMLElement >(
 			'[data-mywp-drag][data-item-id]',
 		);
-
 		if ( ! cell || cell.closest( '[data-mywp-list]' ) ) {
 			return;
 		}
@@ -244,7 +240,6 @@ export function wire( ctx: Ctx ): () => void {
 			return;
 		}
 		hideTip();
-
 		hoverFor = id;
 		const card = hooksApi?.applyFilters(
 			'os.my-wordpress.hover-card',
@@ -275,7 +270,6 @@ export function wire( ctx: Ctx ): () => void {
 	root.addEventListener( 'mouseover', onTipOver );
 	root.addEventListener( 'mousemove', onTipMove );
 	root.addEventListener( 'mouseleave', hideTip );
-
 	root.addEventListener( 'pointerdown', hideTip );
 	root.addEventListener( 'contextmenu', hideTip );
 	teardowns.push( () => {
@@ -381,6 +375,7 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 						.map( ( s ) => s.id ),
 				} );
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error( '[my-wordpress] a group-extras subscriber threw.', err );
 			}
 		}
@@ -408,7 +403,6 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 		}
 		host.dataset.mywpExtrasFor = stamp;
 		host.replaceChildren();
-
 		let item: Record< string, unknown > | null = null;
 		if ( detail && detail.id === itemId ) {
 			item = { ...( rows.get( itemId ) ?? {} ), ...detail };
@@ -427,6 +421,7 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 				item,
 			} );
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[my-wordpress] a preview-extras subscriber threw.', err );
 		}
 	}
@@ -449,6 +444,7 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 				item,
 			} );
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[my-wordpress] a list-tile subscriber threw.', err );
 		}
 	}
@@ -456,19 +452,14 @@ function pluginSeamsAfterRender( ctx: Ctx ): void {
 
 export function afterRender( ctx: Ctx ): void {
 	const ui = uiOf( ctx );
-
 	setSendToEnabled( ctx.data.agentsEnabled === true );
-
 	agentsAfterRender( ctx );
-
 	ui.list.sync( {
 		sentinel: ctx.root.querySelector( '[data-mywp-sentinel]' ),
-
 		canvas: ctx.root.querySelector< HTMLElement >( '.os-mywp__canvas' ),
 		load: () => ctx.dispatch( 'more' ),
 		repaint: () => ctx.repaint(),
 	} );
-
 	if ( ui.revealSelection ) {
 		ui.revealSelection = false;
 		const target = ctx.state.item > 0 ? ctx.state.item : ( ctx.state.selected[ 0 ] ?? 0 );
@@ -478,7 +469,6 @@ export function afterRender( ctx: Ctx ): void {
 				?.scrollIntoView?.( { block: 'nearest' } );
 		}
 	}
-
 	for ( const menuEl of Array.from(
 		ctx.root.querySelectorAll< HTMLElement >( 'os-context-menu.os-mywp__menu' ),
 	) ) {
@@ -486,7 +476,6 @@ export function afterRender( ctx: Ctx ): void {
 			clampToViewport( menuEl );
 		}
 	}
-
 	const picked = ctx.data.subDetail;
 	let pickedContent: string | undefined;
 	if ( picked?.kind === 'revision' ) {
@@ -509,7 +498,6 @@ export function afterRender( ctx: Ctx ): void {
 			}
 		}
 	}
-
 	pluginSeamsAfterRender( ctx );
 }
 
@@ -560,7 +548,6 @@ function agentsAfterRender( ctx: Ctx ): void {
 					return;
 				}
 				seen.add( agentId );
-
 				if ( ! row.dataset.dmAgentDragOut ) {
 					row.dataset.dmAgentDragOut = '1';
 					row.addEventListener( 'pointerdown', ( e: PointerEvent ) => {

@@ -9,9 +9,7 @@ export const menuStyles = css`
 		display: none;
 		position: fixed;
 		min-width: 180px;
-
 		background-color: var( --os-ui-context-menu-bg, #1d2327 );
-
 		background-image: var( --os-ui-menu-bg-image, none );
 		background-repeat: var( --os-ui-menu-bg-image-repeat, repeat );
 		background-size: var( --os-ui-menu-bg-image-size, auto );
@@ -30,7 +28,6 @@ export const menuStyles = css`
 		display: block;
 		animation: os-holo-enter var( --_holo-t-fast ) var( --_holo-ease );
 		transform-origin: top left;
-
 		box-sizing: border-box;
 		max-block-size: calc( 100vh - 16px );
 		max-block-size: calc( 100dvh - 16px );

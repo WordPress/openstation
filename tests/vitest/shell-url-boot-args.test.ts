@@ -31,13 +31,11 @@ describe( 'shellUrlWithoutBootArgs', () => {
 	} );
 
 	it( 'returns null off the shell screen, where the names are the page’s own', () => {
-
 		expect(
 			shellUrlWithoutBootArgs(
 				'https://openstation.blog/wp-admin/edit.php?target=x&intent=1',
 			),
 		).toBeNull();
-
 		expect(
 			shellUrlWithoutBootArgs(
 				'https://openstation.blog/wp-admin/admin.php?page=jetpack&intent=1',

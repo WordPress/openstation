@@ -200,7 +200,6 @@ export const selectStyles = css`
 `;
 
 export const optionStyles = css`
-
 	:host {
 		display: none;
 	}

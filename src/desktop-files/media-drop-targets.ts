@@ -60,20 +60,17 @@ async function attachToPost(
 		const count = res.attachments.length;
 		const what = count === 1 ? 'file' : `${ count } files`;
 		const title = res.title || target.file.title || `#${ postId }`;
-
 		openUrlWindow( {
 			url: res.editUrl,
 			title,
 			icon: target.file.icon || 'dashicons-admin-post',
 		} );
 		showToast( { message: `Added ${ what } to “${ title }”.` } );
-
 		if ( res.featuredImageSet ) {
 			try {
 				const refreshed = await listPlacements( target.parentId );
 				setFolderPlacements( target.parentId, refreshed.placements );
 			} catch {
-
 			}
 		}
 	} catch ( err ) {

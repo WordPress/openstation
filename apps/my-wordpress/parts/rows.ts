@@ -5,15 +5,10 @@ import { longPress, type LongPressHandlers } from './long-press';
 import { shell, uiOf, type Ctx, type ListItem, type SectionDef } from './types';
 
 export interface RowInteractions {
-
 	select: ( e: MouseEvent ) => void;
-
 	activate: () => void;
-
 	menu: ( e: MouseEvent ) => void;
-
 	menuAt: ( anchor: Element ) => void;
-
 	press: LongPressHandlers;
 }
 
@@ -41,7 +36,6 @@ export function rowInteractions(
 			if ( handled === true ) {
 				return;
 			}
-
 			void ctx.dispatch( 'footprint', { user: item.id, name: item.title } );
 			return;
 		}
@@ -60,7 +54,6 @@ export function rowInteractions(
 			if ( e.ctrlKey || e.metaKey || e.shiftKey ) {
 				return;
 			}
-
 			if ( opensOnTap() && ( section.kind === 'user' || item.canEdit ) ) {
 				activate();
 				return;
@@ -90,7 +83,7 @@ export async function copyWithToast( ctx: Ctx, text: string, done: string ): Pro
 
 export function copyIdMessage( id: number ): string {
 	return sprintf(
-
+		/* translators: %d: the copied id. */
 		__( 'Copied ID %d.' ),
 		id,
 	);
@@ -99,7 +92,7 @@ export function copyIdMessage( id: number ): string {
 export function copyLinks( ctx: Ctx, rows: ListItem[], field: 'link' | 'shortlink' ): void {
 	const links = rows.map( ( i ) => String( i[ field ] ?? '' ) ).filter( Boolean );
 	let done = sprintf(
-
+		/* translators: %d: link count. */
 		__( 'Copied %d links.' ),
 		links.length,
 	);
@@ -117,7 +110,7 @@ export function copyIds( ctx: Ctx, rows: ListItem[] ): void {
 		ids.length === 1
 			? copyIdMessage( ids[ 0 ] )
 			: sprintf(
-
+				/* translators: %d: id count. */
 				__( 'Copied %d IDs.' ),
 				ids.length,
 			),

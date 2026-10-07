@@ -114,9 +114,7 @@ const TAB_SPECULATE_DWELL_MS = 120;
 export type WindowAttentionMode = 'pulse' | 'shake' | 'bounce' | null;
 
 export interface WindowAttentionOptions {
-
 	durationMs?: number;
-
 	intensity?: 'subtle' | 'normal' | 'strong';
 }
 
@@ -124,7 +122,6 @@ export class Window {
 	public readonly id: string;
 	public readonly config: WindowConfig;
 	public readonly element: HTMLElement;
-
 	public iframe: HTMLIFrameElement | null;
 	public state: WindowState = 'normal';
 
@@ -133,7 +130,6 @@ export class Window {
 	public _reportedLocation: { url: string; src: string } | null = null;
 
 	public _titleBar: HTMLElement;
-
 	public _titleEl: HTMLElement;
 
 	public _activityCount = 0;
@@ -150,27 +146,16 @@ export class Window {
 	public _activitySettleTimer: number | null = null;
 
 	public _navigationActivity: 'none' | 'pending' | 'settled' = 'none';
-
 	public _navigationActivityTimer: number | null = null;
-
 	public _isDragging = false;
-
 	public _isResizing = false;
-
 	public _isDestroyed = false;
-
 	public _boundOnMessage: ( e: MessageEvent ) => void;
-
 	public _dragOffsetX = 0;
-
 	public _dragOffsetY = 0;
-
 	public _resizeStartX = 0;
-
 	public _resizeStartY = 0;
-
 	public _resizeStartW = 0;
-
 	public _resizeStartH = 0;
 
 	public _savedGeometry: { x: number; y: number; width: number; height: number } | null = null;
@@ -251,9 +236,7 @@ export class Window {
 	public onFocusRequest: ( ( win: Window ) => void ) | null = null;
 	public onClose: ( ( win: Window ) => void ) | null = null;
 	public onMinimize: ( ( win: Window ) => void ) | null = null;
-
 	public onRestore: ( ( win: Window ) => void ) | null = null;
-
 	public onOpenAnother: ( ( win: Window ) => void ) | null = null;
 
 	public onOpenInNewWindow: ( ( win: Window ) => void ) | null = null;
@@ -334,7 +317,6 @@ export class Window {
 			if ( this._isDestroyed ) {
 				return;
 			}
-
 			const next = resolveChromeId( this );
 			if ( next !== this._chromeId ) {
 				this.remountWindowChrome();
@@ -349,7 +331,6 @@ export class Window {
 			if ( this.iframe ) {
 				this.iframe.style.visibility = 'hidden';
 			}
-
 			this.element.style.setProperty( 'content-visibility', 'hidden' );
 			return;
 		}
@@ -384,7 +365,6 @@ export class Window {
 			}
 			cleared = true;
 			this._clearOpeningClassRemoval = null;
-
 			if ( timer !== null ) {
 				window.clearTimeout( timer );
 				timer = null;
@@ -423,7 +403,6 @@ export class Window {
 		if ( ! rawBody ) {
 			return;
 		}
-
 		const filtered = applyFilters(
 			HOOKS.NATIVE_WINDOW_BEFORE_RENDER,
 			rawBody,
@@ -474,7 +453,6 @@ export class Window {
 			);
 		} else {
 			captureTeardown( maybeTeardown );
-
 			requestAnimationFrame( () => {
 				if ( this._isDestroyed ) {
 					return;
@@ -619,13 +597,12 @@ export class Window {
 				e.stopPropagation();
 				toggleActionsMenu( this );
 			} );
-
 			attachTooltip( menuBtn, () => ( {
 				heading: __( 'Window actions' ),
 				text: describeActionsMenu( this ).reduce( ( list, label ) =>
 					list
 						? sprintf(
-
+							/* translators: 1: a list of menu item names so far, 2: the next name. */
 							_x( '%1$s, %2$s', 'list of menu item names' ),
 							list,
 							label,
@@ -653,7 +630,6 @@ export class Window {
 					this.onOpenInNewWindow?.( this );
 				} );
 			}
-
 			const reload = menuPanel.querySelector(
 				'.os-window__menu-item--reload',
 			);
@@ -674,19 +650,16 @@ export class Window {
 					this.detach();
 				} );
 			}
-
 			const startup = menuPanel.querySelector<HTMLElement>(
 				'.os-window__menu-item--startup',
 			);
 			if ( startup ) {
 				refreshStartupCheckState( this, startup );
-
 				startup.addEventListener( 'os-menu-item-click', ( e: Event ) => {
 					e.stopPropagation();
 					flipMenuItemCheckOptimistically( startup );
 					this.onToggleStartup?.( this );
 				} );
-
 				document.addEventListener(
 					'os-default-window-changed',
 					() => {
@@ -694,7 +667,6 @@ export class Window {
 					},
 				);
 			}
-
 			menuPanel.addEventListener( 'keydown', ( e: Event ) => {
 				const kev = e as KeyboardEvent;
 				if ( kev.key === 'Escape' ) {
@@ -714,7 +686,6 @@ export class Window {
 			) {
 				return;
 			}
-
 			if ( isMobileStamped() ) {
 				return;
 			}
@@ -728,11 +699,9 @@ export class Window {
 			tabs.addEventListener( 'click', ( e: Event ) =>
 				handleTabStripClick( this, e ),
 			);
-
 			tabs.addEventListener( 'keydown', ( e: Event ) =>
 				handleTabStripKeydown( tabs, e ),
 			);
-
 			tabs.addEventListener( 'pointerover', ( e: Event ) => {
 				const ev = e as PointerEvent;
 				if ( ev.pointerType !== 'mouse' ) {
@@ -745,11 +714,9 @@ export class Window {
 				if ( ! href ) {
 					return;
 				}
-
 				if ( tab?.classList.contains( 'is-active' ) ) {
 					return;
 				}
-
 				if ( this._tabSpeculateTimer ) {
 					window.clearTimeout( this._tabSpeculateTimer );
 				}
@@ -764,7 +731,6 @@ export class Window {
 					this._tabSpeculateTimer = null;
 				}
 			} );
-
 			this._tabOverflowTeardown = observeTabOverflow( tabs );
 		}
 
@@ -825,7 +791,6 @@ export class Window {
 			try {
 				this._windowControlsTeardown();
 			} catch {
-
 			}
 			this._windowControlsTeardown = null;
 		}
@@ -879,7 +844,6 @@ export class Window {
 			try {
 				this._windowSlotsTeardown();
 			} catch {
-
 			}
 			this._windowSlotsTeardown = null;
 		}
@@ -891,11 +855,9 @@ export class Window {
 			try {
 				this._chromeHandle.destroy();
 			} catch {
-
 			}
 			this._chromeHandle = null;
 		}
-
 		this.element.classList.remove( CUSTOM_CHROME_CLASS );
 		const mounted = mountWindowChrome( this );
 		if ( mounted ) {
@@ -924,7 +886,6 @@ export class Window {
 		try {
 			this._chromeHandle.update( captureChromeState( this ) );
 		} catch {
-
 		}
 	}
 
@@ -1002,7 +963,6 @@ export class Window {
 		if ( ! parent ) {
 			return false;
 		}
-
 		const rect = snapHalfRect(
 			workAreaRectOf( parent ),
 			zone,
@@ -1093,7 +1053,6 @@ export class Window {
 		};
 		push( this.id );
 		push( this.config.baseId );
-
 		for ( const id of candidates ) {
 			let esc = id;
 			try {
@@ -1123,7 +1082,6 @@ export class Window {
 				}
 			}
 		}
-
 		const systemSelectors = [
 			'.os-dock__item[data-os-window-base-id="os-system"] .os-dock__item-primary',
 			'.os-dock__item[data-system-id="os-system"] .os-dock__item-primary',
@@ -1145,7 +1103,6 @@ export class Window {
 				}
 			}
 		}
-
 		const dock =
 			document.querySelector< HTMLElement >( '#os-dock' ) ??
 			document.querySelector< HTMLElement >( '.os-dock' );
@@ -1173,7 +1130,6 @@ export class Window {
 		try {
 			anim.cancel();
 		} catch {
-
 		}
 		if ( isMinimize ) {
 			this._minimizeAnimation = null;
@@ -1269,7 +1225,6 @@ export class Window {
 					anim = this.element.animate(
 						[
 							{ transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
-
 							{
 								offset: 0.6,
 								transform: `translate(${ dx * 0.6 }px, ${ dy * 0.6 }px) scale(${ 1 - ( 1 - scale ) * 0.6 })`,
@@ -1303,7 +1258,6 @@ export class Window {
 						try {
 							anim!.cancel();
 						} catch {
-
 						}
 						this._installMinimizeContentVisibilityGuard();
 					};
@@ -1360,7 +1314,6 @@ export class Window {
 			if ( this.iframe ) {
 				this.iframe.style.visibility = '';
 			}
-
 			this.element.classList.remove( 'os-window--minimized' );
 			this.element.classList.add( 'os-window--restoring' );
 			this.element.style.willChange = 'transform';
@@ -1388,7 +1341,6 @@ export class Window {
 				try {
 					anim = this.element.animate(
 						[
-
 							{
 								transform: `translate(${ dx }px, ${ dy }px) scale(${ scale })`,
 								opacity: 0,
@@ -1422,7 +1374,6 @@ export class Window {
 						try {
 							anim!.cancel();
 						} catch {
-
 						}
 					};
 					anim.onfinish = cleanup;
@@ -1447,7 +1398,6 @@ export class Window {
 
 			this.element.classList.remove( 'os-window--restoring' );
 			this._clearGenieStyles();
-
 			this.onRestore?.( this );
 			this.onFocusRequest?.( this );
 			this._emitChange( 'state' );
@@ -1467,7 +1417,6 @@ export class Window {
 		if ( wasMinimized ) {
 			this.state = this._stateBeforeMinimize ?? 'normal';
 			this._stateBeforeMinimize = null;
-
 			if ( this.state === 'fullscreen' ) {
 				updateFullscreenBodyClass();
 				this.updateFocusButtonState();
@@ -1490,7 +1439,6 @@ export class Window {
 		if ( this.state === 'maximized' ) {
 			return;
 		}
-
 		if ( this.state === 'normal' ) {
 			this._savedGeometry = {
 				x: this.element.offsetLeft,
@@ -1515,14 +1463,12 @@ export class Window {
 		if ( ! parent ) {
 			return false;
 		}
-
 		this.element.classList.remove(
 			'os-window--fullscreen',
 			'os-window--snapped-left',
 			'os-window--snapped-right',
 		);
 		this.element.classList.add( 'os-window--maximized' );
-
 		const area = workAreaRectOf( parent );
 		this.element.style.left = `${ area.x }px`;
 		this.element.style.top = `${ area.y }px`;
@@ -1545,7 +1491,6 @@ export class Window {
 				this.element.style.top = `${ restored.y }px`;
 				this.element.style.width = `${ restored.width }px`;
 				this.element.style.height = `${ restored.height }px`;
-
 				this._savedGeometry = restored;
 			}
 			this.state = 'normal';
@@ -1635,7 +1580,6 @@ export class Window {
 			width: this.element.offsetWidth,
 			height: this.element.offsetHeight,
 		};
-
 		this.element.classList.remove(
 			'os-window--maximized',
 			'os-window--snapped-left',
@@ -1692,7 +1636,6 @@ export class Window {
 		if ( body?.classList.contains( 'os-window__body--loading' ) ) {
 			return;
 		}
-
 		if ( this._unsavedGuardPending ) {
 			return;
 		}
@@ -1700,7 +1643,6 @@ export class Window {
 			this._reloadNative();
 			return;
 		}
-
 		let reloadedUrl: string;
 		let triggerReload: () => void;
 		if ( this._activeTabId === 'primary' ) {
@@ -1730,7 +1672,6 @@ export class Window {
 				}
 			};
 		}
-
 		this._spinReloadButton();
 		const commit = (): void => {
 			this.markContentLoading();
@@ -1742,7 +1683,6 @@ export class Window {
 				url: reloadedUrl,
 			} );
 		};
-
 		if ( this._activeTabId === 'primary' ) {
 			navigateWithUnsavedGuard( this, { commit, navigate } );
 		} else {
@@ -1809,7 +1749,6 @@ export class Window {
 		navigateWithUnsavedGuard( this, {
 			commit: () => {
 				this.markContentLoading();
-
 				syncActiveTab( this, url );
 			},
 			navigate: () => {
@@ -1819,7 +1758,6 @@ export class Window {
 						inner.location.assign( target );
 						return;
 					} catch {
-
 					}
 				}
 				if ( this.iframe ) {
@@ -1860,7 +1798,6 @@ export class Window {
 			);
 		};
 		iframe.addEventListener( 'load', attach );
-
 		attach();
 	}
 
@@ -1871,14 +1808,12 @@ export class Window {
 				if ( ! href ) {
 					return;
 				}
-
 				if ( handleFinishedScreenHandoff( this, href ) ) {
 					return;
 				}
 				adoptPageTitle( this );
 				syncActiveTab( this, href );
 			} catch {
-
 			}
 		} );
 	}
@@ -1917,7 +1852,6 @@ export class Window {
 		this._discardSwapBuffer();
 
 		const current = this.iframe;
-
 		current.classList.add( 'os-window__iframe--swap-front' );
 		const buffer = document.createElement( 'iframe' );
 		buffer.className =
@@ -1950,7 +1884,6 @@ export class Window {
 					scrollX = current.contentWindow?.scrollX ?? 0;
 					scrollY = current.contentWindow?.scrollY ?? 0;
 				} catch {
-
 				}
 				if ( scrollX || scrollY ) {
 					try {
@@ -1960,7 +1893,6 @@ export class Window {
 							behavior: 'instant',
 						} );
 					} catch {
-
 					}
 				}
 
@@ -2082,7 +2014,6 @@ export class Window {
 		if ( typeof channel !== 'string' || channel === '' ) {
 			return;
 		}
-
 		const target = this.iframe ?? getSyntheticIframe( this.id );
 		if ( ! target ) {
 			dispatchToNative( this.id, channel, payload );
@@ -2107,7 +2038,6 @@ export class Window {
 				}
 			}
 		};
-
 		if ( isWindowContentReady( this.id ) ) {
 			sendNow();
 			return;
@@ -2234,7 +2164,6 @@ export class Window {
 				window.clearTimeout( this._navigationActivityTimer );
 				this._navigationActivityTimer = null;
 			}
-
 			this._resetActivity();
 			this._finalizeActivitySettle( true );
 		}
@@ -2263,7 +2192,6 @@ export class Window {
 
 	public _markActivityStart(): void {
 		this._activityCount++;
-
 		if ( this._activitySettleTimer !== null ) {
 			window.clearTimeout( this._activitySettleTimer );
 			this._activitySettleTimer = null;
@@ -2368,7 +2296,7 @@ export class Window {
 				if ( ! this._activityError ) {
 					return __( 'Not saved.' );
 				}
-
+				/* translators: %s: error message explaining why the change could not be saved. */
 				return sprintf( __( 'Not saved. %s' ), this._activityError );
 			default:
 				return '';
@@ -2465,7 +2393,6 @@ export class Window {
 		}
 		const el = this.element;
 		el.classList.remove( 'os-window--shaking' );
-
 		void el.offsetWidth;
 		el.classList.add( 'os-window--shaking' );
 		const onEnd = (): void => {
@@ -2497,7 +2424,6 @@ export class Window {
 		} else if ( mode === null ) {
 			el.style.removeProperty( '--wp-window-highlight-color' );
 		}
-
 		doAction( HOOKS.WINDOW_HIGHLIGHT_CHANGED, {
 			windowId: this.id,
 			mode,
@@ -2639,7 +2565,6 @@ export class Window {
 		if ( this._isFinalized ) {
 			return;
 		}
-
 		if ( ! this._isDestroyed ) {
 			this._suppressCloseFilter = true;
 			try {
@@ -2648,7 +2573,6 @@ export class Window {
 				this._suppressCloseFilter = false;
 			}
 		}
-
 		this._finalizeClose();
 	}
 
@@ -2664,12 +2588,10 @@ export class Window {
 			clearTimeout( this._closeSafetyNetTimer );
 			this._closeSafetyNetTimer = null;
 		}
-
 		if ( this._iframeCloseTimeout !== null ) {
 			clearTimeout( this._iframeCloseTimeout );
 			this._iframeCloseTimeout = null;
 		}
-
 		if ( this._clearOpeningClassRemoval ) {
 			this._clearOpeningClassRemoval();
 		}
@@ -2687,7 +2609,6 @@ export class Window {
 			try {
 				this._windowControlsTeardown();
 			} catch {
-
 			}
 			this._windowControlsTeardown = null;
 		}
@@ -2695,7 +2616,6 @@ export class Window {
 			try {
 				this._windowSlotsTeardown();
 			} catch {
-
 			}
 			this._windowSlotsTeardown = null;
 		}
@@ -2703,11 +2623,9 @@ export class Window {
 			try {
 				this._chromeHandle.destroy();
 			} catch {
-
 			}
 			this._chromeHandle = null;
 		}
-
 		clearWindowTheme( this );
 		if ( this._nativeRenderTeardown ) {
 			try {
@@ -2730,11 +2648,9 @@ export class Window {
 				true,
 			);
 		}
-
 		this._unsubscribeWindowActions?.();
 		this._unsubscribeWindowActions = null;
 		this.element.remove();
-
 		updateFullscreenBodyClass();
 	}
 
@@ -2756,7 +2672,6 @@ export class Window {
 			const cr = entry.contentRect;
 			const width = Math.round( cr.width );
 			const height = Math.round( cr.height );
-
 			try {
 				this.config.onResize?.( width, height );
 			} catch ( err ) {

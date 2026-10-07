@@ -12,7 +12,6 @@ function openstation_plugins_window_ajax_guard( $cap ) {
 			array( 'status' => 403 )
 		);
 	}
-
 	if (
 		is_multisite() &&
 		in_array( $cap, array( 'install_plugins', 'upload_plugins', 'delete_plugins' ), true )
@@ -55,7 +54,7 @@ function openstation_plugins_window_load_plugins_api() {
 }
 
 function openstation_plugins_window_ajax_slug() {
-
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in openstation_plugins_window_ajax_guard() by every caller.
 	$slug = isset( $_POST['slug'] ) ? sanitize_key( wp_unslash( (string) $_POST['slug'] ) ) : '';
 	if ( '' === $slug ) {
 		openstation_plugins_window_ajax_error(
@@ -77,6 +76,7 @@ function openstation_plugins_window_ajax_browse() {
 	}
 	openstation_plugins_window_load_plugins_api();
 
+	// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified in openstation_plugins_window_ajax_guard() above; the sniff cannot follow the check across a function boundary.
 	$browse  = isset( $_POST['browse'] ) ? sanitize_key( wp_unslash( (string) $_POST['browse'] ) ) : 'featured';
 	$allowed = array( 'featured', 'popular', 'recommended', 'favorites', 'new', 'beta' );
 	if ( ! in_array( $browse, $allowed, true ) ) {
@@ -85,11 +85,11 @@ function openstation_plugins_window_ajax_browse() {
 	$search   = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['search'] ) ) : '';
 	$page     = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
 	$per_page = isset( $_POST['per_page'] ) ? max( 1, min( 60, (int) $_POST['per_page'] ) ) : 24;
+	// phpcs:enable WordPress.Security.NonceVerification.Missing
 
 	$api_args = array(
 		'page'     => $page,
 		'per_page' => $per_page,
-
 		'fields'   => array(
 			'icons'             => true,
 			'banners'           => false,

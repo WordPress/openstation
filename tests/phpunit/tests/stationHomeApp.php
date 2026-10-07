@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group station-home
+ */
 
 use function OpenStation\Apps\StationHome\greeting;
 
@@ -62,6 +66,9 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_manifest_mirrors_the_legacy_windows_registration() {
 		$app = openstation_apps_registry()->get( self::APP_ID );
 		$this->assertNotNull( $app );
@@ -72,22 +79,21 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertSame( 760, $manifest['height'] );
 		$this->assertSame( 640, $manifest['min_width'] );
 		$this->assertSame( 480, $manifest['min_height'] );
-
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertNull( $manifest['desktop_icon'] );
 		$this->assertSame( array( 'read' ), $manifest['capabilities'] );
-
 		$this->assertSame( '', $manifest['client_source'] );
 		$this->assertFalse( $manifest['has_data'] );
 		$this->assertStringEndsWith( 'apps/station-home/station-home.css', $manifest['style'] );
-
 		$this->assertSame( array( 'customizing' => false ), $manifest['state'] );
 		$this->assertSame( array( 'customize', 'customize_close', 'toggle_card', 'launch', 'show' ), $manifest['actions'] );
-
 		$this->assertSame( array( 'show' ), $manifest['lifecycle'] );
 		$this->assertSame( array( '*' ), $manifest['watch'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::allows
+	 */
 	public function test_every_logged_in_reader_is_allowed_and_nobody_else() {
 		$app = openstation_apps_registry()->get( self::APP_ID );
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
@@ -99,6 +105,10 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\StationHome\render
+	 * @covers \OpenStation\Apps\StationHome\snapshot
+	 */
 	public function test_mount_paints_a_personal_flight_deck() {
 		self::factory()->post->create(
 			array(
@@ -127,23 +137,22 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Continue working', $html );
 		$this->assertStringContainsString( 'Site pulse', $html );
 		$this->assertStringContainsString( 'Needs attention', $html );
-
 		$this->assertStringContainsString( 'Flight notes', $html );
 		$this->assertStringContainsString( 'os-station-home__work-row', $html );
 		$this->assertStringNotContainsString( 'Someone else', $html );
-
 		$this->assertStringContainsString( 'os-action="refresh"', $html );
-
 		$this->assertMatchesRegularExpression( '/<a class="os-station-home__action" os-key="new-post" href="[^"]*post-new\.php"/', $html );
 		$this->assertMatchesRegularExpression( '/<a class="os-station-home__action" os-key="view-site" href="[^"]+" title="View site" target="_blank" rel="noopener">/', $html );
 		$this->assertStringContainsString( 'os-action="launch" os-arg-id="classic-dashboard"', $html );
 		$this->assertStringContainsString( 'os-action="launch" os-arg-id="wp-explorer"', $html );
-
 		$this->assertStringNotContainsString( 'os-station-home__cards-section', $html );
 		$this->assertStringNotContainsString( '<os-modal class="os-station-home__card-modal" title="Customize Station Home" size="md" os-action="customize_close" open>', $html );
 		$this->assertSame( array( 'customizing' => false ), $response['state'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\StationHome\quick_actions
+	 */
 	public function test_quick_actions_follow_current_user_capabilities() {
 		wp_set_current_user( $this->subscriber_id );
 		$html = $this->dispatch( 'mount' )['html'];
@@ -153,10 +162,12 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'os-key="wp-explorer"', $html );
 		$this->assertStringContainsString( 'os-key="view-site"', $html );
 		$this->assertStringContainsString( 'os-key="classic-dashboard"', $html );
-
 		$this->assertStringContainsString( 'All clear', $html );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\StationHome\text
+	 */
 	public function test_entities_are_decoded_once_and_markup_is_never_parsed() {
 		self::factory()->post->create(
 			array(
@@ -172,6 +183,9 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<em>now</em>', $html );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_customize_opens_the_picker_and_a_switch_stores_the_choice() {
 		$this->register_orders_card();
 
@@ -195,13 +209,11 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertTrue( $toggled['ok'] );
 		$this->assertSame( array(), $toggled['effects'] );
 		$this->assertTrue( openstation_station_home_get_card_preferences( $this->admin_id )['my-plugin-orders'] );
-
 		$this->assertStringContainsString( 'tone="accent" checked os-action="toggle_card"', $toggled['html'] );
 		$this->assertMatchesRegularExpression( '/<a class="os-station-home__card" os-key="my-plugin-orders" data-tone="warning" href="[^"]*page=my-plugin-orders">/', $toggled['html'] );
 		$this->assertStringContainsString( '<strong class="os-station-home__card-value">4</strong>', $toggled['html'] );
 		$this->assertStringContainsString( 'Open orders', $toggled['html'] );
 		$this->assertStringNotContainsString( 'Make this space yours', $toggled['html'] );
-
 		$this->assertTrue( $toggled['state']['customizing'] );
 
 		$closed = $this->dispatch( 'customize_close', array( 'customizing' => true ) );
@@ -209,6 +221,9 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'os-action="customize_close" open>', $closed['html'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_a_switch_for_an_unknown_card_is_refused_with_a_toast() {
 		$response = $this->dispatch(
 			'toggle_card',
@@ -223,6 +238,9 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_station_home_get_card_preferences( $this->admin_id ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_launch_turns_the_shell_bound_quick_actions_into_effects() {
 		$classic = $this->dispatch( 'launch', array(), array( 'id' => 'classic-dashboard' ) );
 		$this->assertSame( 'open_url', $classic['effects'][0]['type'] );
@@ -240,11 +258,17 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		$this->assertSame( array(), $this->dispatch( 'launch', array(), array( 'id' => 'wp-explorer' ) )['effects'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_restore_and_refresh_both_repaint() {
 		$this->assertTrue( $this->dispatch( 'show' )['ok'] );
 		$this->assertTrue( $this->dispatch( 'refresh' )['ok'] );
 	}
 
+	/**
+	 * @covers \OpenStation\Apps\StationHome\greeting
+	 */
 	public function test_greeting_follows_the_hour() {
 		foreach ( array( 0, 8, 11 ) as $hour ) {
 			$this->assertSame( 'Good morning, Nick', greeting( $hour, 'Nick' ) );
@@ -257,6 +281,9 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @coversNothing
+	 */
 	public function test_the_legacy_window_and_its_routes_are_gone() {
 		$routes = rest_get_server()->get_routes( 'desktop-mode/v1' );
 		$this->assertArrayNotHasKey( '/desktop-mode/v1/station-home', $routes );

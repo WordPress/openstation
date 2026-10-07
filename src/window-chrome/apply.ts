@@ -65,7 +65,6 @@ export function applyWindowTheme(
 				try {
 					element.style.removeProperty( key );
 				} catch {
-
 				}
 			}
 		}
@@ -107,7 +106,6 @@ export function clearWindowTheme( win: DesktopWindow ): void {
 		try {
 			element.style.removeProperty( key );
 		} catch {
-
 		}
 	}
 	applied.delete( element );

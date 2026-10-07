@@ -57,7 +57,6 @@ describe( 'games/playtime.ts', () => {
 			const tracker = startPlaytimeTracker( 'inkfall' );
 			vi.advanceTimersByTime( 10_000 );
 			tracker.pause();
-
 			vi.advanceTimersByTime( 60_000 );
 			expect( recordMock ).toHaveBeenCalledTimes( 1 );
 			expect( recordMock.mock.calls[ 0 ][ 1 ] ).toBe( 10 );
@@ -82,7 +81,6 @@ describe( 'games/playtime.ts', () => {
 
 		test( 'sub-second remainders carry over between flushes', () => {
 			const tracker = startPlaytimeTracker( 'inkfall' );
-
 			vi.advanceTimersByTime( 10_500 );
 			tracker.pause();
 			vi.advanceTimersByTime( 49_500 );
@@ -90,7 +88,6 @@ describe( 'games/playtime.ts', () => {
 			tracker.resume();
 			vi.advanceTimersByTime( 10_500 );
 			tracker.stop();
-
 			expect( recordMock.mock.calls[ 1 ][ 1 ] ).toBe( 11 );
 		} );
 
@@ -99,7 +96,6 @@ describe( 'games/playtime.ts', () => {
 			startPlaytimeTracker( 'inkfall' );
 			vi.advanceTimersByTime( 60_000 );
 			expect( recordMock.mock.calls[ 0 ][ 1 ] ).toBe( 60 );
-
 			await Promise.resolve();
 			await Promise.resolve();
 			vi.advanceTimersByTime( 60_000 );

@@ -105,7 +105,6 @@ export function agentAcceptsDrop(
 	if ( ! entity ) {
 		return false;
 	}
-
 	if ( agentId && entity.kind === 'user' && entity.id === agentId ) {
 		return false;
 	}
@@ -120,7 +119,7 @@ export function agentAcceptsDrop(
 
 export function composeDropMessage( entity: DroppedEntity ): string {
 	return sprintf(
-
+		/* translators: 1: entity kind (post, media, …), 2: entity title, 3: numeric id. */
 		__(
 			'The user dropped the %1$s "%2$s" (id %3$s) onto you. Handle it according to your instructions, using your tools as needed.',
 			'desktop-mode',
@@ -133,7 +132,7 @@ export function composeDropMessage( entity: DroppedEntity ): string {
 
 export function composeSendToMessage( entity: DroppedEntity ): string {
 	return sprintf(
-
+		/* translators: 1: entity kind (post, media, …), 2: entity title, 3: numeric id. */
 		__(
 			'The user sent you the %1$s "%2$s" (id %3$s) from the "Send to" menu. Handle it according to your instructions, using your tools as needed.',
 			'desktop-mode',
@@ -194,7 +193,6 @@ export async function invokeAgentIntoTranscript(
 ): Promise< void > {
 	openAgentChat( agent );
 	const transcript = agentsChatStore.state.transcripts[ agent.id ];
-
 	const noTextAnswer = __(
 		'The agent finished without a text answer.',
 		'desktop-mode',
@@ -207,7 +205,6 @@ export async function invokeAgentIntoTranscript(
 				! ( row.role === 'agent' && row.text === noTextAnswer ),
 		)
 		.map( ( row ) => ( { role: row.role, text: row.text } ) );
-
 	transcript.push( { role: 'user', text: message, at: Date.now(), attachment } );
 	const pending: AgentChatMessage = {
 		role: 'agent',

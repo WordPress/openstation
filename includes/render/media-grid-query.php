@@ -18,6 +18,7 @@ function openstation_strip_chromeless_flag_from_media_grid() {
 		return;
 	}
 
+	// phpcs:disable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 	$settings = json_decode( end( $matches[1] ) );
 	if ( ! $settings instanceof stdClass || ! isset( $settings->queryVars ) || ! $settings->queryVars instanceof stdClass ) {
 		return;
@@ -28,6 +29,7 @@ function openstation_strip_chromeless_flag_from_media_grid() {
 	}
 
 	unset( $settings->queryVars->openstation_chromeless );
+	// phpcs:enable WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 
 	wp_localize_script( 'media-grid', '_wpMediaGridSettings', (array) $settings );
 }

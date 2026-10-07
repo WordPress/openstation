@@ -23,11 +23,8 @@ import { resolveCommonActions } from './actions';
 import { createSelectionModel } from './model';
 
 export interface SelectionApi {
-
 	active: typeof activeSelection;
-
 	resolveCommonActions: typeof resolveCommonActions;
-
 	createModel: typeof createSelectionModel;
 }
 

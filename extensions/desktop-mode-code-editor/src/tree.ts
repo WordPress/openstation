@@ -1,14 +1,11 @@
 import { fetchTree, type TreeEntry } from './rest';
 
 export interface FileTreeOptions {
-
 	mount: HTMLElement;
-
 	onOpen: ( path: string ) => void;
 }
 
 export interface FileTreeHandle {
-
 	dispose(): void;
 }
 
@@ -95,7 +92,6 @@ export function mountFileTree( opts: FileTreeOptions ): FileTreeHandle {
 				if ( ! entry.allowed ) {
 					return;
 				}
-
 				mount
 					.querySelectorAll< HTMLElement >( '.osc-tree__row--active' )
 					.forEach( ( el ) =>

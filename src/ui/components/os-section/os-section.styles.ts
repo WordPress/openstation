@@ -8,7 +8,6 @@ export const styles = css`
 	:host( [ hidden ] ) {
 		display: none;
 	}
-
 	.os-section__heading {
 		margin: 0 0 5px;
 		font-size: 20px;
@@ -23,11 +22,9 @@ export const styles = css`
 		color: var( --os-ui-fg-muted, #646970 );
 		line-height: 1.55;
 	}
-
 	.os-section__description:empty {
 		display: none;
 	}
-
 	:host( [ stack ] ) .os-section__body {
 		display: flex;
 		flex-direction: column;

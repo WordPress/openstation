@@ -60,7 +60,6 @@ function openstation_presence_record_result( $user_id, $active = true ) {
 	do_action( 'openstation_presence_recorded', $user_id, $next );
 
 	if ( $next_status !== $prev_status ) {
-
 		do_action( 'openstation_presence_changed', $user_id, $next_status, $prev_status );
 	}
 	return true;
@@ -157,7 +156,6 @@ function openstation_presence_visible_users( $candidate_user_ids, $viewer_id = 0
 
 function openstation_presence_cron_prune() {
 	global $wpdb;
-
 	if ( ! openstation_presence_migrate_storage() ) {
 		return;
 	}
@@ -250,7 +248,6 @@ function openstation_presence_rest_post( WP_REST_Request $request ) {
 	$inactive = (bool) $request->get_param( 'inactive' );
 
 	if ( $inactive ) {
-
 		$all = openstation_presence_read_records( $user_id );
 		if ( is_wp_error( $all ) ) {
 			return $all;

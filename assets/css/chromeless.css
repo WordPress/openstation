@@ -143,7 +143,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 }
 
 .os-chromeless:has( .boot-layout-container ) #wpwrap {
-
 	background: transparent;
 }
 
@@ -206,6 +205,20 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	outline-offset: -2px;
 }
 
+/* ---------------------------------------------------------------
+ * Appearance → Themes workspace
+ *
+ * Core's one-theme state renders the Theme Details dialog inline and
+ * removes its header. Inside a short desktop window that leaves a large,
+ * unexplained panel whose actions fall below the fold. Treat it as an
+ * active-site identity card instead: screenshot first, useful context at
+ * the side, and actions kept in the card's visible edge.
+ *
+ * With multiple installed themes the native cards become a deliberate
+ * library grid and Core's details view remains a dialog. All selectors are
+ * scoped to the chromeless Themes screen; the classic wp-admin page keeps
+ * Core's own presentation and the shell's palette cannot leak in here.
+ * --------------------------------------------------------------- */
 .os-chromeless.themes-php #wpbody-content {
 	padding: 10px 16px;
 	background: #f6f7f7;

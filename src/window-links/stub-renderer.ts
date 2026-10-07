@@ -22,7 +22,6 @@ export function registerBuiltInLinkRendererStub(): void {
 		if ( ! loaded ) {
 			return;
 		}
-
 		const real = listWindowLinkRenderers().find(
 			( def ) => def.id === BUILT_IN_LINK_RENDERER,
 		);

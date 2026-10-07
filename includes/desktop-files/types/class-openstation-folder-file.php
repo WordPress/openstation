@@ -32,14 +32,12 @@ class OpenStation_Folder_File extends OpenStation_File {
 		if ( (int) $row['owner_id'] === (int) $user_id ) {
 			return true;
 		}
-
 		if ( function_exists( 'openstation_folder_share_user_capability' ) ) {
 			$cap = openstation_folder_share_user_capability( (int) $row['id'], (int) $user_id );
 			if ( 'none' !== $cap ) {
 				return true;
 			}
 		}
-
 		$visible_ids = wp_list_pluck( openstation_files_get_visible_folders( $user_id ), 'id' );
 		return in_array( (int) $row['id'], array_map( 'intval', (array) $visible_ids ), true );
 	}

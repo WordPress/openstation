@@ -19,7 +19,6 @@ export const tabsStyles = css`
 `;
 
 export const tabPanelStyles = css`
-
 	:host {
 		display: block;
 	}
@@ -39,10 +38,8 @@ export const tabStyles = css`
 	:host {
 		display: inline-block;
 	}
-
 	:host( [ data-orientation='vertical' ] ) {
 		display: block;
-
 		--_tab-edge: var(
 			--os-ui-tab-edge,
 			linear-gradient(
@@ -63,14 +60,12 @@ export const tabStyles = css`
 			--os-ui-tab-bloom,
 			linear-gradient( 90deg, rgba( 242, 82, 252, 0.26 ), transparent )
 		);
-
 		--_tab-edge-w: var( --os-ui-tab-edge-width, 2px );
 		--_tab-bloom-o: var( --os-ui-tab-bloom-opacity, 1 );
 		--_tab-fill: var( --os-ui-tab-fill, transparent );
 		--_tab-radius: var( --os-ui-tab-radius, 0px );
 		--_tab-inset: var( --os-ui-tab-inset, 0px );
 	}
-
 	:host( [ data-orientation='vertical' ] ) button {
 		display: flex;
 		align-items: center;
@@ -89,7 +84,6 @@ export const tabStyles = css`
 		line-height: 1.5;
 		white-space: nowrap;
 	}
-
 	:host( [ data-orientation='vertical' ] ) slot::slotted( svg ) {
 		flex: 0 0 17px;
 		width: 17px;
@@ -102,7 +96,6 @@ export const tabStyles = css`
 		slot::slotted( svg ) {
 		opacity: 1;
 	}
-
 	:host( [ data-orientation='vertical' ] ) button::after {
 		inset-inline: 0 auto;
 		inset-block: 0;
@@ -113,7 +106,6 @@ export const tabStyles = css`
 		background-image: var( --_tab-edge );
 		transition: opacity var( --_holo-t ) var( --_holo-ease );
 	}
-
 	:host( [ data-orientation='vertical' ] ) button::before {
 		content: '';
 		position: absolute;
@@ -127,7 +119,6 @@ export const tabStyles = css`
 		pointer-events: none;
 		transition: opacity var( --_holo-t ) var( --_holo-ease );
 	}
-
 	:host( [ data-orientation='vertical' ] ) button:hover::after {
 		inset-inline: 0 auto;
 		opacity: 0;
@@ -135,10 +126,8 @@ export const tabStyles = css`
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button {
 		background-color: var( --_tab-fill );
 		background-image: var( --_tab-wash );
-
 		font-weight: 400;
 	}
-
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button::after,
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] )
 		button:hover::after {
@@ -187,7 +176,6 @@ export const tabStyles = css`
 	button:hover {
 		color: var( --os-ui-fg, #1d2327 );
 	}
-
 	button:hover::after {
 		inset-inline: 30%;
 		opacity: 0.45;

@@ -273,7 +273,6 @@ function openstation_games_rest_submit_score( WP_REST_Request $req ) {
 
 function openstation_games_rest_get_playtime() {
 	$user_id = get_current_user_id();
-
 	$daily = array();
 	foreach ( openstation_games_get_playtime_daily( $user_id ) as $game => $days ) {
 		$daily[ $game ] = (object) $days;
@@ -322,7 +321,6 @@ function openstation_games_rest_list_challenges( WP_REST_Request $req ) {
 		}
 		$out[] = openstation_games_shape_challenge( $row );
 	}
-
 	$out = array_reverse( $out );
 	return rest_ensure_response( array( 'challenges' => $out ) );
 }

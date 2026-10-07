@@ -13,7 +13,6 @@ import type {
 export type RestFetch = ( path: string, init?: RequestInit, options?: { silent?: boolean } ) => Promise< Response >;
 
 interface RequestOptions extends RequestInit {
-
 	expectJson?: boolean;
 }
 
@@ -39,7 +38,6 @@ export interface PostsRestClient {
 		categoryIds: number[],
 	): Promise< { id: number; categories: number[] } >;
 	fetchTerms( taxonomy: 'categories' | 'tags', params?: TermsListParams ): Promise< TermsListPage >;
-
 	fetchAllTerms( taxonomy: 'categories' | 'tags' ): Promise< TermRow[] >;
 	fetchTagCooccurrence(
 		taxonomy?: 'tags' | 'categories',
@@ -51,14 +49,12 @@ export interface PostsRestClient {
 		patch: Partial< Pick< TermRow, 'name' | 'slug' | 'description' | 'parent' > >,
 	): Promise< TermRow >;
 	deleteTerm( taxonomy: 'categories' | 'tags', id: number ): Promise< void >;
-
 	fetchTermPosts(
 		param: 'categories' | 'tags',
 		termId: number,
 		page: number,
 		perPage: number,
 	): Promise< { items: Array< { id: number; title: string } >; totalPages: number; total: number } >;
-
 	fetchTermCounts( taxonomy: 'category' | 'post_tag', ids: number[] ): Promise< Record< string, number > >;
 }
 
@@ -101,7 +97,6 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 					message = json.message;
 				}
 			} catch {
-
 			}
 			throw new Error( message );
 		}
@@ -288,7 +283,6 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 
 		async fetchTagCooccurrence( taxonomy = 'tags', limit = 8 ) {
 			const { data } = await request< { pairs?: Record< string, TermNeighbor[] > } | TermNeighbor[] >(
-
 				`desktop-mode/v1/tag-cooccurrence${ qs( { taxonomy: taxonomy === 'tags' ? 'post_tag' : 'category', limit } ) }`,
 				{ method: 'GET' },
 			);

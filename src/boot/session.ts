@@ -113,11 +113,8 @@ export async function restoreSession(
 		}
 		nativeSeeds[ win.id ] = {
 			desktopId: win.desktopId,
-
 			...( win.unplaced ? {} : placedGeometry( win, rect ) ),
-
 			...( win.params ? { params: win.params } : {} ),
-
 			...( win.gridSpan ? { gridSpan: win.gridSpan } : {} ),
 		};
 	}
@@ -137,7 +134,6 @@ export async function restoreSession(
 			) {
 				continue;
 			}
-
 			await waitForWindow( manager, win.id );
 			continue;
 		}
@@ -156,16 +152,12 @@ export async function restoreSession(
 			desktopId: win.desktopId,
 			multi: !! dockEntry?.multi,
 			url: win.url,
-
 			parentUrl: dockEntry?.url ?? win.url,
-
 			title: findDockTitleForUrl( win.url, config ) ?? win.title,
 			icon: win.icon || 'dashicons-admin-generic',
-
 			...( win.unplaced ? {} : placedGeometry( win, rect ) ),
 			submenu: dockEntry?.submenu,
 			selfLabel: dockEntry?.selfLabel,
-
 			...( win.gridSpan ? { gridSpan: win.gridSpan } : {} ),
 		} );
 
@@ -217,7 +209,6 @@ export async function openCurrentPage(
 		multi: !! dockEntry?.multi,
 		url: config.currentPage,
 		parentUrl: dockEntry?.url ?? config.currentPage,
-
 		title: config.currentTitle || dockEntry?.title || '',
 		icon: config.currentIcon,
 		submenu: dockEntry?.submenu,

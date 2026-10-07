@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-portal
+ */
 class Tests_OpenStation_Portal extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -77,30 +80,48 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		return $captured;
 	}
 
+	/**
+	 * @covers ::openstation_portal_url
+	 */
 	public function test_portal_url_is_canonical() {
 		$this->assertSame( home_url( '/openstation/' ), openstation_portal_url() );
 	}
 
+	/**
+	 * @covers ::openstation_is_portal_request
+	 */
 	public function test_is_portal_request_detects_exact_path() {
 		$_SERVER['REQUEST_URI'] = '/openstation';
 		$this->assertTrue( openstation_is_portal_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_portal_request
+	 */
 	public function test_is_portal_request_detects_trailing_slash() {
 		$_SERVER['REQUEST_URI'] = '/openstation/';
 		$this->assertTrue( openstation_is_portal_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_portal_request
+	 */
 	public function test_is_portal_request_ignores_query_string() {
 		$_SERVER['REQUEST_URI'] = '/openstation/?foo=bar';
 		$this->assertTrue( openstation_is_portal_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_portal_request
+	 */
 	public function test_is_portal_request_rejects_subpaths() {
 		$_SERVER['REQUEST_URI'] = '/openstation/foo';
 		$this->assertFalse( openstation_is_portal_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_portal_request
+	 */
 	public function test_is_portal_request_accepts_the_legacy_path() {
 		foreach ( array( '/desktop-mode', '/desktop-mode/', '/desktop-mode/?foo=bar' ) as $uri ) {
 			$_SERVER['REQUEST_URI'] = $uri;
@@ -108,25 +129,40 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_is_portal_request
+	 */
 	public function test_is_portal_request_rejects_legacy_subpaths() {
 		$_SERVER['REQUEST_URI'] = '/desktop-mode/foo';
 		$this->assertFalse( openstation_is_portal_request() );
 	}
 
+	/**
+	 * @covers ::openstation_portal_url
+	 */
 	public function test_portal_url_stays_canonical_despite_the_alias() {
 		$this->assertSame( home_url( '/openstation/' ), openstation_portal_url() );
 	}
 
+	/**
+	 * @covers ::openstation_is_portal_request
+	 */
 	public function test_is_portal_request_rejects_unrelated_paths() {
 		$_SERVER['REQUEST_URI'] = '/wp-admin/';
 		$this->assertFalse( openstation_is_portal_request() );
 	}
 
+	/**
+	 * @covers ::openstation_is_portal_request
+	 */
 	public function test_is_portal_request_false_when_uri_missing() {
 		unset( $_SERVER['REQUEST_URI'] );
 		$this->assertFalse( openstation_is_portal_request() );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_handler_is_noop_when_not_portal() {
 		wp_set_current_user( self::$admin_id );
 		$redirect = $this->capture_redirect( '/wp-admin/' );
@@ -134,6 +170,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_logged_out_user_redirected_to_login() {
 		wp_set_current_user( 0 );
 		$redirect = $this->capture_redirect( '/openstation/' );
@@ -143,6 +182,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringContainsString( rawurlencode( openstation_portal_url() ), $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_logged_in_user_auto_enabled() {
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( '', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
@@ -152,6 +194,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( '1', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_portal_redirects_to_the_shell_screen() {
 		wp_set_current_user( self::$admin_id );
 		$redirect = $this->capture_redirect( '/openstation/' );
@@ -161,6 +206,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertTrue( openstation_url_is_shell_screen( $redirect ) );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_auto_enable_filter_can_disable_auto_toggle() {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'openstation_portal_auto_enable', '__return_false' );
@@ -170,6 +218,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( '', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_auto_enable_filter_receives_user_id() {
 		wp_set_current_user( self::$admin_id );
 		$expected_id = self::$admin_id;
@@ -190,6 +241,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( $expected_id, $received_id );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_auto_enable_noop_when_meta_already_set() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -200,10 +254,16 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( '1', get_user_meta( self::$admin_id, 'desktop_mode_mode', true ) );
 	}
 
+	/**
+	 * @covers ::openstation_portal_entry_url
+	 */
 	public function test_entry_url_falls_back_to_dashboard_when_session_empty() {
 		$this->assertSame( admin_url( 'index.php' ), openstation_portal_entry_url( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_portal_entry_url
+	 */
 	public function test_entry_url_strips_chromeless_flag() {
 		openstation_save_session(
 			self::$admin_id,
@@ -230,6 +290,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'openstation_chromeless=1', $entry );
 	}
 
+	/**
+	 * @covers ::openstation_portal_entry_url
+	 */
 	public function test_entry_url_returns_focused_window_url() {
 		$target = admin_url( 'edit.php?post_type=page' );
 		openstation_save_session(
@@ -266,6 +329,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( $target, openstation_portal_entry_url( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_portal_entry_url
+	 */
 	public function test_entry_url_falls_back_when_focused_missing() {
 		openstation_save_session(
 			self::$admin_id,
@@ -290,6 +356,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( admin_url( 'index.php' ), openstation_portal_entry_url( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_sends_desktop_user_to_portal() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -300,6 +369,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( openstation_portal_url(), $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_noop_when_openstation_off() {
 		wp_set_current_user( self::$admin_id );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
@@ -307,6 +379,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_leaves_the_user_admin_classic() {
 		if ( ! is_multisite() ) {
 			$this->markTestSkipped( 'The user admin only exists on multisite.' );
@@ -314,12 +389,14 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
-
 		set_current_screen( 'index-user' );
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_noop_on_chromeless_request() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -329,6 +406,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_aliases_the_portal_flag_to_the_shell_screen() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -344,6 +424,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( OPENSTATION_PORTAL_FLAG, rawurldecode( $redirect ) );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_alias_carries_intent() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -358,11 +441,13 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( openstation_shell_url( admin_url( 'post.php?post=104&action=edit' ), true ), $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_alias_with_an_unresolvable_url_lands_on_the_bare_screen() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD']              = 'GET';
-
 		$_SERVER['REQUEST_URI']                 = '/wp-admin/not-a-real-screen.php?' . OPENSTATION_PORTAL_FLAG . '=1&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
 		$GLOBALS['pagenow']                     = 'not-a-real-screen.php';
 		$_GET[ OPENSTATION_PORTAL_FLAG ]        = '1';
@@ -371,6 +456,10 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( openstation_shell_url(), $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_portal_target
+	 * @covers ::openstation_shell_url
+	 */
 	public function test_a_network_admin_target_resolves_to_the_network_screen() {
 		$resolved = openstation_sanitize_portal_target( '/wp-admin/network/sites.php' );
 
@@ -381,6 +470,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_alias_runs_even_when_plain_redirects_are_disabled() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -393,6 +485,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNotNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_noop_on_the_shell_screen() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -405,6 +500,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_noop_on_a_solo_request() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -416,6 +514,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_noop_on_post_method() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -424,6 +525,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_noop_on_admin_post_page() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -437,6 +541,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_noop_when_classic_flag_present() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -446,6 +553,10 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 * @covers ::openstation_is_classic_referer
+	 */
 	public function test_admin_redirect_keeps_a_navigation_from_a_classic_tab_classic() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -459,6 +570,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( '/wp-admin/post.php?post=2&action=elementor&' . OPENSTATION_CLASSIC_FLAG . '=1', $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_filter_can_disable() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -468,6 +582,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_goes_straight_to_the_shell_screen_when_the_portal_would_only_hand_the_url_back() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -481,6 +598,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( openstation_portal_url(), $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_sends_bare_admin_root_to_the_shell_screen_with_the_dashboard() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -494,6 +614,10 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 * @covers ::openstation_is_shell_request
+	 */
 	public function test_admin_redirect_disabled_leaves_a_classic_page_without_the_shell() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -507,6 +631,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_shell_request() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_still_forwards_network_admin_path() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -520,6 +647,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'target=', $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_still_forwards_when_query_would_be_rewritten() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -531,6 +661,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNotNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_skip_is_filterable() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -546,30 +679,45 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'target=', $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
 	public function test_forward_is_redundant_for_allowlisted_page_being_served() {
 		$GLOBALS['pagenow'] = 'edit.php';
 
 		$this->assertTrue( openstation_portal_forward_is_redundant( '/wp-admin/edit.php?post_type=page' ) );
 	}
 
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
 	public function test_forward_is_not_redundant_when_pagenow_disagrees() {
 		$GLOBALS['pagenow'] = 'index.php';
 
 		$this->assertFalse( openstation_portal_forward_is_redundant( '/wp-admin/edit.php' ) );
 	}
 
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
 	public function test_forward_is_not_redundant_outside_the_admin_path() {
 		$GLOBALS['pagenow'] = 'index.php';
 
 		$this->assertFalse( openstation_portal_forward_is_redundant( '/blog/hello-world/' ) );
 	}
 
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
 	public function test_forward_is_not_redundant_without_a_request_uri() {
 		$GLOBALS['pagenow'] = 'index.php';
 
 		$this->assertFalse( openstation_portal_forward_is_redundant( '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_portal_forward_is_redundant
+	 */
 	public function test_forward_is_not_redundant_when_a_stripped_query_arg_is_present() {
 		$GLOBALS['pagenow'] = 'edit.php';
 		$_GET['target']     = '/wp-admin/index.php';
@@ -577,6 +725,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertFalse( openstation_portal_forward_is_redundant( '/wp-admin/edit.php' ) );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_preserves_percent_encoded_slashes() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -598,6 +749,10 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 * @covers ::openstation_sanitize_portal_target
+	 */
 	public function test_portal_target_preserves_percent_encoded_slashes() {
 		wp_set_current_user( self::$admin_id );
 
@@ -612,20 +767,24 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $redirect );
-
 		$target = $this->shell_target_of( $redirect );
 		$this->assertStringContainsString( 'plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php', $target );
 		$this->assertStringContainsString( 'action=activate', $target );
 		$this->assertStringContainsString( '_wpnonce=abc123', $target );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_portal_target
+	 */
 	public function test_sanitize_target_rejects_page_less_admin_php() {
 		$this->assertSame( '', openstation_sanitize_portal_target( '/wp-admin/admin.php' ) );
 		$this->assertSame( '', openstation_sanitize_portal_target( '/wp-admin/admin.php?page=' ) );
-
 		$this->assertSame( '', openstation_sanitize_portal_target( '/wp-admin/admin.php?action=edit&id=7' ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_portal_target
+	 */
 	public function test_sanitize_target_keeps_admin_php_with_a_page() {
 		$this->assertSame(
 			admin_url( 'admin.php?page=jetpack' ),
@@ -633,6 +792,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_does_not_target_a_page_less_admin_php() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -685,6 +847,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertSame( admin_url( $target_path ), openstation_portal_entry_url( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_portal_bare_visit_omits_intent_flag() {
 		wp_set_current_user( self::$admin_id );
 
@@ -696,6 +861,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'intent=', $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_portal_target_redirect_carries_intent_flag() {
 		wp_set_current_user( self::$admin_id );
 		$raw_uri                = '/wp-admin/post.php?post=104&action=edit';
@@ -717,6 +885,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'intent=1', $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 */
 	public function test_portal_invalid_target_does_not_set_intent_flag() {
 		wp_set_current_user( self::$admin_id );
 		$_GET['target']         = '/somewhere-not-admin/foo.php';
@@ -733,9 +904,12 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'intent=', $redirect );
 	}
 
+	/**
+	 * @covers ::openstation_handle_portal_request
+	 * @covers ::openstation_sanitize_portal_target
+	 */
 	public function test_portal_target_with_existing_intent_flag_is_normalised() {
 		wp_set_current_user( self::$admin_id );
-
 		$raw_uri                = '/wp-admin/edit.php?post_type=page&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
 		$_GET['target']         = $raw_uri;
 		$_SERVER['REQUEST_URI'] = '/openstation/?target=' . rawurlencode( $raw_uri );
@@ -747,11 +921,13 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		}
 
 		$this->assertNotNull( $redirect );
-
 		$this->assertStringNotContainsString( OPENSTATION_PORTAL_INTENT_FLAG, $this->shell_target_of( $redirect ) );
 		$this->assertSame( 1, substr_count( $redirect, 'intent=1' ) );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_noop_on_a_subresource_fetch() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -764,6 +940,9 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
+	/**
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 */
 	public function test_admin_redirect_still_forwards_a_navigation_to_the_same_screen() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );

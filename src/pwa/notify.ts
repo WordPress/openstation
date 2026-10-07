@@ -3,26 +3,17 @@ import { showToast } from '../toast';
 import { updatePwaState } from './state';
 
 export interface NotifyOptions {
-
 	title: string;
-
 	body?: string;
-
 	icon?: string;
-
 	tag?: string;
-
 	requireInteraction?: boolean;
-
 	onClick?: ( notification: Notification ) => void;
-
 	meta?: Record< string, unknown >;
 }
 
 export interface NotifyIntent extends NotifyOptions {
-
 	source?: string;
-
 	cancel?: boolean;
 }
 

@@ -29,14 +29,12 @@
 	position: absolute;
 	inset: 0;
 	background-color: var( --os-ui-scrim, rgba( 0, 0, 0, 0.36 ) );
-
 	background-image: var( --os-ui-scrim-image, none );
 	background-repeat: var( --os-ui-scrim-image-repeat, repeat );
 	background-size: var( --os-ui-scrim-image-size, auto );
 	background-position: var( --os-ui-scrim-image-position, center );
 	backdrop-filter: blur( 8px ) saturate( 0.75 );
 	-webkit-backdrop-filter: blur( 8px ) saturate( 0.75 );
-
 	pointer-events: none;
 }
 
@@ -49,7 +47,6 @@
 		--os-ai-panel-bg,
 		var( --os-ui-surface, rgba( 255, 255, 255, 0.97 ) )
 	);
-
 	background-image: var( --os-ui-dialog-bg-image, none );
 	background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
 	background-size: var( --os-ui-dialog-bg-image-size, auto );
@@ -100,7 +97,6 @@
 }
 
 .os-ai__mode.is-active {
-
 	background: var( --os-ui-surface-elevated, var( --os-ui-surface, #fff ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.12 );
@@ -116,7 +112,6 @@
 	align-items: center;
 	gap: 10px;
 	padding: 14px 16px;
-
 	border-bottom: 1px solid transparent;
 	transition: border-color 0.15s ease;
 }
@@ -155,7 +150,6 @@
 	outline: none;
 	box-shadow: none;
 	padding: 0;
-
 	min-height: 30px;
 	background: transparent;
 	font: inherit;
@@ -185,7 +179,6 @@
 	height: 30px;
 	border: none;
 	border-radius: 8px;
-
 	background-color: color-mix(
 		in srgb,
 		var( --wp-admin-theme-color, #2271b1 ) var( --os-ai-accent, 100% ),
@@ -643,7 +636,6 @@ body.os-active .os-ai__settings-link {
 	width: 36px;
 	height: 36px;
 	font-size: 20px;
-
 	color: var( --wp-admin-theme-color, #2271b1 );
 	background-color: color-mix(
 		in srgb,

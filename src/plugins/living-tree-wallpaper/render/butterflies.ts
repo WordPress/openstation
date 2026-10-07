@@ -15,9 +15,7 @@ interface Butterfly {
 	pos: Vec2;
 	vel: Vec2;
 	target: Vec2;
-
 	dwell: number;
-
 	perchable: boolean;
 	flapPhase: number;
 	bobPhase: number;
@@ -178,7 +176,6 @@ export class ButterflyLayer {
 			const start = this.pickTarget( rng );
 			sprite.x = start.point.x;
 			sprite.y = start.point.y;
-
 			this.layer.addChild( sprite );
 			this.butterflies.push( {
 				sprite,
@@ -254,7 +251,6 @@ export class ButterflyLayer {
 			b.flapPhase += dt * ( 13 + 3 * Math.sin( t * 0.9 + b.bobPhase ) );
 			b.sprite.x = b.pos.x;
 			b.sprite.y = b.pos.y;
-
 			b.sprite.scale.x =
 				b.scale * ( 0.3 + 0.7 * Math.abs( Math.cos( b.flapPhase ) ) );
 			b.sprite.rotation = Math.max( -0.35, Math.min( 0.35, b.vel.x * 0.005 ) );
@@ -279,7 +275,6 @@ export class ButterflyLayer {
 			try {
 				texture.destroy( true );
 			} catch {
-
 			}
 		}
 		this.textures.clear();

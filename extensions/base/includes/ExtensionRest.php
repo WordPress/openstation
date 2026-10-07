@@ -21,12 +21,10 @@ abstract class OpenStation_Extension_Rest {
 	public function register_routes(): void {
 		foreach ( $this->routes() as $route => $args ) {
 			if ( isset( $args['callback'] ) ) {
-
 				if ( empty( $args['permission_callback'] ) ) {
 					$args['permission_callback'] = array( $this, 'check_caps' );
 				}
 			} else {
-
 				foreach ( $args as $key => $endpoint ) {
 					if ( ! is_numeric( $key ) || ! is_array( $endpoint ) ) {
 						continue;

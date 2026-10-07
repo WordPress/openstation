@@ -20,26 +20,19 @@ const STEM_COLOR = 0x3f7a3f;
 interface Flower {
 	sprite: PixiSprite;
 	base: Vec2;
-
 	height: number;
 	phase: number;
 	scale: number;
 	alphaMax: number;
-
 	delay: number;
 	age: number;
 }
 
 export interface FlowerFieldOptions {
-
 	categories: number;
-
 	fieldHalf: number;
-
 	coverDepth: number;
-
 	trunkBase: number;
-
 	siteKey: string;
 }
 
@@ -195,7 +188,6 @@ function buildFlowerTexture(
 			ctx.arc( px, py, 11.5, 0, Math.PI * 2 );
 			ctx.fill();
 		}
-
 		ctx.fillStyle = css( 0x35222e );
 		ctx.beginPath();
 		ctx.arc( cx, headY, 5, 0, Math.PI * 2 );
@@ -224,7 +216,6 @@ function buildFlowerTexture(
 			ctx.bezierCurveTo(
 				bx + 7 * s, by - 9 * s, bx + 8 * s, by - 1 * s, bx + 6 * s, by + 5 * s,
 			);
-
 			ctx.quadraticCurveTo( bx + 3 * s, by + 3.4 * s, bx, by + 5.5 * s );
 			ctx.quadraticCurveTo( bx - 3 * s, by + 3.4 * s, bx - 6 * s, by + 5 * s );
 			ctx.bezierCurveTo(
@@ -312,14 +303,12 @@ export class FlowerField {
 				Math.max( 2, patch.y + ( ( rng() + rng() ) - 1 ) * opts.coverDepth * 0.3 ),
 				Math.max( 4, opts.coverDepth * 0.9 ),
 			);
-
 			const depth01 = Math.min( 1, y / Math.max( 8, opts.coverDepth ) );
 			const height = ( 21 + rng() * 13 ) * ( 0.72 + depth01 * 0.38 );
 			const sprite = new this.pixi.Sprite( texture );
 			sprite.anchor.set( 0.5, 1 );
 			const scale = height / ( TEX_H * 0.78 );
 			sprite.scale.set( scale );
-
 			if ( rng() < 0.5 ) {
 				sprite.scale.x = -scale;
 			}
@@ -354,7 +343,6 @@ export class FlowerField {
 				continue;
 			}
 			const w = displace( flower.base.x, flower.base.y - flower.height );
-
 			const give = Math.min( 0.2, Math.abs( w.x ) * 0.012 ) * ( w.x < 0 ? -1 : 1 );
 			flower.sprite.rotation =
 				give * ( flower.height / 28 ) +
@@ -387,7 +375,6 @@ export class FlowerField {
 			try {
 				texture.destroy( true );
 			} catch {
-
 			}
 		}
 		this.textures.clear();

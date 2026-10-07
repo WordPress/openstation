@@ -64,7 +64,6 @@ function openstation_code_editor_iter_workspace_php_files() {
 	$filter_iter = new RecursiveCallbackFilterIterator(
 		$dir_iter,
 		static function ( $entry ) use ( $skip_dirs ) {
-
 			$name = $entry->getFilename();
 			if ( '' === $name || '.' === $name[0] ) {
 				return false;
@@ -78,7 +77,6 @@ function openstation_code_editor_iter_workspace_php_files() {
 	$it = new RecursiveIteratorIterator( $filter_iter );
 
 	foreach ( $it as $file ) {
-
 		if ( ! $file->isFile() ) {
 			continue;
 		}
@@ -86,7 +84,7 @@ function openstation_code_editor_iter_workspace_php_files() {
 			continue;
 		}
 		$path = $file->getPathname();
-
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors
 		if ( '' !== $skip_re && @preg_match( $skip_re, $file->getFilename() ) ) {
 			continue;
 		}
@@ -95,12 +93,12 @@ function openstation_code_editor_iter_workspace_php_files() {
 }
 
 function openstation_code_editor_scan_workspace_file( $absolute_path ) {
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	$source = @file_get_contents( $absolute_path );
 	if ( false === $source ) {
 		return array();
 	}
-	$tokens = @token_get_all( $source );
+	$tokens = @token_get_all( $source ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 	if ( ! is_array( $tokens ) ) {
 		return array();
 	}
@@ -281,6 +279,7 @@ function openstation_code_editor_refresh_workspace_index( $file_budget = 200 ) {
 		$rel          = openstation_code_editor_path_to_relative( $abs );
 		$seen[ $rel ] = true;
 
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors
 		$mtime        = (int) @filemtime( $abs );
 		$cached_mtime = isset( $files[ $rel ]['mtime'] ) ? (int) $files[ $rel ]['mtime'] : 0;
 
@@ -322,7 +321,7 @@ function openstation_code_editor_refresh_workspace_file( $absolute_path ) {
 		unset( $files[ $rel ] );
 	} else {
 		$files[ $rel ] = array(
-
+			// phpcs:ignore WordPress.PHP.NoSilencedErrors
 			'mtime'   => (int) @filemtime( $absolute_path ),
 			'symbols' => openstation_code_editor_scan_workspace_file( $absolute_path ),
 		);

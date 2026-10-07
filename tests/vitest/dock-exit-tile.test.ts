@@ -31,7 +31,6 @@ describe( 'the Exit OpenStation tile', () => {
 	} );
 
 	test( 'keeps the id the stylesheet selects on', () => {
-
 		expect( EXIT_OPENSTATION_TILE_ID ).toBe( 'os-exit' );
 	} );
 
@@ -54,7 +53,6 @@ describe( 'the Exit OpenStation tile', () => {
 			`.os-dock__item[ data-system-id="${ EXIT_OPENSTATION_TILE_ID }" ]`,
 		);
 		expect( tile ).not.toBeNull();
-
 		expect(
 			tile!.querySelector( '.os-dock__item-primary' ),
 		).not.toBeNull();
@@ -63,7 +61,6 @@ describe( 'the Exit OpenStation tile', () => {
 	} );
 
 	test( 'sits in the same pinned group as the other system tiles', () => {
-
 		const dock = new Dock(
 			container,
 			makeManagerStub(),

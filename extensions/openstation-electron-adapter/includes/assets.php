@@ -12,7 +12,6 @@ function openstation_electron_register_assets() {
 		OPENSTATION_ELECTRON_URL . $script,
 		array( 'openstation' ),
 		file_exists( $path ) ? (string) filemtime( $path ) : OPENSTATION_ELECTRON_VERSION,
-
 		array(
 			'in_footer' => true,
 			'strategy'  => 'defer',

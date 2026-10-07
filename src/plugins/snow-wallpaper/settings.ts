@@ -1,11 +1,7 @@
 export interface SnowSettings {
-
 	wind: number;
-
 	particleCount: number;
-
 	flakeSize: number;
-
 	background: string;
 }
 

@@ -67,9 +67,7 @@ const ICON_TRASH = osIconSvg( 'trash', { size: 20 } );
 
 export interface NotesLayerOptions {
 	host: HTMLElement;
-
 	pluginUrl: string;
-
 	canCreatePosts?: boolean;
 	onError?: ( toast: ToastOptions ) => void;
 }
@@ -103,6 +101,7 @@ export class NotesLayer {
 			startNotesHeartbeat( this );
 		} catch ( error ) {
 			if ( error instanceof Error ) {
+				// eslint-disable-next-line no-console
 				console.debug( '[openstation] Pinned notes unavailable:', error.message );
 			}
 		}
@@ -202,14 +201,12 @@ export class NotesLayer {
 		text?: string;
 		color?: string;
 		isPublic?: boolean;
-
 		focus?: boolean;
 	} ): NoteController {
 		const text = options.text ?? '';
 		const color = sanitizeNoteColorSlug( options.color ?? NOTE_COLORS[ 0 ] );
 		const isPublic = options.isPublic === true;
 		const { x, y } = this.clampPosition( options.x, options.y );
-
 		const seed = hashNoteSeed( text || `${ x },${ y }` );
 
 		const tempId = this.nextTempId();
@@ -239,10 +236,8 @@ export class NotesLayer {
 		void createNote( { text, color, x, y, public: isPublic, seed } )
 			.then( ( note ) => {
 				this.bumpHighWater( note.updatedAtMs );
-
 				controller.replace( note );
 				this.rekeyNote( tempId, controller );
-
 				controller.flushPendingEdits();
 			} )
 			.catch( ( err: unknown ) => {
@@ -250,7 +245,7 @@ export class NotesLayer {
 				toastRestFailure( ( toast ) => this.notifyError( toast ), err, {
 					fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
 				} );
-
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] notes: create failed:', err );
 			} );
 
@@ -346,7 +341,6 @@ export class NotesLayer {
 				}
 			}
 		} catch {
-
 		}
 	}
 
@@ -395,7 +389,6 @@ export class NoteController {
 	private saveFailureShown = false;
 	private moveMode = false;
 	private moveOrigin: { x: number; y: number } | null = null;
-
 	private dragCleanup: ( () => void ) | null = null;
 	private lastPointer: { x: number; y: number } | null = null;
 
@@ -433,7 +426,7 @@ export class NoteController {
 			note.canEdit
 				? __( 'Pinned note', 'desktop-mode' )
 				: sprintf(
-
+					/* translators: %s: note author display name. */
 					__( 'Note by %s', 'desktop-mode' ),
 					note.ownerName,
 				),
@@ -457,7 +450,6 @@ export class NoteController {
 			this.pinEl.addEventListener( 'pointerdown', ( event ) =>
 				this.startDrag( event as PointerEvent ),
 			);
-
 			this.pinEl.addEventListener( 'click', ( event ) => {
 				if ( ( event as MouseEvent ).detail === 0 && ! this.moveMode ) {
 					this.toggleMoveMode();
@@ -518,7 +510,6 @@ export class NoteController {
 			convert.innerHTML = ICON_POST;
 			const convertLabel = __( 'Convert to a draft post', 'desktop-mode' );
 			convert.setAttribute( 'title', convertLabel );
-
 			convert.setAttribute( 'aria-label', convertLabel );
 			convert.addEventListener( 'os-button-activate', () =>
 				this.layer.convertNote( this.note ),
@@ -542,7 +533,6 @@ export class NoteController {
 		editor.setAttribute( 'auto-grow', '' );
 		editor.setAttribute( 'max-rows', '10' );
 		editor.setAttribute( 'value', this.note.text );
-
 		[ 'keydown', 'keypress', 'keyup' ].forEach( ( eventName ) => {
 			editor.addEventListener( eventName, ( event ) => event.stopPropagation() );
 		} );
@@ -570,7 +560,7 @@ export class NoteController {
 		const chip = document.createElement( 'div' );
 		chip.className = 'os-pinned-note__attribution';
 		chip.title = sprintf(
-
+			/* translators: %s: note author display name. */
 			__( 'Pinned by %s', 'desktop-mode' ),
 			this.note.ownerName,
 		);
@@ -593,7 +583,6 @@ export class NoteController {
 			return;
 		}
 		const next = nextNoteColor( this.note.color );
-
 		this.colorDot.style.setProperty(
 			'--dm-note-next-paper',
 			`var(--dm-note-${ next })`,
@@ -601,7 +590,7 @@ export class NoteController {
 		this.colorDot.setAttribute(
 			'aria-label',
 			sprintf(
-
+				/* translators: %s: next paper color name. */
 				__( 'Change paper color (next: %s)', 'desktop-mode' ),
 				next,
 			),
@@ -640,7 +629,6 @@ export class NoteController {
 		if ( idChanged ) {
 			this.element.dataset.noteId = String( note.id );
 		}
-
 		if ( seedChanged ) {
 			this.jitter = noteJitter( jitterSeed( note ) );
 			this.element.style.setProperty( '--dm-note-rot', `${ this.jitter.rotation }deg` );
@@ -830,7 +818,6 @@ export class NoteController {
 				if ( this.disposed ) {
 					return;
 				}
-
 				const publicChanged = saved.public !== this.note.public;
 				this.note = {
 					...this.note,
@@ -856,7 +843,7 @@ export class NoteController {
 					return;
 				}
 				this.setPhase( 'failed' );
-
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] notes: save failed:', err );
 				if ( ! this.saveFailureShown ) {
 					this.saveFailureShown = true;
@@ -876,7 +863,6 @@ export class NoteController {
 		if ( ! dragManager ) {
 			return;
 		}
-
 		event.preventDefault();
 		this.element.ownerDocument.defaultView
 			?.getSelection()
@@ -895,7 +881,6 @@ export class NoteController {
 				data,
 				ghost: {
 					element: ghost.root,
-
 					offsetX: ghost.tipX,
 					offsetY: ghost.tipY,
 					hint: {
@@ -916,7 +901,6 @@ export class NoteController {
 			},
 			onCommit: () => {
 				this.teardownDragListeners();
-
 				if ( this.layer.has( this.note.id ) ) {
 					void this.playInsertion( 0.7 );
 				}
@@ -932,7 +916,6 @@ export class NoteController {
 		const noteRect = this.element.getBoundingClientRect();
 		const pinImg = this.pinEl.querySelector( 'img' );
 		const pinRect = ( pinImg ?? this.pinEl ).getBoundingClientRect();
-
 		const tipX = pinRect.left - noteRect.left + pinRect.width * PIN_TIP_X;
 		const tipY = pinRect.top - noteRect.top + pinRect.height * PIN_TIP_Y;
 
@@ -950,7 +933,6 @@ export class NoteController {
 		pin.setAttribute( 'aria-hidden', 'true' );
 		const paper = this.paperEl.cloneNode( true ) as HTMLElement;
 		paper.classList.add( 'os-pinned-note-ghost__paper' );
-
 		swing.dataset.noteColor = this.element.dataset.noteColor ?? '';
 
 		swing.append( pin, paper );
@@ -1016,7 +998,6 @@ export class NoteController {
 			void this.playInsertion( 0.63 );
 			return;
 		}
-
 		const flyback = this.buildGhost();
 		flyback.root.classList.add( 'os-pinned-note-ghost--flyback' );
 		flyback.root.style.position = 'fixed';

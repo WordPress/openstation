@@ -42,7 +42,6 @@ describe( '<os-select> + <os-option>', () => {
 		expect(
 			opts.map( ( o ) => o.getAttribute( 'aria-selected' ) ),
 		).toEqual( [ 'false', 'true', 'false' ] );
-
 		expect( trigger( el ).textContent ).toContain( 'US Dollar' );
 	} );
 
@@ -84,7 +83,6 @@ describe( '<os-select> + <os-option>', () => {
 
 		trigger( el ).click();
 		await tick();
-
 		expect( popup( el ).hasAttribute( 'data-open' ) ).toBe( true );
 		expect( trigger( el ).getAttribute( 'aria-expanded' ) ).toBe( 'true' );
 
@@ -289,7 +287,6 @@ describe( '<os-select> + <os-option>', () => {
 		const sel = host.querySelector( 'os-select' ) as HTMLElement & {
 			items: ReadonlyArray< { value: string; label: string } >;
 		};
-
 		sel.items = [
 			{ value: 'm', label: 'Metres' },
 			{ value: 'km', label: 'Kilometres' },
@@ -348,9 +345,7 @@ describe( '<os-select> + <os-option>', () => {
 		const sel = host.querySelector( 'os-select' )!;
 		const svg = sel.shadowRoot!.querySelector( 'svg.os-select__chevron' );
 		expect( svg ).not.toBeNull();
-
 		expect( svg!.querySelector( 'path' ) ).not.toBeNull();
-
 		expect( sel.shadowRoot!.querySelector( '.dashicons' ) ).toBeNull();
 	} );
 
@@ -366,7 +361,6 @@ describe( '<os-select> + <os-option>', () => {
 		const checks = rows( el ).map(
 			( o ) => o.querySelector( 'svg.os-select__check' ) !== null,
 		);
-
 		expect( checks ).toEqual( [ true, true ] );
 		expect(
 			rows( el ).map( ( o ) => o.getAttribute( 'aria-selected' ) ),
@@ -431,12 +425,10 @@ describe( '<os-select> + <os-option>', () => {
 		const sel = detachedHost.querySelector( 'os-select' ) as HTMLElement & {
 			items: ReadonlyArray< { value: string; label: string } >;
 		};
-
 		sel.items = [
 			{ value: 'm', label: 'Metres' },
 			{ value: 'km', label: 'Kilometres' },
 		];
-
 		document.body.appendChild( detachedHost );
 
 		await tick();

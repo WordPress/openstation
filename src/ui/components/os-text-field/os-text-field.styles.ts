@@ -126,7 +126,6 @@ export const textFieldStyles = css`
 	.os-text-field__clear:focus-visible {
 		outline: none;
 		color: var( --os-ui-accent, #2271b1 );
-
 		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
 	}
 	.os-text-field__clear:disabled {
@@ -157,7 +156,6 @@ export const textFieldStyles = css`
 	.os-text-field__reveal:focus-visible {
 		outline: none;
 		color: var( --os-ui-accent, #2271b1 );
-
 		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
 		border-radius: 0 6px 6px 0;
 	}

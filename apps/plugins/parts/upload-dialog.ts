@@ -85,7 +85,7 @@ export function openUploadDialog(
 			fileLabel.hidden = ! file;
 			if ( file ) {
 				fileLabel.textContent = sprintf(
-
+					/* translators: 1: file name, 2: file size */
 					__( '%1$s · %2$s', 'desktop-mode' ),
 					file.name,
 					formatBytes( file.size ),
@@ -138,7 +138,6 @@ export function openUploadDialog(
 			overlay.remove();
 			resolve( result );
 		};
-
 		overlay.addEventListener( 'keydown', ( ev: KeyboardEvent ) => {
 			if ( ev.key === 'Escape' && ! uploading ) {
 				close( null );
@@ -190,7 +189,6 @@ export function openUploadDialog(
 			);
 			try {
 				const result = await host.rest.uploadPluginZip( pickedFile, { overwrite } );
-
 				void host.refresh();
 				host.broadcastChange( { plugin: result.plugin_file, action: 'install' } );
 				host.refreshMenu();
@@ -218,7 +216,7 @@ export function openUploadDialog(
 				}
 				showStatus(
 					sprintf(
-
+						/* translators: %s: error message from the upload handler */
 						__( 'Upload failed: %s', 'desktop-mode' ),
 						err instanceof Error ? err.message : String( err ),
 					),
@@ -241,7 +239,7 @@ export function openUploadDialog(
 			const name = result.plugin_name || result.plugin_file;
 			detail.textContent = result.plugin_version
 				? sprintf(
-
+					/* translators: 1: plugin name 2: plugin version */
 					__( '%1$s %2$s', 'desktop-mode' ),
 					name,
 					result.plugin_version,
@@ -270,7 +268,6 @@ export function openUploadDialog(
 				uploading = true;
 				const restore = setBusy( activateBtn );
 				closeBtn.setAttribute( 'disabled', '' );
-
 				const pluginFile = result.plugin_file.endsWith( '.php' )
 					? result.plugin_file.slice( 0, -4 )
 					: result.plugin_file;
@@ -285,7 +282,6 @@ export function openUploadDialog(
 						restore();
 						return;
 					}
-
 					successHeading.textContent = __( 'Plugin activated.', 'desktop-mode' );
 					activateBtn.remove();
 					closeBtn.setAttribute( 'variant', 'primary' );

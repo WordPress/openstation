@@ -13,7 +13,6 @@ export function ensureDeferredStyle( handle: string ): void {
 	if ( ! entry?.url ) {
 		return;
 	}
-
 	injected.add( handle );
 
 	const safeUrl = entry.url.replace( /\\/g, '\\\\' ).replace( /"/g, '\\"' );

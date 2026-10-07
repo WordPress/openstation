@@ -233,7 +233,6 @@ test.each( [ 'host', 'window' ] )( 'a detached %s releases current ownership wit
 	expect( layer.dataset.mioWindow ).toBeUndefined();
 	expect( originalWindow.querySelector( '.os-mio-residence' ) ).toBeNull();
 	await lease.openChat(); expect( window.openStationMountMioChat ).toHaveBeenCalledOnce();
-
 	if ( target === 'window' ) { document.body.append( originalWindow ); } else { originalWindow.append( context.host ); }
 	const replacement = residency.register( 'detached', context ); await flush();
 	lease.dispose(); expect( residency.getWindowId() ).toBe( 'detached' ); replacement.dispose();

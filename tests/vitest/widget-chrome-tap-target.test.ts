@@ -31,7 +31,6 @@ describe( 'widget chrome tap targets', () => {
 	} );
 
 	test( 'the two chrome siblings stay clear of each other', () => {
-
 		const chrome = /^\.os-widgets__chrome\s*\{([^}]*)\}/m.exec( DESKTOP );
 		expect( chrome, 'no .os-widgets__chrome rule' ).not.toBeNull();
 		const gap = /(?<!-)gap\s*:\s*([\d.]+)px/.exec( chrome![ 1 ] );
@@ -45,7 +44,6 @@ describe( 'widget chrome tap targets', () => {
 	} );
 
 	test( 'the reader can tell a short box from a tall one', () => {
-
 		expect( boxOf( '.os-widgets__grip' ) ).toEqual( { width: 10, height: 16 } );
 	} );
 } );

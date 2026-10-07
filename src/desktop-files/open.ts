@@ -3,11 +3,8 @@ import { resolveOpener, type OpenerContext } from './openers';
 import type { DesktopFile } from './file';
 
 export interface OpenDeps {
-
 	openUrl: ( args: { id: string; url: string; title: string; icon: string } ) => boolean;
-
 	openNativeWindow: ( id: string, config?: unknown ) => boolean;
-
 	deriveWindowId: ( url: string ) => string;
 }
 
@@ -29,6 +26,7 @@ export async function openFile(
 	ctx?: OpenerContext,
 ): Promise< boolean > {
 	if ( ! deps ) {
+		// eslint-disable-next-line no-console
 		console.warn(
 			'[openstation] wp.os.files.open() called before the shell installed open deps. The file will not open.',
 		);
@@ -69,7 +67,6 @@ export async function openFile(
 			doAction( 'os.files.opened', { file, openerId: opener.id, kind: 'window' } );
 			return opened;
 		}
-
 		await handler.open( file, ctx );
 		doAction( 'os.files.opened', { file, openerId: opener.id, kind: 'js' } );
 		return true;
@@ -81,7 +78,7 @@ export async function openFile(
 			openerId: opener.id,
 			error: err,
 		} );
-
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] file opener threw:', err );
 		return false;
 	}

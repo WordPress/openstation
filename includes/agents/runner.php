@@ -170,7 +170,7 @@ function openstation_agent_runner_check_invoker_rate_limit( $invoker_id ) {
 		return new WP_Error(
 			'openstation_agent_rate_limited',
 			sprintf(
-
+				/* translators: %d is the hourly per-user invocation cap. */
 				__( 'You reached your limit of %d agent runs this hour. Try again later.', 'desktop-mode' ),
 				$limit
 			),
@@ -184,7 +184,6 @@ function openstation_agent_runner_check_invoker_rate_limit( $invoker_id ) {
 function openstation_agent_runner_check_rate_limit( $agent_user_id ) {
 	$limit = openstation_agent_get_rate_limit( $agent_user_id );
 	if ( $limit <= 0 ) {
-
 		$limit = (int) apply_filters( 'openstation_agent_default_rate_limit', 60, $agent_user_id );
 	}
 	if ( $limit <= 0 ) {
@@ -198,7 +197,7 @@ function openstation_agent_runner_check_rate_limit( $agent_user_id ) {
 		return new WP_Error(
 			'openstation_agent_rate_limited',
 			sprintf(
-
+				/* translators: %d is the hourly invocation cap. */
 				__( 'This agent reached its limit of %d runs this hour. Try again later.', 'desktop-mode' ),
 				$limit
 			),
@@ -221,11 +220,9 @@ function openstation_agent_runner_build_tools( array $ability_slugs ) {
 		if ( ! $ability ) {
 			continue;
 		}
-
 		$schema = openstation_ai_normalize_tool_schema( $ability->get_input_schema() );
 		$name   = openstation_ai_ability_tool_name( (string) $slug );
 		if ( isset( $slug_by_name[ $name ] ) ) {
-
 			continue;
 		}
 		$slug_by_name[ $name ] = (string) $slug;
@@ -241,7 +238,6 @@ function openstation_agent_runner_build_tools( array $ability_slugs ) {
 }
 
 function openstation_agent_runner_loop( $agent_user_id, $instructions, $message, array $tool_defs, array $slug_by_name, array $prior = array() ) {
-
 	$history = array();
 	foreach ( $prior as $turn ) {
 		$history[] = array(
@@ -264,7 +260,6 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 		$turns_used = $turn;
 		$generated  = openstation_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
 		if ( is_wp_error( $generated ) && openstation_agent_generate_error_is_transient( $generated ) ) {
-
 			$generated = openstation_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
 		}
 		if ( is_wp_error( $generated ) ) {
@@ -276,7 +271,6 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 			: array();
 
 		if ( empty( $function_calls ) ) {
-
 			$text = isset( $generated['text'] ) && is_string( $generated['text'] ) ? $generated['text'] : '';
 			if ( '' === trim( $text ) ) {
 				return openstation_agent_humanize_generate_error(
@@ -315,7 +309,7 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 				? new WP_Error(
 					'openstation_agent_unknown_tool',
 					sprintf(
-
+						/* translators: %s is the tool name the model called. */
 						__( 'Tool "%s" is not on this agent\'s allowlist.', 'desktop-mode' ),
 						$name
 					)
@@ -323,7 +317,6 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 				: openstation_agent_runner_dispatch_tool( $slug, $args );
 
 			if ( ! is_wp_error( $output ) ) {
-
 				$output = apply_filters( 'openstation_agent_tool_result', $output, $slug, $args, $agent_user_id );
 			}
 
@@ -380,7 +373,7 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 	return new WP_Error(
 		'openstation_agent_runner_max_turns',
 		sprintf(
-
+			/* translators: %d is the number of turns the run made. */
 			__( 'Agent stopped after %d turns without a final answer.', 'desktop-mode' ),
 			$turns_used
 		)
@@ -433,7 +426,6 @@ function openstation_agent_answer_schema() {
 							'description' => 'The literal message sent back as the user\'s answer when this button is pressed.',
 						),
 					),
-
 					'required'             => array( 'id', 'label', 'style', 'reply' ),
 				),
 			),
@@ -511,7 +503,6 @@ function openstation_agent_parse_answer( $text ) {
 	$raw     = (string) $text;
 	$decoded = json_decode( trim( $raw ), true );
 	if ( ! is_array( $decoded ) ) {
-
 		if ( preg_match( '/^```(?:json)?\s*(\{.*\})\s*```$/s', trim( $raw ), $m ) ) {
 			$decoded = json_decode( $m[1], true );
 		}
@@ -585,7 +576,6 @@ function openstation_agent_humanize_generate_error( WP_Error $error ) {
 }
 
 function openstation_agent_runner_generate( $agent_user_id, array $history, array $tool_defs, $instructions ) {
-
 	$generated = apply_filters( 'openstation_agent_runner_generate', null, $history, $tool_defs, $instructions, $agent_user_id );
 	if ( null !== $generated ) {
 		return $generated;
@@ -608,7 +598,6 @@ function openstation_agent_runner_generate( $agent_user_id, array $history, arra
 				$agent_user_id,
 				$messages,
 				$tool_defs,
-
 				openstation_agent_answer_schema(),
 				(string) $instructions . "\n\n" . openstation_agent_answer_prompt_appendix(),
 				array( 'source' => 'agents/runner' )
@@ -627,7 +616,6 @@ function openstation_agent_apply_vibes( $instructions, $user_id ) {
 }
 
 function openstation_agent_with_http_timeout( callable $callback ) {
-
 	$timeout = (int) apply_filters( 'openstation_agent_http_timeout', OPENSTATION_AGENT_HTTP_TIMEOUT );
 
 	if ( $timeout <= 0 ) {
@@ -695,7 +683,6 @@ function openstation_agent_runner_compose_prompt( array $history ) {
 	$prompt = $base;
 
 	if ( ! empty( $prior ) ) {
-
 		$prompt = "Conversation so far, oldest first:\n"
 			. implode( "\n", $prior )
 			. "\n\nThe user's new message. Resolve any reference in it (\"it\", \"that post\", \"yes\") against the conversation above — never against a fresh search:\n"
@@ -768,13 +755,12 @@ function openstation_agent_runner_dispatch_tool( $slug, array $args ) {
 		return new WP_Error(
 			'openstation_agent_unknown_ability',
 			sprintf(
-
+				/* translators: %s is the ability slug. */
 				__( 'Ability "%s" is not registered on this site.', 'desktop-mode' ),
 				$slug
 			)
 		);
 	}
-
 	return $ability->execute( $args );
 }
 

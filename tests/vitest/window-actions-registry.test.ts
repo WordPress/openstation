@@ -116,7 +116,6 @@ describe( 'validation', () => {
 	} );
 
 	test( 'rejects checkable without a checked reader', () => {
-
 		expect( () =>
 			registerWindowAction( def( { checkable: true } ) ),
 		).toThrow();
@@ -188,7 +187,6 @@ describe( 'visibility', () => {
 	} );
 
 	test( 'a throwing predicate hides the row rather than breaking the menu', () => {
-
 		const isVisible = () => {
 			throw new Error( 'boom' );
 		};
@@ -212,7 +210,6 @@ describe( 'check state', () => {
 	} );
 
 	test( 'a throwing reader paints unchecked rather than dropping the row', () => {
-
 		const checked = () => {
 			throw new Error( 'boom' );
 		};

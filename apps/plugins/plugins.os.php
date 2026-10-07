@@ -51,7 +51,6 @@ function is_self( $plugin ) {
 }
 
 function mutate( $plugin, $status ) {
-
 	$caps    = openstation_plugins_window_caps();
 	$allowed = 'delete' === $status ? ! empty( $caps['delete'] ) : ! empty( $caps['activate'] );
 	if ( ! $allowed ) {
@@ -85,26 +84,25 @@ function run_single( Os $os, array $args, $status ) {
 	$result = mutate( $plugin, $status );
 	if ( ! $result['ok'] ) {
 		$failed = array(
-
+			/* translators: %s: error message */
 			'active'   => __( 'Activation failed: %s', 'desktop-mode' ),
-
+			/* translators: %s: error message */
 			'inactive' => __( 'Deactivation failed: %s', 'desktop-mode' ),
-
+			/* translators: %s: error message */
 			'delete'   => __( 'Delete failed: %s', 'desktop-mode' ),
 		);
 		$os->toast( sprintf( $failed[ $status ], $result['error'] ) );
 		return;
 	}
 	$done = array(
-
+		/* translators: %s: plugin name */
 		'active'   => __( '%s activated.', 'desktop-mode' ),
-
+		/* translators: %s: plugin name */
 		'inactive' => __( '%s deactivated.', 'desktop-mode' ),
-
+		/* translators: %s: plugin name */
 		'delete'   => __( '%s deleted.', 'desktop-mode' ),
 	);
 	if ( is_self( $plugin ) && 'active' !== $status ) {
-
 		return;
 	}
 	$os->toast( sprintf( $done[ $status ], $result['name'] ) );
@@ -155,10 +153,10 @@ function run_bulk( Os $os, array $args ) {
 		'delete'     => __( 'deleted', 'desktop-mode' ),
 	);
 	if ( 0 === $failed ) {
-
+		/* translators: 1: count, 2: action verb (activated, deactivated, deleted) */
 		$os->toast( sprintf( __( '%1$d plugin(s) %2$s.', 'desktop-mode' ), $succeeded, $nouns[ $verb ] ) );
 	} else {
-
+		/* translators: 1: success count, 2: failure count, 3: action verb */
 		$os->toast( sprintf( __( '%1$d %3$s, %2$d failed.', 'desktop-mode' ), $succeeded, $failed, $nouns[ $verb ] ) );
 	}
 	$os->refresh_menu();
@@ -169,42 +167,31 @@ return App::define( 'desktop-mode-plugins' )
 	->icon( 'dashicons-admin-plugins' )
 	->size( 1180, 760 )
 	->min_size( 760, 480 )
-
 	->placement( 'none' )
-
 	->can(
 		static function () {
 			return openstation_plugins_window_user_can_register();
 		}
 	)
-
 	->config(
 		array(
 			'ajaxUrl'        => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
-
 			'selfPluginFile' => substr( plugin_basename( OPENSTATION_FILE ), 0, -4 ),
-
 			'adminUrl'       => esc_url_raw( admin_url() ),
 		)
 	)
-
 	->config(
 		static function () {
 			return array(
 				'ajaxNonce'          => wp_create_nonce( 'desktop-mode-plugins' ),
-
 				'updatesNonce'       => wp_create_nonce( 'updates' ),
 				'caps'               => openstation_plugins_window_caps(),
-
 				'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
-
 				'deactivationFeedback' => openstation_deactivation_feedback_app_config(),
-
 				'editorUrl'          => openstation_plugins_window_editor_url(),
 			);
 		}
 	)
-
 	->menu(
 		'plugins.php',
 		static function () {
@@ -230,10 +217,8 @@ return App::define( 'desktop-mode-plugins' )
 		array(
 			'tab'           => 'installed',
 			'installedView' => 'cards',
-
 			'status'        => '',
 			'search'        => '',
-
 			'browse'        => 'featured',
 			'query'         => '',
 		)
@@ -241,7 +226,6 @@ return App::define( 'desktop-mode-plugins' )
 	->mount( __NAMESPACE__ . '\mount_plugins' )
 	->action( 'save_view', __NAMESPACE__ . '\save_installed_view' )
 	->action( 'reopen', __NAMESPACE__ . '\apply_tab' )
-
 	->action(
 		'reload',
 		static function ( State $state, Os $os ) {
@@ -275,7 +259,6 @@ return App::define( 'desktop-mode-plugins' )
 	)
 	->data(
 		static function () {
-
 			$result = openstation_app_rest( 'GET', 'wp/v2/plugins', array( 'context' => 'view' ) );
 			return array(
 				'installed' => $result['ok'] && is_array( $result['data'] ) ? array_values( $result['data'] ) : array(),

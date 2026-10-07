@@ -2,7 +2,6 @@ import { doAction } from '../hooks';
 import { attachDismissable } from '../desktop-files/dismissable';
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { clampToViewport } from '../ui/util/menu-position';
-
 export interface ActionMenuEntry {
 	id: string;
 	label: string;
@@ -20,17 +19,11 @@ let activeOnClosed: ( () => void ) | null = null;
 let openGeneration = 0;
 
 export interface ActionMenuOptions {
-
 	actions: ActionMenuEntry[];
-
 	dataset?: Record< string, string >;
-
 	className?: string;
-
 	scope?: string;
-
 	onOpened?: ( ids: string[] ) => void;
-
 	onClosed?: () => void;
 }
 
@@ -96,7 +89,6 @@ function openImmediate(
 	for ( const action of actions ) {
 		byId.set( action.id, action );
 		const opt = document.createElement( 'os-context-menu-option' );
-
 		opt.dataset.menuItemId = action.id;
 		opt.setAttribute( 'value', action.id );
 		if ( action.danger ) {
@@ -121,6 +113,7 @@ function openImmediate(
 		closeActionMenu();
 		void Promise.resolve( action.onClick( new MouseEvent( 'click' ) ) ).catch(
 			( err: unknown ) => {
+				// eslint-disable-next-line no-console
 				console.error(
 					`[openstation] menu action '${ action.id }' threw:`,
 					err,

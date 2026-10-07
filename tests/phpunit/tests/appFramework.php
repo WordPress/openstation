@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group app-framework
+ */
 
 use OpenStation\App;
 use OpenStation\App\Os;
@@ -31,7 +35,6 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 			}
 		}
 		$this->temp_paths = array();
-
 		foreach ( array_keys( openstation_apps_registry()->all() ) as $id ) {
 			openstation_unregister_icon( $id );
 			if ( 0 === strpos( $id, 'demo-host' ) ) {
@@ -94,6 +97,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 			);
 	}
 
+	/**
+	 * @covers \OpenStation\App\State::__construct
+	 */
 	public function test_state_admits_only_declared_keys_and_coerces_types() {
 		$state = new State(
 			array(
@@ -119,12 +125,15 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'rogue', $state->all() );
 	}
 
+	/**
+	 * @covers \OpenStation\App\State::__construct
+	 * @covers \OpenStation\App\State::contains
+	 */
 	public function test_state_typing_is_top_level_only_for_array_keys() {
 		$state = new State(
 			array( 'list' => array() ),
 			array( 'list' => array( 'nested' => array( 'deep' => array( 'x', 'y' ) ) ) )
 		);
-
 		$this->assertSame(
 			array( 'nested' => array( 'deep' => array( 'x', 'y' ) ) ),
 			$state->get( 'list' )
@@ -132,6 +141,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertFalse( $state->contains( 'list', 'x' ), 'A nested map is not a flat list.' );
 	}
 
+	/**
+	 * @covers \OpenStation\App\State::toggle_item
+	 */
 	public function test_state_toggle_item_adds_then_removes() {
 		$state = new State( array( 'open' => array() ) );
 		$state->toggle_item( 'open', 'a' )->toggle_item( 'open', 'b' );
@@ -142,6 +154,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertFalse( $state->has( 'nope' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Os::page
+	 */
 	public function test_os_page_builds_the_paged_list_envelope() {
 		$page = \OpenStation\App\Os::page( array( 'a', 'b' ), 41, 2, 20 );
 		$this->assertSame(
@@ -154,13 +169,15 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 			),
 			$page
 		);
-
 		$empty = \OpenStation\App\Os::page( array(), 0, 0, 0 );
 		$this->assertSame( 1, $empty['pages'] );
 		$this->assertSame( 1, $empty['page'] );
 		$this->assertSame( 1, $empty['perPage'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Os::facts
+	 */
 	public function test_os_facts_drops_valueless_rows_and_reindexes() {
 		$facts = \OpenStation\App\Os::facts(
 			array(
@@ -178,11 +195,13 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\App\Registry::load_dir
+	 */
 	public function test_registry_loads_app_files_and_resolves_the_conventional_stylesheet() {
 		$dir = trailingslashit( get_temp_dir() ) . 'os-apps-' . wp_generate_password( 6, false );
 		mkdir( $dir );
 		mkdir( $dir . '/nested' );
-
 		$this->temp_paths[] = $dir;
 		$this->temp_paths[] = $dir . '/nested';
 
@@ -210,6 +229,11 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertCount( 2, $registry->load_dir( $dir ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App::menu
+	 * @covers \OpenStation\App::menu_owns_dock
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_a_declared_menu_drives_the_tabs_the_state_and_the_config() {
 		$app = $this->demo_app()->menu(
 			'demo.php',
@@ -228,11 +252,8 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 
 		$this->assertSame( 'demo.php', $app->menu_slug() );
 		$this->assertSame( array( 'list', 'add', 'extra' ), wp_list_pluck( $app->menu_tabs(), 'id' ) );
-
 		$this->assertSame( array( 'demo.php', 'demo-new.php', '' ), wp_list_pluck( $app->menu_tabs(), 'page' ) );
-
 		$this->assertContains( 'reopen', $app->manifest()['lifecycle'] );
-
 		$this->assertSame( 'list', $app->defaults()['tab'] );
 		$this->assertSame( $app->menu_tabs(), $app->resolved_config()['menuTabs'] );
 
@@ -252,11 +273,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		};
 
 		$this->assertSame( 'extra', $land( 'mount', array( 'tab' => 'extra' ) )['state']['tab'] );
-
 		$reopened = $land( 'reopen', array( 'tab' => 'add' ), array( 'tab' => 'extra' ) );
 		$this->assertTrue( $reopened['ok'] );
 		$this->assertSame( 'add', $reopened['state']['tab'] );
-
 		$this->assertSame( 'list', $land( 'mount', array( 'tab' => 'nope' ) )['state']['tab'] );
 
 		$gated = $this->demo_app( 'demo-gated' )->menu( 'demo.php', array( 'list' => 'The list' ), '__return_false' );
@@ -264,6 +283,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( array( 'list' ), wp_list_pluck( $gated->menu_tabs(), 'id' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_runtime_mount_renders_the_view_with_defaults() {
 		$registry = new Registry();
 		$registry->add( $this->demo_app() );
@@ -276,6 +298,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( array(), $response['effects'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_runtime_runs_an_action_with_client_state_and_args_and_returns_effects() {
 		$registry = new Registry();
 		$registry->add( $this->demo_app() );
@@ -309,6 +334,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_runtime_set_rerenders_bound_state_without_a_handler() {
 		$registry = new Registry();
 		$registry->add( $this->demo_app() );
@@ -325,9 +353,11 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<p>bound</p>', $response['html'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_refresh_is_built_in_and_a_declared_handler_still_wins() {
 		$registry = new Registry();
-
 		$registry->add(
 			$this->demo_app()->data(
 				static function ( State $state ) {
@@ -335,7 +365,6 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 				}
 			)
 		);
-
 		$registry->add(
 			$this->demo_app( 'demo-declared' )->action(
 				'refresh',
@@ -356,6 +385,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( 'handled', $declared['state']['label'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_runtime_failures_carry_codes_and_statuses() {
 		$registry = new Registry();
 		$registry->add( $this->demo_app() );
@@ -380,6 +412,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( array( 'action_failed', 500, 'kaboom' ), array( $thrown['error'], $thrown['status'], $thrown['message'] ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::describe
+	 */
 	public function test_runtime_describe_returns_the_whole_window() {
 		$registry = new Registry();
 		$registry->add( $this->demo_app() );
@@ -393,6 +428,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<os-display value="2">', $whole['html'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_manifest_normalises_chrome_declarations() {
 		$manifest = $this->demo_app()->manifest();
 
@@ -405,6 +443,10 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( 'dock', $manifest['placement'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::tab
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_tabs_render_their_own_view_and_report_it_on_os() {
 		$app = $this->demo_app()
 			->tab(
@@ -445,6 +487,10 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( array( 'log' => '<p>tab:log:1</p>' ), $whole['tabs'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Os::param
+	 * @covers \OpenStation\App\Os::store
+	 */
 	public function test_params_and_storage_reach_the_app_through_os() {
 		$app = $this->demo_app()
 			->action(
@@ -473,6 +519,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( array( 'post' => 42 ), $os->params, 'Only scalar params are kept.' );
 	}
 
+	/**
+	 * @covers \OpenStation\App\WordPress\Store
+	 */
 	public function test_wordpress_store_round_trips_user_and_site_scopes() {
 		wp_set_current_user( self::$admin_id );
 		$store = new OpenStation\App\WordPress\Store();
@@ -488,6 +537,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertNull( $store->get( 'site', 'demo:b' ) );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Effects
+	 */
 	public function test_effects_are_normalised_for_the_wire() {
 		$os = Os::standalone();
 		$os->begin();
@@ -516,6 +568,10 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertTrue( $effects[5]['items'][1]['danger'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::on_channel
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_manifest_carries_channels_and_declared_lifecycle_handlers() {
 		$manifest = $this->demo_app()
 			->on_channel( 'refresh-please', 'reset' )
@@ -526,6 +582,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( array( 'resize', 'focus' ), $manifest['lifecycle'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::watch
+	 */
 	public function test_watch_normalises_and_dedupes_content_types() {
 		$manifest = $this->demo_app()
 			->watch( 'post', ' Page ', 'post', '' )
@@ -540,6 +599,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_apps_client_config
+	 */
 	public function test_host_ships_the_watch_list_to_the_runtime() {
 		wp_set_current_user( self::$admin_id );
 		openstation_apps_registry()->add( $this->demo_app( 'demo-host-watch' )->watch( 'post' ) );
@@ -548,6 +610,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( array( 'post' ), $entry['config']['watch'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\WordPress\Auth::can
+	 */
 	public function test_auth_forwards_meta_capability_object_args() {
 		$author_id = self::factory()->user->create( array( 'role' => 'author' ) );
 		$own       = self::factory()->post->create( array( 'post_author' => $author_id ) );
@@ -559,6 +624,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertFalse( $os->can( 'edit_post', $other ), 'An author cannot edit another user\'s post.' );
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_host_registers_tabs_as_window_tabs() {
 		wp_set_current_user( self::$admin_id );
 		openstation_apps_registry()->add(
@@ -590,22 +658,34 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( 'openstation-app-runtime', $entry['styles'][0] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::define
+	 */
 	public function test_invalid_ids_and_reserved_actions_are_rejected() {
 		$this->expectException( InvalidArgumentException::class );
 		App::define( 'Not Valid!' );
 	}
 
+	/**
+	 * @covers \OpenStation\App::action
+	 */
 	public function test_mount_is_a_reserved_action_name() {
 		$this->expectException( InvalidArgumentException::class );
 		App::define( 'ok' )->action( 'mount', '__return_null' );
 	}
 
+	/**
+	 * @covers \OpenStation\App::icon
+	 */
 	public function test_inline_svg_icons_become_data_uris() {
 		$manifest = App::define( 'svg' )->icon( '<svg xmlns="http://www.w3.org/2000/svg"></svg>' )->manifest();
 		$this->assertStringStartsWith( 'data:image/svg+xml;base64,', $manifest['icon'] );
 		$this->assertStringStartsWith( '<svg', $manifest['icon_svg'] );
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_host_registers_an_allowed_app_as_a_native_window_with_an_icon() {
 		wp_set_current_user( self::$admin_id );
 		openstation_apps_registry()->add(
@@ -619,7 +699,6 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( 300, $entry['width'] );
 		$this->assertTrue( $entry['config']['osApp'] );
 		$this->assertStringContainsString( '/desktop-mode/v1/apps/demo-host/dispatch', $entry['config']['endpoint'] );
-
 		$this->assertSame( rest_url(), $entry['config']['restRoot'] );
 		$this->assertSame( 'bump', $entry['config']['titleBarButtons'][0]['action'] );
 
@@ -633,14 +712,19 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( 3, $icon['position'] );
 	}
 
+	/**
+	 * @covers ::openstation_apps_register_windows
+	 */
 	public function test_host_skips_an_app_the_user_may_not_use() {
-
 		wp_set_current_user( self::$editor_id );
 		openstation_apps_registry()->add( $this->demo_app( 'demo-host-gated' )->capabilities( 'manage_options' ) );
 		openstation_apps_register_windows();
 		$this->assertNull( openstation_native_window_registry( 'demo-host-gated' ) );
 	}
 
+	/**
+	 * @covers ::openstation_apps_rest_dispatch
+	 */
 	public function test_rest_dispatch_runs_an_action_for_an_allowed_user() {
 		wp_set_current_user( self::$admin_id );
 		openstation_apps_registry()->add( $this->demo_app( 'demo-host' ) );
@@ -664,6 +748,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<os-display value="3">', $data['html'] );
 	}
 
+	/**
+	 * @covers ::openstation_apps_rest_permission
+	 */
 	public function test_rest_dispatch_refuses_outsiders_and_unknown_apps() {
 		openstation_apps_registry()->add( $this->demo_app( 'demo-host' )->capabilities( 'manage_options' ) );
 
@@ -687,6 +774,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( 401, rest_do_request( $request )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_apps_allowed_html
+	 */
 	public function test_kses_allowlist_admits_the_runtime_attributes() {
 		$allowed = openstation_native_window_allowed_html();
 		$this->assertTrue( $allowed['div']['os-action'] );
@@ -697,6 +787,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'os-key="k"', $kept );
 	}
 
+	/**
+	 * @covers ::openstation_app_render
+	 */
 	public function test_openstation_app_render_returns_the_whole_window() {
 		wp_set_current_user( self::$admin_id );
 		openstation_apps_registry()->add( $this->demo_app( 'demo-host' ) );
@@ -706,6 +799,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<os-display value="9">', $whole['html'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_manifest_carries_the_definition_file() {
 		$this->assertSame( '', $this->demo_app()->manifest()['file'], 'Built in code: no file.' );
 
@@ -721,6 +817,10 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertSame( realpath( $dir . '/on-disk.os.php' ), $registry->get( 'on-disk-app' )->manifest()['file'] );
 	}
 
+	/**
+	 * @covers ::openstation_apps_client_bundle
+	 * @covers ::openstation_apps_client_base
+	 */
 	public function test_client_bundle_resolves_from_the_definition_file_when_the_source_is_absent() {
 		$file = realpath( OPENSTATION_DIR . 'apps/code-blue/code-blue.os.php' );
 		$this->assertNotFalse( $file );
@@ -741,6 +841,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertFileExists( $bundle );
 	}
 
+	/**
+	 * @covers ::openstation_apps_client_bundle
+	 */
 	public function test_every_shipped_client_view_resolves_without_its_source() {
 		$checked = 0;
 		foreach ( openstation_apps_registry()->all() as $app ) {
@@ -757,6 +860,9 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $checked, 'At least one shipped app has a client view.' );
 	}
 
+	/**
+	 * @covers ::openstation_apps_client_base
+	 */
 	public function test_client_bundle_is_not_resolved_for_a_foreign_definition_file() {
 		$dir = trailingslashit( get_temp_dir() ) . 'os-apps-' . wp_generate_password( 6, false );
 		mkdir( $dir );

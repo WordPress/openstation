@@ -274,7 +274,6 @@ describe( 'MioController', () => {
 		const { appearance, physics } = controller.api().getConfig();
 		expect( appearance.glow ).toBe( 20 );
 		expect( appearance.saturation ).toBe( 0 );
-
 		expect( physics.shapePreset ).toBe( MIO_DEFAULTS.physics.shapePreset );
 		expect( physics.shapeAmount ).toBe( 1.4 );
 	} );
@@ -325,7 +324,6 @@ describe( 'MioController', () => {
 		expect( controller.api().getConfig().physics.shapePreset ).toBe(
 			MIO_DEFAULTS.physics.shapePreset,
 		);
-
 		expect( persistLook ).toHaveBeenLastCalledWith( {
 			appearance: {},
 			physics: {},
@@ -333,7 +331,6 @@ describe( 'MioController', () => {
 	} );
 
 	test( 'setConfig does NOT persist — only setStyle does', async () => {
-
 		const { MioController } = await load();
 		const persistLook = vi.fn();
 		const controller = new MioController( {
@@ -372,7 +369,6 @@ describe( 'MioController', () => {
 	} );
 
 	test( 'the look survives a controller with nowhere to persist it', async () => {
-
 		const { MioController } = await load();
 		const controller = new MioController( {
 			shell: shell(),
@@ -386,7 +382,6 @@ describe( 'MioController', () => {
 	} );
 
 	test( 'toggling off parks the instance rather than destroying it', async () => {
-
 		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
 		const persist = vi.fn();
@@ -404,13 +399,11 @@ describe( 'MioController', () => {
 		expect( persist ).toHaveBeenCalledWith( false );
 		expect( mount.handles[ 0 ].destroy ).not.toHaveBeenCalled();
 		expect( mount.handles[ 0 ].setAnimating ).toHaveBeenCalledWith( false );
-
 		const layer = document.getElementById( MIO_LAYER_ID );
 		expect( layer?.style.display ).toBe( 'none' );
 	} );
 
 	test( 'disabling records where Mio was, not where hiding leaves it', async () => {
-
 		const { MioController } = await load();
 		const mount = stubMount();
 		const controller = new MioController( {
@@ -433,7 +426,6 @@ describe( 'MioController', () => {
 	} );
 
 	test( 're-enabling wakes the parked instance, it does not build a new one', async () => {
-
 		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
 		const controller = new MioController( {
@@ -460,7 +452,6 @@ describe( 'MioController', () => {
 	test( 'a fast on-off-on cycle never leaves two mios behind', async () => {
 		const { MioController } = await load();
 		const mount = stubMount();
-
 		let release: () => void = () => undefined;
 		loadVendorScript.mockImplementation(
 			() =>
@@ -492,7 +483,6 @@ describe( 'MioController', () => {
 	test( 'a mount that loses the race cleans up its own layer', async () => {
 		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
-
 		mount.install();
 		const handles: Array< { destroy: ReturnType< typeof vi.fn > } > = [];
 		let disableMidMount: () => void = () => undefined;
@@ -561,9 +551,7 @@ describe( 'MioController', () => {
 		const config = controller.api().getConfig();
 		expect( config.appearance.radius ).toBe( 90 );
 		expect( config.appearance.hueStart ).toBe( 200 );
-
 		expect( config.physics.magnetStrength ).toBe( 0 );
-
 		expect( config.appearance.hueSpan ).toBe(
 			MIO_DEFAULTS.appearance.hueSpan,
 		);

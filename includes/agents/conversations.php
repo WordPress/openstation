@@ -179,7 +179,6 @@ function openstation_agent_conversation_prepare( WP_Post $post, $with_messages =
 		'agentDescription' => $agent ? (string) get_user_meta( $agent_id, '_desktop_mode_agent_description', true ) : '',
 		'agentAvatarUrl'   => function_exists( 'openstation_agent_avatar_url' ) ? openstation_agent_avatar_url( $agent_id ) : '',
 		'title'            => (string) $post->post_title,
-
 		'preview'          => openstation_agent_conversation_preview( $messages ),
 		'lastRole'         => is_array( $last ) && isset( $last['role'] ) ? (string) $last['role'] : '',
 		'messageCount'     => count( $messages ),
@@ -280,7 +279,6 @@ function openstation_agent_conversation_preserve_text( $data, $postarr, $unsanit
 			continue;
 		}
 		$data[ $field ] = $unsanitized_postarr[ $field ];
-
 		if ( in_array( $wpdb->get_col_charset( $wpdb->posts, $field ), array( 'utf8', 'utf8mb3' ), true ) ) {
 			$data[ $field ] = wp_encode_emoji( $data[ $field ] );
 		}
@@ -313,7 +311,6 @@ function openstation_agents_rest_conversations_create( WP_REST_Request $request 
 			'post_type'    => OPENSTATION_AGENT_CHAT_POST_TYPE,
 			'post_status'  => 'publish',
 			'post_author'  => get_current_user_id(),
-
 			'post_title'   => wp_slash( openstation_agent_conversation_title( $messages ) ),
 			'post_content' => wp_slash( (string) wp_json_encode( $messages ) ),
 		),
@@ -394,7 +391,6 @@ function openstation_agent_conversation_not_found() {
 }
 
 function openstation_agent_conversation_cap() {
-
 	return max( 1, (int) apply_filters( 'openstation_agent_conversation_cap', OPENSTATION_AGENT_CONVERSATION_CAP ) );
 }
 
@@ -405,9 +401,7 @@ function openstation_agent_conversations_prune( $user_id ) {
 			'post_type'        => OPENSTATION_AGENT_CHAT_POST_TYPE,
 			'post_status'      => 'publish',
 			'author'           => (int) $user_id,
-
 			'numberposts'      => $cap + 10,
-
 			'orderby'          => array(
 				'modified' => 'DESC',
 				'ID'       => 'DESC',

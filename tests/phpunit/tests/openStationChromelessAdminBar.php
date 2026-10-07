@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_ChromelessAdminBar extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -21,6 +23,9 @@ class Tests_OpenStation_ChromelessAdminBar extends WP_UnitTestCase {
 		$_GET['openstation_chromeless'] = '1';
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_silence_admin_bar
+	 */
 	public function test_shell_keeps_the_real_admin_bar_class() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -31,6 +36,9 @@ class Tests_OpenStation_ChromelessAdminBar extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_silence_admin_bar
+	 */
 	public function test_window_gets_the_silent_class() {
 		$this->enter_chromeless();
 		require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
@@ -41,6 +49,9 @@ class Tests_OpenStation_ChromelessAdminBar extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers OpenStation_Silent_Admin_Bar::add_menus
+	 */
 	public function test_the_silent_class_never_fires_admin_bar_menu() {
 		$this->enter_chromeless();
 		require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
@@ -61,6 +72,9 @@ class Tests_OpenStation_ChromelessAdminBar extends WP_UnitTestCase {
 		$this->assertSame( 0, $fired );
 	}
 
+	/**
+	 * @covers OpenStation_Silent_Admin_Bar::add_menus
+	 */
 	public function test_the_silent_class_is_still_a_working_admin_bar() {
 		$this->enter_chromeless();
 		require_once ABSPATH . WPINC . '/class-wp-admin-bar.php';
@@ -79,6 +93,9 @@ class Tests_OpenStation_ChromelessAdminBar extends WP_UnitTestCase {
 		$this->assertNotNull( $bar->get_node( 'os-test-node' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_silence_admin_bar
+	 */
 	public function test_silencing_can_be_filtered_off() {
 		$this->enter_chromeless();
 		add_filter( 'openstation_chromeless_silence_admin_bar', '__return_false' );

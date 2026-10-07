@@ -3,14 +3,10 @@ import { getWorkArea, WORK_AREA_GAP } from '../work-area';
 import type { WidgetDef } from './types';
 
 interface OpenPickerOptions {
-
 	anchor: HTMLElement;
-
 	registry: () => WidgetDef[];
 	enabledIds: () => string[];
-
 	onAdd: ( id: string ) => void;
-
 	onClose?: () => void;
 }
 
@@ -55,7 +51,6 @@ export function openWidgetPicker( options: OpenPickerOptions ): void {
 		}
 		closeWidgetPicker();
 	};
-
 	window.setTimeout( () => {
 		document.addEventListener( 'pointerdown', onOutsidePointerDown, true );
 	}, 0 );
@@ -136,8 +131,10 @@ function paintList(
 		entry.setAttribute( 'role', 'menuitem' );
 		let ariaLabel;
 		if ( isAdded ) {
+			// translators: %s is the widget label
 			ariaLabel = sprintf( __( '%s (already added)' ), def.label );
 		} else {
+			// translators: %s is the widget label
 			ariaLabel = sprintf( __( 'Add %s' ), def.label );
 		}
 		entry.setAttribute( 'aria-label', ariaLabel );
@@ -173,7 +170,6 @@ function paintList(
 			entry.addEventListener( 'click', ( e ) => {
 				e.preventDefault();
 				e.stopPropagation();
-
 				options.onAdd( def.id );
 			} );
 		}
@@ -192,7 +188,6 @@ interface ViewportBox {
 export interface WidgetPickerPlacement {
 	left: number;
 	top: number;
-
 	maxHeight: number | null;
 }
 
@@ -249,7 +244,6 @@ function positionPanel(
 ): void {
 	const rect = anchor.getBoundingClientRect();
 	panel.style.position = 'fixed';
-
 	panel.style.left = '0px';
 	panel.style.top = '0px';
 	panel.style.maxHeight = '';

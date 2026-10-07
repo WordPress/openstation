@@ -23,7 +23,6 @@ interface ClusterLeaf {
 	baseRotation: number;
 	phase: number;
 	alphaMax: number;
-
 	behind: boolean;
 }
 
@@ -32,7 +31,6 @@ interface Cluster {
 	compliance: number;
 	radius: number;
 	leaves: ClusterLeaf[];
-
 	delay: number;
 	age: number;
 	phase: number;
@@ -102,7 +100,6 @@ function buildLeafClusterTexture(
 	if ( ! ctx ) {
 		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
 	}
-
 	let s = 2654435769 + seedIndex * 2246822519;
 	const rand = (): number => {
 		s = ( s * 1664525 + 1013904223 ) % 4294967296;
@@ -207,7 +204,6 @@ export class LeafGenerator {
 			treeTop = Math.max( treeTop, -node.pos.y );
 		}
 		const shootRadius = leafyShootRadius( trunkBase );
-
 		const minLeafDepth = Math.min( 1, deepest );
 		const isLeaderTip = ( node: BranchNode ): boolean =>
 			node.depth === 0 &&
@@ -217,7 +213,6 @@ export class LeafGenerator {
 			x: number;
 			y: number;
 			compliance: number;
-
 			inner?: boolean;
 		} > = [];
 		for ( let idx = 1; idx < nodes.length; idx++ ) {
@@ -228,7 +223,6 @@ export class LeafGenerator {
 			) {
 				continue;
 			}
-
 			if ( node.radius > shootRadius ) {
 				if ( node.radius <= trunkBase * 0.62 && node.depth >= 1 ) {
 					points.push( {
@@ -266,7 +260,6 @@ export class LeafGenerator {
 			Math.round( computeLeafBudget( hormones.foliage01 ) * vigorFill * 2.2 ),
 			points.length * LEAVES_PER_CLUSTER * 2,
 		);
-
 		const clusterCount = Math.min( points.length, Math.max( 1, Math.floor( budget / 2 ) ) );
 		const perCluster = Math.max( 2, Math.round( budget / clusterCount ) );
 		const meanVisits = Math.max( 1, snapshot.traffic / Math.max( 1, snapshot.totalPosts ) );
@@ -286,7 +279,6 @@ export class LeafGenerator {
 				x: anchor.x + ( rng() * 2 - 1 ) * 6 * leafScale,
 				y: anchor.y + ( rng() * 2 - 1 ) * 6 * leafScale - clusterRadius * 0.2,
 			};
-
 			const hue = baseHue + ( rng() * 2 - 1 ) * TUFT_HUE_JITTER;
 			const clusterAge = rng() * Math.max( 30, snapshot.siteAgeDays );
 			const baseColor = leafColor( hue, hormones.health01, clusterAge );
@@ -307,7 +299,6 @@ export class LeafGenerator {
 				const dx = Math.cos( angle ) * dist;
 				const dy = Math.sin( angle ) * dist * 0.82;
 				const visits = meanVisits * ( 0.25 + rng() * 1.5 );
-
 				const size =
 					( 22 + Math.log1p( visits ) * 5 ) * ( 0.75 + rng() * 0.5 ) * leafScale;
 
@@ -317,7 +308,6 @@ export class LeafGenerator {
 					clusterTextureList[ Math.floor( rng() * clusterTextureList.length ) ],
 				);
 				sprite.anchor.set( 0.5 );
-
 				let lightBase = behind ? 0.42 : 0.78;
 				if ( anchor.inner === true ) {
 					lightBase = 0.34;
@@ -355,7 +345,6 @@ export class LeafGenerator {
 			if ( reveal <= 0 ) {
 				continue;
 			}
-
 			const w = wind.sample( cluster.center.x, cluster.center.y, t );
 			const cxNow = cluster.center.x + w.x * cluster.compliance;
 			const cyNow = cluster.center.y + w.y * cluster.compliance;
@@ -399,7 +388,6 @@ export class LeafGenerator {
 						x: cluster.center.x + leaf.dx,
 						y: cluster.center.y + leaf.dy,
 						tint: leaf.sprite.tint,
-
 						size: leaf.sprite.scale.x * CLUSTER_TEX_SIZE * 0.42,
 					} );
 				}

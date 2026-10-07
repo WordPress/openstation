@@ -123,7 +123,6 @@ export class OsCategoryPicker extends Component {
 				detail: '{ id: number; name: string }',
 			},
 		],
-
 		example: html`
 			<os-category-picker placeholder="Search categories…"></os-category-picker>
 		`,
@@ -148,7 +147,6 @@ export class OsCategoryPicker extends Component {
 	private _items: OsCategoryItem[] = [];
 	private _value: number[] = [];
 	private _query = '';
-
 	private _collapsed: Set< number > = new Set();
 	private _focusedRow = -1;
 
@@ -182,7 +180,6 @@ export class OsCategoryPicker extends Component {
 		( this as unknown as { open: string } ).open = '';
 		this._query = '';
 		this._focusedRow = 0;
-
 		this.emit( 'os-categories-open', {} );
 		queueMicrotask( () => {
 			this._positionPopover();
@@ -205,7 +202,6 @@ export class OsCategoryPicker extends Component {
 		super.connectedCallback();
 		document.addEventListener( 'pointerdown', this._onDocPointerDown, true );
 		document.addEventListener( 'keydown', this._onDocKeydown, true );
-
 		window.addEventListener( 'resize', this._onLayoutChange, { passive: true } );
 		window.addEventListener( 'scroll', this._onLayoutChange, {
 			passive: true,
@@ -338,7 +334,6 @@ export class OsCategoryPicker extends Component {
 				}
 				cursor = byId.get( cursor.parent );
 			}
-
 			const segments = path.map( ( item ) => ( {
 				id: item.id,
 				name: item.name,
@@ -354,7 +349,6 @@ export class OsCategoryPicker extends Component {
 		disabled: boolean,
 	) {
 		const removable = ! readonly && ! disabled;
-
 		const onRemove = ( e: Event ): void => {
 			e.stopPropagation();
 			const detail = ( e as CustomEvent< { index?: number } > ).detail;
@@ -376,7 +370,6 @@ export class OsCategoryPicker extends Component {
 			}
 			this.emit( 'os-categories-change', { value: next } );
 		};
-
 		const el = document.createElement( 'os-crumb-chain' ) as OsCrumbChain;
 		el.segments = chain.segments;
 		if ( removable ) {
@@ -408,7 +401,6 @@ export class OsCategoryPicker extends Component {
 		const tree = this._buildTree();
 		const filtered = this._filterTree( tree, this._query );
 		const flat = this._flattenForDisplay( filtered );
-
 		if ( this._focusedRow >= flat.length ) {
 			this._focusedRow = flat.length > 0 ? flat.length - 1 : -1;
 		}
@@ -590,7 +582,6 @@ export class OsCategoryPicker extends Component {
 		} else {
 			this._creatingValues.set( parentId, value );
 		}
-
 		this.requestUpdate();
 	}
 
@@ -643,7 +634,6 @@ export class OsCategoryPicker extends Component {
 				roots.push( node );
 			}
 		}
-
 		const setDepth = ( node: TreeNode, depth: number ): void => {
 			node.depth = depth;
 			for ( const child of node.children ) {
@@ -653,7 +643,6 @@ export class OsCategoryPicker extends Component {
 		for ( const root of roots ) {
 			setDepth( root, 0 );
 		}
-
 		const sortRecursive = ( nodes: TreeNode[] ): void => {
 			nodes.sort( ( a, b ) => {
 				const aUncat = _isUncategorized( a.item );
@@ -718,7 +707,6 @@ export class OsCategoryPicker extends Component {
 					visible: true,
 					hasChildren: node.children.length > 0,
 				} );
-
 				const collapsed = this._collapsed.has( node.item.id ) && ! isSearching;
 				if ( ! collapsed && node.children.length > 0 ) {
 					walk( node.children );
@@ -734,7 +722,6 @@ export class OsCategoryPicker extends Component {
 		for ( const item of this._items ) {
 			byId.set( item.id, item );
 		}
-
 		const real: OsCategoryItem[] = [];
 		const uncatItems: OsCategoryItem[] = [];
 		for ( const id of this._value ) {
@@ -751,7 +738,6 @@ export class OsCategoryPicker extends Component {
 				real.push( item );
 			}
 		}
-
 		if ( real.length > 0 ) {
 			return real;
 		}
@@ -837,7 +823,6 @@ export class OsCategoryPicker extends Component {
 					return;
 				}
 				const entry = flat[ this._focusedRow ];
-
 				if ( entry.hasChildren && this._collapsed.has( entry.node.item.id ) ) {
 					e.preventDefault();
 					this._toggleExpand( entry.node.item.id );
@@ -849,7 +834,6 @@ export class OsCategoryPicker extends Component {
 					return;
 				}
 				const entry = flat[ this._focusedRow ];
-
 				if ( entry.hasChildren && ! this._collapsed.has( entry.node.item.id ) ) {
 					e.preventDefault();
 					this._toggleExpand( entry.node.item.id );

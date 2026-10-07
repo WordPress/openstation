@@ -9,51 +9,41 @@ export interface RequestObservation {
 	status: number;
 	duration: number;
 	failed: boolean;
-
 	requestHeaders?: Record< string, string >;
-
 	responseHeaders?: Record< string, string >;
 }
 
 export interface OnRequestOptions {
-
 	observe?: boolean;
 }
 
 export type RequestObserver = ( obs: RequestObservation ) => void;
 
 export interface ReloadWithDebugSessionOptions {
-
 	queryArg?: string;
-
 	headerName?: string;
 }
 
 export interface ReloadWithDebugSessionResult {
-
 	dispose: () => void;
 }
 
 export interface DevtoolsApi {
-
 	addRequestHeader: (
 		windowId: string,
 		name: string,
 		value: HeaderValue,
 	) => () => void;
-
 	onRequest: (
 		windowId: string,
 		cb: RequestObserver,
 		opts?: OnRequestOptions,
 	) => () => void;
-
 	reloadWithDebugSession: (
 		windowId: string,
 		sessionId: string,
 		opts?: ReloadWithDebugSessionOptions,
 	) => ReloadWithDebugSessionResult | null;
-
 	debug: DebugBusApi;
 }
 
@@ -65,11 +55,8 @@ export interface DebugEvent {
 }
 
 export interface DebugBusApi {
-
 	startSession: () => string;
-
 	publish: ( sessionId: string, channel: string, payload: unknown ) => void;
-
 	subscribe: (
 		sessionId: string,
 		channel: string,
@@ -85,9 +72,7 @@ interface WindowState {
 	headers: Map< string, HeaderContribution[] >;
 	observers: Set< RequestObserver >;
 	observeCount: number;
-
 	loadHandler: ( () => void ) | null;
-
 	loadHandlerTarget: HTMLIFrameElement | null;
 }
 
@@ -211,7 +196,6 @@ function pushInstrumentation( windowId: string ): void {
 			INITIAL_ORIGIN,
 		);
 	} catch {
-
 	}
 }
 
@@ -238,12 +222,12 @@ addAction(
 			try {
 				cb( p );
 			} catch {
-
 			}
 		}
 	},
 );
 
+/* istanbul ignore next — re-exported only for tests / advanced users */
 export function _resetDevtoolsForTests(): void {
 	states.clear();
 	removeAction( HOOKS.IFRAME_READY, 'desktop-mode/devtools/replay' );
@@ -266,7 +250,6 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 		return;
 	}
 	sp.inflight = true;
-
 	const u = new URL( restUrl + 'desktop-mode/v1/debug', window.location.origin );
 	u.searchParams.set( 'sessionId', sessionId );
 	u.searchParams.set( 'since', String( sp.cursor ) );
@@ -274,7 +257,7 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 		u.searchParams.append( 'channels[]', ch );
 	}
 	const url = u.toString();
-
+	// eslint-disable-next-line no-restricted-syntax -- background poller; opted out of the loading spinner so devtools polling doesn't visually look like user-initiated activity.
 	fetch( url, {
 		credentials: 'same-origin',
 		headers: { 'X-WP-Nonce': restNonce },
@@ -297,7 +280,6 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 					try {
 						cb( ev );
 					} catch {
-
 					}
 				}
 			}
@@ -339,7 +321,6 @@ function dispatchLocal( sessionId: string, ev: DebugEvent ): void {
 		try {
 			cb( ev );
 		} catch {
-
 		}
 	}
 }
@@ -504,7 +485,6 @@ export const devtools: DevtoolsApi = {
 			u.searchParams.set( queryArg, sessionId );
 			iframe.src = u.toString();
 		} catch {
-
 		}
 
 		return {

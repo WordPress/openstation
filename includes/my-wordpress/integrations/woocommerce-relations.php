@@ -17,9 +17,9 @@ function openstation_my_wordpress_woo_current_order() {
 
 	$pagenow = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
 
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 	$id = 0;
 	if ( 'admin.php' === $pagenow ) {
-
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 		if ( 0 !== strpos( $page, 'wc-orders' ) ) {
 			return null;
@@ -30,12 +30,12 @@ function openstation_my_wordpress_woo_current_order() {
 		}
 		$id = isset( $_GET['id'] ) ? absint( $_GET['id'] ) : 0;
 	} elseif ( 'post.php' === $pagenow ) {
-
 		$id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0;
 		if ( $id > 0 && 'shop_order' !== get_post_type( $id ) ) {
 			return null;
 		}
 	}
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 	if ( $id <= 0 ) {
 		return null;
@@ -66,11 +66,13 @@ function openstation_my_wordpress_woo_reviews_identity() {
 		return null;
 	}
 
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 	$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 	if ( 'product-reviews' !== $page ) {
 		return null;
 	}
 	$product_id = isset( $_GET['product_id'] ) ? absint( $_GET['product_id'] ) : 0;
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 	if ( $product_id <= 0 || 'product' !== get_post_type( $product_id ) ) {
 		return null;
@@ -82,7 +84,7 @@ function openstation_my_wordpress_woo_reviews_identity() {
 	return array(
 		'type'  => 'reviews',
 		'id'    => $product_id,
-
+		/* translators: %s: product name. */
 		'label' => sprintf( __( 'Reviews of %s', 'desktop-mode' ), get_the_title( $product_id ) ),
 		'root'  => array(
 			'type' => 'product',
@@ -174,7 +176,7 @@ function openstation_my_wordpress_woo_order_title( $order ) {
 
 	if ( '' !== $name ) {
 		return sprintf(
-
+			/* translators: 1: order number, 2: customer name. */
 			__( 'Order #%1$s · %2$s', 'desktop-mode' ),
 			$order->get_order_number(),
 			$name
@@ -182,7 +184,7 @@ function openstation_my_wordpress_woo_order_title( $order ) {
 	}
 
 	return sprintf(
-
+		/* translators: %s: order number. */
 		__( 'Order #%s', 'desktop-mode' ),
 		$order->get_order_number()
 	);
@@ -257,7 +259,6 @@ function openstation_my_wordpress_woo_order_related( $order ) {
 			$label = $user->display_name ? $user->display_name : $user->user_login;
 
 			if ( current_user_can( 'edit_user', $customer_id ) ) {
-
 				$related[] = openstation_my_wordpress_woo_related_item(
 					'wc-customer-' . $customer_id,
 					'wc-customer',
@@ -306,7 +307,6 @@ function openstation_my_wordpress_woo_order_related( $order ) {
 		}
 		$product_id = method_exists( $item, 'get_product_id' ) ? (int) $item->get_product_id() : 0;
 		if ( $product_id <= 0 || ! get_post( $product_id ) ) {
-
 			continue;
 		}
 		if ( ! current_user_can( 'edit_post', $product_id ) ) {
@@ -352,7 +352,6 @@ function openstation_my_wordpress_woo_orders_with_product( $product_id, $limit =
 
 	$product_id = (int) $product_id;
 	$limit      = max( 1, (int) $limit );
-
 	if ( $product_id <= 0 || ! openstation_my_wordpress_woo_active() ) {
 		return array();
 	}
@@ -360,6 +359,7 @@ function openstation_my_wordpress_woo_orders_with_product( $product_id, $limit =
 	$items    = $wpdb->prefix . 'woocommerce_order_items';
 	$itemmeta = $wpdb->prefix . 'woocommerce_order_itemmeta';
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names are structural; every value is prepared.
 	$sql = $wpdb->prepare(
 		"SELECT DISTINCT oi.order_id
 		FROM {$items} oi
@@ -373,6 +373,7 @@ function openstation_my_wordpress_woo_orders_with_product( $product_id, $limit =
 		$limit
 	);
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- no core API answers "orders containing product X"; $sql came out of prepare() above, and the result feeds one menu render.
 	$ids = $wpdb->get_col( $sql );
 
 	return array_map( 'intval', (array) $ids );
@@ -389,6 +390,7 @@ function openstation_my_wordpress_woo_coupons_for_product( $product_id, $limit =
 	$category_ids = wp_get_post_terms( $product_id, 'product_cat', array( 'fields' => 'ids' ) );
 	$category_ids = is_wp_error( $category_ids ) ? array() : array_map( 'intval', $category_ids );
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names are structural.
 	$sql = "SELECT pm.post_id, pm.meta_key, pm.meta_value
 		FROM {$wpdb->postmeta} pm
 		INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
@@ -397,6 +399,7 @@ function openstation_my_wordpress_woo_coupons_for_product( $product_id, $limit =
 			AND pm.meta_key IN ( 'product_ids', 'product_categories' )
 		LIMIT 400";
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- comma-joined id strings can't be searched with a meta query; bounded scan feeding one menu render.
 	$rows = $wpdb->get_results( $sql );
 
 	$matched = array();
@@ -504,14 +507,14 @@ function openstation_my_wordpress_woo_product_related( $product_id ) {
 				__( 'Orders', 'desktop-mode' ),
 				'' !== $name
 					? sprintf(
-
+						/* translators: 1: order number, 2: customer name, 3: order total. */
 						__( '#%1$s · %2$s · %3$s', 'desktop-mode' ),
 						$order->get_order_number(),
 						$name,
 						$total
 					)
 					: sprintf(
-
+						/* translators: 1: order number, 2: order total. */
 						__( '#%1$s · %2$s', 'desktop-mode' ),
 						$order->get_order_number(),
 						$total
@@ -545,7 +548,6 @@ function openstation_my_wordpress_woo_product_related( $product_id ) {
 				__( 'Customers', 'desktop-mode' ),
 				$user->display_name ? $user->display_name : $user->user_login,
 				'dashicons-businessperson',
-
 				add_query_arg(
 					OPENSTATION_PERSON_VIEW_PARAM,
 					'wc-customer',
@@ -581,13 +583,13 @@ function openstation_my_wordpress_woo_orders_with_coupon( $code, $limit = 10 ) {
 	global $wpdb;
 
 	$code = strtolower( trim( (string) $code ) );
-
 	if ( '' === $code || ! openstation_my_wordpress_woo_active() ) {
 		return array();
 	}
 
 	$items = $wpdb->prefix . 'woocommerce_order_items';
 
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is structural; every value is prepared.
 	$sql = $wpdb->prepare(
 		"SELECT DISTINCT order_id
 		FROM {$items}
@@ -598,6 +600,7 @@ function openstation_my_wordpress_woo_orders_with_coupon( $code, $limit = 10 ) {
 		max( 1, (int) $limit )
 	);
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- no core API answers "orders that used coupon X"; $sql came out of prepare() above, and the result feeds one menu render.
 	$ids = $wpdb->get_col( $sql );
 
 	return array_map( 'intval', (array) $ids );
@@ -667,14 +670,14 @@ function openstation_my_wordpress_woo_coupon_related( $coupon_id ) {
 				__( 'Used on', 'desktop-mode' ),
 				'' !== $name
 					? sprintf(
-
+						/* translators: 1: order number, 2: customer name, 3: order total. */
 						__( '#%1$s · %2$s · %3$s', 'desktop-mode' ),
 						$order->get_order_number(),
 						$name,
 						$total
 					)
 					: sprintf(
-
+						/* translators: 1: order number, 2: order total. */
 						__( '#%1$s · %2$s', 'desktop-mode' ),
 						$order->get_order_number(),
 						$total
@@ -708,7 +711,6 @@ function openstation_my_wordpress_woo_coupon_related( $coupon_id ) {
 				__( 'Customers', 'desktop-mode' ),
 				$user->display_name ? $user->display_name : $user->user_login,
 				'dashicons-businessperson',
-
 				add_query_arg(
 					OPENSTATION_PERSON_VIEW_PARAM,
 					'wc-customer',

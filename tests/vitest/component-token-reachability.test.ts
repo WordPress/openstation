@@ -29,9 +29,7 @@ const OPT_OUT: Readonly< Record< string, readonly string[] > > = {
 		'--os-ui-surface-elevated',
 		'--os-ui-border-strong',
 		'--os-ui-hover',
-
 		'--os-ui-notice-color',
-
 		'--os-ui-card-bg',
 		'--os-ui-card-fg',
 		'--os-ui-card-border',
@@ -70,7 +68,6 @@ const files = readdirSync( COMPONENTS, { withFileTypes: true } )
 
 describe( 'components do not block themed tokens on :host', () => {
 	test( 'the component sweep found styles to check', () => {
-
 		expect( files.length ).toBeGreaterThan( 30 );
 		expect( THEMED.size ).toBeGreaterThan( 300 );
 	} );
@@ -107,7 +104,6 @@ describe( 'components do not block themed tokens on :host', () => {
 		const blocked = declarations( bareHostBlock( readFileSync( path, 'utf8' ) ) )
 			.filter( ( [ token ] ) => THEMED.has( token ) )
 			.filter( ( [ token ] ) => ! allowed.includes( token ) )
-
 			.filter( ( [ token, value ] ) => ! value.includes( `var( ${ token },` ) )
 			.map( ( [ token ] ) => token );
 

@@ -17,9 +17,7 @@ export function createWindowThemeRegistrySync(): (
 ) => Promise< void > {
 	const loadedHandles = new Set< string >();
 	const loadedUrls = new Set< string >();
-
 	let prevIdsByHandle = new Map< string, Set< string > >();
-
 	const shellRegistered = new Set< string >();
 
 	const ensureScript = async (
@@ -32,7 +30,6 @@ export function createWindowThemeRegistrySync(): (
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -74,13 +71,11 @@ export function createWindowThemeRegistrySync(): (
 
 	const collectIdsToRemove = ( handle: string ): Set< string > => {
 		const ids = new Set< string >();
-
 		for ( const def of listWindowThemes() ) {
 			if ( def.owner === handle ) {
 				ids.add( def.id );
 			}
 		}
-
 		const declared = prevIdsByHandle.get( handle );
 		if ( declared ) {
 			for ( const id of declared ) {
@@ -100,7 +95,6 @@ export function createWindowThemeRegistrySync(): (
 			if ( ! entry.id || ! entry.tokens ) {
 				continue;
 			}
-
 			try {
 				registerWindowTheme( {
 					id: entry.id,
@@ -138,7 +132,6 @@ export function createWindowThemeRegistrySync(): (
 				unregisterWindowTheme( id );
 				shellRegistered.delete( id );
 			}
-
 			unregisterWindowThemesByOwner( handle );
 			loadedHandles.delete( handle );
 		}

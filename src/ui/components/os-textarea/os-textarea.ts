@@ -147,7 +147,6 @@ export class OsTextarea extends Component {
 
 	private _autosize( ta: HTMLTextAreaElement ): void {
 		const maxRows = Number( this._attr( 'max-rows' ) ) || 8;
-
 		const cs = window.getComputedStyle( ta );
 		const fontSize = parseFloat( cs.fontSize ) || 13;
 		const lineHeightRaw = cs.lineHeight;
@@ -162,7 +161,6 @@ export class OsTextarea extends Component {
 
 		ta.style.height = 'auto';
 		ta.style.overflowY = 'hidden';
-
 		const contentHeight = ta.value ? ta.scrollHeight + border
 			: lineHeight * ( Number( this._attr( 'rows' ) ) || 3 ) + paddingTop + paddingBottom + border;
 		const next = Math.min( contentHeight, max );

@@ -16,10 +16,8 @@ const NAV_ASSIGN_LITERAL_RE =
 	/(?:document\.location|window\.location|location)\s*=\s*['"]([^'"$]+?)['"]/;
 const NAV_CALL_LITERAL_RE =
 	/location\.(?:assign|replace)\s*\(\s*['"]([^'"$]+?)['"]\s*\)/;
-
 const NAV_INTENT_RE =
 	/(?:document\.location|window\.location|location)\s*(?:\.href\s*)?=|location\.(?:assign|replace)\s*\(/;
-
 const SITE_EDITOR_INTENT_RE = /getSiteEditorPage\s*\(|site-editor\.php/;
 const SITE_EDITOR_NAME_RE = /^(wp_template_part|wp_template|wp_navigation|wp_block)-(.+)$/;
 
@@ -36,6 +34,7 @@ function siteEditorDescription( name: string ): string | undefined {
 function lookupMenuCommand(
 	name: string,
 ): { label: string; url: string } | null {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const list = ( window as any ).__openStationMenuCommands;
 	if ( ! Array.isArray( list ) ) {
 		return null;
@@ -71,10 +70,8 @@ interface Classified {
 	label: string;
 	icon?: string;
 	iconSvg?: string;
-
 	kind: 'navigate' | 'action' | 'skip';
 	url?: string;
-
 	windowTitle?: string;
 	callback?: ( ...args: unknown[] ) => void;
 }
@@ -82,7 +79,6 @@ interface Classified {
 export interface ShellCommandHarvesterOptions {
 	manager: WindowManager;
 	adminUrl: string;
-
 	titleForUrl?: ( url: string ) => string | undefined;
 }
 
@@ -93,7 +89,7 @@ export class ShellCommandHarvester {
 
 	private mounted = false;
 	private host: HTMLDivElement | null = null;
-
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private root: any = null;
 	private kindCache: Record< string, { kind: 'navigate' | 'action' | 'skip'; url?: string; iconSvg?: string; windowTitle?: string } > =
 		Object.create( null );
@@ -115,7 +111,7 @@ export class ShellCommandHarvester {
 		if ( this.mounted ) {
 			return;
 		}
-
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const wp = ( window as any ).wp;
 		if ( ! wp || ! wp.data || ! wp.element || typeof wp.data.subscribe !== 'function' ) {
 			if ( attempt < 40 ) {
@@ -127,6 +123,7 @@ export class ShellCommandHarvester {
 	}
 
 	private mount(): void {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const wp = ( window as any ).wp;
 		const el = wp.element;
 		const data = wp.data;
@@ -187,7 +184,6 @@ export class ShellCommandHarvester {
 			if ( Array.isArray( bucket.statics ) ) {
 				merged = merged.concat( bucket.statics );
 			}
-
 			this.callbackCache = Object.create( null );
 			for ( const cc of merged ) {
 				if ( cc && cc.name && typeof cc.callback === 'function' ) {
@@ -197,13 +193,19 @@ export class ShellCommandHarvester {
 			this.publish( merged );
 		};
 
+		/* eslint-disable react-hooks/exhaustive-deps --
+		   Dependency arrays intentionally key off the fingerprint
+		   (or are deliberately empty) rather than tracking the raw
+		   arrays / props that hooks return fresh on every render. A
+		   "complete" dependency list would re-fire the effects every
+		   render → re-publish → infinite loop. Same trick as the
+		   chromeless bridge's harvester. */
 		const LoaderSlot = ( props: { loader: { name: string; hook: ( a: { search: string } ) => { commands?: RawCommand[] } } } ) => {
 			const loader = props.loader;
 			let result: { commands?: RawCommand[] } | null = null;
 			try {
 				result = loader.hook( { search: '' } );
 			} catch {
-
 			}
 			const cmds: RawCommand[] =
 				result && Array.isArray( result.commands ) ? result.commands : [];
@@ -226,6 +228,7 @@ export class ShellCommandHarvester {
 
 		const Harvester = () => {
 			const loaders = useSelect( ( s: ( store: string ) => unknown ) => {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const ss = s( 'core/commands' ) as any;
 				if ( ! ss || typeof ss.getCommandLoaders !== 'function' ) {
 					return [];
@@ -236,6 +239,7 @@ export class ShellCommandHarvester {
 				];
 			}, [] );
 			const staticCmds = useSelect( ( s: ( store: string ) => unknown ) => {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const ss = s( 'core/commands' ) as any;
 				if ( ! ss || typeof ss.getCommands !== 'function' ) {
 					return [];
@@ -280,6 +284,7 @@ export class ShellCommandHarvester {
 			}
 			return createEl( el.Fragment || 'div', null, children );
 		};
+		/* eslint-enable react-hooks/exhaustive-deps */
 
 		try {
 			this.root = el.createRoot( host );
@@ -335,7 +340,6 @@ export class ShellCommandHarvester {
 				icon,
 				iconSvg: c.iconSvg && c.iconSvg !== '' ? sanitizeIconSvg( c.iconSvg ) : undefined,
 				owner: OWNER,
-
 				run: c.kind === 'navigate' && c.url
 					? this.runNavigate( c.url, c.windowTitle || c.label, icon )
 					: this.runInvoke( c.name ),
@@ -343,6 +347,7 @@ export class ShellCommandHarvester {
 			try {
 				registerCommand( def );
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] shell-harvester: dropping bad command',
 					def,
@@ -448,6 +453,7 @@ export class ShellCommandHarvester {
 	}
 
 	private renderIcon( icon: unknown ): string {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const wp = ( window as any ).wp;
 		if ( ! wp || ! wp.element || typeof wp.element.renderToString !== 'function' ) {
 			return '';
@@ -461,7 +467,6 @@ export class ShellCommandHarvester {
 				return rendered;
 			}
 		} catch {
-
 		}
 		return '';
 	}
@@ -480,7 +485,6 @@ export class ShellCommandHarvester {
 	): DesktopCommand[ 'run' ] {
 		return ( _args, ctx ) => {
 			ctx.close();
-
 			if ( tryNativeUrlRemap( url ) ) {
 				return;
 			}
@@ -495,7 +499,7 @@ export class ShellCommandHarvester {
 			if ( typeof cb !== 'function' ) {
 				throw new Error(
 					sprintf(
-
+						/* translators: %s: the `core/commands` command name. */
 						__( 'No live callback for command “%s” — the palette and the command registry are out of step. Reload the page.' ),
 						name,
 					),

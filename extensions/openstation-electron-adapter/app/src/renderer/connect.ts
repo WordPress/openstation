@@ -37,7 +37,6 @@ void ( async () => {
 			platform.textContent = state.osLabel;
 		}
 	} catch ( err ) {
-
 		console.error( '[openstation-desktop] could not read connect state:', err );
 	}
 	input.focus();
@@ -62,7 +61,6 @@ form.addEventListener( 'submit', async ( event ) => {
 		if ( ! result.ok ) {
 			showError( result.error || 'Could not connect to that address.' );
 		}
-
 	} catch ( err ) {
 		showError( err instanceof Error ? err.message : String( err ) );
 	} finally {

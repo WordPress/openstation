@@ -21,20 +21,14 @@ const shim = ( name ) => resolve( here, 'src/shims', name );
 const PIXI_PINNED = '8.18.1';
 
 const PIXI_UNUSED = [
-
 	{ id: 'events/init.mjs' },
-
 	{ id: 'accessibility/init.mjs' },
-
 	{ id: 'dom/init.mjs' },
-
 	{ id: 'spritesheet/init.mjs' },
-
 	{
 		id: 'rendering/renderers/gpu/WebGPURenderer.mjs',
 		from: 'rendering/renderers/autoDetectRenderer.mjs',
 	},
-
 	{ id: '@xmldom/xmldom', stub: 'pixi-no-xmldom.ts' },
 ];
 
@@ -42,7 +36,6 @@ function matchUnused( source, importer ) {
 	if ( ! importer || ! importer.includes( `pixi.js${ sep }lib` ) ) {
 		return null;
 	}
-
 	const libPath = ( id ) => `pixi.js${ sep }lib${ sep }${ id.split( '/' ).join( sep ) }`;
 	const abs = source.startsWith( '.' )
 		? resolve( dirname( importer ), source )
@@ -50,7 +43,6 @@ function matchUnused( source, importer ) {
 
 	return (
 		PIXI_UNUSED.find( ( entry ) => {
-
 			if ( entry.from && ! importer.endsWith( libPath( entry.from ) ) ) {
 				return false;
 			}
@@ -134,9 +126,7 @@ export default defineConfig( ( { mode } ) => {
 		],
 		resolve: {
 			alias: [
-
 				{ find: /^\.\.\/hooks$/, replacement: shim( 'hooks.ts' ) },
-
 				{
 					find: /^\.\/style-panel$/,
 					replacement: shim( 'style-panel.ts' ),
@@ -145,16 +135,13 @@ export default defineConfig( ( { mode } ) => {
 		},
 		build: {
 			outDir: resolve( here, 'dist' ),
-
 			emptyOutDir: false,
 			target: 'es2020',
 			minify: isProd ? 'esbuild' : false,
 			sourcemap: false,
 			lib: {
 				entry: resolve( here, 'src/entry.ts' ),
-
 				formats: [ 'iife' ],
-
 				name: 'MioBundle',
 				fileName: () => ( isProd ? 'mio.min.js' : 'mio.js' ),
 			},

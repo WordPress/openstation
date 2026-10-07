@@ -109,7 +109,6 @@ describe( 'notes wallpaper menu', () => {
 
 		const note = document.querySelector( '.os-pinned-note' );
 		expect( note ).not.toBeNull();
-
 		expect( ( note as HTMLElement ).style.left ).toBe( '30%' );
 		expect( ( note as HTMLElement ).style.top ).toBe( '50%' );
 

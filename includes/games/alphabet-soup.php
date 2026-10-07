@@ -28,7 +28,6 @@ function openstation_alphabet_soup_register() {
 			'description'   => __( 'The daily word search: a seeded letter soup that is the same for every player worldwide — the seed is today’s date. Pick a pot (8×8, 12×12, or 16×16 with more words), drag across the letters to fish them out, chain streaks, and clear waves; Time Attack stirs a different pot against the clock. Your first run of each puzzle earns the shareable score card.', 'desktop-mode' ),
 			'icon_svg'      => openstation_alphabet_soup_icon_svg(),
 			'script'        => 'os-game-alphabet-soup',
-
 			'window'        => array(
 				'width'     => 860,
 				'height'    => 660,
@@ -82,7 +81,6 @@ function openstation_alphabet_soup_register() {
 					'type'  => 'time',
 				),
 			),
-
 		)
 	);
 }

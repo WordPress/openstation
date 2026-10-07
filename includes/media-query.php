@@ -3,7 +3,6 @@
 defined( 'ABSPATH' ) || exit;
 
 const OPENSTATION_META_WIDTH = '_desktop_mode_width';
-
 const OPENSTATION_META_HEIGHT = '_desktop_mode_height';
 
 const OPENSTATION_BACKFILL_DONE_OPTION = 'desktop_mode_media_dims_backfilled';
@@ -80,9 +79,9 @@ function openstation_filter_media_by_dimensions( $args, $request ) {
 	}
 
 	if ( empty( $meta_query ) ) {
-		$args['meta_query'] = $clauses;
+		$args['meta_query'] = $clauses; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- NUMERIC >= dimension filter on indexed meta keys; canonical WP pattern for picker filtering.
 	} else {
-		$args['meta_query'] = array(
+		$args['meta_query'] = array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- composed AND clause merging caller meta_query with our dimension filter.
 			'relation' => 'AND',
 			$meta_query,
 			$clauses,
@@ -109,7 +108,7 @@ function openstation_backfill_media_dimensions( $batch ) {
 			'fields'                 => 'ids',
 			'no_found_rows'          => true,
 			'update_post_term_cache' => false,
-
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- one-shot backfill targeting the small subset of attachments that lack our dimension stamp; runs at most $batch rows per filtered request and stops once the site option flips.
 			'meta_query'             => array(
 				array(
 					'key'     => OPENSTATION_META_WIDTH,
@@ -120,13 +119,11 @@ function openstation_backfill_media_dimensions( $batch ) {
 	);
 
 	if ( empty( $ids ) ) {
-
 		update_option( OPENSTATION_BACKFILL_DONE_OPTION, 1, false );
 		return 0;
 	}
 
 	foreach ( $ids as $id ) {
-
 		$metadata = wp_get_attachment_metadata( $id );
 
 		$width  = is_array( $metadata ) && isset( $metadata['width'] ) ? (int) $metadata['width'] : 0;

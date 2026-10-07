@@ -97,7 +97,6 @@ describe( 'Dock.setBadge — rail discriminator', () => {
 		dock.setBadge( 'plugin-x', 6 );
 		dock.setBadge( 'plugin-x', 0 );
 		dock.replaceItems( [ makeItem( { badge: 3 } ) ] );
-
 		expect( badgeText( container, 'plugin-x' ) ).toBe( '3' );
 	} );
 } );
@@ -218,7 +217,6 @@ describe( 'Dock.replaceItems tears down peek attachments', () => {
 		);
 		pointerEnter( tile! );
 		vi.advanceTimersByTime( 500 );
-
 		expect( document.querySelectorAll( '.os-dock-peek' ).length ).toBe( 1 );
 	} );
 } );

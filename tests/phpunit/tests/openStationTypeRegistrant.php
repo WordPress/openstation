@@ -1,11 +1,12 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 
 	protected static $fixture_file;
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
-
 		$dir                = trailingslashit( WP_PLUGIN_DIR ) . 'dm-registrant-fixture';
 		self::$fixture_file = $dir . '/dm-registrant-fixture.php';
 
@@ -36,7 +37,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		set_current_screen( 'dashboard' );
 	}
 
@@ -54,6 +54,10 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_record_type_registrant
+	 * @covers ::openstation_type_registrant_file
+	 */
 	public function test_records_the_registering_plugin_file() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
@@ -63,6 +67,9 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$this->assertSame( wp_normalize_path( self::$fixture_file ), $file );
 	}
 
+	/**
+	 * @covers ::openstation_record_type_registrant
+	 */
 	public function test_records_taxonomies_too() {
 		dm_registrant_fixture_register( 'dm_tracked_tax', 'taxonomy' );
 
@@ -72,6 +79,9 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_type_group
+	 */
 	public function test_recorded_path_resolves_to_a_plugin_group() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
@@ -82,6 +92,11 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$this->assertSame( 'dashicons-admin-plugins', $group['icon'] );
 	}
 
+	/**
+	 * @covers ::openstation_registrant_file_from_backtrace
+	 * @covers ::openstation_plugin_file_for_path
+	 * @covers ::openstation_plugin_link_path
+	 */
 	public function test_attributes_a_plugin_linked_in_from_outside_the_plugins_dir() {
 		global $wp_plugin_paths;
 
@@ -98,7 +113,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$saved_paths = $wp_plugin_paths;
 
 		try {
-
 			wp_register_plugin_realpath( $link . '/dm-managed-fixture.php' );
 			require_once $link . '/dm-managed-fixture.php';
 			dm_managed_fixture_register();
@@ -111,7 +125,6 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 				'plugin:dm-managed-fixture',
 				openstation_my_wordpress_post_type_group( 'dm_managed' )['id']
 			);
-
 			wp_cache_delete( 'plugins', 'plugins' );
 			$this->assertSame(
 				'dm-managed-fixture/dm-managed-fixture.php',
@@ -128,6 +141,9 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_registrant_file_from_backtrace
+	 */
 	public function test_does_not_attribute_types_to_openstation_itself() {
 		register_post_type( 'dm_selfattr', array( 'public' => true ) );
 
@@ -136,18 +152,27 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_record_type_registrant
+	 */
 	public function test_builtin_types_are_not_recorded() {
 		$this->assertNull( openstation_type_registrant_file( 'post', 'post_type' ) );
 		$this->assertNull( openstation_type_registrant_file( 'page', 'post_type' ) );
 		$this->assertNull( openstation_type_registrant_file( 'category', 'taxonomy' ) );
 	}
 
+	/**
+	 * @covers ::openstation_type_registrant_file
+	 */
 	public function test_unknown_type_reads_back_null() {
 		$this->assertNull(
 			openstation_type_registrant_file( 'dm_never_registered', 'post_type' )
 		);
 	}
 
+	/**
+	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
+	 */
 	public function test_slug_lookup_resolves_the_registering_plugin() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
@@ -159,6 +184,9 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
+	 */
 	public function test_slug_lookup_returns_null_for_non_plugin_registrants() {
 		$this->assertNull(
 			openstation_lookup_taxonomy_or_post_type_plugin_file(
@@ -167,6 +195,9 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
+	 */
 	public function test_slug_lookup_ignores_non_type_slugs() {
 		$this->assertNull(
 			openstation_lookup_taxonomy_or_post_type_plugin_file( 'plugins.php' )
@@ -176,6 +207,9 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_should_track_type_registrants
+	 */
 	public function test_tracking_is_skipped_off_the_admin() {
 		$this->assertTrue(
 			openstation_should_track_type_registrants(),
@@ -195,6 +229,9 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_should_track_type_registrants
+	 */
 	public function test_tracking_is_filterable() {
 		set_current_screen( 'front' );
 		add_filter( 'openstation_track_type_registrants', '__return_true' );
@@ -202,6 +239,9 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		$this->assertTrue( openstation_should_track_type_registrants() );
 	}
 
+	/**
+	 * @covers ::openstation_extension_dirs
+	 */
 	public function test_extension_dirs_cover_plugins_mu_plugins_and_themes() {
 		$dirs = openstation_extension_dirs();
 

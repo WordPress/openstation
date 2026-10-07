@@ -78,7 +78,6 @@ function bootWpBeatTracker(): void {
 	$doc.on( 'heartbeat-tick', () => {
 		s.state.lastTickAt = performance.now();
 		s.state.intervalSecs = wpHeartbeatInterval();
-
 		s.state.tickSeq += 1;
 		s.notify();
 	} );
@@ -125,7 +124,6 @@ function renderFallback( container: HTMLElement, message: string ): void {
 }
 
 const FRAME_HEIGHT_WITH_HEART = 230;
-
 const FRAME_HEIGHT_NO_HEART = 88;
 
 async function mountWithPixi(
@@ -294,7 +292,6 @@ async function mountWithPixi(
 						( app.renderer as unknown as { resize: ( w: number, h: number ) => void } ).resize( sw, sh );
 					}
 				} catch ( _err ) {
-
 				}
 			}
 			centre();
@@ -325,11 +322,9 @@ async function mountWithPixi(
 		detach();
 		ro.disconnect();
 		app.ticker.remove( tick );
-
 		try {
 			( app as unknown as { canvas?: { remove(): void } } ).canvas?.remove();
 		} catch {
-
 		}
 		container.classList.remove( 'os-widget-heartbeat' );
 		container.classList.remove( 'os-widget-heartbeat--no-heart' );
@@ -393,7 +388,6 @@ function openHeartbeatMenu(
 	} );
 
 	document.body.appendChild( menu );
-
 	clampToViewport( menu );
 
 	document.addEventListener( 'pointerdown', onOutside, true );
@@ -402,7 +396,6 @@ function openHeartbeatMenu(
 
 function buildHalo( pixi: typeof import( 'pixi.js' ) ): Graphics {
 	const g = new pixi.Graphics();
-
 	const radii = [ HEART_SIZE * 1.20, HEART_SIZE * 1.05, HEART_SIZE * 0.85 ];
 	const alphas = [ 0.12, 0.18, 0.28 ];
 	radii.forEach( ( r, i ) => {
@@ -533,7 +526,6 @@ function buildLogoSprite(
 	url: string,
 ): Container {
 	const wrap = new pixi.Container();
-
 	wrap.y = HEART_SIZE * 0.08;
 
 	const shadow = new pixi.Sprite();
@@ -548,14 +540,12 @@ function buildLogoSprite(
 	wrap.addChild( mark );
 
 	const targetWidth = HEART_SIZE * 0.92;
-
 	const img = new Image();
 	img.src = url;
 	img
 		.decode()
 		.then( () => {
 			const resolution = Math.min( window.devicePixelRatio || 1, 2 );
-
 			const widthPx = Math.ceil( targetWidth * resolution * 1.7 );
 			const canvas = rasterizeLogo( img, widthPx );
 			const texture: Texture = pixi.Texture.from( canvas );
@@ -566,7 +556,6 @@ function buildLogoSprite(
 			mark.scale.set( scale );
 		} )
 		.catch( () => {
-
 		} );
 
 	return wrap;
@@ -620,7 +609,6 @@ function wpHeartbeatInterval(): number {
 			}
 		}
 	} catch ( e ) {
-
 	}
 	return 15;
 }

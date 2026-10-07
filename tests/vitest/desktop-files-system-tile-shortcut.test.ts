@@ -34,7 +34,6 @@ describe( 'the shortcut opener, on a promoted system tile', () => {
 
 		const onOpen = vi.fn();
 		const openWindow = vi.fn();
-
 		( window as unknown as { wp: { os: unknown } } ).wp = {
 			...( window as unknown as { wp: object } ).wp,
 			os: {
@@ -61,12 +60,10 @@ describe( 'the shortcut opener, on a promoted system tile', () => {
 		);
 
 		expect( onOpen ).toHaveBeenCalledTimes( 1 );
-
 		expect( openWindow ).not.toHaveBeenCalled();
 	} );
 
 	test( 'announces the click, so an icon with nothing to open still answers', async () => {
-
 		const hooks = installHooksStub();
 		const { openers, builtins, file } = await loadOpeners();
 		builtins.registerBuiltInFileOpeners();

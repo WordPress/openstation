@@ -59,7 +59,6 @@ const mount = (
 	let color = normalizeNoteColor(
 		ctx.storage.get< string >( 'color' ) ?? NOTE_COLORS[ 0 ],
 	);
-
 	const isPublic = false;
 	let text = '';
 
@@ -215,7 +214,6 @@ const mount = (
 		const swing = document.createElement( 'div' );
 		swing.className = 'os-pinned-note-ghost__swing';
 		swing.dataset.noteColor = color;
-
 		const tipX = width / 2;
 		const tipY = 10;
 		swing.style.transformOrigin = `${ tipX }px ${ tipY }px`;
@@ -244,7 +242,6 @@ const mount = (
 			return;
 		}
 		const target = ev.target as Element | null;
-
 		if ( target?.closest( 'os-textarea, .dm-notes-pad__corner' ) ) {
 			return;
 		}
@@ -256,7 +253,6 @@ const mount = (
 		if ( ! dragManager ) {
 			return;
 		}
-
 		ev.preventDefault();
 		sheet.ownerDocument.defaultView?.getSelection()?.removeAllRanges();
 		const ghost = buildDraftGhost();
@@ -287,7 +283,6 @@ const mount = (
 				clearDraft();
 				playTearOffPromotion();
 			},
-
 		} );
 	};
 	sheet.addEventListener( 'pointerdown', onSheetPointerDown );
@@ -345,8 +340,8 @@ const mount = (
 				new CustomEvent( NOTE_CREATED_EVENT, { detail: { note } } ),
 			);
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] note pad: create failed:', err );
-
 			shakeSheet();
 			toastRestFailure( shellToast, err, {
 				fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),

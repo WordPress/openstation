@@ -21,12 +21,9 @@ export interface PageRow {
 	id: string;
 	order: number;
 	label: string;
-
 	icon?: () => SVGSVGElement;
 	panel: ( s: OsSettingsState, ctx: Ctx ) => TemplateResult;
-
 	padding?: string;
-
 	tab?: DesktopSettingsTab;
 }
 
@@ -66,7 +63,6 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			) }${ renderAppearance( s, wallpaperSection( s, c ), c ) }`,
 		},
 		{
-
 			id: 'themes',
 			order: 12,
 			label: __( 'Themes' ),
@@ -87,7 +83,6 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			) }${ renderWindows( s, c ) }`,
 		},
 		{
-
 			id: 'navigation',
 			order: 22,
 			label: __( 'Navigation' ),
@@ -95,7 +90,6 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			panel: ( s, c ) => html`${ pageHeader( __( 'Navigation' ) ) }${ renderNavigation( s, c ) }`,
 		},
 		{
-
 			id: 'mobile',
 			order: 24,
 			label: __( 'Mobile' ),
@@ -128,7 +122,6 @@ export function pageRows( ctx: Ctx ): PageRow[] {
 			) }${ renderComponents( s, c ) }`,
 		} );
 	}
-
 	rows.push( {
 		id: 'about',
 		order: Number.MAX_SAFE_INTEGER,
@@ -173,6 +166,7 @@ export function mountRegistryTabs( ctx: Ctx, rows: PageRow[] ): void {
 				subscribeOsSettings: subscribe,
 			} );
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] settings tab render threw:', tab.id, err );
 		}
 	}

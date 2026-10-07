@@ -44,23 +44,19 @@ describe( 'grid snap — geometry', () => {
 	test( 'cellAt is a fraction of the area, clamped at the edges', () => {
 		expect( cellAt( 0, 0, AREA, SIX ) ).toEqual( { col: 0, row: 0 } );
 		expect( cellAt( 1599, 899, AREA, SIX ) ).toEqual( { col: 5, row: 5 } );
-
 		expect( cellAt( 534, 450, AREA, SIX ) ).toEqual( { col: 2, row: 3 } );
-
 		expect( cellAt( -50, 5000, AREA, SIX ) ).toEqual( { col: 0, row: 5 } );
 	} );
 
 	test( 'the same proportions come out of any display', () => {
 		const laptop = { x: 0, y: 0, width: 1280, height: 720 };
 		const fiveK = { x: 0, y: 0, width: 5120, height: 2880 };
-
 		expect( cellAt( 512, 432, laptop, SIX ) ).toEqual(
 			cellAt( 2048, 1728, fiveK, SIX ),
 		);
 	} );
 
 	test( 'cells tile the area exactly — shared edges, last one reaches the end', () => {
-
 		const area = { x: 10, y: 20, width: 1600, height: 900 };
 		let right = area.x;
 		for ( let c = 0; c < 6; c++ ) {
@@ -77,7 +73,6 @@ describe( 'grid snap — geometry', () => {
 		const forward = spanRect( { col: 1, row: 1 }, { col: 2, row: 2 }, AREA, SIX );
 		const backward = spanRect( { col: 2, row: 2 }, { col: 1, row: 1 }, AREA, SIX );
 		expect( backward ).toEqual( forward );
-
 		expect( forward ).toEqual( {
 			x: Math.round( 1600 / 6 ),
 			y: 150,
@@ -105,7 +100,6 @@ describe( 'grid snap — geometry', () => {
 	} );
 
 	test( 'a span too small for the inset keeps its cells rather than going negative', () => {
-
 		const sliver = { x: 0, y: 0, width: 12, height: 12 };
 		const placed = placementRect( { col: 0, row: 0 }, { col: 0, row: 0 }, sliver, SIX );
 		expect( placed ).toEqual( spanRect( { col: 0, row: 0 }, { col: 0, row: 0 }, sliver, SIX ) );
@@ -168,7 +162,6 @@ describe( 'grid snap — session', () => {
 			rows: 3,
 		} ) );
 		expect( gridSnapDimensions( AREA ) ).toEqual( { cols: 4, rows: 3 } );
-
 		hooks.removeFilter( 'os.grid-snap.dimensions', 'test/four' );
 		hooks.addFilter( 'os.grid-snap.dimensions', 'test/absurd', () => ( {
 			cols: 0,
@@ -207,7 +200,6 @@ describe( 'grid snap — session', () => {
 	test( 'the desk enters grid mode with the held window exempt, and leaves it after', async () => {
 		const win = await open();
 		beginGridSnap( manager, win, 400, 200 );
-
 		expect( desktop.classList.contains( 'os-area--grid-snapping' ) ).toBe( true );
 		expect( win.element.classList.contains( 'os-window--grid-snapping' ) ).toBe( true );
 		cancelGridSnap( manager );
@@ -244,7 +236,6 @@ describe( 'grid snap — session', () => {
 			anchor: { col: 4, row: 4 },
 			reason: 'shake',
 		} );
-
 		updateGridSnap( manager, 700, 400 );
 		expect( manager._gridSnap?.rect ).toEqual(
 			placementRect( { col: 2, row: 2 }, { col: 4, row: 4 }, AREA, SIX ),
@@ -255,7 +246,6 @@ describe( 'grid snap — session', () => {
 		const win = await open();
 		const log = recordActions( hooks, HOOKS_UNDER_TEST );
 		beginGridSnap( manager, win, 400, 200 );
-
 		win.onDragMove?.( win, 5, 300 );
 		expect( log.some( ( e ) => e.name === 'os.snap.zone-pending' ) ).toBe( false );
 		expect( manager._snapPendingZone ).toBeNull();
@@ -308,7 +298,6 @@ describe( 'grid snap — session', () => {
 		expect( manager._gridSnap ).toBeNull();
 		expect( win.element.style.left ).toBe( '33px' );
 		expect( log.map( ( e ) => e.name ) ).toEqual( [ 'os.grid-snap.canceled' ] );
-
 		expect( commitGridSnapIfActive( manager, win ) ).toBe( false );
 	} );
 
@@ -330,7 +319,6 @@ describe( 'grid snap — session', () => {
 		const moved = reflowGridSpans( manager );
 
 		expect( moved ).toEqual( [ 'a' ] );
-
 		const expected = placementRect(
 			{ col: 1, row: 1 },
 			{ col: 2, row: 2 },
@@ -355,7 +343,6 @@ describe( 'grid snap — session', () => {
 			expect( win._gridSpan ).not.toBeNull();
 			return win;
 		};
-
 		let win = await land();
 		win._gridSpan = null;
 		win._emitChange( 'moved' );
@@ -369,7 +356,6 @@ describe( 'grid snap — session', () => {
 	} );
 
 	test( 'every arrangement takes its windows off the grid', async () => {
-
 		for ( const arrange of [ 'cascade', 'tile', 'columns', 'focusLayout' ] as const ) {
 			const win = await open();
 			beginGridSnap( manager, win, 400, 200 );
@@ -390,12 +376,10 @@ describe( 'grid snap — session', () => {
 			url: 'http://example.test/wp-admin/r.php',
 			title: 'r',
 			icon: 'dashicons-admin-generic',
-
 			x: 5,
 			y: 5,
 			width: 50,
 			height: 50,
-
 			gridSpan: {
 				anchor: { col: 3, row: 0 },
 				cursor: { col: 5, row: 2 },
@@ -412,7 +396,6 @@ describe( 'grid snap — session', () => {
 			cols: 6,
 			rows: 6,
 		} );
-
 		const entry = manager.snapshot().windows.find( ( w ) => w.id === 'r' );
 		expect( entry?.gridSpan ).toEqual( win._gridSpan );
 	} );

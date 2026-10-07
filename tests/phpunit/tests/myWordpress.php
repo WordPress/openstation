@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -22,6 +25,9 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @coversNothing
+	 */
 	public function test_legacy_window_and_launcher_are_gone() {
 		$this->assertFalse(
 			function_exists( 'openstation_my_wordpress_register_window' ),
@@ -37,6 +43,10 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_app_title
+	 * @covers ::openstation_my_wordpress_icon_svg
+	 */
 	public function test_helpers_still_carry_the_identity() {
 		$this->assertSame( 'WP Explorer', openstation_my_wordpress_app_title() );
 
@@ -48,6 +58,9 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 		$this->assertSame( $uri, openstation_sanitize_dock_icon( $uri ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_entities
+	 */
 	public function test_default_entities_are_posts_pages_and_users() {
 		$entities = openstation_my_wordpress_entities();
 		$ids      = wp_list_pluck( $entities, 'id' );
@@ -72,6 +85,9 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'post_type', $by_id['users'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_entities
+	 */
 	public function test_entities_filter_can_extend() {
 		add_filter( 'openstation_my_wordpress_entities', static function ( $entities ) {
 			$entities[] = array(
@@ -88,6 +104,9 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 		$this->assertContains( 'comments', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_entities
+	 */
 	public function test_entities_filter_passes_edit_action_through() {
 		add_filter( 'openstation_my_wordpress_entities', static function ( $entities ) {
 			$entities[] = array(
@@ -116,11 +135,17 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 		$this->assertFalse( $by_id['atf-entries']['editAction'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_can_use
+	 */
 	public function test_subscriber_cannot_use_by_default() {
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertFalse( openstation_my_wordpress_user_can_use() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_can_use
+	 */
 	public function test_can_use_filter_overrides_default() {
 		wp_set_current_user( self::$subscriber_id );
 		add_filter( 'openstation_my_wordpress_user_can_use', '__return_true' );

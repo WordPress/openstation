@@ -10,7 +10,6 @@ function openstation_my_wordpress_register_term_stats_route() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_my_wordpress_term_stats_callback',
 			'permission_callback' => static function () {
-
 				return openstation_my_wordpress_user_can_use();
 			},
 			'args'                => array(
@@ -36,7 +35,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	$term_id  = (int) $request->get_param( 'id' );
 
 	$tax_obj = get_taxonomy( $taxonomy );
-
 	if ( ! $tax_obj || ( ! is_taxonomy_viewable( $tax_obj ) && ! current_user_can( $tax_obj->cap->manage_terms ) ) ) {
 		return new WP_Error(
 			'openstation_invalid_taxonomy',
@@ -190,7 +188,6 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	);
 	$recent      = array();
 	if ( $recent_rows ) {
-
 		_prime_post_caches( array_map( 'intval', wp_list_pluck( $recent_rows, 'ID' ) ), false, false );
 	}
 	foreach ( (array) $recent_rows as $row ) {

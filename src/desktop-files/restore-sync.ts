@@ -42,6 +42,7 @@ function resyncFromServer(): void {
 			setFolders( res.folders );
 		} )
 		.catch( ( err ) => {
+			// eslint-disable-next-line no-console
 			console.error(
 				'[openstation] files restore-sync: listFolders failed',
 				err,
@@ -55,6 +56,7 @@ function resyncFromServer(): void {
 				setFolderPlacements( folderId, res.placements );
 			} )
 			.catch( ( err ) => {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] files restore-sync: listPlacements failed for',
 					folderId,

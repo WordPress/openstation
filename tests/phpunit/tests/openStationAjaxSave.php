@@ -1,7 +1,11 @@
 <?php
-
 require_once ABSPATH . 'wp-admin/includes/ajax-actions.php';
 
+/**
+ * @group openstation
+ * @group ajax
+ * @covers ::openstation_ajax_save
+ */
 class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 
 	public function tear_down() {
@@ -18,7 +22,6 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 		try {
 			$this->_handleAjax( 'save-openstation' );
 		} catch ( WPAjaxDieContinueException $e ) {
-
 		}
 
 		return json_decode( $this->_last_response, true );
@@ -41,7 +44,6 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 		$this->assertSame( $expected, $response['data']['redirect'] );
 		$this->assertTrue( openstation_url_is_shell_screen( $response['data']['redirect'] ) );
 		$this->assertStringContainsString( 'target=', $response['data']['redirect'] );
-
 		$this->assertNotSame( openstation_portal_url(), $response['data']['redirect'] );
 	}
 
@@ -119,7 +121,6 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 	}
 
 	public function test_user_without_read_cap_is_forbidden() {
-
 		add_role( 'openstation_test_nonread', 'No Read', array() );
 		$uid = self::factory()->user->create( array( 'role' => 'openstation_test_nonread' ) );
 		wp_set_current_user( $uid );

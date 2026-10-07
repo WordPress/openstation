@@ -155,7 +155,6 @@ describe( 'desktop-files registry', () => {
 	test( 'built-in types register on importing the index module', async () => {
 		vi.resetModules();
 		const reg = await import( '../../src/desktop-files/registry' );
-
 		await import( '../../src/desktop-files/index' );
 		const types = reg.getTypes().map( ( t ) => t.type );
 		expect( types ).toEqual(

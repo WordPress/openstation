@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStationClassicPreserveRedirect extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -25,6 +27,9 @@ class Tests_OpenStationClassicPreserveRedirect extends WP_UnitTestCase {
 		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 	}
 
+	/**
+	 * @covers ::openstation_classic_preserve_redirect
+	 */
 	public function test_appends_flag_to_admin_redirect_in_classic_tab() {
 		$this->enter_classic();
 
@@ -33,12 +38,18 @@ class Tests_OpenStationClassicPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( OPENSTATION_CLASSIC_FLAG . '=1', $filtered );
 	}
 
+	/**
+	 * @covers ::openstation_classic_preserve_redirect
+	 */
 	public function test_leaves_admin_redirect_alone_when_not_classic_tab() {
 		$location = admin_url( 'edit.php' );
 
 		$this->assertSame( $location, openstation_classic_preserve_redirect( $location ) );
 	}
 
+	/**
+	 * @covers ::openstation_classic_preserve_redirect
+	 */
 	public function test_leaves_non_admin_redirect_alone() {
 		$this->enter_classic();
 
@@ -47,6 +58,9 @@ class Tests_OpenStationClassicPreserveRedirect extends WP_UnitTestCase {
 		$this->assertSame( $location, openstation_classic_preserve_redirect( $location ) );
 	}
 
+	/**
+	 * @covers ::openstation_classic_preserve_redirect
+	 */
 	public function test_does_not_double_append_when_flag_already_present() {
 		$this->enter_classic();
 
@@ -57,12 +71,18 @@ class Tests_OpenStationClassicPreserveRedirect extends WP_UnitTestCase {
 		$this->assertSame( 1, substr_count( $filtered, OPENSTATION_CLASSIC_FLAG . '=' ) );
 	}
 
+	/**
+	 * @covers ::openstation_classic_preserve_redirect
+	 */
 	public function test_leaves_empty_location_alone() {
 		$this->enter_classic();
 
 		$this->assertSame( '', openstation_classic_preserve_redirect( '' ) );
 	}
 
+	/**
+	 * @covers ::openstation_classic_preserve_redirect
+	 */
 	public function test_preserves_existing_query_args() {
 		$this->enter_classic();
 
@@ -76,6 +96,9 @@ class Tests_OpenStationClassicPreserveRedirect extends WP_UnitTestCase {
 		$this->assertStringContainsString( OPENSTATION_CLASSIC_FLAG . '=1', $filtered );
 	}
 
+	/**
+	 * @covers ::openstation_classic_preserve_redirect
+	 */
 	public function test_filter_is_registered_on_wp_redirect() {
 		$this->assertSame(
 			999,

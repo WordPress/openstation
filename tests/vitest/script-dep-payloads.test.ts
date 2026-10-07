@@ -38,7 +38,6 @@ describe( 'hydrateScriptDeps', () => {
 	} );
 
 	test( 'passes full payloads through; an unknown handle is dropped and logged', () => {
-
 		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
 		const config = {
 			scriptDepPayloads: { 'wp-hooks': hooks },
@@ -53,7 +52,6 @@ describe( 'hydrateScriptDeps', () => {
 	} );
 
 	test( 'touches scriptDeps at entry depth only, never a plugin\'s own metadata', () => {
-
 		const foreign = [ 'a', 'b' ];
 		const config = {
 			scriptDepPayloads: { 'wp-hooks': hooks },
@@ -110,7 +108,6 @@ describe( 'menu refresh', () => {
 	} );
 
 	test( 'the refresh map is merged into config.scriptDepPayloads', () => {
-
 		const noop = vi.fn().mockResolvedValue( undefined );
 		const config = {
 			dockItems: [],

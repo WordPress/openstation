@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-electron-adapter
+ */
 class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -11,7 +14,6 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 			require_once dirname( __DIR__, 3 ) . '/extensions/openstation-electron-adapter/includes/host.php';
 		}
 		if ( ! function_exists( 'openstation_electron_register_assets' ) ) {
-
 			if ( ! defined( 'OPENSTATION_ELECTRON_DIR' ) ) {
 				define(
 					'OPENSTATION_ELECTRON_DIR',
@@ -24,6 +26,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_electron_register_assets
+	 */
 	public function test_adapter_script_defers_like_the_shell_handle_it_depends_on() {
 		openstation_register_assets();
 		openstation_electron_register_assets();
@@ -79,6 +84,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_electron_get_host
+	 */
 	public function test_unconfigured_user_reads_as_disconnected() {
 		$record = openstation_electron_get_host( self::$admin_id );
 
@@ -86,6 +94,10 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( '', $record['hostId'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_set_host
+	 * @covers ::openstation_electron_get_host
+	 */
 	public function test_set_then_get_round_trips_a_record() {
 		openstation_electron_set_host(
 			self::$admin_id,
@@ -107,12 +119,18 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( 1, $record['protocol'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_set_host
+	 */
 	public function test_a_record_without_a_host_id_is_rejected() {
 		$record = openstation_electron_set_host( self::$admin_id, array( 'platform' => 'darwin' ) );
 
 		$this->assertFalse( $record['connected'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_set_host
+	 */
 	public function test_reconnecting_the_same_host_keeps_its_original_connected_at() {
 		openstation_electron_set_host( self::$admin_id, array( 'hostId' => 'same-host' ) );
 		$first = openstation_electron_get_host( self::$admin_id );
@@ -129,6 +147,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertGreaterThan( $second['connectedAt'], $second['lastSeen'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_set_host
+	 */
 	public function test_a_different_host_id_starts_a_new_connection() {
 		openstation_electron_set_host( self::$admin_id, array( 'hostId' => 'host-one' ) );
 		$stored                = get_user_meta( self::$admin_id, OPENSTATION_ELECTRON_HOST_META, true );
@@ -142,6 +163,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( $record['lastSeen'], $record['connectedAt'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_get_host
+	 */
 	public function test_a_stale_record_reads_as_disconnected() {
 		openstation_electron_set_host( self::$admin_id, array( 'hostId' => 'gone' ) );
 
@@ -152,6 +176,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertFalse( openstation_electron_get_host( self::$admin_id )['connected'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_clear_host
+	 */
 	public function test_clear_removes_the_record() {
 		openstation_electron_set_host( self::$admin_id, array( 'hostId' => 'bye' ) );
 
@@ -159,6 +186,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertFalse( openstation_electron_get_host( self::$admin_id )['connected'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_os_label
+	 */
 	public function test_os_labels_cover_the_three_platforms() {
 		$this->assertSame( 'Mac', openstation_electron_os_label( 'darwin' ) );
 		$this->assertSame( 'Windows PC', openstation_electron_os_label( 'win32' ) );
@@ -166,6 +196,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( 'Linux desktop', openstation_electron_os_label( 'freebsd' ) );
 	}
 
+	/**
+	 * @covers ::openstation_electron_interval
+	 */
 	public function test_interval_is_filterable_but_never_below_thirty_seconds() {
 		$this->assertSame( 120, openstation_electron_interval() );
 
@@ -177,11 +210,17 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( 30, openstation_electron_interval() );
 	}
 
+	/**
+	 * @covers ::openstation_electron_ttl
+	 */
 	public function test_ttl_always_spans_at_least_two_intervals() {
 		add_filter( 'openstation_electron_heartbeat_interval', static fn() => 900 );
 		$this->assertGreaterThanOrEqual( 1800, openstation_electron_ttl() );
 	}
 
+	/**
+	 * @covers ::openstation_electron_enabled
+	 */
 	public function test_enabled_is_filterable_per_user() {
 		wp_set_current_user( self::$admin_id );
 		$this->assertTrue( openstation_electron_enabled() );
@@ -190,6 +229,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertFalse( openstation_electron_enabled() );
 	}
 
+	/**
+	 * @covers ::openstation_electron_config
+	 */
 	public function test_config_carries_rest_coordinates_and_interval() {
 		wp_set_current_user( self::$admin_id );
 
@@ -204,6 +246,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertFalse( $config['last']['connected'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_rest_handshake
+	 */
 	public function test_rest_handshake_registers_the_host_and_fires_the_action() {
 		wp_set_current_user( self::$admin_id );
 
@@ -235,6 +280,10 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( 1, $fired );
 	}
 
+	/**
+	 * @covers ::openstation_electron_sanitize_agent_url
+	 * @dataProvider data_agent_urls
+	 */
 	public function test_agent_url_validation( $input, $expected ) {
 		$this->assertSame( $expected, openstation_electron_sanitize_agent_url( $input ) );
 	}
@@ -255,6 +304,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_electron_set_host
+	 */
 	public function test_handshake_stores_the_agent_pairing() {
 		openstation_electron_set_host(
 			self::$admin_id,
@@ -271,6 +323,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( str_repeat( 'a', 64 ), $record['agentToken'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_set_host
+	 */
 	public function test_a_heartbeat_preserves_the_agent_pairing() {
 		openstation_electron_set_host(
 			self::$admin_id,
@@ -288,6 +343,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( str_repeat( 'a', 64 ), $record['agentToken'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_config
+	 */
 	public function test_config_exposes_the_pairing_only_while_a_host_is_live() {
 		wp_set_current_user( self::$admin_id );
 
@@ -316,6 +374,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertFalse( openstation_electron_config()['agent']['hasAgent'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_config
+	 */
 	public function test_the_descriptive_record_never_carries_the_token() {
 		wp_set_current_user( self::$admin_id );
 		openstation_electron_set_host(
@@ -333,6 +394,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'token', $config['agent'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_set_host
+	 */
 	public function test_a_non_loopback_agent_url_is_refused_at_the_edge() {
 		openstation_electron_set_host(
 			self::$admin_id,
@@ -346,6 +410,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_electron_get_host( self::$admin_id )['agentUrl'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_rest_handshake
+	 */
 	public function test_rest_handshake_declines_a_newer_protocol() {
 		wp_set_current_user( self::$admin_id );
 
@@ -362,6 +429,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertFalse( openstation_electron_get_host( self::$admin_id )['connected'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_rest_heartbeat
+	 */
 	public function test_rest_heartbeat_refreshes_an_existing_record() {
 		wp_set_current_user( self::$admin_id );
 		openstation_electron_set_host(
@@ -384,10 +454,12 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertTrue( $data['connected'] );
 		$this->assertGreaterThan( $stored['lastSeen'], $data['lastSeen'] );
-
 		$this->assertSame( 'darwin', $data['platform'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_rest_heartbeat
+	 */
 	public function test_rest_heartbeat_adopts_an_unknown_host_that_supplies_an_id() {
 		wp_set_current_user( self::$admin_id );
 
@@ -399,6 +471,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertTrue( $response->get_data()['connected'] );
 	}
 
+	/**
+	 * @covers ::openstation_electron_rest_heartbeat
+	 */
 	public function test_rest_heartbeat_without_any_id_is_a_client_error() {
 		wp_set_current_user( self::$admin_id );
 
@@ -408,6 +483,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( 400, $response->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_electron_rest_disconnect
+	 */
 	public function test_rest_disconnect_clears_the_record_and_fires_the_action() {
 		wp_set_current_user( self::$admin_id );
 		openstation_electron_set_host( self::$admin_id, array( 'hostId' => 'macbook01' ) );
@@ -428,6 +506,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( 1, $fired );
 	}
 
+	/**
+	 * @covers ::openstation_electron_register_routes
+	 */
 	public function test_routes_reject_a_logged_out_caller() {
 		wp_set_current_user( 0 );
 
@@ -438,6 +519,9 @@ class Tests_OpenStation_ElectronAdapterHost extends WP_UnitTestCase {
 		$this->assertSame( 401, $response->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_electron_rest_handshake
+	 */
 	public function test_routes_reject_a_user_the_filter_disabled() {
 		wp_set_current_user( self::$admin_id );
 		add_filter( 'openstation_electron_enabled', '__return_false' );

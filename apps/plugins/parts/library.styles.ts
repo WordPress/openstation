@@ -1,10 +1,10 @@
 import { css } from '../../../src/ui/core';
 
 export const libraryStyles = css`
-
 .desktop-mode-plugins [hidden] {
 	display: none !important;
 }
+
 
 .os-plugins__workspace {
 	display: flex;
@@ -448,6 +448,7 @@ export const libraryStyles = css`
 	padding: 36px 12px;
 	color: var( --os-ui-fg-muted, #646970 );
 }
+
 
 @container plugin-library ( max-width: 660px ) {
 	.os-plugins__library-tools { flex-wrap: wrap; }

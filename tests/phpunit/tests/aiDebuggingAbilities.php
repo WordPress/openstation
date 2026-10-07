@@ -1,5 +1,9 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-ai
+ * @group code-blue
+ */
 class Tests_OpenStation_AiDebuggingAbilities extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -125,7 +129,6 @@ class Tests_OpenStation_AiDebuggingAbilities extends WP_UnitTestCase {
 		$out = wp_get_ability( 'desktop-mode/list-log-issues' )->execute( array( 'limit' => 10 ) );
 
 		$this->assertCount( 2, $out['issues'], 'Two occurrences of one error are one issue.' );
-
 		$this->assertSame( 'warning', $out['issues'][0]['level'] );
 		$fatal = $out['issues'][1];
 		$this->assertSame( 2, $fatal['count'] );
@@ -244,7 +247,6 @@ class Tests_OpenStation_AiDebuggingAbilities extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $out );
-
 		$this->assertContains(
 			$out->get_error_code(),
 			array( 'openstation_ai_debug_unreadable', 'openstation_ai_debug_outside_root' )

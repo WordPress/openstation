@@ -11,7 +11,6 @@ function openstation_agents_register_abilities() {
 		'desktop-mode/get-post',
 		array(
 			'label'               => __( 'Get post by id', 'desktop-mode' ),
-
 			'description'         => 'Return a post — title, content, excerpt, status, author, dates — by its numeric id. `content` is the RAW stored content exactly as saved, with block delimiter comments (`<!-- wp:… -->`) intact; it is never rendered output, so it is safe to edit and write back. Honours the caller\'s read capability.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
@@ -295,7 +294,6 @@ function openstation_agents_ability_get_media_can( $args ) {
 
 	$attachment = get_post( $attachment_id );
 	if ( ! ( $attachment instanceof WP_Post ) || 'attachment' !== $attachment->post_type ) {
-
 		return true;
 	}
 

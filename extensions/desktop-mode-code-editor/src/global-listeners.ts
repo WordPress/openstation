@@ -31,13 +31,11 @@ export function openEditorWindow(): boolean {
 
 function openEditorAtPath( path: string, line: number = 1 ): void {
 	openEditorWindow();
-
 	const fire = (): void =>
 		window.postMessage(
 			{ type: 'os-code-open', path, line },
 			window.location.origin,
 		);
-
 	requestAnimationFrame( fire );
 }
 
@@ -61,14 +59,12 @@ function isOpenEditorMessage( data: unknown ): data is OpenEditorMessage {
 
 function installPostMessageListener(): void {
 	window.addEventListener( 'message', ( event: MessageEvent ) => {
-
 		if ( event.origin !== window.location.origin ) {
 			return;
 		}
 		if ( ! isOpenEditorMessage( event.data ) ) {
 			return;
 		}
-
 		const desktop = getDesktop();
 		const existing = desktop?.windowManager.getById( 'wpdc-editor' );
 		if ( ! existing ) {
@@ -81,14 +77,12 @@ function installKeyboardShortcut(): void {
 	window.addEventListener(
 		'keydown',
 		( e: KeyboardEvent ) => {
-
 			if (
 				( e.metaKey || e.ctrlKey ) &&
 				e.shiftKey &&
 				! e.altKey &&
 				e.key.toLowerCase() === 'e'
 			) {
-
 				const target = e.target as HTMLElement | null;
 				if (
 					target?.isContentEditable &&
@@ -100,7 +94,6 @@ function installKeyboardShortcut(): void {
 				openEditorWindow();
 			}
 		},
-
 		{ capture: true },
 	);
 }

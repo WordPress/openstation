@@ -73,7 +73,6 @@ const mount = (
 				label: __( 'No window — just alarm', 'desktop-mode' ),
 			},
 		];
-
 		for ( const w of listWindows() ) {
 			if ( w.id === WIDGET_ID ) {
 				continue;
@@ -92,7 +91,6 @@ const mount = (
 		}
 		const items = windowItems();
 		windowSelect.items = items;
-
 		const linked = timer.snapshot().linkedWindowId;
 		windowSelect.value =
 			linked && items.some( ( i ) => i.value === linked ) ? linked : NONE;
@@ -128,7 +126,7 @@ const mount = (
 			const chip = button(
 				'dm-focus__chip',
 				sprintf(
-
+					/* translators: %d: minutes. */
 					__( '%d min', 'desktop-mode' ),
 					min,
 				),
@@ -266,11 +264,13 @@ const mount = (
 		if ( subEl ) {
 			const title = linkedTitle( s );
 			if ( s.phase === 'running' ) {
+				/* translators: %s: window title. */
 				const linked = __( 'Linked to “%s”', 'desktop-mode' );
 				subEl.textContent = title
 					? sprintf( linked, title )
 					: __( 'No window linked', 'desktop-mode' );
 			} else if ( s.phase === 'finished' ) {
+				/* translators: %s: window title. */
 				const shaking = __( 'Shaking “%s”', 'desktop-mode' );
 				subEl.textContent = title
 					? sprintf( shaking, title )

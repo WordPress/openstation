@@ -51,7 +51,6 @@ describe( 'injectRestNonce', () => {
 			headers: { 'X-WP-Nonce': 'caller-nonce' },
 		};
 		const result = injectRestNonce( '/wp-json/wp/v2/posts', original );
-
 		expect( result ).toBe( original );
 		expect( getNonceHeader( result ) ).toBe( 'caller-nonce' );
 	} );
@@ -119,7 +118,6 @@ describe( 'injectRestNonce', () => {
 			{ headers: { 'X-WP-Nonce': 'caller-nonce' } },
 		);
 		const result = injectRestNonce( request );
-
 		expect( result ).toBeUndefined();
 	} );
 } );

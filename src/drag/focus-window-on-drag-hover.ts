@@ -18,7 +18,6 @@ export interface FocusableWindow {
 
 export interface WindowFocusHost< W extends FocusableWindow = FocusableWindow > {
 	getById( id: string ): W | undefined;
-
 	focus( win: W | string ): void;
 }
 
@@ -27,7 +26,6 @@ let _host: WindowFocusHost | null = null;
 let _lastHoverWindowId: string | null = null;
 let _dwellTimer: ReturnType< typeof setTimeout > | null = null;
 let _watchdogTimer: ReturnType< typeof setTimeout > | null = null;
-
 let _bridgePayloadKind: string | null = null;
 
 function clearDwell(): void {
@@ -123,7 +121,6 @@ function dragHasFiles( e: DragEvent ): boolean {
 	if ( ! types ) {
 		return false;
 	}
-
 	const list = types as unknown as {
 		includes?: ( s: string ) => boolean;
 		contains?: ( s: string ) => boolean;
@@ -206,17 +203,14 @@ export function installFocusWindowOnDragHover( host: WindowFocusHost ): void {
 	}
 	_installed = true;
 	_host = host;
-
 	document.addEventListener( DRAG_EVENTS.MOVE, onDragMove );
 	document.addEventListener( DRAG_EVENTS.END, onDragEnd );
 	document.addEventListener( DRAG_BRIDGE_EVENTS.START, onBridgeStart );
 	document.addEventListener( DRAG_BRIDGE_EVENTS.END, onBridgeEnd );
-
 	document.addEventListener( 'dragover', onNativeDragOver, true );
 	document.addEventListener( 'drop', onNativeDragSettled, true );
 	document.addEventListener( 'dragend', onNativeDragSettled, true );
 	document.addEventListener( 'dragleave', onNativeDragLeave, true );
-
 	window.addEventListener( 'message', onHoverMessage );
 }
 

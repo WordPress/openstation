@@ -24,19 +24,18 @@ function openstation_desktop_theme_wallpaper_label( $name, $slug, $own_label = '
 	$own_label = (string) $own_label;
 	if ( '' === $own_label ) {
 		$label = sprintf(
-
+			/* translators: %s: desktop theme name. Marks a wallpaper that came from a theme. */
 			__( '%s - (theme)', 'desktop-mode' ),
 			$name
 		);
 	} else {
 		$label = sprintf(
-
+			/* translators: 1: desktop theme name, 2: the wallpaper's own name. */
 			__( '%1$s: %2$s - (theme)', 'desktop-mode' ),
 			$name,
 			$own_label
 		);
 	}
-
 	return (string) apply_filters(
 		'openstation_desktop_theme_wallpaper_label',
 		$label,
@@ -52,7 +51,6 @@ function openstation_register_desktop_theme_wallpapers() {
 	foreach ( openstation_desktop_theme_registry() as $slug => $entry ) {
 		$sources[ $slug ] = array( $entry, '', '' );
 	}
-
 	foreach ( openstation_desktop_themes_index() as $slug => $entry ) {
 		$installed_at     = isset( $entry['installedAt'] ) ? (int) $entry['installedAt'] : 0;
 		$sources[ $slug ] = array(
@@ -78,7 +76,6 @@ function openstation_register_desktop_theme_wallpapers() {
 			if ( '' === $value ) {
 				continue;
 			}
-
 			$id = OPENSTATION_DESKTOP_THEME_WALLPAPER_PREFIX . $slug . '/' . $wallpaper['id'];
 
 			openstation_register_wallpaper(
@@ -89,7 +86,6 @@ function openstation_register_desktop_theme_wallpapers() {
 						$slug,
 						isset( $wallpaper['label'] ) ? (string) $wallpaper['label'] : ''
 					),
-
 					'preview'     => $value,
 					'value'       => $value,
 					'type'        => 'css',

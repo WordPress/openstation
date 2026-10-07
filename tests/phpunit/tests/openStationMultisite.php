@@ -1,5 +1,19 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_session_meta_key
+ * @covers ::openstation_filter_wpmu_drop_tables
+ * @covers ::openstation_site_table_names
+ * @covers ::openstation_multisite_sites
+ * @covers ::openstation_shell_lands_in_overview
+ * @covers ::openstation_session_window_url_ok
+ * @covers ::openstation_session_url_in_scope
+ * @covers ::openstation_sanitize_session
+ * @covers ::openstation_get_session
+ * @covers ::openstation_multisite_payload
+ * @covers ::openstation_is_core_menu_slug
+ * @covers ::openstation_menu_refresh_probe_screen_id
+ */
 class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 
 	public function test_nothing_multisite_leaks_into_a_single_site_install() {
@@ -7,7 +21,6 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		$this->assertNull( openstation_multisite_payload() );
 		$this->assertFalse( openstation_is_core_menu_slug( 'settings.php' ) );
 		$this->assertFalse( openstation_is_core_menu_slug( 'sites.php' ) );
-
 		$this->assertTrue( openstation_is_core_menu_slug( 'options-general.php' ) );
 	}
 
@@ -20,10 +33,8 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		set_current_screen( 'sites-network' );
 		$this->assertTrue( is_network_admin() );
 		$this->assertSame( 'admin-network', openstation_menu_refresh_probe_screen_id() );
-
 		$this->assertTrue( WP_Screen::get( 'admin-network' )->in_admin( 'network' ) );
 		$this->assertFalse( WP_Screen::get( 'admin' )->in_admin( 'network' ) );
-
 		set_current_screen( openstation_menu_refresh_probe_screen_id() );
 		$this->assertTrue( is_network_admin() );
 		$this->assertSame(
@@ -72,6 +83,10 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		$this->assertSame( admin_url( 'network/index.php' ), $network_clean['windows'][0]['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_filter_wpmu_drop_tables
+	 * @covers ::openstation_site_table_names
+	 */
 	public function test_drop_tables_filter_appends_every_plugin_table() {
 		global $wpdb;
 		$core   = array( $wpdb->get_blog_prefix( 2 ) . 'posts' );
@@ -84,6 +99,9 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_site_table_names
+	 */
 	public function test_drop_tables_list_covers_every_schema_helper_table() {
 		global $wpdb;
 		$helper_tables = array_merge( array_values( openstation_files_table_names() ), array( openstation_presence_table() ) );
@@ -102,6 +120,10 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 * @covers ::openstation_session_window_url_ok
+	 */
 	public function test_another_sites_window_never_persists() {
 		$foreign = set_url_scheme( 'http://' . wp_parse_url( admin_url(), PHP_URL_HOST ) . '/site2/wp-admin/index.php' );
 		$session = array(
@@ -130,6 +152,9 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'scope', $clean['desktops'][1] );
 	}
 
+	/**
+	 * @covers ::openstation_get_session
+	 */
 	public function test_get_session_drops_site_space_desktops() {
 		$user_id = self::factory()->user->create();
 		update_user_meta(
@@ -156,6 +181,9 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		$this->assertSame( 'desktop-1', $session['activeDesktop'] );
 	}
 
+	/**
+	 * @covers ::openstation_multisite_my_sites_actions
+	 */
 	public function test_my_sites_row_links_follow_the_shell() {
 		if ( ! is_multisite() ) {
 			$this->markTestSkipped( 'Multisite only.' );
@@ -186,6 +214,9 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		$this->assertSame( '<a href="https://example.org/">Visit</a>', openstation_multisite_my_sites_actions( '<a href="https://example.org/">Visit</a>', $other, $current, true ) );
 	}
 
+	/**
+	 * @covers ::openstation_multisite_sites_row_actions
+	 */
 	public function test_network_sites_row_links_follow_the_shell() {
 		$actions = array(
 			'edit'    => '<a href="http://example.org/wp-admin/network/site-info.php?id=2">Edit</a>',
@@ -205,6 +236,10 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		$this->assertSame( $named, openstation_multisite_sites_row_actions( $named, true ) );
 	}
 
+	/**
+	 * @covers ::openstation_multisite_payload
+	 * @covers ::openstation_multisite_sites
+	 */
 	public function test_multisite_payload_names_every_instance() {
 		if ( ! is_multisite() ) {
 			$this->markTestSkipped( 'Multisite only.' );
@@ -233,7 +268,6 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 			network_admin_url( 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG ),
 			$payload['networkAdmin']['shellUrl']
 		);
-
 		$this->assertContains( (string) $other, wp_list_pluck( $payload['sites'], 'id' ) );
 
 		$plugin      = plugin_basename( OPENSTATION_FILE );
@@ -253,6 +287,9 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		wp_set_current_user( 0 );
 	}
 
+	/**
+	 * @covers ::openstation_shell_lands_in_overview
+	 */
 	public function test_shell_lands_in_overview_reads_the_flag() {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		$this->assertFalse( openstation_shell_lands_in_overview() );
@@ -265,6 +302,9 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		unset( $_GET['openstation_overview'] );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_shell_root_is_stamped_arriving_for_an_overview_boot() {
 		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin );
@@ -288,6 +328,9 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 		wp_set_current_user( 0 );
 	}
 
+	/**
+	 * @covers ::openstation_get_session
+	 */
 	public function test_get_session_filters_stored_windows_to_the_scope() {
 		$user_id = self::factory()->user->create();
 		update_user_meta(

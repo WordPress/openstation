@@ -7,7 +7,6 @@ export function stackOnPhone( table: Element, root: Element | null = null ): boo
 		if ( ! table.hasAttribute( 'stacked' ) ) {
 			table.setAttribute( 'stacked', '' );
 		}
-
 		const sticky = table.getAttribute( 'sticky-columns' );
 		if ( sticky !== null ) {
 			table.setAttribute( 'data-os-sticky-columns', sticky );

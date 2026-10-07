@@ -76,7 +76,6 @@ describe( 'the title-bar status ring', () => {
 		expect( ring() ).not.toBeNull();
 		expect( ring().tagName.toLowerCase() ).toBe( 'os-save-status' );
 		expect( ring().getAttribute( 'variant' ) ).toBe( 'ring' );
-
 		expect( win.element.querySelector( '.os-window__icon' ) ).toBeNull();
 	} );
 
@@ -87,7 +86,6 @@ describe( 'the title-bar status ring', () => {
 	} );
 
 	test( 'the ring is reached through the public indicator attribute', () => {
-
 		expect( ring().hasAttribute( 'data-os-activity-indicator' ) ).toBe(
 			true,
 		);
@@ -171,12 +169,10 @@ describe( 'reference counting and the reset escape hatch', () => {
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
 
 		win._markActivitySettled( true );
-
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
 	} );
 
 	test( 'a reset drops the count so a navigated-away iframe cannot strand the ring', () => {
-
 		win._markActivityStart();
 		win._markActivityStart();
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
@@ -206,7 +202,6 @@ describe( 'a form submit, bracketed across two documents', () => {
 	} );
 
 	test( 'the answer landing is the end the submit never sent', () => {
-
 		win._noteNavigationActivity();
 		win._markActivityStart();
 		vi.advanceTimersByTime( 500 );
@@ -220,7 +215,6 @@ describe( 'a form submit, bracketed across two documents', () => {
 	} );
 
 	test( 'the boot signal behind the head report leaves the outcome alone', () => {
-
 		win._noteNavigationActivity();
 		win._markActivityStart();
 		win._settleNavigationActivity();
@@ -231,7 +225,6 @@ describe( 'a form submit, bracketed across two documents', () => {
 	} );
 
 	test( 'os-ready settles a document that sent no head report', () => {
-
 		win._noteNavigationActivity();
 		win._markActivityStart();
 
@@ -240,7 +233,6 @@ describe( 'a form submit, bracketed across two documents', () => {
 	} );
 
 	test( 'a submit that lands nowhere lets go of the ring', () => {
-
 		win._noteNavigationActivity();
 		win._markActivityStart();
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'saving' );
@@ -254,7 +246,6 @@ describe( 'a form submit, bracketed across two documents', () => {
 
 describe( 'the ring treatment', () => {
 	test( 'the ring has no resting fill, whatever the host sets', () => {
-
 		const guard = COMPONENT_CSS.slice(
 			COMPONENT_CSS.indexOf(
 				":host( [ variant='ring' ] ) .os-save-status__indicator {",
@@ -273,7 +264,6 @@ describe( 'the ring treatment', () => {
 	} );
 
 	test( 'only success fills — the other phases keep the outline open', () => {
-
 		const savedRule = COMPONENT_CSS.slice(
 			COMPONENT_CSS.indexOf(
 				":host( [ variant='ring' ][ phase='saved' ] ) .os-save-status__indicator {",
@@ -296,7 +286,6 @@ describe( 'the ring treatment', () => {
 	} );
 
 	test( 'each state change has a gesture, and success and failure differ', () => {
-
 		expect( COMPONENT_CSS ).toContain(
 			'@keyframes os-save-status-ring-land',
 		);
@@ -323,7 +312,6 @@ describe( 'the ring treatment', () => {
 	} );
 
 	test( 'the gestures stay small — a 16px ring cannot bounce', () => {
-
 		const scales = [
 			...COMPONENT_CSS.matchAll( /scale:\s*([\d.]+)/g ),
 		].map( ( m ) => Number( m[ 1 ] ) );
@@ -339,13 +327,11 @@ describe( 'the ring treatment', () => {
 		expect( block ).toContain( "variant='ring'" );
 		expect( block ).toContain( 'animation: none' );
 		expect( block ).toContain( 'scale: 1' );
-
 		expect( block ).toContain( 'opacity: 1' );
 		expect( block ).not.toContain( 'display: none' );
 	} );
 
 	test( 'the resting ring is white, in both title-bar states', () => {
-
 		const rule = CHROME_CSS.slice(
 			CHROME_CSS.indexOf( '.os-window__status {' ),
 		);
@@ -370,7 +356,6 @@ describe( 'the ring treatment', () => {
 			expect( CHROME_CSS ).toContain( `var(${ token },` );
 			expect( VARIABLES_CSS ).toContain( `\t${ token }:` );
 		}
-
 		expect( VARIABLES_CSS ).toMatch(
 			/--os-titlebar-activity-failed-color:\s*var\(--os-ui-danger/,
 		);

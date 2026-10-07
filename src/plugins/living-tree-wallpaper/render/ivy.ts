@@ -29,7 +29,6 @@ function buildIvyTexture( pixi: PixiNamespace ): PixiTexture {
 	}
 	const c = size / 2;
 	ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
-
 	for ( const [ lx, ly, lr ] of [
 		[ c, c - 3, 6 ],
 		[ c - 5, c + 2, 5 ],
@@ -87,7 +86,6 @@ export class IvyLayer {
 			computeIvyBudget( structure01 ),
 			hosts.length * 8,
 		);
-
 		const reachable = Math.max(
 			1,
 			Math.round( hosts.length * ( 0.25 + 0.75 * structure01 ) ),
@@ -96,7 +94,6 @@ export class IvyLayer {
 		for ( let i = 0; i < budget; i++ ) {
 			const host = hosts[ Math.floor( rng() * reachable ) ];
 			const parent = nodes[ host.parent as number ];
-
 			const t = rng();
 			const bx = parent.pos.x + ( host.pos.x - parent.pos.x ) * t;
 			const by = parent.pos.y + ( host.pos.y - parent.pos.y ) * t;

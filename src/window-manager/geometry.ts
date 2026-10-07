@@ -181,29 +181,23 @@ export function computeOverviewLayout(
 	if ( n === 0 ) {
 		return [];
 	}
-
 	const cols = Math.ceil( Math.sqrt( n ) );
 	const rows = Math.ceil( n / cols );
 
 	const padding = 40;
 	const gap = 24;
-
 	const labelReserve = 34;
 
 	const cellWidth =
 		( rect.width - padding * 2 - gap * ( cols - 1 ) ) / cols;
-
 	const cellHeight =
 		( rect.height - padding * 2 - topInset - gap * ( rows - 1 ) ) / rows;
-
 	const thumbCellHeight = Math.max( 40, cellHeight - labelReserve );
 
 	return windows.map( ( win, i ) => {
 		const col = i % cols;
 		const row = Math.floor( i / cols );
-
 		const cellX = rect.left + padding + col * ( cellWidth + gap );
-
 		const cellY =
 			rect.top + topInset + padding + row * ( cellHeight + gap ) + labelReserve;
 

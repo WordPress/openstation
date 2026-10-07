@@ -26,7 +26,6 @@ function openstation_register_game( $id, $args = array() ) {
 
 	$svg = trim( (string) $args['icon_svg'] );
 	if ( '' !== $svg ) {
-
 		if ( false !== stripos( $svg, '<script' ) ) {
 			return openstation_registration_error(
 				'openstation_invalid_icon_svg',
@@ -49,7 +48,7 @@ function openstation_register_game( $id, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this game.', 'desktop-mode' ),
 					(string) $cap
 				),
@@ -106,7 +105,6 @@ function openstation_games_sanitize_window( $window ) {
 		if ( $value <= 0 ) {
 			continue;
 		}
-
 		$out[ $key ] = min( $value, 10000 );
 	}
 
@@ -146,7 +144,6 @@ function openstation_games_registry( $id = '', $entry = null ) {
 	if ( '' === (string) $id ) {
 		return $store;
 	}
-
 	if ( '__unset__' === $entry ) {
 		unset( $store[ $id ] );
 		return null;
@@ -183,7 +180,6 @@ function openstation_games_is_registered( $id ) {
 	if ( isset( $registry[ $id ] ) ) {
 		return true;
 	}
-
 	foreach ( $registry as $entry ) {
 		if ( is_array( $entry ) && isset( $entry['id'] ) && (string) $entry['id'] === $id ) {
 			return true;
@@ -193,7 +189,6 @@ function openstation_games_is_registered( $id ) {
 }
 
 function openstation_build_desktop_games_payload() {
-
 	if ( ! openstation_games_enabled() ) {
 		return array();
 	}
@@ -229,7 +224,6 @@ function openstation_build_desktop_games_payload() {
 				openstation_games_framework_config(),
 				isset( $entry['config'] ) && is_array( $entry['config'] ) ? $entry['config'] : array()
 			),
-
 			'window'             => isset( $entry['window'] ) && is_array( $entry['window'] )
 				? $entry['window']
 				: array(),
@@ -239,7 +233,6 @@ function openstation_build_desktop_games_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}

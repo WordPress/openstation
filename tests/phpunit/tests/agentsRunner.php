@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-agents
+ */
 class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -32,6 +35,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		add_filter( 'openstation_agent_runner_generate', $turns, 10, 5 );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_invoke_returns_text_answer() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -51,6 +57,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 1, $result['turns'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_invoke_switches_identity_and_restores() {
 		$agent    = $this->create_agent();
 		$seen_ids = array();
@@ -71,6 +80,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, get_current_user_id() );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_invoke_fires_completed_action_with_context() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -102,6 +114,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( array( 'source' => 'chat' ), $captured[3] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_loop
+	 */
 	public function test_unknown_tool_yields_error_result() {
 		$agent = $this->create_agent();
 		$turn  = 0;
@@ -137,6 +152,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertNotNull( $result['toolCalls'][0]['error'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_dispatch_tool
+	 * @covers ::openstation_agent_runner_build_tools
+	 */
 	public function test_allowlisted_ability_dispatches() {
 		if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( 'desktop-mode/get-post' ) ) {
 			$this->markTestSkipped( 'Abilities API not available (requires WordPress 7.0+).' );
@@ -186,6 +205,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'Readable post', $call['output']['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_build_tools
+	 */
 	public function test_build_tools_normalizes_schemas() {
 		if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( 'desktop-mode/get-post' ) ) {
 			$this->markTestSkipped( 'Abilities API not available (requires WordPress 7.0+).' );
@@ -206,6 +228,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'allOf', $tools[0]['parameters'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_compose_prompt
+	 */
 	public function test_compose_prompt_flattens_history() {
 		$bare = openstation_agent_runner_compose_prompt(
 			array(
@@ -247,6 +272,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'do not repeat an identical call', $with_tools );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_loop
+	 */
 	public function test_tool_results_rows_carry_args() {
 		$agent     = $this->create_agent();
 		$turn      = 0;
@@ -289,6 +317,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_compose_prompt
+	 */
 	public function test_prior_turns_precede_the_new_message() {
 		$prompt = openstation_agent_runner_compose_prompt(
 			array(
@@ -312,13 +343,15 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Conversation so far', $prompt );
 		$this->assertStringContainsString( 'User: Summarize post 973.', $prompt );
 		$this->assertStringContainsString( 'You: Proposal for post 973', $prompt );
-
 		$this->assertGreaterThan(
 			strpos( $prompt, 'Proposal for post 973' ),
 			strpos( $prompt, 'Yes, please' )
 		);
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_sanitize_history
+	 */
 	public function test_history_sanitizer_filters_and_caps() {
 		$clean = openstation_agent_runner_sanitize_history(
 			array(
@@ -361,10 +394,12 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		}
 		$capped = openstation_agent_runner_sanitize_history( $many );
 		$this->assertCount( OPENSTATION_AGENT_HISTORY_TURN_CAP, $capped );
-
 		$this->assertSame( 'turn ' . ( OPENSTATION_AGENT_HISTORY_TURN_CAP + 4 ), end( $capped )['text'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_invoke_replays_context_history() {
 		$agent   = $this->create_agent();
 		$prompts = array();
@@ -401,6 +436,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Yes, please', $prompts[0] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_check_rate_limit
+	 */
 	public function test_rate_limit_blocks_after_cap() {
 		$agent = $this->create_agent();
 		openstation_agent_update( $agent->ID, array( 'rateLimit' => 1 ) );
@@ -422,6 +460,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_rate_limited', $second->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_invoke_validates_agent_and_message() {
 		$this->stub_generate(
 			static function () {
@@ -443,6 +484,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_empty_message', $empty->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_available
+	 */
 	public function test_unavailable_without_client_or_stub() {
 		if ( function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available() ) {
 			$this->markTestSkipped( 'AI Client available on this environment.' );
@@ -453,13 +497,15 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_ai_unavailable', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_loop
+	 */
 	public function test_turn_cap_stops_runaway_loop() {
 		$agent = $this->create_agent();
 		$calls = 0;
 		$this->stub_generate(
 			static function () use ( &$calls ) {
 				++$calls;
-
 				return array(
 					'text'           => null,
 					'function_calls' => array(
@@ -477,10 +523,12 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$result = openstation_agent_invoke( $agent->ID, 'loop' );
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_agent_runner_max_turns', $result->get_error_code() );
-
 		$this->assertSame( OPENSTATION_AGENT_RUNNER_MAX_TURNS + 1, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_loop
+	 */
 	public function test_turn_cap_forces_a_final_toolless_answer() {
 		$agent = $this->create_agent();
 		$calls          = 0;
@@ -517,6 +565,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( array(), $forced_tools, 'The forced final turn must advertise no tools.' );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_loop
+	 * @covers ::openstation_agent_runner_failure_signature
+	 */
 	public function test_repeated_identical_tool_failures_stop_the_loop_early() {
 		$agent = $this->create_agent();
 		$calls = 0;
@@ -524,7 +576,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			static function () use ( &$calls ) {
 				++$calls;
 				if ( $calls <= OPENSTATION_AGENT_RUNNER_STUCK_TURNS ) {
-
 					return array(
 						'text'           => null,
 						'function_calls' => array(
@@ -552,6 +603,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertCount( OPENSTATION_AGENT_RUNNER_STUCK_TURNS, $result['toolCalls'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_failure_signature
+	 */
 	public function test_failure_signature_ignores_args_and_needs_every_call_to_fail() {
 		$failed = array(
 			'call_id'  => 'a',
@@ -577,6 +631,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_agent_runner_failure_signature( array() ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_humanize_generate_error
+	 * @covers ::openstation_agent_generate_error_is_transient
+	 */
 	public function test_truncated_output_is_permanent_and_translated_for_the_user() {
 		$raw = openstation_ai_output_truncated_error( 'finish reason: length', array( 'completion' => 4096 ) );
 		$this->assertFalse( openstation_agent_generate_error_is_transient( $raw ) );
@@ -588,6 +646,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'finish reason: length', $human->get_error_data()['detail'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_log_invocation
+	 */
 	public function test_invocations_are_logged() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -609,8 +670,11 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'logged answer', $log[0]['text'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_parse_answer
+	 * @covers ::openstation_agent_sanitize_call_to_actions
+	 */
 	public function test_parse_answer_is_lenient() {
-
 		$plain = openstation_agent_parse_answer( 'Just words.' );
 		$this->assertSame( 'Just words.', $plain['text'] );
 		$this->assertSame( array(), $plain['callToActions'] );
@@ -642,7 +706,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertCount( 2, $parsed['callToActions'] );
 		$this->assertSame( 'approve', $parsed['callToActions'][0]['id'] );
 		$this->assertSame( 'primary', $parsed['callToActions'][0]['style'] );
-
 		$this->assertSame( 'secondary', $parsed['callToActions'][1]['style'] );
 
 		$fenced = openstation_agent_parse_answer( "```json\n" . $json . "\n```" );
@@ -650,6 +713,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertCount( 2, $fenced['callToActions'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_sanitize_call_to_actions
+	 */
 	public function test_call_to_actions_caps() {
 		$many = array();
 		for ( $i = 0; $i < OPENSTATION_AGENT_CTA_CAP + 3; $i++ ) {
@@ -665,6 +731,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( OPENSTATION_AGENT_CTA_REPLY_CAP, mb_strlen( $clean[0]['reply'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_invoke_returns_call_to_actions() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -697,6 +766,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'Approved.', $result['callToActions'][0]['reply'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_with_http_timeout
+	 */
 	public function test_http_timeout_is_raised_for_the_provider_request() {
 		$seen = null;
 		openstation_agent_with_http_timeout(
@@ -708,6 +780,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( OPENSTATION_AGENT_HTTP_TIMEOUT, $seen );
 	}
 
+	/**
+	 * @covers ::openstation_agent_with_http_timeout
+	 */
 	public function test_ai_client_request_timeout_is_raised_too() {
 		$seen = null;
 		openstation_agent_with_http_timeout(
@@ -717,16 +792,21 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( (float) OPENSTATION_AGENT_HTTP_TIMEOUT, $seen );
-
 		$this->assertSame( 30.0, apply_filters( 'wp_ai_client_default_request_timeout', 30.0 ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_with_http_timeout
+	 */
 	public function test_http_timeout_is_released_after_the_call() {
 		openstation_agent_with_http_timeout( static function () {} );
 
 		$this->assertSame( 5, apply_filters( 'http_request_timeout', 5, 'https://example.com/' ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_with_http_timeout
+	 */
 	public function test_http_timeout_is_released_when_the_callback_throws() {
 		try {
 			openstation_agent_with_http_timeout(
@@ -742,6 +822,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 5, apply_filters( 'http_request_timeout', 5, 'https://example.com/' ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_with_http_timeout
+	 */
 	public function test_http_timeout_never_lowers_a_larger_site_value() {
 		$larger = OPENSTATION_AGENT_HTTP_TIMEOUT + 120;
 		$seen   = null;
@@ -755,6 +838,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( $larger, $seen );
 	}
 
+	/**
+	 * @covers ::openstation_agent_with_http_timeout
+	 */
 	public function test_http_timeout_filter_can_disable_the_override() {
 		add_filter( 'openstation_agent_http_timeout', '__return_zero' );
 
@@ -769,6 +855,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 5, $seen );
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_generate
+	 */
 	public function test_override_is_scoped_to_the_ai_client_call() {
 		$agent  = $this->create_agent();
 		$during = null;
@@ -790,6 +879,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 5, $during );
 	}
 
+	/**
+	 * @covers ::openstation_agent_generate_error_is_transient
+	 */
 	public function test_transient_error_detection() {
 		$transient = array(
 			'Unexpected Anthropic API response: Missing the "content" key.',
@@ -817,6 +909,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_transient_generate_failure_is_retried_once() {
 		$agent = $this->create_agent();
 		$calls = 0;
@@ -843,6 +938,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 2, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_permanent_generate_failure_is_not_retried() {
 		$agent = $this->create_agent();
 		$calls = 0;
@@ -861,6 +959,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 1, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_agent_humanize_generate_error
+	 */
 	public function test_refusal_is_translated_for_the_user() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -876,10 +977,12 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		$this->assertSame( 'openstation_agent_provider_refusal', $result->get_error_code() );
 		$this->assertStringContainsString( 'safety system', $result->get_error_message() );
-
 		$this->assertStringContainsString( 'Missing the "content" key', $result->get_error_data()['detail'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_persistent_transient_failure_surfaces_after_one_retry() {
 		$agent = $this->create_agent();
 		$calls = 0;
@@ -898,6 +1001,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 2, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_textless_final_turn_is_an_error_not_an_empty_success() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -916,6 +1022,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertNotSame( '', trim( $result->get_error_message() ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_invoke
+	 */
 	public function test_whitespace_only_final_turn_is_an_error() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
@@ -933,6 +1042,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_empty_answer', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_agent_humanize_generate_error
+	 * @covers ::openstation_ai_empty_answer_error
+	 */
 	public function test_humanize_maps_empty_answer_to_actionable_message() {
 		$raw = openstation_ai_empty_answer_error( 'The provider response contains no text part.' );
 		$this->assertWPError( $raw );
@@ -940,7 +1053,6 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 
 		$human = openstation_agent_humanize_generate_error( $raw );
 		$this->assertSame( 'openstation_agent_empty_answer', $human->get_error_code() );
-
 		$this->assertNotSame( '', trim( $human->get_error_message() ) );
 		$this->assertSame( 502, $human->get_error_data()['status'] );
 		$this->assertSame(

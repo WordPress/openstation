@@ -14,7 +14,6 @@ function openstation_code_editor_register_assets() {
 		'desktop-mode-code-editor',
 		OPENSTATION_CODE_EDITOR_URL . 'assets/css/code-editor.css',
 		array( 'os-variables', 'dashicons' ),
-
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : OPENSTATION_CODE_EDITOR_VERSION
 	);
 
@@ -59,6 +58,7 @@ function openstation_code_editor_serve_bundle() {
 	header( 'Content-Type: application/javascript; charset=utf-8' );
 	header( 'Vary: Cookie' );
 
+	echo '/* desktop-mode-code-editor config + bundle */' . "\n";
 	echo 'window.openStationCodeEditorConfig = ' . wp_json_encode( $config ) . ';' . "\n";
 
 	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
@@ -67,7 +67,7 @@ function openstation_code_editor_serve_bundle() {
 		$bundle = OPENSTATION_CODE_EDITOR_DIR . 'assets/js/code-editor.js';
 	}
 	if ( file_exists( $bundle ) ) {
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile
 		readfile( $bundle );
 	}
 
@@ -87,7 +87,7 @@ function openstation_code_editor_render_template() {
 	<?php
 	$html = (string) ob_get_clean();
 
-	echo apply_filters( 'openstation_code_editor_template_html', $html );
+	echo apply_filters( 'openstation_code_editor_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
 function openstation_code_editor_register_window() {
@@ -112,7 +112,7 @@ function openstation_code_editor_register_window() {
 
 	$registered = openstation_register_window( 'wpdc-editor', $window_args );
 	if ( is_wp_error( $registered ) ) {
-
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[desktop-mode-code-editor] window registration failed: ' . $registered->get_error_message() );
 		return;
 	}

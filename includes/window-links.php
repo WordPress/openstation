@@ -8,7 +8,7 @@ function openstation_build_content_identity() {
 	$pagenow  = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
 
 	if ( 'comment.php' === $pagenow ) {
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 		$comment_id = isset( $_GET['c'] ) ? absint( $_GET['c'] ) : 0;
 		$comment    = $comment_id ? get_comment( $comment_id ) : null;
 		if ( $comment ) {
@@ -28,10 +28,10 @@ function openstation_build_content_identity() {
 			}
 		}
 	} elseif ( 'revision.php' === $pagenow ) {
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 		$revision_id = isset( $_GET['revision'] ) ? absint( $_GET['revision'] ) : 0;
 		if ( ! $revision_id ) {
-
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 			$revision_id = isset( $_GET['to'] ) ? absint( $_GET['to'] ) : 0;
 		}
 		$revision = $revision_id ? wp_get_post_revision( $revision_id ) : null;
@@ -40,7 +40,7 @@ function openstation_build_content_identity() {
 			$identity = array(
 				'type'  => 'revisions',
 				'id'    => (int) $parent->ID,
-
+				/* translators: %s: post title. */
 				'label' => sprintf( __( 'Revisions of %s', 'desktop-mode' ), get_the_title( $parent ) ),
 				'root'  => array(
 					'type' => sanitize_key( $parent->post_type ),
@@ -93,7 +93,7 @@ function openstation_build_content_identity() {
 			}
 		}
 	} elseif ( 'upload.php' === $pagenow ) {
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 		$item_id = isset( $_GET['item'] ) ? absint( $_GET['item'] ) : 0;
 		$item    = $item_id ? get_post( $item_id ) : null;
 		if ( $item instanceof WP_Post && 'attachment' === $item->post_type ) {
@@ -113,14 +113,14 @@ function openstation_build_content_identity() {
 			}
 		}
 	} elseif ( 'edit-comments.php' === $pagenow ) {
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 		$post_id = isset( $_GET['p'] ) ? absint( $_GET['p'] ) : 0;
 		$post    = $post_id ? get_post( $post_id ) : null;
 		if ( $post instanceof WP_Post && 'attachment' !== $post->post_type ) {
 			$identity = array(
 				'type'  => 'comments',
 				'id'    => (int) $post->ID,
-
+				/* translators: %s: post title. */
 				'label' => sprintf( __( 'Comments on %s', 'desktop-mode' ), get_the_title( $post ) ),
 				'root'  => array(
 					'type' => sanitize_key( $post->post_type ),
@@ -129,7 +129,7 @@ function openstation_build_content_identity() {
 			);
 		}
 	} elseif ( 'term.php' === $pagenow ) {
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 		$term_id = isset( $_GET['tag_ID'] ) ? absint( $_GET['tag_ID'] ) : 0;
 		$term    = $term_id ? get_term( $term_id ) : null;
 		if ( $term instanceof WP_Term ) {
@@ -140,7 +140,7 @@ function openstation_build_content_identity() {
 			);
 		}
 	} elseif ( 'user-edit.php' === $pagenow || 'profile.php' === $pagenow ) {
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
 		$user_id = isset( $_GET['user_id'] ) ? absint( $_GET['user_id'] ) : get_current_user_id();
 		$user    = $user_id ? get_userdata( $user_id ) : null;
 		if ( $user instanceof WP_User && current_user_can( 'edit_user', $user->ID ) ) {
@@ -196,15 +196,12 @@ function openstation_window_revisions( $post ) {
 		$post instanceof WP_Post &&
 		$post->ID > 0 &&
 		'attachment' !== $post->post_type &&
-
 		'auto-draft' !== $post->post_status &&
 		post_type_supports( $post->post_type, 'revisions' ) &&
 		current_user_can( 'edit_post', $post->ID )
 	) {
-
 		$ids = wp_get_post_revisions( $post->ID, array( 'fields' => 'ids' ) );
 		if ( ! empty( $ids ) ) {
-
 			$link = get_edit_post_link( (int) reset( $ids ), 'raw' );
 			if ( is_string( $link ) && '' !== $link ) {
 				$revisions['url']   = $link;
@@ -239,7 +236,6 @@ function openstation_window_related_attach( $identity, $post, $screen ) {
 	$related = array();
 	if (
 		$post instanceof WP_Post &&
-
 		isset( $identity['type'], $identity['id'] ) &&
 		sanitize_key( $post->post_type ) === $identity['type'] &&
 		(int) $post->ID === (int) $identity['id']
@@ -247,13 +243,11 @@ function openstation_window_related_attach( $identity, $post, $screen ) {
 		$related = openstation_window_related_entities_for_post( $post );
 	}
 	if ( isset( $identity['related'] ) && is_array( $identity['related'] ) ) {
-
 		$related = array_merge( $related, $identity['related'] );
 	}
 
 	$related = apply_filters( 'openstation_window_related_entities', $related, $identity, $screen );
 	$related = openstation_window_related_entities_sanitize( $related );
-
 	unset( $identity['related'] );
 	if ( ! empty( $related ) ) {
 		$identity['related'] = $related;
@@ -276,7 +270,6 @@ function openstation_window_links_extract_references( $post ) {
 			'id'   => (int) $id,
 		);
 		if ( 'child' === $rel ) {
-
 			$entry['rel'] = 'child';
 		}
 		$links[] = $entry;
@@ -404,7 +397,7 @@ function openstation_window_related_entities_for_post( $post ) {
 			$label = wp_basename( (string) get_attached_file( $media_id ) );
 		}
 		if ( '' === $label ) {
-
+			/* translators: %d: attachment ID. */
 			$label = sprintf( __( 'Media item %d', 'desktop-mode' ), $media_id );
 		}
 		$related[] = array(
@@ -434,7 +427,7 @@ function openstation_window_related_entities_for_post( $post ) {
 			}
 			$label = get_the_title( $target_id );
 			if ( '' === $label ) {
-
+				/* translators: %d: post ID. */
 				$label = sprintf( __( 'Post %d', 'desktop-mode' ), $target_id );
 			}
 			$related[] = array(
@@ -462,14 +455,12 @@ function openstation_window_related_entities_sanitize( $related ) {
 		if ( ! is_array( $item ) ) {
 			continue;
 		}
-
 		foreach ( array( 'label', 'groupLabel' ) as $text ) {
 			if ( isset( $item[ $text ] ) && is_string( $item[ $text ] ) ) {
 				$item[ $text ] = openstation_plain_text_title( $item[ $text ] );
 			}
 		}
 		foreach ( array( 'id', 'group', 'label', 'url' ) as $required ) {
-
 			if ( ! isset( $item[ $required ] ) || ! is_string( $item[ $required ] ) || '' === trim( $item[ $required ] ) ) {
 				continue 2;
 			}
@@ -618,7 +609,6 @@ function openstation_build_window_link_renderer_scripts_payload() {
 		}
 		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-
 			openstation_warn_unresolvable_script_handle(
 				'openstation_register_window_link_renderer_script',
 				'Window-link renderer',
@@ -633,7 +623,6 @@ function openstation_build_window_link_renderer_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;

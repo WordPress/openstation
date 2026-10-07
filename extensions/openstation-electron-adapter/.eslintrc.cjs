@@ -16,14 +16,11 @@ module.exports = {
 		},
 	},
 	rules: {
-
 		'jsdoc/require-param-type': 'off',
 		'jsdoc/require-returns-type': 'off',
 		'jsdoc/no-undefined-types': 'off',
 		'jsdoc/require-jsdoc': 'off',
-
 		'@wordpress/dependency-group': 'off',
-
 		'no-console': [ 'error', { allow: [ 'warn', 'error', 'info' ] } ],
 		'no-unused-vars': 'off',
 		'@typescript-eslint/no-unused-vars': [
@@ -33,21 +30,16 @@ module.exports = {
 		'@typescript-eslint/explicit-module-boundary-types': 'off',
 		indent: [ 'error', 'tab', { SwitchCase: 1 } ],
 		'no-mixed-operators': 'off',
-
 		'no-duplicate-imports': 'off',
-
 		'no-useless-constructor': 'off',
-
 		'@wordpress/i18n-text-domain': 'off',
 		'@wordpress/i18n-no-variables': 'off',
 	},
 	overrides: [
 		{
-
 			files: [ 'src/**/*.ts' ],
 			env: { browser: true, es2022: true },
 			rules: {
-
 				'no-restricted-syntax': [
 					'error',
 					{
@@ -96,11 +88,9 @@ module.exports = {
 			},
 		},
 		{
-
 			files: [ 'app/src/**/*.ts' ],
 			env: { node: true, es2022: true },
 			rules: {
-
 				'no-restricted-globals': [
 					'error',
 					{
@@ -112,13 +102,11 @@ module.exports = {
 			},
 		},
 		{
-
 			files: [ 'app/src/renderer/**/*.ts' ],
 			env: { browser: true, node: false },
 			rules: { 'no-restricted-globals': 'off' },
 		},
 		{
-
 			files: [ 'app/src/preload/**/*.ts' ],
 			rules: {
 				'no-restricted-syntax': [
@@ -142,10 +130,8 @@ module.exports = {
 			files: [ 'tests/**/*.ts' ],
 			env: { node: true, browser: true, es2022: true },
 			rules: {
-
 				'@typescript-eslint/no-explicit-any': 'off',
 				'@typescript-eslint/no-non-null-assertion': 'off',
-
 				'jsdoc/require-param': 'off',
 				'jsdoc/check-param-names': 'off',
 			},

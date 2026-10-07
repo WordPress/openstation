@@ -148,7 +148,6 @@ function openstation_activation_within( $days ) {
 
 	$first = openstation_get_first_enabled_stamp();
 	if ( null === $first ) {
-
 		if ( time() - $install['at'] > $days * DAY_IN_SECONDS ) {
 			return false;
 		}

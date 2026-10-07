@@ -85,7 +85,6 @@ const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
 
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 4;
-
 const FIT_ZOOM_MAX = 1.5;
 const FIT_OPTIONS = {
 	padding: 100,
@@ -93,10 +92,8 @@ const FIT_OPTIONS = {
 	maxScale: FIT_ZOOM_MAX,
 };
 const ZOOM_SENSITIVITY = 0.0008;
-
 const PINCH_CLICK_GRACE_MS = 300;
 const CAMERA_EASE = 0.18;
-
 const CAMERA_EPSILON = 0.001;
 const RESIZE_RECENTER_THRESHOLD = 24;
 
@@ -116,9 +113,7 @@ interface NodeView {
 	label: PixiText;
 	iconCharCode: string | null;
 	iconName: string;
-
 	typeColor: number;
-
 	discKey: string;
 }
 
@@ -139,34 +134,28 @@ export class GraphScene {
 	private pixi!: PixiNamespace;
 	private world!: PixiContainer;
 	private edgeLayer!: PixiContainer;
-
 	private spokeLayer!: PixiContainer;
 	private nodeLayer!: PixiContainer;
 	private labelLayer!: PixiContainer;
-
 	private groupLabelOverlay: HTMLDivElement | null = null;
 	private satellites: SatelliteLayer | null = null;
 	private nodeViews = new Map< number, NodeView >();
 	private edgeViews: EdgeView[] = [];
 	private groupViews = new Map< string, GroupView >();
 	private currentGrouping: GroupFacet | null = null;
-
 	private groupCatalogs: GraphGroupCatalogs = {
 		authors: {},
 		categories: {},
 		tags: {},
 	};
-
 	private groupingTween: {
 		startTime: number;
 		duration: number;
 		starts: Map< number, { x: number; y: number } >;
 		targets: Map< number, { x: number; y: number } >;
 	} | null = null;
-
 	private fitFollowActive = false;
 	private fitFollowStartedAt = 0;
-
 	private fitFollowSawMotion = false;
 	private readonly fitFollowMaxDurationMs = 3000;
 	private readonly fitFollowVelocityThreshold = 1.0;
@@ -175,26 +164,21 @@ export class GraphScene {
 	private sim: ForceSim | null = null;
 	private focusedId: number | null = null;
 	private hoveredId: number | null = null;
-
 	private pressedNode: GraphNode | null = null;
 	private dragOffset = { x: 0, y: 0 };
 	private isPanning = false;
 	private panStart = { x: 0, y: 0, wx: 0, wy: 0 };
 	private nodeClickActive = false;
-
 	private pointers = new Map< number, Point >();
 	private pinchUntil = 0;
 	private destroyed = false;
 	private tickerCb: ( ( t: { deltaTime: number } ) => void ) | null = null;
 	private resizeObserver: ResizeObserver | null = null;
-
 	private fitInsets: WorkAreaInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 	private unsubscribeWorkArea: ( () => void ) | null = null;
 	private lastResizeWidth = 0;
 	private lastResizeHeight = 0;
-
 	private fitPending = false;
-
 	private targetScale = 1;
 	private targetX = 0;
 	private targetY = 0;
@@ -204,7 +188,6 @@ export class GraphScene {
 	private postTypeIcon: PostTypeIconLookup;
 	private postTypeBySlug: Map< string, PostTypeDescriptor >;
 	private postTypeColor = new Map< string, number >();
-
 	private nodeStyle: NodeStyle = 'disc';
 
 	constructor(
@@ -224,14 +207,12 @@ export class GraphScene {
 			map.set( t.slug, normalizeDashiconName( t.icon ) );
 			this.postTypeBySlug.set( t.slug, t );
 		}
-
 		postTypes.forEach( ( t, i ) => {
 			this.postTypeColor.set(
 				t.slug,
 				TYPE_PALETTE[ i % TYPE_PALETTE.length ],
 			);
 		} );
-
 		this.postTypeIcon = ( slug ) =>
 			map.get( slug ) ?? defaultIconForPostType( slug );
 	}
@@ -250,7 +231,6 @@ export class GraphScene {
 			try {
 				await document.fonts.load( '16px dashicons' );
 			} catch {
-
 			}
 		}
 
@@ -260,9 +240,7 @@ export class GraphScene {
 			backgroundAlpha: 0,
 			antialias: true,
 			autoDensity: true,
-
 			resolution: RENDER_RESOLUTION,
-
 			sharedTicker: false,
 		} );
 		this.app = app;
@@ -288,7 +266,6 @@ export class GraphScene {
 			this.nodeLayer,
 			this.labelLayer,
 		);
-
 		this.groupLabelOverlay = document.createElement( 'div' );
 		this.groupLabelOverlay.className =
 			'os-content-graph__group-labels';
@@ -301,7 +278,6 @@ export class GraphScene {
 				try {
 					this.app?.ticker?.stop();
 				} catch {
-
 				}
 			},
 			false,
@@ -316,9 +292,8 @@ export class GraphScene {
 				try {
 					this.app?.ticker?.stop();
 				} catch {
-
 				}
-
+				// eslint-disable-next-line no-console
 				console.warn(
 					'[content-graph] Pixi render threw, stopping ticker:',
 					err,
@@ -351,7 +326,6 @@ export class GraphScene {
 		for ( const n of this.nodes ) {
 			prev.set( n.id, n );
 		}
-
 		this.groupCatalogs = payload.groups ?? {
 			authors: {},
 			categories: {},
@@ -402,14 +376,12 @@ export class GraphScene {
 		this.rebuildSprites();
 		this.sim = new ForceSim( nodes, edges );
 		this.sim.reheat( 0.12, false );
-
 		const warmupSteps = fromScratch
 			? warmupStepLimit( nodes.length )
 			: JOIN_WARMUP_STEPS;
 		for ( let i = 0; i < warmupSteps && ! this.sim.isSettled; i++ ) {
 			this.sim.step( 1 );
 		}
-
 		if ( this.currentGrouping ) {
 			this.setGrouping( this.currentGrouping );
 		}
@@ -506,7 +478,6 @@ export class GraphScene {
 				iconName,
 				typeColor:
 					this.postTypeColor.get( n.type ) ?? TYPE_PALETTE[ 0 ],
-
 				discKey: '',
 			} );
 		}
@@ -522,7 +493,6 @@ export class GraphScene {
 	private bindNodeInput( gfx: PixiContainer, node: GraphNode ): void {
 		let downAt = { x: 0, y: 0 };
 		let isDragging = false;
-
 		const DRAG_THRESHOLD_SQ = 36;
 		gfx.on( 'pointerdown', ( evt: unknown ) => {
 			const e = evt as {
@@ -534,7 +504,6 @@ export class GraphScene {
 			this.nodeClickActive = true;
 			this.pressedNode = node;
 			isDragging = false;
-
 			node.pinned = true;
 			node.vx = 0;
 			node.vy = 0;
@@ -553,7 +522,6 @@ export class GraphScene {
 			const e = evt as { global: { x: number; y: number } };
 			const dx = e.global.x - downAt.x;
 			const dy = e.global.y - downAt.y;
-
 			if ( ! isDragging && dx * dx + dy * dy <= 256 && ! this.pinchRecent() ) {
 				this.callbacks.onNodeClick?.( node );
 			}
@@ -587,7 +555,6 @@ export class GraphScene {
 				if ( d2 < DRAG_THRESHOLD_SQ ) {
 					return;
 				}
-
 				isDragging = true;
 				const w = this.toWorld( e.global.x, e.global.y );
 				this.dragOffset = { x: node.x - w.x, y: node.y - w.y };
@@ -623,7 +590,6 @@ export class GraphScene {
 			'wheel',
 			( ev: WheelEvent ) => {
 				ev.preventDefault();
-
 				const factor = Math.exp( -ev.deltaY * ZOOM_SENSITIVITY );
 				const nextScale = Math.max(
 					ZOOM_MIN,
@@ -682,7 +648,6 @@ export class GraphScene {
 			if ( ! this.isPanning || this.nodeClickActive || this.pointers.size > 1 ) {
 				return;
 			}
-
 			const newX = this.panStart.wx + ( ev.clientX - this.panStart.x );
 			const newY = this.panStart.wy + ( ev.clientY - this.panStart.y );
 			this.world.x = newX;
@@ -752,9 +717,7 @@ export class GraphScene {
 			}
 			const w = this.host.clientWidth;
 			const h = this.host.clientHeight;
-
 			this.fitInsets = workAreaInsetsOf( this.host );
-
 			if ( w <= 0 || h <= 0 ) {
 				return;
 			}
@@ -763,16 +726,13 @@ export class GraphScene {
 			} catch {
 				return;
 			}
-
 			try {
 				this.app.render();
 			} catch {
-
 			}
 			if ( this.fitPending ) {
 				this.fitToView();
 			}
-
 			const dw = Math.abs( w - this.lastResizeWidth );
 			const dh = Math.abs( h - this.lastResizeHeight );
 			if (
@@ -784,7 +744,6 @@ export class GraphScene {
 			}
 		} );
 		this.resizeObserver.observe( this.host );
-
 		this.unsubscribeWorkArea = subscribeWorkArea( () => {
 			if ( ! this.destroyed ) {
 				this.fitInsets = workAreaInsetsOf( this.host );
@@ -809,7 +768,6 @@ export class GraphScene {
 		if ( this.destroyed ) {
 			return;
 		}
-
 		if ( ! this.app || ! this.world ) {
 			return;
 		}
@@ -818,7 +776,6 @@ export class GraphScene {
 		} else {
 			this.sim?.step( delta );
 		}
-
 		const k = 1 - Math.pow( 1 - CAMERA_EASE, delta );
 		const ds = this.targetScale - this.world.scale.x;
 		if ( Math.abs( ds ) < CAMERA_EPSILON ) {
@@ -855,7 +812,6 @@ export class GraphScene {
 			this.fitFollowActive = false;
 			return;
 		}
-
 		if ( this.groupingTween ) {
 			return;
 		}
@@ -906,9 +862,7 @@ export class GraphScene {
 			case 'author': {
 				const primaryId = n.author_id || 0;
 				const primaryKey = `author:${ primaryId }`;
-
 				const keys = [ primaryKey, primaryKey ];
-
 				const contribs = Array.isArray( n.contributor_ids )
 					? n.contributor_ids
 					: [];
@@ -987,7 +941,6 @@ export class GraphScene {
 			if ( ids.length === 0 ) {
 				continue;
 			}
-
 			const label = `${ this.labelForGroupKey( key ) } (${ ids.length })`;
 			const el = document.createElement( 'div' );
 			el.className = 'os-content-graph__group-label';
@@ -1009,7 +962,6 @@ export class GraphScene {
 		if ( this.destroyed || this.groupViews.size === 0 ) {
 			return;
 		}
-
 		const fade = 1 - smoothstep( 1.2, 2.4, this.world.scale.x );
 		const scale = this.world.scale.x;
 		const ox = this.world.x;
@@ -1031,7 +983,6 @@ export class GraphScene {
 				v.el.style.display = 'none';
 				continue;
 			}
-
 			const screenX = ox + ( sumX / count ) * scale;
 			const screenY = oy + ( sumY / count ) * scale;
 			v.el.style.display = '';
@@ -1061,7 +1012,6 @@ export class GraphScene {
 		}
 
 		const dimmed = focusId !== null;
-
 		const edgeZoomFade = smoothstep( 0.45, 1.1, this.world.scale.x );
 		const edgeBaseAlpha = 0.2 + edgeZoomFade * 0.35;
 
@@ -1084,7 +1034,6 @@ export class GraphScene {
 			}
 			const color = isFocusEdge || isHoverEdge ? EDGE_HOT : EDGE_BASE;
 			const width = isFocusEdge || isHoverEdge ? 1.2 : 0.7;
-
 			let sx = edge.from.x;
 			let sy = edge.from.y;
 			let ex = edge.to.x;
@@ -1119,7 +1068,6 @@ export class GraphScene {
 		}
 
 		const inverseScale = 1 / this.world.scale.x;
-
 		const zoomFade = smoothstep( 0.55, 0.95, this.world.scale.x );
 		const discs = this.nodeStyle === 'disc';
 		for ( const v of this.nodeViews.values() ) {
@@ -1176,13 +1124,11 @@ export class GraphScene {
 			icon.style.fill = discs ? DISC_RING : fill;
 			const fontSize = discs ? discRadius * 1.35 : 2 * node.radius;
 			icon.style.fontSize = fontSize;
-
 			const nudge = ICON_NUDGE[ v.iconName ];
 			icon.x = ( nudge?.x ?? 0 ) * fontSize;
 			icon.y = ( ( nudge?.y ?? ICON_NUDGE_Y_ASCENT ) ) * fontSize;
 
 			labelBox.x = node.x;
-
 			labelBox.y = node.y + ( discs ? discRadius : node.radius ) + 4;
 			labelBox.scale.set( inverseScale );
 			let baseLabelAlpha: number;
@@ -1206,7 +1152,6 @@ export class GraphScene {
 			}
 		}
 		this.focusedId = id;
-
 		const view = this.nodeViews.get( id );
 		if ( view ) {
 			view.node.pinned = true;
@@ -1245,12 +1190,10 @@ export class GraphScene {
 			return;
 		}
 		const assignment = new Map< number, string[] >();
-
 		const members = new Map< string, number[] >();
 		for ( const n of this.nodes ) {
 			const keys = this.deriveGroupKeys( n, facet );
 			assignment.set( n.id, keys );
-
 			const seen = new Set< string >();
 			for ( const key of keys ) {
 				if ( seen.has( key ) ) {
@@ -1266,16 +1209,12 @@ export class GraphScene {
 			}
 		}
 		const order = this.chronologicalOrder( facet, members );
-
 		this.sim.groupOrderStaggerY = facet === 'year_month' ? 160 : 0;
-
 		this.sim.setGroupAssignment( assignment, order );
-
 		const targets = this.buildGroupSeedTargets( assignment, members, order );
 		this.startGroupingTween( targets );
 		this.fitToViewOfTargets( targets );
 		this.buildGroupViews( members, facet );
-
 		this.fitFollowActive = true;
 		this.fitFollowStartedAt = performance.now();
 		this.fitFollowSawMotion = false;
@@ -1307,7 +1246,6 @@ export class GraphScene {
 		}
 		if ( t >= 1 ) {
 			this.groupingTween = null;
-
 			this.sim?.reheat( 0.18, false );
 		}
 	}
@@ -1327,7 +1265,6 @@ export class GraphScene {
 
 		if ( order && order.length > 0 ) {
 			const n = order.length;
-
 			const stagger = this.sim.groupOrderStaggerY;
 			const staggerY = ( idx: number ): number => {
 				if ( stagger <= 0 ) {
@@ -1413,7 +1350,6 @@ export class GraphScene {
 		}
 		this.groupingTween = {
 			startTime: performance.now(),
-
 			duration: 450,
 			starts,
 			targets,
@@ -1426,7 +1362,6 @@ export class GraphScene {
 		if ( targets.size === 0 ) {
 			return;
 		}
-
 		this.fitInsets = workAreaInsetsOf( this.host );
 		this.frame( targets.values() );
 	}
@@ -1467,7 +1402,6 @@ export class GraphScene {
 				if ( ! Number.isFinite( y ) || y <= 0 ) {
 					continue;
 				}
-
 				ordered.push( { key, sort: String( y ).padStart( 6, '0' ) } );
 			} else {
 				if ( rest === 'unknown' || rest === '' ) {
@@ -1497,7 +1431,6 @@ export class GraphScene {
 		}
 		this.focusedId = null;
 		this.satellites?.clear();
-
 		this.sim?.reheat( 0.25, false );
 		this.draw();
 	}
@@ -1544,17 +1477,14 @@ export class GraphScene {
 
 	destroy(): void {
 		this.destroyed = true;
-
 		try {
 			this.app?.ticker?.stop();
 		} catch {
-
 		}
 		if ( this.tickerCb ) {
 			try {
 				this.app?.ticker?.remove( this.tickerCb );
 			} catch {
-
 			}
 			this.tickerCb = null;
 		}
@@ -1564,15 +1494,12 @@ export class GraphScene {
 		this.unsubscribeWorkArea = null;
 		this.satellites?.destroy();
 		this.satellites = null;
-
 		this.clearGroupViews();
 		this.groupLabelOverlay?.remove();
 		this.groupLabelOverlay = null;
-
 		try {
 			this.app.destroy( { removeView: true }, { children: true } );
 		} catch {
-
 		}
 	}
 }

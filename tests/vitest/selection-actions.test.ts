@@ -91,7 +91,6 @@ describe( 'resolveCommonActions', () => {
 		const { resolveCommonActions } = await load();
 		const own = actionsFor( post );
 		const resolved = resolveCommonActions( [ post ], () => own );
-
 		expect( resolved ).toBe( own );
 		expect( resolved.map( ( a ) => a.label ) ).toEqual( [
 			'Open',
@@ -107,7 +106,6 @@ describe( 'resolveCommonActions', () => {
 			actionsFor,
 		);
 		expect( resolved.map( ( a ) => a.id ) ).toEqual( [ 'open', 'trash' ] );
-
 		expect( resolved.find( ( a ) => a.id === 'navigate-into' ) ).toBeUndefined();
 		expect( resolved.find( ( a ) => a.id === 'download' ) ).toBeUndefined();
 	} );
@@ -119,7 +117,6 @@ describe( 'resolveCommonActions', () => {
 		expect( trash ).toBeDefined();
 		expect( trash?.label ).toBe( 'Move 2 items to Trash' );
 		expect( trash?.danger ).toBe( true );
-
 		expect( resolved.find( ( a ) => a.id === 'rename-folder' ) ).toBeUndefined();
 	} );
 
@@ -176,7 +173,6 @@ describe( 'resolveCommonActions', () => {
 		const [ action ] = resolveCommonActions( [ post, attachment ], build );
 		expect( action.disabled ).toBe( true );
 		expect( action.danger ).toBe( true );
-
 		expect( action.sort ).toBe( 10 );
 	} );
 
@@ -198,7 +194,6 @@ describe( 'resolveCommonActions', () => {
 	} );
 
 	test( 'merged contributors each get their OWN bulk, with their own items', async () => {
-
 		const { resolveCommonActions } = await load();
 		const fileBulk = vi.fn();
 		const folderBulk = vi.fn();
@@ -235,7 +230,6 @@ describe( 'resolveCommonActions', () => {
 	} );
 
 	test( 'contributors sharing one runner still make a single call', async () => {
-
 		const { resolveCommonActions } = await load();
 		const shared = vi.fn();
 		const build = ( item: Item ): SelectionAction< Item >[] => [
@@ -324,7 +318,6 @@ describe( 'resolveCommonActions', () => {
 			build,
 		);
 		await action.onClick( new MouseEvent( 'click' ) );
-
 		expect( calls ).toEqual( [ 1, 2, 3 ] );
 	} );
 

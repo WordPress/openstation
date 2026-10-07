@@ -97,7 +97,6 @@ describe( 'selection controller', () => {
 		click( a );
 		expect( a.hasAttribute( 'selected' ) ).toBe( true );
 		expect( a.getAttribute( 'aria-selected' ) ).toBe( 'true' );
-
 		expect( a.hasAttribute( 'selectable' ) ).toBe( true );
 		handle.model.clear();
 		expect( a.hasAttribute( 'selected' ) ).toBe( false );
@@ -126,7 +125,6 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'visual order drives the range, not DOM order', () => {
-
 		const a = tile( 'a', 200, 0 );
 		const b = tile( 'b', 100, 0 );
 		tile( 'c', 0, 0 );
@@ -134,12 +132,10 @@ describe( 'selection controller', () => {
 		click( b );
 		click( a, { shiftKey: true } );
 		expect( handle.keys() ).toEqual( [ 'b', 'a' ] );
-
 		expect( handle.keys() ).not.toContain( 'c' );
 	} );
 
 	test( 'ranges do not span two canvases in one step', () => {
-
 		const bandA = document.createElement( 'div' );
 		const bandB = document.createElement( 'div' );
 		root.append( bandA, bandB );
@@ -159,7 +155,6 @@ describe( 'selection controller', () => {
 		const handle = attach();
 		click( a2 );
 		click( b1, { shiftKey: true } );
-
 		expect( handle.keys() ).toEqual( [ 'a2', 'b1' ] );
 	} );
 
@@ -203,7 +198,6 @@ describe( 'selection controller', () => {
 		arrow( 'ArrowRight' );
 		expect( handle.keys() ).toEqual( [ 'b' ] );
 		arrow( 'ArrowRight', true );
-
 		expect( handle.keys() ).toEqual( [ 'b', 'c' ] );
 	} );
 
@@ -213,7 +207,6 @@ describe( 'selection controller', () => {
 		const handle = attach();
 		click( a );
 		click( b, { metaKey: true } );
-
 		a.remove();
 		b.removeAttribute( 'selected' );
 		handle.refresh();
@@ -266,13 +259,11 @@ describe( 'selection controller', () => {
 		background.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
 		document.dispatchEvent( pointerEvent( 'pointermove', 200, 200 ) );
 		document.dispatchEvent( pointerEvent( 'pointerup', 200, 200 ) );
-
 		click( background );
 		expect( handle.keys() ).toEqual( [ 'a' ] );
 	} );
 
 	test( 'a press on a window never starts a marquee', () => {
-
 		const win = document.createElement( 'div' );
 		win.className = 'os-window';
 		const titleBar = document.createElement( 'div' );
@@ -290,7 +281,6 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'a press on a pinned note never starts a marquee', () => {
-
 		const note = document.createElement( 'article' );
 		note.className = 'os-pinned-note';
 		const button = document.createElement( 'button' );
@@ -307,7 +297,6 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'no marquee starts while the desktop area is in Overview', () => {
-
 		background.classList.add( 'os-area--overview' );
 		const capture = vi.fn();
 		background.setPointerCapture = capture;
@@ -334,11 +323,9 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'a canvas INSIDE a window still marquees', () => {
-
 		const win = document.createElement( 'div' );
 		win.className = 'os-window';
 		document.body.appendChild( win );
-
 		win.appendChild( background );
 
 		const a = tile( 'a' );
@@ -356,11 +343,9 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'scrolling mid-marquee grows the band and catches what scrolls in', () => {
-
 		const a = tile( 'a' );
 		const b = tile( 'b' );
 		withRect( background, { left: 0, top: 0, width: 400, height: 200 } );
-
 		withRect( a, { left: 10, top: 20, width: 50, height: 50 } );
 		withRect( b, { left: 10, top: 400, width: 50, height: 50 } );
 		Object.defineProperty( background, 'scrollHeight', {
@@ -407,7 +392,6 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'the browser cannot run a text selection under the band', () => {
-
 		tile( 'a' );
 		withRect( background, { left: 0, top: 0, width: 400, height: 400 } );
 		attach();
@@ -418,7 +402,6 @@ describe( 'selection controller', () => {
 		document.dispatchEvent( pointerEvent( 'pointermove', 200, 200 ) );
 
 		expect( document.body.hasAttribute( 'data-os-marquee' ) ).toBe( true );
-
 		const attempt = new Event( 'selectstart', {
 			bubbles: true,
 			cancelable: true,
@@ -428,7 +411,6 @@ describe( 'selection controller', () => {
 
 		document.dispatchEvent( pointerEvent( 'pointerup', 200, 200 ) );
 		expect( document.body.hasAttribute( 'data-os-marquee' ) ).toBe( false );
-
 		const after = new Event( 'selectstart', {
 			bubbles: true,
 			cancelable: true,
@@ -442,7 +424,6 @@ describe( 'selection controller', () => {
 		withRect( background, { left: 0, top: 0, width: 400, height: 400 } );
 		attach();
 		background.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
-
 		document.dispatchEvent( pointerEvent( 'pointermove', 6, 6 ) );
 		expect( document.body.hasAttribute( 'data-os-marquee' ) ).toBe( false );
 		document.dispatchEvent( pointerEvent( 'pointerup', 6, 6 ) );
@@ -455,7 +436,6 @@ describe( 'selection controller', () => {
 		background.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
 		document.dispatchEvent( pointerEvent( 'pointermove', 200, 200 ) );
 		expect( document.body.hasAttribute( 'data-os-marquee' ) ).toBe( true );
-
 		root.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'Escape', bubbles: true } ),
 		);
@@ -463,7 +443,6 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'the band takes pointer capture so the release comes home', () => {
-
 		const captured: number[] = [];
 		const released: number[] = [];
 		background.setPointerCapture = ( id: number ) => {
@@ -509,7 +488,6 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'focus leaving the shell ends the band', () => {
-
 		background.setPointerCapture = () => undefined;
 		background.releasePointerCapture = () => undefined;
 		background.hasPointerCapture = () => false;
@@ -553,7 +531,6 @@ describe( 'selection controller', () => {
 	}
 
 	test( 'a canvas the user cannot scroll is never auto-scrolled', () => {
-
 		const frames = withFrames();
 		tile( 'a' );
 		withRect( background, { left: 0, top: 0, width: 400, height: 200 } );
@@ -561,7 +538,6 @@ describe( 'selection controller', () => {
 		attach();
 
 		background.dispatchEvent( pointerEvent( 'pointerdown', 5, 5 ) );
-
 		document.dispatchEvent( pointerEvent( 'pointermove', 200, 199 ) );
 		frames.run( 5 );
 		expect( background.scrollTop ).toBe( 0 );
@@ -583,7 +559,6 @@ describe( 'selection controller', () => {
 	} );
 
 	test( 'closing one controller does not blank another’s snapshot', () => {
-
 		const second = document.createElement( 'div' );
 		const secondRoot = document.createElement( 'div' );
 		second.appendChild( secondRoot );

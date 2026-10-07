@@ -158,7 +158,6 @@ describe( 'buildMenuOptions', () => {
 			'Move to Trash',
 			'Export PDF',
 		] );
-
 		expect( buildMenuOptions( section(), item( {} ), [] ).map( ( o ) => o.id ) ).not.toContain( 'copy-shortlink' );
 	} );
 
@@ -215,7 +214,6 @@ describe( 'view', () => {
 			expect( root.querySelector( '.os-mywp__detail-page' ) ).not.toBeNull();
 			expect( root.querySelector( '.os-mywp__split' ) ).toBeNull();
 			expect( root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Beta' );
-
 			expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Beta' );
 			const links = Array.from( root.querySelectorAll( '.os-mywp__crumb-link' ) ).map( ( l ) => l.textContent );
 			expect( links ).toContain( 'Posts' );
@@ -276,7 +274,6 @@ describe( 'view', () => {
 		expect( root.textContent ).toContain( '1 selected' );
 		expect( root.textContent ).toContain( '2 of 2 items' );
 		expect( root.textContent ).toContain( 'Page 1 of 1' );
-
 		expect( root.querySelector( '.os-mywp__bulk' ) ).toBeNull();
 	} );
 
@@ -307,14 +304,12 @@ describe( 'view', () => {
 		expect( open.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__detail-pane' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__split--solo' ) ).toBeNull();
-
 		expect(
 			Array.from( open.querySelectorAll( 'os-fact' ) ).map( ( f ) =>
 				f.getAttribute( 'label' ),
 			),
 		).toContain( 'Status' );
 		expect( Array.from( open.querySelectorAll( 'os-button' ) ).some( ( button ) => button.textContent?.trim() === 'Trash' ) ).toBe( true );
-
 		expect( open.textContent ).toContain( 'Explore details' );
 		expect( open.textContent ).toContain( 'Open in editor' );
 		expect( open.querySelector( '[data-mywp-content]' ) ).not.toBeNull();
@@ -341,7 +336,6 @@ describe( 'view', () => {
 		expect( labels ).toEqual( [ 'Author · 1', 'Comments · 3', 'Revisions · 5' ] );
 		expect( root.querySelector( '[data-mywp-content="folder"]' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( '3 folders' );
-
 		const links = Array.from( root.querySelectorAll( '.os-mywp__crumb-link' ), ( el ) => el.textContent );
 		expect( links ).toEqual( [ 'Test Site', 'Posts' ] );
 		expect( root.querySelector( '.os-mywp__crumb-current' )?.textContent ).toBe( 'Alpha strategy' );
@@ -392,7 +386,6 @@ describe( 'view', () => {
 		);
 		expect( root.querySelector( 'os-tile[selected]' ) ).not.toBeNull();
 		expect( root.textContent ).toContain( 'View archive' );
-
 		const statText = Array.from( root.querySelectorAll( 'os-stat' ) )
 			.map( ( s ) => `${ s.getAttribute( 'value' ) } ${ s.getAttribute( 'label' ) } ${ s.getAttribute( 'caption' ) ?? '' }` )
 			.join( ' ' );
@@ -472,7 +465,6 @@ describe( 'view', () => {
 			},
 			doAction: ( hook: string, payload: Record< string, unknown > ) => {
 				fired.push( { hook, payload } );
-
 				if ( hook === 'os.my-wordpress.preview-extras' && payload.slot === 'meta' ) {
 					const block = document.createElement( 'div' );
 					block.className = 'atwork-preview';
@@ -506,7 +498,6 @@ describe( 'view', () => {
 				} ),
 				root,
 			} ) );
-
 			const heads = Array.from( root.querySelectorAll( '.os-mywp__band-head' ) );
 			expect( heads.map( ( h ) => h.textContent?.trim().replace( /\s+/g, ' ' ) ) ).toEqual( [
 				'Doing 1',
@@ -515,12 +506,10 @@ describe( 'view', () => {
 			expect( heads[ 0 ].classList.contains( 'os-mywp__band-head--warn' ) ).toBe( true );
 			const grids = root.querySelectorAll( '.os-mywp__band-grid' );
 			expect( grids ).toHaveLength( 3 );
-
 			const tiles = fired.filter( ( f ) => f.hook === 'os.my-wordpress.list-tile' );
 			expect( tiles ).toHaveLength( 3 );
 			expect( tiles.map( ( f ) => ( f.payload.item as ListItem ).id ).sort() ).toEqual( [ 1, 2, 3 ] );
 			expect( tiles[ 0 ].payload.entityId ).toBe( 'posts' );
-
 			const extras = fired.filter( ( f ) => f.hook === 'os.my-wordpress.preview-extras' );
 			expect( extras.map( ( f ) => f.payload.slot ).sort() ).toEqual( [ 'footer', 'header', 'meta' ] );
 			const metaSlot = extras.find( ( f ) => f.payload.slot === 'meta' );
@@ -529,7 +518,6 @@ describe( 'view', () => {
 				( ( metaSlot?.payload.item as Record< string, unknown > ).meta as Record< string, string > )._lane,
 			).toBe( 'doing' );
 			expect( ( metaSlot?.payload.container as HTMLElement ).hasAttribute( 'os-preserve' ) ).toBe( true );
-
 			fired.length = 0;
 			app.render( mockViewContext( {
 				state: state( { section: 'posts', item: 1 } ),
@@ -548,7 +536,6 @@ describe( 'view', () => {
 				root,
 			} ) );
 			expect( fired.filter( ( f ) => f.hook === 'os.my-wordpress.preview-extras' ) ).toHaveLength( 0 );
-
 			expect( root.querySelector( '.atwork-preview' )?.textContent ).toBe( 'State: Active' );
 		} finally {
 			delete ( window as { wp?: unknown } ).wp;
@@ -571,7 +558,6 @@ describe( 'view', () => {
 			} ),
 			root,
 		} );
-
 		( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
 			observe(): void {}
 			disconnect(): void {}
@@ -624,10 +610,8 @@ describe( 'view', () => {
 			expect( tip?.querySelector( '.os-my-wordpress__tooltip-lock' )?.textContent ).toContain(
 				'Ada is currently editing',
 			);
-
 			cell.dispatchEvent( new MouseEvent( 'mouseover', { bubbles: true } ) );
 			expect( seen ).toHaveLength( 1 );
-
 			root.dispatchEvent( new MouseEvent( 'pointerdown', { bubbles: true } ) );
 			expect( document.body.querySelector( '.os-my-wordpress__tooltip' ) ).toBeNull();
 			teardown();
@@ -769,11 +753,9 @@ describe( 'view', () => {
 			tags: [],
 		};
 		app.render( ctx );
-
 		expect( root.textContent ).toContain(
 			'Only the fields you change are applied. Categories and tags are added to what each entry already has.',
 		);
-
 		const picker = root.querySelector< HTMLElement & { items: unknown[]; value: number[] } >(
 			'os-category-picker',
 		);
@@ -816,7 +798,6 @@ describe( 'view', () => {
 			return true;
 		} );
 		const tile = root.querySelector< HTMLElement >( '.os-mywp__tile' );
-
 		tile?.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
 		expect( calls ).toEqual( [] );
 		tile?.dispatchEvent( new MouseEvent( 'dblclick', { bubbles: true } ) );
@@ -879,7 +860,6 @@ describe( 'theme tokenization', () => {
 		expect( ruleOf( '.os-mywp__crumb-link {' ) ).toContain( '--os-link' );
 		expect( ruleOf( '.os-mywp__recent-title' ) ).toContain( '--os-link' );
 		expect( ruleOf( '.os-mywp__tile:hover' ) ).toContain( '--os-tile-hover-bg' );
-
 		expect( ruleOf( '.os-mywp__activity-bar' ) ).toContain( '--wp-admin-theme-color' );
 		expect( ruleOf( '.os-mywp__ghost-visual' ) ).toContain( '--os-skeleton-high' );
 	} );
@@ -948,7 +928,6 @@ describe( 'optimistic Explorer interactions', () => {
 		expect( ctx.root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Alpha' );
 		expect( ctx.root.querySelector( '.os-mywp__detail' )?.getAttribute( 'aria-busy' ) ).toBe( 'true' );
 		openPreview( ctx, 2 );
-
 		ctx.state.item = 0;
 		ctx.data.detail = { id: 1, kind: 'post', title: 'OLD', content: '<p>Wrong body</p>', facts: [], canEdit: true, canDelete: true };
 		ctx.repaint();

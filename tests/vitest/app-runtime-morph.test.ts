@@ -70,7 +70,6 @@ describe( 'morphChildren', () => {
 	it( 'morphs a select\'s options before assigning its value', () => {
 		const root = mount( '<select><option value="a">A</option></select>' );
 		const select = root.firstElementChild as HTMLSelectElement;
-
 		morphChildren(
 			root,
 			'<select value="b"><option value="a">A</option><option value="b" selected>B</option></select>',

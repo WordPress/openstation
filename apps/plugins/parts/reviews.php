@@ -87,7 +87,6 @@ function openstation_plugins_window_parse_reviews_html( $html ) {
 	try {
 		$prev = libxml_use_internal_errors( true );
 		$doc  = new DOMDocument();
-
 		$doc->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOERROR | LIBXML_NOWARNING );
 		libxml_clear_errors();
 		libxml_use_internal_errors( $prev );
@@ -114,7 +113,6 @@ function openstation_plugins_window_parse_reviews_html( $html ) {
 		}
 		return $out;
 	} catch ( Throwable $e ) {
-
 		return null;
 	}
 }
@@ -143,7 +141,6 @@ function openstation_plugins_window_parse_review( DOMXPath $xpath, DOMNode $revi
 		} elseif ( preg_match( '/(\d+)\s*star/i', $rating_text, $m ) ) {
 			$stars = (int) $m[1];
 		} else {
-
 			$filled = $xpath->query( './/*[' . $class( 'star' ) . ' and ' . $class( 'filled' ) . ']', $rating_nodes->item( 0 ) );
 			if ( $filled instanceof DOMNodeList ) {
 				$stars = (int) $filled->length;

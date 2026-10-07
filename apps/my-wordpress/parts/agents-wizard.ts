@@ -236,7 +236,7 @@ function agentsMeetStep( ctx: Ctx, cast: CastDraft ): TemplateResult {
 				${ cast.copiedFrom
 					? html`<os-notice tone="info">
 							${ sprintf(
-
+								/* translators: %s: name of the agent this one was copied from. */
 								__( 'Copied from %s, with a face of its own.' ),
 								cast.copiedFrom,
 							) }
@@ -388,7 +388,7 @@ function agentsLaunchStep( ctx: Ctx, payload: AgentsPayload, cast: CastDraft ): 
 		cast.triggers.length === 0
 			? __( 'No triggers configured: reachable in chat.' )
 			: sprintf(
-
+				/* translators: %s: comma-separated list of trigger kind labels. */
 				__( 'Starts from: %s.' ),
 				cast.triggers.map( ( t ) => triggerLabel( t.kind ) ).join( ', ' ),
 			);
@@ -470,7 +470,6 @@ export function renderAgents( ctx: Ctx ): TemplateResult {
 	if ( ! payload ) {
 		return html`<os-empty-state>${ __( 'This section is not available.' ) }</os-empty-state>`;
 	}
-
 	const off = ! payload.enabled;
 	const state = ctx.state;
 	const selected = payload.list.find( ( a ) => a.id === state.item ) ?? null;

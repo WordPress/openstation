@@ -1,9 +1,7 @@
 import { isMobileStamped, isStandaloneStamped } from './stamp';
 
 export interface ZoomGuardOptions {
-
 	root?: Element;
-
 	doc?: Pick< Document, 'addEventListener' | 'removeEventListener' >;
 }
 

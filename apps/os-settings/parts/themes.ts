@@ -60,7 +60,6 @@ async function deleteTheme( ctx: Ctx, slug: string ): Promise< void > {
 	try {
 		announceWallpapers( await response.json() );
 	} catch {
-
 	}
 }
 
@@ -86,7 +85,7 @@ async function doDelete( ctx: Ctx, theme: DesktopThemeEntry ): Promise< void > {
 	const ok = await ctx.host.confirm?.( {
 		title: __( 'Delete this theme?' ),
 		message: sprintf(
-
+			/* translators: %s: theme name. */
 			__( '“%s” will be removed from this site for everyone. This cannot be undone.' ),
 			theme.name,
 		),
@@ -101,7 +100,6 @@ async function doDelete( ctx: Ctx, theme: DesktopThemeEntry ): Promise< void > {
 	try {
 		await deleteTheme( ctx, theme.slug );
 		removeDesktopTheme( theme.slug );
-
 		if ( settings().desktopTheme === theme.slug ) {
 			update( { desktopTheme: SYSTEM_DEFAULT } );
 		}
@@ -129,7 +127,7 @@ const themeCard = ( ctx: Ctx, theme: DesktopThemeEntry, selected: boolean, canMa
 			<span class="os-settings__theme-meta">
 				${ theme.version !== ''
 					? sprintf(
-
+						/* translators: %s: theme version string. */
 						__( 'Version %s' ),
 						theme.version,
 					)
@@ -141,7 +139,7 @@ const themeCard = ( ctx: Ctx, theme: DesktopThemeEntry, selected: boolean, canMa
 				type="button"
 				class="os-settings__theme-delete"
 				aria-label=${ sprintf(
-
+					/* translators: %s: theme name. */
 					__( 'Delete %s' ),
 					theme.name,
 				) }
@@ -201,7 +199,6 @@ const uploadTile = ( ctx: Ctx ) => {
 					if ( file ) {
 						void doUpload( ctx, file );
 					}
-
 					input.value = '';
 				} }
 			/>
@@ -227,7 +224,7 @@ const recommendationRow = ( activeSlug: string, themes: DesktopThemeEntry[] ) =>
 	return html`<div class="os-settings__theme-recommendation">
 		<os-button variant="secondary" @click=${ () => applyThemeRecommendations( activeSlug ) }>
 			${ sprintf(
-
+				/* translators: %s: theme name. */
 				__( 'Apply %s’s recommended layout and effects' ),
 				name,
 			) }
@@ -239,7 +236,6 @@ export const renderThemes: Section = ( s, ctx ) => {
 	const themes = listDesktopThemes();
 	const canManage = ctx.data.canManageDesktopThemes;
 	const error = uiOf( ctx ).themes.error;
-
 	return html`
 		${ error !== '' ? html`<os-notice tone="error">${ error }</os-notice>` : '' }
 		<os-section heading=${ __( 'Installed' ) }>

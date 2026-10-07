@@ -136,7 +136,6 @@ function openstation_ai_apply_model_config( $builder, array $context ) {
 	$custom_options = array();
 	if ( isset( $config['custom_options'] ) && is_array( $config['custom_options'] ) ) {
 		foreach ( $config['custom_options'] as $key => $value ) {
-
 			if ( is_string( $key ) && '' !== $key ) {
 				$custom_options[ $key ] = $value;
 			}
@@ -153,7 +152,6 @@ function openstation_ai_apply_model_config( $builder, array $context ) {
 	if ( $model instanceof ModelInterface ) {
 		$builder = $builder->using_model( $model );
 	} elseif ( is_string( $model ) && '' !== trim( $model ) ) {
-
 		$builder = $builder->using_model_preference( trim( $model ) );
 	}
 
@@ -173,7 +171,6 @@ function openstation_ai_client_generate( $user_id, array $messages, array $tool_
 	}
 
 	if ( is_array( $answer_schema ) ) {
-
 		$builder = $builder->as_json_response( openstation_ai_normalize_response_schema( $answer_schema ) );
 	}
 
@@ -191,7 +188,6 @@ function openstation_ai_client_generate( $user_id, array $messages, array $tool_
 
 	$result = $builder->generate_result();
 	if ( is_wp_error( $result ) ) {
-
 		if ( 'prompt_token_limit_reached' === $result->get_error_code() ) {
 			return openstation_ai_output_truncated_error( $result->get_error_message() );
 		}
@@ -229,7 +225,6 @@ function openstation_ai_client_generate( $user_id, array $messages, array $tool_
 
 	$text = null;
 	if ( empty( $function_calls ) ) {
-
 		try {
 			$text = $result->toText();
 		} catch ( \Throwable $e ) {

@@ -8,7 +8,6 @@ import {
 	clearNoticeDismissed,
 	markNoticeDismissed,
 } from './ui/components/os-notice/storage';
-
 import './ui/components/os-notice/os-notice';
 
 export type WindowNoticeTone =
@@ -22,21 +21,13 @@ export type WindowNoticeTone =
 export type WindowNoticeMatch = ( win: DesktopWindow ) => boolean;
 
 export interface WindowNoticeEntry {
-
 	id: string;
-
 	message: string;
-
 	tone?: WindowNoticeTone;
-
 	dismissible?: boolean;
-
 	icon?: string;
-
 	match?: WindowNoticeMatch;
-
 	order?: number;
-
 	owner?: string;
 }
 
@@ -65,7 +56,6 @@ function buildNoticeElement( entry: WindowNoticeEntry ): HTMLElement {
 	if ( entry.icon ) {
 		el.setAttribute( 'icon', entry.icon );
 	}
-
 	el.innerHTML = entry.message;
 	return el;
 }
@@ -92,7 +82,6 @@ export function registerWindowNotice(
 		id: slotId,
 		slot: 'after-titlebar',
 		order: normalised.order ?? 100,
-
 		replace: false,
 		owner: normalised.owner,
 		match: ( win ) => {

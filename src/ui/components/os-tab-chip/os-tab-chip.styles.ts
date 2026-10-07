@@ -22,7 +22,6 @@ export const styles = css`
 		transition: background-color 0.15s ease, color 0.15s ease,
 			transform 0.12s ease;
 	}
-
 	:host( [ variant='detach' ] ) button:hover {
 		color: var( --wp-admin-theme-color, #2271b1 );
 		background: var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.12 ) );
@@ -34,12 +33,10 @@ export const styles = css`
 		background: var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.12 ) );
 		box-shadow: var( --_holo-focus );
 	}
-
 	:host( [ variant='close' ] ) button:hover {
 		color: var( --os-ui-fg-on-accent, #fff );
 		background: var( --os-ui-danger, #d63638 );
 	}
-
 	:host( [ variant='close' ] ) button:focus-visible {
 		color: var( --os-ui-fg-on-accent, #fff );
 		background: var( --os-ui-danger, #d63638 );

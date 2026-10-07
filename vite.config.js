@@ -1,5 +1,4 @@
-import { defineConfig, transformWithEsbuild } from 'vite';
-import ts from 'typescript';
+import { defineConfig } from 'vite';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { visualizer } from 'rollup-plugin-visualizer';
@@ -60,7 +59,6 @@ function stripStaticHelpInProd( enabled ) {
 					i++;
 				}
 			}
-
 			let blockEnd = i;
 			while ( blockEnd < code.length && code[ blockEnd ] !== ';' && code[ blockEnd ] !== '\n' ) {
 				blockEnd++;
@@ -76,7 +74,6 @@ function stripStaticHelpInProd( enabled ) {
 }
 
 function minifyCssTemplates() {
-
 	const minifyCssChunk = ( text ) =>
 		text
 			.replace( /\/\*[\s\S]*?\*\//g, '' )
@@ -100,7 +97,6 @@ function minifyCssTemplates() {
 			let i = 0;
 			let changed = false;
 			while ( i < code.length ) {
-
 				const m = code.indexOf( 'css`', i );
 				if ( m < 0 ) {
 					out += code.slice( i );
@@ -108,7 +104,6 @@ function minifyCssTemplates() {
 				}
 				const prev = m === 0 ? '' : code[ m - 1 ];
 				if ( /[A-Za-z0-9_$.]/.test( prev ) ) {
-
 					out += code.slice( i, m + 4 );
 					i = m + 4;
 					continue;
@@ -157,7 +152,6 @@ function minifyCssTemplates() {
 					}
 				}
 				if ( ! closed ) {
-
 					out += code.slice( m + 4 );
 					i = code.length;
 				}
@@ -171,7 +165,6 @@ const TARGETS = {
 	desktop: {
 		entry:    'src/desktop.ts',
 		fileBase: 'desktop',
-
 		iifeName: 'openStation',
 	},
 	'iframe-bridge': {
@@ -179,187 +172,156 @@ const TARGETS = {
 		fileBase: 'iframe-bridge',
 		iifeName: 'openStationIframeBridge',
 	},
-
 	'chromeless-bridge': {
 		entry:    'src/chromeless-bridge.js',
 		fileBase: 'chromeless-bridge',
 		iifeName: 'openStationChromelessBridge',
 	},
-
 	'gutenberg-drop-receiver': {
 		entry:    'src/gutenberg-drop-receiver.ts',
 		fileBase: 'gutenberg-drop-receiver',
 		iifeName: 'openStationGutenbergDropReceiver',
 	},
-
 	'my-wordpress-woocommerce': {
 		entry:    'src/plugins/my-wordpress-woocommerce/index.ts',
 		fileBase: 'my-wordpress-woocommerce',
 		iifeName: 'openStationMyWordpressWoo',
 	},
-
 	'content-graph': {
 		entry:    'src/content-graph/index.ts',
 		fileBase: 'content-graph',
 		iifeName: 'openStationContentGraph',
 	},
-
 	'app-runtime': {
 		entry:    'src/app-runtime/index.ts',
 		fileBase: 'app-runtime',
 		iifeName: 'openStationAppRuntime',
 	},
-
 	'user-profile': {
 		entry:    'apps/users/profile/index.ts',
 		fileBase: 'apps/user-profile',
 		iifeName: 'openStationUserProfile',
 	},
-
 	games: {
 		entry:    'src/games/entry.ts',
 		fileBase: 'games',
 		iifeName: 'openStationGames',
 	},
-
 	'game-inkfall': {
 		entry:    'src/games/inkfall/index.ts',
 		fileBase: 'game-inkfall',
 		iifeName: 'openStationGameInkfall',
 	},
-
 	'game-alphabet-soup': {
 		entry:    'src/games/alphabet-soup/index.ts',
 		fileBase: 'game-alphabet-soup',
 		iifeName: 'openStationGameAlphabetSoup',
 	},
-
 	'pwa-sw': {
 		entry:    'src/pwa/sw.ts',
 		fileBase: 'sw',
 		iifeName: 'openStationServiceWorker',
 	},
-
 	'ai-assistant': {
 		entry:    'src/ai-assistant/entry.ts',
 		fileBase: 'ai-assistant',
 		iifeName: 'openStationAiAssistant',
 	},
-
 	'animated-logo-wallpaper': {
 		entry:    'src/plugins/animated-logo-wallpaper/index.ts',
 		fileBase: 'animated-logo-wallpaper',
 		iifeName: 'openStationAnimatedLogoWallpaper',
 	},
-
 	'living-tree-wallpaper': {
 		entry:    'src/plugins/living-tree-wallpaper/index.ts',
 		fileBase: 'living-tree-wallpaper',
 		iifeName: 'openStationLivingTreeWallpaper',
 	},
-
 	'snow-wallpaper': {
 		entry:    'src/plugins/snow-wallpaper/index.ts',
 		fileBase: 'snow-wallpaper',
 		iifeName: 'openStationSnowWallpaper',
 	},
-
 	mio: {
 		entry:    'src/mio/entry.ts',
 		fileBase: 'mio',
 		iifeName: 'openStationMio',
 	},
-
 	'item-visibility-menu': {
 		entry:    'src/item-visibility-menu-entry.ts',
 		fileBase: 'item-visibility-menu',
 		iifeName: 'openStationItemVisibilityMenu',
 	},
-
 	'workspace-wizard': {
 		entry:    'src/workspaces/wizard-entry.ts',
 		fileBase: 'workspace-wizard',
 		iifeName: 'openStationWorkspaceWizardBundle',
 	},
-
 	'release-card': {
 		entry:    'src/release-card-entry.ts',
 		fileBase: 'release-card',
 		iifeName: 'openStationReleaseCardBundle',
 	},
-
 	'shell-tour': {
 		entry:    'src/shell-tour/entry.ts',
 		fileBase: 'shell-tour',
 		iifeName: 'openStationShellTourBundle',
 	},
-
 	'deactivation-feedback': {
 		entry:    'src/deactivation-feedback/entry.ts',
 		fileBase: 'deactivation-feedback',
 		iifeName: 'openStationDeactivationFeedbackBundle',
 	},
-
 	'usage-feedback': {
 		entry:    'src/usage-feedback/entry.ts',
 		fileBase: 'usage-feedback',
 		iifeName: 'openStationUsageFeedbackBundle',
 	},
-
 	'shell-overlays': {
 		entry:    'src/shell-overlays/entry.ts',
 		fileBase: 'shell-overlays',
 		iifeName: 'openStationShellOverlays',
 	},
-
 	'file-drop': {
 		entry:    'src/os-file-drop/entry.ts',
 		fileBase: 'file-drop',
 		iifeName: 'openStationFileDrop',
 	},
-
 	'files-overlays': {
 		entry:    'src/desktop-files/overlays-entry.ts',
 		fileBase: 'files-overlays',
 		iifeName: 'openStationFilesOverlays',
 	},
-
 	'notes': {
 		entry:    'src/notes/entry.ts',
 		fileBase: 'notes',
 		iifeName: 'openStationNotes',
 	},
-
 	'dock-constellation': {
 		entry:    'src/dock-constellation/entry.ts',
 		fileBase: 'dock-constellation',
 		iifeName: 'openStationDockConstellation',
 	},
-
 	'window-link-visuals': {
 		entry:    'src/window-links/visuals-entry.ts',
 		fileBase: 'window-link-visuals',
 		iifeName: 'openStationWindowLinkVisuals',
 	},
-
 	components: {
 		entry:    'src/ui/components/entry.ts',
 		fileBase: 'os-components',
 		iifeName: 'openStationComponentKit',
 	},
-
 	'window-system': {
 		entry:    'src/window-system/entry.ts',
 		fileBase: 'window-system',
 		iifeName: 'openStationWindowSystemBundle',
 	},
-
 	mobile: {
 		entry:    'src/mobile/entry.ts',
 		fileBase: 'mobile',
 		iifeName: 'openStationMobileBundle',
 	},
-
 	'widget-heartbeat': {
 		entry:    'src/plugins/heartbeat-widget/index.ts',
 		fileBase: 'widget-heartbeat',
@@ -396,13 +358,11 @@ const TARGETS = {
 		fileBase: 'widget-starter',
 		iifeName: 'openStationStarterWidget',
 	},
-
 	'widget-notes': {
 		entry:    'src/plugins/notes-widget/index.ts',
 		fileBase: 'widget-notes',
 		iifeName: 'openStationNotesWidget',
 	},
-
 	'widget-focus-timer': {
 		entry:    'src/plugins/focus-timer-widget/index.ts',
 		fileBase: 'widget-focus-timer',
@@ -471,23 +431,6 @@ export default defineConfig( ( { mode } ) => {
 
 	return {
 		plugins: [
-			{
-				name: 'openstation-remove-bundle-comments',
-				async generateBundle( _options, bundle ) {
-					const printer = ts.createPrinter( { removeComments: true } );
-					for ( const output of Object.values( bundle ) ) {
-						if ( output.type === 'chunk' ) {
-							const code = printer.printFile( ts.createSourceFile(
-								output.fileName, output.code, ts.ScriptTarget.Latest,
-								true, ts.ScriptKind.JS
-							) );
-							output.code = isProd ? ( await transformWithEsbuild( code, output.fileName, {
-								minify: true, legalComments: 'none', target: 'es2020',
-							} ) ).code : code;
-						}
-					}
-				},
-			},
 			minifyCssTemplates(),
 			stripStaticHelpInProd( isProd ),
 			...reportPlugins,
@@ -503,21 +446,17 @@ export default defineConfig( ( { mode } ) => {
 				'@protocol/':      resolve( __dirname, 'src/protocol/' ) + '/',
 				'@ui/':            resolve( __dirname, 'src/ui/' ) + '/',
 				'@window-system/': resolve( __dirname, 'src/window-system/' ) + '/',
-
 				'@openstation/app': resolve( __dirname, 'src/app-runtime/client.ts' ),
 			},
 		},
 		build: {
 			outDir: 'assets/js',
-
 			emptyOutDir: false,
 			target: 'es2020',
-
 			minify: isProd ? 'esbuild' : false,
 			sourcemap: false,
 			lib: {
 				entry: resolve( __dirname, target.entry ),
-
 				formats: [ 'iife' ],
 				name: target.iifeName,
 				fileName: () =>
@@ -527,9 +466,7 @@ export default defineConfig( ( { mode } ) => {
 			},
 			rollupOptions: {
 				output: {
-
 					exports: 'named',
-
 					assetFileNames: ( asset ) => {
 						if ( asset.name && asset.name.endsWith( '.css' ) ) {
 							return isProd

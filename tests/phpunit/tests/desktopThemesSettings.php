@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 
 	protected static $user_id;
@@ -13,27 +16,43 @@ class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
 	public function test_default_is_the_system_theme() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'desktopTheme', $defaults );
 		$this->assertSame( '', $defaults['desktopTheme'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_valid_slug_round_trips() {
 		$clean = openstation_sanitize_os_settings( array( 'desktopTheme' => 'acme-neon' ) );
 		$this->assertSame( 'acme-neon', $clean['desktopTheme'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_empty_string_is_preserved() {
 		$clean = openstation_sanitize_os_settings( array( 'desktopTheme' => '' ) );
 		$this->assertSame( '', $clean['desktopTheme'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_missing_key_falls_back_to_default() {
 		$clean = openstation_sanitize_os_settings( array() );
 		$this->assertSame( '', $clean['desktopTheme'] );
 	}
 
+	/**
+	 * @dataProvider data_dirty_slugs
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_dirty_values_are_sanitized( $raw, $expected ) {
 		$clean = openstation_sanitize_os_settings( array( 'desktopTheme' => $raw ) );
 		$this->assertSame( $expected, $clean['desktopTheme'] );
@@ -50,17 +69,27 @@ class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_unknown_slug_is_kept_not_rejected() {
 		$clean = openstation_sanitize_os_settings( array( 'desktopTheme' => 'not-installed' ) );
 		$this->assertSame( 'not-installed', $clean['desktopTheme'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_persists_through_user_meta() {
 		openstation_save_os_settings( self::$user_id, array( 'desktopTheme' => 'acme-neon' ) );
 		$loaded = openstation_get_os_settings( self::$user_id );
 		$this->assertSame( 'acme-neon', $loaded['desktopTheme'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_php_and_js_patterns_agree() {
 		$state = OPENSTATION_DIR . 'src/settings/state.ts';
 		$this->assertFileExists( $state );
@@ -73,12 +102,18 @@ class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_default_os_settings
+	 */
 	public function test_recommendation_ledger_defaults_to_empty() {
 		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'appliedThemeRecommendations', $defaults );
 		$this->assertSame( array(), $defaults['appliedThemeRecommendations'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_recommendation_ledger_round_trips_and_dedupes() {
 		$clean = openstation_sanitize_os_settings(
 			array(
@@ -99,6 +134,9 @@ class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_recommendation_ledger_cap_keeps_the_newest() {
 		$slugs = array();
 		for ( $i = 0; $i < 70; $i++ ) {
@@ -115,6 +153,10 @@ class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 		$this->assertNotContains( 'theme-0', $ledger );
 	}
 
+	/**
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_recommendation_ledger_persists_unknown_slugs() {
 		openstation_save_os_settings(
 			self::$user_id,
@@ -128,6 +170,9 @@ class Tests_OpenStation_DesktopThemesSettings extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_os_settings
+	 */
 	public function test_missing_recommendation_ledger_falls_back_to_default() {
 		$clean = openstation_sanitize_os_settings( array( 'dockSize' => 'large' ) );
 		$this->assertSame( array(), $clean['appliedThemeRecommendations'] );

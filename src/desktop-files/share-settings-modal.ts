@@ -80,7 +80,6 @@ function buildIconButton(
 		: '1px solid rgba(255,255,255,0.18)';
 	btn.style.setProperty( '--os-ui-button-fg', fg );
 	btn.style.setProperty( '--os-ui-button-border', border );
-
 	btn.style.setProperty( '--os-ui-button-padding', '6px 12px' );
 	btn.style.setProperty( '--os-ui-button-border-radius', '7px' );
 	btn.style.setProperty( '--os-ui-button-min-height', '34px' );
@@ -160,7 +159,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 		rolePicker.setAttribute( 'selected', [ ...grantedRoles, ...pickedRoles ].join( ',' ) );
 		rolePicker.addEventListener( 'os-role-toggle', ( e ) => {
 			const detail = ( e as CustomEvent< { slug: string; selected: boolean } > ).detail;
-
 			const existing = shares.find(
 				( s ) => s.principalType === 'role' && s.principalRef === detail.slug,
 			);
@@ -235,7 +233,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 				}
 				sendBtn.setAttribute( 'busy', '' );
 				sendBtn.setAttribute( 'disabled', '' );
-
 				const snapshot = pendingPicks.slice();
 				let succeeded = 0;
 				let firstError: Error | null = null;
@@ -258,7 +255,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 				try {
 					await refresh();
 				} catch ( _e ) {
-
 				}
 				if ( firstError ) {
 					toastRestFailure( showToast, firstError, { lead: `Could not send invites`, fallback: `Could not send invites.` } );
@@ -577,12 +573,10 @@ export function openPendingFileInviteModal( invite: {
 			acceptBtn.setAttribute( 'disabled', '' );
 			try {
 				await acceptFileShare( invite.fileId, invite.id );
-
 				try {
 					const res = await listPlacements( 0 );
 					setFolderPlacements( 0, res.placements );
 				} catch ( _e ) {
-
 				}
 				modal.remove();
 				resolve( 'accepted' );
@@ -631,7 +625,6 @@ export function openPendingInviteModal( invite: {
 
 		const footer = document.createElement( 'div' );
 		footer.setAttribute( 'slot', 'footer' );
-
 		footer.style.display = 'flex';
 		footer.style.justifyContent = 'flex-end';
 		footer.style.gap = '10px';
@@ -672,12 +665,10 @@ export function openPendingInviteModal( invite: {
 			acceptBtn.setAttribute( 'disabled', '' );
 			try {
 				await acceptShare( invite.folderId, invite.id );
-
 				try {
 					const res = await listPlacements( 0 );
 					setFolderPlacements( 0, res.placements );
 				} catch ( _e ) {
-
 				}
 				modal.remove();
 				resolve( 'accepted' );

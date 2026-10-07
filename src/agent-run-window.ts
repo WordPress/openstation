@@ -153,7 +153,7 @@ function attachmentCard( attachment: AgentChatAttachment ): HTMLElement {
 	card.type = 'button';
 	card.className = 'dm-agent-chat__attachment';
 	card.title = sprintf(
-
+		/* translators: 1: entity kind (Post, Media, …), 2: entity title. */
 		__( 'Open the %1$s "%2$s"', 'desktop-mode' ),
 		attachmentKindLabel( attachment.kind ),
 		attachment.title,
@@ -207,10 +207,8 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		const agent = agentsChatStore.state.activeAgent;
 		return !! agent && transcriptFor( agent ).some( ( row ) => row.pending );
 	};
-
 	let conversations: AgentConversationSummary[] = [];
 	let conversationsLoaded = false;
-
 	let conversationsFailed = false;
 	let seenRev = -1;
 
@@ -231,7 +229,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			.catch( ( err: unknown ) => {
 				conversations = [];
 				conversationsFailed = true;
-
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] agents: conversations failed to load:', err );
 			} )
 			.finally( () => {
@@ -271,6 +269,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				row.id,
 			);
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] agents: conversation delete failed:', err );
 			toastRestFailure( shellToast, err, {
 				fallback: __( 'Could not delete the conversation.', 'desktop-mode' ),
@@ -317,7 +316,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		if ( conversationsLoaded && visible.length === 0 ) {
 			const none = document.createElement( 'div' );
 			none.className = 'dm-agent-chat__convs-empty';
-
 			none.textContent = conversationsFailed
 				? __( 'Could not load conversations.', 'desktop-mode' )
 				: __( 'No conversations yet.', 'desktop-mode' );
@@ -331,7 +329,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			}
 			item.setAttribute( 'role', 'button' );
 			item.tabIndex = 0;
-
 			item.title = `${ row.agentName } — ${ row.title }`;
 
 			const face = buildAvatar(
@@ -370,6 +367,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 					{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
 					row.id,
 				).catch( ( err ) => {
+					// eslint-disable-next-line no-console
 					console.warn(
 						'[desktop-mode/agents] conversation load failed:',
 						err,
@@ -508,7 +506,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		send.className = 'dm-agent-chat__send';
 		send.setAttribute( 'variant', 'primary' );
 		send.setAttribute( 'title', __( 'Send', 'desktop-mode' ) );
-
 		send.innerHTML = `${ SEND_ICON }<span class="dm-agent-chat__send-label">${ __(
 			'Send',
 			'desktop-mode',
@@ -556,7 +553,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			}
 			followLatest = isAtBottom( scroll );
 		} );
-
 		if ( typeof ResizeObserver === 'function' ) {
 			scrollObserver = new ResizeObserver( settleScroll );
 			scrollObserver.observe( scroll );
@@ -588,7 +584,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			);
 		} else if ( message.role === 'user' ) {
 			const viewer = getRunConfig()?.currentUser;
-
 			if ( viewer?.avatarUrl || viewer?.name ) {
 				line.appendChild(
 					buildAvatar(
@@ -647,7 +642,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			}
 			row.appendChild( tools );
 		}
-
 		if (
 			message.callToActions &&
 			message.callToActions.length > 0 &&
@@ -668,7 +662,6 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 						return;
 					}
 					message.ctaUsed = true;
-
 					void sendMessage( agent, cta.reply );
 				} );
 				ctas.appendChild( btn );

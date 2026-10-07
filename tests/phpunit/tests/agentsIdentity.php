@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-agents
+ */
 class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -28,6 +31,9 @@ class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 		return $user;
 	}
 
+	/**
+	 * @covers ::openstation_agent_create_user
+	 */
 	public function test_create_user_shape() {
 		$user = $this->create_agent_user();
 
@@ -38,6 +44,10 @@ class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 		$this->assertContains( 'author', (array) $user->roles );
 	}
 
+	/**
+	 * @covers ::openstation_agent_resolve_unique_login
+	 * @covers ::openstation_agent_synthetic_email
+	 */
 	public function test_duplicate_names_stay_unique() {
 		$first  = $this->create_agent_user();
 		$second = $this->create_agent_user();
@@ -47,12 +57,18 @@ class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 		$this->assertSame( 'agent-remove-bg-2', $second->user_login );
 	}
 
+	/**
+	 * @covers ::openstation_agent_is_agent
+	 */
 	public function test_is_agent_false_for_humans() {
 		$this->assertFalse( openstation_agent_is_agent( self::$admin_id ) );
 		$this->assertFalse( openstation_agent_is_agent( 0 ) );
 		$this->assertFalse( openstation_agent_is_agent( null ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_block_authentication
+	 */
 	public function test_authenticate_filter_blocks_agents() {
 		$agent = $this->create_agent_user();
 		wp_set_password( 'known-password-123', $agent->ID );
@@ -66,12 +82,18 @@ class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 		$this->assertInstanceOf( 'WP_User', $human );
 	}
 
+	/**
+	 * @covers ::openstation_agent_block_password_reset
+	 */
 	public function test_password_reset_blocked() {
 		$agent = $this->create_agent_user();
 		$this->assertFalse( apply_filters( 'allow_password_reset', true, $agent->ID ) );
 		$this->assertTrue( apply_filters( 'allow_password_reset', true, self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_block_application_passwords
+	 */
 	public function test_application_passwords_blocked() {
 		$agent = $this->create_agent_user();
 		$this->assertFalse(
@@ -86,6 +108,10 @@ class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_agent_avatar
+	 * @covers ::openstation_agent_avatar_url
+	 */
 	public function test_agent_avatar_is_escapable_file_url() {
 		$agent = $this->create_agent_user();
 		$url   = get_avatar_url( $agent->ID );
@@ -93,6 +119,9 @@ class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 		$this->assertNotSame( '', esc_url( $url ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_users_custom_column
+	 */
 	public function test_users_column_labels_agents() {
 		$agent = $this->create_agent_user();
 
@@ -106,6 +135,9 @@ class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 		$this->assertSame( 'existing', $other );
 	}
 
+	/**
+	 * @covers ::openstation_agent_delete
+	 */
 	public function test_delete_removes_user_and_meta() {
 		$agent = $this->create_agent_user();
 		$id    = (int) $agent->ID;
@@ -126,6 +158,9 @@ class Tests_OpenStation_AgentsIdentity extends WP_UnitTestCase {
 		$this->assertSame( array( $id, self::$admin_id ), $fired );
 	}
 
+	/**
+	 * @covers ::openstation_agent_delete
+	 */
 	public function test_delete_refuses_non_agents() {
 		$result = openstation_agent_delete( self::$admin_id );
 		$this->assertWPError( $result );

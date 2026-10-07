@@ -135,7 +135,6 @@ beforeEach( () => {
 afterEach( () => {
 	window.removeEventListener( 'message', collector );
 	delete ( window as unknown as { wp?: unknown } ).wp;
-
 	vi.restoreAllMocks();
 	vi.useRealTimers();
 } );
@@ -265,14 +264,12 @@ describe( 'installEditorAutosaveHandler', () => {
 	} );
 
 	test( 'classic editor: a silent core bail answers not-dirty, not saved', async () => {
-
 		vi.useFakeTimers();
 		const triggerSave = vi.fn();
 		( window as unknown as { wp: unknown } ).wp = {
 			autosave: { server: { triggerSave } },
 		};
 		( window as unknown as { jQuery: unknown } ).jQuery = () => ( {
-
 			one: () => undefined,
 		} );
 
@@ -288,7 +285,6 @@ describe( 'installEditorAutosaveHandler', () => {
 	} );
 
 	test( 'classic editor: without jQuery the backstop still answers saved', async () => {
-
 		vi.useFakeTimers();
 		const triggerSave = vi.fn();
 		( window as unknown as { wp: unknown } ).wp = {
@@ -339,7 +335,6 @@ describe( 'installEditorAutosaveHandler', () => {
 } );
 
 describe( 'live-preview watch', () => {
-
 	async function flush() {
 		for ( let i = 0; i < 4; i++ ) {
 			await Promise.resolve();
@@ -551,7 +546,6 @@ describe( 'live-preview watch — classic editor', () => {
 		getContent: () => string;
 		isHidden: () => boolean;
 		fireEdit: () => void;
-
 		setBody: ( body: string ) => void;
 	}
 
@@ -619,7 +613,6 @@ describe( 'live-preview watch — classic editor', () => {
 			content,
 			editor,
 			tiny,
-
 			edit( body: string ) {
 				if ( editor ) {
 					editor.setBody( body );
@@ -627,7 +620,6 @@ describe( 'live-preview watch — classic editor', () => {
 					content.value = body;
 				}
 			},
-
 			fire( evt: string ) {
 				for ( const [ name, cbs ] of handlers ) {
 					if ( name === evt || name.startsWith( `${ evt }.` ) ) {
@@ -733,7 +725,6 @@ describe( 'live-preview watch — classic editor', () => {
 	} );
 
 	test( 'a settle with unchanged content never reaches the server', async () => {
-
 		const classic = fakeClassic( { tinymce: true } );
 		vi.useFakeTimers();
 		const watchId = `watch-${ counter }-c5`;
@@ -754,7 +745,6 @@ describe( 'live-preview watch — classic editor', () => {
 	} );
 
 	test( "core's own autosave of unchanged content is not announced", async () => {
-
 		const classic = fakeClassic( { tinymce: true } );
 		vi.useFakeTimers();
 		const watchId = `watch-${ counter }-c6`;
@@ -780,7 +770,6 @@ describe( 'live-preview watch — classic editor', () => {
 	} );
 
 	test( 'the FIRST refocus autosave of a session is not announced', async () => {
-
 		const classic = fakeClassic( { tinymce: true } );
 		vi.useFakeTimers();
 		const watchId = `watch-${ counter }-c8`;
@@ -807,7 +796,6 @@ describe( 'live-preview watch — classic editor', () => {
 	} );
 
 	test( 'an edit typed mid-round-trip still gets its own save', async () => {
-
 		const classic = fakeClassic( { tinymce: true } );
 		vi.useFakeTimers();
 		const watchId = `watch-${ counter }-c7`;

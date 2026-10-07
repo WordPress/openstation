@@ -1,5 +1,4 @@
 <?php
-
 defined( 'ABSPATH' ) || exit;
 
 function openstation_storage_use_primary() {

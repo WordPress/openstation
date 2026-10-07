@@ -2,7 +2,6 @@ import { css } from '../../core';
 
 export const styles = css`
 	:host {
-
 		--_gap: var( --os-ui-repeater-gap, 8px );
 		--_row-bg: var( --os-ui-repeater-row-bg, var( --os-ui-surface, #fff ) );
 		--_border: var( --os-ui-repeater-row-border, var( --os-ui-border, #dcdcde ) );

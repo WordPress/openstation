@@ -8,6 +8,7 @@ import {
 	updateAgent,
 } from '../../apps/my-wordpress/parts/agents-rest';
 
+
 type FetchMock = ReturnType< typeof vi.fn >;
 
 function mockFetch(
@@ -24,7 +25,6 @@ function mockFetch(
 }
 
 beforeEach( () => {
-
 	( window as unknown as { wp?: unknown } ).wp = {
 		os: {
 			config: {

@@ -33,7 +33,6 @@ export {
 	withSendToHeading,
 } from './parts/helpers';
 export { columnsFor, hiddenFor, nextSort } from './parts/list-table';
-
 export { applySelection } from '@openstation/app';
 export {
 	agentDefaultRole,
@@ -88,11 +87,9 @@ function renderBody(
 	if ( inFolder ) {
 		return renderFolder( ctx );
 	}
-
 	if ( ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) && isMobileStamped() ) {
 		return html`<div class="os-mywp__detail-page">${ renderDetail( ctx, section ) }</div>`;
 	}
-
 	return splitView(
 		renderList( ctx, section, items ),
 		ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) ? renderDetail( ctx, section ) : null,
@@ -106,7 +103,6 @@ function renderViewSwitch( ctx: Ctx ): TemplateResult {
 		if ( ( view !== 'icons' && view !== 'list' ) || view === state.view ) {
 			return;
 		}
-
 		uiOf( ctx ).revealSelection = true;
 		ctx.local( 'set-view', { view } );
 		void ctx.dispatch( 'view' );
@@ -159,30 +155,26 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		'set-sort': ( state, args ) => {
 			state.sort = String( args.sort ?? '' );
 		},
-
 		'set-view': ( state, args ) => {
 			state.view = args.view === 'list' ? 'list' : 'icons';
-
 			if ( state.view === 'list' && state.sort === '' ) {
 				state.sort = 'id-desc';
 				state.page = 1;
 			}
 		},
-
 		'agent-start': ( state, args, data ) => {
 			const from = ( args.from ?? null ) as Agent | null;
 			const seed = newSeed();
 			const cast = emptyCast( agentDefaultRole( data.agents?.roles ?? null ), seed );
 			if ( from ) {
 				cast.name = sprintf(
-
+					/* translators: %s: name of the agent being copied. */
 					__( '%s copy' ),
 					from.name,
 				);
 				cast.description = from.description;
 				cast.vibes = from.vibes;
 				cast.instructions = from.instructions;
-
 				cast.brief = from.instructions;
 				cast.role = from.role;
 				cast.abilities = [ ...from.abilities ];
@@ -208,7 +200,6 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		},
 		'agent-step': ( state, args ) => {
 			const next = Math.max( 0, Math.min( 4, Number( args.step ) ) ) as AppState[ 'wstep' ];
-
 			if ( state.wstep === 0 && next !== 0 && state.cast ) {
 				state.cast = {
 					...state.cast,
@@ -251,7 +242,6 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		const sep = (): TemplateResult => html`<span class="os-mywp__sep" aria-hidden="true">›</span>`;
 		const inFolder = section && state.into > 0;
 		const inSub = inFolder && state.relation !== '';
-
 		const onItemPage =
 			!! section && ! inFolder && section.kind !== 'agent' && state.item > 0 && isMobileStamped();
 		const crumbs: Array< TemplateResult > = [];
@@ -306,7 +296,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		if ( inSub && payload.sub ) {
 			folderStatus = [
 				sprintf(
-
+					/* translators: %d: item count. */
 					_n( '%d item', '%d items', payload.sub.rows.length ),
 					payload.sub.rows.length,
 				),
@@ -315,7 +305,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		} else if ( inFolder && payload.folder ) {
 			folderStatus = [
 				sprintf(
-
+					/* translators: %d: folder count. */
 					__( '%d folders' ),
 					payload.folder.folders.length,
 				),
@@ -327,7 +317,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			folderStatus = payload.agents?.enabled
 				? [
 					sprintf(
-
+						/* translators: %d: number of agents on the site. */
 						_n( '%d agent', '%d agents', payload.agents.list.length ),
 						payload.agents.list.length,
 					),
@@ -340,19 +330,19 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		}
 		const statusLeft = section && ! inFolder
 			? `${ sprintf(
-
+				/* translators: 1: loaded count, 2: total count. */
 				__( '%1$d of %2$d items' ),
 				loaded,
 				payload.list?.total ?? 0,
 			) }${ selectedCount > 0
 				? ' — ' + sprintf(
-
+					/* translators: %d: selected count. */
 					__( '%d selected' ),
 					selectedCount,
 				)
 				: '' }`
 			: sprintf(
-
+				/* translators: %d: folder count. */
 				__( '%d folders' ),
 				state.group
 					? payload.sections.filter( ( s ) => s.group === state.group ).length
@@ -360,7 +350,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			);
 		let statusRight = section && ! inFolder
 			? sprintf(
-
+				/* translators: 1: current page, 2: page count. */
 				__( 'Page %1$d of %2$d' ),
 				payload.list?.page ?? 1,
 				payload.list?.pages ?? 1,
@@ -393,7 +383,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 							hide-label
 							value=${ state.query }
 							placeholder=${ sprintf(
-
+								/* translators: %s: section label, lowercased. */
 								__( 'Search %s…' ),
 								section.label.toLowerCase(),
 							) }
@@ -431,7 +421,6 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 	mounted: ( ctx ) => {
 		const unwire = wire( ctx );
 		const unwatchTrash = watchExplorerTrash( ctx );
-
 		const onModeChange = (): void => ctx.repaint();
 		document.addEventListener( 'os-mode-changed', onModeChange );
 		return () => {

@@ -110,13 +110,11 @@ describe( 'iframeContent native windows — window id plumbing', () => {
 			},
 		} );
 		const iframe = win.element.querySelector( 'iframe' )!;
-
 		const post = ( payload: unknown ) => {
 			const ev = new MessageEvent( 'message', {
 				data: payload,
 				origin: window.location.origin,
 			} );
-
 			Object.defineProperty( ev, 'source', {
 				value: iframe.contentWindow,
 				configurable: true,

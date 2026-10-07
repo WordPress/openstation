@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import './os-crumb-chain';
-
+// eslint-disable-next-line no-duplicate-imports
 import type { OsCrumbChain } from './os-crumb-chain';
 
 const tick = (): Promise< void > =>
@@ -33,7 +33,6 @@ describe( '<os-crumb-chain> segment paint', () => {
 		const style = crumbs( chain )[ 0 ].getAttribute( 'style' ) ?? '';
 
 		expect( style ).toContain( '--os-ui-crumb-bg: #4b3eff' );
-
 		expect( style ).toContain( '--os-ui-crumb-fg:' );
 	} );
 

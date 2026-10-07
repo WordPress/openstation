@@ -14,7 +14,6 @@ export function makeCardDraggable( card: HTMLElement, plugin: WpOrgBrowsePlugin 
 		if ( ! manager ) {
 			return;
 		}
-
 		if ( ( ev.target as HTMLElement | null )?.closest( '[data-plugin-card-cta]' ) ) {
 			return;
 		}
@@ -34,7 +33,6 @@ export function makeCardDraggable( card: HTMLElement, plugin: WpOrgBrowsePlugin 
 			},
 			origin: ev,
 			onClickOnly: () => {
-
 			},
 		} );
 	} );
@@ -80,7 +78,7 @@ export function installPluginDropTargets(): () => void {
 			} );
 			desktop.showToast( {
 				message: sprintf(
-
+					/* translators: %s: plugin name */
 					__( 'Pinned %s to the dock.', 'desktop-mode' ),
 					name,
 				),
@@ -93,7 +91,6 @@ export function installPluginDropTargets(): () => void {
 		try {
 			off();
 		} catch {
-
 		}
 	};
 }

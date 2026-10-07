@@ -3,7 +3,6 @@ import { cloneState, structuredDefaults } from '../../../src/settings/state';
 import type { OsSettingsState } from '../../../src/settings/types';
 
 export interface OsSettingsStub {
-
 	state: OsSettingsState;
 	updateOsSettings: ReturnType< typeof vi.fn >;
 	resetOsSettings: ReturnType< typeof vi.fn >;

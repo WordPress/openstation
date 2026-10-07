@@ -7,7 +7,6 @@ import { __, _n, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import { restErrorFromResponse } from '../../core/api-client';
 import { describeRestFailure } from '../../core/rest-failure';
-
 import '../../ui/components/os-ribbon/os-ribbon';
 import '../../ui/components/os-badge/os-badge';
 import type { OsBadgeTone } from '../../ui/components/os-badge/os-badge';
@@ -18,7 +17,6 @@ interface OrderBand {
 	id: string;
 	label: string;
 	order: number;
-
 	statuses?: string[];
 }
 
@@ -34,10 +32,8 @@ interface WooConfig {
 	restRoot: string;
 	restNonce: string;
 	canOrders: boolean;
-
 	canCustomers?: boolean;
 	orderBands?: OrderBand[];
-
 	orderStatuses?: Record< string, string >;
 	productBands?: WooBand[];
 	couponBands?: WooBand[];
@@ -227,7 +223,6 @@ interface StoreSummary {
 	customers?: number;
 	vips?: number;
 	lapsed?: number;
-
 	bandsCapped?: boolean;
 	guestSpend?: string;
 	guestOrders?: number;
@@ -278,6 +273,7 @@ async function fetchJson< T >(
 			{ source: 'desktop-mode/woocommerce' },
 		);
 		if ( ! response.ok ) {
+			// eslint-disable-next-line no-console -- surfaces a failure the user would otherwise see as a blank panel.
 			console.warn(
 				`[openstation] WooCommerce request failed: ${ response.status } ${ url }`,
 			);
@@ -289,6 +285,7 @@ async function fetchJson< T >(
 		}
 		return { data: ( await response.json() ) as T };
 	} catch ( err ) {
+		// eslint-disable-next-line no-console -- ditto.
 		console.warn(
 			`[openstation] WooCommerce request errored: ${ url }`,
 			err,
@@ -445,7 +442,6 @@ function paintPanel(
 		const el = document.createElement( 'div' );
 		el.className = `${ PANEL_CLASS }__row ${ PANEL_CLASS }__row--placeholder`;
 		el.setAttribute( 'aria-hidden', 'true' );
-
 		el.append(
 			document.createElement( 'span' ),
 			document.createElement( 'span' ),
@@ -495,7 +491,7 @@ function paintPanel(
 				return;
 			}
 			shell.removeAttribute( 'aria-busy' );
-
+			// eslint-disable-next-line no-console -- the panel shows a summary; the console carries the cause.
 			console.warn( '[openstation] WooCommerce panel failed to render', err );
 			fail( __( 'Could not show WooCommerce details.', 'desktop-mode' ) );
 		} );
@@ -553,7 +549,7 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 		data.stockLevel === null
 			? data.stockLabel
 			: sprintf(
-
+				/* translators: 1: stock status, 2: units in stock. */
 				__( '%1$s (%2$d)', 'desktop-mode' ),
 				data.stockLabel,
 				data.stockLevel,
@@ -563,7 +559,7 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 	const rating =
 		reviews > 0
 			? sprintf(
-
+				/* translators: 1: average rating, 2: number of reviews. */
 				__( '%1$s ★ (%2$d)', 'desktop-mode' ),
 				( Number( data.rating ) || 0 ).toFixed( 1 ),
 				reviews,
@@ -573,7 +569,7 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 	const type =
 		data.variations > 0
 			? sprintf(
-
+				/* translators: 1: product type, 2: number of variations. */
 				__( '%1$s · %2$d variations', 'desktop-mode' ),
 				data.productType,
 				data.variations,
@@ -596,7 +592,7 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 			__( 'Sold', 'desktop-mode' ),
 			data.sold > 0
 				? sprintf(
-
+					/* translators: %d: units sold. */
 					__( '%d units', 'desktop-mode' ),
 					data.sold,
 				)
@@ -648,7 +644,7 @@ function renderOrder( data: OrderSummary ): Array< HTMLElement | null > {
 		const qty = document.createElement( 'span' );
 		qty.className = `${ PANEL_CLASS }__item-qty`;
 		qty.textContent = sprintf(
-
+			/* translators: %d: quantity ordered. */
 			__( '%d×', 'desktop-mode' ),
 			item.quantity,
 		);
@@ -690,7 +686,7 @@ function renderOrder( data: OrderSummary ): Array< HTMLElement | null > {
 		row( __( 'Placed', 'desktop-mode' ), shortDate( data.placed ) ),
 		row(
 			sprintf(
-
+				/* translators: %d: number of line items. */
 				__( 'Items (%d)', 'desktop-mode' ),
 				data.itemCount,
 			),
@@ -709,13 +705,13 @@ function renderCoupon( data: CouponSummary ): Array< HTMLElement | null > {
 	const usage =
 		data.usageLimit > 0
 			? sprintf(
-
+				/* translators: 1: times used, 2: usage limit. */
 				__( '%1$d of %2$d', 'desktop-mode' ),
 				data.used,
 				data.usageLimit,
 			)
 			: sprintf(
-
+				/* translators: %d: times used. */
 				__( '%d (no limit)', 'desktop-mode' ),
 				data.used,
 			);
@@ -743,7 +739,7 @@ function renderCoupon( data: CouponSummary ): Array< HTMLElement | null > {
 			__( 'Per customer', 'desktop-mode' ),
 			data.perUserLimit > 0
 				? sprintf(
-
+					/* translators: %d: per-customer usage limit. */
 					__( '%d uses', 'desktop-mode' ),
 					data.perUserLimit,
 				)
@@ -753,7 +749,6 @@ function renderCoupon( data: CouponSummary ): Array< HTMLElement | null > {
 			__( 'Limit to items', 'desktop-mode' ),
 			data.limitToItems > 0 ? String( data.limitToItems ) : '',
 		),
-
 		row( __( 'Discount given', 'desktop-mode' ), data.granted ),
 		row( __( 'Created', 'desktop-mode' ), shortDate( data.created ) ),
 		row(
@@ -790,7 +785,7 @@ function sinceLabel( days: number | null ): string {
 	}
 	if ( days < 60 ) {
 		return sprintf(
-
+			/* translators: %d: number of days. */
 			_n( '%d day ago', '%d days ago', days ),
 			days,
 		);
@@ -798,14 +793,14 @@ function sinceLabel( days: number | null ): string {
 	const months = Math.round( days / 30 );
 	if ( months < 24 ) {
 		return sprintf(
-
+			/* translators: %d: number of months. */
 			_n( '%d month ago', '%d months ago', months ),
 			months,
 		);
 	}
 	const years = Math.round( days / 365 );
 	return sprintf(
-
+		/* translators: %d: number of years. */
 		_n( '%d year ago', '%d years ago', years ),
 		years,
 	);
@@ -841,7 +836,7 @@ function renderCustomer( data: CustomerSummary ): Array< HTMLElement | null > {
 			__( 'Orders', 'desktop-mode' ),
 			orders > 0
 				? sprintf(
-
+					/* translators: %d: number of orders. */
 					_n( '%d order', '%d orders', orders ),
 					orders,
 				)
@@ -856,7 +851,7 @@ function renderCustomer( data: CustomerSummary ): Array< HTMLElement | null > {
 					wrap.appendChild(
 						link(
 							sprintf(
-
+								/* translators: %s: order number. */
 								__( '#%s', 'desktop-mode' ),
 								data.lastOrderNo,
 							),
@@ -890,7 +885,7 @@ function renderCustomer( data: CustomerSummary ): Array< HTMLElement | null > {
 						wrap.appendChild(
 							document.createTextNode(
 								` · ${ sprintf(
-
+									/* translators: %d: units bought. */
 									__( '×%d', 'desktop-mode' ),
 									data.favourite.quantity,
 								) }`,
@@ -994,7 +989,6 @@ addFilter(
 
 		if ( entity.id === SECTION_ORDERS && cfg.orderBands?.length ) {
 			const bands = cfg.orderBands;
-
 			const byStatus = new Map< string, string >();
 			bands.forEach( ( band ) => {
 				( band.statuses ?? [] ).forEach( ( status ) =>
@@ -1108,7 +1102,6 @@ function stampCustomerBand( tile: HTMLElement ): void {
 	const chip = document.createElement( 'span' );
 	chip.className = `os-woo-customer-band os-woo-customer-band--${ band }`;
 	chip.textContent = label;
-
 	chip.setAttribute( 'aria-hidden', 'true' );
 	host.appendChild( chip );
 }
@@ -1141,7 +1134,7 @@ addAction(
 			facts.stockLevel <= LOW_STOCK_THRESHOLD
 		) {
 			label = sprintf(
-
+				/* translators: %d: units left in stock. */
 				__( '%d left', 'desktop-mode' ),
 				facts.stockLevel,
 			);
@@ -1154,7 +1147,6 @@ addAction(
 		if ( ! label ) {
 			return;
 		}
-
 		payload.tile.dataset.wooRibbon = `${ tone }|${ label }`;
 		stampRibbon( payload.tile );
 	},
@@ -1197,7 +1189,6 @@ addAction(
 		if ( ! type ) {
 			return;
 		}
-
 		if ( payload.slot !== ( type === 'customer' ? 'meta' : 'header' ) ) {
 			return;
 		}
@@ -1353,7 +1344,7 @@ addAction(
 					);
 				} else if ( vips > 0 || lapsed > 0 ) {
 					bands = sprintf(
-
+						/* translators: 1: VIP customer count, 2: lapsed customer count. */
 						__( '%1$d · %2$d', 'desktop-mode' ),
 						vips,
 						lapsed,
@@ -1369,7 +1360,7 @@ addAction(
 						row(
 							__( 'Awaiting action', 'desktop-mode' ),
 							sprintf(
-
+								/* translators: %d: number of orders. */
 								__( '%d orders', 'desktop-mode' ),
 								data.processing,
 							),
@@ -1378,7 +1369,7 @@ addAction(
 							__( 'Out of stock', 'desktop-mode' ),
 							data.outOfStock > 0
 								? sprintf(
-
+									/* translators: %d: number of products. */
 									__( '%d products', 'desktop-mode' ),
 									data.outOfStock,
 								)
@@ -1388,19 +1379,18 @@ addAction(
 							__( 'Customers', 'desktop-mode' ),
 							customers > 0
 								? sprintf(
-
+									/* translators: %d: number of customers. */
 									_n( '%d person', '%d people', customers ),
 									customers,
 								)
 								: null,
 						),
 						row( __( 'VIP · lapsed', 'desktop-mode' ), bands ),
-
 						row(
 							__( 'Guest checkout', 'desktop-mode' ),
 							data.guestSpend
 								? sprintf(
-
+									/* translators: 1: formatted revenue, 2: number of orders. */
 									__( '%1$s over %2$d orders', 'desktop-mode' ),
 									data.guestSpend,
 									guestOrders,
@@ -1485,7 +1475,6 @@ function openCustomerWindow( customerId: number, name: string ): boolean {
 	return (
 		open( CUSTOMER_WINDOW_ID, {
 			source: 'woocommerce/customer-tile',
-
 			params: { customerId, customerName: name },
 		} ) === true
 	);
@@ -1497,7 +1486,6 @@ registerNativeUrlRemap( {
 	matches: ( _url, parsed ) =>
 		parsed.searchParams.get( OS_PERSON_VIEW_PARAM ) === 'wc-customer' &&
 		Number( parsed.searchParams.get( 'user_id' ) ) > 0,
-
 	params: ( _url, parsed ) => ( {
 		customerId: Number( parsed.searchParams.get( 'user_id' ) ) || 0,
 	} ),
@@ -1669,7 +1657,7 @@ function customerStats( data: CustomerSummary ): HTMLElement {
 			__( 'Lifetime spend', 'desktop-mode' ),
 			data.aov
 				? sprintf(
-
+					/* translators: %s: formatted average order value. */
 					__( '%s average', 'desktop-mode' ),
 					data.aov,
 				)
@@ -1680,7 +1668,7 @@ function customerStats( data: CustomerSummary ): HTMLElement {
 			_n( 'Order', 'Orders', orders ),
 			data.firstOrder
 				? sprintf(
-
+					/* translators: %s: date of the first order. */
 					__( 'since %s', 'desktop-mode' ),
 					shortDate( data.firstOrder ),
 				)
@@ -1696,7 +1684,7 @@ function customerStats( data: CustomerSummary ): HTMLElement {
 			__( 'Location', 'desktop-mode' ),
 			data.registered
 				? sprintf(
-
+					/* translators: %s: registration date. */
 					__( 'joined %s', 'desktop-mode' ),
 					shortDate( data.registered ),
 				)
@@ -1725,7 +1713,7 @@ function customerOrders( data: CustomerSummary ): Node | null {
 		head.appendChild(
 			link(
 				sprintf(
-
+					/* translators: %s: order number. */
 					__( '#%s', 'desktop-mode' ),
 					order.number,
 				),
@@ -1743,7 +1731,7 @@ function customerOrders( data: CustomerSummary ): Node | null {
 		meta.textContent = [
 			shortDate( order.date ),
 			sprintf(
-
+				/* translators: %d: number of line items. */
 				_n( '%d item', '%d items', order.items ),
 				order.items,
 			),
@@ -1768,7 +1756,6 @@ function customerAddresses( data: CustomerSummary ): Node | null {
 	if ( data.billing ) {
 		entries.push( [ __( 'Billing', 'desktop-mode' ), data.billing ] );
 	}
-
 	if ( data.shipping && data.shipping !== data.billing ) {
 		entries.push( [ __( 'Shipping', 'desktop-mode' ), data.shipping ] );
 	}
@@ -1891,7 +1878,7 @@ async function renderCustomerWindow(
 				wrap.appendChild(
 					document.createTextNode(
 						` · ${ sprintf(
-
+							/* translators: %d: units bought. */
 							__( '×%d bought', 'desktop-mode' ),
 							data.favourite.quantity,
 						) }`,
@@ -1915,7 +1902,6 @@ async function renderCustomerWindow(
 	frag.appendChild( customerActions( data ) );
 
 	root.replaceChildren( frag );
-
 	root.dataset.customerId = String( customerId );
 	root.dataset.customerName = data.name || fallback;
 }
@@ -1942,7 +1928,6 @@ nativeWindowRegistry.openStationNativeWindows[ CUSTOMER_WINDOW_ID ] = (
 	const paint = ( params: Record< string, string | number | boolean > ) => {
 		const customerId = Number( params.customerId ?? 0 );
 		const name = String( params.customerName ?? '' );
-
 		announceCustomerIdentity( body, customerId, name );
 		void renderCustomerWindow( root, customerId, name );
 	};

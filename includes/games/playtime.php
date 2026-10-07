@@ -106,7 +106,6 @@ function openstation_games_add_playtime( $game, $user_id, $seconds ) {
 
 	$days[ $today ] = ( isset( $days[ $today ] ) ? $days[ $today ] : 0 ) + $seconds;
 	foreach ( array_keys( $days ) as $day ) {
-
 		if ( $day < $cutoff ) {
 			unset( $days[ $day ] );
 		}

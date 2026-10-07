@@ -48,17 +48,11 @@ function buildGroundGradientTexture( pixi: PixiNamespace ): PixiTexture {
 }
 
 export interface GroundBuildOptions {
-
 	span: number;
-
 	coverHalfWidth: number;
-
 	coverDepth: number;
-
 	trunkBase: number;
-
 	health01: number;
-
 	siteKey: string;
 }
 
@@ -82,9 +76,7 @@ export class GroundLayer {
 		this.gradientTexture = this.gradientTexture ?? buildGroundGradientTexture( this.pixi );
 
 		const grass = leafColor( GRASS_HUE, opts.health01, 0 );
-
 		const soil = shade( grass, 0.16 );
-
 		const meadowHalf = Math.max( opts.span * 1.15, opts.coverHalfWidth );
 
 		const mound = (
@@ -109,7 +101,6 @@ export class GroundLayer {
 		mound( soil, 0.95, meadowHalf * 2.6, 130, 0, 22 );
 		mound( shade( grass, 0.34 ), 0.75, meadowHalf * 1.7, 70, -meadowHalf * 0.12, 8 );
 		mound( shade( grass, 0.28 ), 0.7, meadowHalf * 1.2, 56, meadowHalf * 0.24, 12 );
-
 		mound( 0x000000, 0.45, opts.trunkBase * 10 + 60, 30, 0, 4 );
 
 		const turf = new this.pixi.Graphics();
@@ -137,7 +128,6 @@ export class GroundLayer {
 			}
 		}
 		this.layer.addChild( turf );
-
 		turf.cacheAsTexture?.( true );
 		this.turf = turf;
 
@@ -145,15 +135,12 @@ export class GroundLayer {
 		for ( let i = 0; i < FALLEN_LEAVES; i++ ) {
 			const sprite = new this.pixi.Sprite( this.leafTexture );
 			sprite.anchor.set( 0.5 );
-
 			sprite.tint = shade( leafColor( 46, 0.35, 2000 ), 1.1 );
 			sprite.alpha = 0.8;
 			const size = 13 + rng() * 8;
 			sprite.scale.x = size / 48;
-
 			sprite.scale.y = ( size / 48 ) * 0.5;
 			sprite.rotation = ( rng() * 2 - 1 ) * 0.5 + Math.PI / 2;
-
 			const side = rng() < 0.5 ? -1 : 1;
 			sprite.x = side * ( opts.trunkBase * 3 + 30 + rng() * ( opts.trunkBase * 5 + 70 ) );
 			sprite.y = 8 + rng() * Math.max( 10, opts.coverDepth * 0.6 );
@@ -175,7 +162,6 @@ export class GroundLayer {
 			const height = ( 9 + rng() * 19 ) * sizeScale;
 			const lean = ( rng() * 2 - 1 ) * 11;
 			const midLean = lean * 0.35 + ( rng() * 2 - 1 ) * 2;
-
 			const depth = b / BLADES_PER_CLUMP;
 			const color = shade( grass, 0.45 + depth * 0.6 + rng() * 0.1 );
 			g.moveTo( rootX, originY + 2 )
@@ -220,7 +206,6 @@ export class GroundLayer {
 			try {
 				this.gradientTexture.destroy( true );
 			} catch {
-
 			}
 			this.gradientTexture = null;
 		}
@@ -228,7 +213,6 @@ export class GroundLayer {
 			try {
 				this.leafTexture.destroy( true );
 			} catch {
-
 			}
 			this.leafTexture = null;
 		}

@@ -6,24 +6,16 @@ export interface PendingInvite extends RestShareShape {
 	ownerId?: number;
 	ownerName?: string;
 	ownerAvatar?: string;
-
 	targetType?: 'folder' | 'file' | string;
-
 	fileId?: number;
-
 	fileName?: string;
 }
 
 export interface SharesState {
-
 	byFolder: Map< number, RestShareShape[] >;
-
 	pending: PendingInvite[];
-
 	sharesVersion: number;
-
 	deniedFolders: Set< number >;
-
 	deniedFiles: Set< number >;
 }
 
@@ -95,7 +87,6 @@ export function ingestPendingInvites( invites: PendingInvite[] ): void {
 			raw.targetType === 'file' && typeof raw.folderId !== 'number'
 				? { ...raw, folderId: 0 }
 				: raw;
-
 		if ( inv.targetType === 'file' ) {
 			if ( typeof inv.fileId === 'number' && s.state.deniedFiles.has( inv.fileId ) ) {
 				continue;

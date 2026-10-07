@@ -38,7 +38,6 @@ export function openTileMenu(
 }
 
 export interface PlacementActionMenuContext {
-
 	placementIds: number[];
 }
 
@@ -63,7 +62,6 @@ export function openPlacementActionMenu(
 		actions: sorted,
 		scope: 'files.tile',
 		dataset: {
-
 			placementId: String( ctx.placementIds[ 0 ] ?? '' ),
 			placementIds: ctx.placementIds.join( ',' ),
 		},

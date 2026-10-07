@@ -38,7 +38,6 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 				.reduce( ( sum, s ) => sum + s.count, 0 ),
 		} ) );
 	const ui = uiOf( ctx );
-
 	const folderTile = (
 		key: string,
 		label: string,
@@ -75,7 +74,6 @@ export function renderRoot( ctx: Ctx ): TemplateResult {
 			<span class="os-mywp__tile-label">${ label } · ${ count }</span>
 		</button>
 	`;
-
 	const sectionIcon = ( s: { kind: string; icon: string } ): TemplateResult =>
 		s.kind === 'agent' && /^(https?:|data:)/.test( s.icon )
 			? html`<img class="os-mywp__icon-img" src=${ s.icon } alt="" width="48" height="48" />`
@@ -111,9 +109,7 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 	const { state } = ctx;
 	const isSelected = state.selected.includes( item.id );
 	const isOpen = state.item === item.id;
-
 	const row = rowInteractions( ctx, section, item, order );
-
 	return html`
 		<div
 			class="os-mywp__cell ${ isOpen ? 'is-open' : '' }"
@@ -142,7 +138,7 @@ function renderTile( ctx: Ctx, section: SectionDef, item: ListItem, order: numbe
 				></os-tile>
 				${ item.lockedBy
 					? html`<span class="os-mywp__lock" title=${ sprintf(
-
+						/* translators: %s: user display name. */
 						__( '%s is editing' ),
 						item.lockedBy,
 					) }>🔒</span>`
@@ -169,7 +165,6 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 		ui.menu = { x: e.clientX, y: e.clientY, item: null };
 		ctx.repaint();
 	};
-
 	const canvasPress = longPress(
 		( x, y ) => {
 			ui.menu = { x, y, item: null };
@@ -178,7 +173,6 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 		( e ) => ! ( e.target as Element | null )?.closest( '[data-item-id]' ),
 	);
 	const hasMore = ui.list.hasMore();
-
 	const ghosts = ui.list.ghosts( ctx.data.list?.perPage ?? 24 );
 	const ghostCells = html`
 		${ Array.from( { length: ghosts }, ( _unused, i ) => html`
@@ -224,7 +218,6 @@ export function renderList( ctx: Ctx, section: SectionDef, items: ListItem[] ): 
 			>
 				${ sorted.map( ( band ) => {
 					const rows = byBand.get( band.id ) ?? [];
-
 					if ( rows.length === 0 && ! ( ( band.count ?? 0 ) > 0 ) ) {
 						return '';
 					}
@@ -300,7 +293,6 @@ export function renderMenu( ctx: Ctx, section: SectionDef ): TemplateResult | ''
 			shell().hooks,
 		);
 		options = buildMenuOptions( section, item, menuActions );
-
 		const merged = shell().hooks?.applyFilters(
 			'os.my-wordpress.tile-context-menu',
 			options,
@@ -471,7 +463,7 @@ export function renderQuickEdit( ctx: Ctx, section: SectionDef | null ): Templat
 			open
 			size="sm"
 			title=${ sprintf(
-
+				/* translators: 1: entry count, 2: section label. */
 				__( 'Edit %1$d %2$s' ),
 				qe.ids.length,
 				section.label,

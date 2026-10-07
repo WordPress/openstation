@@ -111,7 +111,6 @@ function themeEdgeLag( el: HTMLElement, duration: number ): number | null {
 		return clampRevealEdgeLag( duration * Number( fraction[ 1 ] ) );
 	}
 	const time = parseCssDuration( raw );
-
 	if ( /^-?\d*\.?\d+\s*(ms|s)$/i.test( raw ) ) {
 		return clampRevealEdgeLag( time );
 	}
@@ -124,7 +123,6 @@ function paintsNothing( el: HTMLElement ): boolean {
 	}
 	try {
 		const style = window.getComputedStyle( el );
-
 		const image = style.backgroundImage;
 		if ( image && image !== 'none' ) {
 			return false;
@@ -213,12 +211,10 @@ function createLayer(
 	layer.className = edge
 		? `${ REVEAL_SURFACE_CLASS } ${ REVEAL_EDGE_CLASS }`
 		: REVEAL_SURFACE_CLASS;
-
 	const paint = edge ? def.edgeColor : pair.color ?? def.surfaceColor;
 	if ( typeof paint === 'string' && paint !== '' ) {
 		layer.style.background = paint;
 	}
-
 	layer.setAttribute( 'aria-hidden', 'true' );
 	layer.setAttribute( REVEAL_ID_ATTR, def.id );
 	layer.setAttribute( LAYER_INDEX_ATTR, String( index ) );
@@ -231,7 +227,6 @@ export function createRevealLayers(): HTMLElement[] {
 	if ( ! def ) {
 		return [];
 	}
-
 	if ( typeof def.render === 'function' ) {
 		let built;
 		try {
@@ -250,7 +245,6 @@ export function createRevealLayers(): HTMLElement[] {
 		}
 		const host = built.element;
 		host.classList.add( REVEAL_SURFACE_CLASS );
-
 		host.classList.add( REVEAL_CUSTOM_CLASS );
 		host.setAttribute( 'aria-hidden', 'true' );
 		host.setAttribute( REVEAL_ID_ATTR, def.id );
@@ -264,7 +258,6 @@ export function createRevealLayers(): HTMLElement[] {
 		return [];
 	}
 	const layers: HTMLElement[] = [];
-
 	if ( clampRevealEdgeLag( def.edgeLag ) > 0 ) {
 		pairs.forEach( ( pair, i ) =>
 			layers.push( createLayer( def, pair, i, true ) ),
@@ -301,7 +294,6 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 	if ( ! surface ) {
 		return;
 	}
-
 	let def: WindowRevealDef | undefined;
 	try {
 		def = getWindowReveal( surface.getAttribute( REVEAL_ID_ATTR ) ?? '' );
@@ -357,13 +349,11 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 			finishRendered();
 			return;
 		}
-
 		animations[ 0 ].addEventListener( 'finish', finishRendered );
 		animations[ 0 ].addEventListener( 'cancel', () => {
 			running.delete( surface );
 			body.classList.remove( REVEALING_BODY_CLASS );
 		} );
-
 		running.set( surface, animations[ 0 ] );
 		return;
 	}
@@ -404,7 +394,6 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 			layer.remove();
 			return null;
 		}
-
 		layer.style.willChange = 'clip-path';
 		let animation: Animation;
 		try {
@@ -414,7 +403,6 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 					duration: layerDuration,
 					easing,
 					delay,
-
 					fill: 'both',
 				},
 			);

@@ -52,7 +52,6 @@ function openstation_build_desktop_unfocus_effect_scripts_payload() {
 		}
 		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-
 			openstation_warn_unresolvable_script_handle(
 				'openstation_register_unfocus_effect_script',
 				'Unfocus effect',
@@ -67,7 +66,6 @@ function openstation_build_desktop_unfocus_effect_scripts_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 		$seen[ $handle ] = true;

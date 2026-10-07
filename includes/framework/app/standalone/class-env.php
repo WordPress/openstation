@@ -43,7 +43,7 @@ final class Env implements EnvContract {
 	}
 
 	public function format_datetime( $timestamp, $format = 'Y-m-d H:i:s' ) {
-
+		// phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date -- The standalone host has no site timezone; PHP's own is the contract here.
 		return date( (string) $format, (int) $timestamp );
 	}
 }

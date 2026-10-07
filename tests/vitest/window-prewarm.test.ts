@@ -100,7 +100,6 @@ describe( 'WindowManager.prewarm', () => {
 		expect( manager.getAll() ).toHaveLength( 1 );
 		expect( manager.getFocused() ).toBe( win );
 		expect( openedEvents ).toEqual( [ 'edit-php' ] );
-
 		expect(
 			desktopArea.querySelectorAll( '.os-window' ),
 		).toHaveLength( 1 );
@@ -137,7 +136,6 @@ describe( 'WindowManager.prewarm', () => {
 
 		expect( desktopArea.querySelector( '#wp-window-edit-php' ) ).toBeNull();
 		expect( closedEvents ).toHaveLength( 0 );
-
 		expect( await manager.prewarm( openConfig( 'edit-php' ) ) ).toBe( true );
 	} );
 
@@ -159,7 +157,6 @@ describe( 'WindowManager.prewarm', () => {
 	} );
 
 	test( 'a click landing mid-prewarm does not leave two windows on one id', async () => {
-
 		const warming = manager.prewarm( openConfig( 'edit-php' ) );
 		await manager.open( openConfig( 'edit-php' ) );
 		const warmed = await warming;
@@ -170,12 +167,10 @@ describe( 'WindowManager.prewarm', () => {
 		expect(
 			desktopArea.querySelectorAll( '#wp-window-edit-php' ),
 		).toHaveLength( 1 );
-
 		expect( openedEvents ).toEqual( [ 'edit-php' ] );
 	} );
 
 	test( 'discarding releases the connection bridge without announcing a close', async () => {
-
 		const closed: string[] = [];
 		(
 			globalThis as unknown as {

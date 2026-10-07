@@ -172,7 +172,6 @@ describe( 'wp.os.ai.ask()', () => {
 		expect( res.toolCall?.slug ).toBe( 'turn_lights' );
 		expect( res.toolCall?.args ).toBe( 'ON' );
 		expect( res.toolCall?.result ).toBe( 'did it: ON' );
-
 		expect( res.message ).toBe( 'did it: ON' );
 
 		unregisterCommand( 'turn_lights' );
@@ -277,14 +276,12 @@ describe( 'wp.os.ai.ask()', () => {
 		} );
 
 		const fetchFn = mockFetchSequence( [
-
 			{
 				answer_type: 'tool_call',
 				message: '',
 				tool: { slug: 'turn_lights', args: 'ON' },
 				request_id: 'req-1',
 			},
-
 			{
 				answer_type: 'chat',
 				message: 'Done — your office light is on now.',
@@ -307,7 +304,6 @@ describe( 'wp.os.ai.ask()', () => {
 			slug: 'turn_lights',
 			args: 'ON',
 		} );
-
 		expect( leg2Body.follow_up.result ).toEqual( {
 			value: 'Light is ON.',
 		} );
@@ -344,7 +340,6 @@ describe( 'wp.os.ai.ask()', () => {
 		const leg2Body = JSON.parse(
 			fetchFn.mock.calls[ 1 ][ 1 ].body as string,
 		);
-
 		expect( leg2Body.follow_up.result ).toEqual( {
 			total: 42,
 			breakdown: [ 1, 2, 39 ],

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-feedback
+ */
 class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -104,13 +107,11 @@ class Tests_OpenStation_DeactivationFeedback extends WP_UnitTestCase {
 			),
 			array_keys( $payload )
 		);
-
 		$this->assertSame( array( 'too_buggy', 'other' ), $payload['reasons'] );
 		$this->assertSame( 1000, strlen( $payload['details'] ) );
 		$this->assertSame( 'app', $payload['context'] );
 		$this->assertSame( OPENSTATION_VERSION, $payload['plugin_version'] );
 		$this->assertMatchesRegularExpression( '/^\d+\.\d+$/', $payload['php_version'] );
-
 		$this->assertNull( $payload['install_age_days'] );
 		$this->assertNull( $payload['first_enable_delay_days'] );
 		$this->assertIsInt( $payload['active_plugins'] );

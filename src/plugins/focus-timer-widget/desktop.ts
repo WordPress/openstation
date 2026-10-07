@@ -2,7 +2,6 @@ export interface DesktopWindow {
 	readonly id: string;
 	readonly config: { title?: string; icon?: string; url?: string };
 	readonly element: HTMLElement;
-
 	shake?(): void;
 }
 
@@ -44,3 +43,4 @@ export function shakeWindow( id: string ): boolean {
 	win.shake();
 	return true;
 }
+

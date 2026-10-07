@@ -77,7 +77,6 @@ describe( 'the placeholder paint', () => {
 		expect( session.paintEagerly() ).toBe( true );
 		expect( root.querySelector( 'p' )?.textContent ).toBe( 'placeholder-for-page-3' );
 		expect( root.querySelector( 'p' )?.getAttribute( 'data-loading' ) ).toBe( 'true' );
-
 		expect( mountedSpy ).toHaveBeenCalledTimes( 1 );
 		expect( seen.every( ( s ) => s.loading ) ).toBe( true );
 	} );

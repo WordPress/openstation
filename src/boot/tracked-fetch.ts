@@ -10,7 +10,6 @@ export interface TrackedFetchImplOpts {
 	windowId?: string;
 	window?: DesktopWindow;
 	silent?: boolean;
-
 	source?: string;
 }
 
@@ -21,9 +20,8 @@ export function trackedFetch(
 	opts?: TrackedFetchImplOpts,
 ): Promise< Response > {
 	const finalInit = injectRestNonce( input, requestInit );
-
+	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.os.fetch`; it's the one legitimate place to call the raw global.
 	const promise = window.fetch( input, finalInit );
-
 	void promise.then(
 		( res ) => {
 			if ( res.status === 401 || res.status === 403 ) {
@@ -39,16 +37,13 @@ export function trackedFetch(
 			}
 		},
 		() => {
-
 		},
 	);
-
 	let named: DesktopWindow | null = opts?.window ?? null;
 	if ( ! named && opts?.windowId ) {
 		named = manager.getById( opts.windowId ) ?? null;
 	}
 	const target = named ?? manager.getFocused() ?? null;
-
 	const attributed = named ?? ( opts?.silent ? null : target );
 	void promise.then(
 		( res ) => publishSettled( input, finalInit, opts, attributed, { res } ),
@@ -69,7 +64,6 @@ export function trackedFetch(
 				} ),
 			)
 			.catch( () => {
-
 			} );
 	}
 	return promise;
@@ -112,7 +106,6 @@ function publishSettled(
 		}
 		activity.publish( 'os/request-settled', payload );
 	} catch {
-
 	}
 }
 
@@ -139,6 +132,6 @@ function httpErrorMessage( res: Response ): string {
 	const status = res.statusText
 		? `${ res.status } ${ res.statusText }`
 		: String( res.status );
-
+	/* translators: %s: HTTP status code, optionally followed by the reason phrase (e.g. "500 Internal Server Error"). */
 	return sprintf( __( 'Request failed (HTTP %s).' ), status );
 }

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -58,22 +61,34 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		openstation_save_os_settings( self::$admin_id, array( 'desktopTheme' => $slug ) );
 	}
 
+	/**
+	 * @covers ::openstation_active_desktop_theme_slug
+	 */
 	public function test_no_selection_resolves_to_empty() {
 		$this->assertSame( '', openstation_active_desktop_theme_slug( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_active_desktop_theme_slug
+	 */
 	public function test_installed_selection_resolves() {
 		$this->seed_upload();
 		$this->select( 'house-style' );
 		$this->assertSame( 'house-style', openstation_active_desktop_theme_slug( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_active_desktop_theme_slug
+	 */
 	public function test_code_registered_selection_resolves() {
 		openstation_register_desktop_theme( 'acme/neon', array( 'name' => 'Neon' ) );
 		$this->select( 'acme-neon' );
 		$this->assertSame( 'acme-neon', openstation_active_desktop_theme_slug( self::$admin_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_active_desktop_theme_slug
+	 */
 	public function test_orphaned_selection_degrades_to_empty() {
 		$this->select( 'was-deleted' );
 		$this->assertSame( '', openstation_active_desktop_theme_slug( self::$admin_id ) );
@@ -86,18 +101,27 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_desktop_theme_style
+	 */
 	public function test_nothing_is_enqueued_without_a_theme() {
 		openstation_enqueue_desktop_theme_style();
 		$this->assertFalse( wp_style_is( OPENSTATION_DESKTOP_THEME_STYLE_HANDLE, 'enqueued' ) );
 		$this->assertFalse( wp_style_is( OPENSTATION_DESKTOP_THEME_STYLE_HANDLE, 'registered' ) );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_desktop_theme_style
+	 */
 	public function test_nothing_is_enqueued_for_an_orphaned_selection() {
 		$this->select( 'was-deleted' );
 		openstation_enqueue_desktop_theme_style();
 		$this->assertFalse( wp_style_is( OPENSTATION_DESKTOP_THEME_STYLE_HANDLE, 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_desktop_theme_style
+	 */
 	public function test_uploaded_theme_enqueues_the_compiled_file() {
 		$this->seed_upload();
 		$this->select( 'house-style' );
@@ -110,6 +134,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		$this->assertSame( '1700000000', $style->ver, 'installedAt busts the cache.' );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_desktop_theme_style
+	 */
 	public function test_style_depends_on_openstation_variables() {
 		$this->seed_upload();
 		$this->select( 'house-style' );
@@ -123,6 +150,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_desktop_theme_style
+	 */
 	public function test_code_theme_inlines_its_compiled_css() {
 		openstation_register_desktop_theme( 'acme/neon', array(
 			'name'   => 'Neon',
@@ -141,6 +171,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		$this->assertStringContainsString( '--os-window-radius: 14px;', $inline );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_desktop_theme_style
+	 */
 	public function test_nothing_is_enqueued_in_chromeless_requests() {
 		$this->seed_upload();
 		$this->select( 'house-style' );
@@ -150,6 +183,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		$this->assertFalse( wp_style_is( OPENSTATION_DESKTOP_THEME_STYLE_HANDLE, 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_desktop_theme_style
+	 */
 	public function test_nothing_is_enqueued_when_openstation_is_off() {
 		$this->seed_upload();
 		$this->select( 'house-style' );
@@ -159,6 +195,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		$this->assertFalse( wp_style_is( OPENSTATION_DESKTOP_THEME_STYLE_HANDLE, 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_body_class
+	 */
 	public function test_body_class_is_appended_as_a_string() {
 		$this->seed_upload();
 		$this->select( 'house-style' );
@@ -169,10 +208,16 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'os-desktop-theme-house-style', $classes );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_body_class
+	 */
 	public function test_body_class_is_untouched_without_a_theme() {
 		$this->assertSame( 'existing-class', openstation_desktop_theme_body_class( 'existing-class' ) );
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_shell_stamps_the_theme_attribute() {
 		$this->seed_upload();
 		$this->select( 'house-style' );
@@ -187,6 +232,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_render_shell
+	 */
 	public function test_shell_omits_the_attribute_without_a_theme() {
 		ob_start();
 		openstation_render_shell();
@@ -196,6 +244,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'data-os-desktop-theme', $html );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_inject_shell_config
+	 */
 	public function test_shell_config_carries_capability_and_url() {
 		$config = openstation_desktop_theme_inject_shell_config( array() );
 
@@ -206,6 +257,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_build_shell_config
+	 */
 	public function test_shell_config_carries_the_theme_library() {
 		openstation_register_desktop_theme( 'acme/neon', array( 'name' => 'Neon' ) );
 
@@ -225,6 +279,9 @@ class Tests_OpenStation_DesktopThemesAssets extends WP_UnitTestCase {
 		openstation_unregister_desktop_theme( 'acme-neon' );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_inject_shell_config
+	 */
 	public function test_non_admin_cannot_manage() {
 		wp_set_current_user( self::$editor_id );
 		$config = openstation_desktop_theme_inject_shell_config( array() );

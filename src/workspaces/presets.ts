@@ -19,7 +19,6 @@ function builtInPresets(): WorkspacePreset[] {
 				'A shop floor. WooCommerce orders, products and analytics side by side; everything that is not commerce leaves the rails.',
 			),
 			icon: 'dashicons-cart',
-
 			color: '#7f54b3',
 			defaultLabel: __( 'Commerce' ),
 			order: 10,
@@ -35,9 +34,7 @@ function builtInPresets(): WorkspacePreset[] {
 				'edit-tags.php?taxonomy=product_cat',
 				'users.php',
 			],
-
 			widgets: [ 'clock', 'desktop-mode/site-views' ],
-
 			appearance: {
 				wallpaper: 'dark',
 				accent: 'indigo',
@@ -59,7 +56,6 @@ function builtInPresets(): WorkspacePreset[] {
 				'A course studio. Sensei courses, lessons and learners tiled together, so moving between them is a glance rather than a navigation.',
 			),
 			icon: 'dashicons-welcome-learn-more',
-
 			color: '#43a047',
 			defaultLabel: __( 'Learning' ),
 			order: 20,
@@ -73,13 +69,11 @@ function builtInPresets(): WorkspacePreset[] {
 				'sensei-settings',
 				'users.php',
 			],
-
 			widgets: [
 				'clock',
 				'desktop-mode/heartbeat',
 				'desktop-mode/recent-comments',
 			],
-
 			appearance: {
 				wallpaper: 'aurora',
 				accent: 'emerald',
@@ -98,7 +92,6 @@ function builtInPresets(): WorkspacePreset[] {
 				'A writing desk. A blank page takes two thirds of the screen, the library sits in the margin, and the rest of the admin is somewhere else.',
 			),
 			icon: 'dashicons-edit-page',
-
 			color: '#c8102e',
 			defaultLabel: __( 'Publishing' ),
 			order: 30,
@@ -110,14 +103,12 @@ function builtInPresets(): WorkspacePreset[] {
 				'edit-tags.php',
 				'post_type=page',
 			],
-
 			widgets: [
 				'desktop-mode/drafts',
 				'desktop-mode/post-stats',
 				'desktop-mode/focus-timer',
 				'desktop-mode/notes',
 			],
-
 			appearance: {
 				wallpaper: 'mono',
 				accent: 'rose',
@@ -182,20 +173,16 @@ export function workspaceProfileFromPreset(
 		icon: preset.icon,
 		color: preset.color,
 		apps: {
-
 			mode: preset.apps.length > 0 ? 'only' : 'all',
 			ids,
 		},
 		widgets: {
-
 			mode: widgets.length > 0 ? 'only' : 'all',
 			ids: widgets.slice(),
 		},
-
 		appearance: { ...( preset.appearance ?? {} ) },
 		windows: preset.windows.map( ( w ) => ( { ...w } ) ),
 		layout: preset.layout,
-
 		provisioned: false,
 	};
 }

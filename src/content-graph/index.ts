@@ -40,7 +40,6 @@ function writeNodeStyle( style: NodeStyle ): void {
 	try {
 		window.localStorage.setItem( NODE_STYLE_KEY, style );
 	} catch {
-
 	}
 }
 
@@ -92,7 +91,6 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		?.os ?? {};
 
 	let activeTypes: string[] = cfg.postTypes.map( ( t ) => t.slug );
-
 	let postTypes: PostTypeDescriptor[] = cfg.postTypes;
 	let scene: GraphScene | null = null;
 	let detailRequestId = 0;
@@ -106,7 +104,6 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			panel.hide();
 			scene?.clearFocus();
 		},
-
 		onViewChange: ( key ) => {
 			scene?.setSatelliteSelectedKey( key );
 		},
@@ -150,12 +147,12 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 				}
 				panel.setError(
 					sprintf(
-
+						/* translators: %d: numeric post id that failed to load. */
 						__( 'Could not load post #%d.' ),
 						node.id,
 					),
 				);
-
+				// eslint-disable-next-line no-console
 				console.warn( '[content-graph] detail fetch failed', err );
 			}
 		} )();
@@ -170,7 +167,6 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		onSearchSelect: ( node: GraphNode ) => focusNode( node ),
 		onGroupChange: ( facet: GroupFacet | null ) => {
 			scene?.setGrouping( facet );
-
 			notice.setSuppressed( facet !== null );
 		},
 		getNodes: () => scene?.getNodes() ?? [],
@@ -196,7 +192,7 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			scene?.setData( payload );
 			toolbar.setStatus(
 				sprintf(
-
+					/* translators: 1: number of nodes (posts/pages) in the graph. 2: number of links between them. */
 					__( '%1$d nodes · %2$d links' ),
 					payload.stats.nodes,
 					payload.stats.edges,
@@ -219,7 +215,7 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			}
 			notice.set( { kind: 'none' } );
 			toolbar.setStatus( __( 'Failed to load graph.' ) );
-
+			// eslint-disable-next-line no-console
 			console.warn( '[content-graph] graph fetch failed', err );
 		} finally {
 			loadingOverlay.hide();
@@ -254,7 +250,7 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		await scene.mount( desktopApi );
 	} catch ( err ) {
 		stageHost.textContent = __( 'Could not initialise the graph renderer.' );
-
+		// eslint-disable-next-line no-console
 		console.warn( '[content-graph] scene mount failed', err );
 		liveScenes.delete( scene );
 		return { abort: () => {} };
@@ -267,10 +263,8 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 				return;
 			}
 			postTypes = refreshed;
-
 			toolbar.updateCounts( refreshed );
 		} catch {
-
 		}
 		await loadGraph();
 	} )();
@@ -297,7 +291,6 @@ const registry =
 		string,
 		RenderCallback | undefined
 	>;
-
 registry[ WINDOW_ID ] = async ( body: HTMLElement ) => {
 	const state = await renderContentGraph( body );
 	return state.abort;

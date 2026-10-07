@@ -113,31 +113,21 @@ export const DESKTOP_LAYOUTS = [
 
 export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
-
 	accent: 'pulse',
-
 	customAccent: '#f252fc',
 	dockSize: 'default',
-
 	windowRadius: 'round',
 	openWindowsAs: 'default',
-
 	adminBarMode: 'hidden',
-
 	desktopLayout: 'unified',
 	dockPlacement: 'bottom',
-
 	dockBehavior: 'static',
 	sideDockBehavior: 'static',
 	dockRailRenderer: 'default',
-
 	desktopTheme: '',
-
 	appliedThemeRecommendations: [],
 	unfocusEffect: 'darken',
-
 	windowReveal: 'none',
-
 	windowRevealDuration: 0,
 	windowLinkRenderer: 'svg-splines',
 	windowLinkVisibility: 'always',
@@ -155,31 +145,22 @@ export const DEFAULTS: OsSettingsState = {
 	ai: {
 		enabled: false,
 	},
-
 	heartbeatRate: 60,
 	nativePostsEnabled: false,
 	nativePostsHiddenColumns: [],
-
 	nativePagesEnabled: false,
 	nativePagesHiddenColumns: [],
-
 	nativeUsersEnabled: false,
-
 	nativePluginsEnabled: false,
-
 	nativeCommentsEnabled: false,
-
 	stationHomeEnabled: false,
-
 	adminAssetCacheEnabled: true,
 	windowPrewarmEnabled: true,
 	showDesktopOnWallpaperClick: false,
-
 	confirmCloseAllWindows: true,
 	mioEnabled: false,
 	mioApiEnabled: false,
 	mioShowOnWallpaper: true,
-
 	mioStyle: { appearance: {}, physics: {} },
 	showPostStatusRibbons: true,
 	developerModeEnabled: false,
@@ -190,3 +171,4 @@ export const DEFAULTS: OsSettingsState = {
 	mobileTabs: [],
 	dockPromotedPositions: {},
 };
+

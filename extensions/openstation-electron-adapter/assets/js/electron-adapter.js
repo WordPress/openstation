@@ -90,7 +90,7 @@ var openStationElectronAdapter = function(exports) {
         for (const id of known) {
           dockedListeners.forEach((cb) => cb({ windowId: id }));
         }
-        known =                 new Set();
+        known = /* @__PURE__ */ new Set();
         stopPolling();
         return;
       }
@@ -164,7 +164,6 @@ var openStationElectronAdapter = function(exports) {
           windowIds: Array.isArray(data.windowIds) ? data.windowIds : []
         };
       },
-
       handshake: () => Promise.resolve(idle),
       getConnection: () => Promise.resolve(idle),
       disconnect: () => Promise.resolve({ ok: false }),
@@ -191,20 +190,16 @@ var openStationElectronAdapter = function(exports) {
     };
   }
   class FreedWindows {
-
     constructor(deps) {
       this.deps = deps;
-      this.ids =                 new Set();
+      this.ids = /* @__PURE__ */ new Set();
     }
-
     list() {
       return Array.from(this.ids);
     }
-
     has(windowId) {
       return this.ids.has(windowId);
     }
-
     adoptExisting(windowIds) {
       for (const id of windowIds) {
         if (id) {
@@ -212,7 +207,6 @@ var openStationElectronAdapter = function(exports) {
         }
       }
     }
-
     adopt(windowId) {
       if (!windowId || this.ids.has(windowId)) {
         return;
@@ -228,7 +222,6 @@ var openStationElectronAdapter = function(exports) {
       }
       this.deps.onFreed?.(windowId);
     }
-
     release(windowId) {
       if (!this.ids.delete(windowId)) {
         return;
@@ -244,7 +237,6 @@ var openStationElectronAdapter = function(exports) {
       }
       this.deps.onDocked?.(windowId);
     }
-
     redirect(windowId) {
       if (!this.ids.has(windowId)) {
         return;
@@ -255,7 +247,6 @@ var openStationElectronAdapter = function(exports) {
       }
       this.deps.focusNative(windowId);
     }
-
     forget(windowId) {
       if (this.ids.delete(windowId)) {
         this.deps.closeNative(windowId);
@@ -363,7 +354,6 @@ var openStationElectronAdapter = function(exports) {
           {
             id: win.id,
             config: win.config,
-
             getCurrentUrl: () => (win.getCurrentUrl ? win.getCurrentUrl() : "") || win.config.url || ""
           },
           {

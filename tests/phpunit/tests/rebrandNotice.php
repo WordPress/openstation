@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group migrations
+ */
 class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 
 	private function make_prior_user() {
@@ -12,6 +15,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		return (bool) get_user_meta( (int) $user_id, OPENSTATION_REBRAND_NOTICE_META_KEY, true );
 	}
 
+	/**
+	 * @covers ::openstation_migrate_flag_rebrand_notice
+	 */
 	public function test_prior_user_is_flagged() {
 		$user_id = $this->make_prior_user();
 
@@ -23,6 +29,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_migrate_flag_rebrand_notice
+	 */
 	public function test_user_who_switched_back_to_classic_is_flagged() {
 		$user_id = self::factory()->user->create();
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
@@ -33,6 +42,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		$this->assertTrue( $this->is_flagged( $user_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_migrate_flag_rebrand_notice
+	 */
 	public function test_user_with_saved_settings_is_flagged() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings( $user_id, array( 'wallpaper' => 'custom-gradient' ) );
@@ -42,6 +54,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		$this->assertTrue( $this->is_flagged( $user_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_migrate_flag_rebrand_notice
+	 */
 	public function test_user_who_never_used_it_is_not_flagged() {
 		$user_id = self::factory()->user->create();
 
@@ -53,8 +68,10 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_migrate_flag_rebrand_notice
+	 */
 	public function test_fresh_install_is_not_flagged() {
-
 		self::factory()->user->create();
 
 		openstation_migrate_flag_rebrand_notice( 0 );
@@ -72,6 +89,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_migrate_flag_rebrand_notice
+	 */
 	public function test_pre_runner_install_is_flagged() {
 		$user_id = $this->make_prior_user();
 
@@ -83,6 +103,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_migrate_flag_rebrand_notice
+	 */
 	public function test_post_rebrand_install_is_not_flagged() {
 		$user_id = $this->make_prior_user();
 
@@ -94,12 +117,18 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_should_show_rebrand_notice
+	 */
 	public function test_no_flag_means_no_notice() {
 		wp_set_current_user( self::factory()->user->create() );
 
 		$this->assertFalse( openstation_should_show_rebrand_notice() );
 	}
 
+	/**
+	 * @covers ::openstation_should_show_rebrand_notice
+	 */
 	public function test_newcomer_on_an_old_site_gets_no_notice() {
 		$old = $this->make_prior_user();
 		openstation_migrate_flag_rebrand_notice( 3 );
@@ -118,6 +147,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_should_show_rebrand_notice
+	 */
 	public function test_notice_is_offered_once_per_user() {
 		$user_id = $this->make_prior_user();
 		openstation_migrate_flag_rebrand_notice( 3 );
@@ -136,6 +168,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_should_show_rebrand_notice
+	 */
 	public function test_one_users_dismissal_does_not_silence_another() {
 		$first  = $this->make_prior_user();
 		$second = $this->make_prior_user();
@@ -152,6 +187,9 @@ class Tests_OpenStation_RebrandNotice extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_should_show_rebrand_notice
+	 */
 	public function test_logged_out_gets_no_notice() {
 		$this->make_prior_user();
 		openstation_migrate_flag_rebrand_notice( 3 );

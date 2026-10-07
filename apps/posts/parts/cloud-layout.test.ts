@@ -25,7 +25,6 @@ describe( 'the size, hue and rotation', () => {
 		expect( fontSizeFor( 0, 100 ) ).toBe( 11 );
 		expect( fontSizeFor( 100, 100 ) ).toBe( 28 );
 		expect( fontSizeFor( 25, 100 ) ).toBe( Math.round( 11 + 17 * 0.5 ) );
-
 		expect( fontSizeFor( 1, 0 ) ).toBe( 28 );
 	} );
 

@@ -301,7 +301,6 @@ describe( 'SHELL_ERROR action fires alongside mount failures', () => {
 
 	beforeEach( () => {
 		hooks = installHooksStub();
-
 		vi.spyOn( console, 'error' ).mockImplementation( () => undefined );
 	} );
 	afterEach( () => {
@@ -395,7 +394,6 @@ describe( 'widget chrome — drag threshold', () => {
 				onRedock: () => undefined,
 			},
 		);
-
 		document.body.appendChild( frame.card );
 		Object.defineProperty( frame.card, 'getBoundingClientRect', {
 			value: () =>
@@ -424,7 +422,6 @@ describe( 'widget chrome — drag threshold', () => {
 		}
 
 		chrome!.dispatchEvent( pointerEvent( 'pointerdown', 200, 200 ) );
-
 		chrome!.dispatchEvent( pointerEvent( 'pointermove', 203, 200 ) );
 		chrome!.dispatchEvent( pointerEvent( 'pointerup', 203, 200 ) );
 
@@ -501,7 +498,6 @@ describe( 'widget chrome — drag threshold', () => {
 		}
 
 		chrome!.dispatchEvent( pointerEvent( 'pointerdown', 200, 200 ) );
-
 		chrome!.dispatchEvent( pointerEvent( 'pointermove', 210, 200 ) );
 
 		expect( liberateCount ).toBe( 1 );
@@ -572,7 +568,6 @@ describe( 'Dock.appendSystemItem placement', () => {
 			expect(
 				el.querySelector( '[data-system-id="os-system"]' ),
 			).not.toBeNull();
-
 			expect( el.querySelector( '.os-dock__separator' ) ).not.toBeNull();
 		}
 	} );

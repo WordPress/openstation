@@ -23,7 +23,6 @@ interface DesktopGlobal {
 		height?: number;
 		minWidth?: number;
 		minHeight?: number;
-
 		render: (
 			body: HTMLElement,
 		) =>
@@ -104,7 +103,6 @@ export async function ensureGameRender(
 	}
 	await loadVendorScript( entry.scriptUrl, {
 		translations: entry.scriptTranslations,
-
 		deps: entry.scriptDeps,
 		l10n: entry.scriptL10n,
 		before: entry.scriptBefore,
@@ -118,7 +116,6 @@ export async function ensureGameRender(
 				"Script loaded but didn't publish a def — check the plugin's global assignment.",
 		);
 	}
-
 	const upgraded: GameRegistryEntry = {
 		...entry,
 		render: def.render,
@@ -133,12 +130,10 @@ export async function launchGame(
 	opts: { challenge?: GameChallengeContext } = {},
 ): Promise< void > {
 	const desktop = desktopGlobal();
-
 	const entry = registry.get( id );
 	if ( ! entry ) {
 		throw new Error( `[openstation] Unknown game "${ id }".` );
 	}
-
 	ensureGameStyles();
 
 	if ( typeof desktop.registerWindow !== 'function' ) {

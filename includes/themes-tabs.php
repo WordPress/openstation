@@ -59,9 +59,6 @@ function openstation_render_themes_workspace_intro() {
 			<h1 id="openstation-themes-intro-title"><?php esc_html_e( 'Choose how your site greets the world.', 'desktop-mode' ); ?></h1>
 			<p><?php esc_html_e( 'Themes shape your site’s look. Switching keeps your posts and pages in place.', 'desktop-mode' ); ?></p>
 		</div>
-		<?php
-
-		?>
 		<p class="openstation-themes-intro__count">
 			<strong><?php echo esc_html( number_format_i18n( $theme_count ) ); ?></strong>
 			<span><?php echo esc_html( _n( 'Theme installed', 'Themes installed', $theme_count, 'desktop-mode' ) ); ?></span>

@@ -49,7 +49,6 @@ export function resolveWindowControls(
 				controls.push( adapted );
 			}
 		}
-
 		left = sortByOrder( left );
 		right = sortByOrder( right );
 		controls = sortByOrder( controls );
@@ -109,7 +108,6 @@ function applyExplicitOrder(
 			used.add( id );
 		}
 	}
-
 	for ( const def of list ) {
 		if ( ! used.has( def.id ) ) {
 			out.push( def );
@@ -123,7 +121,6 @@ function buildControlElement(
 	win: DesktopWindow,
 ): { element: HTMLElement; teardown?: () => void } {
 	const host = document.createElement( 'os-window-button' );
-
 	host.setAttribute( 'aria-label', def.label || def.id );
 	host.classList.add( 'os-window__btn' );
 
@@ -163,7 +160,6 @@ function buildControlElement(
 					} );
 				}
 			};
-
 			host.addEventListener( 'os-button-activate', handler );
 			return {
 				element: host,
@@ -222,7 +218,6 @@ export function paintWindowControls(
 			try {
 				fn();
 			} catch {
-
 			}
 		}
 	};

@@ -7,11 +7,8 @@ interface SharedStoreApi< T > {
 }
 
 export interface FootprintTarget {
-
 	userId: number | null;
-
 	userName: string;
-
 	requestedAt: number;
 }
 
@@ -63,11 +60,9 @@ export function setFootprintTarget( userId: number, userName = '' ): void {
 		store.state.userId = userId;
 		store.state.userName = userName;
 		store.state.requestedAt = Date.now();
-
 		store.notify();
 		return;
 	}
-
 	(
 		window as unknown as { _wpdFootprintTarget?: FootprintTarget }
 	)._wpdFootprintTarget = {

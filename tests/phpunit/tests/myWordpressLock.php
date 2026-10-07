@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -44,6 +47,9 @@ class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_contributors_payload
+	 */
 	public function test_contributors_visible_to_users_who_can_edit_the_post() {
 		wp_set_current_user( self::$admin_id );
 		$this->assertContains( self::$editor_id, $this->contributor_ids() );
@@ -52,6 +58,9 @@ class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 		$this->assertContains( self::$editor_id, $this->contributor_ids() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_contributors_payload
+	 */
 	public function test_contributors_empty_for_users_who_cannot_edit_the_post() {
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertSame( array(), openstation_my_wordpress_post_contributors_payload( $this->post_id ) );
@@ -60,6 +69,9 @@ class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_my_wordpress_post_contributors_payload( $this->post_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_post_contributors_payload
+	 */
 	public function test_gate_applies_before_the_contributors_filter() {
 		$filter_ran = false;
 		add_filter(
@@ -76,6 +88,9 @@ class Tests_OpenStation_MyWordpressLock extends WP_UnitTestCase {
 		$this->assertFalse( $filter_ran );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_lock_field
+	 */
 	public function test_rest_field_respects_the_gate() {
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . $this->post_id );
 

@@ -40,7 +40,6 @@ export class OsIcon extends Component {
 
 	protected render() {
 		const rawName = ( this as unknown as { name: string | null } ).name || '';
-
 		const slug = rawName.startsWith( 'dashicons-' )
 			? rawName.slice( 'dashicons-'.length )
 			: rawName;
@@ -58,7 +57,6 @@ export class OsIcon extends Component {
 				aria-hidden="true"
 			>${ char }</span>`;
 		}
-
 		return html`<span
 			class="os-icon__glyph dashicons dashicons-${ slug }"
 			aria-hidden="true"

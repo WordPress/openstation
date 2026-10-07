@@ -17,13 +17,9 @@ export interface IconCanvasMenuItem {
 }
 
 export interface IconCanvasMenuDeps {
-
 	scope: string;
-
 	onSort: ( mode: SortMode ) => void;
-
 	extraItems?: IconCanvasMenuItem[];
-
 	openOnBackgroundClick?: boolean;
 }
 
@@ -35,7 +31,6 @@ const MENU_CLASS = 'os-icon-canvas-menu';
 
 let activeMenu: HTMLElement | null = null;
 let activeFlyout: HTMLElement | null = null;
-
 let activeCanvas: HTMLElement | null = null;
 let outsideHandler: ( ( e: MouseEvent ) => void ) | null = null;
 let escHandler: ( ( e: KeyboardEvent ) => void ) | null = null;
@@ -52,7 +47,6 @@ export function attachIconCanvasMenu(
 		if ( isInsideTile( e.target ) || isInsideMenu( e.target ) ) {
 			return;
 		}
-
 		e.preventDefault();
 		toggle( e.clientX, e.clientY );
 	};
@@ -70,7 +64,6 @@ export function attachIconCanvasMenu(
 			deps.scope,
 		);
 		const finalItems = Array.isArray( filtered ) ? filtered : items;
-
 		const myGen = ++toggleGen;
 		openWithShellOverlays(
 			() => myGen === toggleGen,
@@ -206,7 +199,6 @@ function openMenu(
 
 	document.body.appendChild( menu );
 	activeMenu = menu;
-
 	clampToViewport( menu );
 
 	queueMicrotask( () => {
@@ -214,7 +206,6 @@ function openMenu(
 			if ( isInsideMenu( e.target ) ) {
 				return;
 			}
-
 			closeMenu();
 		};
 		escHandler = ( e: KeyboardEvent ) => {

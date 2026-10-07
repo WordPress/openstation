@@ -21,7 +21,6 @@
 }
 
 body.os-active {
-
 	--os-mio-chat-bg: var(--os-ui-modal-bg, #15151e);
 	--os-mio-chat-fg: var(--os-ui-modal-text, #f4f4fb);
 	--os-mio-chat-muted: var(--os-ui-modal-text-muted, #b4b4c6);
@@ -36,31 +35,23 @@ body.os-active {
 	--os-mio-chat-radius: max(18px, var(--os-window-radius, 22px));
 
 	--os-bg: linear-gradient(160deg, #010101 0%, #111114 58%, #1e1d23 100%);
-
 	--os-backstop: #0c0b0f;
 	--os-area-inset: 0;
 
 	--os-tile-w: 88px;
-
 	--os-tile-h: 104px;
 	--os-grid-gap-x: 20px;
 	--os-grid-gap-y: 16px;
-
 	--os-grid-padding: 16px;
-
 	--os-tile-w-large: 132px;
 	--os-tile-h-large: 160px;
 
 	--os-window-bg: #1a1721;
 	--os-window-border: rgba(255, 251, 255, 0.12);
-
 	--os-window-radius: 16px;
-
 	--os-window-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
 	--os-window-shadow-focused: 0 12px 48px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.35);
-
 	--os-window-reveal-surface: #1a1721;
-
 	--os-window-reveal-edge: transparent;
 
 	--os-titlebar-bg: #0c0b0f;
@@ -68,7 +59,6 @@ body.os-active {
 	--os-titlebar-color: #99969c;
 	--os-titlebar-color-focused: #fffbff;
 	--os-titlebar-height: 40px;
-
 	--os-titlebar-divider: rgba(255, 251, 255, 0.12);
 	--os-titlebar-divider-unfocused: rgba(255, 251, 255, 0.06);
 
@@ -113,7 +103,6 @@ body.os-active {
 	--os-ui-fg-muted: #b3afb5;
 	--os-ui-fg-faint: #66636b;
 	--os-ui-text-muted: rgba(255, 251, 255, 0.6);
-
 	--os-ui-fg-on-accent: #fffbff;
 
 	--os-ui-border: #33303a;
@@ -126,11 +115,9 @@ body.os-active {
 	--os-ui-selection-fg: #fffbff;
 
 	--os-ui-accent: #f252fc;
-
 	--os-ui-accent-ink: #fffbff;
 	--os-ui-accent-strong: #ec9bff;
 	--os-ui-accent-soft: color-mix(in srgb, var(--os-ui-accent-dim) 14%, transparent);
-
 	--os-ui-accent-dim: #d92ee3;
 
 	--os-mesh-holo:
@@ -161,16 +148,13 @@ body.os-active {
 	--os-mesh-mio: linear-gradient(90deg, #f252fc 7%, #aa67ff 48.3%, #a580ff 70.7%, #4b3eff 93%);
 
 	--os-ui-holo-fill: var(--os-mesh-holo);
-
 	--os-ui-hero-mesh:
 		radial-gradient(ellipse 62% 38% at 34% 20%, rgba(170, 103, 255, 0.58) 0%, rgba(170, 103, 255, 0) 74%),
 		radial-gradient(ellipse 54% 33% at 58% 36%, rgba(236, 155, 255, 0.45) 0%, rgba(236, 155, 255, 0) 76%),
 		radial-gradient(ellipse 68% 30% at 26% 50%, rgba(125, 239, 245, 0.32) 0%, rgba(125, 239, 245, 0) 74%),
 		radial-gradient(ellipse 58% 28% at 46% 66%, rgba(147, 240, 198, 0.26) 0%, rgba(147, 240, 198, 0) 76%),
 		radial-gradient(ellipse 96% 62% at 40% 42%, rgba(242, 82, 252, 0.18) 0%, rgba(242, 82, 252, 0) 82%);
-
 	--os-ui-holo-ink: #0c0b0f;
-
 	--os-ui-holo-sheen: linear-gradient(
 		124deg,
 		rgba(159, 214, 255, 0.1) 0%,
@@ -178,7 +162,6 @@ body.os-active {
 		rgba(242, 82, 252, 0.1) 58%,
 		rgba(147, 240, 198, 0.09) 100%
 	);
-
 	--os-ui-holo-edge: linear-gradient(
 		124deg,
 		rgba(154, 242, 255, 0.7) 0%,
@@ -186,7 +169,6 @@ body.os-active {
 		rgba(242, 82, 252, 0.7) 62%,
 		rgba(159, 152, 255, 0.6) 100%
 	);
-
 	--os-ui-holo-edge-quiet: linear-gradient(
 		124deg,
 		rgba(154, 242, 255, 0.22) 0%,
@@ -194,20 +176,15 @@ body.os-active {
 		rgba(242, 82, 252, 0.22) 62%,
 		rgba(159, 152, 255, 0.2) 100%
 	);
-
 	--os-ui-holo-glow: 0 0 0 1px color-mix(in srgb, var(--os-ui-accent-dim) 20%, transparent),
 		0 2px 10px color-mix(in srgb, var(--os-ui-accent-dim) 15%, transparent);
 	--os-ui-holo-glow-strong: 0 0 0 1px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent),
 		0 4px 18px color-mix(in srgb, var(--os-ui-accent-dim) 26%, transparent),
 		0 1px 3px rgba(12, 11, 15, 0.6);
-
 	--os-ui-holo-track: rgba(255, 251, 255, 0.16);
-
 	--os-ui-holo-track-edge: #66636b;
-
 	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9),
 		0 0 0 4px var(--os-ui-accent, #f252fc);
-
 	--os-ui-focus-ring-field: 0 0 0 1px var(--os-ui-accent, #f252fc),
 		0 0 0 4px color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent);
 
@@ -252,19 +229,13 @@ body.os-active {
 	--os-ui-swatch-badge-bg: #fffbff;
 
 	--os-ui-motion-fast: 140ms;
-
 	--os-ui-holo-transition: 220ms;
-
 	--os-ui-motion-slow: 340ms;
-
 	--os-ui-motion-ambient: 12s;
 
 	--os-ui-ease-spring: cubic-bezier(0.32, 1.5, 0.55, 1);
-
 	--os-ui-ease-out: cubic-bezier(0.22, 0.9, 0.28, 1);
-
 	--os-ui-ease-in: cubic-bezier(0.4, 0, 1, 1);
-
 	--os-ui-ease-loop: cubic-bezier(0.45, 0, 0.55, 1);
 
 	--os-ui-danger: #ff5a5a;
@@ -312,7 +283,6 @@ body.os-active {
 	--os-ui-notice-info-border: rgba(194, 241, 241, 0.28);
 	--os-ui-notice-neutral-bg: rgba(255, 251, 255, 0.06);
 	--os-ui-notice-neutral-border: rgba(255, 251, 255, 0.14);
-
 	--os-ui-notice-link: #fffbff;
 	--os-ui-notice-link-hover: #ccc8ce;
 	--os-ui-badge-danger-bg: rgba(255, 90, 90, 0.16);
@@ -323,7 +293,6 @@ body.os-active {
 
 	--os-ui-ribbon-fg: #0c0b0f;
 	--os-ui-step-chip-fg: #0c0b0f;
-
 	--os-ui-step-chip-bg: var(--os-mesh-holo);
 
 	--os-ui-ribbon-bg: var(--os-mesh-holo);
@@ -335,7 +304,6 @@ body.os-active {
 	--os-ui-tag-input-input-border: #f252fc;
 
 	--os-ui-btn-bg-active: rgba(255, 251, 255, 0.12);
-
 	--os-ui-button-bg-hover: rgba(255, 251, 255, 0.14);
 	--os-ui-key-bg-hover: rgba(255, 251, 255, 0.1);
 	--os-ui-key-bg-pressed: rgba(255, 251, 255, 0.16);
@@ -345,16 +313,12 @@ body.os-active {
 	--os-ui-log-border: 1px solid rgba(255, 251, 255, 0.08);
 	--os-ui-log-row-border: 1px solid rgba(255, 251, 255, 0.06);
 	--os-ui-progress-track-bg: rgba(255, 251, 255, 0.1);
-
 	--os-ui-progress-fill: var(--os-mesh-holo);
 	--os-ui-rating-star: #f8f2b6;
 	--os-ui-rating-fill: linear-gradient(90deg, #f8f2b6 0%, #fffbff 100%);
 	--os-ui-avatar-dot-ring: #1a1721;
-
 	--os-ui-avatar-halo: #f252fc;
-
 	--os-ui-search-highlight-bg: rgba(248, 242, 182, 0.3);
-
 	--os-ui-cg-chip-accent: 0%;
 	--os-ui-cg-chip-border: #4d4a52;
 	--os-ui-cg-chip-border-active: #fffbff;
@@ -365,13 +329,9 @@ body.os-active {
 	--os-ui-cg-chip-count-fg-active: #fffbff;
 
 	--os-ui-color-surface: rgba(20, 20, 22, 0.55);
-
 	--os-ui-color-text: var(--os-ui-fg-on-accent, #fffbff);
-
 	--os-ui-color-text-subtle: var(--os-fg-muted, rgba(255, 251, 255, 0.7));
-
 	--os-ui-color-border: rgba(255, 251, 255, 0.12);
-
 	--os-ui-color-accent: var(--os-ui-accent, #f252fc);
 
 	--os-font: 'Geist', system-ui, sans-serif;
@@ -407,7 +367,6 @@ body.os-active {
 
 	--os-dock-width: 56px;
 	--os-dock-icon-size: 20px;
-
 	--os-dock-indicator-length: 180px;
 	--os-dock-indicator-thickness: 5px;
 	--os-dock-indicator-bg: color-mix( in srgb, var( --os-ui-accent, #f252fc ) 72%, transparent );
@@ -415,11 +374,8 @@ body.os-active {
 	--os-dock-icon-color: rgba(255, 251, 255, 0.72);
 	--os-dock-icon-color-hover: #fffbff;
 	--os-dock-item-bg-hover: rgba(255, 251, 255, 0.08);
-
 	--os-dock-item-bg-focused: rgba(255, 251, 255, 0.1);
-
 	--os-dock-item-outline: var(--os-ui-accent, #f252fc);
-
 	--os-dock-border: rgba(255, 251, 255, 0.1);
 
 	--os-dock-divider: color-mix(in srgb, var(--os-ui-accent-dim) 70%, transparent);
@@ -448,13 +404,10 @@ body.os-active {
 	--os-cn-fg-muted: rgba(255, 251, 255, 0.62);
 	--os-cn-legend: rgba(255, 251, 255, 0.4);
 	--os-cn-divider: rgba(255, 251, 255, 0.1);
-
 	--os-cn-row-fill: var(--os-ui-holo-fill);
 	--os-cn-row-ink: var(--os-ui-holo-ink);
-
 	--os-cn-beam: color-mix(in srgb, var(--os-ui-accent-dim) 80%, transparent);
 	--os-cn-radius: 14px;
-
 	--os-cn-z: 2147483000;
 
 	--os-accent: #f252fc;
@@ -464,9 +417,7 @@ body.os-active {
 	--os-hover: rgba(255, 251, 255, 0.06);
 	--os-selected: rgba(242, 82, 252, 0.18);
 	--os-fg-muted: rgba(255, 251, 255, 0.7);
-
 	--os-fg: #fffbff;
-
 	--os-fg-on-light: #fffbff;
 	--os-panel-bg: #1a1721;
 	--os-panel-header-bg: rgba(255, 251, 255, 0.04);
@@ -474,7 +425,6 @@ body.os-active {
 	--os-my-wordpress-bg: #1a1721;
 	--os-my-wordpress-fg: #fffbff;
 	--os-my-wordpress-surface: rgba(255, 251, 255, 0.06);
-
 	--os-my-wordpress-card-bg: var(--os-my-wordpress-bg, #1a1721);
 	--os-my-wordpress-card-fg: var(--os-my-wordpress-fg, #fffbff);
 	--os-my-wordpress-card-fg-muted: var(--os-ui-fg-muted, #b3afb5);
@@ -489,28 +439,22 @@ body.os-active {
 		rgba(255, 90, 90, 0.16)
 	);
 	--os-ai-panel-bg: rgba(26, 23, 33, 0.97);
-
 	--os-ai-accent: 0%;
 	--os-ai-row-fill: rgba(255, 251, 255, 0.08);
 	--os-ai-tile-fill: rgba(255, 251, 255, 0.06);
-
 	--os-tabs-bg: #1a1721;
-
 	--os-tabs-bg-unfocused: #0c0b0f;
 	--os-tabs-color: #b3afb5;
 	--os-tabs-active-bg: #fff;
 	--os-tabs-active-color: #0c0b0f;
 	--os-tabs-active-color-muted: rgba(12, 11, 15, 0.6);
-
 	--os-tabs-active-frost: linear-gradient(
 		180deg,
 		#f4eff9 0%,
 		#ffffff 58%
 	);
-
 	--os-tabs-active-crown: none;
 	--os-tabs-active-crown-opacity: 0.3;
-
 	--os-tabs-rail: linear-gradient(
 		var(--os-ui-accent, #f252fc),
 		var(--os-ui-accent, #f252fc)
@@ -547,18 +491,13 @@ body.os-active {
 	--os-z-dock: 200;
 	--os-z-adminbar: 9991;
 	--os-z-fullscreen: 99999;
-
 	--os-z-window-links: 50;
-
 	--os-z-mio: 190;
-
 	--os-z-desktop-name: 195;
-
 	--os-window-link-color: var(--wp-admin-theme-color, #f252fc);
 	--os-window-link-color-active: var(--wp-admin-theme-color, #f252fc);
 	--os-window-link-width: 1.5px;
 	--os-window-link-accent: var(--wp-admin-theme-color, #f252fc);
-
 	--os-window-link-glow: rgba(242, 82, 252, 0.45);
 }
 

@@ -47,13 +47,11 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		_iframeCloseTimeout: null,
 		_hasExplicitTitle: false,
 		config: { titleFromPage: false, title: '' } as Window[ 'config' ],
-
 		_markActivityStart: vi.fn(),
 		_markActivitySettled: vi.fn(),
 		_resetActivity: vi.fn(),
 		_noteNavigationActivity: vi.fn(),
 		_settleNavigationActivity: vi.fn( () => false ),
-
 		_commitDeferredNavigation: vi.fn(),
 		_clearDeferredNavigation: vi.fn(),
 		...overrides,
@@ -102,7 +100,6 @@ describe( 'iframe-bridge: os-ready', () => {
 		hooks.addAction( HOOKS.WINDOW_CONTENT_LOADED, 'test', ( ...args ) => {
 			seen.push( args[ 0 ] as { windowId: string } );
 		} );
-
 		markWindowContentLoading( 'test-window' );
 
 		postToWindow( win, { type: 'os-ready' } );
@@ -139,7 +136,6 @@ describe( 'iframe-bridge: os-ready', () => {
 
 	test( 'clears the explicit-title flag so adoptPageTitle may run on the next page', () => {
 		const iframe = document.createElement( 'iframe' );
-
 		Object.defineProperty( iframe, 'contentDocument', {
 			get: () => ( { title: 'My Page ‹ Site — WordPress' } ),
 		} );
@@ -411,7 +407,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 	function mockAdminWindow( opts: {
 		id: string;
 		baseId?: string;
-
 		currentUrl?: string;
 	} ): {
 		win: Window;
@@ -420,7 +415,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		const iframe = document.createElement( 'iframe' );
 		document.body.appendChild( iframe );
 		const assignSpy = vi.fn();
-
 		const fakeContentWindow = { location: { assign: assignSpy } };
 		Object.defineProperty( iframe, 'contentWindow', {
 			value: fakeContentWindow,
@@ -728,7 +722,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		const { openWindow, findDockEntry } = bindFakeDispatcher( {
 			deriveSlug: ( url ) => deriveWindowId( url, adminUrl ),
 		} );
-
 		findDockEntry.mockReturnValue( null );
 		const { win, assignSpy } = mockAdminWindow( {
 			id: 'admin-php-page-wc-orders',
@@ -801,7 +794,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 			expect( openWindow ).not.toHaveBeenCalled();
 			expect( assignSpy ).toHaveBeenCalledTimes( 1 );
 			const navigated = new URL( String( assignSpy.mock.calls[ 0 ][ 0 ] ) );
-
 			expect( navigated.searchParams.get( '_wp_http_referer' ) ).toBe(
 				'/wp-admin/admin.php?page=wc-orders',
 			);
@@ -870,11 +862,9 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		const openedUrl = String( openWindow.mock.calls[ 0 ][ 0 ].url );
 		const parsed = new URL( openedUrl );
-
 		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
 			'/wp-admin/edit.php',
 		);
-
 		expect( parsed.searchParams.get( 'action' ) ).toBe( 'custom-export' );
 		expect( parsed.searchParams.get( 'page' ) ).toBe( 'my-plugin' );
 	} );
@@ -900,7 +890,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
 			'/wp-admin/edit.php',
 		);
-
 		expect( parsed.searchParams.get( 'action' ) ).toBe( 'trash' );
 		expect( parsed.searchParams.get( 'post' ) ).toBe( '42' );
 		expect( parsed.searchParams.get( '_wpnonce' ) ).toBe( 'abc' );
@@ -923,7 +912,6 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		const openedUrl = String( openWindow.mock.calls[ 0 ][ 0 ].url );
 		const parsed = new URL( openedUrl );
-
 		expect( parsed.searchParams.get( '_wp_http_referer' ) ).toBe(
 			'/wp-admin/custom.php',
 		);
@@ -1148,7 +1136,6 @@ describe( 'iframe-bridge: finished-screen handoff', () => {
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		const arg = openWindow.mock.calls[ 0 ][ 0 ];
 		expect( arg.id ).toBe( 'post-php-post-4' );
-
 		expect( arg.url ).toContain( 'message=5' );
 		expect( win.close ).toHaveBeenCalledTimes( 1 );
 	} );

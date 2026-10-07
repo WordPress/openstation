@@ -75,7 +75,6 @@ describe( 'file-drop sentinel', () => {
 				new Promise< void >( ( resolve, reject ) => {
 					loadCalls += 1;
 					resolveLoad = () => {
-
 						window.openStationFileDrop = api as unknown as FileDropApi;
 						resolve();
 					};
@@ -159,7 +158,6 @@ describe( 'file-drop sentinel', () => {
 		await Promise.resolve();
 
 		expect( toast.showToast ).toHaveBeenCalled();
-
 		window.dispatchEvent( dragEvent( 'dragenter', { files: [ file ] } ) );
 		expect( loadCalls ).toBe( 2 );
 	} );
@@ -228,7 +226,6 @@ describe( 'notes sentinel', () => {
 		await Promise.resolve();
 
 		expect( boot ).toHaveBeenCalledTimes( 1 );
-
 		expect( seen ).toHaveLength( 2 );
 		expect( ( seen[ 1 ] as { note: { id: number } } ).note.id ).toBe( 7 );
 	} );
@@ -268,7 +265,6 @@ describe( 'notes sentinel', () => {
 	} );
 
 	test( 'a note-less desktop still notices the site’s first public note', () => {
-
 		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
 		expect( loadCalls ).toBe( 0 );
 
@@ -287,7 +283,6 @@ describe( 'notes sentinel', () => {
 	} );
 
 	test( 'an in-shell drag loads it too — those never fire dragstart', () => {
-
 		teardowns.push( installNotesSentinel( { ...ARGS, hasNotes: false } ) );
 
 		document.dispatchEvent( new CustomEvent( DRAG_EVENTS.START ) );
@@ -346,7 +341,6 @@ describe( 'dock-constellation sentinel', () => {
 
 		tile.dispatchEvent( new Event( 'pointerover', { bubbles: true } ) );
 		expect( loadCalls ).toBe( 1 );
-
 		tile.dispatchEvent( new Event( 'pointerover', { bubbles: true } ) );
 		expect( loadCalls ).toBe( 1 );
 
@@ -358,7 +352,6 @@ describe( 'dock-constellation sentinel', () => {
 	} );
 
 	test( 'a keyboard user reaching a rail loads it too', () => {
-
 		let loadCalls = 0;
 		vi.spyOn( vendorLoader, 'loadVendorScript' ).mockImplementation(
 			() =>

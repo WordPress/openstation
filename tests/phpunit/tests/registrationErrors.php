@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-registration-errors
+ */
 class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -53,6 +56,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_window_missing_id_returns_wp_error() {
 		$result = openstation_register_window( '', $this->valid_window_args() );
 
@@ -60,6 +66,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_id', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_window_missing_title_returns_wp_error() {
 		$result = openstation_register_window(
 			'no-title',
@@ -70,6 +79,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_title', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_window_without_script_registers() {
 		$result = openstation_register_window(
 			'declarative-only',
@@ -79,6 +91,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertTrue( $result );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_window_non_callable_template_returns_wp_error() {
 		$result = openstation_register_window(
 			'bad-template',
@@ -89,6 +104,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_template', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_window_capability_denied_returns_wp_error() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -102,6 +120,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'manage_options', $result->get_error_data()['capability'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 */
 	public function test_window_success_returns_true() {
 		$result = openstation_register_window( 'ok-window', $this->valid_window_args() );
 
@@ -109,6 +130,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertNotNull( openstation_native_window_registry( 'ok-window' ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_widget
+	 */
 	public function test_widget_missing_id_returns_wp_error() {
 		$result = openstation_register_widget( '', $this->valid_widget_args() );
 
@@ -116,6 +140,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_id', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_widget
+	 */
 	public function test_widget_missing_label_returns_wp_error() {
 		$result = openstation_register_widget(
 			'no-label',
@@ -126,6 +153,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_label', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_widget
+	 */
 	public function test_widget_capability_denied_returns_wp_error() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -138,12 +168,18 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_capability_denied', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_widget
+	 */
 	public function test_widget_success_returns_true() {
 		$result = openstation_register_widget( 'ok-widget', $this->valid_widget_args() );
 
 		$this->assertTrue( $result );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_missing_id_returns_wp_error() {
 		$result = openstation_register_wallpaper( '', $this->valid_wallpaper_args() );
 
@@ -151,6 +187,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_id', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_missing_label_returns_wp_error() {
 		$result = openstation_register_wallpaper(
 			'no-label',
@@ -161,6 +200,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_label', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_canvas_missing_script_returns_wp_error() {
 		$result = openstation_register_wallpaper(
 			'no-script',
@@ -171,6 +213,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_script', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_css_without_script_succeeds() {
 		$result = openstation_register_wallpaper(
 			'css-only',
@@ -184,6 +229,9 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertTrue( $result );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_capability_denied_returns_wp_error() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -196,12 +244,20 @@ class Tests_OpenStation_RegistrationErrors extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_capability_denied', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wallpaper_success_returns_true() {
 		$result = openstation_register_wallpaper( 'ok-wallpaper', $this->valid_wallpaper_args() );
 
 		$this->assertTrue( $result );
 	}
 
+	/**
+	 * @covers ::openstation_register_window
+	 * @covers ::openstation_register_widget
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_wp_error_return_is_truthy_for_legacy_callers() {
 		$w = openstation_register_window( '', $this->valid_window_args() );
 		$g = openstation_register_widget( '', $this->valid_widget_args() );

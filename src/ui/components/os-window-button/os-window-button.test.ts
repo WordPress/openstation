@@ -20,7 +20,6 @@ describe( '<os-window-button>', () => {
 		expect( btn ).not.toBeNull();
 		const svg = el.shadowRoot!.querySelector( 'svg' );
 		expect( svg ).not.toBeNull();
-
 		expect( svg!.querySelector( 'path' ) ).not.toBeNull();
 	} );
 
@@ -31,7 +30,6 @@ describe( '<os-window-button>', () => {
 		const el = host.querySelector( 'os-window-button' )!;
 		const svg = el.shadowRoot!.querySelector( 'svg' );
 		expect( svg!.innerHTML ).toBe( '' );
-
 		expect( el.textContent?.trim() ).toBe( '🎯' );
 	} );
 
@@ -82,7 +80,6 @@ describe( '<os-window-button>', () => {
 		await tick();
 		const el = host.querySelector( 'os-window-button' )!;
 		const btn = el.shadowRoot!.querySelector( 'button' )!;
-
 		expect( btn.getAttribute( 'aria-label' ) ).toBe( 'Minimize' );
 	} );
 

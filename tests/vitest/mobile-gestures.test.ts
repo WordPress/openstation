@@ -11,7 +11,6 @@ import {
 } from '../../src/mobile/gestures';
 
 function pointer( type: string, init: { x: number; y: number; id?: number; pointerType?: string } ): PointerEvent {
-
 	const e = new MouseEvent( type, { bubbles: true, clientX: init.x, clientY: init.y } ) as unknown as PointerEvent;
 	Object.defineProperties( e, {
 		pointerId: { value: init.id ?? 1 },
@@ -112,7 +111,6 @@ describe( 'bindSwipeUp', () => {
 		button.dispatchEvent( pointer( 'pointerup', { x: 54, y: 400 } ) );
 		button.click();
 		expect( clicked ).not.toHaveBeenCalled();
-
 		button.click();
 		expect( clicked ).toHaveBeenCalledTimes( 1 );
 		bar.remove();
@@ -127,7 +125,6 @@ describe( 'bindSwipeUp', () => {
 		expect( onCommit ).not.toHaveBeenCalled();
 		bar.dispatchEvent( pointer( 'pointermove', { x: 54, y: 70 } ) );
 		expect( onCommit ).toHaveBeenCalledTimes( 1 );
-
 		bar.dispatchEvent( pointer( 'pointerup', { x: 54, y: 70 } ) );
 		bar.dispatchEvent( pointer( 'pointerdown', { x: 50, y: 200 } ) );
 		bar.dispatchEvent( pointer( 'pointermove', { x: 50, y: 100 } ) );

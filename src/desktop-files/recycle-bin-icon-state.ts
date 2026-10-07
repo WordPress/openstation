@@ -4,15 +4,14 @@ import { trashChanges, watchTrashChanges } from './trash-optimistic';
 import { createSharedStore } from '../shared-store';
 import { trackedFetch } from '../tracked-fetch';
 
+/* eslint-disable no-console */
 const LOG_PREFIX = '[os-bin badge]';
-
 function log( ...args: unknown[] ): void {
 	try {
 		if ( window.localStorage?.getItem( 'openStationBinDebug' ) ) {
 			console.info( LOG_PREFIX, ...args );
 		}
 	} catch {
-
 	}
 }
 function warn( ...args: unknown[] ): void {
@@ -20,7 +19,6 @@ function warn( ...args: unknown[] ): void {
 }
 
 const TARGET_ID = 'desktop-mode-recycle-bin';
-
 const HEARTBEAT_FIELD = 'openstation_recycle_bin_seen_ts';
 
 interface ArtRail {
@@ -38,10 +36,8 @@ function getDesktopApi(): OpenStationArtRails | undefined {
 
 interface BadgeState {
 	current: number;
-
 	emptyArt: string;
 	fullArt: string;
-
 	seenTs: number;
 	started: boolean;
 	countUrl: string;
@@ -98,7 +94,6 @@ export function startRecycleBinIconState(
 	} ).openStationConfig;
 	const cfgCount = cfg?.recycleBinCount;
 	const cfgUrl = cfg?.recycleBinCountUrl;
-
 	store.state.emptyArt = String( cfg?.recycleBinIconEmpty ?? '' );
 	store.state.fullArt = String( cfg?.recycleBinIconFull ?? '' );
 	const cfgDebug = cfg?.openStationBinDebug;
@@ -111,7 +106,6 @@ export function startRecycleBinIconState(
 		cfgDebug,
 		readyState: document.readyState,
 	} );
-
 	const cfgCountNum = Number( cfgCount );
 	const cfgCountIsHealthy =
 		( typeof cfgCount === 'number' || typeof cfgCount === 'string' ) &&
@@ -184,7 +178,6 @@ function wireBroadcastDeltas(): void {
 				break;
 		}
 	};
-
 	const cfg = ( window as unknown as {
 		openStationConfig?: { recycleBinPostTypes?: string[] };
 	} ).openStationConfig;

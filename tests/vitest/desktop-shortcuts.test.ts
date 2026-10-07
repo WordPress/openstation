@@ -59,7 +59,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 	} );
 
 	afterEach( async () => {
-
 		manager.destroy();
 		for ( const win of manager.getAll() ) {
 			win.destroy();
@@ -143,7 +142,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 		} );
 
 		test( 'wrap-around forward press still uses the rightward slide direction', async () => {
-
 			const second = manager.createDesktop();
 			manager.switchDesktop( second.id );
 
@@ -300,7 +298,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 
 			expect( cycleOverviewCursor( manager, 'next' ) ).toBe( true );
 			expect( manager._overviewAddTileFocused ).toBe( true );
-
 			expect( manager.getActiveDesktopId() ).toBe( 'desktop-2' );
 		} );
 
@@ -373,7 +370,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 		test( 'desktop tiles drop --active while the cursor is on the + tile', async () => {
 			manager.createDesktop();
 			manager.enterOverview();
-
 			cycleOverviewCursor( manager, 'next' );
 			cycleOverviewCursor( manager, 'next' );
 			expect( manager._overviewAddTileFocused ).toBe( true );
@@ -381,7 +377,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			const activeTiles = manager._overviewTopBar!.querySelectorAll(
 				'.os-overview-top-bar__tile--active',
 			);
-
 			expect( activeTiles ).toHaveLength( 0 );
 		} );
 

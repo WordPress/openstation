@@ -21,11 +21,9 @@ describe( 'widgets/registry', () => {
 	beforeEach( async () => {
 		hooks = installHooksStub();
 		vi.resetModules();
-
 		try {
 			window.localStorage.removeItem( 'desktop-mode-widgets' );
 		} catch {
-
 		}
 	} );
 
@@ -116,7 +114,6 @@ describe( 'widgets/layer', () => {
 				'desktop-mode-widgets-docked-heights',
 			);
 		} catch {
-
 		}
 		host = document.createElement( 'aside' );
 		document.body.appendChild( host );
@@ -269,7 +266,6 @@ describe( 'widgets/layer', () => {
 			icon: 'dashicons-warning',
 			mount: () => Promise.reject( err ),
 		} );
-
 		const errSpy = vi
 			.spyOn( console, 'error' )
 			.mockImplementation( () => {} );
@@ -331,7 +327,6 @@ describe( 'widgets/layer', () => {
 		const card = host.querySelector( '.os-widgets__card' )!;
 		expect( card.classList.contains( 'os-widgets__card--movable' ) ).toBe( false );
 		expect( card.querySelector( '.os-widgets__chrome' ) ).toBeNull();
-
 		expect(
 			card.querySelector( '.os-widgets__card-close--corner' ),
 		).not.toBeNull();
@@ -392,7 +387,6 @@ describe( 'widgets/layer', () => {
 	} );
 
 	test( 'liberating a docked widget preserves its CURRENT rendered size, not the registered default', async () => {
-
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
 		registry.register( {
@@ -401,7 +395,6 @@ describe( 'widgets/layer', () => {
 			description: '',
 			icon: 'dashicons-star-filled',
 			movable: true,
-
 			defaultWidth: 310,
 			defaultHeight: 230,
 			mount: () => () => undefined,
@@ -439,7 +432,6 @@ describe( 'widgets/layer', () => {
 		const chrome = card.querySelector< HTMLElement >(
 			'.os-widgets__chrome',
 		)!;
-
 		( chrome as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
 		( chrome as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
 		chrome.dispatchEvent( ptr( 'pointerdown', 110, 210 ) );
@@ -615,7 +607,6 @@ describe( 'widgets/layer', () => {
 	} );
 
 	test( 're-docking then resizing keeps the card in the column (no stale floating state)', async () => {
-
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
 		registry.register( {
@@ -637,7 +628,6 @@ describe( 'widgets/layer', () => {
 
 		const layer = new WidgetLayer( host, '' );
 		layer.hydrate();
-
 		const card = document.querySelector< HTMLElement >(
 			'[data-widget-id="redock-rs"]',
 		)!;
@@ -680,10 +670,8 @@ describe( 'widgets/layer', () => {
 		handle.dispatchEvent( ptr( 'pointerup', 1350, 300 ) );
 
 		expect( card.style.height ).toBe( '260px' );
-
 		expect( card.style.left ).toBe( '' );
 		expect( card.style.top ).toBe( '' );
-
 		const geom = JSON.parse(
 			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) ||
 				'{}',
@@ -752,7 +740,6 @@ describe( 'widgets/layer', () => {
 			) || '{}',
 		);
 		expect( saved[ 'dock-rs' ] ).toBe( 260 );
-
 		const geom = JSON.parse(
 			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) ||
 				'{}',
@@ -785,14 +772,12 @@ describe( 'widgets/layer', () => {
 			mount: () => () => undefined,
 		} );
 		window.localStorage.setItem( 'desktop-mode-widgets', '["lost"]' );
-
 		window.localStorage.setItem(
 			'desktop-mode-widgets-geometry',
 			JSON.stringify( {
 				lost: { x: 5000, y: 4000, width: 300, height: 200 },
 			} ),
 		);
-
 		Object.defineProperty( document.body, 'clientWidth', {
 			value: 1000,
 			configurable: true,
@@ -808,12 +793,10 @@ describe( 'widgets/layer', () => {
 			const card = document.querySelector< HTMLElement >(
 				'[data-widget-id="lost"]',
 			)!;
-
 			expect( card.style.left ).toBe( `${ 1000 - 300 - 20 }px` );
 			expect( card.style.top ).toBe( `${ 600 - 200 - 20 }px` );
 			layer.disposeAll();
 		} finally {
-
 			delete ( document.body as unknown as Record< string, unknown > )
 				.clientWidth;
 			delete ( document.body as unknown as Record< string, unknown > )
@@ -895,13 +878,11 @@ describe( 'widgets/layer', () => {
 			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) || '{}',
 		);
 		expect( geom.roam ).toBeUndefined();
-
 		expect(
 			host.querySelector( '.os-widgets__list .os-widgets__card' ),
 		).toBe( card );
 
 		expect( () => layer.redock( 'roam' ) ).not.toThrow();
-
 		expect( () => layer.redock( 'never-registered' ) ).not.toThrow();
 
 		layer.disposeAll();
@@ -936,7 +917,6 @@ describe( 'widgets/layer', () => {
 		entry.click();
 
 		expect( layer.getEnabledIds() ).toEqual( [ 'pick-a' ] );
-
 		expect( document.querySelector( '.os-widget-picker' ) ).toBeNull();
 		expect(
 			host.classList.contains( 'os-widgets--picking' ),
@@ -1033,7 +1013,6 @@ describe( 'widgets/layer', () => {
 			'desktop-mode-widgets',
 			'["docked","parked","elsewhere"]',
 		);
-
 		window.localStorage.setItem(
 			'desktop-mode-widgets-geometry',
 			JSON.stringify( {
@@ -1073,7 +1052,6 @@ describe( 'widgets/layer', () => {
 			top: 300, left: 704, right: 1024, bottom: 500,
 			toJSON: () => ( {} ),
 		} as DOMRect );
-
 		rectFor( byLabel( 'Elsewhere' ), {
 			x: 40, y: 600, width: 320, height: 200,
 			top: 600, left: 40, right: 360, bottom: 800,
@@ -1101,7 +1079,6 @@ describe( 'widgets/layer', () => {
 	} );
 
 	test( 'the add pill follows a docked card that grows after it was placed', async () => {
-
 		const callbacks: Array< () => void > = [];
 		const observed: Element[] = [];
 		class FakeResizeObserver {
@@ -1312,7 +1289,6 @@ describe( 'widgets/layer', () => {
 		layer.remove( 'stats' );
 		expect( layer.getMountedIds() ).toEqual( [] );
 		expect( log.map( ( e ) => e.name ) ).toContain( 'os.widget.removed' );
-
 		expect( layer.getEnabledIds() ).toEqual( [ 'clock' ] );
 		expect( window.localStorage.getItem( 'desktop-mode-widgets' ) ).toBe( '["clock"]' );
 
@@ -1383,7 +1359,6 @@ describe( 'widgets/layer', () => {
 describe( 'widgets/picker placement', () => {
 	test( 'caps the panel to the taller side when neither side fits', async () => {
 		const { placeWidgetPicker } = await import( '../../src/widgets/picker' );
-
 		const bounds = { top: 8, right: 1272, bottom: 628, left: 8 };
 		const anchor = { top: 374, right: 1170, bottom: 410, left: 1037 };
 		const placed = placeWidgetPicker( anchor, { width: 342, height: 454 }, bounds );

@@ -119,7 +119,6 @@ describe( 'registerServiceWorker extensionless fallback', () => {
 	} );
 
 	test( 'a stale legacy own SW (old portal path) is replaced, not treated as foreign', async () => {
-
 		const legacy: RegistrationLike = {
 			scope: '/',
 			active: {

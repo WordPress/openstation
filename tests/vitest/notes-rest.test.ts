@@ -156,7 +156,6 @@ describe( 'notes REST client', () => {
 			( e: unknown ) => e,
 		);
 		expect( String( err ) ).toMatch( /403.*openstation_notes_forbidden/ );
-
 		expect( isRestError( err ) ).toBe( true );
 		if ( isRestError( err ) ) {
 			expect( err.status ).toBe( 403 );

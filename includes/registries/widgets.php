@@ -33,7 +33,7 @@ function openstation_register_widget( $id, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this widget.', 'desktop-mode' ),
 					(string) $cap
 				),
@@ -111,7 +111,6 @@ function openstation_build_desktop_widgets_payload() {
 			'defaultWidth'       => $entry['default_width'],
 			'defaultHeight'      => $entry['default_height'],
 			'scriptUrl'          => $script_payload['url'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $entry['script'] ),
 			'scriptHandle'       => $entry['script'],
 			'scriptBefore'       => $script_payload['before'],

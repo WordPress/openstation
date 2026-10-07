@@ -66,7 +66,6 @@ const AGENTS = [
 ];
 
 function installConfig( overrides: Record< string, unknown > = {} ): void {
-
 	const w = window as unknown as { wp?: { os?: Record< string, unknown > } };
 	w.wp = w.wp ?? {};
 	( w.wp as { os?: Record< string, unknown > } ).os = {
@@ -137,7 +136,6 @@ afterEach( () => {
 
 describe( 'agents send-to menu', () => {
 	test( 'does not warm while the framework is off', async () => {
-
 		installConfig( { enabled: false } );
 		const fetchMock = stubListFetch();
 		sendTo.refreshSendToAgents();
@@ -170,14 +168,12 @@ describe( 'agents send-to menu', () => {
 		expect( sendTo.sendToTargetsFor( 'post' ).map( ( a ) => a.id ) ).toEqual( [
 			11, 12,
 		] );
-
 		expect( sendTo.sendToTargetsFor( 'media' ).map( ( a ) => a.id ) ).toEqual( [
 			12,
 		] );
 	} );
 
 	test( 'registering twice never duplicates menu entries', () => {
-
 		sendTo.registerSendToMenuFilter();
 		const options = runFilter( {
 			entityId: 'posts',

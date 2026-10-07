@@ -57,7 +57,6 @@ describe( 'ForceSim cluster-attractor', () => {
 	} );
 
 	test( 'nodes in different group keys do NOT converge', () => {
-
 		const a = makeNode( 1, -300, 0 );
 		const b = makeNode( 2, -250, 0 );
 		const c = makeNode( 3, 250, 0 );
@@ -78,7 +77,6 @@ describe( 'ForceSim cluster-attractor', () => {
 	} );
 
 	test( 'multi-membership node settles between two cluster centres', () => {
-
 		const aMembers = [ makeNode( 1, -300, 0 ), makeNode( 2, -310, 30 ), makeNode( 3, -290, -30 ) ];
 		const bMembers = [ makeNode( 4, 300, 0 ), makeNode( 5, 310, 30 ), makeNode( 6, 290, -30 ) ];
 		const both = makeNode( 7, 0, 0 );
@@ -124,7 +122,6 @@ describe( 'ForceSim cluster-attractor', () => {
 		const grouped = distance( a, b );
 
 		sim.setGroupAssignment( null );
-
 		a.x = -400;
 		b.x = 400;
 		runTicks( sim, 200 );
@@ -134,7 +131,6 @@ describe( 'ForceSim cluster-attractor', () => {
 	} );
 
 	test( 'groupOrder lays clusters out left-to-right', () => {
-
 		const a1 = makeNode( 1, 50, 0 );
 		const a2 = makeNode( 2, 60, 30 );
 		const b1 = makeNode( 3, -200, 0 );

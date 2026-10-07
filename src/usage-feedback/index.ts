@@ -10,9 +10,7 @@ export const USAGE_FEEDBACK_INTRO_SLUG = 'usage-feedback';
 const PROMPT_DELAY_MS = 4000;
 
 export interface UsageFeedbackDeps {
-
 	config: DesktopConfig;
-
 	showPrompt?: ( opts: UsageFeedbackPromptOptions ) => Promise< boolean > | boolean;
 }
 
@@ -35,7 +33,6 @@ async function markSeen( config: DesktopConfig ): Promise< void > {
 			{ source: 'desktop-mode/usage-feedback', silent: true },
 		);
 	} catch {
-
 	}
 }
 
@@ -45,7 +42,6 @@ export async function maybeAskForUsageFeedback( deps: UsageFeedbackDeps ): Promi
 	if ( ! request ) {
 		return;
 	}
-
 	if ( config.seenIntros?.includes( USAGE_FEEDBACK_INTRO_SLUG ) ) {
 		return;
 	}

@@ -7,7 +7,6 @@ import type { Bounds } from './protocol';
 export interface StoreState {
 	siteUrl: string;
 	hostId: string;
-
 	openIn: '' | 'app' | 'browser';
 	shellBounds: Bounds | null;
 	freedBounds: Record< string, Bounds >;
@@ -24,7 +23,6 @@ const DEFAULTS: StoreState = {
 export class Store {
 	private readonly file: string;
 	private cache: StoreState | null = null;
-
 	private sessionToken = '';
 
 	constructor( dir: string, filename = 'openstation-desktop.json' ) {
@@ -39,7 +37,6 @@ export class Store {
 		try {
 			parsed = JSON.parse( readFileSync( this.file, 'utf8' ) );
 		} catch {
-
 			parsed = {};
 		}
 		this.cache = {
@@ -56,7 +53,6 @@ export class Store {
 			writeFileSync( tmp, JSON.stringify( this.all(), null, '\t' ), 'utf8' );
 			renameSync( tmp, this.file );
 		} catch ( err ) {
-
 			console.error( '[openstation-desktop] could not persist state:', err );
 		}
 	}

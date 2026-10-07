@@ -59,7 +59,6 @@ describe( 'bin/build-wiki.mjs', () => {
 	} );
 
 	test( 'a nested README maps to a dash-joined page and its images travel with it', () => {
-
 		const page = join( out, 'screenshots-native-workspaces.md' );
 		expect( existsSync( page ) ).toBe( true );
 		const images = readdirSync( join( DOCS, 'screenshots/native-workspaces' ) ).filter( ( f ) => ! f.endsWith( '.md' ) );
@@ -75,7 +74,6 @@ describe( 'bin/build-wiki.mjs', () => {
 		expect( ( page.match( /```mermaid/g ) ?? [] ).length ).toBeGreaterThanOrEqual( 2 );
 		expect( page ).toContain( '](assets/data-model/storage-overview.svg)' );
 		expect( existsSync( join( out, 'assets/data-model/storage-overview.svg' ) ) ).toBe( true );
-
 		expect( page ).toContain( '](files-on-desktop)' );
 		expect( page ).not.toContain( './files-on-desktop.md' );
 	} );

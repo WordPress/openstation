@@ -45,7 +45,7 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 
 	if ( openstation_my_wordpress_woo_hpos_enabled() ) {
 		$table = $wpdb->prefix . 'wc_orders';
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name and the placeholder list are structural; every value is prepared.
 		$sql = $wpdb->prepare(
 			"SELECT customer_id AS uid,
 				COUNT(*) AS orders,
@@ -58,7 +58,7 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 			$statuses
 		);
 	} else {
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ditto.
 		$sql = $wpdb->prepare(
 			"SELECT cu.meta_value + 0 AS uid,
 				COUNT(*) AS orders,
@@ -74,6 +74,7 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 		);
 	}
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- one grouped aggregate with no core API equivalent; $sql came out of $wpdb->prepare() above, and the result is cached in the transient below.
 	$rows = $wpdb->get_results( $sql );
 
 	$map = array();
@@ -120,7 +121,6 @@ function openstation_my_wordpress_woo_vip_threshold() {
 }
 
 function openstation_my_wordpress_woo_customer_lapse_days() {
-
 	$days = (int) apply_filters(
 		'openstation_my_wordpress_woo_customer_lapse_days',
 		OPENSTATION_WOO_CUSTOMER_LAPSE_DAYS
@@ -174,7 +174,6 @@ function openstation_my_wordpress_woo_customer_band_id( $stats ) {
 		$lapsed    = openstation_my_wordpress_woo_customer_days_since( $last );
 
 		if ( $threshold > 0 && $spend >= $threshold ) {
-
 			$band = 'vip';
 		} elseif ( null !== $lapsed && $lapsed > openstation_my_wordpress_woo_customer_lapse_days() ) {
 			$band = 'lapsed';
@@ -283,13 +282,11 @@ function openstation_my_wordpress_woo_customer_plan() {
 		);
 		$band  = openstation_my_wordpress_woo_customer_band_id( $stats );
 		if ( ! isset( $buckets[ $band ] ) ) {
-
 			$band = 'none';
 			if ( ! isset( $buckets[ $band ] ) ) {
 				continue;
 			}
 		}
-
 		$buckets[ $band ][] = array(
 			'id'    => $user_id,
 			'spend' => (float) $stats['spend'],
@@ -344,7 +341,6 @@ add_action( 'woocommerce_update_order', 'openstation_my_wordpress_woo_flush_cust
 add_action( 'woocommerce_order_status_changed', 'openstation_my_wordpress_woo_flush_customer_caches' );
 add_action( 'woocommerce_delete_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
 add_action( 'woocommerce_trash_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
-
 add_action( 'woocommerce_untrash_order', 'openstation_my_wordpress_woo_flush_customer_caches' );
 
 function openstation_my_wordpress_woo_customer_facts( $user_id ) {
@@ -365,13 +361,11 @@ function openstation_my_wordpress_woo_customer_facts( $user_id ) {
 		'band'       => openstation_my_wordpress_woo_customer_band_id( $stats ),
 		'orders'     => $orders,
 		'spend'      => openstation_my_wordpress_woo_price( $spend ),
-
 		'spendRaw'   => round( $spend, 2 ),
 		'aov'        => $orders > 0 ? openstation_my_wordpress_woo_price( $spend / $orders ) : '',
 		'firstOrder' => '' !== $stats['first'] ? mysql2date( 'c', $stats['first'], false ) : '',
 		'lastOrder'  => '' !== $stats['last'] ? mysql2date( 'c', $stats['last'], false ) : '',
 		'daysSince'  => $days,
-
 		'ordersUrl'  => $orders > 0 ? openstation_my_wordpress_woo_customer_orders_url( $user_id ) : '',
 	);
 
@@ -456,7 +450,6 @@ function openstation_my_wordpress_woo_customers( $request ) {
 	);
 
 	if ( $capped ) {
-
 		$args['role']    = 'customer';
 		$args['orderby'] = 'registered';
 		$args['order']   = 'DESC';
@@ -469,14 +462,12 @@ function openstation_my_wordpress_woo_customers( $request ) {
 			return $response;
 		}
 		$args['include'] = $ids;
-
 		$args['orderby'] = 'include';
 	}
 
 	if ( '' !== $search ) {
 		$args['search']         = '*' . $search . '*';
 		$args['search_columns'] = array( 'user_login', 'user_email', 'user_nicename', 'display_name' );
-
 		if ( ! $capped ) {
 			$args['orderby'] = 'display_name';
 			$args['order']   = 'ASC';
@@ -515,7 +506,6 @@ function openstation_my_wordpress_woo_customers( $request ) {
 	$response = rest_ensure_response( $rows );
 	$response->header( 'X-WP-Total', (string) $total );
 	$response->header( 'X-WP-TotalPages', (string) max( 1, $pages ) );
-
 	$response->header( 'X-Desktop-Mode-Woo-Customers-Mode', $capped ? 'capped' : 'ordered' );
 
 	return $response;
@@ -726,7 +716,6 @@ function openstation_my_wordpress_woo_customer_summary( $id ) {
 		'phone'          => $phone,
 		'billing'        => $billing,
 		'shipping'       => $shipping,
-
 		'recentOrders'   => openstation_my_wordpress_woo_customer_recent_orders( $user->ID ),
 		'spendRaw'       => (float) $facts['spendRaw'],
 		'band'           => (string) $facts['band'],
@@ -847,9 +836,7 @@ function openstation_my_wordpress_woo_customer_entity( $entities ) {
 		'label'      => __( 'Customers', 'desktop-mode' ),
 		'icon'       => 'dashicons-groups',
 		'restPath'   => 'desktop-mode/v1/woocommerce/customers',
-
 		'kind'       => 'user',
-
 		'listFields' => array( 'openstation_woo_customer' ),
 		'group'      => $group['id'],
 		'groupLabel' => $group['label'],

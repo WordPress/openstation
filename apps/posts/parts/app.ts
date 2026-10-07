@@ -51,20 +51,14 @@ export type TermsCanvas = ( host: HTMLElement, env: CanvasEnv ) => Promise< () =
 export interface CanvasEnv {
 	client: PostsRestClient;
 	extra: ListExtra;
-
 	openUrl: ( url: string, title: string, icon: string ) => void;
-
 	toast: ( title: string, err: unknown ) => void;
-
 	leaveFullscreen: () => void;
 }
 
 interface PostsAppOptions {
-
 	atlas?: ( host: HTMLElement, ctx: Ctx ) => () => void;
-
 	terms?: { categories: TermsCanvas; tags: TermsCanvas };
-
 	cells?: CellRenderers;
 }
 
@@ -87,9 +81,7 @@ interface UiState {
 	extras: HTMLElement[] | null;
 	postsCtx: PostsWindowContext | null;
 	tab: string;
-
 	serverTab: string;
-
 	editor: ( () => void ) | null;
 	canvases: { categories: ( () => void ) | null; tags: ( () => void ) | null };
 	canvasPending: Set< string >;
@@ -230,14 +222,12 @@ function wireTable( ctx: Ctx, ui: UiState, table: OsTable< PostListItem > ): voi
 	const extra = ctx.extra as ListExtra;
 	table.getRowId = ( row ) => row.id;
 	table.subTable = ( row ) => buildSubRow( row );
-
 	const sortKey = mapOrderbyToColumn( ctx.state.orderby );
 	table.sort = table.columns.some( ( c ) => c.key === sortKey ) ? { key: sortKey, direction: ctx.state.order } : null;
 	table.addEventListener( 'os-table-selection-change', () => {
 		ui.selected = table.selection?.size ?? 0;
 		ctx.repaint();
 	} );
-
 	table.addEventListener( 'os-table-sort-change', ( e: Event ) => {
 		const sort = ( e as CustomEvent< { sort: { key: string; direction: 'asc' | 'desc' } | null } > ).detail?.sort;
 		const defaultOrderby = extra.defaultOrderby ?? 'date';
@@ -248,7 +238,6 @@ function wireTable( ctx: Ctx, ui: UiState, table: OsTable< PostListItem > ): voi
 				: { orderby: defaultOrderby, order: extra.defaultOrder ?? 'desc' },
 		);
 	} );
-
 	table.addEventListener( 'os-table-filter-change', ( e: Event ) => {
 		const filters = ( e as CustomEvent< { filters: Record< string, string > } > ).detail?.filters ?? {};
 		const author = parseIds( filters.author ?? '' );
@@ -285,6 +274,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				ui.canvases[ which ] = teardown;
 			} )
 			.catch( ( err ) => {
+				// eslint-disable-next-line no-console
 				console.error( `${ LOG } ${ which } canvas failed`, err );
 			} )
 			.finally( () => ui.canvasPending.delete( which ) );
@@ -297,7 +287,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 		return html`
 			<div class="os-app-list__toolbar-right ${ footer ? 'os-app-list__bulk--footer' : '' }" data-os-posts-bulk ?hidden=${ ui.selected === 0 }>
 				<span class="os-app-list__count" data-os-posts-count>${ sprintf(
-
+					/* translators: %d: selected row count. */
 					__( '%d selected' ),
 					ui.selected,
 				) }</span>
@@ -367,7 +357,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					if ( ! leave ) {
 						return;
 					}
-
 					ui.editor?.();
 					ui.editor = null;
 					window.wp?.os?.windowManager?.getById( ctx.windowId )?.close();
@@ -458,7 +447,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 		const env = cellEnv( ctx, ui, cells );
 		refreshParentTitleRoster( env, list?.items ?? [] );
 		const addNew = (): void => showEditorTab( ctx, ui, mode );
-
 		if ( ! ui.extras ) {
 			ui.extras = resolveToolbarTrailing( postsContext( ctx, ui ) );
 		}
@@ -537,7 +525,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					<div class="os-app-list__panel">${ panel }</div>
 				</div>`;
 			}
-
 			const onTab = ( e: Event ): void => {
 				const value = ( e as CustomEvent< { value: string } > ).detail?.value ?? 'posts';
 				activateTab( ctx, ui, value );
@@ -621,7 +608,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					} ),
 				);
 			}
-
 			if ( api && typeof api.subscribe === 'function' ) {
 				teardowns.push(
 					api.subscribe( 'os.term.changed', ( payload: unknown ) => {
@@ -632,7 +618,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					} ),
 				);
 			}
-
 			const onModeChange = (): void => ctx.repaint();
 			document.addEventListener( 'os-mode-changed', onModeChange );
 			teardowns.push( () => document.removeEventListener( 'os-mode-changed', onModeChange ) );
@@ -669,7 +654,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			if ( ! table ) {
 				return;
 			}
-
 			if ( ctx.loading ) {
 				table.setAttribute( 'loading', '' );
 			}
@@ -678,7 +662,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			ui.feed.observe( ctx.root );
 			const { state, data } = ctx;
 			const env = cellEnv( ctx, ui, cells );
-
 			const columnsKey = `${ Array.from( hiddenOf( ui, hiddenColumnsKey ) ).sort().join( ',' ) }|${ filterSig( ui.filterData ) }`;
 			if ( columnsKey !== ui.columnsKey ) {
 				ui.columnsKey = columnsKey;
@@ -687,7 +670,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			}
 			const items = ui.feed.items;
 			const result = ui.table.sync( {
-
 				table: table as unknown as ListTableLike< PostListItem >,
 				rows: items,
 				listKey: [ state.perPage, state.search, state.status, state.orderby, state.order, state.author.join( ',' ), state.tag.join( ',' ) ].join( '|' ),
@@ -710,7 +692,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 						ctx.repaint();
 					}
 				} );
-
 				ui.cellCache.clear();
 				refreshParentTitleRoster( env, items );
 				if ( data ) {

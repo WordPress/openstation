@@ -7,21 +7,13 @@ export interface PageEnvelope< T > {
 }
 
 export interface PagedList< T > {
-
 	accumulate( key: string, list: PageEnvelope< T > | null ): T[];
-
 	items(): T[];
-
 	readonly total: number;
-
 	readonly pageCount: number;
-
 	readonly loadingPage: number;
-
 	hasMore(): boolean;
-
 	ghosts( perPage: number ): number;
-
 	sync( opts: {
 		sentinel: Element | null;
 		canvas: HTMLElement | null;
@@ -67,7 +59,6 @@ export function createPagedList< T extends { id: number } >(): PagedList< T > {
 		armed = false;
 		loading = true;
 		loadingPage = Math.max( 1, ...Array.from( pages.keys() ) ) + 1;
-
 		repaint();
 		void load().finally( () => {
 			loading = false;
@@ -131,7 +122,6 @@ export function createPagedList< T extends { id: number } >(): PagedList< T > {
 					{ passive: true },
 				);
 			}
-
 			if ( scrollEl && scrollEl.scrollHeight <= scrollEl.clientHeight + 4 ) {
 				armed = true;
 			}

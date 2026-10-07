@@ -1,5 +1,9 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_register_window
+ * @covers ::openstation_build_native_windows_payload
+ */
 class Tests_OpenStation_NativeWindowDockOrder extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -57,7 +61,6 @@ class Tests_OpenStation_NativeWindowDockOrder extends WP_UnitTestCase {
 	}
 
 	public function test_dock_order_is_cast_to_int() {
-
 		$this->register_window( 'os_test_string_order', array( 'dock_order' => '25' ) );
 
 		$entry = $this->payload_for( 'os_test_string_order' );

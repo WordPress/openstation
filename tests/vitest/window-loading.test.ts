@@ -275,7 +275,6 @@ describe( 'markWindowContentLoading / Ready — hook + CustomEvent firing', asyn
 				seen.push( args[ 0 ] as { windowId: string } );
 			},
 		);
-
 		markWindowContentReady( 'win-4' );
 		expect( seen ).toEqual( [] );
 	} );
@@ -357,7 +356,6 @@ describe( 'installWindowLoadingTransitions — visual side', async () => {
 		expect( body!.classList.contains( 'os-window__body--loading' ) ).toBe(
 			true,
 		);
-
 		const overlays = body!.querySelectorAll( '.os-window__loading' );
 		expect( overlays.length ).toBeGreaterThanOrEqual( 1 );
 	} );
@@ -423,7 +421,6 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 		markWindowContentReady( 'fast' );
 
 		expect( body.querySelector( '.os-window__loading' ) ).toBeNull();
-
 		expect( body.classList.contains( LOADING_HANDOFF_BODY_CLASS ) ).toBe(
 			false,
 		);
@@ -546,7 +543,6 @@ describe( 'loading → ready hand-off — the spinner never overlaps content', a
 		)!;
 
 		vi.useFakeTimers();
-
 		overlay.remove();
 		vi.advanceTimersByTime( LOADING_OVERLAY_SHOW_DELAY_MS + 1 );
 
@@ -653,7 +649,6 @@ describe( 'hydrateNative — Promise-returning render defers ready', async () =>
 		expect( seen ).toEqual( [] );
 
 		resolveFetch();
-
 		await tick();
 		await tick();
 		expect( seen ).toEqual( [ { windowId: 'async-render' } ] );
@@ -668,7 +663,6 @@ describe( 'hydrateNative — Promise-returning render defers ready', async () =>
 				seen.push( args[ 0 ] as { windowId: string } );
 			},
 		);
-
 		const errSpy = vi.spyOn( console, 'error' ).mockImplementation( () => undefined );
 
 		await manager.open( {
@@ -689,7 +683,6 @@ describe( 'hydrateNative — Promise-returning render defers ready', async () =>
 } );
 
 describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async () => {
-
 	let desktop: HTMLElement;
 	let manager: WindowManager;
 
@@ -717,7 +710,6 @@ describe( 'ctx.window.markLoading / markReady — plugin-driven toggling', async
 			native: true,
 			render: () => undefined,
 		} );
-
 		const body = win.element.querySelector(
 			'.os-window__body',
 		)!;
@@ -851,7 +843,6 @@ describe( 'Loading overlay customization', async () => {
 		const overlay = win.element.querySelector(
 			'.os-window__loading',
 		);
-
 		expect( overlay ).not.toBeNull();
 		expect( overlay!.id ).toBe( 'wholesale-replacement' );
 		expect( overlay!.textContent ).toBe( 'CUSTOM' );
@@ -907,7 +898,6 @@ describe( 'Loading overlay customization', async () => {
 	} );
 
 	test( 'repaintLoadingOverlays() applies a late-registered filter to currently-loading windows', async () => {
-
 		const win = await manager.open( {
 			id: 'late-filter',
 			url: '#late-filter',
@@ -936,7 +926,6 @@ describe( 'Loading overlay customization', async () => {
 	} );
 
 	test( 'F5 boot-order race: HOOKS.INIT triggers an automatic sweep', async () => {
-
 		const win = await manager.open( {
 			id: 'f5-restore',
 			url: '#f5-restore',

@@ -13,7 +13,6 @@ vi.mock( '../../src/desktop-files/rest', () => ( {
 
 class FakeXhr {
 	static last: FakeXhr | null = null;
-
 	static nextParentId = 0;
 	status = 200;
 	responseText = '';
@@ -21,7 +20,6 @@ class FakeXhr {
 	withCredentials = false;
 	upload = {
 		addEventListener() {
-
 		},
 	};
 	private listeners = new Map< string, () => void >();
@@ -34,7 +32,6 @@ class FakeXhr {
 		this.listeners.set( name, cb );
 	}
 	send() {
-
 		setTimeout( () => {
 			this.status = 201;
 			this.responseText = JSON.stringify( {
@@ -183,7 +180,6 @@ describe( 'tree upload desktop refresh', () => {
 		await vi.waitFor( () => {
 			expect( document.querySelector( 'os-modal' ) ).toBeNull();
 		} );
-
 		expect( listPlacements ).not.toHaveBeenCalled();
 		expect( listFolders ).not.toHaveBeenCalled();
 		const roots = store.getFilesState().placementsByFolder.get( 0 ) ?? [];

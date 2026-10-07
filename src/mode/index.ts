@@ -39,13 +39,10 @@ export const OS_MODE_PREFERENCES: readonly OsModePreference[] = [
 ];
 
 export const MOBILE_MAX_WIDTH = 767;
-
 export const TABLET_MAX_WIDTH = 1024;
 
 export interface OsModeBreakpoints {
-
 	mobile: number;
-
 	tablet: number;
 }
 
@@ -63,19 +60,12 @@ export interface OsModeChange {
 type ModeListener = ( change: OsModeChange ) => void;
 
 export interface OsModeApi {
-
 	get(): OsMode;
-
 	getPreference(): OsModePreference;
-
 	getBreakpoints(): Readonly< OsModeBreakpoints >;
-
 	isMobile(): boolean;
-
 	getDisplay(): OsDisplay;
-
 	isStandalone(): boolean;
-
 	subscribe(
 		cb: ( change: OsModeChange ) => void,
 		opts?: { immediate?: boolean },
@@ -126,22 +116,16 @@ export function resolveMode(
 }
 
 export interface InstallModeOptions {
-
 	preference?: OsModePreference;
 	breakpoints?: Partial< OsModeBreakpoints >;
-
 	root?: Element;
-
 	win?: Pick< globalThis.Window, 'matchMedia' | 'innerWidth' >;
-
 	nav?: { standalone?: boolean };
 }
 
 export interface ModeController {
 	api: OsModeApi;
-
 	setPreference( preference: OsModePreference ): void;
-
 	dispose(): void;
 }
 
@@ -202,7 +186,6 @@ export function installMode( opts: InstallModeOptions = {} ): ModeController {
 	if ( typeof win.matchMedia === 'function' ) {
 		for ( const px of [ breakpoints.mobile, breakpoints.tablet ] ) {
 			const q = win.matchMedia( `(max-width: ${ px }px)` );
-
 			if ( typeof q.addEventListener === 'function' ) {
 				q.addEventListener( 'change', update );
 			} else if ( typeof q.addListener === 'function' ) {

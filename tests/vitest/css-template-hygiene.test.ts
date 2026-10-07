@@ -21,7 +21,6 @@ function offendingLines( src: string ): number[] {
 	const out: number[] = [];
 	let i = src.indexOf( 'css`' );
 	while ( i !== -1 ) {
-
 		const lineStart = src.lastIndexOf( '\n', i ) + 1;
 		const before = src.slice( lineStart, i );
 		const quoted =
@@ -39,7 +38,6 @@ function offendingLines( src: string ): number[] {
 				continue;
 			}
 			if ( src[ j ] === '`' ) {
-
 				closed = true;
 				break;
 			}
@@ -48,7 +46,6 @@ function offendingLines( src: string ): number[] {
 		if ( ! closed ) {
 			break;
 		}
-
 		const after = src.slice( j + 1, j + 40 ).trimStart();
 		if ( after !== '' && ! /^[;,)\]]/.test( after ) ) {
 			out.push( src.slice( 0, j ).split( '\n' ).length );
@@ -62,7 +59,6 @@ const files = walk( UI );
 
 describe( 'css`` templates contain no backticks', () => {
 	test( 'the sweep found files to check', () => {
-
 		expect( files.length ).toBeGreaterThan( 40 );
 	} );
 

@@ -55,7 +55,6 @@ describe( '<os-body>', () => {
 		await tick();
 
 		const body = host.querySelector( 'os-body' )!;
-
 		expect( body.hasAttribute( 'scroll' ) ).toBe( true );
 	} );
 

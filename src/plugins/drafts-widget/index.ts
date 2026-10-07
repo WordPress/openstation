@@ -180,7 +180,6 @@ function toggleSuggestions(
 function loadingState(): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'dm-drafts__suggest-loading';
-
 	wrap.setAttribute( 'aria-live', 'polite' );
 
 	const spinner = document.createElement( 'os-spinner' );
@@ -284,7 +283,6 @@ function applyButton(
 				check.setAttribute( 'aria-hidden', 'true' );
 				check.textContent = '✓';
 				btn.appendChild( check );
-
 				const applied = document.createElement( 'span' );
 				applied.className = 'screen-reader-text';
 				applied.textContent = __( 'applied' );
@@ -432,7 +430,6 @@ const LIMIT = 8;
 interface DraftRow {
 	id: number;
 	title: { rendered?: string; raw?: string };
-
 	modified_gmt: string;
 }
 
@@ -446,23 +443,22 @@ function timeAgo( isoUtc: string ): string {
 	if ( secs < 60 ) {
 		return __( 'just now' );
 	}
-
 	if ( secs < 3600 ) {
 		return sprintf(
-
+			/* translators: %d: whole minutes since the draft was last edited. */
 			__( '%dm ago' ),
 			Math.floor( secs / 60 ),
 		);
 	}
 	if ( secs < 86400 ) {
 		return sprintf(
-
+			/* translators: %d: whole hours since the draft was last edited. */
 			__( '%dh ago' ),
 			Math.floor( secs / 3600 ),
 		);
 	}
 	return sprintf(
-
+		/* translators: %d: whole days since the draft was last edited. */
 		__( '%dd ago' ),
 		Math.floor( secs / 86400 ),
 	);
@@ -503,7 +499,6 @@ function rowAction(
 	const btn = document.createElement( 'os-button' );
 	btn.className = className;
 	btn.setAttribute( 'variant', 'ghost' );
-
 	btn.title = label;
 
 	const icon = document.createElement( 'span' );
@@ -561,7 +556,6 @@ function renderList(
 	for ( const d of drafts ) {
 		const row = document.createElement( 'div' );
 		row.className = 'dm-drafts__row';
-
 		row.dataset.draftId = String( d.id );
 
 		const link = document.createElement( 'a' );
@@ -595,7 +589,6 @@ function renderList(
 		} );
 
 		row.appendChild( link );
-
 		if ( aiAvailable() ) {
 			const spark = rowAction(
 				'dm-drafts__spark',
@@ -622,14 +615,13 @@ async function onTrash(
 	onChange: () => void,
 ): Promise< void > {
 	const api = desktopApi();
-
 	if ( ! api?.confirm ) {
 		return;
 	}
 	const ok = await api.confirm( {
 		title: __( 'Move to Trash?' ),
 		message: sprintf(
-
+			/* translators: %s: draft title. */
 			__( '“%s” will be moved to the Trash. You can restore it later.' ),
 			draftTitle( draft ),
 		),
@@ -639,7 +631,6 @@ async function onTrash(
 	if ( ! ok ) {
 		return;
 	}
-
 	row.classList.add( 'is-trashing' );
 	try {
 		await trashDraft( draft.id );
@@ -717,7 +708,6 @@ const mount = async (
 		if ( destroyed ) {
 			return;
 		}
-
 		if ( container.querySelector( `.${ PANEL_CLASS }` ) ) {
 			return;
 		}

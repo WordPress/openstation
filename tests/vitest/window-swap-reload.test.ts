@@ -55,7 +55,6 @@ describe( 'Window.swapReload', () => {
 		} );
 		document.body.appendChild( desktopArea );
 		manager = new WindowManager( desktopArea );
-
 		_resetWindowLoadingTransitionsForTests();
 		installWindowLoadingTransitions();
 	} );
@@ -83,7 +82,6 @@ describe( 'Window.swapReload', () => {
 		);
 		expect( buffer ).not.toBeNull();
 		expect( buffer!.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-
 		expect( win.iframe ).toBe( original );
 		expect( original.isConnected ).toBe( true );
 		expect(
@@ -91,7 +89,6 @@ describe( 'Window.swapReload', () => {
 				'os-window__iframe--swap-front',
 			),
 		).toBe( true );
-
 		expect(
 			body.classList.contains( 'os-window__body--loading' ),
 		).toBe( overlayStateBefore );
@@ -106,7 +103,6 @@ describe( 'Window.swapReload', () => {
 		const buffer = body.querySelector< HTMLIFrameElement >(
 			BUFFER_SELECTOR,
 		)!;
-
 		expect( win.iframe ).toBe( original );
 		expect( original.isConnected ).toBe( true );
 
@@ -124,12 +120,10 @@ describe( 'Window.swapReload', () => {
 			'os-frame-sw2',
 		);
 		expect( buffer.src ).toContain( 'fresh=1' );
-
 		expect( buffer.src ).toContain( 'openstation_chromeless=1' );
 	} );
 
 	test( 'keeps the old page up until the twin has loaded its URL', async () => {
-
 		const insert = Element.prototype.insertAdjacentElement;
 		vi.spyOn( Element.prototype, 'insertAdjacentElement' ).mockImplementation(
 			function ( this: Element, where: InsertPosition, el: Element ) {
@@ -152,7 +146,6 @@ describe( 'Window.swapReload', () => {
 	test( 'a swap completing before the FIRST load clears the boot overlay', async () => {
 		const win = await manager.open( openConfig( 'sw-early' ) );
 		const body = win.element.querySelector( '.os-window__body' )!;
-
 		expect(
 			body.classList.contains( 'os-window__body--loading' ),
 		).toBe( true );
@@ -197,7 +190,6 @@ describe( 'Window.swapReload', () => {
 	test( 'a later classic reload() still clears the overlay after a swap', async () => {
 		const win = await manager.open( openConfig( 'sw4' ) );
 		const body = win.element.querySelector( '.os-window__body' )!;
-
 		win.iframe!.dispatchEvent( new Event( 'load' ) );
 
 		win.swapReload();
@@ -249,14 +241,12 @@ describe( 'Window.swapReload', () => {
 	} );
 
 	test( 'a pointerdown inside a bridge-less iframe document focuses the window', async () => {
-
 		const winA = await manager.open( {
 			id: 'sw7',
 			url: '/hello-world/?preview=true',
 			title: 'Preview',
 			icon: 'dashicons-visibility',
 		} );
-
 		winA.iframe!.dispatchEvent( new Event( 'load' ) );
 
 		const winB = await manager.open( openConfig( 'sw8' ) );

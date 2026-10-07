@@ -49,9 +49,7 @@ export function buildHormones( snapshot: TreeSnapshot ): Hormones {
 		health01: clamp01( snapshot.seoHealth ),
 		bloom01,
 		wind01,
-
 		structure01: clamp01( sat( pages, 40 ) ),
-
 		vitality01: performance,
 		spark: Math.min( 40, Math.round( users ) ),
 	};

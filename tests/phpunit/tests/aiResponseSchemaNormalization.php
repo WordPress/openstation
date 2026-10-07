@@ -1,7 +1,13 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-ai
+ */
 class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_root_object_gets_additional_properties_false() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -12,11 +18,13 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		);
 
 		$this->assertFalse( $out['additionalProperties'] );
-
 		$this->assertSame( array( 'text' ), $out['required'] );
 		$this->assertSame( array( 'type' => 'string' ), $out['properties']['text'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_scalar_properties_are_untouched() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -33,6 +41,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'additionalProperties', $out['properties']['tags']['items'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_nested_object_property_is_normalized() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -49,6 +60,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertFalse( $out['properties']['readiness']['additionalProperties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_array_items_object_is_normalized() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -68,6 +82,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertFalse( $out['properties']['actions']['items']['additionalProperties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_tuple_items_are_normalized() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -83,6 +100,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertFalse( $out['items'][1]['additionalProperties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_combinator_branches_are_normalized() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -110,6 +130,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertFalse( $out['properties']['merged']['allOf'][0]['additionalProperties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_type_union_including_object_is_normalized() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -121,6 +144,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertFalse( $out['additionalProperties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_untyped_node_with_properties_is_normalized() {
 		$out = openstation_ai_normalize_response_schema(
 			array( 'properties' => array( 'id' => array( 'type' => 'integer' ) ) )
@@ -129,6 +155,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertFalse( $out['additionalProperties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_permissive_additional_properties_is_overwritten() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -148,6 +177,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertFalse( $out['properties']['nested']['additionalProperties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_property_named_like_a_keyword_is_treated_as_a_property() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -170,6 +202,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_definition_pools_are_normalized() {
 		$out = openstation_ai_normalize_response_schema(
 			array(
@@ -183,6 +218,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertFalse( $out['$defs']['link']['additionalProperties'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_compliant_schema_is_unchanged() {
 		$schema = array(
 			'type'                 => 'object',
@@ -194,12 +232,14 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertSame( $schema, openstation_ai_normalize_response_schema( $schema ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_answer_schema
+	 */
 	public function test_agent_answer_schema_is_strict() {
 		$schema = openstation_agent_answer_schema();
 
 		$this->assertFalse( $schema['additionalProperties'] );
 		$this->assertFalse( $schema['properties']['call_to_actions']['items']['additionalProperties'] );
-
 		$this->assertSame(
 			array_keys( $schema['properties'] ),
 			$schema['required']
@@ -209,6 +249,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		$this->assertSame( $schema, openstation_ai_normalize_response_schema( $schema ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_partial_required_is_repaired() {
 		$schema = array(
 			'type'       => 'object',
@@ -237,6 +280,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_shipped_schemas_are_strict_as_written() {
 		$post = self::factory()->post->create_and_get( array( 'post_status' => 'draft' ) );
 
@@ -255,6 +301,9 @@ class Tests_OpenStation_AiResponseSchemaNormalization extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_ai_normalize_response_schema
+	 */
 	public function test_filtered_schema_addition_is_repaired() {
 		$add_field = static function ( $schema ) {
 			$schema['properties']['compliance'] = array(

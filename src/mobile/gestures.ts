@@ -1,23 +1,14 @@
 export const SWIPE_COMMIT_FRACTION = 0.35;
-
 export const SWIPE_COMMIT_VELOCITY = 0.6;
-
 export const SWIPE_MIN_TRAVEL = 24;
-
 export const SWIPE_INTENT_PX = 10;
-
 export const EDGE_BACK_THRESHOLD = 64;
-
 export const SWIPE_UP_THRESHOLD = 44;
 
 export interface SwipeOutcomeInput {
-
 	dx: number;
-
 	dy: number;
-
 	velocity: number;
-
 	width: number;
 }
 
@@ -49,7 +40,6 @@ export function edgeSwipeProgress( dx: number, threshold: number = EDGE_BACK_THR
 
 export interface EdgeBackOptions {
 	threshold?: number;
-
 	onProgress?: ( progress: number ) => void;
 	onCommit: () => void;
 }
@@ -77,7 +67,6 @@ export function bindEdgeBack( zone: HTMLElement, opts: EdgeBackOptions ): () => 
 		try {
 			zone.setPointerCapture( e.pointerId );
 		} catch {
-
 		}
 		e.preventDefault();
 	};
@@ -87,7 +76,6 @@ export function bindEdgeBack( zone: HTMLElement, opts: EdgeBackOptions ): () => 
 		}
 		const dx = e.clientX - startX;
 		const dy = e.clientY - startY;
-
 		if ( Math.abs( dy ) > SWIPE_INTENT_PX && Math.abs( dy ) > Math.abs( dx ) ) {
 			vertical = true;
 			opts.onProgress?.( 0 );
@@ -166,7 +154,6 @@ function bindVerticalSwipe(
 			e.preventDefault();
 		};
 		el.addEventListener( 'click', swallow, { capture: true, once: true } );
-
 		setTimeout( () => el.removeEventListener( 'click', swallow, { capture: true } ), 350 );
 	};
 	const onDown = ( e: PointerEvent ): void => {

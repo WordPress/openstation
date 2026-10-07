@@ -14,21 +14,16 @@ const INITIAL_ORIGIN = window.location.origin;
 
 export interface AdminLinkDockEntry {
 	title: string;
-
 	selfLabel?: string;
 	icon: string;
-
 	url?: string;
 	submenu?: { title: string; url: string; offSite?: boolean }[];
 	multi?: boolean;
 }
 
 interface AdminLinkDispatchDeps {
-
 	adminUrl: string;
-
 	deriveSlug( url: string ): string;
-
 	openWindow( config: {
 		id: string;
 		baseId: string;
@@ -41,9 +36,7 @@ interface AdminLinkDispatchDeps {
 		selfLabel?: string;
 		multi?: boolean;
 	} ): void;
-
 	findDockEntry( url: string ): AdminLinkDockEntry | null;
-
 	openOtherAdmin?: ( url: string ) => void;
 }
 
@@ -117,7 +110,6 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		}
 		win._hasExplicitTitle = false;
 		win._settleNavigationActivity();
-
 		if ( typeof data.url === 'string' && data.url !== '' && win.iframe ) {
 			win._reportedLocation = { url: data.url, src: win.iframe.src };
 		}
@@ -125,13 +117,10 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 
 	if ( data.type === 'os-ready' ) {
 		win._iframeBridgeReady = true;
-
 		win._clearDeferredNavigation();
-
 		if ( ! win._settleNavigationActivity( true ) ) {
 			win._resetActivity();
 		}
-
 		markWindowContentReady( win.id );
 		doAction( HOOKS.IFRAME_READY, { windowId: win.id } );
 	}
@@ -340,7 +329,6 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	if ( data.type === 'os-iframe-activity' ) {
 		if ( data.phase === 'start' ) {
 			win._markActivityStart();
-
 			if ( data.navigation ) {
 				win._noteNavigationActivity();
 			}
@@ -363,7 +351,6 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 			duration: typeof data.duration === 'number' ? data.duration : 0,
 			failed: !! data.failed,
 		};
-
 		if ( data.requestHeaders && typeof data.requestHeaders === 'object' ) {
 			networkPayload.requestHeaders = data.requestHeaders;
 		}
@@ -378,7 +365,7 @@ function iframeActivityError( status: number ): string {
 	if ( status <= 0 ) {
 		return __( 'Request failed.' );
 	}
-
+	/* translators: %d: HTTP status code of the failed request. */
 	return sprintf( __( 'Request failed (HTTP %d).' ), status );
 }
 
@@ -408,11 +395,9 @@ function handleDesktopNavigate(
 }
 
 const DESTRUCTIVE_ADMIN_ACTIONS: ReadonlySet< string > = new Set( [
-
 	'trash',
 	'untrash',
 	'delete',
-
 	'spam',
 	'unspam',
 	'spamcomment',
@@ -434,7 +419,6 @@ function isDestructiveActionUrl( url: URL ): boolean {
 			return true;
 		}
 	}
-
 	return matchDestructiveAdminAction( url.toString(), url ) !== null;
 }
 
@@ -446,7 +430,6 @@ function stampSourceReferer( url: URL, win: Window ): URL {
 	try {
 		sourceHref = win.iframe?.contentWindow?.location.href ?? '';
 	} catch {
-
 	}
 	if ( ! sourceHref ) {
 		sourceHref = win.config.url || '';
@@ -460,7 +443,6 @@ function stampSourceReferer( url: URL, win: Window ): URL {
 			return url;
 		}
 		const out = new URL( url.href );
-
 		const cleaned = new URL( sourceUrl.href );
 		cleaned.searchParams.delete( 'openstation_chromeless' );
 		out.searchParams.set(
@@ -522,7 +504,6 @@ function handleCrossPageAdminLink(
 	if ( url.origin !== INITIAL_ORIGIN ) {
 		return;
 	}
-
 	if ( newContext ) {
 		openAdminUrlInOwnWindow( win, url, linkLabel, deps );
 		return;
@@ -619,7 +600,6 @@ function navigatedUrl( win: Window, href: string ): string {
 			return name;
 		}
 	} catch {
-
 	}
 	return href;
 }
@@ -661,7 +641,6 @@ export function handleFinishedScreenHandoff(
 	if ( url.origin !== INITIAL_ORIGIN ) {
 		return false;
 	}
-
 	openAdminUrlInOwnWindow( win, url, '', deps );
 	win.close();
 	return true;

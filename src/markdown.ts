@@ -8,7 +8,6 @@ function escapeHtmlForMd( s: string ): string {
 
 function renderInlineMd( s: string ): string {
 	return s
-
 		.replace(
 			/\[([^\]]+)\]\(([^)]+)\)/g,
 			( _m, label: string, url: string ) => {
@@ -18,13 +17,9 @@ function renderInlineMd( s: string ): string {
 				return `<a href="${ url.trim() }" target="_blank" rel="noopener noreferrer">${ label }</a>`;
 			},
 		)
-
 		.replace( /\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>' )
-
 		.replace( /(?<![*\w])\*([^*\n]+?)\*(?![*\w])/g, '<em>$1</em>' )
-
 		.replace( /(?<![_\w])_([^_\n]+?)_(?![_\w])/g, '<em>$1</em>' )
-
 		.replace( /`([^`\n]+?)`/g, '<code>$1</code>' );
 }
 
@@ -66,7 +61,6 @@ export function renderMarkdown( md: string ): string {
 		if ( heading ) {
 			flushPara();
 			flushList();
-
 			const level = Math.min( 6, heading[ 1 ].length + 2 );
 			out.push(
 				`<h${ level }>${ renderInlineMd( heading[ 2 ] ) }</h${ level }>`,

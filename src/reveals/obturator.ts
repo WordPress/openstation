@@ -99,7 +99,6 @@ function wedgeElement( index: number, masked: boolean ): SVGPathElement {
 		path.setAttribute( 'fill', WEDGE_SHADES[ index % WEDGE_SHADES.length ] );
 		path.setAttribute( 'stroke', SEAM_COLOR );
 		path.setAttribute( 'stroke-width', String( SEAM_WIDTH ) );
-
 		path.setAttribute( 'vector-effect', 'non-scaling-stroke' );
 		path.setAttribute( 'stroke-linejoin', 'round' );
 	}
@@ -111,7 +110,6 @@ export function renderObturator(): WindowRevealRendered {
 
 	const svg = document.createElementNS( SVG_NS, 'svg' );
 	svg.setAttribute( 'viewBox', `0 0 ${ VIEW } ${ VIEW }` );
-
 	svg.setAttribute( 'preserveAspectRatio', 'none' );
 	svg.setAttribute( 'aria-hidden', 'true' );
 	svg.style.width = '100%';
@@ -159,7 +157,6 @@ export function renderObturator(): WindowRevealRendered {
 						duration: ctx.duration,
 						easing: ctx.easing,
 						delay: ctx.delay,
-
 						fill: 'both',
 					},
 				);

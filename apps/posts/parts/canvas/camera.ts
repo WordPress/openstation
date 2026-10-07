@@ -47,7 +47,6 @@ export function isEmptyCanvasClick( interaction: Interaction, e: MouseEvent, can
 	if ( isPinchGesture( interaction ) || now - interaction.lastFocusChange < 250 || now - interaction.pixiInteractionAt < 250 ) {
 		return false;
 	}
-
 	if ( interaction.panMovedDist > 4 ) {
 		return false;
 	}
@@ -58,14 +57,10 @@ export interface Camera {
 	targetScale: number;
 	targetWorldX: number;
 	targetWorldY: number;
-
 	ease(): void;
 	stageToWorld( global: PixiPoint ): PixiPoint;
-
 	pan( dx: number, dy: number ): void;
-
 	fitToView( bounds: Bounds | null, opts?: { padding?: number; animate?: boolean } ): void;
-
 	frameOn( x: number, y: number ): boolean;
 	dispose(): void;
 }
@@ -102,7 +97,6 @@ export function createCamera( world: PixiContainer, stage: HTMLElement, gesture?
 			const padding = opts.padding ?? 90;
 			const animate = opts.animate ?? false;
 			const r = stage.getBoundingClientRect();
-
 			const inset = workAreaInsetsOf( stage );
 			const viewX = inset.left;
 			const viewY = inset.top;
@@ -125,7 +119,6 @@ export function createCamera( world: PixiContainer, stage: HTMLElement, gesture?
 			const h = Math.max( 1, bounds.maxY - bounds.minY );
 			const sx = ( viewW - padding * 2 ) / w;
 			const sy = ( viewH - padding * 2 ) / h;
-
 			const scale = Math.max( 0.2, Math.min( 1.5, Math.min( sx, sy ) ) );
 			const cx = ( bounds.minX + bounds.maxX ) / 2;
 			const cy = ( bounds.minY + bounds.maxY ) / 2;
@@ -162,7 +155,6 @@ export function createCamera( world: PixiContainer, stage: HTMLElement, gesture?
 
 	function onWheel( e: WheelEvent ): void {
 		e.preventDefault();
-
 		const SENSITIVITY = 0.0008;
 		const factor = Math.exp( -e.deltaY * SENSITIVITY );
 		const prev = camera.targetScale;
@@ -173,7 +165,6 @@ export function createCamera( world: PixiContainer, stage: HTMLElement, gesture?
 		const r = stage.getBoundingClientRect();
 		const sx = e.clientX - r.left;
 		const sy = e.clientY - r.top;
-
 		const wx = ( sx - camera.targetWorldX ) / prev;
 		const wy = ( sy - camera.targetWorldY ) / prev;
 		camera.targetScale = next;
@@ -228,9 +219,7 @@ export function watchStageSize(
 				hooks.onSettle();
 			}
 		}, SETTLE_DEBOUNCE_MS );
-
 		app.render();
-
 		hooks.onResize?.();
 	};
 	const ro = new ResizeObserver( onResize );

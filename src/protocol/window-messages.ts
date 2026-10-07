@@ -12,31 +12,26 @@ export type BridgeEventFromIframe =
 		open: 'screen-options' | 'help' | null;
 	}
 	| { type: 'os-commands-list'; commands: HarvestedCommand[] }
-
 	| {
 		type: 'os-content-identity';
 		identity: WindowContentRef | null;
 	}
-
 	| {
 		type: 'os-open-user-footprint';
 		userId: number;
 		userName: string;
 	}
-
 	| {
 		type: 'os-editor-autosave-response';
 		requestId: string;
 		status: 'saved' | 'no-editor' | 'not-dirty' | 'error';
 		previewUrl?: string;
 	}
-
 	| {
 		type: 'os-editor-live-saved';
 		watchId: string;
 		previewUrl?: string;
 	}
-
 	| {
 		type: 'os-bridge-handshake-ack';
 		connectionId: string;
@@ -51,7 +46,6 @@ export type BridgeEventFromIframe =
 		type: 'os-bridge-disconnect';
 		connectionId: string;
 	}
-
 	| {
 		type: 'os-pointer-move';
 		x: number;
@@ -60,19 +54,16 @@ export type BridgeEventFromIframe =
 
 export type BridgeEventToIframe =
 	| { type: 'os-focus' }
-
 	| { type: 'os-window-active'; active: boolean }
 	| { type: 'os-color-scheme'; scheme: string }
 	| { type: 'os-toggle-panel'; panel: 'screen-options' | 'help' }
 	| { type: 'os-commands-subscribe' }
 	| { type: 'os-commands-unsubscribe' }
 	| { type: 'os-commands-invoke'; name: string }
-
 	| {
 		type: 'os-editor-autosave-request';
 		requestId: string;
 	}
-
 	| {
 		type: 'os-editor-live-watch';
 		watchId: string;
@@ -98,7 +89,6 @@ export type BridgeEventToIframe =
 		type: 'os-bridge-disconnect';
 		connectionId: string;
 	}
-
 	| {
 		type: 'os-pointer-track';
 		enabled: boolean;
@@ -109,7 +99,6 @@ export type BridgeEvent = BridgeEventFromIframe | BridgeEventToIframe;
 export type BridgeEventType = BridgeEvent[ 'type' ];
 
 export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
-
 	'os-title-change',
 	'os-navigate',
 	'os-notification',
@@ -123,7 +112,6 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'os-editor-live-saved',
 	'os-bridge-handshake-ack',
 	'os-pointer-move',
-
 	'os-focus',
 	'os-window-active',
 	'os-color-scheme',
@@ -136,7 +124,6 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'os-editor-live-unwatch',
 	'os-bridge-handshake',
 	'os-pointer-track',
-
 	'os-bridge-publish',
 	'os-bridge-disconnect',
 ] );

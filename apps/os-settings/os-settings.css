@@ -60,7 +60,6 @@
 
 .os-settings__swatch-label {
 	display: inline-block;
-
 	position: relative;
 	z-index: 1;
 	padding: 3px 8px;
@@ -81,7 +80,6 @@
 	aspect-ratio: 16 / 10;
 	padding: 8px;
 	background: transparent;
-
 	border: 1px dashed var( --os-ui-border-strong, #c3c4c7 );
 	border-radius: 10px;
 	color: var( --os-ui-fg-muted, #50575e );
@@ -135,7 +133,6 @@
 	z-index: 0;
 	overflow: hidden;
 	pointer-events: none;
-
 	border-radius: 10px;
 }
 
@@ -258,7 +255,6 @@
 	background: var( --os-ui-surface, #fff );
 	background-size: cover;
 	background-position: center;
-
 	border: 2px dashed var( --os-ui-border-strong, #c3c4c7 );
 	border-radius: 8px;
 	color: var( --os-ui-fg-muted, #50575e );
@@ -451,7 +447,6 @@
 }
 
 .os-settings__layout-card:has( .os-settings__layout-choice[ aria-checked='true' ] ) {
-
 	box-shadow: 0 0 0 var( --os-ui-swatch-ring-width, 2px ) var( --os-ui-accent, #2271b1 ),
 		var( --os-ui-swatch-lift, 0 0 0 0 transparent );
 }
@@ -992,7 +987,6 @@
 	display: grid;
 	grid-template-columns: var( --os-settings-nav-width, 224px ) minmax( 0, 1fr );
 	grid-template-rows: auto minmax( 0, 1fr ) auto auto;
-
 	overflow: hidden;
 }
 
@@ -1107,7 +1101,6 @@
 	grid-column: 1;
 	grid-row: 4;
 	display: flex;
-
 	flex-direction: row;
 	align-items: center;
 	justify-content: flex-start;
@@ -1133,7 +1126,6 @@
 		grid-template-columns: minmax( 0, 1fr );
 		grid-template-rows: auto minmax( 0, 1fr ) auto;
 	}
-
 	.os-settings > os-tabs {
 		display: none;
 	}
@@ -1144,13 +1136,11 @@
 		padding: 12px 12px 10px;
 		background: var( --os-ui-surface, #fff );
 	}
-
 	.os-settings__search,
 	.os-settings__search-empty,
 	.os-settings__search-empty[ hidden ] {
 		display: none;
 	}
-
 	.os-settings > os-tabpanel {
 		grid-column: 1;
 		grid-row: 2;
@@ -1165,11 +1155,9 @@
 	.os-settings os-section::part( body ) {
 		padding: 12px;
 	}
-
 	.os-settings > .os-settings__footer {
 		grid-row: 3;
 	}
-
 	.os-settings__layout-grid {
 		grid-template-columns: minmax( 0, 1fr );
 	}
@@ -1219,7 +1207,6 @@ html[data-os-mode="mobile"] .os-settings__layout-grid {
 	overflow: hidden;
 	display: flex;
 	flex-direction: column;
-
 	padding-bottom: 28px;
 }
 .os-settings
@@ -1238,7 +1225,6 @@ html[data-os-mode="mobile"] .os-settings__layout-grid {
 	flex-direction: column;
 	gap: 12px;
 }
-
 .os-settings__help > os-section,
 .os-settings__help > os-disclosure {
 	flex: 0 0 auto;
@@ -1249,7 +1235,6 @@ html[data-os-mode="mobile"] .os-settings__layout-grid {
 	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
 	border: 1px solid var( --os-ui-border, #dcdcde );
 	border-radius: 10px;
-
 	overflow: hidden;
 }
 .os-settings__help-layout {
@@ -1436,6 +1421,11 @@ html[data-os-mode="mobile"] .os-features__danger-row {
 	margin-inline-start: auto;
 }
 
+/*
+ * About tab — product context first, then a compact editorial front page
+ * for openstation.blog. The quiet overview establishes what OpenStation is;
+ * the first story remains the one expressive hero on the page.
+ */
 .os-settings > os-tabpanel[ for='about' ]:not( [ hidden ] ) {
 	display: flex;
 	flex-direction: column;
@@ -1965,6 +1955,7 @@ html[data-os-mode="mobile"] .os-features__danger-row {
 	}
 }
 
+/* Navigation section — per-item placement chooser. */
 .os-nav-settings__lead {
 	margin: -28px 0 34px;
 }
@@ -2135,7 +2126,6 @@ html[data-os-mode="mobile"] .os-features__danger-row {
 
 .os-settings__theme-upload {
 	display: block;
-
 	border: 2px dashed var( --os-ui-border-strong, #c3c4c7 );
 	border-radius: 10px;
 	background: transparent;
@@ -2148,7 +2138,6 @@ html[data-os-mode="mobile"] .os-features__danger-row {
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
-
 	min-height: 100%;
 	padding: 16px;
 	color: var( --os-ui-fg-muted, #50575e );

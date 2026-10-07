@@ -20,7 +20,6 @@ function mockFrame(): {
 			},
 		},
 	};
-
 	const answer = (
 		prevent: boolean,
 		requestId?: string | null,
@@ -68,7 +67,6 @@ describe( 'queryUnsavedGuard', () => {
 		const { frame, answer } = mockFrame();
 
 		const pending = queryUnsavedGuard( frame, { timeoutMs: 20 } );
-
 		answer( true, null );
 		answer( true, 'os-unsaved-guard-someone-else' );
 

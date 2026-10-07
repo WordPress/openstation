@@ -97,7 +97,6 @@ function openstation_agent_delete( $user_id, $reassign = null ) {
 			require_once ABSPATH . 'wp-admin/includes/ms.php';
 		}
 		if ( null !== $reassign ) {
-
 			wp_delete_user( (int) $user_id, $reassign );
 		}
 		$deleted = wpmu_delete_user( (int) $user_id );

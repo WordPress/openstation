@@ -7,13 +7,11 @@ export const styles = css`
 
 	:host {
 		display: block;
-
 		--_bg: var( --os-ui-table-bg, var( --os-ui-surface, #fff ) );
 		--_border: var(
 			--os-ui-table-border,
 			var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) )
 		);
-
 		--_column-border: var(
 			--os-ui-table-column-border,
 			var( --os-ui-border-strong, rgba( 0, 0, 0, 0.14 ) )
@@ -22,7 +20,6 @@ export const styles = css`
 			--os-ui-table-header-bg,
 			var( --os-ui-surface-elevated, #f6f7f7 )
 		);
-
 		--_row-hover: var(
 			--os-ui-table-row-hover,
 			var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) )
@@ -61,7 +58,6 @@ export const styles = css`
 		text-align: start;
 		font-weight: 600;
 		background-color: var( --_header-bg );
-
 		background-image: var( --os-ui-table-header-bg-image, none );
 		background-repeat: var( --os-ui-table-header-bg-image-repeat, repeat );
 		background-size: var( --os-ui-table-header-bg-image-size, auto );
@@ -130,13 +126,11 @@ export const styles = css`
 		position: sticky;
 		z-index: 10;
 	}
-
 	tbody td.is-sticky {
 		background-color: var( --_bg );
 	}
 	thead th.is-sticky {
 		background-color: var( --_header-bg );
-
 		background-image: var( --os-ui-table-header-bg-image, none );
 		background-repeat: var( --os-ui-table-header-bg-image-repeat, repeat );
 		background-size: var( --os-ui-table-header-bg-image-size, auto );
@@ -153,7 +147,6 @@ export const styles = css`
 		top: var( --os-ui-table-header-height, 33px );
 		z-index: 20;
 	}
-
 	:host( [ sticky-header ] ) thead th.is-sticky {
 		z-index: 40;
 	}
@@ -179,7 +172,6 @@ export const styles = css`
 	.filter-row th {
 		padding: 4px 8px;
 		background-color: var( --_header-bg );
-
 		background-image: var( --os-ui-table-header-bg-image, none );
 		background-repeat: var( --os-ui-table-header-bg-image-repeat, repeat );
 		background-size: var( --os-ui-table-header-bg-image-size, auto );
@@ -224,7 +216,6 @@ export const styles = css`
 	.expander:hover {
 		background: var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) );
 	}
-
 	td.col-expander,
 	th.col-expander {
 		width: 36px;
@@ -264,7 +255,6 @@ export const styles = css`
 			var( --_row-hover )
 		);
 	}
-
 	thead th.is-sortable:focus-visible {
 		outline: none;
 		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
@@ -339,7 +329,6 @@ export const styles = css`
 	:host( [ stacked ] ) tbody tr:last-child {
 		border-bottom: 0;
 	}
-
 	:host( [ stacked ] ) tbody td {
 		display: block;
 		padding: 0;
@@ -351,7 +340,6 @@ export const styles = css`
 		width: auto;
 		vertical-align: baseline;
 	}
-
 	:host( [ stacked ] ) tbody tr.is-selected td,
 	:host( [ stacked ] ) tbody tr.is-selected:hover td,
 	:host( [ stacked ][ striped ] ) tbody tr:nth-child( odd ) td,
@@ -383,7 +371,6 @@ export const styles = css`
 	:host( [ stacked ] ) tbody:dir( rtl ) tr.is-selected {
 		box-shadow: inset -3px 0 0 0 var( --os-ui-accent, #2271b1 );
 	}
-
 	:host( [ stacked ] ) tbody td.col-select,
 	:host( [ stacked ] ) tbody td.col-expander {
 		flex: 0 0 auto;
@@ -452,7 +439,6 @@ export const styles = css`
 	.stack-actions .stack-value {
 		gap: 8px;
 	}
-
 	.stack-actions .stack-value > * {
 		justify-content: flex-start;
 		max-width: 100%;

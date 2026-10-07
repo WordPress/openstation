@@ -4,13 +4,9 @@ export const LOADING_OVERLAY_VISIBLE_CLASS =
 	'os-content-graph__loading--visible';
 
 export interface LoadingOverlayHandle {
-
 	show: () => void;
-
 	hide: () => void;
-
 	destroy: () => void;
-
 	isVisible: () => boolean;
 }
 

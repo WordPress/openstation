@@ -8,7 +8,12 @@ const CARD_CLASS = 'os-usage-feedback-prompt';
 const TITLE_ID = 'os-usage-feedback-prompt-title';
 
 const STYLES = `
-
+/* The role is in the selector to outrank one rule: the WordPress
+   components stylesheet sets position relative on every region, at the
+   same specificity as a bare class. It loads on demand (the assistant
+   brings it in), so it lands after these styles and won: the card
+   dropped out of its corner to the bottom-left of the shell, partly
+   off screen, the moment the user pressed the palette shortcut. */
 .${ CARD_CLASS }[role='region'] {
 	--os-ui-fg: var( --os-ui-modal-text, #f0f0f1 );
 	--os-ui-fg-muted: var( --os-ui-modal-text-muted, #a7aaad );
@@ -34,7 +39,9 @@ const STYLES = `
 	font-family: var( --os-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif );
 	font-size: 14px;
 	line-height: 1.45;
-
+	/* Arrives on a spring, then the accent halo beats twice and
+	   settles: enough to be noticed once, not a nag that keeps
+	   moving in the corner of the eye. */
 	animation:
 		osUsageFeedbackPromptIn 0.45s cubic-bezier( 0.2, 1.2, 0.35, 1 ) both,
 		osUsageFeedbackPromptBeat 1.4s ease-in-out 0.7s 2;

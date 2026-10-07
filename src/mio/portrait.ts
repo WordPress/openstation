@@ -19,6 +19,8 @@ function fix( value: number ): string {
 }
 
 function hex( rgb: number ): string {
+	/* eslint-disable-next-line no-bitwise -- Colours are packed 24-bit
+	 * ints throughout Mio; masking is how you read one back out. */
 	const rgb24 = rgb & 0xffffff;
 	return '#' + rgb24.toString( 16 ).padStart( 6, '0' );
 }
@@ -77,7 +79,6 @@ export function mioPortraitSvg(
 	const scale = radius / MIO_DEFAULTS.appearance.radius;
 	const stroke = a.outlineWidth * scale;
 	const liner = a.linerWidth * scale;
-
 	const reach = ( a.glow / 10 ) * radius * 0.18;
 	const half =
 		radius * portraitExtent( full ) + stroke / 2 + reach * GLOW_SHELLS[ 0 ][ 0 ];
@@ -145,7 +146,6 @@ export function mioPortraitDataUri(
 	size: number = 96,
 ): string {
 	const svg = mioPortraitSvg( config, size );
-
 	const encoded =
 		typeof btoa === 'function'
 			? btoa( svg )

@@ -59,7 +59,6 @@ function openstation_mio_hsl_to_rgb_int( $h, $s, $l ) {
 
 	$m    = $lig - $c / 2.0;
 	$to8  = static function ( $v ) use ( $m ) {
-
 		return (int) min( 255, max( 0, floor( ( $v + $m ) * 255.0 + 0.5 ) ) );
 	};
 	return ( $to8( $r ) << 16 ) | ( $to8( $g ) << 8 ) | $to8( $b );
@@ -70,13 +69,11 @@ function openstation_mio_portrait_ring( $count, $appearance ) {
 	$out = array();
 	for ( $i = 0; $i < $n; $i++ ) {
 		$t = $i / $n;
-
 		$shifted = fmod( fmod( $t - $appearance['hueAngle'] / 360.0, 1.0 ) + 1.0, 1.0 );
 		$ramp    = $appearance['hueLoop']
 			? 0.5 - 0.5 * cos( $shifted * M_PI * 2.0 )
 			: $shifted;
 		$hue     = $appearance['hueStart'] + $appearance['hueSpan'] * $ramp;
-
 		$lift      = 0.5 + 0.5 * cos( ( $t - 1.0 / 3.0 ) * M_PI * 2.0 );
 		$lightness = $appearance['lightness'] * ( 0.72 + 0.28 * $lift );
 		$out[]     = openstation_mio_hsl_to_rgb_int( $hue, $appearance['saturation'], $lightness );
@@ -98,7 +95,6 @@ function openstation_mio_preset_deviation( $angle, $physics ) {
 			return 0.0;
 
 		case 'ghost':
-
 			$under  = max( 0.0, sin( $angle ) );
 			$n      = 2.0 + 3.2 * $under;
 			$c      = abs( cos( $angle ) );
@@ -149,7 +145,6 @@ function openstation_mio_preset_deviation( $angle, $physics ) {
 			return ( 1.0 / ( 1.0 + $lobes * $lobes ) ) * cos( $lobes * $angle );
 
 		default:
-
 			return 0.05 * cos( 3.0 * ( $angle + $half_pi ) );
 	}
 }

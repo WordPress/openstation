@@ -1,5 +1,9 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-plugins-window
+ * @group ajax
+ */
 require_once ABSPATH . 'wp-admin/includes/ajax-actions.php';
 
 class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
@@ -11,7 +15,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		parent::set_up();
 		$this->admin_id      = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		$this->subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
-
 		if ( is_multisite() ) {
 			grant_super_admin( $this->admin_id );
 		}
@@ -32,6 +35,9 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_featured_slugs
+	 */
 	public function test_curated_slugs_contains_default_seed() {
 		$slugs = openstation_plugins_window_featured_slugs();
 		$this->assertContains( 'allterrain-forms', $slugs );
@@ -43,6 +49,9 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_featured_slugs
+	 */
 	public function test_curated_slugs_filter_can_append() {
 		add_filter(
 			'openstation_plugins_featured_slugs',
@@ -55,6 +64,9 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertContains( 'my-companion-plugin', $slugs );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_featured_slugs
+	 */
 	public function test_curated_slugs_filter_output_is_sanitized_and_deduped() {
 		add_filter(
 			'openstation_plugins_featured_slugs',
@@ -83,24 +95,27 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		try {
 			$this->_handleAjax( 'openstation_plugins_featured' );
 		} catch ( WPAjaxDieContinueException $e ) {
-
 		} catch ( WPAjaxDieStopException $e ) {
-
 		}
 		return json_decode( $this->_last_response, true );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_ajax_featured
+	 */
 	public function test_subscriber_rejected_with_403() {
 		wp_set_current_user( $this->subscriber_id );
 		$response = $this->dispatch_featured();
 		$this->assertFalse( $response['success'] );
-
 		$this->assertSame(
 			is_multisite() ? 'openstation_plugins_network_managed' : 'openstation_plugins_forbidden',
 			$response['data']['code']
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_ajax_featured
+	 */
 	public function test_multisite_denies_marketplace_even_for_super_admin() {
 		if ( ! is_multisite() ) {
 			$this->markTestSkipped( 'Multisite-only behavior.' );
@@ -111,6 +126,9 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertSame( 'openstation_plugins_network_managed', $response['data']['code'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_ajax_featured
+	 */
 	public function test_missing_nonce_rejected() {
 		wp_set_current_user( $this->admin_id );
 		$response = $this->dispatch_featured( false );
@@ -118,6 +136,9 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertSame( 'openstation_plugins_bad_nonce', $response['data']['code'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_ajax_featured
+	 */
 	public function test_admin_receives_curated_plus_discovered_payload() {
 		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
@@ -151,11 +172,13 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		$this->assertSame( count( $plugins ), $response['data']['info']['results'] );
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_ajax_featured
+	 */
 	public function test_discovery_dedupes_against_curated() {
 		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
 		$this->mock_plugins_api( array(
-
 			'discovery' => array(
 				array(
 					'slug'             => 'odd-outlandish-desktop-decorator',
@@ -174,6 +197,9 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_ajax_featured
+	 */
 	public function test_response_is_cached_for_subsequent_calls() {
 		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
@@ -194,6 +220,9 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_plugins_window_ajax_featured
+	 */
 	public function test_response_filter_can_inject_extra_rows() {
 		$this->skip_on_multisite();
 		wp_set_current_user( $this->admin_id );
@@ -219,7 +248,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	private function mock_plugins_api( array $overrides = array() ) {
 		$curated_name = $overrides['curated_name'] ?? 'ODD — Outlandish Desktop Decorator';
 		$discovery    = $overrides['discovery'] ?? array(
-
 			array(
 				'slug'             => 'fake-dependent-plugin',
 				'name'             => 'Fake Dependent',
@@ -227,7 +255,6 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 				'rating'           => 80,
 				'short_description' => 'Depends on openstation.',
 			),
-
 			array(
 				'slug'             => 'unrelated-plugin',
 				'name'             => 'Unrelated',

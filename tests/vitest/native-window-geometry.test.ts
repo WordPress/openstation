@@ -104,7 +104,6 @@ describe( 'native-window-geometry', () => {
 	} );
 
 	test( 'trims the store to a bounded size, evicting the oldest', () => {
-
 		for ( let i = 0; i < 70; i++ ) {
 			saveNativeWindowGeometry( `app-${ i }`, {
 				width: 800 + i,

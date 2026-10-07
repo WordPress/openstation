@@ -33,7 +33,6 @@ export interface AppConfig {
 	id: string;
 	title: string;
 	endpoint: string;
-
 	restRoot?: string;
 	restNonce?: string;
 	state: Record< string, unknown >;
@@ -41,18 +40,12 @@ export interface AppConfig {
 	windowActions: ControlDef[];
 	appearance: AppearanceDef;
 	extra: Record< string, unknown >;
-
 	actions?: string[];
-
 	lifecycle?: string[];
-
 	channels?: Record< string, string >;
-
 	watch?: string[];
 	tabs?: TabDef[];
-
 	client?: boolean;
-
 	data?: unknown;
 }
 
@@ -88,19 +81,14 @@ export interface DispatchResponse {
 	ok: true;
 	state: Record< string, unknown >;
 	html: string;
-
 	data?: unknown;
 	effects: Effect[];
 }
 
 export interface Binding {
-
 	action: string;
-
 	args: Record< string, unknown >;
-
 	bind: string | null;
-
 	debounce: number;
 	confirm: ConfirmSpec | null;
 }
@@ -112,15 +100,12 @@ export interface RuntimeHost {
 		opts?: { windowId?: string; source?: string; silent?: boolean },
 	) => Promise< Response >;
 	confirm?: ( options: ConfirmSpec & { confirmLabel?: string } ) => Promise< boolean >;
-
 	toast?: ( options: { message: string; duration?: number; type?: string } ) => void;
 	setTitle?: ( windowId: string, title: string ) => void;
 	closeWindow?: ( windowId: string ) => void;
 	openWindow?: ( id: string ) => void;
-
 	openUrl?: ( url: string, title: string, icon?: string ) => void;
 	setBadge?: ( appId: string, count: number ) => void;
-
 	setIcon?: ( appId: string, art: string ) => void;
 	announce?: ( contentType: string, action: string, ids: number[] ) => void;
 	menu?: (
@@ -129,9 +114,7 @@ export interface RuntimeHost {
 		pick: ( item: MenuItemDef ) => void,
 	) => void;
 	send?: ( channel: string, payload: unknown ) => void;
-
 	refreshMenu?: () => void;
-
 	onBroadcast?: ( topic: string, cb: ( firedTopic: string, payload?: unknown ) => void ) => () => void;
 	loadComponents?: ( tags: string[] ) => Promise< void >;
 	applyAppearance?: ( windowId: string, appearance: AppearanceDef ) => void;

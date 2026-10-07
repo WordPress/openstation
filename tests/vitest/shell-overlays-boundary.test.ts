@@ -10,7 +10,6 @@ const LOADER = resolve( ROOT, 'src/shell-overlays/loader.ts' );
 const READINESS_FLAG = 'openStationShellOverlays';
 
 const ALLOWED_IN_MAIN: Readonly< Record< string, string > > = {
-
 };
 
 function resolveSpecifier( spec: string, from: string ): string | null {
@@ -92,7 +91,6 @@ describe( 'shell-overlays readiness', () => {
 	test( 'the loader never infers readiness from a component tag', () => {
 		const loader = readFileSync( LOADER, 'utf8' );
 		expect( loader ).toContain( READINESS_FLAG );
-
 		const code = loader.replace( /\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, '' );
 		expect( code ).not.toContain( 'customElements' );
 	} );
@@ -102,7 +100,6 @@ describe( 'shell-overlays bundle boundary', () => {
 	const components = overlayComponents();
 
 	test( 'the overlays entry still owns a component kit', () => {
-
 		expect( components.size ).toBeGreaterThan( 5 );
 		expect( components.has( 'os-context-menu' ) ).toBe( true );
 	} );

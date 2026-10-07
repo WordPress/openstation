@@ -77,7 +77,6 @@ describe( 'alphabet-soup/soup-gen.ts', () => {
 	} );
 
 	test( 'words never share a cell', () => {
-
 		for ( const seed of [ 'a', 'b', 'c', 'd', 'e' ] ) {
 			const grid = makeGrid( seed );
 			const used = new Set< string >();
@@ -121,7 +120,6 @@ describe( 'alphabet-soup/soup-gen.ts', () => {
 	} );
 
 	test( 'lineCells snaps a crooked drag to the nearest spoke', () => {
-
 		const cells = lineCells( { row: 0, col: 0 }, { row: 1, col: 3 }, 8 );
 		expect( cells ).toEqual( [
 			{ row: 0, col: 0 },
@@ -150,7 +148,6 @@ describe( 'alphabet-soup/soup-gen.ts', () => {
 	test( 'selectionMatches rejects non-words and single cells', () => {
 		const grid = makeGrid();
 		expect( selectionMatches( grid, [ { row: 0, col: 0 } ] ) ).toBe( -1 );
-
 		const bogus = [
 			{ row: 0, col: 0 },
 			{ row: 0, col: 1 },

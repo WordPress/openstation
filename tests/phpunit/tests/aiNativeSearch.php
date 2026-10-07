@@ -1,7 +1,14 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-ai
+ */
 class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 
+	/**
+	 * @covers ::openstation_ai_search_dispatch_tool
+	 * @covers ::openstation_ai_search_fetch_posts
+	 */
 	public function test_search_posts_finds_unanalyzed_post_by_keyword() {
 		$post_id = self::factory()->post->create(
 			array(
@@ -30,6 +37,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'ai_summary', $match );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_posts
+	 */
 	public function test_search_posts_keyword_excludes_non_matches() {
 		self::factory()->post->create(
 			array(
@@ -48,6 +58,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertFalse( $result['has_more'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_posts
+	 */
 	public function test_search_posts_excludes_password_protected_posts() {
 		$public_id = self::factory()->post->create(
 			array(
@@ -82,6 +95,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_comments
+	 */
 	public function test_search_comments_finds_unanalyzed_comment_by_keyword() {
 		$post_id    = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$comment_id = self::factory()->comment->create(
@@ -110,6 +126,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '192.0.2.7', $payload );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_comments_by_post
+	 */
 	public function test_search_comments_by_post_is_scoped_to_the_post() {
 		$post_a = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$post_b = self::factory()->post->create( array( 'post_status' => 'publish' ) );
@@ -141,6 +160,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertSame( 'Jaime', $result['items'][0]['author_name'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_works_without_analysis_meta() {
 		$post_id = self::factory()->post->create(
 			array( 'post_status' => 'publish', 'post_title' => 'Plain post' )
@@ -155,6 +177,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'ai_summary', $entity );
 	}
 
+	/**
+	 * @covers ::openstation_ai_continue_label
+	 */
 	public function test_continue_label_names_the_entity() {
 		$this->assertSame(
 			'Continue searching in posts (from item 11)',
@@ -170,6 +195,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_continue_label
+	 */
 	public function test_every_resumable_tool_gets_its_own_continue_label() {
 		$labels = array();
 		foreach ( openstation_ai_search_resumable_tools() as $tool ) {
@@ -183,6 +211,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_withholds_private_post_from_subscriber() {
 		$post_id = self::factory()->post->create(
 			array( 'post_status' => 'private', 'post_title' => 'Secret plans' )
@@ -197,6 +228,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_withholds_draft_post_from_subscriber() {
 		$post_id = self::factory()->post->create(
 			array( 'post_status' => 'draft', 'post_title' => 'Unpublished' )
@@ -207,6 +241,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertNull( openstation_ai_search_build_entity( 'post', $post_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_returns_private_post_for_administrator() {
 		$post_id = self::factory()->post->create(
 			array( 'post_status' => 'private', 'post_title' => 'Secret plans' )
@@ -220,6 +257,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertSame( 'Secret plans', $entity['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_withholds_non_public_cpt_row() {
 		register_post_type( 'os_secret_cpt', array( 'public' => false ) );
 		$post_id = self::factory()->post->create(
@@ -241,6 +281,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		_unregister_post_type( 'os_secret_cpt' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_withholds_unapproved_comment_from_subscriber() {
 		$post_id    = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$comment_id = self::factory()->comment->create(
@@ -259,6 +302,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_suppresses_moderation_fields_for_non_moderator() {
 		$post_id    = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$comment_id = self::factory()->comment->create(
@@ -278,6 +324,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertSame( '', $entity['edit_url'], 'The edit link needs edit_comment.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_exposes_moderation_fields_to_moderator() {
 		$post_id    = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$comment_id = self::factory()->comment->create(
@@ -297,6 +346,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertNotSame( '', $entity['edit_url'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_withholds_password_protected_post_from_subscriber() {
 		$post_id = self::factory()->post->create(
 			array(
@@ -315,6 +367,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_returns_password_protected_post_to_editor() {
 		$post_id = self::factory()->post->create(
 			array(
@@ -332,6 +387,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'members-only body', $entity['excerpt'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_withholds_comment_on_private_parent() {
 		$post_id    = self::factory()->post->create(
 			array( 'post_status' => 'private', 'post_title' => 'Secret plans' )
@@ -352,6 +410,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_withholds_comment_on_draft_parent() {
 		$post_id    = self::factory()->post->create(
 			array( 'post_status' => 'draft', 'post_title' => 'Unpublished' )
@@ -365,6 +426,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertNull( openstation_ai_search_build_entity( 'comment', $comment_id ) );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_returns_comment_on_private_parent_for_administrator() {
 		$post_id    = self::factory()->post->create(
 			array( 'post_status' => 'private', 'post_title' => 'Secret plans' )
@@ -380,6 +444,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertSame( 'Secret plans', $entity['post_title'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_withholds_comment_on_non_public_cpt_parent() {
 		register_post_type( 'os_secret_cpt', array( 'public' => false ) );
 		$post_id    = self::factory()->post->create(
@@ -407,6 +474,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		_unregister_post_type( 'os_secret_cpt' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_comments_by_post
+	 */
 	public function test_search_comments_by_post_refuses_non_public_cpt_parent() {
 		register_post_type( 'os_secret_cpt', array( 'public' => false ) );
 		$post_id = self::factory()->post->create(
@@ -429,6 +499,10 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		_unregister_post_type( 'os_secret_cpt' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_comments
+	 * @covers ::openstation_ai_can_read_comment_parent
+	 */
 	public function test_search_comments_hides_comments_on_private_posts_from_subscriber() {
 		$author_id  = self::factory()->user->create( array( 'role' => 'author' ) );
 		$private_id = self::factory()->post->create(
@@ -463,6 +537,10 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertContains( $visible, $ids, 'A comment on a published post is still returned.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_comments
+	 * @covers ::openstation_ai_can_read_comment_parent
+	 */
 	public function test_search_comments_hides_comments_on_password_posts_from_subscriber() {
 		$protected_id = self::factory()->post->create(
 			array( 'post_status' => 'publish', 'post_password' => 'hunter2' )
@@ -487,6 +565,10 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertNotContains( $hidden, $ids, 'A Subscriber must not see a comment on a password-protected post.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_can_read_post
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_search_comments_honours_a_satisfied_post_password() {
 		$protected_id = self::factory()->post->create(
 			array( 'post_status' => 'publish', 'post_password' => 'hunter2' )
@@ -523,6 +605,10 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertIsArray( $entity, 'Entity hydration honours the satisfied password too.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_comments
+	 * @covers ::openstation_ai_can_read_comment_parent
+	 */
 	public function test_search_comments_still_shows_private_comments_to_admin() {
 		$private_id = self::factory()->post->create( array( 'post_status' => 'private' ) );
 		$comment_id = self::factory()->comment->create(
@@ -544,6 +630,10 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertContains( $comment_id, $ids, 'An administrator can read comments on private posts.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_fetch_comments_by_post
+	 * @covers ::openstation_ai_can_read_post
+	 */
 	public function test_search_comments_by_post_hides_private_post_from_subscriber() {
 		$private_id = self::factory()->post->create(
 			array( 'post_status' => 'private', 'post_title' => 'Secret roadmap' )
@@ -569,6 +659,10 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'post_title', $result, 'The private parent title must not leak.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_can_read_post
+	 * @covers ::openstation_ai_can_read_comment_parent
+	 */
 	public function test_search_comments_hides_orphaned_comments_despite_global_post() {
 		$public_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$orphan    = self::factory()->comment->create(
@@ -595,6 +689,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$this->assertNotContains( $orphan, $ids, 'An orphaned comment must not be judged against the global $post.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_can_read_post
+	 */
 	public function test_search_comments_hides_comments_on_non_viewable_post_types() {
 		register_post_type(
 			'os_internal',
@@ -642,6 +739,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_hides_unreadable_targets_from_subscriber() {
 		$private_id     = self::factory()->post->create(
 			array( 'post_status' => 'private', 'post_title' => 'Secret roadmap' )
@@ -673,6 +773,9 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_search_build_entity
+	 */
 	public function test_build_entity_hides_unapproved_comments_from_non_moderators() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$pending = self::factory()->comment->create(

@@ -35,7 +35,6 @@ describe( '<os-key>', () => {
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter' } ) );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter' } ) );
 		expect( spy ).toHaveBeenCalledTimes( 1 );
-
 		document.dispatchEvent( new KeyboardEvent( 'keyup', { key: 'Enter' } ) );
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter' } ) );
 		expect( spy ).toHaveBeenCalledTimes( 2 );
@@ -47,7 +46,6 @@ describe( '<os-key>', () => {
 		const key = host.querySelector( 'os-key' )! as HTMLElement;
 		const spy = vi.fn();
 		key.addEventListener( 'os-key', spy );
-
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: '7', ctrlKey: true } ),
 		);
@@ -60,10 +58,8 @@ describe( '<os-key>', () => {
 		const key = host.querySelector( 'os-key' )! as HTMLElement;
 		const spy = vi.fn();
 		key.addEventListener( 'os-key', spy );
-
 		document.dispatchEvent( new KeyboardEvent( 'keydown', { key: '7' } ) );
 		expect( spy ).not.toHaveBeenCalled();
-
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: '7', ctrlKey: true } ),
 		);
@@ -93,12 +89,10 @@ describe( '<os-key>', () => {
 		const key = host.querySelector( 'os-key' )! as HTMLElement;
 		const spy = vi.fn();
 		key.addEventListener( 'os-key', spy );
-
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: '+', code: 'Equal' } ),
 		);
 		expect( spy ).not.toHaveBeenCalled();
-
 		document.dispatchEvent(
 			new KeyboardEvent( 'keydown', { key: 'whatever', code: 'NumpadAdd' } ),
 		);

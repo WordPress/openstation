@@ -310,7 +310,7 @@
 				return __( 'Trunk (bleeding edge)' );
 			}
 			if ( 'pr' === current.source ) {
-
+				/* translators: %s: pull request number */
 				return __( 'Pull request #' ) + current.id;
 			}
 			return current.source;

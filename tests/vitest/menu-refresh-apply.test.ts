@@ -25,7 +25,6 @@ function makeDock( hasItems = true ): FakeDock {
 }
 
 function makeConfig(): DesktopConfig {
-
 	return {
 		dockItems: [],
 		nativeWindows: [],
@@ -195,7 +194,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( syncs.nativeWindows ).toHaveBeenCalledWith( [
 			expect.objectContaining( { id: 'calc', scriptUrl: '' } ),
 		] );
-
 		expect( config.nativeWindowScriptData ).toEqual( scriptData );
 		expect( syncs.widgets ).toHaveBeenCalledWith( widgets );
 		expect( syncs.wallpapers ).toHaveBeenCalledWith( wallpapers );
@@ -266,7 +264,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 
 		test( 'deactivation: an empty icon list re-renders to clear the grid', () => {
 			const { deps, renderIcons, config } = makeDeps();
-
 			config.desktopIcons = [
 				{ id: 'jorvy', title: 'Jorvy', icon: 'dashicons-star-filled' },
 			] as DesktopConfig[ 'desktopIcons' ];
@@ -280,7 +277,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		} );
 
 		test( 'the dispatcher and the files-layer sync both learn about new icons', () => {
-
 			const calls: string[] = [];
 			const applyDesktopIcons = vi.fn( () => {
 				calls.push( 'applyDesktopIcons' );
@@ -297,7 +293,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			apply( { dockItems: [ ...MIN_DOCK ], desktopIcons: icons } );
 
 			expect( applyDesktopIcons ).toHaveBeenCalledWith( icons );
-
 			expect( calls[ calls.length - 1 ] ).toBe( 'syncShortcuts' );
 			expect(
 				calls.indexOf( 'applyDesktopIcons' ),
@@ -305,7 +300,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		} );
 
 		test( 'a changed icon id-set triggers the root-placements refetch', () => {
-
 			const refreshRootPlacements = vi.fn();
 			const { deps, config } = makeDeps( { refreshRootPlacements } );
 			const apply = createApplyPayload( deps );
@@ -317,7 +311,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 				],
 			} );
 			expect( refreshRootPlacements ).toHaveBeenCalledTimes( 1 );
-
 			expect( refreshRootPlacements ).toHaveBeenLastCalledWith( [ 'jorvy' ] );
 
 			apply( {
@@ -510,7 +503,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	} );
 
 	test( 'serverTitleBarButtonScripts: live-refresh contract', () => {
-
 		const { deps, syncs, config } = makeDeps();
 		const apply = createApplyPayload( deps );
 
@@ -525,7 +517,6 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	} );
 
 	test( 'serverWindowActionScripts: live-refresh contract', () => {
-
 		const { deps, syncs, config } = makeDeps();
 		const apply = createApplyPayload( deps );
 
@@ -665,7 +656,6 @@ describe( 'menu-refresh-apply.createApplyPayload — end-to-end with real Dock',
 	} );
 
 	test( 'system tiles survive a menu-derived replaceItems', () => {
-
 		const { dock, dockEl, desktopArea, config } = buildShell();
 		const apply = createApplyPayload(
 			makeNoopDeps( dock, desktopArea, config ),

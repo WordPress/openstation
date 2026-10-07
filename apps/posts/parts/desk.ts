@@ -29,7 +29,7 @@ export function pageLocation( row: PostListItem, rows: PostListItem[] ): string 
 		return __( 'Top-level page' );
 	}
 	const parent = rows.find( ( item ) => item.id === row.parent );
-	return parent ? titleOf( parent ) : sprintf( __( 'Parent page #%d' ), row.parent );
+	return parent ? titleOf( parent ) : sprintf( /* translators: %d: parent page ID. */ __( 'Parent page #%d' ), row.parent );
 }
 
 function edit( ctx: Ctx, row: PostListItem ): void {
@@ -101,12 +101,12 @@ export function deskTools( ctx: Ctx, ui: DeskState ): TemplateResult {
 
 function contentId( ctx: Ctx, row: PostListItem ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
-	const label = sprintf( pages ? __( 'Copy page ID %d' ) : __( 'Copy post ID %d' ), row.id );
+	const label = sprintf( /* translators: %d: content ID. */ pages ? __( 'Copy page ID %d' ) : __( 'Copy post ID %d' ), row.id );
 	return html`<os-button variant="ghost" class="os-posts-desk__id" title=${ label } @click=${ async ( e: Event ) => {
 		e.stopPropagation();
 		const copied = await copyText( String( row.id ) );
 		const message = copied
-			? sprintf( pages ? __( 'Copied page ID #%d.' ) : __( 'Copied post ID #%d.' ), row.id )
+			? sprintf( /* translators: %d: content ID. */ pages ? __( 'Copied page ID #%d.' ) : __( 'Copied post ID #%d.' ), row.id )
 			: __( 'Couldn’t copy the ID. Please try again.' );
 		ctx.host.toast?.( { message } );
 	} }><span class="screen-reader-text">${ label }</span><span aria-hidden="true">#${ row.id }</span><span class="dashicons dashicons-admin-page" aria-hidden="true"></span></os-button>`;
@@ -150,7 +150,7 @@ function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | un
 			${ status( row ) }
 			${ role ? html`<span class="os-posts-desk__role">${ role }</span>` : '' }
 			${ contentId( ctx, row ) }
-			<os-checkbox aria-label=${ sprintf( __( 'Select %s' ), title ) }
+			<os-checkbox aria-label=${ sprintf( /* translators: %s: content title. */ __( 'Select %s' ), title ) }
 				class="os-posts-desk__select" ?checked=${ tableOf( ctx )?.selection.has( row.id ) ?? false }
 				@os-checkbox-change=${ ( e: Event ) => {
  if ( ( e as CustomEvent ).detail.checked ) {
@@ -176,7 +176,7 @@ function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | un
 			${ ! pages ? html`<os-stat value=${ String( row.tags?.length ?? 0 ) } label=${ __( 'Tags' ) }></os-stat>` : '' }
 			${ extras.map( ( col ) => pluginStat( col, row ) ) }
 		</div>
-		${ row.openstation_lock ? html`<p class="os-posts-desk__lock"><span class="dashicons dashicons-lock" aria-hidden="true"></span>${ sprintf( __( '%s is editing' ), row.openstation_lock.userName ) }</p>` : '' }
+		${ row.openstation_lock ? html`<p class="os-posts-desk__lock"><span class="dashicons dashicons-lock" aria-hidden="true"></span>${ sprintf( /* translators: %s: person editing. */ __( '%s is editing' ), row.openstation_lock.userName ) }</p>` : '' }
 		<footer class="os-posts-desk__story-foot">
 			<span class="os-posts-desk__byline">${ authorOf( row ).name }<span aria-hidden="true"> · </span><os-relative-time datetime=${ row.modified_gmt || row.date_gmt }></os-relative-time></span>
 			<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
@@ -192,7 +192,6 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 	const key = JSON.stringify( [ row, Array.from( hidden ) ] );
 	if ( key !== ui.inspectorKey ) {
 		ui.inspectorKey = key;
-
 		ui.fields = buildColumns( env, new Map(), filters, false, hidden ).filter( ( col ) => ! [ 'title', 'author', 'date' ].includes( col.key ) ).map( ( col ) => ( {
 			key: col.key, label: col.label || col.key, node: col.render ? col.render( row[ col.key ], row, 0 ) : String( row[ col.key ] ?? '—' ),
 		} ) );
@@ -222,7 +221,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 			${ status( row ) }
 			<h2>${ titleOf( row ) || __( '(no title)' ) }</h2>
 			<p class="os-posts-desk__byline">${ authorOf( row ).name }</p>
-			${ row.openstation_lock ? html`<os-notice tone="warning">${ sprintf( __( '%s is currently editing' ), row.openstation_lock.userName ) }</os-notice>` : '' }
+			${ row.openstation_lock ? html`<os-notice tone="warning">${ sprintf( /* translators: %s: person editing. */ __( '%s is currently editing' ), row.openstation_lock.userName ) }</os-notice>` : '' }
 			<p class="os-posts-desk__preview">${ excerptOf( row ) || __( 'No excerpt yet.' ) }</p>
 			<os-facts layout="between" class="os-posts-desk__dates"><os-fact label=${ row.status === 'future' ? __( 'Scheduled for' ) : __( 'Date' ) }><os-relative-time datetime=${ row.date_gmt || row.date }></os-relative-time></os-fact><os-fact label=${ __( 'Last edited' ) }><os-relative-time datetime=${ row.modified_gmt || row.modified }></os-relative-time></os-fact></os-facts>
 			<div class="os-posts-desk__fields">${ ui.fields.map( ( field ) => html`<section data-detail-field=${ field.key }><h3>${ field.label }</h3>${ field.node }</section>` ) }</div>
@@ -237,7 +236,6 @@ export function renderDesk( ctx: Ctx, ui: DeskState, env: CellEnv, filters: Colu
 	const emptyTitle = ctx.extra.mode === 'pages' ? __( 'No pages found.' ) : __( 'No posts found.' );
 	const rows = ctx.data?.list.items ?? [];
 	const focused = rows.find( ( row ) => row.id === ui.focused ) ?? rows[ 0 ];
-
 	const extras = rows.length ? pluginColumns( env, filters, hidden ) : [];
 	return html`<div class="os-posts-desk__workspace ${ ui.focused !== null && focused ? 'has-detail' : '' }" ?hidden=${ ui.view !== 'desk' }>
 		<div class="os-posts-desk__feed" aria-label=${ ctx.extra.mode === 'pages' ? __( 'Page directory' ) : __( 'Stories' ) }>

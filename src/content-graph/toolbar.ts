@@ -13,7 +13,6 @@ const GROUP_NONE = 'none';
 
 export interface ToolbarHandle {
 	setStatus: ( text: string ) => void;
-
 	updateCounts: ( types: PostTypeDescriptor[] ) => void;
 	destroy: () => void;
 }
@@ -109,7 +108,6 @@ export function renderToolbar(
 		}
 		dropdown.hidden = matches.length === 0;
 	};
-
 	searchInput.addEventListener( 'os-input-change', handleSearchInput );
 	searchInput.addEventListener( 'focusin', handleSearchInput );
 	searchInput.addEventListener( 'focusout', () => {
@@ -143,7 +141,6 @@ export function renderToolbar(
 			raw === GROUP_NONE ? null : ( raw as GroupFacet );
 		callbacks.onGroupChange( facet );
 	} );
-
 	host.insertBefore( groupBy, searchWrap );
 
 	const actions = document.createElement( 'div' );

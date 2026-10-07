@@ -36,7 +36,6 @@ describe( 'inkfall/matching.ts', () => {
 			kind: 'typo',
 			targetId: 1,
 		} );
-
 		expect( matcher.handleKey( 'o', live ) ).toEqual( {
 			kind: 'advanced',
 			targetId: 1,
@@ -47,7 +46,6 @@ describe( 'inkfall/matching.ts', () => {
 			kind: 'completed',
 			targetId: 1,
 		} );
-
 		expect( matcher.state().targetId ).toBeNull();
 	} );
 
@@ -58,7 +56,6 @@ describe( 'inkfall/matching.ts', () => {
 		matcher.handleKey( 'a', live );
 		matcher.handleBackspace();
 		expect( matcher.state() ).toEqual( { targetId: 1, matchedCount: 1 } );
-
 		matcher.handleBackspace();
 		expect( matcher.state() ).toEqual( { targetId: 1, matchedCount: 1 } );
 	} );
@@ -73,7 +70,6 @@ describe( 'inkfall/matching.ts', () => {
 	test( 'a vanished locked word retargets the keystroke', () => {
 		const matcher = createMatcher();
 		matcher.handleKey( 's', words( [ 1, 'sun', 40 ], [ 2, 'ink', 90 ] ) );
-
 		const result = matcher.handleKey( 'i', words( [ 2, 'ink', 90 ] ) );
 		expect( result ).toEqual( { kind: 'locked', targetId: 2, matchedCount: 1 } );
 	} );

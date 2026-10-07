@@ -45,7 +45,6 @@ export const styles = css`
 		color: var( --os-ui-notice-link, var( --wp-admin-theme-color, #2271b1 ) );
 		border-radius: 2px;
 	}
-
 	::slotted( a:hover ),
 	::slotted( a:focus-visible ) {
 		color: var(

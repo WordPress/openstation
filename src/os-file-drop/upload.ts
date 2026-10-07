@@ -59,7 +59,6 @@ export async function uploadFile(
 		xhr.responseType = 'text';
 
 		let aborted = false;
-
 		let bodyFullySent = false;
 		let cancelRequested = false;
 		const abort = (): void => {
@@ -71,7 +70,6 @@ export async function uploadFile(
 			try {
 				xhr.abort();
 			} catch {
-
 			}
 		};
 
@@ -111,7 +109,6 @@ export async function uploadFile(
 			}
 			const error = new Error( 'Network error during upload.' );
 			doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-
 				file: filtered.file,
 				error,
 				context: args.context,
@@ -122,7 +119,6 @@ export async function uploadFile(
 		xhr.addEventListener( 'abort', () => {
 			const error = new UploadAbortedError();
 			doAction( FILE_DROP_HOOKS.UPLOAD_FAILED, {
-
 				file: filtered.file,
 				error,
 				context: args.context,
@@ -167,7 +163,6 @@ export async function uploadFile(
 				reject( error );
 				return;
 			}
-
 			if ( cancelRequested && data.id ) {
 				void deleteAttachment(
 					args.mediaUrl,
@@ -230,6 +225,7 @@ function deleteAttachment(
 	return new Promise( ( resolve ) => {
 		cleanup.addEventListener( 'loadend', () => {
 			if ( cleanup.status < 200 || cleanup.status >= 300 ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[os-file-drop] late-cancel cleanup failed for attachment ${ id } (HTTP ${ cleanup.status }). The attachment remains in the Media Library; delete it manually.`,
 				);
@@ -237,6 +233,7 @@ function deleteAttachment(
 			resolve();
 		} );
 		cleanup.addEventListener( 'error', () => {
+			// eslint-disable-next-line no-console
 			console.warn(
 				`[os-file-drop] late-cancel cleanup network error for attachment ${ id }. The attachment remains in the Media Library; delete it manually.`,
 			);
@@ -245,6 +242,7 @@ function deleteAttachment(
 		try {
 			cleanup.send();
 		} catch ( err ) {
+			// eslint-disable-next-line no-console
 			console.warn(
 				`[os-file-drop] late-cancel cleanup could not be dispatched for attachment ${ id }:`,
 				err,
@@ -266,7 +264,6 @@ function extractXhrMessage( xhr: XMLHttpRequest ): string {
 			return data.message;
 		}
 	} catch {
-
 	}
 	return fallback;
 }

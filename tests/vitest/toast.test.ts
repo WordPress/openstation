@@ -4,7 +4,6 @@ import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 describe( 'toast.ts', () => {
 	beforeEach( () => {
-
 		installHooksStub();
 		document.body.innerHTML = '';
 		vi.useFakeTimers();
@@ -67,7 +66,6 @@ describe( 'toast.ts', () => {
 		const container = document.querySelector( 'os-toast-container' )!;
 		vi.advanceTimersByTime( 400 );
 		expect( container.querySelectorAll( 'os-toast' ) ).toHaveLength( 1 );
-
 		vi.advanceTimersByTime( 400 );
 		expect( container.querySelectorAll( 'os-toast' ) ).toHaveLength( 0 );
 	} );
@@ -83,7 +81,6 @@ describe( 'toast.ts', () => {
 				},
 			},
 		} );
-
 		vi.useRealTimers();
 		await Promise.resolve();
 		vi.useFakeTimers();
@@ -107,7 +104,6 @@ describe( 'toast.ts', () => {
 	test( 'persistent toast does not auto-dismiss', () => {
 		showToast( { message: 'stays', persistent: true } );
 		const container = document.querySelector( 'os-toast-container' )!;
-
 		vi.advanceTimersByTime( 60000 );
 		expect( container.querySelectorAll( 'os-toast' ) ).toHaveLength( 1 );
 	} );
@@ -122,7 +118,6 @@ describe( 'toast.ts', () => {
 				dismissed = true;
 			},
 		} );
-
 		vi.useRealTimers();
 		await Promise.resolve();
 		vi.useFakeTimers();
@@ -161,7 +156,6 @@ describe( 'toast.ts', () => {
 
 		toast.dispatchEvent( new Event( 'mouseleave' ) );
 		expect( toast.hasAttribute( 'held' ) ).toBe( false );
-
 		vi.advanceTimersByTime( 1000 );
 		expect( document.querySelectorAll( 'os-toast' ) ).toHaveLength( 1 );
 		vi.advanceTimersByTime( 200 + 200 );
@@ -219,7 +213,6 @@ describe( 'toast.ts', () => {
 			persistent: true,
 			action: { label: 'Undo', onClick: () => undefined },
 		} );
-
 		vi.useRealTimers();
 		await Promise.resolve();
 		vi.useFakeTimers();
@@ -230,7 +223,6 @@ describe( 'toast.ts', () => {
 		expect( document.activeElement ).toBe( toast );
 
 		button.click();
-
 		expect( document.activeElement ).toBe( opener );
 	} );
 

@@ -115,9 +115,9 @@ function buildRow(
 			return;
 		}
 		const merged = { ...getUserAssociations(), [ typeSlug ]: next };
-
 		setUserAssociations( merged );
 		void saveAssociations( merged ).catch( ( err: unknown ) => {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation] saveAssociations failed:', err );
 		} );
 	} );

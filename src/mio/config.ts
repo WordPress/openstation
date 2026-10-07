@@ -9,53 +9,36 @@ import type {
 export const MIO_DEFAULTS: MioConfig = {
 	appearance: {
 		radius: 56,
-
 		bodyColor: 0x0c0b0f,
 		bodyAlpha: 1,
-
 		hueStart: 296.5,
 		hueSpan: -52.5,
 		hueAngle: 225,
-
 		hueDrift: 0,
 		hueSpin: 0,
 		hueLoop: true,
-
 		saturation: 1,
-
 		lightness: 0.75,
-
 		iridescence: 0,
-
 		outlineWidth: 4,
-
 		linerWidth: 2,
-
 		linerColor: 0xfffbff,
-
 		glow: 10,
 		glowBlur: true,
-
 		eyeColor: 0xfffbff,
 		eyeScale: 0.3,
 	},
 	physics: {
-
 		points: 12,
-
 		shapePreset: 'blob',
-
 		shapeLobes: 3,
 		shapeAmount: 1,
 		shapeAngle: 0,
-
 		shapeShuffle: 60,
-
 		radialStiffness: 460,
 		edgeStiffness: 540,
 		bendStiffness: 170,
 		pressure: 2400,
-
 		damping: 9,
 		airDamping: 0.5,
 		magnetStrength: 2200,
@@ -93,9 +76,7 @@ const LIMITS = {
 	lightness: [ 0.15, 1 ],
 	iridescence: [ 0, 2 ],
 	outlineWidth: [ 0.5, 24 ],
-
 	linerWidth: [ 0, 12 ],
-
 	glow: [ 0, 20 ],
 	eyeScale: [ 0.05, 0.6 ],
 	points: [ 12, 128 ],
@@ -236,10 +217,8 @@ export function sanitizeMioConfig(
 	};
 
 	const physics: MioPhysics = {
-
 		points: Math.round( num( p.points, base.physics.points, LIMITS.points ) ),
 		shapePreset: preset( p.shapePreset, base.physics.shapePreset ),
-
 		shapeLobes: Math.round(
 			num( p.shapeLobes, base.physics.shapeLobes, LIMITS.shapeLobes ),
 		),
@@ -321,7 +300,6 @@ export function sanitizeMioConfig(
 			LIMITS.dragStiffness,
 		),
 		throwBoost: num( p.throwBoost, base.physics.throwBoost, LIMITS.throwBoost ),
-
 		minStretch: num( p.minStretch, base.physics.minStretch, LIMITS.minStretch ),
 		maxStretch: num( p.maxStretch, base.physics.maxStretch, LIMITS.maxStretch ),
 		minAngularGap: num(

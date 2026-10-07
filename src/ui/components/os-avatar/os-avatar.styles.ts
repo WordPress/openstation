@@ -9,9 +9,7 @@ export const avatarStyles = css`
 		flex: 0 0 auto;
 		vertical-align: middle;
 		line-height: 0;
-
 		perspective: calc( var( --os-ui-avatar-size, 32px ) * 8 );
-
 		--os-ui-avatar-tilt-x: 0deg;
 		--os-ui-avatar-tilt-y: 0deg;
 		--os-ui-avatar-hover: 0;
@@ -34,10 +32,8 @@ export const avatarStyles = css`
 		align-items: center;
 		justify-content: center;
 		font-weight: 700;
-
 		font-size: calc( var( --os-ui-avatar-size, 32px ) * 0.48 );
 		line-height: 1;
-
 		letter-spacing: 0;
 		font-feature-settings: 'tnum' 1;
 		user-select: none;
@@ -56,7 +52,6 @@ export const avatarStyles = css`
 			0 calc( 1px + var( --os-ui-avatar-hover ) * 8px )
 				calc( 6px + var( --os-ui-avatar-hover ) * 18px )
 				rgba( 0, 0, 0, calc( 0.08 + 0.18 * var( --os-ui-avatar-hover ) ) );
-
 	}
 
 	.os-avatar__tile::after {
@@ -80,7 +75,6 @@ export const avatarStyles = css`
 		position: absolute;
 		inset: calc( var( --os-ui-avatar-hover ) * -3px );
 		border-radius: 50%;
-
 		background: radial-gradient(
 			circle at var( --os-ui-avatar-glare-x ) var( --os-ui-avatar-glare-y ),
 			color-mix(
@@ -100,13 +94,11 @@ export const avatarStyles = css`
 	}
 
 	.os-avatar__tile img {
-
 		width: calc( 100% + 2px );
 		height: calc( 100% + 2px );
 		margin: -1px;
 		object-fit: cover;
 		display: block;
-
 		transform: translateZ( 1px );
 	}
 
@@ -122,7 +114,6 @@ export const avatarStyles = css`
 		box-sizing: border-box;
 		border: 2px solid var( --os-ui-avatar-dot-ring, var( --os-window-bg, #fff ) );
 		background: var( --os-ui-avatar-dot-color, transparent );
-
 		z-index: 2;
 	}
 
@@ -165,7 +156,6 @@ export const avatarStyles = css`
 	}
 
 	@media ( prefers-reduced-motion: reduce ) {
-
 		.os-avatar__dot--online::after {
 			animation: none;
 			opacity: 0.6;

@@ -9,9 +9,7 @@ import {
 import type { DesktopThemeEntry } from './types';
 
 const LINK_ID = 'os-desktop-theme-css';
-
 const INLINE_ID = 'os-desktop-theme-inline-css';
-
 const OWNED_ATTR = 'data-os-desktop-theme-css';
 
 export const DESKTOP_THEME_CHANGED_EVENT = 'os-desktop-theme-changed';
@@ -103,7 +101,6 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 
 	const requested = typeof themeId === 'string' ? themeId.trim() : '';
 	const theme = requested === '' ? null : getDesktopTheme( requested );
-
 	const nextId = theme ? theme.slug : null;
 
 	if ( nextId === previous ) {
@@ -159,7 +156,7 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 								persistent: true,
 								dismissible: true,
 							} );
-
+							// eslint-disable-next-line no-console -- the toast says what happened; this says why.
 							console.warn(
 								'[openstation] desktop theme stylesheet failed to load',
 								err,
@@ -175,7 +172,6 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 		applyBodyClass( theme.slug );
 		store.setState( {
 			activeId: theme.slug,
-
 			activeIcons: theme.icons,
 			activeIconColors: theme.iconColors,
 		} );

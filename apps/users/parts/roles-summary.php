@@ -1,5 +1,4 @@
 <?php
-
 defined( 'ABSPATH' ) || exit;
 
 function openstation_users_window_roles_summary() {
@@ -14,7 +13,6 @@ function openstation_users_window_roles_summary() {
 	$matches       = array();
 	$count_matches = array();
 	foreach ( array_keys( $roles ) as $role ) {
-
 		$pattern                = '%' . $wpdb->esc_like( 's:' . strlen( $role ) . ':"' . $role . '";' ) . '%';
 		$count_matches[ $role ] = $wpdb->prepare( 'caps.meta_value LIKE %s', $pattern );
 		$matches[ $role ]       = $wpdb->prepare( "EXISTS (SELECT 1 FROM {$wpdb->usermeta} caps WHERE caps.user_id = u.ID AND caps.meta_key = %s AND caps.meta_value LIKE %s)", $cap_key, $pattern );
@@ -36,17 +34,15 @@ function openstation_users_window_roles_summary() {
 		++$index;
 	}
 	$join_key = $wpdb->prepare( '%s', $cap_key );
-
 	$branches = array( 'SELECT NULL AS role, COUNT(DISTINCT u.ID) AS total, NULL AS id, NULL AS name, NULL AS slug, NULL AS email, ' . implode( ', ', $columns ) . " FROM {$wpdb->users} u LEFT JOIN {$wpdb->usermeta} caps ON caps.user_id = u.ID AND caps.meta_key = {$join_key} WHERE {$scope}" );
 	$sample   = 0;
 	foreach ( $matches as $role => $predicate ) {
 		$role_sql = $wpdb->prepare( '%s', $role );
-
 		$branches[] = "SELECT * FROM (SELECT {$role_sql} AS role, NULL AS total, u.ID AS id, u.display_name AS name, u.user_nicename AS slug, u.user_email AS email, " . implode( ', ', $empty_columns ) . " FROM {$wpdb->users} u WHERE {$scope} AND {$predicate} ORDER BY u.display_name, u.ID LIMIT 8) AS sample_{$sample}";
 		++$sample;
 	}
 	$sql = implode( ' UNION ALL ', $branches );
-
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- All values are prepared above; identifiers are trusted wpdb table names.
 	$rows = $wpdb->get_results( $sql, ARRAY_A );
 	if ( null === $rows || $wpdb->last_error ) {
 		return new WP_Error( 'openstation_users_roles_failed', __( 'Role groups could not be loaded. Please try again.', 'desktop-mode' ), array( 'status' => 500 ) );
@@ -79,7 +75,6 @@ function openstation_users_window_roles_summary() {
 			);
 		}
 	}
-
 	if ( 0 === $groups['']['total'] ) {
 		unset( $groups[''] );
 	}
@@ -91,7 +86,6 @@ function openstation_users_window_roles_summary() {
 			return 0 !== $by_count ? $by_count : strcmp( $a['role'], $b['role'] );
 		}
 	);
-
 	return apply_filters(
 		'openstation_users_window_roles_summary',
 		array(

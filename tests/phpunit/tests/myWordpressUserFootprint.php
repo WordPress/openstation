@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -67,6 +70,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		return wp_list_pluck( $response->get_data()['timeline'], 'postId' );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_contributor_does_not_see_unpublished_titles_in_timeline() {
 		wp_set_current_user( self::$contributor_id );
 
@@ -79,6 +85,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertNotContains( $this->private_id, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_privileged_viewers_keep_unpublished_rows() {
 		wp_set_current_user( self::$admin_id );
 		$ids = $this->timeline_post_ids( $this->dispatch_footprint( self::$author_id ) );
@@ -91,6 +100,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertContains( $this->private_id, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_comment_on_unreadable_draft_is_dropped_from_timeline() {
 		$admins_draft = self::factory()->post->create(
 			array(
@@ -116,8 +128,10 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertContains( $admins_draft, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_update_rows_on_unreadable_drafts_are_dropped() {
-
 		$draft = self::factory()->post->create(
 			array(
 				'post_author'   => self::$author_id,
@@ -146,6 +160,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertContains( $draft, wp_list_pluck( $updates, 'postId' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_contributor_totals_count_published_only() {
 		self::factory()->post->create(
 			array(
@@ -178,6 +195,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertSame( 1, $totals['pages'], 'A draft page must not be counted.' );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_privileged_viewer_totals_include_unpublished() {
 		wp_set_current_user( self::$admin_id );
 		$totals = $this->dispatch_footprint( self::$author_id )->get_data()['totals'];
@@ -185,6 +205,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertSame( 3, $totals['posts'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_subject_sees_own_unpublished_totals() {
 		wp_set_current_user( self::$author_id );
 		$totals = $this->dispatch_footprint( self::$author_id )->get_data()['totals'];
@@ -192,6 +215,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertSame( 3, $totals['posts'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_update_counts_exclude_unreadable_parents() {
 		$draft = self::factory()->post->create(
 			array(
@@ -232,6 +258,10 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		return array_values( wp_list_pluck( wp_list_filter( $data['timeline'], array( 'kind' => $kind ) ), 'postId' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_footprint_visible_counts
+	 */
 	public function test_editor_counts_agree_with_the_rows_they_can_read() {
 		$draft = self::factory()->post->create(
 			array(
@@ -256,7 +286,6 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$post_rows = $this->timeline_ids_of_kind( $data, 'post' );
 		$this->assertContains( $this->draft_id, $post_rows );
 		$this->assertContains( $this->private_id, $post_rows );
-
 		$this->assertSame( 4, $data['totals']['posts'] );
 
 		$this->assertContains( $draft, $this->timeline_ids_of_kind( $data, 'post-update' ) );
@@ -269,6 +298,10 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertSame( 0, $data['totals']['updates'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_footprint_can_see_post
+	 */
 	public function test_updates_to_a_non_viewable_type_stay_with_viewers_who_can_edit_it() {
 		register_post_type(
 			'dm_fp_internal',
@@ -308,6 +341,10 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertContains( $record, $this->timeline_ids_of_kind( $data, 'post-update' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_my_wordpress_footprint_can_see_post
+	 */
 	public function test_comment_counts_follow_the_comment_row_gate() {
 		register_post_type(
 			'dm_fp_internal',
@@ -338,7 +375,6 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 					'post_status' => 'publish',
 				)
 			),
-
 			999999,
 		);
 		foreach ( $parents as $parent ) {
@@ -364,6 +400,9 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertCount( 5, $this->timeline_ids_of_kind( $data, 'comment' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_first_save_of_an_undated_draft_is_not_an_update() {
 		wp_set_current_user( self::$author_id );
 		$draft = self::factory()->post->create(
@@ -410,12 +449,17 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertContains( $draft, $this->timeline_ids_of_kind( $data, 'post-update' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_user_footprint_route
+	 */
 	public function test_logged_out_request_is_rejected() {
 		wp_set_current_user( 0 );
 		$response = $this->dispatch_footprint( self::$author_id );
 		$this->assertSame( 401, $response->get_status() );
 	}
-
+	/**
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 */
 	public function test_saves_before_a_scheduled_date_count_as_updates() {
 		wp_set_current_user( self::$author_id );
 		$in_a_week = gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS );
@@ -439,12 +483,15 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertSame( 'future', get_post_status( $scheduled ) );
 
 		$data = $this->dispatch_footprint( self::$author_id )->get_data();
-
 		$this->assertSame( 2, $data['totals']['updates'] );
 		$this->assertSame( 2, array_sum( wp_list_pluck( $data['daily'], 'updates' ) ) );
 		$this->assertContains( $scheduled, $this->timeline_ids_of_kind( $data, 'post-update' ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_footprint_visible_counts
+	 * @covers ::openstation_my_wordpress_footprint_can_see_post
+	 */
 	public function test_a_per_post_capability_filter_reaches_the_counts() {
 		$hidden = self::factory()->post->create(
 			array(
@@ -480,7 +527,6 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$post_rows = $this->timeline_ids_of_kind( $data, 'post' );
 		$this->assertNotContains( $hidden, $post_rows );
 		$this->assertContains( $this->draft_id, $post_rows );
-
 		$this->assertSame( 3, $data['totals']['posts'] );
 
 		$this->assertSame( array( $this->draft_id ), $this->timeline_ids_of_kind( $data, 'comment' ) );
@@ -488,11 +534,17 @@ class Tests_OpenStation_MyWordpressUserFootprint extends WP_UnitTestCase {
 		$this->assertSame( 1, array_sum( wp_list_pluck( $data['daily'], 'comments' ) ) );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_user_footprint_route
+	 */
 	public function test_subscriber_is_rejected_by_route() {
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertSame( 403, $this->dispatch_footprint( self::$author_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_user_footprint_route
+	 */
 	public function test_filter_narrowed_route_refuses_admins() {
 		add_filter( 'openstation_my_wordpress_user_can_use', '__return_false' );
 

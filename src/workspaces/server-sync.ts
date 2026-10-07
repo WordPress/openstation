@@ -42,7 +42,6 @@ function toPreset( entry: WorkspacePresetServerEntry ): WorkspacePreset {
 		color: entry.color || '',
 		apps: Array.isArray( entry.apps ) ? entry.apps.slice() : [],
 		widgets: Array.isArray( entry.widgets ) ? entry.widgets.slice() : [],
-
 		appearance: captureWorkspaceAppearance( entry.appearance ?? {} ),
 		windows: Array.isArray( entry.windows )
 			? entry.windows.map( ( w ) => ( { ...w } ) )

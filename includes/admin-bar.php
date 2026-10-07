@@ -65,7 +65,8 @@ function openstation_enqueue_toggle_assets() {
 			position: static;
 		}
 		@media screen and (max-width: 782px) {
-
+			/* WP core hides most admin-bar items on mobile. Force the toggle to
+			   stay visible so users can switch back to OpenStation/Classic. */
 			#wpadminbar #wp-admin-bar-os-toggle {
 				display: block;
 			}
@@ -86,16 +87,13 @@ function openstation_enqueue_toggle_assets() {
 		OPENSTATION_VERSION,
 		true
 	);
-
 	wp_add_inline_script(
 		'os-admin-bar',
 		'var openStationAdminBar = ' . wp_json_encode(
 			array(
 				'nonce'      => wp_create_nonce( 'save-openstation' ),
-
 				'classicUrl' => esc_url_raw( self_admin_url() ),
 				'portalUrl'  => esc_url_raw( openstation_portal_url() ),
-
 				'network'    => is_network_admin(),
 				'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
 

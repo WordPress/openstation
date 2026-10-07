@@ -7,7 +7,6 @@ const NAME = 'OpenStation';
 const root = join( dirname( fileURLToPath( import.meta.url ) ), '..' );
 
 if ( 'darwin' !== process.platform ) {
-
 	process.exit( 0 );
 }
 
@@ -32,7 +31,6 @@ function setKey( key, value ) {
 		] );
 		return true;
 	} catch {
-
 		try {
 			execFileSync( '/usr/libexec/PlistBuddy', [
 				'-c',

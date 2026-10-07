@@ -169,7 +169,6 @@ export class OsProgressBar extends Component {
 			this.setAttribute( 'aria-valuemax', String( max ) );
 			this.setAttribute( 'aria-valuenow', String( value ) );
 		}
-
 		const existing = this.getAttribute( 'aria-label' );
 		if ( label ) {
 			if ( existing === null || existing === this._ownedAriaLabel ) {
@@ -188,7 +187,6 @@ export class OsProgressBar extends Component {
 			return 100;
 		}
 		const raw = parseFloat( attr );
-
 		return Number.isFinite( raw ) ? raw : 100;
 	}
 

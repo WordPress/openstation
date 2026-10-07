@@ -39,7 +39,6 @@ function writeMap( map: StoredMap ): void {
 			JSON.stringify( map ),
 		);
 	} catch {
-
 	}
 }
 
@@ -243,6 +242,5 @@ export function __resetNativeWindowGeometryForTests(): void {
 	try {
 		window.localStorage.removeItem( NATIVE_GEOMETRY_STORAGE_KEY );
 	} catch {
-
 	}
 }

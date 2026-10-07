@@ -32,7 +32,6 @@ describe( 'showInlineLoader — the show delay', () => {
 	} );
 
 	it( 'never paints for a load that beat the delay', () => {
-
 		const loader = showInlineLoader( host );
 		loader.done();
 		vi.advanceTimersByTime( SHOW_DELAY_MS * 10 );
@@ -54,7 +53,6 @@ describe( 'showInlineLoader — the show delay', () => {
 
 describe( 'showInlineLoader — it appends, never replaces', () => {
 	it( 'keeps markup the caller already painted', () => {
-
 		const existing = document.createElement( 'p' );
 		existing.textContent = 'template';
 		host.appendChild( existing );
@@ -70,7 +68,6 @@ describe( 'showInlineLoader — it appends, never replaces', () => {
 
 describe( 'showInlineLoader — failure', () => {
 	it( 'paints the message even when the spinner never showed', () => {
-
 		const loader = showInlineLoader( host );
 		loader.fail( 'Preferences could not be loaded.' );
 		expect( root()?.textContent ).toContain(
@@ -125,7 +122,6 @@ describe( 'showInlineLoader — failure', () => {
 
 describe( 'showInlineLoader — the spinner it picks', () => {
 	it( 'falls back to inline markup when <os-spinner> would not upgrade', () => {
-
 		vi.spyOn( customElements, 'get' ).mockReturnValue( undefined );
 
 		showInlineLoader( host, { immediate: true } );
@@ -145,7 +141,6 @@ describe( 'showInlineLoader — the spinner it picks', () => {
 
 		const spinner = host.querySelector( 'os-spinner' );
 		expect( spinner ).not.toBeNull();
-
 		expect( spinner?.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
 		expect( spinner?.getAttribute( 'preset' ) ).toBe( 'inline' );
 	} );

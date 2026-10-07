@@ -91,7 +91,6 @@ export const styles = css`
 			width var( --_step ) var( --_ease ),
 			height var( --_step ) var( --_ease );
 	}
-
 	.card.swap {
 		animation: os-coachmark-swap 300ms var( --_ease );
 	}
@@ -105,7 +104,6 @@ export const styles = css`
 			transform: none;
 		}
 	}
-
 	.layer.leaving .card,
 	.layer.leaving .outline {
 		animation: os-coachmark-out 180ms ease forwards;
@@ -199,7 +197,6 @@ export const styles = css`
 	.actions os-button[hidden] {
 		display: none;
 	}
-
 	.actions os-button.primary {
 		--os-ui-button-bg: var( --_action-bg );
 		--os-ui-button-fg: var( --_action-fg );

@@ -4,11 +4,8 @@ defined( 'ABSPATH' ) || exit;
 
 function openstation_content_graph_icon_svg() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-
 		. '<path d="M14 16 32 32 52 18M32 32 40 49" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>'
-
 		. '<circle cx="32" cy="32" r="9" fill="currentColor"/>'
-
 		. '<circle cx="14" cy="16" r="5.5" fill="currentColor"/>'
 		. '<circle cx="52" cy="18" r="5.5" fill="currentColor"/>'
 		. '<circle cx="40" cy="49" r="5" fill="currentColor"/>'
@@ -25,7 +22,6 @@ function openstation_content_graph_post_types() {
 	$types  = get_post_types( array( 'public' => true ), 'objects' );
 	$result = array();
 	foreach ( $types as $type ) {
-
 		if ( 'attachment' === $type->name ) {
 			continue;
 		}
@@ -107,7 +103,6 @@ function openstation_content_graph_register_window() {
 			'editUserUrl'    => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'editCommentUrl' => esc_url_raw( admin_url( 'comment.php' ) ),
 			'mediaUrl'       => esc_url_raw( admin_url( 'upload.php' ) ),
-
 			'siteName'       => openstation_site_title(),
 			'postTypes'      => openstation_content_graph_post_types(),
 		),
@@ -117,7 +112,7 @@ function openstation_content_graph_register_window() {
 
 	$registered = openstation_register_window( 'desktop-mode-content-graph', $window_args );
 	if ( is_wp_error( $registered ) ) {
-
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Content Graph window registration failed: ' . $registered->get_error_message() );
 		return;
 	}

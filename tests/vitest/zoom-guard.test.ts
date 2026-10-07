@@ -73,6 +73,5 @@ describe( 'installZoomGuard', () => {
 		expect( fire( 'gesturestart' ).defaultPrevented ).toBe( false );
 		expect( fire( 'touchmove', { touches: [ {}, {} ] } ).defaultPrevented ).toBe( false );
 		expect( fire( 'wheel', { ctrlKey: true } ).defaultPrevented ).toBe( false );
-
 	} );
 } );

@@ -101,7 +101,6 @@ describe( 'WindowManager.focus() — argument guard', () => {
 
 		expect( b.isFocused() ).toBe( true );
 		expect( a.isFocused() ).toBe( false );
-
 		expect( warn ).not.toHaveBeenCalled();
 	} );
 
@@ -110,12 +109,11 @@ describe( 'WindowManager.focus() — argument guard', () => {
 		const b = await manager.open( cfg( 'b' ) );
 
 		expect( () =>
-
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			manager.focus( { id: 'fake' } as any ),
 		).not.toThrow();
 
 		expect( manager.getAll().map( ( w ) => w.id ) ).toEqual( [ 'a', 'b' ] );
-
 		expect( () => manager.focus( a ) ).not.toThrow();
 		expect( a.isFocused() ).toBe( true );
 		expect( () => manager.focus( b ) ).not.toThrow();
@@ -230,7 +228,6 @@ describe( 'Window — the opening class always comes off', () => {
 	} );
 
 	test( 'destroying the window cancels the pending deadline', async () => {
-
 		const setSpy = vi.spyOn( window, 'setTimeout' );
 		const win = await manager.open( cfg( 'a' ) );
 		const deadlineIds = setSpy.mock.results

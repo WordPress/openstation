@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-pwa
+ */
 class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 
 	public function tear_down() {
@@ -15,6 +18,9 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		return $attachment_id;
 	}
 
+	/**
+	 * @covers ::openstation_pwa_bundled_icon_url
+	 */
 	public function test_each_purpose_maps_to_its_own_file() {
 		$this->assertStringEndsWith(
 			'assets/pwa/icon-192.png',
@@ -30,6 +36,9 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_pwa_bundled_icon_url
+	 */
 	public function test_an_unknown_purpose_falls_back_to_the_plain_tile() {
 		$this->assertStringEndsWith(
 			'assets/pwa/icon-512.png',
@@ -37,6 +46,9 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_pwa_default_icons
+	 */
 	public function test_every_bundled_icon_exists_on_disk() {
 		foreach ( openstation_pwa_default_icons() as $icon ) {
 			$relative = str_replace( OPENSTATION_URL, '', $icon['src'] );
@@ -47,6 +59,9 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_pwa_default_icons
+	 */
 	public function test_the_bundled_set_declares_all_three_purposes() {
 		$purposes = array_unique(
 			wp_list_pluck( openstation_pwa_default_icons(), 'purpose' )
@@ -59,6 +74,9 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_pwa_default_icons
+	 */
 	public function test_the_installability_sizes_are_named_explicitly() {
 		$any = array_filter(
 			openstation_pwa_default_icons(),
@@ -72,6 +90,9 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		$this->assertContains( '512x512', $sizes );
 	}
 
+	/**
+	 * @covers ::openstation_pwa_default_icons
+	 */
 	public function test_a_site_icon_is_declared_any_and_only_any() {
 		$this->set_site_icon();
 
@@ -84,6 +105,9 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_pwa_apple_touch_icon_url
+	 */
 	public function test_apple_touch_icon_falls_back_to_the_bundled_tile() {
 		$this->assertStringEndsWith(
 			'assets/pwa/icon-180.png',
@@ -91,6 +115,9 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_pwa_apple_touch_icon_url
+	 */
 	public function test_apple_touch_icon_prefers_the_site_icon() {
 		$this->set_site_icon();
 
@@ -100,10 +127,12 @@ class Tests_OpenStation_PwaIcons extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_pwa_render_head_tags
+	 */
 	public function test_the_admin_head_carries_an_apple_touch_icon() {
 		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $user_id );
-
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 

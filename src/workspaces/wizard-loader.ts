@@ -37,7 +37,6 @@ function showPlaceholder(): void {
 	showSurfacePlaceholder( {
 		id: PLACEHOLDER_ID,
 		label: __( 'Opening the workspace wizard…' ),
-
 		onCancel: closeWorkspaceWizard,
 		layerStyle: [
 			'align-items:center',

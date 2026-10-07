@@ -1,7 +1,6 @@
 declare global {
-
+	// eslint-disable-next-line @typescript-eslint/no-shadow
 	interface Window {
-
 		openStationShellOverlays?: boolean;
 	}
 }

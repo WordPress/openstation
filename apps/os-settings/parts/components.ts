@@ -15,7 +15,6 @@ export interface ComponentEntry {
 	title: string;
 	help: OsHelp | null;
 	props: readonly string[];
-
 	haystack: string;
 }
 
@@ -55,17 +54,16 @@ export function collectEntries(): ComponentEntry[] {
 		const props = ctor.props ?? [];
 		entries.push( { tag, title, help, props, haystack: buildHaystack( tag, title, help, props ) } );
 	}
-
 	entries.sort( ( a, b ) => a.title.localeCompare( b.title ) );
 	return entries;
 }
 
 const WARNER_DEMO_SNIPPET = [
-	'                                                          ',
+	'<!-- 1 — invented name, nothing close in the registry. -->',
 	'<os-example-console-fail-due-to-unregistered-component>',
 	'</os-example-console-fail-due-to-unregistered-component>',
 	'',
-	'                                                     ',
+	'<!-- 2 — typo within edit distance of a real tag. -->',
 	'<os-buton></os-buton>',
 ].join( '\n' );
 
@@ -79,7 +77,7 @@ function logDemoBanner(): void {
 	const headingStyle =
 		'background: #ffb400;color: #1a1a1a;font-weight: 700;font-size: 12px;padding: 4px 8px;border-radius: 3px';
 	const bodyStyle = 'color: #b25c00;font-weight: 500';
-
+	// eslint-disable-next-line no-console
 	console.log(
 		'%c⚠ wp.os — INTENTIONAL DEMO%c\n' +
 			'The next two console.error entries are fired ON PURPOSE by the\n' +
@@ -210,7 +208,13 @@ const warnerDemo = () => html`
 			<pre class="os-settings__help-warner-code"><code>${ WARNER_DEMO_SNIPPET }</code></pre>
 		</div>
 	</os-disclosure>
-
+	<!--
+		The live copies. Real elements, because the warner watches the
+		document for tags nothing registered. Clipped rather than
+		display:none, and OUTSIDE the disclosure (a closed disclosure's
+		body is display:none), so the upgrade path runs exactly as it
+		would on a visible element.
+	-->
 	<div
 		class="os-settings__help-warner-demo"
 		aria-hidden="true"
@@ -304,6 +308,7 @@ export function afterComponentsRender( ctx: Ctx ): void {
 	try {
 		init( host );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( `[openstation] <${ tag }> exampleInit threw:`, err );
 	}
 }

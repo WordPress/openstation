@@ -59,7 +59,6 @@ beforeEach( async () => {
 	installHooksStub();
 	setBootFolders( undefined );
 	mods = await load();
-
 	mods.store.__resetFilesStoreForTests();
 	mods.titleBar.unregisterTitleBarButton( 'desktop-mode/folder-share' );
 } );
@@ -100,7 +99,6 @@ describe( 'boot-folder seeding', () => {
 	} );
 
 	test( 'the files entry point actually calls it on boot', async () => {
-
 		setBootFolders( [ folderRow( 3, OWNER ) ] );
 		await import( '../../src/desktop-files/index' );
 
@@ -120,7 +118,6 @@ describe( 'Share folder title-bar button', () => {
 	} );
 
 	test( 'without the seed the owner loses it — the reported regression', () => {
-
 		setBootFolders( undefined );
 		mods.share.installShareMenuItems();
 

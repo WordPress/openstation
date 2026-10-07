@@ -117,7 +117,6 @@ describe( 'single-dialog replace', () => {
 
 	test( 'a second drop replaces the open dialog batch instead of stacking', async () => {
 		const mod = await load();
-
 		void mod.openUploadDialog( {
 			...baseDialogArgs(),
 			entries: [ entry( 'a.txt', 'text/plain' ) ],

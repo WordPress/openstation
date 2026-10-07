@@ -13,7 +13,6 @@ function editable_post_types( Os $os ) {
 		if ( ! is_object( $type ) || 'attachment' === $type->name ) {
 			continue;
 		}
-
 		if ( ! in_array( $type->name, array( 'post', 'page' ), true ) && ! $type->public ) {
 			continue;
 		}
@@ -117,7 +116,7 @@ function missing_alt_count( Os $os ) {
 			'posts_per_page' => 1,
 			'fields'         => 'ids',
 			'no_found_rows'  => false,
-			'meta_query'     => array(
+			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- one bounded dashboard count, only for users who can remediate it.
 				'relation' => 'OR',
 				array(
 					'key'     => '_wp_attachment_image_alt',
@@ -200,7 +199,7 @@ function attention( $pending, $updates, $missing_alt ) {
 			'icon'        => 'dashicons-admin-comments',
 			'count'       => $pending,
 			'label'       => sprintf(
-
+				/* translators: %s: pending comment count. */
 				_n( '%s pending comment', '%s pending comments', $pending, 'desktop-mode' ),
 				number_format_i18n( $pending )
 			),
@@ -214,7 +213,7 @@ function attention( $pending, $updates, $missing_alt ) {
 			'icon'        => 'dashicons-update',
 			'count'       => $updates,
 			'label'       => sprintf(
-
+				/* translators: %s: update count. */
 				_n( '%s update available', '%s updates available', $updates, 'desktop-mode' ),
 				number_format_i18n( $updates )
 			),
@@ -228,7 +227,7 @@ function attention( $pending, $updates, $missing_alt ) {
 			'icon'        => 'dashicons-format-image',
 			'count'       => $missing_alt,
 			'label'       => sprintf(
-
+				/* translators: %s: image count. */
 				_n( '%s image needs alt text', '%s images need alt text', $missing_alt, 'desktop-mode' ),
 				number_format_i18n( $missing_alt )
 			),

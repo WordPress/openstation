@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-boot-payload-diet
+ */
 class Tests_OpenStation_BootPayloadDiet extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -13,7 +16,6 @@ class Tests_OpenStation_BootPayloadDiet extends WP_UnitTestCase {
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-
 		wp_scripts()->add_data( 'openstation', 'data', '' );
 	}
 
@@ -27,6 +29,9 @@ class Tests_OpenStation_BootPayloadDiet extends WP_UnitTestCase {
 		return (string) wp_scripts()->get_data( 'openstation', 'data' );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_boot_config_strips_template_html_the_page_already_prints() {
 		$registered = openstation_register_window(
 			'diet-window',
@@ -63,6 +68,9 @@ class Tests_OpenStation_BootPayloadDiet extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'diet-template-marker', $entry['templateHtml'] );
 	}
 
+	/**
+	 * @covers ::openstation_enqueue_assets
+	 */
 	public function test_boot_config_slims_desktop_theme_entries() {
 		openstation_register_desktop_theme(
 			'diet/theme',
@@ -93,6 +101,9 @@ class Tests_OpenStation_BootPayloadDiet extends WP_UnitTestCase {
 		$this->assertSame( '#123456', $full['tokens']['--os-window-bg'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_list_desktop_themes
+	 */
 	public function test_desktop_themes_get_route_serves_the_full_entries() {
 		openstation_register_desktop_theme(
 			'diet/theme',
@@ -120,6 +131,9 @@ class Tests_OpenStation_BootPayloadDiet extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'cssDeferred', $found, 'The route serves FULL entries — no deferral marker.' );
 	}
 
+	/**
+	 * @covers ::openstation_rest_list_desktop_themes
+	 */
 	public function test_desktop_themes_get_route_requires_the_shell() {
 		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber );

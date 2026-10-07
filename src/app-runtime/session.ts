@@ -29,13 +29,9 @@ export interface SessionDeps {
 	config: AppConfig;
 	windowId: string;
 	host: RuntimeHost;
-
 	view?: string;
-
 	params?: Record< string, string | number | boolean >;
-
 	signal?: AbortSignal;
-
 	client?: ClientApp;
 }
 
@@ -48,23 +44,16 @@ export interface Session {
 	readonly appId: string;
 	readonly windowId: string;
 	readonly view: string;
-
 	readonly state: Record< string, unknown >;
-
 	readonly data: unknown;
-
 	dispatch: (
 		action: string,
 		args?: Record< string, unknown >,
 		options?: DispatchOptions,
 	) => Promise< boolean >;
-
 	local: ( action: string, args?: Record< string, unknown > ) => void;
-
 	paintEagerly: () => boolean;
-
 	setPaused: ( paused: boolean ) => void;
-
 	setParams: ( params: Record< string, string | number | boolean > ) => void;
 	dispose: () => void;
 }
@@ -85,7 +74,7 @@ function warnOnce( key: string, message: string ): void {
 		return;
 	}
 	warnedOnce.add( key );
-
+	// eslint-disable-next-line no-console
 	console.warn( message );
 }
 
@@ -96,9 +85,7 @@ export function createSession( deps: SessionDeps ): Session {
 
 	let state: Record< string, unknown > = { ...config.state };
 	let data: unknown;
-
 	let loading = false;
-
 	let clientTeardown: ( () => void ) | null | undefined;
 	let disposed = false;
 	let paused = false;
@@ -151,14 +138,13 @@ export function createSession( deps: SessionDeps ): Session {
 		if ( disposed ) {
 			return false;
 		}
-
+		// eslint-disable-next-line @wordpress/no-unused-vars-before-return -- the trace must clock the WHOLE dispatch; the guards above return before any work exists to time.
 		const startedAt = Date.now();
 		inFlight++;
 		root.setAttribute( 'aria-busy', 'true' );
 		if ( trigger && trigger.tagName.toLowerCase() === 'os-button' ) {
 			trigger.setAttribute( 'busy', '' );
 		}
-
 		const sentState = state;
 		try {
 			if ( action === 'mount' && view === 'main' && Object.keys( params ).length === 0 ) {
@@ -224,17 +210,17 @@ export function createSession( deps: SessionDeps ): Session {
 			apply( payload, sentState );
 			if ( debugging() ) {
 				const changed = Object.keys( state ).filter( ( key ) => state[ key ] !== sentState[ key ] );
-
+				// eslint-disable-next-line no-console
 				console.groupCollapsed(
 					`[openstation:${ config.id }] ${ action } · ${ Date.now() - startedAt }ms`,
 				);
-
+				// eslint-disable-next-line no-console
 				console.log( 'args', args );
-
+				// eslint-disable-next-line no-console
 				console.log( 'state Δ', changed, changed.length > 0 ? Object.fromEntries( changed.map( ( key ) => [ key, state[ key ] ] ) ) : '' );
-
+				// eslint-disable-next-line no-console
 				console.log( 'effects', payload.effects ?? [] );
-
+				// eslint-disable-next-line no-console
 				console.groupEnd();
 			}
 			return true;
@@ -243,6 +229,7 @@ export function createSession( deps: SessionDeps ): Session {
 				return false;
 			}
 			if ( debugging() ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation:${ config.id }] ${ action } FAILED after ${ Date.now() - startedAt }ms:`,
 					err,
@@ -286,7 +273,6 @@ export function createSession( deps: SessionDeps ): Session {
 				return false;
 			}
 		}
-
 		const run = chain.then( () => send( action, args, options.trigger ?? null ) );
 		chain = run.catch( () => undefined );
 		return run;
@@ -313,7 +299,6 @@ export function createSession( deps: SessionDeps ): Session {
 			const first = clientTeardown === undefined;
 			client.render( viewContext() );
 			finishRender();
-
 			if ( first ) {
 				const teardown = client.mounted( viewContext() );
 				clientTeardown = typeof teardown === 'function' ? teardown : null;
@@ -394,6 +379,7 @@ export function createSession( deps: SessionDeps ): Session {
 			state = client.runLocal( action, state, args, data );
 			auditStateKeys( `local action "${ action }"` );
 			if ( debugging() ) {
+				// eslint-disable-next-line no-console
 				console.debug( `[openstation:${ config.id }] local ${ action }`, args );
 			}
 		}
@@ -410,7 +396,6 @@ export function createSession( deps: SessionDeps ): Session {
 		const missing = new Set< string >();
 		for ( const el of Array.from( root.querySelectorAll( '*' ) ) ) {
 			const tag = el.tagName.toLowerCase();
-
 			if ( ! tag.startsWith( 'os-' ) || customElements.get( tag ) || el.closest( '[os-preserve]' ) ) {
 				continue;
 			}
@@ -421,7 +406,6 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 		if ( missing.size > 0 ) {
 			await host.loadComponents( Array.from( missing ) );
-
 			applyProps( root, new WeakMap() );
 		}
 	};
@@ -527,7 +511,6 @@ export function createSession( deps: SessionDeps ): Session {
 				state = { ...state, [ binding.bind ]: value };
 			}
 		}
-
 		const isLocal =
 			!! client && ( client.hasLocal( binding.action ) || ( binding.action === 'set' && binding.bind !== null ) );
 		const fire = (): void => {
@@ -607,7 +590,6 @@ export function createSession( deps: SessionDeps ): Session {
 			refreshQueued = false;
 		} );
 	};
-
 	const ownSource = appAnnounceSource( windowId );
 	const isOwnEcho = ( payload: unknown ): boolean =>
 		!! payload && typeof payload === 'object' && ( payload as { source?: unknown } ).source === ownSource;
@@ -645,14 +627,12 @@ export function createSession( deps: SessionDeps ): Session {
 			if ( ! client || disposed || clientTeardown !== undefined ) {
 				return false;
 			}
-
 			const prefetched = config.data !== undefined;
 			if ( ! prefetched && ! client.placeholder ) {
 				return false;
 			}
 			const declared = { ...config.state };
 			const payload = prefetched ? config.data : client.placeholder?.( declared );
-
 			apply( { ok: true, state: declared, html: '', data: payload, effects: [] }, state, ! prefetched );
 			return true;
 		},

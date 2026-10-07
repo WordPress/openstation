@@ -39,7 +39,6 @@ describe( 'connection bridge', () => {
 
 	beforeEach( () => {
 		postedMessages = [];
-
 		installHooksStub();
 	} );
 
@@ -73,7 +72,6 @@ describe( 'connection bridge', () => {
 		} );
 		expect( onOpen ).toHaveBeenCalledTimes( 1 );
 		expect( conn.isOpen() ).toBe( true );
-
 		expect( iframe.contentWindow.postMessage.mock.calls ).toHaveLength( 2 );
 		expect( iframe.contentWindow.postMessage.mock.calls[ 1 ][ 0 ] ).toMatchObject( {
 			type: 'os-bridge-publish',
@@ -153,7 +151,6 @@ describe( 'connection bridge', () => {
 		conn.disconnect();
 
 		expect( onClose ).toHaveBeenCalledWith( 'disconnect' );
-
 		const last = iframe.contentWindow.postMessage.mock.calls.pop()?.[ 0 ];
 		expect( last ).toMatchObject( {
 			type: 'os-bridge-disconnect',
@@ -220,7 +217,6 @@ describe( 'connection bridge', () => {
 		const bridge = createConnectionBridge(
 			makeManager( { 'w': { id: 'w', iframe } } ),
 		);
-
 		bridge.routeIncomingFromIframe( {
 			type: 'os-bridge-publish',
 			connectionId: 'never-existed',

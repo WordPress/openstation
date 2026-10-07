@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-settings
+ */
 class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 
 	protected static $user_id;
@@ -20,6 +23,9 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 		return openstation_rest_save_os_settings( $req );
 	}
 
+	/**
+	 * @covers ::openstation_rest_save_os_settings
+	 */
 	public function test_partial_payload_keeps_fields_it_omits() {
 		$this->post(
 			array(
@@ -35,6 +41,9 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 		$this->assertSame( 'dark', $loaded['wallpaper'], 'A field the request omitted must survive.' );
 	}
 
+	/**
+	 * @covers ::openstation_rest_save_os_settings
+	 */
 	public function test_omitted_key_does_not_fall_back_to_the_default() {
 		$defaults = openstation_default_os_settings();
 		$this->assertNotSame( 'compact', $defaults['dockSize'], 'Fixture assumes a non-default value.' );
@@ -46,6 +55,9 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 		$this->assertSame( 'compact', $loaded['dockSize'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_save_os_settings
+	 */
 	public function test_explicit_false_still_turns_a_setting_off() {
 		$this->post( array( 'nativePostsEnabled' => true ) );
 		$this->assertTrue( openstation_get_os_settings( self::$user_id )['nativePostsEnabled'] );
@@ -54,6 +66,9 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 		$this->assertFalse( openstation_get_os_settings( self::$user_id )['nativePostsEnabled'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_save_os_settings
+	 */
 	public function test_full_payload_replaces_every_field() {
 		$this->post( array( 'wallpaper' => 'dark' ) );
 
@@ -70,6 +85,9 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_rest_save_os_settings
+	 */
 	public function test_response_returns_the_merged_settings() {
 		$this->post( array( 'wallpaper' => 'dark' ) );
 		$res = $this->post( array( 'accent' => 'nebula' ) );
@@ -79,6 +97,9 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 		$this->assertSame( 'dark', $data['wallpaper'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_os_settings
+	 */
 	public function test_the_saver_itself_still_replaces() {
 		openstation_save_os_settings( self::$user_id, array( 'dockSize' => 'compact' ) );
 		openstation_save_os_settings( self::$user_id, array( 'accent' => 'nebula' ) );
@@ -93,6 +114,9 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_rest_save_os_settings
+	 */
 	public function test_non_array_payload_changes_nothing() {
 		$this->post( array( 'wallpaper' => 'dark' ) );
 

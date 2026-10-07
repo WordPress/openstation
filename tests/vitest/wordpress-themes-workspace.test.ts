@@ -6,7 +6,8 @@ const ROOT = resolve(__dirname, "../..");
 const CSS = readFileSync(resolve(ROOT, "assets/css/chromeless.css"), "utf8");
 const PHP = readFileSync(resolve(ROOT, "includes/themes-tabs.php"), "utf8");
 
-const WORKSPACE_START = CSS.indexOf(".os-chromeless.themes-php #wpbody-content {");
+const WORKSPACE_MARKER = CSS.indexOf("Appearance → Themes workspace");
+const WORKSPACE_START = CSS.lastIndexOf("/*", WORKSPACE_MARKER);
 const WORKSPACE_CSS = CSS.slice(WORKSPACE_START);
 const COMPACT_WORKSPACE_CSS = WORKSPACE_CSS.replace(/\s+/g, " ");
 

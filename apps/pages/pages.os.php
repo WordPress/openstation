@@ -19,7 +19,6 @@ return App::define( 'desktop-mode-pages' )
 	->icon( 'dashicons-admin-page' )
 	->size( 1100, 720 )
 	->min_size( 720, 480 )
-
 	->placement( 'none' )
 	->can(
 		static function () {
@@ -32,7 +31,6 @@ return App::define( 'desktop-mode-pages' )
 		}
 	)
 	->state( openstation_posts_app_state( 'menu_order', 'asc' ) )
-
 	->menu(
 		'edit.php?post_type=page',
 		static function () {
@@ -45,7 +43,6 @@ return App::define( 'desktop-mode-pages' )
 					'label' => __( 'Add Page', 'desktop-mode' ),
 					'page'  => 'post-new.php?post_type=page',
 				),
-
 				'atlas' => __( 'Page atlas', 'desktop-mode' ),
 			);
 		},

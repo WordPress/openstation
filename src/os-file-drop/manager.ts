@@ -81,11 +81,8 @@ interface MountOptions {
 	config: DropConfig;
 	mediaUrl: string;
 	restNonce: string;
-
 	filesUrl?: string;
-
 	storage?: DesktopStorageConfig;
-
 	openDialog: (
 		entries: DropFileEntry[],
 		ctx: DropContext,
@@ -123,7 +120,6 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 		if ( dragWatchdog !== null ) {
 			clearTimeout( dragWatchdog );
 		}
-
 		dragWatchdog = setTimeout( resetOverlay, 250 );
 	};
 
@@ -141,7 +137,6 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 		if ( ! dragHasFiles( ev ) ) {
 			return;
 		}
-
 		if ( ev.defaultPrevented ) {
 			resetOverlay();
 			return;
@@ -164,14 +159,12 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 		if ( ! dragHasFiles( ev ) ) {
 			return;
 		}
-
 		if ( ev.defaultPrevented ) {
 			resetOverlay();
 			return;
 		}
 		ev.preventDefault();
 		resetOverlay();
-
 		const entries = snapshotEntries( ev.dataTransfer?.items );
 		const ctx = classifyDropTarget( ev );
 		if ( entries.some( ( e ) => e.isDirectory ) ) {
@@ -213,12 +206,10 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 		if ( ! Array.isArray( data.files ) || data.files.length === 0 ) {
 			return;
 		}
-
 		const files = data.files.filter( ( f ): f is File => f instanceof File );
 		if ( files.length === 0 ) {
 			return;
 		}
-
 		const windowId = resolveWindowIdFromSource( ev.source );
 		if ( ! windowId ) {
 			return;
@@ -229,7 +220,6 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 			x: typeof data.x === 'number' ? data.x : 0,
 			y: typeof data.y === 'number' ? data.y : 0,
 		};
-
 		dragDepth = 0;
 		overlayEl.classList.remove( 'is-active' );
 		void handleFiles( files, ctx, opts );
@@ -312,7 +302,6 @@ function mountNoOp(): MountedManager {
 		if ( ! dragHasFiles( ev ) ) {
 			return;
 		}
-
 		const target = ev.target as Element | null;
 		if (
 			target?.closest &&
@@ -337,7 +326,6 @@ function mountNoOp(): MountedManager {
 }
 
 export function classifyDropTarget(
-
 	ev: Pick< DragEvent, 'clientX' | 'clientY' | 'target' >,
 ): DropContext {
 	const x = ev.clientX;
@@ -370,7 +358,6 @@ export function classifyDropTarget(
 			const windowId =
 				windowIdFromElement( node ) ??
 				( node.getAttribute( 'data-window-id' ) || undefined );
-
 			const folderMatch = windowId
 				? /^os-folder-(\d+)/.exec( windowId )
 				: null;
@@ -453,7 +440,6 @@ export async function handleFiles(
 			base,
 			ctx,
 		);
-
 		if (
 			! filtered ||
 			typeof filtered !== 'object' ||
@@ -581,7 +567,6 @@ export function resolveAllowedMime(
 	if ( lower && allowedMimes.includes( lower ) ) {
 		return lower;
 	}
-
 	const ext = extensionOf( file.name );
 	if ( ! ext ) {
 		return null;
@@ -649,7 +634,7 @@ export function defaultFields(
 export function sanitizeFilename( name: string ): string {
 	const cleaned = name
 		.replace( /[\\/]/g, '-' )
-
+		// eslint-disable-next-line no-control-regex -- C0 + DEL.
 		.replace( /[\x00-\x1f\x7f]/g, '' )
 		.replace( /\s+/g, ' ' )
 		.replace( / *- */g, '-' )

@@ -86,7 +86,6 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 	if ( ! submenuTabs.length ) {
 		return;
 	}
-
 	if ( win._activeTabId !== 'primary' ) {
 		for ( const tab of submenuTabs ) {
 			tab.classList.remove( 'os-window__tab--active' );
@@ -113,7 +112,6 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 		if ( lit ) {
 			return;
 		}
-
 		let isPluginPage = false;
 		try {
 			const parsed = new URL( currentUrl, window.location.origin );
@@ -159,7 +157,6 @@ export function setSubmenuTabs(
 		parentUrl: entry.url || win.config.parentUrl,
 		url: pageUrlOf( win ),
 	};
-
 	if ( ! next.url ) {
 		return false;
 	}
@@ -271,7 +268,6 @@ export function addExternalTab(
 	tabEl.appendChild( closeBtn );
 
 	tabStrip.appendChild( tabEl );
-
 	syncTabStripSemantics( tabStrip );
 
 	const iframe = document.createElement( 'iframe' );
@@ -309,7 +305,6 @@ export function addExternalTab(
 
 	switchToTab( win, tabId );
 	tabEl.scrollIntoView( { behavior: 'smooth', inline: 'end', block: 'nearest' } );
-
 	win._emitChange( 'state' );
 }
 
@@ -376,18 +371,15 @@ export function closeExternalTab( win: Window, tabId: string ): void {
 	if ( win._activeTabId === tabId ) {
 		switchToTab( win, 'primary' );
 	}
-
 	if ( win._externalTabs.size === 0 ) {
 		const main = win.element.querySelector(
 			'.os-window__tab--main',
 		);
 		main?.remove();
 	}
-
 	syncTabStripSemantics(
 		win.element.querySelector< HTMLElement >( '.os-window__tabs' ),
 	);
-
 	win._emitChange( 'state' );
 }
 
@@ -403,7 +395,6 @@ export function detachExternalTab( win: Window, tabId: string ): void {
 			url = href;
 		}
 	} catch {
-
 	}
 	window.open( url, '_blank', 'noopener' );
 	closeExternalTab( win, tabId );
@@ -426,7 +417,7 @@ function fallbackToBrowserTab( win: Window, tabId: string ): void {
 	closeExternalTab( win, tabId );
 	showToast( {
 		message: sprintf(
-
+			// translators: %s is the external site's title or URL.
 			__(
 				'Opened "%s" in a new browser tab — this site doesn\'t allow embedding.',
 			),
@@ -458,7 +449,6 @@ export function externalTabsSnapshot(
 				url = href;
 			}
 		} catch {
-
 		}
 		out.push( { url, label: entry.label } );
 	}
@@ -467,7 +457,6 @@ export function externalTabsSnapshot(
 
 export function handleTabStripClick( win: Window, e: Event ): void {
 	const target = e.target as HTMLElement;
-
 	const chip = target.closest<HTMLElement>( '[data-tab-action]' );
 	if ( chip ) {
 		e.stopPropagation();
@@ -500,24 +489,19 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 		switchToTab( win, 'primary' );
 		return;
 	}
-
 	if ( kind === 'panel' && tab.dataset.panel ) {
 		activatePanelTab( win.element, tab.dataset.panel );
 		return;
 	}
-
 	if ( tab.dataset.url ) {
 		const destination = tab.dataset.url;
-
 		if ( tryNativeUrlRemap( destination ) ) {
 			return;
 		}
 		const next = withChromelessParam( destination );
-
 		switchToTab( win, 'primary' );
 		const paint = (): void => {
 			win.markContentLoading();
-
 			syncActiveTab( win, destination );
 		};
 		if ( next && win.iframe ) {
@@ -582,7 +566,6 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 			}
 			updateTabOverflow( strip, rtl );
 			positionTabPlate( strip );
-
 			syncTabRoving( strip );
 		} );
 	};
@@ -604,7 +587,6 @@ export function observeTabOverflow( strip: HTMLElement ): () => void {
 		typeof MutationObserver === 'undefined'
 			? null
 			: new MutationObserver( scheduleWithDirection );
-
 	mutationObserver?.observe( strip, {
 		childList: true,
 		subtree: true,

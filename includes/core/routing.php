@@ -210,10 +210,10 @@ function openstation_admin_target_allowlist() {
 
 function openstation_is_chromeless_request() {
 	if ( ! openstation_is_enabled() ) {
-
 		return false;
 	}
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
 	if ( ! empty( $_GET['openstation_chromeless'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['openstation_chromeless'] ) ) ) {
 		return true;
 	}
@@ -225,7 +225,6 @@ function openstation_is_chromeless_request() {
 		? sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_SITE'] ) )
 		: '';
 	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
-
 		return (bool) apply_filters( 'openstation_chromeless_sec_fetch_fallback', true );
 	}
 
@@ -233,11 +232,11 @@ function openstation_is_chromeless_request() {
 }
 
 function openstation_is_classic_request() {
-
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
 	if ( empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) {
 		return false;
 	}
-
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
 	return '1' === sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) );
 }
 
@@ -382,11 +381,9 @@ function openstation_is_admin_redirect_target( $location ) {
 	$path = isset( $parts['path'] ) ? (string) $parts['path'] : '';
 
 	if ( '' !== $path ) {
-
 		if ( false !== strpos( $path, '/wp-admin/' ) ) {
 			return true;
 		}
-
 		if ( '/' === $path[0] ) {
 			return false;
 		}

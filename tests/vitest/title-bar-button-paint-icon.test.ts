@@ -16,7 +16,6 @@ describe( 'paintTitleBarButtonIcon', () => {
 		expect( span ).not.toBeNull();
 		expect( span!.classList.contains( 'dashicons-visibility' ) ).toBe( true );
 		expect( span!.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-
 		expect( host.hasAttribute( 'icon' ) ).toBe( false );
 	} );
 
@@ -35,7 +34,6 @@ describe( 'paintTitleBarButtonIcon', () => {
 		paintTitleBarButtonIcon( host, 'menu' );
 
 		expect( host.getAttribute( 'icon' ) ).toBe( 'menu' );
-
 		expect( host.querySelector( 'span.dashicons' ) ).toBeNull();
 		expect( host.querySelector( 'svg' ) ).toBeNull();
 	} );
@@ -57,13 +55,11 @@ describe( 'paintTitleBarButtonIcon', () => {
 
 	test( 'malformed dashicons class (with spaces / arbitrary html) is rejected', () => {
 		const host = makeHost();
-
 		paintTitleBarButtonIcon(
 			host,
 			'dashicons-foo" onclick="alert(1)',
 		);
 		expect( host.querySelector( 'span.dashicons' ) ).toBeNull();
-
 		expect( host.getAttribute( 'icon' ) ).toBe(
 			'dashicons-foo" onclick="alert(1)',
 		);

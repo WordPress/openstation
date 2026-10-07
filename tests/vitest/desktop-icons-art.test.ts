@@ -133,7 +133,6 @@ describe( 'wp.os.icons.setArt', () => {
 		const cb = vi.fn();
 		const off = activity.subscribe( 'os/art-changed', cb );
 		expect( () => setIconArt( 'not-on-this-rail', FULL ) ).not.toThrow();
-
 		expect( getIconArt( 'not-on-this-rail' ) ).toBe( FULL );
 		off();
 	} );

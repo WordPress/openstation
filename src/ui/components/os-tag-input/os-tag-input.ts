@@ -1,17 +1,12 @@
 import { Component, defineComponent, html } from '../../core';
 import { osIcon } from '../../icons';
 import { styles } from './os-tag-input.styles';
-
 import '../os-chip/os-chip';
 
 export interface OsTagItem {
-
 	id?: number | string;
-
 	label: string;
-
 	pending?: boolean;
-
 	tone?: 'neutral' | 'accent' | 'positive' | 'warning' | 'danger';
 }
 
@@ -173,7 +168,6 @@ export class OsTagInput extends Component {
 	}
 	set value( next: readonly OsTagItem[] | null | undefined ) {
 		this._value = Array.isArray( next ) ? next.slice() : [];
-
 		if ( this._focusedChip >= this._value.length ) {
 			this._focusedChip = -1;
 		}
@@ -185,7 +179,6 @@ export class OsTagInput extends Component {
 	}
 	set suggestions( next: readonly OsTagItem[] | null | undefined ) {
 		this._suggestions = Array.isArray( next ) ? next.slice() : [];
-
 		this._highlight = this._suggestions.length > 0 ? 0 : -1;
 		this._suggestionsLoading = false;
 		this.requestUpdate();
@@ -215,7 +208,6 @@ export class OsTagInput extends Component {
 		this._query = '';
 		this._highlight = -1;
 		this.emit( 'os-tag-open', {} );
-
 		queueMicrotask( () => {
 			this._input?.focus();
 			this._emitSuggest( '' );
@@ -237,7 +229,6 @@ export class OsTagInput extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
 		document.addEventListener( 'pointerdown', this._onDocumentPointerDown, true );
 	}
 
@@ -257,7 +248,6 @@ export class OsTagInput extends Component {
 				! readonly );
 		const creatable =
 			( this as unknown as { creatable: string | null } ).creatable !== null;
-
 		const addLabel =
 			( this as unknown as { 'add-label': string | null } )[ 'add-label' ] ||
 			'Add';
@@ -564,7 +554,6 @@ export class OsTagInput extends Component {
 				return;
 			}
 			default:
-
 				if ( this._focusedChip !== -1 ) {
 					this._focusedChip = -1;
 				}

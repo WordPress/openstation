@@ -15,14 +15,14 @@ function text( $value ) {
 
 function greeting( $hour, $name ) {
 	if ( $hour < 12 ) {
-
+		/* translators: %s: current user's name. */
 		return sprintf( __( 'Good morning, %s', 'desktop-mode' ), $name );
 	}
 	if ( $hour < 18 ) {
-
+		/* translators: %s: current user's name. */
 		return sprintf( __( 'Good afternoon, %s', 'desktop-mode' ), $name );
 	}
-
+	/* translators: %s: current user's name. */
 	return sprintf( __( 'Good evening, %s', 'desktop-mode' ), $name );
 }
 
@@ -74,7 +74,6 @@ function quick_action( array $action ) {
 			$inner
 		);
 	}
-
 	return tag(
 		'os-button',
 		array(
@@ -115,7 +114,7 @@ function render( State $state, Os $os ) {
 				<nav class="os-station-home__actions" aria-label="<?php esc_attr_e( 'Quick actions', 'desktop-mode' ); ?>">
 					<?php
 					foreach ( $snapshot['quickActions'] as $action ) {
-						echo quick_action( $action );
+						echo quick_action( $action ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built with the framework's escaping helpers.
 					}
 					?>
 				</nav>
@@ -124,12 +123,12 @@ function render( State $state, Os $os ) {
 			<main class="os-station-home__main">
 				<header class="os-station-home__intro">
 					<div>
-						<h1 id="os-station-home-title"><?php echo text( greeting( $hour, $snapshot['userName'] ) );                                                                                     ?></h1>
+						<h1 id="os-station-home-title"><?php echo text( greeting( $hour, $snapshot['userName'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></h1>
 						<p>
 							<?php
 							if ( '' !== (string) $snapshot['siteName'] ) {
-
-								echo text( sprintf( __( 'Pick up where you left off on %s.', 'desktop-mode' ), $snapshot['siteName'] ) );
+								/* translators: %s: site name. */
+								echo text( sprintf( __( 'Pick up where you left off on %s.', 'desktop-mode' ), $snapshot['siteName'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes.
 							} else {
 								esc_html_e( 'Pick up where you left off.', 'desktop-mode' );
 							}
@@ -158,12 +157,12 @@ function render( State $state, Os $os ) {
 					<h2 id="os-station-home-pulse-heading"><?php esc_html_e( 'Site pulse', 'desktop-mode' ); ?></h2>
 					<div class="os-station-home__pulse">
 						<?php foreach ( $snapshot['metrics'] as $metric ) : ?>
-							<article class="os-station-home__metric" os-key="<?php echo esc( $metric['id'] );                                                                                    ?>">
+							<article class="os-station-home__metric" os-key="<?php echo esc( $metric['id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>">
 								<div class="os-station-home__metric-label">
-									<?php echo icon( $metric['icon'] );                                                                                     ?>
-									<span><?php echo esc( $metric['label'] );                                                                                    ?></span>
+									<?php echo icon( $metric['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
+									<span><?php echo esc( $metric['label'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></span>
 								</div>
-								<strong><?php echo esc( number_format_i18n( $metric['value'] ) );                                                                                    ?></strong>
+								<strong><?php echo esc( number_format_i18n( $metric['value'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></strong>
 							</article>
 						<?php endforeach; ?>
 					</div>
@@ -211,17 +210,17 @@ function work( array $work ) {
 	}
 	foreach ( $work as $item ) {
 		?>
-		<a class="os-station-home__work-row" os-key="<?php echo esc( $item['id'] );                                                                                    ?>" href="<?php echo esc_url( $item['editUrl'] ); ?>">
-			<span class="os-station-home__row-icon"><?php echo icon( $item['icon'] );                                                                                     ?></span>
+		<a class="os-station-home__work-row" os-key="<?php echo esc( $item['id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>" href="<?php echo esc_url( $item['editUrl'] ); ?>">
+			<span class="os-station-home__row-icon"><?php echo icon( $item['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?></span>
 			<span class="os-station-home__row-copy">
-				<span class="os-station-home__row-title"><?php echo text( $item['title'] );                                                                                     ?></span>
-				<span class="os-station-home__row-meta"><?php echo text( $item['typeLabel'] );                                                                                     ?></span>
+				<span class="os-station-home__row-title"><?php echo text( $item['title'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></span>
+				<span class="os-station-home__row-meta"><?php echo text( $item['typeLabel'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></span>
 			</span>
-			<os-badge tone="<?php echo esc( status_tone( $item['status'] ) );                                                                                    ?>"><?php echo esc( $item['statusLabel'] );                                                                                    ?></os-badge>
+			<os-badge tone="<?php echo esc( status_tone( $item['status'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>"><?php echo esc( $item['statusLabel'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></os-badge>
 			<?php if ( '' !== $item['modifiedGmt'] ) : ?>
-				<os-relative-time datetime="<?php echo esc( $item['modifiedGmt'] );                                                                                    ?>" compact></os-relative-time>
+				<os-relative-time datetime="<?php echo esc( $item['modifiedGmt'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>" compact></os-relative-time>
 			<?php endif; ?>
-			<?php echo icon( 'dashicons-arrow-right-alt2' );                                                                                     ?>
+			<?php echo icon( 'dashicons-arrow-right-alt2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
 		</a>
 		<?php
 	}
@@ -231,7 +230,7 @@ function attention_rows( array $attention ) {
 	if ( array() === $attention ) {
 		?>
 		<div class="os-station-home__all-clear">
-			<?php echo icon( 'dashicons-yes-alt' );                                                                                     ?>
+			<?php echo icon( 'dashicons-yes-alt' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
 			<span>
 				<strong><?php esc_html_e( 'All clear', 'desktop-mode' ); ?></strong>
 				<span><?php esc_html_e( 'Nothing needs your attention right now.', 'desktop-mode' ); ?></span>
@@ -242,16 +241,16 @@ function attention_rows( array $attention ) {
 	}
 	foreach ( $attention as $item ) {
 		?>
-		<a class="os-station-home__attention-row" os-key="<?php echo esc( $item['id'] );                                                                                    ?>" href="<?php echo esc_url( $item['url'] ); ?>">
+		<a class="os-station-home__attention-row" os-key="<?php echo esc( $item['id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?>" href="<?php echo esc_url( $item['url'] ); ?>">
 			<span class="os-station-home__attention-count">
-				<?php echo icon( $item['icon'] );                                                                                     ?>
-				<strong><?php echo esc( number_format_i18n( $item['count'] ) );                                                                                    ?></strong>
+				<?php echo icon( $item['icon'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
+				<strong><?php echo esc( number_format_i18n( $item['count'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc() escapes. ?></strong>
 			</span>
 			<span class="os-station-home__attention-copy">
-				<strong><?php echo text( $item['label'] );                                                                                     ?></strong>
-				<span><?php echo text( $item['description'] );                                                                                     ?></span>
+				<strong><?php echo text( $item['label'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></strong>
+				<span><?php echo text( $item['description'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text() escapes. ?></span>
 			</span>
-			<?php echo icon( 'dashicons-arrow-right-alt2' );                                                                                     ?>
+			<?php echo icon( 'dashicons-arrow-right-alt2' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
 		</a>
 		<?php
 	}
@@ -261,7 +260,7 @@ function cards( array $cards ) {
 	if ( array() === $cards ) {
 		?>
 		<div class="os-station-home__cards-empty">
-			<?php echo icon( 'dashicons-admin-plugins' );                                                                                     ?>
+			<?php echo icon( 'dashicons-admin-plugins' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- icon() escapes. ?>
 			<span>
 				<strong><?php esc_html_e( 'Make this space yours', 'desktop-mode' ); ?></strong>
 				<span><?php esc_html_e( 'Use Customize to opt in to information from your plugins.', 'desktop-mode' ); ?></span>
@@ -288,7 +287,7 @@ function cards( array $cards ) {
 			$label  = '' !== (string) $card['actionLabel'] ? $card['actionLabel'] : __( 'Open', 'desktop-mode' );
 			$inner .= '<span class="os-station-home__card-action">' . text( $label ) . icon( 'dashicons-arrow-right-alt2' ) . '</span>';
 		}
-		echo tag(
+		echo tag( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- tag() escapes every attribute; the inner HTML is built above with the escaping helpers.
 			$linked ? 'a' : 'article',
 			array(
 				'class'     => 'os-station-home__card',
@@ -316,7 +315,7 @@ function card_modal( $open, array $preferences ) {
 		<div class="os-station-home__card-preferences">
 			<?php
 			foreach ( $preferences as $preference ) {
-				echo tag(
+				echo tag( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- tag() escapes every attribute.
 					'os-switch',
 					array(
 						'os-key'      => $preference['id'],

@@ -138,7 +138,6 @@ export class WallpaperLayer {
 				);
 			}
 		}
-
 		this.element.innerHTML = '';
 	}
 
@@ -153,7 +152,6 @@ export class WallpaperLayer {
 			: def.value;
 		if ( typeof value === 'string' ) {
 			this.element.style.setProperty( '--os-bg', value );
-
 			const shell = document.getElementById( 'os-shell' );
 			shell?.style.setProperty( '--os-bg', value );
 		}
@@ -173,13 +171,11 @@ export class WallpaperLayer {
 				try {
 					teardown();
 				} catch {
-
 				}
 				return;
 			}
 			this.active = { id: def.id, teardown };
 			doAction( HOOKS.WALLPAPER_MOUNTED, { id: def.id, container: this.element, ctx } );
-
 			if ( this.isEffectivelyHidden() ) {
 				this.emitEffectiveVisibility();
 			}
@@ -271,7 +267,6 @@ export class WallpaperLayer {
 			this.freezeOverlay = overlay;
 			this.frozenCanvas = source;
 		} catch {
-
 		}
 	}
 

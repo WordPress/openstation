@@ -98,7 +98,6 @@ class FakeXhr {
 	}
 	send( _body: unknown ): void {
 		const cfg = FakeXhr.nextConfig;
-
 		if ( this.method === 'DELETE' ) {
 			queueMicrotask( () => {
 				this.status = 200;
@@ -108,7 +107,6 @@ class FakeXhr {
 			return;
 		}
 		queueMicrotask( () => {
-
 			this.upload.emit(
 				'progress',
 				new ProgressEvent( 'progress', {
@@ -182,7 +180,6 @@ describe( 'os-file-drop/upload', () => {
 		expect( result.id ).toBe( 42 );
 		expect( result.url ).toContain( '/uploads/' );
 		expect( seen ).toHaveLength( 1 );
-
 		expect( seen[ 0 ].file ).toBe( file );
 		expect( FakeXhr.lastInstance?.method ).toBe( 'POST' );
 	} );
@@ -209,7 +206,6 @@ describe( 'os-file-drop/upload', () => {
 			( p: { loaded: number; total: number } ) => ticks.push( p ),
 		);
 		await uploadFile( defaultArgs( file, 'image/png' ) );
-
 		expect( ticks.length ).toBeGreaterThanOrEqual( 2 );
 		expect( ticks[ 0 ].loaded ).toBe( 8 );
 		expect( ticks[ 1 ].loaded ).toBe( ticks[ 1 ].total );
@@ -254,7 +250,6 @@ describe( 'os-file-drop/upload', () => {
 	} );
 
 	test( 'upload-failed carries the filtered File identity (post-BEFORE_UPLOAD swap)', async () => {
-
 		const original = makeFile( 'original.png', 'image/png' );
 		const swapped = makeFile( 'swapped.png', 'image/png' );
 		window.wp!.hooks!.addFilter(
@@ -293,7 +288,6 @@ describe( 'os-file-drop/upload', () => {
 		await expect(
 			uploadFile( defaultArgs( file, 'image/png' ) ),
 		).rejects.toBeInstanceOf( UploadAbortedError );
-
 		expect( FakeXhr.instances.some( ( i ) => i.method === 'DELETE' ) ).toBe(
 			false,
 		);
@@ -301,7 +295,6 @@ describe( 'os-file-drop/upload', () => {
 
 	test( 'late abort() — after body is fully sent — DELETEs the created attachment', async () => {
 		const file = makeFile( 'test.png', 'image/png' );
-
 		let abortHandle: ( () => void ) | null = null;
 		window.wp!.hooks!.addAction(
 			FILE_DROP_HOOKS.UPLOAD_STARTED,

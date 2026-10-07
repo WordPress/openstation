@@ -1,9 +1,6 @@
 type FieldCheck<T> = {
-
 	field: string;
-
 	valid: ( d: Partial< T > ) => boolean;
-
 	message: string;
 };
 

@@ -10,29 +10,20 @@ import { createSharedStore } from './../shared-store';
 const INITIAL_ORIGIN = window.location.origin;
 
 export interface ConnectOptions {
-
 	topics?: string[];
-
 	onOpen?: () => void;
-
 	onClose?: ( reason: 'disconnect' | 'window-closed' | 'navigated' ) => void;
 }
 
 export interface WindowConnection {
-
 	readonly id: string;
-
 	readonly target: string;
-
 	isOpen(): boolean;
-
 	subscribe< T = unknown >(
 		topic: string,
 		cb: ( payload: T, meta: { topic: string } ) => void,
 	): () => void;
-
 	send< T = unknown >( topic: string, payload: T ): void;
-
 	disconnect(): void;
 }
 
@@ -46,7 +37,6 @@ interface ConnectionState {
 	connSeq: number;
 	connections: Map< string, InternalConnection >;
 	connectionsByTarget: Map< string, Set< string > >;
-
 	syntheticIframes: Map< string, HTMLIFrameElement >;
 }
 
@@ -127,7 +117,6 @@ export function createConnectionBridge( manager: WindowManager ) {
 			const w = manager.getById( targetWindowId );
 			return !! w && w.config?.native === true;
 		};
-
 		const nativeSubUnsubs: Array< () => void > = [];
 
 		const flushQueue = (): void => {
@@ -152,7 +141,6 @@ export function createConnectionBridge( manager: WindowManager ) {
 			isOpen: () => isOpen,
 			subscribe( topic, cb ) {
 				const wrapped = cb as ( p: unknown, m: { topic: string } ) => void;
-
 				if ( isNativeTarget() ) {
 					const off = addParentSubscriber(
 						targetWindowId,
@@ -197,7 +185,6 @@ export function createConnectionBridge( manager: WindowManager ) {
 					topic,
 					direction: 'out',
 				} );
-
 				if ( isNativeTarget() ) {
 					dispatchToNative( targetWindowId, topic, payload );
 					return;
@@ -235,7 +222,6 @@ export function createConnectionBridge( manager: WindowManager ) {
 						connectionId: id,
 						targetWindowId,
 						topics,
-
 						connection: conn,
 					} );
 					try {
@@ -316,15 +302,12 @@ export function createConnectionBridge( manager: WindowManager ) {
 						connectionStore.state.connectionsByTarget.delete( targetWindowId );
 					}
 				}
-
 				for ( const off of nativeSubUnsubs.splice( 0 ) ) {
 					try {
 						off();
 					} catch {
-
 					}
 				}
-
 				if ( wasOpen ) {
 					const iframe = targetIframe();
 					if ( iframe ) {

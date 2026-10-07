@@ -27,14 +27,12 @@ export function createWidgetStorage( widgetId: string ): WidgetStorage {
 			try {
 				localStorage.setItem( prefix + key, JSON.stringify( value ) );
 			} catch {
-
 			}
 		},
 		remove( key: string ): void {
 			try {
 				localStorage.removeItem( prefix + key );
 			} catch {
-
 			}
 		},
 		clear(): void {
@@ -46,7 +44,6 @@ export function createWidgetStorage( widgetId: string ): WidgetStorage {
 					}
 				}
 			} catch {
-
 			}
 		},
 	};

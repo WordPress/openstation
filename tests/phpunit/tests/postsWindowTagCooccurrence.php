@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-posts-window
+ */
 class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 
 	private $admin_id;
@@ -16,6 +19,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		delete_option( 'desktop_mode_terms_cache_version' );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_register_tag_cooccurrence_route
+	 */
 	public function test_endpoint_requires_edit_posts_cap() {
 		wp_set_current_user( $this->subscriber_id );
 		$request  = new WP_REST_Request( 'GET', '/desktop-mode/v1/tag-cooccurrence' );
@@ -27,6 +33,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_register_tag_cooccurrence_route
+	 */
 	public function test_endpoint_allows_administrator() {
 		wp_set_current_user( $this->admin_id );
 		$request  = new WP_REST_Request( 'GET', '/desktop-mode/v1/tag-cooccurrence' );
@@ -38,6 +47,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_unknown_taxonomy_returns_400() {
 		wp_set_current_user( $this->admin_id );
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/tag-cooccurrence' );
@@ -48,6 +60,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_taxonomy', $data['code'] );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_returns_empty_pairs_when_no_shared_posts() {
 		wp_set_current_user( $this->admin_id );
 
@@ -68,6 +83,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertSame( array(), $data['pairs'] );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_single_post_with_three_tags_yields_three_pairs() {
 		wp_set_current_user( $this->admin_id );
 
@@ -94,6 +112,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_accumulates_shared_counts_across_posts_and_sorts_desc() {
 		wp_set_current_user( $this->admin_id );
 
@@ -105,7 +126,6 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 			$p = self::factory()->post->create();
 			wp_set_object_terms( $p, array( $t1, $t2 ), 'post_tag' );
 		}
-
 		$p = self::factory()->post->create();
 		wp_set_object_terms( $p, array( $t1, $t3 ), 'post_tag' );
 
@@ -126,6 +146,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertSame( 2, $pairs[ (string) $t2 ][0]['shared'] );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_excludes_trash_posts_from_cooccurrence() {
 		wp_set_current_user( $this->admin_id );
 
@@ -143,6 +166,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( (string) $t2, $pairs );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_includes_drafts_pending_and_future_statuses() {
 		wp_set_current_user( $this->admin_id );
 
@@ -160,6 +186,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertSame( $t2, $pairs[ (string) $t1 ][0]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_limit_param_trims_neighbor_list() {
 		wp_set_current_user( $this->admin_id );
 
@@ -184,6 +213,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_limit_param_is_capped_to_24() {
 		wp_set_current_user( $this->admin_id );
 
@@ -207,6 +239,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_version
+	 */
 	public function test_cache_version_starts_at_one_when_unset() {
 		$this->assertSame(
 			1,
@@ -219,6 +254,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_invalidate_bumps_the_version() {
 		$before = openstation_posts_window_terms_cache_version();
 		openstation_posts_window_terms_cache_invalidate();
@@ -226,6 +264,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertSame( $before + 1, $after );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_first_call_writes_payload_to_transient() {
 		wp_set_current_user( $this->admin_id );
 
@@ -247,6 +288,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertSame( $payload, $cached );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_tag_cooccurrence_callback
+	 */
 	public function test_second_call_returns_cached_payload_without_recomputing() {
 		wp_set_current_user( $this->admin_id );
 
@@ -269,6 +313,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertSame( $sentinel, $response->get_data() );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_invalidation_makes_old_cache_unreachable() {
 		wp_set_current_user( $this->admin_id );
 
@@ -294,6 +341,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertSame( array( 'pairs' => array() ), $response->get_data() );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_set_object_terms_invalidates_cache() {
 		$post = self::factory()->post->create();
 		$tag  = self::factory()->tag->create();
@@ -303,6 +353,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertGreaterThan( $before, $after );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_created_term_invalidates_cache() {
 		$before = openstation_posts_window_terms_cache_version();
 		self::factory()->tag->create( array( 'name' => 'fresh' ) );
@@ -310,15 +363,20 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertGreaterThan( $before, $after );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_edited_term_invalidates_cache() {
 		$tag = self::factory()->tag->create( array( 'name' => 'before' ) );
-
 		$before = openstation_posts_window_terms_cache_version();
 		wp_update_term( $tag, 'post_tag', array( 'name' => 'after' ) );
 		$after = openstation_posts_window_terms_cache_version();
 		$this->assertGreaterThan( $before, $after );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_delete_term_invalidates_cache() {
 		$tag    = self::factory()->tag->create();
 		$before = openstation_posts_window_terms_cache_version();
@@ -327,6 +385,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertGreaterThan( $before, $after );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_wp_trash_post_invalidates_cache() {
 		$post   = self::factory()->post->create();
 		$before = openstation_posts_window_terms_cache_version();
@@ -335,6 +396,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertGreaterThan( $before, $after );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_untrash_post_invalidates_cache() {
 		$post = self::factory()->post->create();
 		wp_trash_post( $post );
@@ -344,6 +408,9 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		$this->assertGreaterThan( $before, $after );
 	}
 
+	/**
+	 * @covers ::openstation_posts_window_terms_cache_invalidate
+	 */
 	public function test_before_delete_post_invalidates_cache() {
 		$post   = self::factory()->post->create();
 		$before = openstation_posts_window_terms_cache_version();

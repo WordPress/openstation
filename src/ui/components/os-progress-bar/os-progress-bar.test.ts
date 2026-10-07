@@ -39,7 +39,6 @@ describe( '<os-progress-bar>', () => {
 		const fill = host
 			.querySelector( 'os-progress-bar' )!
 			.shadowRoot!.querySelector( '.fill' ) as HTMLElement;
-
 		expect( parseFloat( fill.style.width ) ).toBeCloseTo( 100, 5 );
 		const track = host
 			.querySelector( 'os-progress-bar' )!
@@ -55,7 +54,6 @@ describe( '<os-progress-bar>', () => {
 		const fill = bar.shadowRoot!.querySelector( '.fill' ) as HTMLElement;
 		expect( track.hasAttribute( 'aria-valuenow' ) ).toBe( false );
 		expect( track.hasAttribute( 'aria-valuemax' ) ).toBe( false );
-
 		expect( fill.style.width ).toBe( '' );
 	} );
 

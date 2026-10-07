@@ -41,7 +41,6 @@ function makeTargetElement( id: string, rect: { x: number; y: number; w: number;
 	el.style.width = `${ rect.w }px`;
 	el.style.height = `${ rect.h }px`;
 	document.body.appendChild( el );
-
 	return el;
 }
 
@@ -50,7 +49,6 @@ interface Rect { x: number; y: number; w: number; h: number }
 function installElementFromPointStub( regions: Array< { el: Element; rect: Rect } > ): void {
 	const ordered = [ ...regions ];
 	document.elementFromPoint = ( x: number, y: number ): Element | null => {
-
 		for ( let i = ordered.length - 1; i >= 0; i -= 1 ) {
 			const { el, rect } = ordered[ i ];
 			if (
@@ -70,7 +68,6 @@ describe( 'DragManager', () => {
 	beforeEach( () => {
 		installHooksStub();
 		__resetRecoveryForTests();
-
 		document.elementFromPoint = () => null;
 	} );
 
@@ -121,7 +118,6 @@ describe( 'DragManager', () => {
 		expect( ghost ).not.toBeNull();
 
 		document.dispatchEvent( pointerEvent( 'pointerup', 110, 100 ) );
-
 		expect( source.classList.contains( 'os-file-tile--dragging' ) ).toBe( false );
 		expect( document.querySelector( '.os-drag-ghost' ) ).toBeNull();
 	} );
@@ -258,7 +254,6 @@ describe( 'DragManager', () => {
 			origin: pointerEvent( 'pointerdown', 50, 50, source ),
 			onClickOnly,
 		} );
-
 		document.dispatchEvent( pointerEvent( 'pointerup', 51, 51 ) );
 
 		expect( onClickOnly ).toHaveBeenCalled();

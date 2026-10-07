@@ -61,7 +61,6 @@ describe( 'showReleaseCard', () => {
 		const { root } = open();
 		( root.querySelector( '.dm-rc__close' ) as HTMLButtonElement ).click();
 		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0' ) ).toBe( true );
-
 		expect( root.style.animation ).toBe( 'none' );
 		expect( root.style.transition ).toContain( 'opacity' );
 	} );

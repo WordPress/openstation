@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-window-chrome
+ */
 class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 
 	public function set_up() {
@@ -7,6 +10,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		openstation_flush_script_handle_registries();
 	}
 
+	/**
+	 * @covers ::openstation_register_window_theme_script
+	 */
 	public function test_register_window_theme_script_stores_handle() {
 		$handle = 'theme-test-a-' . uniqid();
 		$result = openstation_register_window_theme_script( $handle );
@@ -14,12 +20,18 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertTrue( openstation_window_theme_script_registry( $handle ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_theme_script
+	 */
 	public function test_register_window_theme_script_rejects_empty_handle() {
 		$result = openstation_register_window_theme_script( '' );
 		$this->assertInstanceOf( 'WP_Error', $result );
 		$this->assertSame( 'openstation_missing_handle', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_theme
+	 */
 	public function test_register_window_theme_stores_metadata_with_tokens() {
 		$id     = 'plug/midnight-' . uniqid();
 		$result = openstation_register_window_theme(
@@ -40,6 +52,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 50, $entry['priority'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_theme
+	 */
 	public function test_register_window_theme_rejects_missing_tokens() {
 		$result = openstation_register_window_theme(
 			array(
@@ -51,12 +66,14 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_tokens', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_theme
+	 */
 	public function test_register_window_theme_rejects_invalid_token_keys() {
 		$result = openstation_register_window_theme(
 			array(
 				'id'     => 'plug/bad-token-' . uniqid(),
 				'tokens' => array(
-
 					'os-titlebar-bg' => '#fa0',
 				),
 			)
@@ -65,6 +82,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_token', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_theme
+	 */
 	public function test_register_window_theme_implicitly_registers_companion_script() {
 		$id     = 'plug/with-script-' . uniqid();
 		$handle = 'theme-script-' . uniqid();
@@ -78,6 +98,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertTrue( openstation_window_theme_script_registry( $handle ) );
 	}
 
+	/**
+	 * @covers ::openstation_build_window_theme_scripts_payload
+	 */
 	public function test_window_theme_scripts_payload_resolves_url() {
 		$handle = 'theme-payload-' . uniqid();
 		wp_register_script( $handle, 'https://example.test/theme.js', array(), '1.0.0', true );
@@ -94,6 +117,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'theme.js', $found['scriptUrl'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_window_themes_payload
+	 */
 	public function test_window_themes_payload_includes_tokens_and_priority() {
 		$id = 'plug/payload-' . uniqid();
 		openstation_register_window_theme(
@@ -116,6 +142,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 200, $found['priority'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_theme_script
+	 */
 	public function test_window_theme_script_action_fires() {
 		$calls = array();
 		add_action(
@@ -132,12 +161,18 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertContains( $h2, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_control_script
+	 */
 	public function test_register_window_control_script_stores_handle() {
 		$handle = 'ctrl-test-a-' . uniqid();
 		$this->assertTrue( openstation_register_window_control_script( $handle ) );
 		$this->assertTrue( openstation_window_control_script_registry( $handle ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_control
+	 */
 	public function test_register_window_control_stores_metadata() {
 		$id = 'plug/star-' . uniqid();
 		openstation_register_window_control(
@@ -154,6 +189,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 50, $entry['order'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_control
+	 */
 	public function test_register_window_control_rejects_invalid_placement() {
 		$result = openstation_register_window_control(
 			array(
@@ -166,6 +204,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_placement', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_control
+	 */
 	public function test_register_window_control_requires_id_and_label() {
 		$no_id = openstation_register_window_control( array( 'label' => 'X' ) );
 		$this->assertInstanceOf( 'WP_Error', $no_id );
@@ -178,6 +219,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_missing_label', $no_label->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_build_window_control_scripts_payload
+	 */
 	public function test_window_control_scripts_payload_resolves_url() {
 		$handle = 'ctrl-payload-' . uniqid();
 		wp_register_script( $handle, 'https://example.test/ctrl.js', array(), '1.0.0', true );
@@ -194,12 +238,18 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'ctrl.js', $found['scriptUrl'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_slot_script
+	 */
 	public function test_register_window_slot_script_stores_handle() {
 		$handle = 'slot-test-a-' . uniqid();
 		$this->assertTrue( openstation_register_window_slot_script( $handle ) );
 		$this->assertTrue( openstation_window_slot_script_registry( $handle ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_slot
+	 */
 	public function test_register_window_slot_stores_metadata() {
 		$id = 'plug/title-prefix-' . uniqid();
 		openstation_register_window_slot(
@@ -214,6 +264,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 10, $entry['order'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_slot
+	 */
 	public function test_register_window_slot_rejects_unknown_slot_name() {
 		$result = openstation_register_window_slot(
 			array(
@@ -225,6 +278,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_invalid_slot', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_window_slot_names
+	 */
 	public function test_known_slot_names_match_canonical_list() {
 		$expected = array(
 			'before-titlebar',
@@ -240,12 +296,18 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( $expected, openstation_window_slot_names() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_chrome_script
+	 */
 	public function test_register_window_chrome_script_stores_handle() {
 		$handle = 'chrome-test-a-' . uniqid();
 		$this->assertTrue( openstation_register_window_chrome_script( $handle ) );
 		$this->assertTrue( openstation_window_chrome_script_registry( $handle ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_chrome
+	 */
 	public function test_register_window_chrome_stores_metadata() {
 		$id = 'plug/macos-' . uniqid();
 		openstation_register_window_chrome(
@@ -258,12 +320,18 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertSame( 'macOS Style', $entry['label'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_chrome
+	 */
 	public function test_register_window_chrome_requires_id() {
 		$result = openstation_register_window_chrome( array() );
 		$this->assertInstanceOf( 'WP_Error', $result );
 		$this->assertSame( 'openstation_missing_id', $result->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_register_window_chrome_script
+	 */
 	public function test_window_chrome_action_fires() {
 		$calls = array();
 		add_action(
@@ -277,6 +345,9 @@ class Tests_OpenStation_WindowChrome extends WP_UnitTestCase {
 		$this->assertContains( $handle, $calls );
 	}
 
+	/**
+	 * @covers ::openstation_flush_script_handle_registries
+	 */
 	public function test_flush_clears_every_window_chrome_registry() {
 		openstation_register_window_theme_script( 'theme-flush-' . uniqid() );
 		openstation_register_window_control_script( 'ctrl-flush-' . uniqid() );

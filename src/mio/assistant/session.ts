@@ -109,7 +109,6 @@ export class MioSession {
 			if ( actionIds.length ) {
 				message.actionIds = actionIds;
 			}
-
 			if ( this.disposed || this.pending !== controller ) {
 				this.responseActions.prune(); return;
 			}
@@ -195,7 +194,6 @@ export class MioSession {
 						attemptedWrites.add( key );
 					}
 					running = { context, name: call.name }; this.operations.record( context, call.name, 'running' );
-
 					try {
 						guard();
 						if ( ability.allowed && ! ability.allowed() ) {
@@ -211,14 +209,12 @@ export class MioSession {
 						result = await ability.run( args, signal, context );
 					} catch ( error ) {
 						this.operations.record( context, call.name, context.effect === 'write' ? 'unknown' : 'rejected' ); running = null;
-
 						throw error;
 					}
 					const outcome = outcomeOf( result );
 					if ( outcome?.effect === 'none' && outcome.status === 'rejected' ) {
 						this.operations.record( context, call.name, 'rejected' );
 						running = null;
-
 						attemptedWrites.delete( key ); guard();
 						const feedback = ability.history ? ability.history( { name: call.name, callId, args, result: outcome }, context ) : outcome.data;
 						reject( new MioValidationError( outcome.errors, outcome.retryable ), context, call.name, feedback ); break;
@@ -240,7 +236,6 @@ export class MioSession {
 					}
 					guard();
 					const entry: MioHistoryEntry = { name: call.name, callId, args, result };
-
 					const compact = ability.history ? ability.history( entry, context ) : { result };
 					const operation = this.operations.list().find( ( item ) => item.callId === callId );
 					outcomes.push( JSON.parse( JSON.stringify( { ...compact, name: call.name, callId, effect: outcome?.effect ?? context.effect, status: operation?.status, receipt: operation?.receipt } ) ) );

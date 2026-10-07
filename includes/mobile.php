@@ -115,8 +115,8 @@ function openstation_print_mode_stamp() {
 		wp_print_inline_script_tag( $script, array( 'id' => 'os-mode-stamp' ) );
 		return;
 	}
-
-	echo '<script id="os-mode-stamp">' . $script . '</script>' . "\n";
+	// phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- a two-line head stamp on pre-5.7 hosts; there is no enqueue slot that runs before the body parses.
+	echo '<script id="os-mode-stamp">' . $script . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built by openstation_mode_stamp_script() from integers and a wp_json_encode()d enum.
 }
 add_action( 'admin_head', 'openstation_print_mode_stamp', 0 );
 

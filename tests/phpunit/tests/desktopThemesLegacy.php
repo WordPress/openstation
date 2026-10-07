@@ -1,12 +1,14 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 
 	const SLUG = 'desktop-mode-legacy';
 
 	public function set_up() {
 		parent::set_up();
-
 		openstation_register_builtin_desktop_themes();
 	}
 
@@ -24,6 +26,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		return $manifest;
 	}
 
+	/**
+	 * @covers ::openstation_register_builtin_desktop_themes
+	 */
 	public function test_legacy_is_registered_as_a_code_theme() {
 		$entry = openstation_desktop_theme_registry( self::SLUG );
 
@@ -45,6 +50,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_sanitize_svg
+	 */
 	public function test_preview_artwork_survives_the_svg_sanitizer() {
 		$copy = get_temp_dir() . 'legacy-preview-' . wp_generate_password( 8, false ) . '.svg';
 		copy( OPENSTATION_DIR . 'assets/desktop-themes/legacy/preview.svg', $copy );
@@ -57,6 +65,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Desktop Mode (Legacy)', $after, 'The label survives sanitization.' );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_themes_payload
+	 */
 	public function test_legacy_reaches_the_shell_payload() {
 		$payload = openstation_build_desktop_themes_payload();
 		$found   = null;
@@ -72,6 +83,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		$this->assertNotSame( '', $found['previewUrl'], 'The card renders artwork, not initials.' );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_delete
+	 */
 	public function test_legacy_cannot_be_deleted() {
 		$deleted = openstation_desktop_theme_delete( self::SLUG );
 
@@ -83,6 +97,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
+	 */
 	public function test_no_token_is_dropped_by_the_sanitizer() {
 		$raw   = $this->manifest();
 		$entry = openstation_desktop_theme_registry( self::SLUG );
@@ -114,7 +131,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			'--os-ui-border'                  => '#dcdcde',
 			'--os-ui-accent'                  => '#2271b1',
 			'--os-ui-danger'                  => '#d63638',
-
 			'--os-titlebar-bg-focused'    => '#2271b1',
 			'--os-titlebar-color-focused' => '#fff',
 		) as $name => $value ) {
@@ -132,7 +148,6 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			}
 			preg_match_all( '/(--os-[a-z0-9-]+)\s*:\s*([^;]+);/', $rule[2], $declarations, PREG_SET_ORDER );
 			foreach ( $declarations as $declaration ) {
-
 				if ( false !== strpos( $declaration[2], 'var(' ) || false !== strpos( $declaration[2], 'var (' ) ) {
 					continue;
 				}
@@ -280,10 +295,8 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 			$tokens['--os-tabs-bg-unfocused'],
 			'Legacy names one strip colour; both focus states wear it.'
 		);
-
 		$this->assertSame( 'none', $tokens['--os-tabs-active-crown'] );
 		$this->assertSame( 'none', $tokens['--os-tabs-active-frost'] );
-
 		$this->assertArrayNotHasKey( '--os-tabs-rail', $tokens );
 	}
 
@@ -331,6 +344,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_compile_css
+	 */
 	public function test_compiled_css_declares_every_token() {
 		$entry = openstation_desktop_theme_registry( self::SLUG );
 		$css   = (string) $entry['cssText'];
@@ -369,6 +385,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_legacy_recommends_the_wordpress_blue_accent() {
 		$raw = $this->manifest();
 		$this->assertSame( 2, $raw['manifestVersion'], 'v2 declares a recommendation block.' );
@@ -382,6 +401,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
+	 */
 	public function test_accent_is_a_registry_slug_in_the_schema() {
 		$schema = openstation_desktop_theme_recommended_os_settings_schema();
 
@@ -411,6 +433,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_legacy_theme_manifest_path
+	 */
 	public function test_manifest_path_is_filterable() {
 		add_filter( 'openstation_legacy_theme_manifest_path', static function () {
 			return '/nonexistent/theme.json';

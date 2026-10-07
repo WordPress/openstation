@@ -14,7 +14,6 @@ describe( 'grid', () => {
 	test( 'pointToCell rounds to the nearest cell', () => {
 		expect( pointToCell( GRID_PADDING, GRID_PADDING ) ).toMatchObject( { col: 0, row: 0 } );
 		expect( pointToCell( GRID_PADDING + GRID_CELL_W, GRID_PADDING + GRID_CELL_H ) ).toMatchObject( { col: 1, row: 1 } );
-
 		expect( pointToCell( GRID_PADDING + GRID_CELL_W * 1.49, GRID_PADDING ) ).toMatchObject( { col: 1, row: 0 } );
 		expect( pointToCell( GRID_PADDING + GRID_CELL_W * 1.51, GRID_PADDING ) ).toMatchObject( { col: 2, row: 0 } );
 	} );
@@ -39,7 +38,6 @@ describe( 'grid', () => {
 	test( 'snapToEmptyCell wraps to the next column when host height limits rows', () => {
 		const occupied = new Set( [ cellKey( 0, 0 ), cellKey( 0, 1 ) ] );
 		const host = document.createElement( 'div' );
-
 		Object.defineProperty( host, 'clientHeight', {
 			value: GRID_PADDING + 2 * GRID_CELL_H,
 			configurable: true,

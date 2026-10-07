@@ -20,7 +20,6 @@ export const styles = css`
 		text-align: start;
 		cursor: pointer;
 	}
-
 	.os-disclosure__summary:focus-visible {
 		outline: 2px solid var( --os-ui-accent, #f252fc );
 		outline-offset: 2px;
@@ -34,14 +33,12 @@ export const styles = css`
 		font-weight: 500;
 		letter-spacing: -0.01em;
 	}
-
 	.os-disclosure__hint {
 		flex: 0 0 auto;
 		font-size: 13px;
 		font-weight: 400;
 		color: var( --os-ui-fg-muted, #646970 );
 	}
-
 	.os-disclosure__marker {
 		flex: 0 0 auto;
 		width: 8px;
@@ -61,7 +58,6 @@ export const styles = css`
 			transition: none;
 		}
 	}
-
 	.os-disclosure__body {
 		margin-block-start: 14px;
 	}

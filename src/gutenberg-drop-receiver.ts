@@ -57,9 +57,7 @@ interface DropMsg {
 }
 
 interface BlockSpec {
-
 	name: string;
-
 	attributes: Record< string, unknown >;
 }
 
@@ -132,7 +130,6 @@ export function buildBlockSpec(
 			},
 		};
 	}
-
 	if ( payload.kind === 'upload' ) {
 		return null;
 	}
@@ -155,7 +152,6 @@ interface WpBlocks {
 
 interface WpDataDispatch {
 	insertBlocks( blocks: unknown[], index?: number, rootClientId?: string ): void;
-
 	showInsertionPoint(
 		rootClientId: string | undefined,
 		index: number,
@@ -274,7 +270,6 @@ function notifyParentOfFailure( reason: string ): void {
 			window.location.origin,
 		);
 	} catch {
-
 	}
 }
 
@@ -389,7 +384,6 @@ function onNativeDragOver( e: DragEvent ): void {
 	if ( e.dataTransfer ) {
 		e.dataTransfer.dropEffect = 'copy';
 	}
-
 	const doc = documentOfTarget( e );
 	if ( doc ) {
 		trackInsertionPoint( e.clientX, e.clientY, doc );
@@ -419,7 +413,7 @@ function onNativeDrop( e: DragEvent ): void {
 	const doc = documentOfTarget( e );
 	void performInsert( payload, { x: e.clientX, y: e.clientY }, doc ).catch( ( err: unknown ) => {
 		const reason = err instanceof Error ? err.message : String( err );
-
+		// eslint-disable-next-line no-console
 		console.error(
 			'[openstation] Gutenberg drop receiver native-drop insert failed:',
 			err,
@@ -449,7 +443,6 @@ function attachToAllFrames(): void {
 					attachToDocument( innerDoc );
 				}
 			} catch {
-
 			}
 		} );
 }
@@ -460,12 +453,10 @@ function install(): void {
 		if ( e.origin !== expectedOrigin ) {
 			return;
 		}
-
 		if ( isDragOverMsg( e.data ) ) {
 			stashedBridgePayload = e.data.payload;
 			return;
 		}
-
 		if ( isDragMoveMsg( e.data ) ) {
 			if ( stashedBridgePayload ) {
 				trackInsertionPoint( e.data.position.x, e.data.position.y );
@@ -480,11 +471,10 @@ function install(): void {
 		if ( ! isDropMsg( e.data ) ) {
 			return;
 		}
-
 		stashedBridgePayload = null;
 		void performInsert( e.data.payload, e.data.position ).catch( ( err: unknown ) => {
 			const reason = err instanceof Error ? err.message : String( err );
-
+			// eslint-disable-next-line no-console
 			console.error(
 				'[openstation] Gutenberg drop receiver insert failed:',
 				err,
@@ -513,7 +503,6 @@ function install(): void {
 			subtree: true,
 		} );
 	}
-
 	document.addEventListener(
 		'load',
 		( e: Event ) => {

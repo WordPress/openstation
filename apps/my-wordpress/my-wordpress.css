@@ -6,13 +6,11 @@
 		--os-font,
 		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
 	);
-
 	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 	background: var(
 		--os-my-wordpress-bg,
 		var( --os-window-bg, #fff )
 	);
-
 	--os-tile-fg: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 	--os-tile-fg-muted: var(
 		--os-my-wordpress-fg-muted,
@@ -52,7 +50,6 @@
 
 .os-mywp__back:hover,
 .os-mywp__back:focus-visible {
-
 	background: var( --os-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.06 ) ) );
 	color: inherit;
 }
@@ -71,7 +68,6 @@
 	padding: 0;
 	background: transparent;
 	font: inherit;
-
 	color: var( --os-link, var( --os-ui-accent, #2271b1 ) );
 	cursor: pointer;
 }
@@ -194,7 +190,6 @@
 
 .os-mywp__split {
 	display: grid;
-
 	grid-template-columns: minmax( 240px, 1fr ) minmax( min( 430px, calc( 100% - 240px ) ), 40% );
 	flex: 1 1 auto;
 	min-block-size: 0;
@@ -206,7 +201,6 @@
 
 .os-mywp__list-pane {
 	min-inline-size: 0;
-
 	min-block-size: 0;
 	display: flex;
 	flex-direction: column;
@@ -403,7 +397,6 @@
 	text-transform: uppercase;
 	white-space: nowrap;
 	color: var( --os-ui-fg-muted, #646970 );
-
 	background: color-mix( in srgb, var( --os-ui-bg, #fff ) 94%, transparent );
 	backdrop-filter: blur( 14px ) saturate( 180% );
 	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
@@ -656,7 +649,6 @@
 	align-items: center;
 	gap: 8px;
 	position: sticky;
-
 	inset-block-start: 0;
 	z-index: 3;
 	margin: 0;
@@ -666,7 +658,6 @@
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var( --os-ui-fg-muted, #787c82 );
-
 	background: color-mix(
 		in srgb,
 		var( --os-ui-bg, #fff ) 94%,
@@ -914,7 +905,6 @@
 	inline-size: 100%;
 	min-block-size: 1px;
 	border-radius: 3px 3px 0 0;
-
 	background: linear-gradient(
 		180deg,
 		var( --wp-admin-theme-color, #2271b1 ) 0%,
@@ -1053,7 +1043,6 @@
 	width: 48px;
 	height: 48px;
 	border-radius: 50%;
-
 	background: var( --os-ui-surface-elevated, #fff );
 	flex: none;
 }

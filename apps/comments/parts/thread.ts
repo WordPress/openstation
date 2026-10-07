@@ -65,7 +65,6 @@ function openComposerFor( ctx: Ctx, ui: UiState, target: CommentRow ): void {
 function openInlineEdit( ctx: Ctx, ui: UiState, row: CommentRow ): void {
 	if ( ui.editing !== row.id ) {
 		ui.editing = row.id;
-
 		ui.editSeed = plainText( row );
 		ui.editDraft = ui.editSeed;
 		ctx.repaint();
@@ -151,7 +150,6 @@ function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResul
 			),
 		);
 	}
-
 	if ( canReply ) {
 		items.push( actionButton( __( 'Reply' ), 'default', false, () => openComposerFor( ctx, ui, row ) ) );
 	}
@@ -166,7 +164,6 @@ function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResul
 			items.push( actionButton( __( 'Trash' ), 'danger', busyOn( 'trash' ), () => void moderate( ctx, ui, row.id, 'trash' ) ) );
 		}
 	}
-
 	return html`<div class="${ NS }__msg-actions" ?hidden=${ ui.editing === row.id }>${ items.map(
 		( item, index ) =>
 			index > 0
@@ -239,7 +236,6 @@ function convoHead( ctx: Ctx, ui: UiState, root: CommentRow ): TemplateResult {
 		ui.pane = 'rail';
 		ctx.repaint();
 	};
-
 	const post =
 		root.post > 0
 			? html`<a

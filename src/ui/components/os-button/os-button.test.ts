@@ -73,7 +73,6 @@ describe( '<os-button>', () => {
 			.querySelector( 'os-button' )!
 			.shadowRoot!.querySelector( 'button' ) as HTMLButtonElement;
 		expect( inner.hasAttribute( 'aria-label' ) ).toBe( false );
-
 		expect( inner.disabled ).toBe( true );
 		expect( host.querySelector( 'os-button' )!.getAttribute( 'variant' ) ).toBe( 'primary' );
 	} );

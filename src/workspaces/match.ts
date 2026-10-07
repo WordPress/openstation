@@ -43,12 +43,9 @@ export function resolveAppIds(
 }
 
 export interface ResolvedLaunch {
-
 	item: NavItem;
-
 	url: string;
 	title: string;
-
 	gridSpan?: WorkspaceLaunch[ 'gridSpan' ];
 	place?: WorkspaceLaunch[ 'place' ];
 }

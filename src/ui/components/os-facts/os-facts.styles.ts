@@ -40,7 +40,6 @@ export const factsStyles = css`
 
 export const factStyles = css`
 	:host {
-
 		display: contents;
 	}
 	:host( [ hidden ] ) {
@@ -51,7 +50,6 @@ export const factStyles = css`
 	}
 	dd {
 		margin: 0;
-
 		overflow-wrap: anywhere;
 	}
 

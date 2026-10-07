@@ -32,7 +32,6 @@ import {
 	switchDesktop,
 	type SwitchDesktopOptions,
 } from './desktops';
-
 import { cascade, columns, focus as focusLayout, tile } from './arrange';
 import {
 	getSnapConfig,
@@ -71,7 +70,6 @@ export interface ResolvedWindowGeometry {
 	y: number;
 	width: number;
 	height: number;
-
 	state?: WindowState;
 }
 
@@ -99,7 +97,6 @@ export class WindowManager {
 	private cascadeIndex = 0;
 
 	private _pendingRestoreState = new Map< string, Partial< WindowConfig > >();
-
 	private _reservedRestoreIds = new Set< string >();
 
 	private _openingWindowIds = new Set< string >();
@@ -112,7 +109,7 @@ export class WindowManager {
 	private _prewarmInFlight = false;
 
 	public _desktops: Desktop[] = [
-
+		// translators: default desktop name — "Workspace 1"
 		{ id: 'desktop-1', label: 'Workspace 1' },
 	];
 
@@ -141,27 +138,16 @@ export class WindowManager {
 	public _overviewLabels: Map<string, HTMLElement> = new Map();
 
 	public _overviewPointerDownHandler: ( ( e: PointerEvent ) => void ) | null = null;
-
 	public _overviewPointerUpHandler: ( ( e: PointerEvent ) => void ) | null = null;
-
 	public _overviewKeyHandler: ( ( e: KeyboardEvent ) => void ) | null = null;
-
 	public _overviewPressTarget: { id: string; element: HTMLElement } | null = null;
-
 	public _overviewClickBlocker: ( ( e: MouseEvent ) => void ) | null = null;
-
 	public _overviewTopBar: HTMLElement | null = null;
-
 	public _overviewMouseHandler: ( ( e: MouseEvent ) => void ) | null = null;
-
 	public _lastOverviewHoverId: string | null = null;
-
 	public _overviewAddTileFocused = false;
-
 	public _overviewEnterTimeoutId: number | null = null;
-
 	public _overviewExitTimeoutId: number | null = null;
-
 	public _overviewExitFinalizer: ( () => void ) | null = null;
 
 	public _snapPendingZone: 'left' | 'right' | null = null;
@@ -173,21 +159,13 @@ export class WindowManager {
 	public _splitOverviewActive = false;
 
 	public _splitOverviewAnchor: Window | null = null;
-
 	public _splitOverviewZone: 'left' | 'right' | null = null;
-
 	public _splitOverviewSnapshot: Map< string, { transform: string; transition: string } > = new Map();
-
 	public _splitOverviewLabels: Map< string, HTMLElement > = new Map();
-
 	public _splitOverviewPointerDown: ( ( e: PointerEvent ) => void ) | null = null;
-
 	public _splitOverviewPointerUp: ( ( e: PointerEvent ) => void ) | null = null;
-
 	public _splitOverviewPressTarget: { id: string; element: HTMLElement } | null = null;
-
 	public _splitOverviewClickBlocker: ( ( e: MouseEvent ) => void ) | null = null;
-
 	public _splitOverviewKey: ( ( e: KeyboardEvent ) => void ) | null = null;
 
 	constructor( desktop: HTMLElement ) {
@@ -221,11 +199,9 @@ export class WindowManager {
 				if ( ! win ) {
 					return;
 				}
-
 				if ( this._overviewActive ) {
 					return;
 				}
-
 				if ( this.getFocused() === win ) {
 					return;
 				}
@@ -322,7 +298,6 @@ export class WindowManager {
 			);
 		}
 		const baseId = config.baseId || config.id;
-
 		const existing = this.getByBaseIdOnActiveDesktop( baseId );
 		if ( existing ) {
 			const wasMinimized = existing.state === 'minimized';
@@ -330,7 +305,6 @@ export class WindowManager {
 			if ( wasMinimized ) {
 				existing.restore();
 			}
-
 			let navigated = false;
 			if ( ! existing.config.native ) {
 				const requestedKey = urlReuseKey( config.url );
@@ -345,7 +319,6 @@ export class WindowManager {
 					navigated = existing.navigateTo( config.url );
 				}
 			}
-
 			if ( config.params ) {
 				existing.config.params = { ...config.params };
 			}
@@ -398,12 +371,10 @@ export class WindowManager {
 				{ ...config, id: config.id, baseId },
 				{ prewarm: true },
 			);
-
 			if ( this.getByBaseId( baseId ) ) {
 				this.teardownSpeculativeWindow( win );
 				return false;
 			}
-
 			const timer = window.setTimeout(
 				() => this.discardPrewarmed(),
 				45_000,
@@ -424,7 +395,6 @@ export class WindowManager {
 			return null;
 		}
 		const win = slot.win;
-
 		if (
 			urlReuseKey( config.url ) !== urlReuseKey( win.config.url || '' ) ||
 			this.getById( win.id )
@@ -473,13 +443,11 @@ export class WindowManager {
 				}
 			).__openStationConnectionBridge?.onWindowClosed?.( win.id );
 		} catch {
-
 		}
 		win.onClose = null;
 		try {
 			win.destroy();
 		} catch {
-
 		}
 		win.element.remove();
 	}
@@ -506,7 +474,6 @@ export class WindowManager {
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
-
 			...( duplicate && 'default' === ( config.openAs ?? this.openWindowsAs() )
 				? { initialState: 'normal', x: cascadeX, y: cascadeY }
 				: {} ),
@@ -528,7 +495,6 @@ export class WindowManager {
 		}
 
 		const desktopRect = this._desktop.getBoundingClientRect();
-
 		const workArea = workAreaRectOf( this._desktop );
 		const margin = 12;
 		const defaultWidth = Math.min( Math.round( workArea.width * 0.8 ), 1200 );
@@ -558,7 +524,6 @@ export class WindowManager {
 		let resolvedHeight =
 			config.height ??
 			( saved ? Math.max( saved.height, minHeight ) : defaultHeight );
-
 		const placedByDefault = ! hasExplicitX && ! hasExplicitY && ! saved;
 		if ( placedByDefault ) {
 			resolvedWidth = Math.max(
@@ -578,7 +543,6 @@ export class WindowManager {
 			workArea.y + margin,
 			Math.min( cascadeY, workArea.y + workArea.height - resolvedHeight - margin ),
 		);
-
 		const openAs =
 			! hasExplicitState && ! staged && ! createOpts.prewarm
 				? config.openAs ?? this.openWindowsAs()
@@ -679,7 +643,6 @@ export class WindowManager {
 		const fullConfig: WindowConfig = {
 			icon: config.icon || 'dashicons-admin-generic',
 			...config,
-
 			x: finalX,
 			y: finalY,
 			width: finalWidth,
@@ -688,7 +651,6 @@ export class WindowManager {
 			minHeight,
 			...( finalState ? { initialState: finalState } : {} ),
 			baseId: resolvedBaseId,
-
 			desktopId: config.desktopId || this._activeDesktopId,
 		};
 
@@ -723,7 +685,6 @@ export class WindowManager {
 		this._openingBaseIds.delete( resolvedBaseId );
 		const [ system ] = loaded;
 		const win = system.createWindow( fullConfig );
-
 		if ( config.gridSpan ) {
 			win._gridSpan = {
 				anchor: { ...config.gridSpan.anchor },
@@ -795,7 +756,6 @@ export class WindowManager {
 				multi: true,
 			} );
 		};
-
 		win.onOpenInNewWindow = ( w: Window ) => {
 			const baseId = w.config.baseId || w.id;
 			if ( w.config.native ) {
@@ -824,14 +784,12 @@ export class WindowManager {
 				multi: true,
 			} );
 		};
-
 		win.onToggleStartup = ( w: Window ) => {
 			this.onToggleStartupRequested?.( w );
 		};
 		win.snapConfigProvider = () => this.getSnapConfig();
 		win.snapPartnerMinWidthProvider = ( zone ) =>
 			snapPartnerMinWidth( this, win, zone );
-
 		win.onDragMove = ( w, clientX, clientY ) => {
 			if ( this._gridSnap ) {
 				updateGridSnap( this, clientX, clientY );
@@ -849,7 +807,6 @@ export class WindowManager {
 					}
 					break;
 				case 'shake':
-
 					resetGridSnapAnchor(
 						this,
 						gesture.clientX,
@@ -918,7 +875,6 @@ export class WindowManager {
 		document.dispatchEvent(
 			new CustomEvent( 'os-window-opened', { detail: openedDetail } ),
 		);
-
 		doAction( HOOKS.WINDOW_OPENED, openedDetail );
 
 		return win;
@@ -945,6 +901,7 @@ export class WindowManager {
 			typeof winOrId === 'string' ? this.getById( winOrId ) : winOrId;
 		if ( ! requested || typeof requested.setZIndex !== 'function' ) {
 			if ( winOrId && typeof winOrId !== 'string' ) {
+				// eslint-disable-next-line no-console -- Surfacing a call that would otherwise corrupt the z-stack silently.
 				console.warn(
 					'[openstation] windowManager.focus() expects a Window or a window id; received',
 					winOrId,
@@ -1079,7 +1036,6 @@ export class WindowManager {
 			const owner = parent.getSnapshot();
 			const width = config.width ?? Math.round( owner.width * 0.8 );
 			const height = config.height ?? Math.round( owner.height * 0.8 );
-
 			const area = workAreaRectOf( this._desktop );
 			const maxX = Math.max( area.x, area.x + area.width - width );
 			const maxY = Math.max( area.y, area.y + area.height - height );
@@ -1100,7 +1056,6 @@ export class WindowManager {
 		return this.open( {
 			...config,
 			...placement,
-
 			desktopId: parent.config.desktopId,
 			parentWindowId,
 		} );
@@ -1119,7 +1074,6 @@ export class WindowManager {
 	public blockingChildOf( win: Window ): Window | undefined {
 		let current = win;
 		let blocker: Window | undefined;
-
 		const seen = new Set< Window >( [ win ] );
 		for ( ;; ) {
 			const open = this.childrenOf( current ).filter(
@@ -1128,7 +1082,6 @@ export class WindowManager {
 			if ( open.length === 0 ) {
 				return blocker;
 			}
-
 			current = open[ open.length - 1 ];
 			seen.add( current );
 			blocker = current;
@@ -1174,7 +1127,6 @@ export class WindowManager {
 				continue;
 			}
 			this._cascadeMinimized.add( child );
-
 			child.minimize();
 		}
 	}
@@ -1185,7 +1137,6 @@ export class WindowManager {
 				continue;
 			}
 			this._cascadeMinimized.delete( child );
-
 			child.restore();
 		}
 	}
@@ -1356,7 +1307,6 @@ export class WindowManager {
 	public renameDesktop( id: string, label: string ): boolean {
 		return renameDesktop( this, id, label );
 	}
-
 	public moveWindowToDesktop( windowId: string, desktopId: string ): boolean {
 		return moveWindowToDesktop( this, windowId, desktopId );
 	}
@@ -1369,7 +1319,6 @@ export class WindowManager {
 			fallback,
 			all,
 		);
-
 		if ( typeof filtered !== 'string' || filtered === '' ) {
 			return fallback;
 		}
@@ -1379,7 +1328,6 @@ export class WindowManager {
 
 	public closeAll( options?: { exceptIds?: string[] } ): number {
 		const exceptSet = new Set( options?.exceptIds ?? [] );
-
 		const initialCandidates = this._stack.filter(
 			( w ) => ! exceptSet.has( w.id ),
 		);
@@ -1395,7 +1343,6 @@ export class WindowManager {
 
 		let closed = 0;
 		const refused: Window[] = [];
-
 		for ( const win of finalList.slice() ) {
 			try {
 				win.close();
@@ -1490,7 +1437,6 @@ export class WindowManager {
 				try {
 					win.restore();
 				} catch {
-
 				}
 			}
 			return false;
@@ -1585,7 +1531,6 @@ export class WindowManager {
 
 	public snapshot(): Session {
 		const focused = this.getFocused();
-
 		const persistable = this._stack.filter(
 			( w ) => ! w.config.ephemeral && ! w.config.parentWindowId,
 		);
@@ -1593,7 +1538,6 @@ export class WindowManager {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
 			const native = !! w.config.native;
-
 			const openParams = w.config.params;
 			const params =
 				native && openParams
@@ -1604,9 +1548,7 @@ export class WindowManager {
 				baseId: w.config.baseId || w.id,
 				desktopId: w.config.desktopId || this._activeDesktopId,
 				...( native ? { native: true } : {} ),
-
 				...( params ? { params } : {} ),
-
 				url: native ? w.config.url || `#${ w.id }` : w.getCurrentUrl(),
 				title: w.config.title,
 				icon: w.config.icon,
@@ -1616,11 +1558,9 @@ export class WindowManager {
 				width: snap.width,
 				height: snap.height,
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
-
 				...( w._gridSpan ? { gridSpan: { ...w._gridSpan } } : {} ),
 			};
 		} );
-
 		const focusedId =
 			focused &&
 			! focused.config.ephemeral &&
@@ -1633,10 +1573,8 @@ export class WindowManager {
 			desktops: this.getDesktops(),
 			activeDesktop: this._activeDesktopId,
 			focused: focusedId,
-
 			updated: Date.now(),
 		};
-
 		const filtered = applyFilters< Session >( HOOKS.SESSION_SNAPSHOT, session );
 		return filtered && Array.isArray( filtered.windows ) ? filtered : session;
 	}

@@ -48,7 +48,6 @@ describe( 'maybeShowNotices', () => {
 		} );
 		expect( toastMock ).toHaveBeenCalledTimes( 2 );
 		expect( toastAt( 0 ).message ).toBe( NOTICE.message );
-
 		expect( toastAt( 0 ).persistent ).toBe( true );
 		expect( toastAt( 0 ).dismissible ).toBe( true );
 		expect( toastAt( 1 ).persistent ).toBe( true );

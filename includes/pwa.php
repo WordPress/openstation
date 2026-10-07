@@ -28,7 +28,6 @@ function openstation_pwa_sw_scope() {
 }
 
 function openstation_pwa_force_replace_sw() {
-
 	return (bool) apply_filters( 'openstation_pwa_force_replace_sw', false );
 }
 
@@ -40,7 +39,6 @@ function openstation_pwa_admin_asset_cache_enabled() {
 }
 
 function openstation_pwa_sw_config_preamble() {
-
 	$config = array(
 		'pluginUrl'  => OPENSTATION_URL,
 		'version'    => OPENSTATION_VERSION,
@@ -101,7 +99,6 @@ function openstation_shell_build_stamp( $dir = null ) {
 }
 
 function openstation_pwa_endpoint_kind() {
-
 	$uri = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 	if ( ! is_string( $uri ) || '' === $uri ) {
 		return '';
@@ -119,7 +116,7 @@ function openstation_pwa_endpoint_kind() {
 	if ( $path === $portal . OPENSTATION_PWA_SW_FRAGMENT ) {
 		return 'sw';
 	}
-
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read-only endpoint selector, same trust level as the path match above.
 	if ( isset( $_GET[ OPENSTATION_PWA_SW_QUERY ] ) && '1' === $_GET[ OPENSTATION_PWA_SW_QUERY ] ) {
 		$home_root = '' === $home_path ? '/' : $home_path . '/';
 		if ( $path === $home_root || $path === $home_path ) {
@@ -160,7 +157,6 @@ function openstation_pwa_serve_manifest() {
 	}
 
 	header( 'Content-Type: application/manifest+json; charset=utf-8' );
-
 	header( 'Cache-Control: public, max-age=300' );
 	echo wp_json_encode( $manifest, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
 }
@@ -187,7 +183,7 @@ function openstation_pwa_build_manifest() {
 		'name'                        => $site_name,
 		'short_name'                  => $short_name,
 		'description'                 => sprintf(
-
+			/* translators: %s: site name */
 			__( '%s — installed as a desktop app.', 'desktop-mode' ),
 			$site_name
 		),
@@ -197,13 +193,11 @@ function openstation_pwa_build_manifest() {
 		'display'                     => 'standalone',
 		'display_override'            => array( 'standalone', 'minimal-ui' ),
 		'orientation'                 => 'any',
-
 		'theme_color'                 => OPENSTATION_PWA_THEME_COLOR,
 		'background_color'            => OPENSTATION_PWA_THEME_COLOR,
 		'lang'                        => get_bloginfo( 'language' ),
 		'dir'                         => is_rtl() ? 'rtl' : 'ltr',
 		'icons'                       => openstation_pwa_default_icons(),
-
 		'related_applications'        => array(
 			array(
 				'platform' => 'webapp',
@@ -220,7 +214,6 @@ function openstation_pwa_default_icons() {
 
 	$site_icon_id = (int) get_option( 'site_icon' );
 	if ( $site_icon_id > 0 ) {
-
 		foreach ( array( 192, 512 ) as $size ) {
 			$url = get_site_icon_url( $size );
 			if ( is_string( $url ) && '' !== $url ) {
@@ -274,31 +267,30 @@ function openstation_pwa_serve_service_worker() {
 	$path   = OPENSTATION_DIR . 'assets/js/sw' . $suffix . '.js';
 
 	if ( ! file_exists( $path ) ) {
-
 		if ( function_exists( 'error_log' ) ) {
-			error_log( '[openstation] service worker bundle missing at ' . $path . ' — run `npm run build` to generate it.' );
+			error_log( '[openstation] service worker bundle missing at ' . $path . ' — run `npm run build` to generate it.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}
 		status_header( 503 );
 		header( 'Cache-Control: no-cache, must-revalidate' );
 		return;
 	}
 
-	$body = file_get_contents( $path );
+	$body = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	if ( false === $body ) {
 		status_header( 503 );
 		return;
 	}
 
 	header( 'Content-Type: application/javascript; charset=utf-8' );
-
 	header( 'Service-Worker-Allowed: ' . openstation_pwa_sw_scope() );
 	header( 'Cache-Control: no-cache, must-revalidate' );
 	header( 'X-Content-Type-Options: nosniff' );
 
-
-
+	$stamp = substr( md5( $body ), 0, 16 );
+	printf( "/* openstation SW build: %s */\n", esc_html( $stamp ) );
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JS assembled via wp_json_encode; HTML escaping would corrupt the script.
 	echo openstation_pwa_sw_config_preamble();
-
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JS bytes from disk.
 	echo $body;
 }
 
@@ -307,7 +299,6 @@ const OPENSTATION_PWA_THEME_COLOR = '#0c0b0f';
 const OPENSTATION_PWA_STATUS_BAR_STYLES = array( 'black', 'black-translucent', 'default' );
 
 function openstation_pwa_status_bar_style() {
-
 	$style = apply_filters( 'openstation_pwa_status_bar_style', 'black' );
 	return in_array( $style, OPENSTATION_PWA_STATUS_BAR_STYLES, true ) ? $style : 'black';
 }
@@ -328,7 +319,6 @@ function openstation_pwa_render_head_tags() {
 		'<meta name="theme-color" content="%s">' . "\n",
 		esc_attr( OPENSTATION_PWA_THEME_COLOR )
 	);
-
 	echo '<meta name="mobile-web-app-capable" content="yes">' . "\n";
 	echo '<meta name="apple-mobile-web-app-capable" content="yes">' . "\n";
 	printf(
@@ -408,7 +398,6 @@ function openstation_pwa_register_rest_routes() {
 			),
 		)
 	);
-
 }
 add_action( 'rest_api_init', 'openstation_pwa_register_rest_routes' );
 

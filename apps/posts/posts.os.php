@@ -19,22 +19,18 @@ return App::define( 'desktop-mode-posts' )
 	->icon( 'dashicons-admin-post' )
 	->size( 1100, 720 )
 	->min_size( 720, 480 )
-
 	->placement( 'none' )
-
 	->can(
 		static function () {
 			return openstation_posts_window_user_can_register();
 		}
 	)
-
 	->config(
 		static function () {
 			return openstation_posts_app_config( 'posts', 'date', 'desc' );
 		}
 	)
 	->state( openstation_posts_app_state( 'date', 'desc' ) )
-
 	->menu(
 		'edit.php',
 		static function () {
@@ -48,7 +44,6 @@ return App::define( 'desktop-mode-posts' )
 					'page'  => 'post-new.php',
 				),
 			);
-
 			if ( current_user_can( 'manage_categories' ) ) {
 				$tabs['categories'] = array(
 					'label' => __( 'Categories', 'desktop-mode' ),
@@ -87,7 +82,6 @@ return App::define( 'desktop-mode-posts' )
 			openstation_posts_app_trash( $os, $args, 'post' );
 		}
 	)
-
 	->watch( 'post' )
 	->data(
 		static function ( State $state ) {

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-session
+ */
 class Tests_OpenStation_Session extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -10,7 +13,6 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 	}
 
@@ -37,19 +39,24 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_empty_session
+	 */
 	public function test_empty_session_shape() {
 		$empty = openstation_empty_session();
 
 		$this->assertSame( array(), $empty['windows'] );
 		$this->assertSame( '', $empty['focused'] );
 		$this->assertSame( 0, $empty['updated'] );
-
 		$this->assertCount( 1, $empty['desktops'] );
 		$this->assertSame( 'desktop-1', $empty['desktops'][0]['id'] );
 		$this->assertSame( 'Workspace 1', $empty['desktops'][0]['label'] );
 		$this->assertSame( 'desktop-1', $empty['activeDesktop'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_persists_desktop_list_with_label_trim() {
 		$session = array(
 			'desktops' => array(
@@ -66,11 +73,13 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'desktop-1', $clean['desktops'][0]['id'] );
 		$this->assertSame( 'Work', $clean['desktops'][0]['label'] );
 		$this->assertSame( 'desktop-2', $clean['desktops'][1]['id'] );
-
 		$this->assertSame( 64, strlen( $clean['desktops'][1]['label'] ) );
 		$this->assertSame( 'desktop-2', $clean['activeDesktop'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_falls_back_to_default_desktop_when_list_empty() {
 		$clean = openstation_sanitize_session( array( 'desktops' => array() ) );
 
@@ -79,8 +88,10 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'desktop-1', $clean['activeDesktop'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_active_desktop_must_reference_real_desktop() {
-
 		$session = array(
 			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
 			'activeDesktop' => 'desktop-99',
@@ -91,6 +102,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'desktop-1', $clean['activeDesktop'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_window_with_known_desktop_id_persists_it() {
 		$session = array(
 			'desktops' => array(
@@ -112,8 +126,10 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'desktop-2', $clean['windows'][0]['desktopId'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_window_with_unknown_desktop_id_remaps_to_active() {
-
 		$session = array(
 			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
 			'activeDesktop' => 'desktop-1',
@@ -130,6 +146,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'desktop-1', $clean['windows'][0]['desktopId'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_keeps_native_windows() {
 		$session = array(
 			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
@@ -158,6 +177,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 820, $clean['windows'][0]['width'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_keeps_unplaced_marker() {
 		$session = array(
 			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
@@ -196,6 +218,12 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'unplaced', $clean['windows'][1] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
+	/**
+	 * @covers ::openstation_sanitize_session_grid_span
+	 */
 	public function test_sanitize_keeps_a_valid_grid_span() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -236,9 +264,11 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session_grid_span
+	 */
 	public function test_sanitize_drops_a_malformed_grid_span() {
 		$bad = array(
-
 			array(
 				'anchor' => array(
 					'col' => 6,
@@ -251,7 +281,6 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 				'cols'   => 6,
 				'rows'   => 6,
 			),
-
 			array(
 				'anchor' => array(
 					'col' => 0,
@@ -264,7 +293,6 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 				'cols'   => 99,
 				'rows'   => 6,
 			),
-
 			array(
 				'anchor' => array(
 					'col' => 1.5,
@@ -285,7 +313,6 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 			);
 			$this->assertArrayNotHasKey( 'gridSpan', $clean['windows'][0] );
 		}
-
 		$clean = openstation_sanitize_session( array( 'windows' => array( $this->make_window() ) ) );
 		$this->assertArrayNotHasKey( 'gridSpan', $clean['windows'][0] );
 	}
@@ -323,6 +350,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_drops_params_from_iframe_windows() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -339,6 +369,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'params', $clean['windows'][0] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session_params
+	 */
 	public function test_sanitize_params_keeps_only_bounded_scalars() {
 		$clean = openstation_sanitize_session_params(
 			array(
@@ -359,6 +392,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 256, strlen( $clean['long'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session_params
+	 */
 	public function test_sanitize_params_caps_the_key_count() {
 		$many = array();
 		for ( $i = 0; $i < 40; $i++ ) {
@@ -371,11 +407,17 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session_params
+	 */
 	public function test_sanitize_params_tolerates_a_non_array() {
 		$this->assertSame( array(), openstation_sanitize_session_params( null ) );
 		$this->assertSame( array(), openstation_sanitize_session_params( 'nope' ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_rebuilds_native_url_from_the_id() {
 		$session = array(
 			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
@@ -402,6 +444,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( '#my-plugin-panel', $clean['windows'][0]['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_still_drops_foreign_urls_for_iframe_windows() {
 		$session = array(
 			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
@@ -419,6 +464,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertCount( 0, $clean['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_omits_native_flag_for_iframe_windows() {
 		$session = array(
 			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
@@ -431,6 +479,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'native', $clean['windows'][0] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitize_caps_desktops_at_max() {
 		$desktops = array();
 		for ( $i = 1; $i <= ( OPENSTATION_SESSION_MAX_DESKTOPS + 5 ); $i++ ) {
@@ -445,6 +496,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertCount( OPENSTATION_SESSION_MAX_DESKTOPS, $clean['desktops'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_session
+	 */
 	public function test_get_session_returns_empty_when_meta_missing() {
 		$session = openstation_get_session( self::$admin_id );
 
@@ -452,19 +506,28 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( '', $session['focused'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_session
+	 */
 	public function test_get_session_returns_empty_for_invalid_user() {
 		$this->assertSame( openstation_empty_session(), openstation_get_session( 0 ) );
 		$this->assertSame( openstation_empty_session(), openstation_get_session( -5 ) );
 	}
 
+	/**
+	 * @covers ::openstation_get_session
+	 */
 	public function test_get_session_normalizes_corrupt_meta() {
-
 		update_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY, 'not-an-array' );
 
 		$session = openstation_get_session( self::$admin_id );
 		$this->assertSame( array(), $session['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_session
+	 * @covers ::openstation_get_session
+	 */
 	public function test_save_and_get_session_roundtrip() {
 		$payload = array(
 			'windows' => array( $this->make_window() ),
@@ -480,10 +543,16 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( admin_url( 'edit.php' ), $stored['windows'][0]['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_session
+	 */
 	public function test_save_session_rejects_invalid_user() {
 		$this->assertFalse( openstation_save_session( 0, array() ) );
 	}
 
+	/**
+	 * @covers ::openstation_save_session
+	 */
 	public function test_save_session_rejects_stale_write() {
 		$fresh = array(
 			'windows' => array( $this->make_window() ),
@@ -506,6 +575,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertCount( 1, $stored['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_session
+	 */
 	public function test_save_session_accepts_equal_timestamp() {
 		$first = array(
 			'windows' => array( $this->make_window() ),
@@ -524,6 +596,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'wp-window-upload-php', $stored['windows'][0]['id'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_session
+	 */
 	public function test_save_session_orders_writes_within_the_same_second() {
 		$base = 1_700_000_000_000;
 
@@ -552,26 +627,34 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 * @covers ::openstation_session_now_ms
+	 */
 	public function test_sanitize_session_fallback_timestamp_is_milliseconds() {
 		$clean = openstation_sanitize_session(
 			array(
 				'windows' => array( $this->make_window() ),
-
 			)
 		);
 
 		$this->assertGreaterThan( 1_600_000_000_000, $clean['updated'] );
 	}
 
+	/**
+	 * @covers ::openstation_save_session
+	 */
 	public function test_save_session_accepts_missing_timestamp() {
 		$payload = array(
 			'windows' => array( $this->make_window() ),
 			'focused' => 'wp-window-edit-php',
-
 		);
 		$this->assertTrue( openstation_save_session( self::$admin_id, $payload ) );
 	}
 
+	/**
+	 * @covers ::openstation_clear_session
+	 */
 	public function test_clear_session_removes_meta() {
 		update_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY, array( 'windows' => array() ) );
 
@@ -579,10 +662,16 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( '', get_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY, true ) );
 	}
 
+	/**
+	 * @covers ::openstation_clear_session
+	 */
 	public function test_clear_session_rejects_invalid_user() {
 		$this->assertFalse( openstation_clear_session( 0 ) );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_drops_windows_with_cross_origin_url() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -595,6 +684,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( array(), $clean['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_drops_windows_outside_admin_url() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -607,6 +699,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( array(), $clean['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_drops_windows_with_empty_id() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -619,6 +714,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( array(), $clean['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_normalizes_invalid_state() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -631,6 +729,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'normal', $clean['windows'][0]['state'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_preserves_valid_states() {
 		foreach ( OPENSTATION_SESSION_STATES as $state ) {
 			$clean = openstation_sanitize_session(
@@ -642,6 +743,10 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 * @covers ::openstation_sanitize_session_dimension
+	 */
 	public function test_sanitizer_clamps_out_of_range_dimensions() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -665,6 +770,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 20000, $win['height'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_strips_chromeless_flag_from_window_urls() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -682,6 +790,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'paged=2', $clean['windows'][0]['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_strips_classic_flag_from_window_urls() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -698,6 +809,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( OPENSTATION_CLASSIC_FLAG, $clean['windows'][0]['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_strips_portal_flag_from_window_urls() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -714,6 +828,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( OPENSTATION_PORTAL_FLAG, $clean['windows'][0]['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_strips_html_from_title() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -726,6 +843,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( '<script>', $clean['windows'][0]['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_caps_windows_at_max() {
 		$too_many = array();
 		for ( $i = 0; $i < OPENSTATION_SESSION_MAX_WINDOWS + 10; $i++ ) {
@@ -737,6 +857,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertCount( OPENSTATION_SESSION_MAX_WINDOWS, $clean['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_returns_empty_for_non_array_input() {
 		$clean = openstation_sanitize_session( 'not-a-session' );
 
@@ -745,6 +868,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $clean['updated'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session
+	 */
 	public function test_sanitizer_sanitizes_focused_id() {
 		$clean = openstation_sanitize_session(
 			array(
@@ -756,6 +882,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'wp-window-svgeditsvg', $clean['focused'] );
 	}
 
+	/**
+	 * @covers ::openstation_sanitize_session_dimension
+	 */
 	public function test_dimension_clamping() {
 		$this->assertSame( 10, openstation_sanitize_session_dimension( '10', 0, 100 ) );
 		$this->assertSame( 0, openstation_sanitize_session_dimension( -5, 0, 100 ) );
@@ -763,6 +892,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 42, openstation_sanitize_session_dimension( 42.9, 0, 100 ) );
 	}
 
+	/**
+	 * @covers ::openstation_rest_session_permission
+	 */
 	public function test_rest_permission_denies_logged_out() {
 		wp_set_current_user( 0 );
 		$result = openstation_rest_session_permission();
@@ -770,6 +902,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 401, $result->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_session_permission
+	 */
 	public function test_rest_permission_denies_logged_in_without_openstation() {
 		wp_set_current_user( self::$admin_id );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
@@ -779,20 +914,27 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 403, $result->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_session_permission
+	 */
 	public function test_rest_permission_allows_enabled_user() {
 		wp_set_current_user( self::$admin_id );
-
 		$this->assertTrue( openstation_rest_session_permission() );
 	}
 
+	/**
+	 * @covers ::openstation_register_session_rest_routes
+	 */
 	public function test_rest_routes_registered() {
-
 		rest_get_server();
 
 		$routes = rest_get_server()->get_routes();
 		$this->assertArrayHasKey( '/desktop-mode/v1/session', $routes );
 	}
 
+	/**
+	 * @covers ::openstation_rest_get_session
+	 */
 	public function test_rest_get_session_returns_current_user_session() {
 		wp_set_current_user( self::$admin_id );
 		openstation_save_session(
@@ -813,6 +955,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertCount( 1, $data['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_save_session
+	 */
 	public function test_rest_save_session_persists_payload() {
 		wp_set_current_user( self::$admin_id );
 		rest_get_server();
@@ -838,6 +983,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( 'wp-window-edit-php', $stored['focused'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_clear_session
+	 */
 	public function test_rest_clear_session_removes_meta() {
 		wp_set_current_user( self::$admin_id );
 		openstation_save_session(
@@ -853,6 +1001,9 @@ class Tests_OpenStation_Session extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_get_session( self::$admin_id )['windows'] );
 	}
 
+	/**
+	 * @covers ::openstation_rest_save_session
+	 */
 	public function test_rest_save_session_denies_logged_out() {
 		wp_set_current_user( 0 );
 		rest_get_server();

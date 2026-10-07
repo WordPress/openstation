@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-files
+ */
 class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -41,6 +44,9 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_trash_placements_for_entity
+	 */
 	public function test_cascade_soft_trashes_matching_placements() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 
@@ -54,6 +60,9 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p2 )['trashed_at_ms'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_trash_placements_for_entity
+	 */
 	public function test_cascade_is_idempotent() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
@@ -65,10 +74,12 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertSame( 0, $second, 'Second pass must not re-stamp already-trashed rows.' );
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_trash_placements_for_entity
+	 */
 	public function test_cascade_ignores_unrelated_file_types() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$other_user = self::factory()->user->create();
-
 		$post_placement = openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
 		$user_placement = openstation_files_place( self::$admin_id, 0, 'user', (string) $other_user, array( 'x' => 1, 'y' => 0 ) );
 
@@ -78,6 +89,9 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNull( $this->read_trash_columns( $user_placement )['trashed_at_ms'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_on_post_trash
+	 */
 	public function test_wp_trash_post_triggers_cascade() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$p_id    = openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
@@ -90,8 +104,10 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_on_post_trash
+	 */
 	public function test_pages_cascade_via_post_trash_hook() {
-
 		$page_id = self::factory()->post->create( array(
 			'post_type'   => 'page',
 			'post_status' => 'publish',
@@ -103,8 +119,10 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p_id )['trashed_at_ms'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_on_post_trash
+	 */
 	public function test_attachment_wp_trash_routes_to_attachment_filetype() {
-
 		$att_id = self::factory()->attachment->create_object( 'image.jpg', 0, array(
 			'post_mime_type' => 'image/jpeg',
 			'post_status'    => 'inherit',
@@ -116,6 +134,9 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p_id )['trashed_at_ms'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_on_attachment_delete
+	 */
 	public function test_delete_attachment_triggers_cascade() {
 		$att_id = self::factory()->attachment->create_object( 'image2.jpg', 0, array(
 			'post_mime_type' => 'image/jpeg',
@@ -128,6 +149,9 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p_id )['trashed_at_ms'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_on_user_delete
+	 */
 	public function test_deleted_user_triggers_cascade() {
 		require_once ABSPATH . 'wp-admin/includes/user.php';
 		$victim_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
@@ -138,6 +162,9 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertNotNull( $this->read_trash_columns( $p_id )['trashed_at_ms'] );
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_trash_placements_for_entity
+	 */
 	public function test_cascade_fires_after_action_per_placement() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );
@@ -153,6 +180,9 @@ class Tests_OpenStation_FilesCascadeCleanup extends WP_UnitTestCase {
 		$this->assertSame( 2, $fired );
 	}
 
+	/**
+	 * @covers ::openstation_files_cascade_trash_placements_for_entity
+	 */
 	public function test_cascade_writes_cascade_marker_to_trashed_meta() {
 		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$p_id    = openstation_files_place( self::$admin_id, 0, 'post', (string) $post_id, array( 'x' => 0, 'y' => 0 ) );

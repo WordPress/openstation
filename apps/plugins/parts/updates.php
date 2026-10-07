@@ -5,18 +5,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 function openstation_plugins_window_maybe_refresh_update_transient( $force = false ) {
-
 	if ( ! apply_filters( 'openstation_plugins_window_refresh_updates', true, $force ) ) {
 		return;
 	}
 
 	if ( ! function_exists( 'wp_update_plugins' ) ) {
-
 		return;
 	}
 
 	if ( $force ) {
-
 		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
 			wp_clean_plugins_cache( true );
 		} else {
@@ -32,7 +29,6 @@ function openstation_plugins_window_maybe_refresh_update_transient( $force = fal
 		isset( $current->last_checked ) &&
 		12 * HOUR_IN_SECONDS > ( time() - (int) $current->last_checked )
 	) {
-
 		return;
 	}
 
@@ -53,6 +49,7 @@ function openstation_plugins_window_updates() {
 	$updates = get_site_transient( 'update_plugins' );
 	return is_object( $updates ) ? $updates : null;
 }
+
 
 function openstation_plugins_window_field_update_available( $row ) {
 	$none        = array(
@@ -78,9 +75,7 @@ function openstation_plugins_window_field_update_available( $row ) {
 	return array(
 		'available'   => true,
 		'new_version' => is_object( $entry ) && isset( $entry->new_version ) ? (string) $entry->new_version : null,
-
 		'package'     => is_object( $entry ) && ! empty( $entry->package ) ? (string) $entry->package : '',
-
 		'slug'        => is_object( $entry ) && ! empty( $entry->slug ) ? (string) $entry->slug : '',
 	);
 }
@@ -167,11 +162,9 @@ function openstation_plugins_window_field_auto_update( $row ) {
 	$filter_payload['plugin'] = $plugin_file;
 	$filter_payload['id']     = $plugin_file;
 	$filter_payload           = (object) $filter_payload;
-
-	$forced = apply_filters( 'auto_update_plugin', null, $filter_payload );
+	$forced = apply_filters( 'auto_update_plugin', null, $filter_payload ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter; the effective auto-update state has to come from the same source Core reads.
 	if ( null !== $forced ) {
 		$forced = (bool) $forced;
-
 		$enabled = $forced;
 	}
 

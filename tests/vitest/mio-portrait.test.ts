@@ -119,7 +119,6 @@ describe( 'mio portraits', () => {
 	} );
 
 	test( 'carry no text and no caller-supplied string', () => {
-
 		const allowed = new Set( [
 			'svg',
 			'defs',
@@ -128,7 +127,6 @@ describe( 'mio portraits', () => {
 			'path',
 			'use',
 			'rect',
-
 			'clipPath',
 		] );
 		for ( const c of CASES ) {
@@ -139,7 +137,6 @@ describe( 'mio portraits', () => {
 			for ( const tag of tags ) {
 				expect( allowed.has( tag ), `unexpected <${ tag }>` ).toBe( true );
 			}
-
 			expect( svg.replace( /<[^>]*>/g, '' ) ).toBe( '' );
 			expect( svg ).not.toContain( '<script' );
 			expect( svg ).not.toContain( 'xlink' );
@@ -147,7 +144,6 @@ describe( 'mio portraits', () => {
 	} );
 
 	test( 'scope their ids so several can share one document', () => {
-
 		const a = mioPortraitSvg( { physics: { shapePreset: 'star' } }, 96, 'a' );
 		const b = mioPortraitSvg( { physics: { shapePreset: 'heart' } }, 96, 'b' );
 		expect( a ).toContain( 'id="sa"' );
@@ -160,21 +156,18 @@ describe( 'mio portraits', () => {
 
 	test( 'refuse to let a suffix break out of the attribute', () => {
 		const svg = mioPortraitSvg( {}, 96, '" onload="alert(1)' );
-
 		expect( svg ).toContain( 'id="sonloadalert1"' );
 		expect( svg ).not.toContain( 'onload=' );
 		expect( svg ).not.toContain( 'alert(' );
 	} );
 
 	test( 'size the box to the shape, not to a circle', () => {
-
 		const box = ( preset: MioShapePreset ): number => {
 			const svg = mioPortraitSvg( { physics: { shapePreset: preset } } );
 			return Number( /viewBox="-([\d.]+)/.exec( svg )![ 1 ] );
 		};
 		expect( box( 'drop' ) ).toBeGreaterThan( box( 'star' ) );
 		expect( box( 'star' ) ).toBeGreaterThan( box( 'blob' ) );
-
 		expect( box( 'blob' ) ).toBeGreaterThan( box( 'circle' ) );
 		expect( box( 'blob' ) ).toBeLessThan( box( 'circle' ) * 1.1 );
 	} );

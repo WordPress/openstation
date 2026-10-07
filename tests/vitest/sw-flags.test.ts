@@ -6,7 +6,6 @@ import {
 } from '../../src/pwa/sw-register';
 
 const OFF: SwFlags = { windowPrewarm: false, adminAssetCache: false };
-
 const ON: SwFlags = { windowPrewarm: true, adminAssetCache: true };
 
 describe( 'applyFlagMessage — os-sw-set-prewarm', () => {
@@ -19,7 +18,6 @@ describe( 'applyFlagMessage — os-sw-set-prewarm', () => {
 	} );
 
 	it( 'turning it off drops the in-memory AND on-disk copies', () => {
-
 		expect( applyFlagMessage( { type: 'os-sw-set-prewarm', enabled: false }, ON ) ).toEqual( {
 			flags: { windowPrewarm: false, adminAssetCache: true },
 			clearSpeculative: true,
@@ -28,7 +26,6 @@ describe( 'applyFlagMessage — os-sw-set-prewarm', () => {
 	} );
 
 	it( 'treats a non-boolean `enabled` as off rather than as absent', () => {
-
 		const update = applyFlagMessage( { type: 'os-sw-set-prewarm', enabled: 'yes' }, ON );
 		expect( update?.flags.windowPrewarm ).toBe( false );
 		expect( update?.dropSessionCache ).toBe( true );
@@ -61,7 +58,6 @@ describe( 'applyFlagMessage — os-sw-config', () => {
 	} );
 
 	it( 'clears speculations but keeps the session cache when prewarm is off', () => {
-
 		expect(
 			applyFlagMessage(
 				{ type: 'os-sw-config', adminAssetCache: true, windowPrewarm: false },
@@ -75,7 +71,6 @@ describe( 'applyFlagMessage — os-sw-config', () => {
 	} );
 
 	it( 'leaves an omitted field alone rather than resetting it', () => {
-
 		const update = applyFlagMessage( { type: 'os-sw-config', windowPrewarm: false }, ON );
 		expect( update?.flags.adminAssetCache ).toBe( true );
 
@@ -181,7 +176,6 @@ function legacyApply( data: unknown, current: SwFlags ): LegacyOutcome {
 }
 
 describe( 'applyFlagMessage is equivalent to the branches it replaced', () => {
-
 	const STATES: SwFlags[] = [
 		{ windowPrewarm: false, adminAssetCache: false },
 		{ windowPrewarm: true, adminAssetCache: false },
@@ -208,7 +202,6 @@ describe( 'applyFlagMessage is equivalent to the branches it replaced', () => {
 		];
 		for ( const value of VALUES ) {
 			out.push( { type: 'os-sw-set-prewarm', enabled: value } );
-
 			for ( const other of VALUES ) {
 				out.push( {
 					type: 'os-sw-config',
@@ -224,7 +217,6 @@ describe( 'applyFlagMessage is equivalent to the branches it replaced', () => {
 
 	it( 'agrees on every reachable input', () => {
 		const inputs = messages();
-
 		expect( inputs.length ).toBeGreaterThan( 130 );
 
 		let compared = 0;

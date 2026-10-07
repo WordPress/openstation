@@ -91,7 +91,6 @@ if (!defined('MYSQLI_NUM_FLAG')) define('MYSQLI_NUM_FLAG', 32768);
 if (!defined('MYSQLI_GROUP_FLAG')) define('MYSQLI_GROUP_FLAG', 32768);
 
 class Result implements ResultInterface {
-
 	private $rows = array();
 
 	private $columns = array();
@@ -217,7 +216,6 @@ class Result implements ResultInterface {
 }
 
 class DbiMysqli implements DbiExtension {
-
     private $driver;
 
 	private $last_error_message = '';
@@ -299,7 +297,6 @@ class DbiMysqli implements DbiExtension {
     }
 
     public function escapeString($link, $string) {
-
 		return $string;
     }
 

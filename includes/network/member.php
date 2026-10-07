@@ -156,7 +156,6 @@ function openstation_network_member_payload() {
 	if ( null === $hub ) {
 		return null;
 	}
-
 	openstation_network_schedule_refresh();
 	if ( null === $hub['list'] ) {
 		return null;
@@ -175,12 +174,10 @@ function openstation_network_member_payload() {
 			'name'     => $site['name'],
 			'shellUrl' => $site['shellUrl'],
 			'kind'     => $site['kind'],
-
 			'foreign'  => ! $mine,
 		);
 	}
 	if ( '' === $current ) {
-
 		$current = 'member:self';
 		$sites[] = array(
 			'id'       => $current,

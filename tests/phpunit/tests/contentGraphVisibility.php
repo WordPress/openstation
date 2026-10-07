@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group content-graph
+ */
 class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 
 	protected static $editor_id;
@@ -29,7 +32,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		openstation_content_graph_flush_cache();
 	}
 
@@ -129,7 +131,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 				'post_type'   => 'post',
 			)
 		);
-
 		wp_set_current_user( self::$editor_id );
 		wp_update_post(
 			array(
@@ -215,7 +216,6 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 				'post_content' => 'Edited by the editor.',
 			)
 		);
-
 		self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $post_id,

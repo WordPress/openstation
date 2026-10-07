@@ -2,35 +2,23 @@ import type { RestPlacementShape } from './rest';
 import type { DragBridgePayload } from '../drag-bridge';
 
 export interface DesktopFileDragData {
-
 	placement: RestPlacementShape;
-
 	placements?: RestPlacementShape[];
-
 	sourceFolderId: number;
-
 	bridgePayload?: DragBridgePayload;
 }
 
 export interface ShortcutDragItem {
-
 	kind: string;
-
 	ref: string;
-
 	title?: string;
-
 	icon?: string;
-
 	entityId?: string;
-
 	restPath?: string;
-
 	bridgePayload?: DragBridgePayload;
 }
 
 export interface ShortcutDragData extends ShortcutDragItem {
-
 	items?: ShortcutDragItem[];
 }
 

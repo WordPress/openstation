@@ -10,7 +10,6 @@ import type { ComponentEntry } from './components';
 import type { AboutFeedState } from './about';
 
 export interface AppState extends Record< string, unknown > {
-
 	tab: string;
 }
 
@@ -24,24 +23,16 @@ export interface ExtendedOptions {
 }
 
 export interface AppData {
-
 	isAdmin: boolean;
-
 	canUpload: boolean;
-
 	canManageDesktopThemes: boolean;
-
 	extendedOptions: ExtendedOptions | null;
-
 	aiAssistant: AiAssistantConfig | null;
 }
 
 export interface AppExtra extends Record< string, unknown > {
-
 	mediaUrl: string;
-
 	desktopThemesUrl: string;
-
 	aboutFeedUrl: string;
 	pluginUrl: string;
 	pluginVersion: string;
@@ -58,21 +49,16 @@ export interface LibraryState {
 	loaded: MediaItem[];
 	loading: boolean;
 	error: string;
-
 	searchTimer: number | null;
-
 	uploadError: string;
 	uploading: boolean;
-
 	dragover: boolean;
 }
 
 export interface UiState {
-
 	editor: { id: string; teardown: WallpaperTeardown | null };
 	previews: WallpaperPreviewManager | null;
 	imagePickerOpen: boolean;
-
 	imageSource: '' | 'upload' | 'library';
 	library: LibraryState;
 	themes: { error: string; busy: boolean };
@@ -88,13 +74,9 @@ export interface UiState {
 		query: string;
 		paintedTag: string;
 	};
-
 	about: AboutFeedState | null;
-
 	search: { query: string; index: Map< string, string > | null };
-
 	mountedTabs: WeakMap< HTMLElement, DesktopSettingsTab >;
-
 	glyphs: Map< string, SVGSVGElement >;
 }
 

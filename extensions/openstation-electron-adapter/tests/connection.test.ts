@@ -55,12 +55,10 @@ function harness(
 		calls,
 		fetch,
 		delay: () => lastDelay,
-
 		tick: async () => {
 			const fn = pending;
 			pending = null;
 			fn?.();
-
 			await Promise.resolve();
 			await Promise.resolve();
 			await Promise.resolve();
@@ -230,7 +228,6 @@ describe( 'heartbeat', () => {
 
 describe( 'failure handling', () => {
 	test( 'an auth failure asks for a fresh nonce rather than erroring', async () => {
-
 		const h = harness( [ { status: 403 } ] );
 
 		await h.connection.handshake( {

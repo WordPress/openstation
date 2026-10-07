@@ -85,7 +85,6 @@ function applyDelta( payload: FilesHeartbeatPayload ): void {
 					setFolderPlacements( folderId, res.placements );
 				} )
 				.catch( () => {
-
 				} );
 		}
 	}

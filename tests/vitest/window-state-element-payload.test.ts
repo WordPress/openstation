@@ -150,7 +150,6 @@ describe( 'Window state hook payloads carry the live element', () => {
 	} );
 
 	test( 'backwards compat — windowId is still present alongside element', () => {
-
 		const { win, cleanup } = mountWindow();
 		try {
 			const seen: Array< { windowId?: string; element?: unknown } > = [];

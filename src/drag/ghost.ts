@@ -11,21 +11,16 @@ const HINT_REJECT_CLASS = 'os-drag-hint--reject';
 const HINT_NEUTRAL_CLASS = 'os-drag-hint--neutral';
 
 const HINT_OFFSET_X = 16;
-
 const HINT_OFFSET_Y = 18;
 
 export interface GhostHandle {
 	readonly element: HTMLElement;
-
 	moveTo( clientX: number, clientY: number ): void;
-
 	setMode(
 		mode: 'accept' | 'reject' | 'neutral',
 		overrides?: { acceptLabel?: string },
 	): void;
-
 	withHidden< T >( fn: () => T ): T;
-
 	dispose(): void;
 }
 
@@ -45,7 +40,6 @@ export function mountGhost(
 	ghost.style.top = '0';
 	ghost.style.margin = '0';
 	ghost.style.pointerEvents = 'none';
-
 	ghost.style.zIndex = '2147483647';
 	ghost.style.willChange = 'transform';
 
@@ -82,7 +76,6 @@ export function mountGhost(
 				);
 				if ( mode === 'accept' ) {
 					hint.classList.add( HINT_ACCEPT_CLASS );
-
 					hint.textContent = overrides?.acceptLabel ?? labels.accept;
 				} else if ( mode === 'reject' ) {
 					hint.classList.add( HINT_REJECT_CLASS );
@@ -91,7 +84,6 @@ export function mountGhost(
 					hint.classList.add( HINT_NEUTRAL_CLASS );
 					hint.textContent = labels.neutral;
 				}
-
 				hint.hidden = ! hint.textContent;
 			}
 		},
@@ -136,7 +128,6 @@ function buildHintChip(): HTMLElement {
 	chip.style.top = '0';
 	chip.style.margin = '0';
 	chip.style.pointerEvents = 'none';
-
 	chip.style.zIndex = '2147483647';
 	chip.style.willChange = 'transform';
 	return chip;
@@ -194,9 +185,7 @@ function buildGhost( payload: DragPayload ): HTMLElement {
 		return payload.ghost.element;
 	}
 	const clone = payload.source.cloneNode( true ) as HTMLElement;
-
 	clone.removeAttribute( 'id' );
-
 	const rect = payload.source.getBoundingClientRect();
 	clone.style.width = `${ rect.width }px`;
 	clone.style.height = `${ rect.height }px`;

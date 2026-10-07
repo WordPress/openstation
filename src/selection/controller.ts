@@ -39,7 +39,6 @@ function suppressNativeSelection( ref: HTMLElement ): () => void {
 	try {
 		doc.defaultView?.getSelection()?.removeAllRanges();
 	} catch {
-
 	}
 	return () => {
 		doc.removeEventListener( 'selectstart', onSelectStart, true );
@@ -53,34 +52,22 @@ const DEFAULT_MARQUEE_EXCLUDE =
 const OVERVIEW_ACTIVE_CLASS = 'os-area--overview';
 
 export interface SelectionControllerOptions {
-
 	itemSelector?: string;
-
 	keyOf: ( el: HTMLElement ) => string | null;
-
 	background?: HTMLElement;
-
 	marquee?: boolean;
-
 	marqueeExclude?: string;
-
 	order?: () => string[];
 	onChange?: ( keys: string[] ) => void;
-
 	surface?: string;
-
 	scope?: string;
-
 	ariaLabel?: string;
 }
 
 export interface SelectionHandle {
 	model: SelectionModel< string >;
-
 	keys: () => string[];
-
 	elementFor: ( key: string ) => HTMLElement | null;
-
 	refresh: () => void;
 	destroy: () => void;
 }
@@ -183,7 +170,6 @@ export function attachSelection(
 				}
 			}
 			el.classList.toggle( SELECTED_CLASS, on );
-
 			if ( ! el.hasAttribute( 'selectable' ) ) {
 				el.setAttribute( 'selectable', '' );
 			}
@@ -213,7 +199,6 @@ export function attachSelection(
 				return;
 			}
 			lead = key;
-
 			e.stopPropagation();
 			if ( e.shiftKey ) {
 				model.selectRange( key, e.ctrlKey || e.metaKey );
@@ -226,7 +211,6 @@ export function attachSelection(
 			model.set( [ key ] );
 			return;
 		}
-
 		if ( suppressNextBackgroundClick ) {
 			suppressNextBackgroundClick = false;
 			return;
@@ -236,15 +220,12 @@ export function attachSelection(
 	background.addEventListener( 'click', onClick );
 
 	let marqueeEl: HTMLElement | null = null;
-
 	let marqueeStart: { x: number; y: number } | null = null;
-
 	let lastPointer: { x: number; y: number } | null = null;
 	let marqueeBase: string[] = [];
 	let suppressNextBackgroundClick = false;
 	let autoScrollRaf = 0;
 	let releaseSelectionSuppression: ( () => void ) | null = null;
-
 	let capturedPointerId: number | null = null;
 
 	const capturePointer = ( pointerId: number ): void => {
@@ -255,7 +236,6 @@ export function attachSelection(
 			background.setPointerCapture( pointerId );
 			capturedPointerId = pointerId;
 		} catch {
-
 		}
 	};
 
@@ -272,7 +252,6 @@ export function attachSelection(
 				background.releasePointerCapture( capturedPointerId );
 			}
 		} catch {
-
 		}
 		capturedPointerId = null;
 	};
@@ -326,13 +305,11 @@ export function attachSelection(
 			marqueeEl = document.createElement( 'div' );
 			marqueeEl.className = MARQUEE_CLASS;
 			marqueeEl.setAttribute( 'aria-hidden', 'true' );
-
 			if ( getComputedStyle( background ).position === 'static' ) {
 				background.style.position = 'relative';
 			}
 			background.appendChild( marqueeEl );
 			suppressNextBackgroundClick = true;
-
 			releaseSelectionSuppression =
 				suppressNativeSelection( background );
 			startAutoScroll();
@@ -427,14 +404,12 @@ export function attachSelection(
 		if ( ! ( e.target instanceof Element ) ) {
 			return;
 		}
-
 		if ( background.classList.contains( OVERVIEW_ACTIVE_CLASS ) ) {
 			return;
 		}
 		if ( e.target.closest( itemSelector ) ) {
 			return;
 		}
-
 		const foreign = e.target.closest< HTMLElement >( marqueeExclude );
 		if ( foreign && foreign !== background && background.contains( foreign ) ) {
 			return;
@@ -444,7 +419,6 @@ export function attachSelection(
 		if ( typeof e.pointerId === 'number' ) {
 			capturePointer( e.pointerId );
 		}
-
 		marqueeBase =
 			e.ctrlKey || e.metaKey || e.shiftKey ? model.keys() : [];
 		if ( marqueeBase.length === 0 ) {
@@ -453,10 +427,8 @@ export function attachSelection(
 		document.addEventListener( 'pointermove', onMarqueeMove );
 		document.addEventListener( 'pointerup', onMarqueeUp );
 		document.addEventListener( 'pointercancel', onMarqueeCancel );
-
 		background.addEventListener( 'lostpointercapture', onMarqueeCancel );
 		window.addEventListener( 'blur', onMarqueeCancel );
-
 		background.addEventListener( 'scroll', renderMarquee, {
 			passive: true,
 		} );
@@ -489,7 +461,6 @@ export function attachSelection(
 		if ( all.length === 0 ) {
 			return;
 		}
-
 		const cursor = lead ?? model.anchor();
 		const from = cursor === null ? -1 : all.indexOf( cursor );
 		const next = Math.min(
@@ -526,7 +497,6 @@ export function attachSelection(
 				onBackgroundPointerDown,
 			);
 			root.removeEventListener( 'keydown', onKeyDown );
-
 			if ( lastActiveOwner === identity ) {
 				lastActive = null;
 				lastActiveOwner = null;

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-core-notices
+ */
 class Tests_OpenStation_CoreNotices extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -28,20 +31,28 @@ class Tests_OpenStation_CoreNotices extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_core_notice_maintenance
+	 */
 	public function test_maintenance_notice_when_upgrading() {
 		$GLOBALS['upgrading'] = time();
 
 		$notice = openstation_core_notice_maintenance();
 		$this->assertIsArray( $notice );
 		$this->assertSame( 'maintenance', $notice['id'] );
-
 		$this->assertStringContainsString( 'update-core.php', $notice['actionUrl'] );
 	}
 
+	/**
+	 * @covers ::openstation_core_notice_maintenance
+	 */
 	public function test_no_maintenance_notice_when_idle() {
 		$this->assertNull( openstation_core_notice_maintenance() );
 	}
 
+	/**
+	 * @covers ::openstation_core_notice_default_password
+	 */
 	public function test_default_password_notice() {
 		update_user_option( self::$admin_id, 'default_password_nag', true );
 
@@ -51,10 +62,16 @@ class Tests_OpenStation_CoreNotices extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'profile.php', $notice['actionUrl'] );
 	}
 
+	/**
+	 * @covers ::openstation_core_notice_default_password
+	 */
 	public function test_no_default_password_notice_without_flag() {
 		$this->assertNull( openstation_core_notice_default_password() );
 	}
 
+	/**
+	 * @covers ::openstation_core_notice_deactivated_plugins
+	 */
 	public function test_deactivated_plugins_notice_lists_names() {
 		update_option(
 			'wp_force_deactivated_plugins',
@@ -71,6 +88,9 @@ class Tests_OpenStation_CoreNotices extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'Beta Tool', $notice['message'] );
 	}
 
+	/**
+	 * @covers ::openstation_core_notice_deactivated_plugins
+	 */
 	public function test_no_deactivated_plugins_notice_without_capability() {
 		update_option(
 			'wp_force_deactivated_plugins',
@@ -81,6 +101,9 @@ class Tests_OpenStation_CoreNotices extends WP_UnitTestCase {
 		$this->assertNull( openstation_core_notice_deactivated_plugins() );
 	}
 
+	/**
+	 * @covers ::openstation_get_core_notices
+	 */
 	public function test_aggregate_shape() {
 		$GLOBALS['upgrading'] = time();
 		update_user_option( self::$admin_id, 'default_password_nag', true );
@@ -101,6 +124,9 @@ class Tests_OpenStation_CoreNotices extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_get_core_notices
+	 */
 	public function test_filter_can_suppress_all() {
 		$GLOBALS['upgrading'] = time();
 		add_filter( 'openstation_core_notices', '__return_empty_array' );
@@ -108,6 +134,9 @@ class Tests_OpenStation_CoreNotices extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_get_core_notices() );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_core_notices
+	 */
 	public function test_suppressor_removes_notices_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_GET['openstation_chromeless'] = '1';
@@ -127,6 +156,9 @@ class Tests_OpenStation_CoreNotices extends WP_UnitTestCase {
 		$this->assertFalse( has_action( 'admin_notices', 'paused_themes_notice' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_core_notices
+	 */
 	public function test_suppressor_leaves_notices_when_not_chromeless() {
 		add_action( 'admin_notices', 'default_password_nag' );
 

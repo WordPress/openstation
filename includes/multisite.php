@@ -9,7 +9,6 @@ function openstation_multisite_payload() {
 		return null;
 	}
 	if ( ! is_multisite() ) {
-
 		if ( ! openstation_network_on() ) {
 			return null;
 		}
@@ -96,7 +95,6 @@ function openstation_multisite_active_on( $blog_id ) {
 	if ( isset( get_site_option( 'active_sitewide_plugins', array() )[ $plugin ] ) ) {
 		return true;
 	}
-
 	if ( ! in_array( $plugin, (array) get_option( 'active_plugins', array() ), true ) ) {
 		return true;
 	}
@@ -107,7 +105,6 @@ function openstation_multisite_my_sites_load() {
 	if ( ! is_multisite() || ! openstation_is_chromeless_request() ) {
 		return;
 	}
-
 	$current = get_current_blog_id();
 	$active  = array();
 	foreach ( get_blogs_of_user( get_current_user_id() ) as $blog ) {

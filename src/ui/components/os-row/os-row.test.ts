@@ -23,7 +23,6 @@ describe( '<os-row>', () => {
 		const row = host.querySelector( 'os-row' )!;
 		expect( row.shadowRoot ).not.toBeNull();
 		expect( row.shadowRoot!.querySelector( 'slot' ) ).not.toBeNull();
-
 		expect( row.querySelectorAll( 'div' ).length ).toBe( 2 );
 	} );
 
@@ -40,7 +39,6 @@ describe( '<os-row>', () => {
 		await tick();
 
 		const row = host.querySelector( 'os-row' ) as HTMLElement;
-
 		expect( row.style.getPropertyValue( '--os-ui-row-gap' ) ).toBe( '' );
 	} );
 
@@ -66,7 +64,6 @@ describe( '<os-row>', () => {
 		const row = host.querySelector( 'os-row' )!;
 		const panels = row.querySelectorAll( 'os-panel' );
 		expect( panels.length ).toBe( 2 );
-
 		expect( panels[ 1 ].getAttribute( 'col' ) ).toBe( '6' );
 	} );
 } );

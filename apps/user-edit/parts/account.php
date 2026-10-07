@@ -107,7 +107,6 @@ function openstation_user_edit_window_rest_destroy_sessions( $req ) {
 	} else {
 		$manager->destroy_others( wp_get_session_token() );
 	}
-
 	delete_transient( 'dm_user_insights_' . $id );
 	return rest_ensure_response( array( 'ok' => true ) );
 }

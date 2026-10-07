@@ -47,7 +47,6 @@ describe( 'living-tree click counter', () => {
 			expect( counter.hit( i * 100 ) ).toBe( false );
 		}
 		expect( counter.hit( 2000 ) ).toBe( true );
-
 		expect( counter.hit( 2100 ) ).toBe( false );
 	} );
 
@@ -55,7 +54,6 @@ describe( 'living-tree click counter', () => {
 		const counter = createClickCounter( 3, 1000 );
 		expect( counter.hit( 0 ) ).toBe( false );
 		expect( counter.hit( 100 ) ).toBe( false );
-
 		expect( counter.hit( 2200 ) ).toBe( false );
 		expect( counter.hit( 2300 ) ).toBe( false );
 		expect( counter.hit( 2400 ) ).toBe( true );
@@ -72,14 +70,10 @@ describe( 'living-tree click counter', () => {
 
 describe( 'living-tree trunk hit-test', () => {
 	test( 'hits the trunk column, misses the crown and the ground', () => {
-
 		expect( isTrunkHit( 0, -150, ENVELOPE ) ).toBe( true );
 		expect( isTrunkHit( 20, -50, ENVELOPE ) ).toBe( true );
-
 		expect( isTrunkHit( 200, -150, ENVELOPE ) ).toBe( false );
-
 		expect( isTrunkHit( 0, -500, ENVELOPE ) ).toBe( false );
-
 		expect( isTrunkHit( 0, 40, ENVELOPE ) ).toBe( false );
 	} );
 
@@ -111,7 +105,6 @@ describe( 'living-tree developer-mode gate', () => {
 } );
 
 describe( 'living-tree trunk-click gesture (the 20-click easter egg, end to end)', () => {
-
 	function gesture( overrides: {
 		enabled?: boolean;
 		onTrigger: () => void;
@@ -119,7 +112,6 @@ describe( 'living-tree trunk-click gesture (the 20-click easter egg, end to end)
 		let clock = 0;
 		const handler = createTrunkClickGesture( {
 			isEnabled: () => overrides.enabled ?? true,
-
 			toLocal: ( clientX, clientY ) => ( { lx: clientX, ly: clientY } ),
 			isHit: ( lx, ly ) => isTrunkHit( lx, ly, ENVELOPE ),
 			onTrigger: overrides.onTrigger,
@@ -140,7 +132,6 @@ describe( 'living-tree trunk-click gesture (the 20-click easter egg, end to end)
 			g.click( 0, -150 );
 		}
 		expect( opened ).toBe( 1 );
-
 		g.click( 0, -150 );
 		expect( opened ).toBe( 1 );
 	} );
@@ -194,7 +185,6 @@ describe( 'living-tree tuner panel', () => {
 			onChange: () => {},
 			onClose: () => {},
 		} );
-
 		const panel = document.querySelector( '[data-living-tree-tuner]' );
 		expect( panel?.parentElement ).toBe( document.body );
 		const sliders = document.querySelectorAll( 'input[type="range"]' );
@@ -216,7 +206,6 @@ describe( 'living-tree tuner panel', () => {
 		const input = document.querySelectorAll( 'input[type="range"]' )[
 			posts
 		] as HTMLInputElement;
-
 		input.value = '1500';
 		input.dispatchEvent( new Event( 'input' ) );
 		input.value = '2000';
@@ -225,7 +214,6 @@ describe( 'living-tree tuner panel', () => {
 		vi.advanceTimersByTime( 120 );
 		expect( changes.length ).toBe( 1 );
 		expect( changes[ 0 ].totalPosts ).toBe( 2000 );
-
 		expect( changes[ 0 ].siteAgeDays ).toBe( 365 );
 	} );
 
@@ -243,14 +231,12 @@ describe( 'living-tree tuner panel', () => {
 		) as HTMLInputElement;
 		expect( input ).not.toBeNull();
 		expect( input.value ).toBe( '13.5' );
-
 		expect( document.querySelectorAll( 'input[type="range"]' ).length ).toBe(
 			SLIDER_DEFS.length + 1,
 		);
 
 		input.value = '22';
 		input.dispatchEvent( new Event( 'input' ) );
-
 		expect( hours ).toEqual( [ 22 ] );
 
 		const live = Array.from( document.querySelectorAll( 'button' ) ).find(

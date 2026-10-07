@@ -5,7 +5,6 @@ type NavIconMap = Readonly< Partial< Record< string, () => SVGSVGElement > > >;
 const NAV = { size: null } as const;
 
 export const NAV_ICONS: NavIconMap = {
-
 	appearance: () => osIcon( 'color', NAV ),
 
 	themes: () => {

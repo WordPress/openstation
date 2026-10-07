@@ -10,7 +10,6 @@ import type { DesktopConfig } from '../types';
 import { trackedFetch } from '../tracked-fetch';
 
 export interface AskOptions {
-
 	signal?: AbortSignal;
 
 	resumeTool?: 'search_posts' | 'search_pages' | 'search_comments';
@@ -30,7 +29,6 @@ export interface AskOptions {
 export interface AskToolCall {
 	slug: string;
 	args: string;
-
 	result: CommandResult | { error: string };
 }
 
@@ -39,11 +37,8 @@ export interface AskResult {
 	message: string;
 	entity?: CommandEntity | null;
 	admin_links?: CommandAdminLink[] | null;
-
 	toolCall?: AskToolCall;
-
 	request_id?: string;
-
 	continue?: { tool: string; offset: number; label: string } | null;
 }
 
@@ -52,7 +47,6 @@ interface AskDeps {
 		aiSearchUrl?: string;
 		restNonce?: string;
 	};
-
 	fallbackContext: () => CommandContext;
 }
 
@@ -260,7 +254,6 @@ export function createAsk( deps: AskDeps ) {
 			if ( isAbortError( err ) ) {
 				throw err;
 			}
-
 			return null;
 		}
 		if ( ! res.ok ) {

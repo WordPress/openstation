@@ -43,7 +43,6 @@ function openstation_agents_register_rest_routes() {
 						'default' => array(),
 						'items'   => array( 'type' => 'string' ),
 					),
-
 					'triggers'     => array(
 						'type'    => 'array',
 						'default' => array(),
@@ -52,7 +51,6 @@ function openstation_agents_register_rest_routes() {
 						'type'    => 'string',
 						'default' => '',
 					),
-
 					'face'         => array(
 						'type'    => 'object',
 						'default' => null,
@@ -174,7 +172,6 @@ function openstation_agents_register_rest_routes() {
 					'enum'              => array( 'chat', 'drag', 'send-to' ),
 					'sanitize_callback' => 'sanitize_key',
 				),
-
 				'history'   => array(
 					'type'    => 'array',
 					'default' => array(),
@@ -237,7 +234,6 @@ function openstation_agents_rest_list() {
 		}
 	}
 	$response = rest_ensure_response( $out );
-
 	$response->header( 'X-WP-Total', (string) count( $out ) );
 	$response->header( 'X-WP-TotalPages', '1' );
 	return $response;
@@ -256,7 +252,6 @@ function openstation_agents_rest_get( WP_REST_Request $request ) {
 }
 
 function openstation_agents_rest_create( WP_REST_Request $request ) {
-
 	$user = openstation_agent_create(
 		array(
 			'name'         => (string) $request['name'],

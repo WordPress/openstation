@@ -144,7 +144,6 @@ export class OsFieldRow extends Component {
 		if ( ! control ) {
 			return;
 		}
-
 		control.focus?.();
 	};
 

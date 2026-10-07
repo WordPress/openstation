@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-agents
+ */
 class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -64,6 +67,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		return $response->get_data();
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversations_register_routes
+	 */
 	public function test_routes_registered() {
 		do_action( 'rest_api_init' );
 		$routes = rest_get_server()->get_routes( 'desktop-mode/v1' );
@@ -71,11 +77,13 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertArrayHasKey( '/desktop-mode/v1/agents/conversations/(?P<id>\d+)', $routes );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_conversations_create
+	 */
 	public function test_create_derives_title_and_owner() {
 		$data = $this->create_conversation();
 
 		$this->assertSame( self::$agent_id, $data['agentId'] );
-
 		$this->assertSame( 'Q&A Agent', $data['agentName'] );
 		$this->assertSame( 'Summarize post 12 for me please', $data['title'] );
 		$this->assertSame( 2, $data['messageCount'] );
@@ -86,6 +94,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, (int) $post->post_author );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_preview
+	 */
 	public function test_preview_reads_the_tail_of_the_last_message() {
 		$short = openstation_agent_conversation_preview(
 			array(
@@ -101,7 +112,6 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 				),
 			)
 		);
-
 		$this->assertSame( 'Done. Here it is.', $short );
 
 		$tail = str_repeat( 'a', 200 ) . ' and search relevance.';
@@ -124,6 +134,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_agent_conversation_preview( array() ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_preview
+	 */
 	public function test_preview_prefers_the_attachment_title() {
 		$preview = openstation_agent_conversation_preview(
 			array(
@@ -142,6 +155,10 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( 'Hello world', $preview );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_sanitize_attachment
+	 * @covers ::openstation_agent_conversation_prepare
+	 */
 	public function test_attachments_round_trip_and_are_validated() {
 		$data = $this->create_conversation(
 			array(
@@ -203,6 +220,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_prepare
+	 */
 	public function test_prepare_ships_preview_and_last_role() {
 		$data = $this->create_conversation();
 
@@ -210,6 +230,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( 'agent', $data['lastRole'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_conversations_create
+	 */
 	public function test_create_rejects_non_agent_target() {
 		$response = openstation_agents_rest_conversations_create(
 			$this->request(
@@ -230,6 +253,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_agent_not_found', $response->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_sanitize_messages
+	 */
 	public function test_sanitizer_filters_roles_and_drops_tool_output() {
 		$clean = openstation_agent_conversation_sanitize_messages(
 			array(
@@ -264,6 +290,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'output', $clean[0]['toolCalls'][0] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_sanitize_messages
+	 */
 	public function test_sanitizer_keeps_call_to_actions() {
 		$clean = openstation_agent_conversation_sanitize_messages(
 			array(
@@ -287,6 +316,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( 'Approved.', $clean[0]['callToActions'][0]['reply'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_sanitize_messages
+	 */
 	public function test_sanitizer_caps_message_count() {
 		$many = array();
 		for ( $i = 0; $i < OPENSTATION_AGENT_CONVERSATION_MESSAGE_CAP + 25; $i++ ) {
@@ -297,10 +329,12 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		}
 		$clean = openstation_agent_conversation_sanitize_messages( $many );
 		$this->assertCount( OPENSTATION_AGENT_CONVERSATION_MESSAGE_CAP, $clean );
-
 		$this->assertSame( 'row ' . ( OPENSTATION_AGENT_CONVERSATION_MESSAGE_CAP + 24 ), end( $clean )['text'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_conversations_list
+	 */
 	public function test_list_is_scoped_to_the_caller() {
 		$this->create_conversation();
 
@@ -313,6 +347,11 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( array(), $theirs );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_conversations_get
+	 * @covers ::openstation_agents_rest_conversations_update
+	 * @covers ::openstation_agents_rest_conversations_delete
+	 */
 	public function test_foreign_conversations_read_as_missing() {
 		$data = $this->create_conversation();
 		wp_set_current_user( self::$editor_id );
@@ -347,6 +386,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertInstanceOf( WP_Post::class, get_post( $data['id'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_conversations_update
+	 */
 	public function test_update_replaces_messages_and_retitles() {
 		$data = $this->create_conversation();
 
@@ -387,6 +429,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( 'Follow-up', end( $reread['messages'] )['text'] );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_preserve_text
+	 */
 	public function test_text_round_trips_for_a_user_without_unfiltered_html() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
 		kses_init();
@@ -437,6 +482,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( array( $retitled, $answer ), wp_list_pluck( $updated['messages'], 'text' ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversation_preserve_text
+	 */
 	public function test_emoji_opener_still_saves_on_a_utf8mb3_table() {
 		add_filter(
 			'pre_get_col_charset',
@@ -457,6 +505,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertSame( "Ship it \u{1F680}", $data['messages'][0]['text'] );
 	}
 
+	/**
+	 * @covers ::openstation_agents_rest_conversations_delete
+	 */
 	public function test_delete_removes_the_row() {
 		$data = $this->create_conversation();
 		$response = openstation_agents_rest_conversations_delete(
@@ -466,6 +517,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		$this->assertNull( get_post( $data['id'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_agent_conversations_prune
+	 */
 	public function test_creating_past_the_cap_prunes_the_oldest() {
 		$tighten = static function () {
 			return 2;
@@ -481,7 +535,6 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 					),
 				)
 			);
-
 			global $wpdb;
 			$wpdb->update(
 				$wpdb->posts,
@@ -516,6 +569,9 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_agent_runner_sanitize_history
+	 */
 	public function test_history_replay_cap_is_fifty() {
 		$this->assertSame( 50, OPENSTATION_AGENT_HISTORY_TURN_CAP );
 

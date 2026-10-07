@@ -34,70 +34,45 @@ import {
 	type OpenWindow,
 } from './nav';
 import { doAction, HOOKS } from './hooks';
-
 import type { WorkspaceProfile } from './workspaces/types';
 import { workspacePlacements } from './workspaces/visibility';
 
 export interface LayoutDispatcherDeps {
-
 	shellRoot: HTMLElement;
-
 	shellBody: HTMLElement;
-
 	bottomDockEl: HTMLElement;
 	desktopArea: HTMLElement;
 	windowManager: WindowManager;
 	adminUrl: string;
-
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
-
 	getSettings?: () => Pick< OsSettingsState, 'navPlacement' | 'navOrder' >;
-
 	getWorkspaceProfile?: () => WorkspaceProfile | null;
 }
 
 export interface LayoutDispatcher {
-
 	getLayout(): DesktopLayoutId;
-
 	getPrimary(): Dock | null;
-
 	getSide(): Dock | null;
-
 	setLayout( layout: DesktopLayoutId ): void;
-
 	getDockPlacement(): DockPlacementId;
-
 	setDockPlacement( placement: DockPlacementId ): void;
-
 	applyDockItems( items: DockItem[] ): void;
-
 	applyDesktopIcons( serverIcons: DesktopIconServerEntry[] | undefined ): void;
-
 	appendSystemTile( item: SystemDockItem ): void;
-
 	removeSystemTile( id: string ): void;
-
 	listSystemTiles(): Array< {
 		id: string;
 		title: string;
 		icon: string;
 		navKind: 'core' | 'app' | 'control';
-
 		placeable: boolean;
 		locked: boolean;
 	} >;
-
 	getSystemTile( id: string ): SystemDockItem | null;
-
 	getMenuItems(): DockItem[];
-
 	getNavItems(): NavItem[];
-
 	getNav(): NavResult;
-
 	refresh(): void;
-
 	destroy(): void;
 }
 
@@ -111,17 +86,14 @@ export function createLayoutDispatcher(
 	initialPlacement: DockPlacementId = 'bottom',
 ): LayoutDispatcher {
 	let layout: DesktopLayoutId = initialLayout;
-
 	let dockPlacement: DockPlacementId = initialPlacement;
 	let menuItems: DockItem[] = initialDockItems;
 	let serverIcons: DesktopIconServerEntry[] = initialServerIcons ?? [];
-
 	let primary: DockRailController | null = null;
 	let side: DockRailController | null = null;
 	let primaryDock: Dock | null = null;
 	let sideDock: Dock | null = null;
 	let sideDockEl: HTMLElement | null = null;
-
 	const systemTiles = new Map< string, SystemDockItem >();
 
 	let navItems: NavItem[] = [];
@@ -154,7 +126,6 @@ export function createLayoutDispatcher(
 				id,
 				title: win.config.title || id,
 				icon: win.config.icon || 'dashicons-admin-generic',
-
 				fromAdminUrl: true !== win.config.native,
 			} );
 		}
@@ -190,7 +161,6 @@ export function createLayoutDispatcher(
 		nav = computeNav( {
 			items: navItems,
 			config: {
-
 				placement: workspacePlacements(
 					settings.navPlacement,
 					navItems,
@@ -246,7 +216,6 @@ export function createLayoutDispatcher(
 			icon: item.icon,
 			window: item.windowId ?? '',
 			url: item.menu?.url || '',
-
 			position: 2000 + index,
 		};
 	};
@@ -336,7 +305,6 @@ export function createLayoutDispatcher(
 		el.className = 'os-dock';
 		el.setAttribute( 'role', 'toolbar' );
 		el.setAttribute( 'aria-label', 'Core admin navigation' );
-
 		deps.shellBody.insertBefore( el, deps.shellBody.firstChild );
 		return el;
 	};
@@ -396,7 +364,6 @@ export function createLayoutDispatcher(
 				rendererId: renderer.id,
 				error: err,
 			} );
-
 			if ( renderer === defaultDockRailRenderer ) {
 				return null;
 			}
@@ -413,11 +380,8 @@ export function createLayoutDispatcher(
 		orientation: 'left' | 'right' | 'bottom',
 	): DockRailMountDeps => ( {
 		container,
-
 		items: [],
-
 		fullMenu: menuItems.slice(),
-
 		fullSystemTiles: navItems
 			.filter( ( item ) => !! item.tile )
 			.filter( ( item ) => railHasItem( item.id ) )
@@ -425,12 +389,10 @@ export function createLayoutDispatcher(
 		orientation,
 		windowManager: deps.windowManager,
 		adminUrl: deps.adminUrl,
-
 		openItem: ( item ) => {
 			if ( tryOpenExternalUrl( item.url ) ) {
 				return;
 			}
-
 			if ( tryNativeUrlRemap( item.url ) ) {
 				return;
 			}
@@ -456,12 +418,10 @@ export function createLayoutDispatcher(
 			if ( tryNativeUrlRemap( sub.url, { newInstance: true } ) ) {
 				return;
 			}
-
 			void deps.windowManager.openNew( {
 				id: deriveWindowId( sub.url, deps.adminUrl ),
 				baseId: deriveWindowId( item.url, deps.adminUrl ),
 				url: sub.url,
-
 				parentUrl: item.url,
 				title: item.title,
 				icon: item.icon.startsWith( 'dashicons-' )
@@ -539,12 +499,10 @@ export function createLayoutDispatcher(
 			}
 			const wasHonoured = primaryOrientation();
 			dockPlacement = next;
-
 			if ( primaryOrientation() === wasHonoured ) {
 				return;
 			}
 			buildDocksForCurrentLayout();
-
 			emitLayoutChanged();
 		},
 		applyDockItems: ( next: DockItem[] ): void => {

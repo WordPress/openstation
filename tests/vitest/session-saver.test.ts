@@ -122,7 +122,6 @@ describe( 'session saver', () => {
 	} );
 
 	test( 'a change during an in-flight save is re-sent, not dropped', async () => {
-
 		const openIds = [ 'a', 'b' ];
 		const save = createSessionSaver(
 			fakeManager( openIds ),
@@ -140,7 +139,6 @@ describe( 'session saver', () => {
 		openIds.pop();
 		save();
 		await vi.advanceTimersByTimeAsync( 500 );
-
 		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
 
 		first.resolve( new Response( '{}' ) );
@@ -173,7 +171,6 @@ describe( 'session saver', () => {
 	} );
 
 	test( 'closing several windows a beat apart is rate limited to one write', async () => {
-
 		const openIds = [ 'a', 'b', 'c', 'd' ];
 		const save = createSessionSaver(
 			fakeManager( openIds ),
@@ -183,7 +180,6 @@ describe( 'session saver', () => {
 		openIds.pop();
 		save();
 		await vi.advanceTimersByTimeAsync( 600 );
-
 		expect( trackedFetchMock ).toHaveBeenCalledTimes( 1 );
 
 		openIds.pop();
@@ -234,7 +230,6 @@ describe( 'session saver', () => {
 	} );
 
 	test( 'an unchanged session is not written again, whoever asks', async () => {
-
 		const save = createSessionSaver( fakeManager( [ 'a' ] ), fakeConfig() );
 
 		save();
@@ -266,7 +261,6 @@ describe( 'session saver', () => {
 	} );
 
 	test( 'a write the server refused is not treated as accepted', async () => {
-
 		const save = createSessionSaver( fakeManager( [ 'a' ] ), fakeConfig() );
 		trackedFetchMock.mockResolvedValueOnce(
 			new Response( '{}', { status: 403 } ),
@@ -302,7 +296,6 @@ describe( 'session saver', () => {
 
 		expect( sendBeacon ).toHaveBeenCalledTimes( 1 );
 		const url = sendBeacon.mock.calls[ 0 ][ 0 ] as string;
-
 		expect( url ).toContain( `_wpnonce=${ NONCE }` );
 		expect( url.startsWith( SESSION_URL ) ).toBe( true );
 	} );

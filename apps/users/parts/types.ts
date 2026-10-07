@@ -13,7 +13,6 @@ export interface UserStats {
 
 export interface UserListItem {
 	id: number;
-
 	name: string;
 	slug: string;
 	email?: string;
@@ -21,7 +20,6 @@ export interface UserListItem {
 	registered_date?: string;
 	avatar_urls?: Record< string, string >;
 	openstation_user_stats?: UserStats;
-
 	openstation_last_login?: number | null;
 	openstation_presence?: UserPresence;
 	openstation_can_edit?: boolean;
@@ -32,7 +30,6 @@ export interface UsersState extends Record< string, unknown > {
 	page: number;
 	perPage: number;
 	search: string;
-
 	role: string;
 	status: string;
 	orderby: string;
@@ -50,7 +47,6 @@ export interface UsersData {
 export interface RowActions {
 	onSendReset: ( row: UserListItem ) => void;
 	onResendWelcome: ( row: UserListItem ) => void;
-
 	toast: ( message: string ) => void;
 }
 

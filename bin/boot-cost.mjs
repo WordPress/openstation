@@ -86,7 +86,6 @@ async function hop( url, init = {}, maxHops = 10 ) {
 			return { response, url: current };
 		}
 		current = new URL( location, current ).toString();
-
 		init = { method: 'GET' };
 	}
 	throw new Error( `too many redirects starting at ${ url }` );
@@ -339,7 +338,6 @@ function diff( beforeFile, afterFile ) {
 }
 
 function parseArgs( argv, env = process.env ) {
-
 	const opts = {
 		...DEFAULTS,
 		user: env.BOOT_COST_USER ?? DEFAULTS.user,

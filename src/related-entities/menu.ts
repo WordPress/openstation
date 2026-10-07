@@ -24,7 +24,6 @@ export function buildRelatedMenu( {
 	onPick: ( item: RelatedEntityItem ) => void;
 } ): HTMLElement {
 	const panel = document.createElement( 'os-menu' );
-
 	panel.classList.add( 'os-window__menu-panel' );
 	panel.classList.add( 'os-window__related-panel' );
 
@@ -58,7 +57,6 @@ export function buildRelatedMenu( {
 			const row = document.createElement( 'os-menu-item' );
 			row.setAttribute( 'role', 'menuitem' );
 			row.setAttribute( 'value', item.id );
-
 			row.tabIndex = -1;
 			if ( item.icon ) {
 				row.setAttribute( 'icon', item.icon );
@@ -101,7 +99,6 @@ export function buildRelatedMenu( {
 			if ( row ) {
 				kev.preventDefault();
 				kev.stopPropagation();
-
 				row.dispatchEvent(
 					new CustomEvent( 'os-menu-item-click', {
 						bubbles: true,

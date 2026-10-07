@@ -3,10 +3,8 @@
 defined( 'ABSPATH' ) || exit;
 
 function openstation_comments_window_default_query_args() {
-
 	$context = current_user_can( 'moderate_comments' ) ? 'edit' : 'view';
 	$args    = array(
-
 		'_fields'  =>
 			'id,post,parent,author,author_name,author_avatar_urls,'
 			. 'date_gmt,content,status,'
@@ -14,7 +12,6 @@ function openstation_comments_window_default_query_args() {
 			. 'openstation_can_edit',
 		'context'  => $context,
 		'per_page' => 20,
-
 		'status'   => 'hold',
 	);
 
@@ -173,7 +170,6 @@ function openstation_comments_window_register_rest_fields() {
 				if ( $id <= 0 ) {
 					return null;
 				}
-
 				$result = (string) get_comment_meta( $id, 'akismet_result', true );
 				return '' === $result ? null : $result;
 			},

@@ -95,17 +95,14 @@ const featuresSection: Section = ( s, ctx ) => {
 			return;
 		}
 		update( { heartbeatRate: next as 15 | 30 | 45 | 60 } );
-
 		try {
 			const wp = ( window as unknown as {
 				wp?: { heartbeat?: { interval?: ( speed: string ) => void } };
 			} ).wp;
 			wp?.heartbeat?.interval?.( next >= 60 ? 'slow' : 'standard' );
 		} catch {
-
 		}
 	};
-
 	return html`
 		<os-section
 			heading=""
@@ -117,7 +114,7 @@ const featuresSection: Section = ( s, ctx ) => {
 					s.ai.enabled,
 					( e ) => update( { ai: { ...s.ai, enabled: pickedChecked( e ) } } ),
 					sprintf(
-
+						/* translators: %s: keyboard shortcut, e.g. ⌘K or Ctrl+K */
 						__( 'Adds an AI mode to the %s command palette: find content and ask about your site.' ),
 						SHORTCUT_KEY,
 					),
@@ -310,7 +307,6 @@ async function saveExtended( ctx: Ctx, options: ExtendedOptions ): Promise< void
 			try {
 				doAction( HOOKS.EXTENDED_OPTIONS_CHANGED, { options: ctx.data.extendedOptions } );
 			} catch {
-
 			}
 		} else if ( ! ok ) {
 			ui.extendedError = __( 'The options could not be saved.' );

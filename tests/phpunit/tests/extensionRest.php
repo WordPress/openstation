@@ -1,4 +1,7 @@
 <?php
+/**
+ * @group openstation
+ */
 
 require_once dirname( __DIR__, 3 ) . '/extensions/base/includes/ExtensionRest.php';
 
@@ -36,12 +39,10 @@ class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 
 			protected function routes(): array {
 				return array(
-
 					'/single' => array(
 						'methods'  => 'GET',
 						'callback' => '__return_true',
 					),
-
 					'/multi'  => array(
 						array(
 							'methods'  => 'GET',
@@ -55,7 +56,6 @@ class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 							'id' => array( 'type' => 'integer' ),
 						),
 					),
-
 					'/custom' => array(
 						'methods'             => 'GET',
 						'callback'            => '__return_true',
@@ -66,6 +66,9 @@ class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 		};
 	}
 
+	/**
+	 * @covers OpenStation_Extension_Rest::register_routes
+	 */
 	public function test_single_endpoint_route_gets_check_caps_permission_callback() {
 		$controller = $this->make_controller();
 		$controller->register_routes();
@@ -78,6 +81,9 @@ class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers OpenStation_Extension_Rest::register_routes
+	 */
 	public function test_multi_endpoint_route_gets_check_caps_on_every_endpoint() {
 		$controller = $this->make_controller();
 		$controller->register_routes();
@@ -95,6 +101,9 @@ class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers OpenStation_Extension_Rest::register_routes
+	 */
 	public function test_explicit_permission_callback_is_not_overridden() {
 		$controller = $this->make_controller();
 		$controller->register_routes();
@@ -107,6 +116,9 @@ class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers OpenStation_Extension_Rest::check_caps
+	 */
 	public function test_check_caps_returns_401_for_logged_out_users() {
 		wp_set_current_user( 0 );
 
@@ -116,6 +128,9 @@ class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 		$this->assertSame( 401, $result->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers OpenStation_Extension_Rest::check_caps
+	 */
 	public function test_check_caps_returns_403_for_users_missing_required_caps() {
 		wp_set_current_user( self::$subscriber_id );
 
@@ -125,6 +140,9 @@ class Tests_OpenStation_ExtensionRest extends WP_UnitTestCase {
 		$this->assertSame( 403, $result->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers OpenStation_Extension_Rest::check_caps
+	 */
 	public function test_check_caps_returns_true_for_users_with_required_caps() {
 		wp_set_current_user( self::$admin_id );
 

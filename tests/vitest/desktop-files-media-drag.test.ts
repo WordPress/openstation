@@ -101,7 +101,6 @@ describe( 'upload bridge payload', () => {
 	} );
 
 	test( 'the layer hands upload tiles to the media module', async () => {
-
 		const bridge = await import( '../../src/drag-bridge' );
 		const media = await import( '../../src/desktop-files/media-drag' );
 		const off = media.installMediaDrag();
@@ -322,7 +321,6 @@ describe( 'media uploads dropped on post tiles', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect( restMock.attachUploadsToPost ).toHaveBeenCalledWith( 9, [ 77, 78 ] );
-
 		expect( openUrlWindow ).toHaveBeenCalledWith( {
 			url: 'https://example.test/wp-admin/post.php?post=9&action=edit',
 			title: 'Hello world',

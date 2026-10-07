@@ -54,7 +54,6 @@ export function spendMenuRefresh(): void {
 	try {
 		void api()?.refreshMenu?.();
 	} catch {
-
 	}
 }
 
@@ -73,7 +72,6 @@ export function openAdminUrl( url: string, title: string, icon = 'dashicons-admi
 }
 
 export interface ShellConfig {
-
 	mode?: { tabBar?: string[] } | null;
 	aiAssistant?: {
 		available: boolean;

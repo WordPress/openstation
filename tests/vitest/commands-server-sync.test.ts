@@ -113,7 +113,6 @@ describe( 'commands/server-sync.ts', () => {
 		await run( [] );
 
 		expect( commands.findCommand( 'a-hello' ) ).toBeNull();
-
 		expect( commands.findCommand( 'untagged' ) ).not.toBeNull();
 	} );
 
@@ -122,7 +121,6 @@ describe( 'commands/server-sync.ts', () => {
 		vi.spyOn( loader, 'loadVendorScript' ).mockResolvedValue( undefined );
 
 		const run = sync.createCommandRegistrySync();
-
 		await run(
 			[
 				{ handle: 'plugin-a', scriptUrl: 'https://example.test/a.js' },

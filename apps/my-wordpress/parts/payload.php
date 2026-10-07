@@ -13,7 +13,6 @@ function payload( State $state, Os $os ) {
 	$sections = sections( $os );
 	$section  = section_of( $os, (string) $state->get( 'section' ) );
 	if ( ! $section && '' !== (string) $state->get( 'section' ) ) {
-
 		$state->set( 'section', '' )->set( 'item', 0 );
 	}
 	$group_list = groups( $sections );
@@ -31,7 +30,6 @@ function payload( State $state, Os $os ) {
 
 	$item = (int) $state->get( 'item' );
 	$into = (int) $state->get( 'into' );
-
 	if ( $into > 0 && ( ! $section || 'post' !== $section['kind'] || ! empty( $section['flat'] ) ) ) {
 		$state->set( 'into', 0 )->set( 'relation', '' );
 		$into = 0;
@@ -39,7 +37,6 @@ function payload( State $state, Os $os ) {
 	$relation = (string) $state->get( 'relation' );
 	$fp       = (int) $state->get( 'footprint' );
 	if ( $fp > 0 && false === get_userdata( $fp ) ) {
-
 		$state->set( 'footprint', 0 )->set( 'fpName', '' );
 		$fp = 0;
 	}
@@ -52,7 +49,6 @@ function payload( State $state, Os $os ) {
 	);
 	return array(
 		'siteName'       => (string) get_bloginfo( 'name' ),
-
 		'agentsEnabled'  => function_exists( 'openstation_agents_enabled' ) && openstation_agents_enabled(),
 		'sections'       => $with_counts,
 		'groups'         => $group_list,
@@ -76,7 +72,6 @@ function payload( State $state, Os $os ) {
 		'categories'     => $choices['categories'],
 		'tags'           => $choices['tags'],
 		'previewActions' => preview_actions( $os ),
-
 		'hiddenColumns'  => (object) hidden_columns( $os ),
 	);
 }

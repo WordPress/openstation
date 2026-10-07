@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment-options { "url": "http://localhost/wp-admin/plugin-install.php?tab=upload&openstation_chromeless=1" }
+ */
 import { describe, expect, test, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -41,6 +44,7 @@ beforeAll( () => {
 	( globalThis as unknown as { DataTransfer: unknown } ).DataTransfer =
 		FakeDataTransfer;
 
+	// eslint-disable-next-line no-eval -- the point is to exercise the
 	( 0, eval )(
 		readFileSync( resolve( ROOT, 'src/chromeless-bridge.js' ), 'utf8' )
 	);
@@ -95,7 +99,6 @@ describe( 'chromeless bridge: a file dropped on a native upload box', () => {
 	test( 'a zip dropped anywhere on the Upload Plugin box lands in its file input', () => {
 		document.body.innerHTML = PLUGIN_UPLOAD_BOX;
 		const input = fileInput( '#pluginzip' );
-
 		const onChange = vi.fn();
 		input.addEventListener( 'change', onChange );
 		const file = zip();
@@ -189,7 +192,6 @@ describe( 'chromeless bridge: a file dropped on a native upload box', () => {
 	test( 'a script that already claimed the drop keeps it', () => {
 		document.body.innerHTML = PLUGIN_UPLOAD_BOX;
 		const input = fileInput( '#pluginzip' );
-
 		document
 			.querySelector( 'form' )!
 			.addEventListener( 'drop', ( e ) => e.preventDefault() );

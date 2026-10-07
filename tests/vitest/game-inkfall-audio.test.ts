@@ -9,7 +9,6 @@ describe( 'inkfall/audio.ts — letterFrequency', () => {
 			const first = letterFrequency( letter );
 			expect( first ).toBeGreaterThan( 0 );
 			expect( letterFrequency( letter ) ).toBe( first );
-
 			expect( letterFrequency( letter.toUpperCase() ) ).toBe( first );
 		}
 	} );
@@ -30,9 +29,7 @@ describe( 'inkfall/audio.ts — letterFrequency', () => {
 	} );
 
 	test( 'notes sit on a C-major scale relative to the base', () => {
-
 		expect( letterFrequency( 'h' ) ).toBeCloseTo( 196 * 2 );
-
 		expect( letterFrequency( 'c' ) ).toBeCloseTo(
 			196 * Math.pow( 2, 4 / 12 ),
 		);

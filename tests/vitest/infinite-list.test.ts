@@ -39,7 +39,6 @@ class FakeObserver {
 		this.instances = [];
 	}
 	static intersect( target: Element ): void {
-
 		for ( const inst of this.instances ) {
 			if ( inst.elements.has( target ) ) {
 				const entry: IntersectionObserverEntry = {
@@ -89,7 +88,6 @@ describe( 'createInfiniteList', () => {
 			getId: ( i ) => i.id,
 			renderItem: buildItem,
 		} );
-
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		const items = root.querySelectorAll( 'li' );
 		expect( items.length ).toBe( 2 );
@@ -130,7 +128,6 @@ describe( 'createInfiniteList', () => {
 	test( 'dedups by id across overlapping pages', async () => {
 		const pages: InfiniteListPage< Item >[] = [
 			{ items: [ { id: 1, title: 'A' }, { id: 2, title: 'B' } ], nextCursor: 'p2' },
-
 			{ items: [ { id: 2, title: 'B' }, { id: 3, title: 'C' } ], nextCursor: null },
 		];
 		let cursorIdx = 0;
@@ -176,7 +173,6 @@ describe( 'createInfiniteList', () => {
 			getId: ( i ) => i.id,
 			renderItem: buildItem,
 		} );
-
 		expect( list.isLoading() ).toBe( true );
 		list.reset();
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
@@ -212,7 +208,6 @@ describe( 'createInfiniteList', () => {
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		expect( aborted ).toBe( true );
 		expect( root.querySelector( '[data-os-infinite-list-sentinel]' ) ).toBeNull();
-
 		await list.loadMore();
 		expect( list.isLoading() ).toBe( false );
 	} );
@@ -246,7 +241,6 @@ describe( 'createInfiniteList', () => {
 		} );
 		await new Promise( ( r ) => setTimeout( r, 0 ) );
 		expect( calls ).toBe( 1 );
-
 		const sentinel = root.querySelector< HTMLElement >(
 			'[data-os-infinite-list-sentinel]',
 		);

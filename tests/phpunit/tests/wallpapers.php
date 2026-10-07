@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-wallpapers
+ */
 class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 
 	public function tear_down() {
@@ -7,8 +10,10 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_register_builtin_wallpapers
+	 */
 	public function test_builtins_are_registered_after_init() {
-
 		$registry = openstation_desktop_wallpaper_registry();
 
 		$this->assertIsArray( $registry );
@@ -19,6 +24,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'mono', $registry );
 	}
 
+	/**
+	 * @covers ::openstation_register_builtin_wallpapers
+	 */
 	public function test_builtins_are_css_type_with_value() {
 		$dark = openstation_desktop_wallpaper_registry( 'dark' );
 
@@ -29,6 +37,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '', $dark['script'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_wallpapers_payload
+	 */
 	public function test_payload_carries_value_for_css_builtins() {
 		$payload = openstation_build_desktop_wallpapers_payload();
 
@@ -49,6 +60,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '', $dark['scriptHandle'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_wallpapers_payload
+	 */
 	public function test_filter_can_add_entry_to_payload() {
 		add_filter( 'openstation_wallpapers', static function ( $registry ) {
 			$registry['brand'] = array(
@@ -68,6 +82,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertContains( 'brand', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_wallpapers_payload
+	 */
 	public function test_filter_can_remove_entry_from_payload() {
 		add_filter( 'openstation_wallpapers', static function ( $registry ) {
 			unset( $registry['sunset'] );
@@ -81,6 +98,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertContains( 'dark', $ids );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_wallpapers_payload
+	 */
 	public function test_filter_non_array_return_yields_empty_payload() {
 		add_filter( 'openstation_wallpapers', static function () {
 			return 'broken';
@@ -89,6 +109,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_build_desktop_wallpapers_payload() );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_value_defaults_to_preview_when_omitted() {
 		$result = openstation_register_wallpaper( 'test-default', array(
 			'label'   => 'Test',
@@ -102,6 +125,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '#abcdef', $entry['value'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_description_is_stored_sanitized_and_defaults_empty() {
 		openstation_register_wallpaper( 'test-described', array(
 			'label'       => 'Described',
@@ -110,7 +136,6 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 			'description' => "A calm <script>alert(1)</script>backdrop\nfor focused work.",
 		) );
 		$entry = openstation_desktop_wallpaper_registry( 'test-described' );
-
 		$this->assertStringNotContainsString( '<script>', $entry['description'] );
 		$this->assertStringContainsString( 'A calm', $entry['description'] );
 		$this->assertStringContainsString( 'backdrop', $entry['description'] );
@@ -124,6 +149,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '', $silent['description'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_wallpaper
+	 */
 	public function test_tone_accepts_only_light_or_dark_and_defaults_empty() {
 		openstation_register_wallpaper( 'test-pale', array(
 			'label'   => 'Pale',
@@ -149,6 +177,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		$this->assertSame( '', openstation_desktop_wallpaper_registry( 'test-toneless' )['tone'] );
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_wallpapers_payload
+	 */
 	public function test_payload_carries_tone_and_only_the_meshes_are_light() {
 		$tones = array();
 		foreach ( openstation_build_desktop_wallpapers_payload() as $entry ) {
@@ -164,6 +195,9 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_build_desktop_wallpapers_payload
+	 */
 	public function test_payload_carries_descriptions_for_builtins() {
 		$payload = openstation_build_desktop_wallpapers_payload();
 		$by_id   = array();
@@ -175,11 +209,13 @@ class Tests_OpenStation_Wallpapers extends WP_UnitTestCase {
 			$this->assertArrayHasKey( $id, $by_id );
 			$this->assertNotSame( '', $by_id[ $id ]['description'], "{$id} should carry a description" );
 		}
-
 		$this->assertStringContainsString( 'Matt Mullenweg', $by_id['wp-living-tree']['description'] );
 		$this->assertStringContainsString( 'open source', $by_id['wp-living-tree']['description'] );
 	}
 
+	/**
+	 * @covers ::openstation_register_builtin_wallpapers
+	 */
 	public function test_snow_builtin_is_canvas_with_script_and_backdrop_preview() {
 		$snow = openstation_desktop_wallpaper_registry( 'wp-snow' );
 

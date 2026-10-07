@@ -29,7 +29,6 @@ tests_add_filter(
 		add_filter( 'openstation_games_enabled', '__return_true' );
 
 		add_filter( 'openstation_agents_enabled', '__return_true' );
-
 		add_filter( 'openstation_network_enabled', '__return_true' );
 	}
 );

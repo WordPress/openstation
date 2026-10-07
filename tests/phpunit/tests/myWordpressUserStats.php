@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -25,7 +28,6 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		do_action( 'rest_api_init' );
 
 		register_post_type( 'dm_test_book', array( 'public' => true ) );
-
 		register_post_type( 'dm_test_internal', array( 'public' => false ) );
 
 		$this->published_post_id = self::factory()->post->create(
@@ -120,12 +122,18 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		return rest_get_server()->dispatch( $request );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_user_stats_route
+	 */
 	public function test_logged_out_request_is_rejected() {
 		wp_set_current_user( 0 );
 		$response = $this->dispatch( self::$author_id );
 		$this->assertSame( 401, $response->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_unprivileged_viewer_sees_published_recent_only() {
 		wp_set_current_user( self::$contributor_id );
 		$data = $this->dispatch( self::$author_id )->get_data();
@@ -141,6 +149,9 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertNotContains( $this->private_post_id, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_unprivileged_viewer_gets_publish_only_counts() {
 		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
@@ -161,6 +172,9 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_unprivileged_viewer_cpt_and_comment_counts_exclude_non_public() {
 		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
@@ -169,6 +183,9 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertSame( 1, $counts['commentsReceived'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_unprivileged_viewer_cpt_count_excludes_non_viewable_types() {
 		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
@@ -180,6 +197,9 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_unprivileged_comment_counts_cover_readable_parents_only() {
 		$parents = array(
 			$this->published_post_id,
@@ -198,7 +218,6 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 					'post_status' => 'publish',
 				)
 			),
-
 			999999,
 		);
 		foreach ( $parents as $parent ) {
@@ -213,18 +232,19 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 
 		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
-
 		$this->assertSame( 1, $counts['commentsLeft'] );
-
 		$this->assertSame( 2, $counts['commentsReceived'] );
 
 		wp_set_current_user( self::$admin_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
 		$this->assertSame( 5, $counts['commentsLeft'] );
-
 		$this->assertSame( 6, $counts['commentsReceived'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 * @covers ::openstation_my_wordpress_user_stats_readable_comment_count
+	 */
 	public function test_comment_counts_follow_a_per_post_read_filter() {
 		$members_only = self::factory()->post->create(
 			array(
@@ -233,7 +253,6 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 				'post_title'  => 'Members only',
 			)
 		);
-
 		foreach ( array( $this->published_post_id, $members_only ) as $parent ) {
 			self::factory()->comment->create(
 				array(
@@ -252,7 +271,6 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 
 		wp_set_current_user( self::$contributor_id );
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
-
 		$this->assertSame( 4, $counts['commentsReceived'] );
 		$this->assertSame( 2, $counts['commentsLeft'] );
 
@@ -274,11 +292,13 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		);
 
 		$counts = $this->dispatch( self::$author_id )->get_data()['counts'];
-
 		$this->assertSame( 2, $counts['commentsReceived'] );
 		$this->assertSame( 1, $counts['commentsLeft'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_cpt_count_leaves_out_core_built_in_types() {
 		foreach ( array( 'wp_block', 'wp_navigation' ) as $type ) {
 			self::factory()->post->create(
@@ -297,6 +317,9 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertSame( 1, $this->dispatch( self::$author_id )->get_data()['counts']['cpt'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_unprivileged_viewer_profile_omits_sensitive_fields() {
 		wp_set_current_user( self::$contributor_id );
 		$profile = $this->dispatch( self::$author_id )->get_data()['profile'];
@@ -307,6 +330,9 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'roles', $profile );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_privileged_viewer_sees_full_data() {
 		wp_set_current_user( self::$admin_id );
 		$data   = $this->dispatch( self::$author_id )->get_data();
@@ -317,7 +343,6 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertSame( 1, $counts['posts']['private'] );
 		$this->assertSame( 4, $counts['posts']['total'] );
 		$this->assertSame( 1, $counts['pages']['draft'] );
-
 		$this->assertSame( 3, $counts['cpt'] );
 		$this->assertSame( 2, $counts['commentsReceived'] );
 
@@ -327,6 +352,9 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'email', $data['profile'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 */
 	public function test_self_sees_full_data_without_list_users() {
 		wp_set_current_user( self::$author_id );
 		$data = $this->dispatch( self::$author_id )->get_data();
@@ -337,12 +365,17 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$ids = wp_list_pluck( $data['recent'], 'id' );
 		$this->assertContains( $this->draft_post_id, $ids );
 	}
-
+	/**
+	 * @covers ::openstation_my_wordpress_register_user_stats_route
+	 */
 	public function test_subscriber_is_rejected_by_route() {
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertSame( 403, $this->dispatch( self::$author_id )->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_user_stats_route
+	 */
 	public function test_filter_narrowed_route_refuses_admins() {
 		add_filter( 'openstation_my_wordpress_user_can_use', '__return_false' );
 

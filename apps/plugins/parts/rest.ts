@@ -33,7 +33,6 @@ export interface PluginsRest {
 	updateInstalledPlugin: ( plugin: InstalledPlugin ) => Promise< UpdatePluginResult >;
 	toggleAutoUpdate: ( plugin: InstalledPlugin, state: 'enable' | 'disable' ) => Promise< void >;
 	uploadPluginZip: ( file: File, options?: { overwrite?: boolean } ) => Promise< UploadPluginResult >;
-
 	isOpenStationSelf: ( pluginFile: string ) => boolean;
 }
 
@@ -68,7 +67,6 @@ export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch
 		if ( ! formData.has( '_ajax_nonce' ) ) {
 			formData.set( '_ajax_nonce', cfg.ajaxNonce );
 		}
-
 		const response = await fetcher( cfg.ajaxUrl, { method: 'POST', body: formData } );
 		return unwrapAjaxEnvelope< T >( await readJsonOrThrow( response ), response.status );
 	};
@@ -85,9 +83,7 @@ export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch
 		fetchPluginReviews: ( slug ) =>
 			ajaxRequest< PluginReviewsResponse >( 'openstation_plugins_reviews', { slug } ),
 		fetchFeaturedPlugins: () => ajaxRequest( 'openstation_plugins_featured' ),
-
 		installPluginBySlug: ( slug ) => ajaxRequest( 'install-plugin', { slug }, 'updates' ),
-
 		updateInstalledPlugin: ( plugin ) =>
 			ajaxRequest< UpdatePluginResult >(
 				'update-plugin',
@@ -100,7 +96,6 @@ export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch
 				},
 				'updates',
 			),
-
 		toggleAutoUpdate: async ( plugin, state ) => {
 			await ajaxRequest< unknown >(
 				'toggle-auto-updates',
@@ -152,7 +147,6 @@ export function unwrapAjaxEnvelope< T >( json: unknown, status: number ): T {
 		}
 		throw extractAjaxError( env.data, status );
 	}
-
 	return json as T;
 }
 
@@ -162,7 +156,6 @@ function extractAjaxError( data: unknown, status: number ): Error {
 		const msg = obj.message ?? obj.errorMessage ?? obj.code ?? obj.errorCode;
 		if ( typeof msg === 'string' && msg !== '' ) {
 			const err = new Error( msg );
-
 			( err as Error & { code?: string; status?: number } ).code = obj.code ?? obj.errorCode;
 			( err as Error & { code?: string; status?: number } ).status = status;
 			return err;

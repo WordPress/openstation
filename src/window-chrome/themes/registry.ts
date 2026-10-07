@@ -4,17 +4,11 @@ import { createSharedStore } from '../../shared-store';
 import type { Window as DesktopWindow } from '../../window';
 
 export interface WindowThemeDef {
-
 	id: string;
-
 	label?: string;
-
 	tokens: Record< string, string >;
-
 	match: ( window: DesktopWindow ) => boolean;
-
 	priority?: number;
-
 	owner?: string;
 }
 
@@ -108,6 +102,7 @@ export function resolveWindowTheme(
 			}
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
 				console.warn(
 					`[openstation] window-theme "${ def.id }" match() threw — skipping`,
 					err,
@@ -134,6 +129,7 @@ function notify(): void {
 			cb();
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
+				// eslint-disable-next-line no-console
 				console.error(
 					'[openstation] window-theme registry listener threw:',
 					err,

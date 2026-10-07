@@ -191,7 +191,6 @@ function openstation_notes_rest_list() {
 }
 
 function openstation_notes_rest_create( $request ) {
-
 	$can_create = apply_filters( 'openstation_notes_user_can_create', true, get_current_user_id(), $request );
 	if ( ! $can_create ) {
 		return new WP_Error( 'openstation_notes_forbidden', __( 'You are not allowed to create notes.', 'desktop-mode' ), array( 'status' => 403 ) );
@@ -218,7 +217,6 @@ function openstation_notes_rest_create( $request ) {
 	update_post_meta( $post_id, '_wpd_note_x', openstation_notes_sanitize_fraction( $request['x'] ) );
 	update_post_meta( $post_id, '_wpd_note_y', openstation_notes_sanitize_fraction( $request['y'] ) );
 	update_post_meta( $post_id, '_wpd_note_z', openstation_notes_next_z() );
-
 	$seed = absint( $request['seed'] );
 	if ( 0 === $seed ) {
 		$seed = absint( crc32( $text ) ) % 2147483647;

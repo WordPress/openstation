@@ -65,15 +65,12 @@ final class Runtime {
 			if ( self::ACTION_MOUNT === $action ) {
 				$app->run_mount( $state, $os );
 			} elseif ( self::ACTION_REOPEN === $action && ! $app->has_action( $action ) ) {
-
 				$state->get( 'tab' );
 			} elseif ( self::ACTION_SET === $action ) {
-
 				$app->run_action( self::ACTION_SET, $state, $os, $args, false );
 			} elseif ( $app->has_action( $action ) ) {
 				$app->run_action( $action, $state, $os, $args );
 			} elseif ( self::ACTION_REFRESH !== $action ) {
-
 				return self::failure( 'unknown_action', sprintf( 'Unknown action "%s".', $action ), 400 );
 			}
 

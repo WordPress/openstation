@@ -1,5 +1,10 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_inject_appearance_tabs
+ * @covers ::openstation_render_themes_workspace_intro
+ * @covers ::openstation_theme_install_active_tab_script
+ */
 class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -56,12 +61,10 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 
 		$this->assertCount( 2, $result['submenu'] );
 		$this->assertSame( 'Add Theme', $result['submenu'][0]['title'] );
-
 		$this->assertSame(
 			admin_url( 'theme-install.php?browse=popular' ),
 			$result['submenu'][0]['url']
 		);
-
 		$this->assertSame( 'Editor', $result['submenu'][1]['title'] );
 	}
 
@@ -127,7 +130,6 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 	}
 
 	public function test_filter_is_registered_at_priority_10() {
-
 		add_filter( 'openstation_dock_item', 'openstation_inject_appearance_tabs', 10, 2 );
 
 		$priority = has_filter(
@@ -190,6 +192,9 @@ class Tests_OpenStation_InjectAppearanceTabs extends WP_UnitTestCase {
 		$this->assertSame( '', $this->capture_themes_workspace_intro() );
 	}
 
+	/**
+	 * @covers ::openstation_theme_install_active_tab_script
+	 */
 	public function test_theme_install_active_tab_script_registered_and_emits_dynamic_browse_param() {
 		$priority = has_action(
 			'admin_footer',

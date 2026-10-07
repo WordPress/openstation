@@ -29,7 +29,7 @@ export async function fetchPairing(
 				silent: true,
 				source: 'openstation-electron/pairing',
 			} )
-
+			// eslint-disable-next-line no-restricted-syntax -- boot-time fallback; see above.
 			: await fetch( restUrl, init );
 		if ( ! response.ok ) {
 			return null;
@@ -55,7 +55,7 @@ export async function connectToAgent(
 		path: string,
 		init: RequestInit = {},
 	): Promise< Record< string, unknown > > => {
-
+		// eslint-disable-next-line no-restricted-syntax -- loopback call to the desktop app, not a site request: it has no window to attribute to and must not appear as site activity.
 		const response = await fetch( `${ base }${ path }`, {
 			...init,
 			headers: {
@@ -73,7 +73,7 @@ export async function connectToAgent(
 	try {
 		const controller = new AbortController();
 		const timer = setTimeout( () => controller.abort(), PROBE_TIMEOUT_MS );
-
+		// eslint-disable-next-line no-restricted-syntax -- loopback reachability probe, not a site request; runs on every menu open and must stay invisible.
 		const ping = await fetch( `${ base }/ping`, {
 			headers,
 			signal: controller.signal,
@@ -95,7 +95,6 @@ export async function connectToAgent(
 				: [],
 		};
 	} catch {
-
 		return null;
 	}
 
@@ -119,7 +118,6 @@ export async function connectToAgent(
 				Array.isArray( data.windowIds ) ? ( data.windowIds as string[] ) : [],
 			);
 		} catch {
-
 			for ( const id of known ) {
 				dockedListeners.forEach( ( cb ) => cb( { windowId: id } ) );
 			}

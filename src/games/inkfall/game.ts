@@ -68,7 +68,6 @@ function readStoredMode(): DifficultyMode {
 			return stored as DifficultyMode;
 		}
 	} catch {
-
 	}
 	return 'easy';
 }
@@ -77,7 +76,6 @@ function storeMode( mode: DifficultyMode ): void {
 	try {
 		window.localStorage.setItem( MODE_STORAGE_KEY, mode );
 	} catch {
-
 	}
 }
 
@@ -85,7 +83,6 @@ interface FallingWord {
 	id: number;
 	text: string;
 	sprite: WordSprite;
-
 	jitter: number;
 }
 
@@ -136,14 +133,13 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		const ribbon = document.createElement( 'span' );
 		ribbon.className = 'inkfall__hud-ribbon';
 		ribbon.textContent = sprintf(
-
+			/* translators: 1: challenger display name, 2: score to beat. */
 			__( 'Beat %1$s: %2$s' ),
 			ctx.challenge.challengerName,
 			String( ctx.challenge.scoreToBeat ),
 		);
 		hud.appendChild( ribbon );
 	}
-
 	hud.appendChild( soundToggle );
 	root.appendChild( hud );
 
@@ -191,7 +187,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 
 	const paintHud = (): void => {
 		scoreEl.textContent = sprintf(
-
+			/* translators: %s: current score. */
 			__( 'Score %s' ),
 			String( scores.score ),
 		);
@@ -201,7 +197,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			Math.max( 0, STARTING_LIVES - lives ),
 		);
 		levelEl.textContent = sprintf(
-
+			/* translators: 1: current level number, 2: difficulty label. */
 			__( 'Level %1$s · %2$s' ),
 			String( levelAt( clockSeconds ) ),
 			modeLabel( mode ),
@@ -281,7 +277,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		const heightFraction =
 			( bottomY() - word.sprite.container.y ) / Math.max( 1, height );
 		recordCompletion( scores, word.text.length, heightFraction );
-
 		const sprite = word.sprite;
 		removeWord( word, true );
 		setMatchedCount( sprite, sprite.text.length );
@@ -328,7 +323,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		const stats = document.createElement( 'p' );
 		stats.className = 'inkfall__over-stats';
 		stats.textContent = sprintf(
-
+			/* translators: 1: score, 2: words typed, 3: words per minute, 4: accuracy percent. */
 			__( 'Score %1$s — %2$s words, %3$s WPM, %4$s%% accuracy.' ),
 			String( row.score ),
 			String( scores.wordsCompleted ),
@@ -422,7 +417,7 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			const note = document.createElement( 'p' );
 			note.className = 'inkfall__over-stats';
 			note.textContent = sprintf(
-
+				/* translators: 1: challenger display name, 2: score to beat. */
 				__( 'Challenge from %1$s — beat %2$s.' ),
 				ctx.challenge.challengerName,
 				String( ctx.challenge.scoreToBeat ),
@@ -553,7 +548,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			case 'typo': {
 				recordTypo( scores );
 				audio.typo();
-
 				const word = live.find(
 					( entry ) => entry.id === result.targetId,
 				);
@@ -603,7 +597,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			antialias: true,
 			autoDensity: true,
 			resolution: Math.min( window.devicePixelRatio || 1, 2 ),
-
 			sharedTicker: false,
 		} );
 		if ( disposed ) {
@@ -626,10 +619,8 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			if ( ! app || ! paper ) {
 				return;
 			}
-
 			app.resize();
 			paintPaper( paper, fieldWidth(), fieldHeight() );
-
 			const margin = Math.min( 64, Math.round( fieldWidth() * 0.08 ) );
 			for ( const word of live ) {
 				const maxX = fieldWidth() - word.sprite.width - 16;
@@ -694,7 +685,6 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 			}
 			app.ticker.stop();
 			fx?.clear();
-
 			app.destroy( { removeView: true }, { children: true, texture: true } );
 			app = null;
 		}

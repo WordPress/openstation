@@ -29,7 +29,6 @@ let reloadShell: () => void = () => {
 	try {
 		window.location.reload();
 	} catch {
-
 	}
 };
 
@@ -40,7 +39,6 @@ function connectNow(): void {
 			hb.connectNow();
 		}
 	} catch {
-
 	}
 }
 
@@ -75,7 +73,6 @@ function reloadChromelessIframes(): void {
 		try {
 			frame.contentWindow?.location.reload();
 		} catch {
-
 		}
 	}
 }
@@ -146,7 +143,6 @@ export function noteAuthFailure( status: number, url: string ): void {
 	if ( resolved.origin !== window.location.origin ) {
 		return;
 	}
-
 	if (
 		resolved.pathname.indexOf( '/wp-admin/admin-ajax.php' ) !== -1 &&
 		/(?:^|&|\?)action=heartbeat(?:&|$)/.test( resolved.search )
@@ -184,9 +180,7 @@ function observeAuthCheckModal(): void {
 }
 
 export interface AuthRecoveryOpts {
-
 	currentUserId?: number;
-
 	reloadShell?: () => void;
 }
 
@@ -261,7 +255,6 @@ export function _resetAuthRecoveryForTests(): void {
 		try {
 			window.location.reload();
 		} catch {
-
 		}
 	};
 }

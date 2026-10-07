@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-themes
+ */
 class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 
 	private $temp_files = array();
@@ -75,6 +78,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		return $path;
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_install_from_zip
+	 */
 	public function test_installs_a_valid_theme() {
 		$zip = $this->make_zip( array(
 			'theme.json'          => $this->manifest_json( array(
@@ -105,6 +111,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'acme-neon', $index );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_validate_zip
+	 */
 	public function test_manifest_one_directory_deep_is_accepted() {
 		$zip = $this->make_zip( array(
 			'neon/theme.json' => $this->manifest_json(),
@@ -114,6 +123,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'acme-neon', $entry['slug'] );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_install_from_zip
+	 */
 	public function test_installed_action_fires() {
 		$seen = array();
 		add_action(
@@ -131,6 +143,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'installedAt', $seen[1] );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_install_from_zip
+	 */
 	public function test_reupload_updates_and_prunes_stale_assets() {
 		openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'theme.json'     => $this->manifest_json( array(
@@ -162,6 +177,10 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( '2.0.0', $index['acme-neon']['manifest']['version'] );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_asset_url
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
+	 */
 	public function test_reupload_busts_every_asset_url() {
 		$zip = $this->make_zip( array(
 			'theme.json'  => $this->manifest_json( array(
@@ -208,6 +227,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_install_from_zip
+	 */
 	public function test_unreferenced_assets_are_not_installed() {
 		openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'theme.json'    => $this->manifest_json(),
@@ -218,6 +240,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_validate_zip
+	 */
 	public function test_traversal_entry_rejects_the_archive() {
 		$error = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'theme.json'          => $this->manifest_json(),
@@ -227,6 +252,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_unsafe_entry', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_validate_zip
+	 */
 	public function test_forbidden_extension_rejects_the_archive() {
 		$error = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'theme.json' => $this->manifest_json(),
@@ -236,6 +264,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_bad_extension', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_validate_zip
+	 */
 	public function test_css_and_js_are_refused() {
 		foreach ( array( 'extra.css' => 'body{}', 'extra.js' => 'alert(1)' ) as $name => $bytes ) {
 			$error = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
@@ -246,6 +277,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_validate_zip
+	 */
 	public function test_missing_manifest_rejects() {
 		$error = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'preview.png' => $this->png_bytes(),
@@ -254,6 +288,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_missing_manifest', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_validate_zip
+	 */
 	public function test_two_manifests_reject() {
 		$error = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'theme.json'   => $this->manifest_json(),
@@ -263,6 +300,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_missing_manifest', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_install_from_zip
+	 */
 	public function test_invalid_json_rejects() {
 		$error = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'theme.json' => '{ not json',
@@ -271,6 +311,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_bad_json', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_zip_caps
+	 */
 	public function test_entry_count_cap_is_enforced_and_filterable() {
 		add_filter( 'openstation_desktop_theme_zip_caps', static function ( $caps ) {
 			$caps['max_entries'] = 2;
@@ -285,6 +328,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_too_many_entries', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_zip_caps
+	 */
 	public function test_total_size_cap_is_enforced() {
 		add_filter( 'openstation_desktop_theme_zip_caps', static function ( $caps ) {
 			$caps['max_uncompressed'] = 32;
@@ -298,6 +344,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_archive_too_large', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_zip_entry_ignored
+	 */
 	public function test_macosx_and_dotfiles_are_ignored_not_rejected() {
 		$entry = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'theme.json'              => $this->manifest_json(),
@@ -307,6 +356,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertIsArray( $entry, is_wp_error( $entry ) ? $entry->get_error_message() : '' );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_sanitize_svg
+	 */
 	public function test_svg_script_and_handlers_are_stripped() {
 		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
 			. '<script>alert(1)</script>'
@@ -337,6 +389,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<rect', $clean, 'Legitimate markup survives.' );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_sanitize_svg
+	 */
 	public function test_svg_with_entities_rejects_the_upload() {
 		$svg = '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY lol "lol">]>'
 			. '<svg xmlns="http://www.w3.org/2000/svg"><text>&lol;</text></svg>';
@@ -353,6 +408,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_desktop_theme_bad_svg', $error->get_error_code() );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_install_from_zip
+	 */
 	public function test_unparseable_svg_aborts_install_and_cleans_up() {
 		openstation_desktop_theme_install_from_zip( $this->make_zip( array(
 			'theme.json'  => $this->manifest_json( array(
@@ -370,6 +428,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertEmpty( $staging, 'Staging directory must be cleaned on every exit path.' );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_themes_ensure_dir
+	 */
 	public function test_protection_files_are_exec_off_not_deny_all() {
 		openstation_desktop_themes_ensure_dir();
 		$base = openstation_desktop_themes_dir();
@@ -383,6 +444,9 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'FilesMatch', $rules );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_delete
+	 */
 	public function test_delete_removes_directory_index_entry_and_fires_action() {
 		openstation_desktop_theme_install_from_zip(
 			$this->make_zip( array( 'theme.json' => $this->manifest_json() ) )
@@ -402,12 +466,18 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertDirectoryDoesNotExist( openstation_desktop_themes_dir( 'acme-neon' ) );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_delete
+	 */
 	public function test_delete_unknown_slug_is_a_404() {
 		$error = openstation_desktop_theme_delete( 'nope' );
 		$this->assertWPError( $error );
 		$this->assertSame( 404, $error->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_desktop_theme_rmdir
+	 */
 	public function test_rmdir_refuses_paths_outside_the_themes_base() {
 		openstation_desktop_themes_ensure_dir();
 		$outside = get_temp_dir() . 'dm-outside-' . wp_generate_uuid4();

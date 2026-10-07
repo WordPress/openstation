@@ -10,7 +10,6 @@ import type { NotesLayer } from './layer';
 
 const DROP_ACTIVE_ATTR = 'data-os-posts-drop-active';
 const POSTS_WINDOW_ID = 'desktop-mode-posts';
-
 const POSTS_DOCK_SELECTOR =
 	'.os-dock__item[data-menu-slug="menu-posts"],' +
 	'.os-dock__item[data-menu-slug="editphp"]';
@@ -43,7 +42,6 @@ function isPostsUrl( url: string ): boolean {
 		path = parsed.pathname;
 		search = parsed.search;
 	} catch {
-
 	}
 	const onPostsScreen =
 		/(?:^|\/)(?:edit\.php|post-new\.php)$/.test( path ) ||

@@ -30,9 +30,7 @@ export function loadState(): OsSettingsState {
 	const serverRaw = _readServerSettings();
 	if ( serverRaw ) {
 		const state = sanitizeSettings( serverRaw, liveDefaults() );
-
 		_writeLocalStorage( state );
-
 		setLastConfirmedState( state );
 		return state;
 	}
@@ -46,7 +44,6 @@ export function loadState(): OsSettingsState {
 			);
 		}
 	} catch {
-
 	}
 
 	return liveDefaults();
@@ -96,12 +93,10 @@ const REGISTRY_ID = /^[a-z0-9_/-]+$/;
 const SANITIZERS: Sanitizers = {
 	wallpaper: ( raw, fallback ) =>
 		typeof raw === 'string' && raw !== '' ? raw : fallback,
-
 	accent: ( raw, fallback ) =>
 		raw === CUSTOM_ACCENT_ID || getAccents().some( ( a ) => a.id === raw )
 			? ( raw as string )
 			: fallback,
-
 	customAccent: matching( /^#[0-9a-fA-F]{6}$/ ),
 	dockSize: oneOf( DOCK_SIZES ),
 	windowRadius: oneOf( WINDOW_RADII ),
@@ -111,11 +106,8 @@ const SANITIZERS: Sanitizers = {
 	dockPlacement: oneOf( DOCK_PLACEMENTS ),
 	dockBehavior: oneOf( DOCK_BEHAVIORS ),
 	sideDockBehavior: oneOf( DOCK_BEHAVIORS ),
-
 	dockRailRenderer: matching( /^[a-z0-9_-]+$/ ),
-
 	desktopTheme: matching( /^[a-z0-9_-]*$/ ),
-
 	appliedThemeRecommendations: ( raw, fallback ) =>
 		Array.isArray( raw )
 			? Array.from(
@@ -129,7 +121,6 @@ const SANITIZERS: Sanitizers = {
 			: fallback.slice(),
 	unfocusEffect: matching( REGISTRY_ID ),
 	windowReveal: matching( REGISTRY_ID ),
-
 	windowRevealDuration: ( raw, fallback ) => {
 		if ( typeof raw !== 'number' || ! Number.isFinite( raw ) ) {
 			return fallback;
@@ -144,7 +135,6 @@ const SANITIZERS: Sanitizers = {
 	windowLinkHighlight: bool,
 	customGradient: ( raw, fallback ) =>
 		isObject( raw ) ? sanitizeCustomGradient( raw ) : { ...fallback },
-
 	customImage: ( raw, fallback ) =>
 		raw === null || isObject( raw ) ? sanitizeCustomImage( raw ) : fallback,
 	wallpaperSettings: ( raw, fallback ) =>
@@ -154,7 +144,6 @@ const SANITIZERS: Sanitizers = {
 	heartbeatRate: ( raw, fallback ) =>
 		raw === 15 || raw === 30 || raw === 45 || raw === 60 ? raw : fallback,
 	nativePostsEnabled: bool,
-
 	nativePostsHiddenColumns: ( raw, fallback ) =>
 		Array.isArray( raw )
 			? raw
@@ -179,7 +168,6 @@ const SANITIZERS: Sanitizers = {
 	mioEnabled: bool,
 	mioApiEnabled: bool,
 	mioShowOnWallpaper: bool,
-
 	mioStyle: ( raw, fallback ) =>
 		isObject( raw ) ? sanitizeMioLook( raw ) : fallback,
 	showPostStatusRibbons: bool,
@@ -217,7 +205,6 @@ export function sanitizeSettings(
 		}
 		out[ key ] = table[ key ]( source[ key ], out[ key ] );
 	}
-
 	if ( typeof source.mioEnabled === 'boolean' ) {
 		out.mioEnabled = source.mioEnabled;
 	} else if ( typeof source.mioApiEnabled === 'boolean' ) {
@@ -409,7 +396,6 @@ function _writeLocalStorage( state: OsSettingsState ): void {
 	try {
 		window.localStorage.setItem( STORAGE_KEY, JSON.stringify( state ) );
 	} catch {
-
 	}
 }
 
@@ -420,7 +406,6 @@ function _scheduleSyncToServer(
 	if ( _syncTimer !== null ) {
 		clearTimeout( _syncTimer );
 	}
-
 	if ( windowId ) {
 		_pendingActivityWindowId = windowId;
 	}
@@ -450,7 +435,6 @@ function _buildPayload(
 		) {
 			continue;
 		}
-
 		Object.assign( payload, { [ key ]: state[ key ] } );
 		changed = true;
 	}
@@ -464,7 +448,6 @@ let _queuedSave: { state: OsSettingsState; windowId?: string | null } | null =
 function _postToServer( state: OsSettingsState, windowId?: string | null ): void {
 	if ( _saveInFlight ) {
 		_queuedSave = { state, windowId };
-
 		_emitSaveLifecycle( 'pending' );
 		return;
 	}
@@ -486,9 +469,7 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 
 	_emitSaveLifecycle( 'saving' );
 	_saveInFlight = true;
-
 	const sentSnapshot = cloneState( state );
-
 	const attributedWindowId = windowId || OS_SETTINGS_WINDOW_ID;
 	trackedFetch(
 		url,
@@ -506,7 +487,6 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 			if ( ! res.ok ) {
 				throw await restErrorFromResponse( res );
 			}
-
 			_lastConfirmedState = sentSnapshot;
 			_emitSaveLifecycle( 'saved', undefined, undefined, sentSnapshot );
 		} )
@@ -528,7 +508,6 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 		} )
 		.finally( () => {
 			_saveInFlight = false;
-
 			const queued = _queuedSave;
 			_queuedSave = null;
 			if ( queued && _saveFailed ) {
@@ -549,9 +528,7 @@ export type OsSettingsSavePhase = 'pending' | 'saving' | 'saved' | 'failed';
 export interface OsSettingsSaveLifecycleDetail {
 	phase: OsSettingsSavePhase;
 	error?: string;
-
 	rolledBackTo?: OsSettingsState;
-
 	savedSettings?: OsSettingsState;
 }
 

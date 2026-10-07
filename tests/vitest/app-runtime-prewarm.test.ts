@@ -97,7 +97,6 @@ describe( 'startPrewarm', () => {
 		vi.advanceTimersByTime( PREWARM_TTL_MS + 1 );
 		expect( hasPrewarm( APP ) ).toBe( false );
 		expect( takePrewarm( APP ) ).toBeUndefined();
-
 		expect( startPrewarm( config(), host.fetch ) ).toBe( true );
 	} );
 
@@ -125,7 +124,6 @@ describe( 'a session opening on a warm', () => {
 		expect( root.querySelector( 'p' )?.getAttribute( 'data-loading' ) ).toBe( 'false' );
 		expect( session.state ).toEqual( { page: 1 } );
 		expect( session.data ).toEqual( { rows: [ 'warm' ] } );
-
 		expect( hasPrewarm( APP ) ).toBe( false );
 	} );
 

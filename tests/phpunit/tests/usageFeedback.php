@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-feedback
+ */
 class Tests_OpenStation_UsageFeedback extends WP_UnitTestCase {
 
 	protected static $user_id;

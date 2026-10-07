@@ -20,7 +20,6 @@ const TOKENS = [
 		token: '{field:2}',
 		sample: 'ada@example.com',
 	},
-
 	{ group: 'Form', label: 'All answers', token: '{all_fields}' },
 ];
 
@@ -160,7 +159,6 @@ describe( '<os-token-field>', () => {
 		const preview = el.shadowRoot!.querySelector(
 			'.os-token-field__preview-body',
 		)!;
-
 		expect( preview.textContent?.trim() ).toBe(
 			'All of it: {all_fields} for Ada Lovelace',
 		);
@@ -218,7 +216,6 @@ describe( '<os-token-field>', () => {
 		const el = await mount( 'readonly' );
 		openCatalogue( el );
 		await tick();
-
 		expect( el.hasAttribute( 'open' ) ).toBe( false );
 	} );
 } );

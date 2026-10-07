@@ -117,7 +117,6 @@ export function paintTagChip( box: TagBox, focused: boolean, palette: CanvasPale
 	chip.nameText.style.fill = palette.fg;
 	const badgeX = left + CHIP_PAD_X + hashW + CHIP_GAP_HASH + nameW + CHIP_GAP_COUNT;
 	const badgeY = ( totalH - countBadgeH ) / 2 + top;
-
 	chip.bg.roundRect( badgeX, badgeY, countBadgeW, countBadgeH, countBadgeH / 2 );
 	chip.bg.fill( countBg );
 	chip.countText.x = badgeX + ( countBadgeW - countW ) / 2;

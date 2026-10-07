@@ -43,7 +43,7 @@ app.setName( 'OpenStation' );
 
 const APP_VERSION: string = ( () => {
 	try {
-
+		// eslint-disable-next-line @typescript-eslint/no-var-requires
 		return String( require( '../../package.json' ).version || '0.0.0' );
 	} catch {
 		return '0.0.0';
@@ -77,7 +77,6 @@ function brandDock(): void {
 			app.dock.setIcon( image );
 		}
 	} catch ( err ) {
-
 		console.error( '[openstation-desktop] could not set the dock icon:', err );
 	}
 }
@@ -174,7 +173,6 @@ function openShellWindow(): void {
 	shellWindow.webContents.on( 'did-navigate', ( _event, url ) => {
 		if ( settling ) {
 			settling = false;
-
 			const landed = settledSiteUrl( url, store.get( 'siteUrl' ) );
 			if ( landed && landed !== store.get( 'siteUrl' ) ) {
 				store.set( 'siteUrl', landed );
@@ -280,7 +278,6 @@ function routeNewWindow(
 		url,
 		title: 'OpenStation',
 	} );
-
 	return { action: 'deny' };
 }
 
@@ -288,7 +285,6 @@ function guardNavigation(
 	contents: Electron.WebContents,
 	allowAny: () => boolean = () => false,
 ): void {
-
 	const onNavigate = (
 		event: { preventDefault: () => void; isMainFrame?: boolean },
 		url: string,
@@ -331,14 +327,12 @@ function createFreedWindow( opts: {
 		title: opts.title,
 		show: false,
 		backgroundColor: '#0c0b0f',
-
 		titleBarStyle: 'default',
 		webPreferences: {
 			preload: join( __dirname, 'preload', 'free.js' ),
 			contextIsolation: true,
 			nodeIntegration: false,
 			sandbox: false,
-
 			spellcheck: true,
 		},
 	} );
@@ -539,7 +533,6 @@ function registerIpc(): void {
 
 	ipcMain.handle( CHANNELS.INVOKE_CONNECT_STATE, () => {
 		const error = lastConnectError;
-
 		lastConnectError = '';
 		return {
 			siteUrl: store.get( 'siteUrl' ),
@@ -551,7 +544,6 @@ function registerIpc(): void {
 }
 
 void app.whenReady().then( () => {
-
 	app.setAboutPanelOptions( {
 		applicationName: 'OpenStation',
 		applicationVersion: APP_VERSION,
@@ -563,7 +555,6 @@ void app.whenReady().then( () => {
 	store = new Store( app.getPath( 'userData' ) );
 
 	connection = new Connection( {
-
 		fetch: async ( url, init ) => {
 			const response = await net.fetch( url, init as RequestInit );
 			return {
@@ -581,7 +572,6 @@ void app.whenReady().then( () => {
 			arch: process.arch,
 			appVersion: APP_VERSION,
 			electronVersion: process.versions.electron,
-
 			agentUrl: agent?.url ?? '',
 			agentToken: agent?.url ? store.agentToken() : '',
 		} ),
@@ -656,7 +646,6 @@ void app.whenReady().then( () => {
 } );
 
 app.on( 'window-all-closed', () => {
-
 	if ( 'darwin' !== process.platform ) {
 		app.quit();
 	}
@@ -665,15 +654,12 @@ app.on( 'window-all-closed', () => {
 app.on( 'before-quit', () => {
 	freeWindows?.closeAll();
 	agent?.stop();
-
 	void connection?.farewell();
 } );
 
 app.on( 'certificate-error', ( event, _webContents, url, error, _cert, callback ) => {
 	const site = store?.get( 'siteUrl' ) ?? '';
-
 	const isConfiguredSite = isSameSiteUrl( url, site );
-
 	const isLocalDevelopment = isLoopbackUrl( url ) && isLoopbackUrl( site );
 	if ( ! isConfiguredSite && ! isLocalDevelopment ) {
 		callback( false );

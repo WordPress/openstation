@@ -4,7 +4,6 @@ export interface ProfileConfig {
 	canPromote?: boolean;
 	canCreate?: boolean;
 	canDelete?: boolean;
-
 	canViewFootprint?: boolean;
 	isMultisite?: boolean;
 	assignableRoles?: Record< string, string >;

@@ -49,7 +49,6 @@ describe( 'apply() — dock size', () => {
 
 		expect( document.body.style.getPropertyValue( WIDTH_VAR ) ).toBe( width );
 		expect( document.body.style.getPropertyValue( ICON_VAR ) ).toBe( icon );
-
 		expect( shellEl().style.getPropertyValue( WIDTH_VAR ) ).toBe( width );
 		expect( shellEl().style.getPropertyValue( ICON_VAR ) ).toBe( icon );
 	} );

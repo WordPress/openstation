@@ -8,7 +8,6 @@ $popup_siege_scripts    = array();
 $popup_siege_registered = array();
 
 class WP_Error {
-
 	public $code;
 
 	public $message;

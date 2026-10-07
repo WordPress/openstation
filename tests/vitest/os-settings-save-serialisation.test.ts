@@ -8,7 +8,6 @@ type StateModule = typeof import( '../../src/settings/state' );
 
 let fetchMock: FetchMock;
 let state_: StateModule;
-
 let resolvers: Array< ( v: unknown ) => void >;
 
 function sentSettings( call: number ): Partial< OsSettingsState > {
@@ -28,7 +27,6 @@ beforeEach( async () => {
 	state_ = await import( '../../src/settings/state' );
 	vi.useFakeTimers();
 	resolvers = [];
-
 	fetchMock = vi.fn(
 		() =>
 			new Promise( ( resolve ) => {
@@ -109,7 +107,6 @@ describe( 'OS Settings — overlapping saves', () => {
 		await respond( 0 );
 
 		expect( fetchMock ).toHaveBeenCalledTimes( 2 );
-
 		expect( sentSettings( 1 ) ).toEqual( { windowRadius: 'sharp' } );
 	} );
 

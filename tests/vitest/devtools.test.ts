@@ -45,7 +45,6 @@ function clearWindowManagerStub(): void {
 }
 
 async function freshDevtools(): Promise< { dt: DevtoolsModule; hk: HooksModule } > {
-
 	vi.resetModules();
 	const hk = ( await import( '../../src/hooks' ) ) as HooksModule;
 	const dt = ( await import( '../../src/devtools' ) ) as DevtoolsModule;
@@ -106,7 +105,6 @@ describe( 'devtools.addRequestHeader', () => {
 	} );
 
 	test( 'iframe load event re-pushes instrumentation', async () => {
-
 		const { dt } = await freshDevtools();
 		const ctx = mountFakeWindow( 'reload-target' );
 
@@ -178,9 +176,7 @@ describe( 'devtools.addRequestHeader', () => {
 			'sess-xyz',
 		);
 		expect( result ).not.toBeNull();
-
 		expect( stub.iframe._src ).toContain( 'wp_debug_session=sess-xyz' );
-
 		const last = ctx.captures[ ctx.captures.length - 1 ];
 		expect( last.headers[ 'X-WP-Debug-Session' ] ).toBe( 'sess-xyz' );
 
@@ -296,7 +292,6 @@ describe( 'devtools.debug', () => {
 	} );
 
 	test( 'poll URL composes correctly under ugly permalinks (?rest_route=/)', async () => {
-
 		( window as unknown as {
 			openStationConfig?: { restUrl?: string; restNonce?: string };
 		} ).openStationConfig = {
@@ -321,11 +316,9 @@ describe( 'devtools.debug', () => {
 			await new Promise( ( r ) => setTimeout( r, 0 ) );
 			expect( calls.length ).toBeGreaterThan( 0 );
 			const url = calls[ 0 ];
-
 			expect( url.match( /\?/g )?.length ).toBe( 1 );
 			expect( url ).toContain( 'rest_route=' );
 			expect( url ).toContain( 'sessionId=sess-ugly' );
-
 			expect( url ).toContain( 'channels%5B%5D=query' );
 		} finally {
 			fetchSpy.mockRestore();
@@ -334,7 +327,6 @@ describe( 'devtools.debug', () => {
 	} );
 
 	test( 'poll URL includes subscribed channels (regression: empty drains)', async () => {
-
 		( window as unknown as {
 			openStationConfig?: { restUrl?: string; restNonce?: string };
 		} ).openStationConfig = {
@@ -355,7 +347,6 @@ describe( 'devtools.debug', () => {
 			} );
 		try {
 			const { dt } = await freshDevtools();
-
 			dt.devtools.debug.subscribe( 'sess-1', 'query', () => void 0 );
 			await new Promise( ( r ) => setTimeout( r, 0 ) );
 			expect( calls.length ).toBeGreaterThan( 0 );

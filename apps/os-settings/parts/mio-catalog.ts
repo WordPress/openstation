@@ -84,7 +84,6 @@ export async function mioSettingsCatalog() {
 				id: theme.slug,
 				name: theme.name,
 				description: theme.description,
-
 				surfaces: Object.fromEntries(
 					Object.entries( theme.tokens )
 						.filter( ( [ key ] ) => /(?:surface|bg|backstop)$/.test( key ) )

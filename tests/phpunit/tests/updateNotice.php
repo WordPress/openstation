@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-update-notice
+ */
 class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -25,12 +28,17 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_get_core_update
+	 */
 	public function test_returns_null_without_update() {
 		wp_set_current_user( self::$admin_id );
-
 		$this->assertNull( openstation_get_core_update() );
 	}
 
+	/**
+	 * @covers ::openstation_get_core_update
+	 */
 	public function test_returns_null_without_capability() {
 		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber );
@@ -38,6 +46,9 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertNull( openstation_get_core_update() );
 	}
 
+	/**
+	 * @covers ::openstation_get_core_update
+	 */
 	public function test_descriptor_shape() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '99.9' );
@@ -51,6 +62,9 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'update-core.php', $update['url'] );
 	}
 
+	/**
+	 * @covers ::openstation_is_major_update
+	 */
 	public function test_major_update_detection() {
 		$this->assertTrue( openstation_is_major_update( '6.9.2', '7.0' ) );
 		$this->assertTrue( openstation_is_major_update( '6.8', '6.9' ) );
@@ -58,6 +72,9 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_major_update( '7.0', '7.0' ) );
 	}
 
+	/**
+	 * @covers ::openstation_get_core_update
+	 */
 	public function test_crossing_major() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '8.0.1' );
@@ -69,6 +86,9 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertTrue( $update['crossing'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_core_update
+	 */
 	public function test_same_branch_minor() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '7.0.2' );
@@ -80,6 +100,9 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertFalse( $update['crossing'] );
 	}
 
+	/**
+	 * @covers ::openstation_get_core_update
+	 */
 	public function test_notice_filter_can_suppress() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '9.9.9' );
@@ -88,6 +111,9 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertNull( openstation_get_core_update() );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_update_nags
+	 */
 	public function test_suppressor_removes_nags_in_chromeless() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -104,6 +130,9 @@ class Tests_OpenStation_UpdateNotice extends WP_UnitTestCase {
 		$this->assertFalse( has_action( 'admin_notices', 'maintenance_nag' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_suppress_update_nags
+	 */
 	public function test_suppressor_leaves_nags_when_not_chromeless() {
 		wp_set_current_user( self::$admin_id );
 		add_action( 'admin_notices', 'update_nag', 3 );

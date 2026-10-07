@@ -51,7 +51,6 @@ export function cascade( mgr: WindowManager ): void {
 
 	eligible.forEach( ( w, i ) => {
 		const step = i % Math.max( 1, maxSteps );
-
 		w._gridSpan = null;
 		w.element.style.left = `${ rect.x + padding + step * offset }px`;
 		w.element.style.top = `${ rect.y + padding + step * offset }px`;
@@ -181,7 +180,6 @@ function prepareForArrange( mgr: WindowManager ): Window[] {
 		if ( w.state === 'maximized' ) {
 			w.toggleMaximize();
 		}
-
 		w._gridSpan = null;
 	}
 	return eligible;
@@ -219,7 +217,6 @@ export function columns( mgr: WindowManager ): void {
 	const padding = 16;
 	const gap = 12;
 	const colHeight = Math.floor( rect.height - padding * 2 );
-
 	const spans = shareRowByMinWidth(
 		rect.width - padding * 2,
 		gap,
@@ -257,7 +254,6 @@ export function focus( mgr: WindowManager ): void {
 		areaWidth: rect.width,
 		areaHeight: rect.height,
 	} );
-
 	const split =
 		Number.isFinite( filtered ) && filtered >= 0.3 && filtered <= 0.9
 			? filtered

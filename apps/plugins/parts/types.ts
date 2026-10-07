@@ -16,7 +16,6 @@ export interface AppData {
 }
 
 export interface PluginsExtra {
-
 	menuTabs?: Array< { id: string; label: string } >;
 	ajaxUrl: string;
 	ajaxNonce: string;
@@ -29,17 +28,13 @@ export interface PluginsExtra {
 		update: boolean;
 	};
 	autoUpdatesEnabled: boolean;
-
 	selfPluginFile: string;
-
 	adminUrl: string;
-
 	deactivationFeedback: {
 		script: { url: string; translations?: string };
 		styleUrl: string;
 		restUrl: string;
 	} | null;
-
 	editorUrl: string;
 }
 
@@ -50,7 +45,6 @@ export type PluginsTab = 'installed' | 'browse' | 'featured';
 export type PluginStatus = 'active' | 'inactive' | 'network-active';
 
 export interface InstalledPlugin {
-
 	plugin: string;
 	status: PluginStatus;
 	name: string;
@@ -59,32 +53,24 @@ export interface InstalledPlugin {
 	author_uri?: string;
 	description?: { raw: string; rendered: string } | string;
 	version?: string;
-
 	textdomain?: string;
 	network_only?: boolean;
 	requires_wp?: string;
 	requires_php?: string;
-
 	openstation_update_available?: {
 		available: boolean;
 		new_version: string | null;
-
 		package: string;
 		slug: string;
 	};
-
 	openstation_can_manage?: {
 		activate: boolean;
 		deactivate: boolean;
 		delete: boolean;
 	};
-
 	openstation_wporg_slug?: string | null;
-
 	openstation_icon_url?: string | null;
-
 	openstation_size_kb?: number | null;
-
 	openstation_auto_update?: {
 		enabled: boolean;
 		forced: boolean | null;
@@ -160,16 +146,12 @@ export interface PluginsChangedPayload {
 	source: string;
 	plugin?: string;
 	action?: 'activate' | 'deactivate' | 'delete' | 'install' | 'update' | 'auto-update' | 'bulk';
-
 	ids?: number[];
 }
 
 export interface BusyState {
-
 	updating: Set< string >;
-
 	autoUpdating: Set< string >;
-
 	optimistic: Map< string, PluginStatus >;
 }
 
@@ -180,15 +162,12 @@ export interface WpOrgCaches {
 
 export interface PluginsHost {
 	readonly extra: PluginsExtra;
-
 	readonly installed: InstalledPlugin[];
 	readonly rest: PluginsRest;
 	readonly root: HTMLElement;
 	readonly busy: BusyState;
 	readonly caches: WpOrgCaches;
-
 	dispatch: Ctx[ 'dispatch' ];
-
 	refresh: () => Promise< boolean >;
 	repaint: () => void;
 	toast: ( message: string, duration?: number ) => void;
@@ -199,11 +178,8 @@ export interface PluginsHost {
 		cancelLabel?: string;
 		danger?: boolean;
 	} ) => Promise< boolean >;
-
 	refreshMenu: () => void;
-
 	installedFor: ( slug: string ) => InstalledPlugin | undefined;
-
 	broadcastChange: ( payload: Omit< PluginsChangedPayload, 'source' >, touched?: string[] ) => void;
 }
 
@@ -227,6 +203,7 @@ export function fullPluginFile( plugin: string ): string {
 }
 
 export function pluginChangeId( pluginFile: string ): number {
+	/* eslint-disable no-bitwise -- CRC-32 is bit arithmetic; this mirrors PHP's crc32(). */
 	let crc = 0xffffffff;
 	for ( let i = 0; i < pluginFile.length; i++ ) {
 		crc ^= pluginFile.charCodeAt( i ) & 0xff;
@@ -235,4 +212,5 @@ export function pluginChangeId( pluginFile: string ): number {
 		}
 	}
 	return Math.max( 1, ( crc ^ 0xffffffff ) >>> 0 );
+	/* eslint-enable no-bitwise */
 }

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -27,7 +30,6 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 				'post_date'   => '2024-06-01 10:00:00',
 			)
 		);
-
 		$factory->post->create(
 			array(
 				'post_author' => self::$author_id,
@@ -53,14 +55,19 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 		$cache = array();
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_payload
+	 */
 	public function test_the_payload_counts_public_posts_and_pages() {
 		$summary = openstation_my_wordpress_user_summary_payload( self::$author_id );
 
 		$this->assertSame( 2, $summary['postCount'] );
-
 		$this->assertStringStartsWith( '2024-06-01', $summary['lastActive'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_payload
+	 */
 	public function test_a_user_who_never_published_reads_as_zero_not_unknown() {
 		$summary = openstation_my_wordpress_user_summary_payload( self::$quiet_id );
 
@@ -68,6 +75,10 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 		$this->assertSame( '', $summary['lastActive'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_prime
+	 * @covers ::openstation_my_wordpress_user_summary_payload
+	 */
 	public function test_the_prefetch_answers_exactly_what_the_per_user_path_does() {
 		$ids = array( self::$admin_id, self::$author_id, self::$quiet_id );
 
@@ -87,6 +98,9 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 		$this->assertSame( $slow, $fast );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_prime
+	 */
 	public function test_priming_a_page_costs_the_same_as_priming_one_row() {
 		global $wpdb;
 
@@ -135,6 +149,9 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_prime
+	 */
 	public function test_priming_the_same_ids_twice_queries_once() {
 		global $wpdb;
 
@@ -146,6 +163,9 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 		$this->assertSame( $before, $wpdb->num_queries );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_prime
+	 */
 	public function test_priming_nothing_is_a_no_op() {
 		global $wpdb;
 
@@ -156,6 +176,9 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 		$this->assertSame( $before, $wpdb->num_queries );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_payload
+	 */
 	public function test_a_subscriber_sees_counts_but_not_roles_or_registration() {
 		openstation_my_wordpress_user_summary_prime( array( self::$author_id ) );
 		wp_set_current_user( self::$quiet_id );
@@ -167,6 +190,9 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 		$this->assertSame( '', $summary['registered'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_payload
+	 */
 	public function test_an_administrator_sees_the_private_half() {
 		$summary = openstation_my_wordpress_user_summary_payload( self::$author_id );
 
@@ -174,6 +200,9 @@ class Tests_OpenStation_MyWordpressUserSummaryPayload extends WP_UnitTestCase {
 		$this->assertNotSame( '', $summary['registered'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_user_summary_payload
+	 */
 	public function test_a_user_who_does_not_exist_returns_the_empty_shape() {
 		$summary = openstation_my_wordpress_user_summary_payload( 999999 );
 

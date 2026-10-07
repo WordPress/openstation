@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group desktop-mode-my-wordpress
+ */
 class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -65,6 +68,9 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		return $response->get_data()['counts']['posts'];
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_term_stats_callback
+	 */
 	public function test_contributor_recent_excludes_unpublished() {
 		wp_set_current_user( self::$contributor_id );
 
@@ -79,6 +85,9 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$this->assertNotContains( $this->future_id, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_term_stats_callback
+	 */
 	public function test_contributor_counts_hide_unpublished() {
 		wp_set_current_user( self::$contributor_id );
 
@@ -91,6 +100,9 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$this->assertSame( 1, $counts['total'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_term_stats_callback
+	 */
 	public function test_admin_sees_unpublished_in_recent_and_counts() {
 		wp_set_current_user( self::$admin_id );
 
@@ -110,6 +122,9 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$this->assertSame( 5, $counts['total'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_term_stats_callback
+	 */
 	public function test_author_sees_own_draft_only() {
 		$own_draft = $this->make_post( 'draft', 'My own draft', self::$author_id );
 
@@ -128,6 +143,9 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		$this->assertSame( 0, $counts['future'] );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_term_stats_callback
+	 */
 	public function test_custom_public_status_is_visible_to_contributors() {
 		register_post_status( 'showcase', array( 'public' => true ) );
 		$showcase_id = $this->make_post( 'showcase', 'Showcased piece' );
@@ -137,13 +155,15 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 			$response = $this->dispatch();
 
 			$this->assertContains( $showcase_id, $this->recent_ids( $response ) );
-
 			$this->assertSame( 2, $this->post_counts( $response )['total'] );
 		} finally {
 			unset( $GLOBALS['wp_post_statuses']['showcase'] );
 		}
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_term_stats_callback
+	 */
 	public function test_recent_is_capped_at_five_newest_first() {
 		$extras = array();
 		for ( $i = 1; $i <= 6; $i++ ) {
@@ -157,6 +177,9 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_term_stats_callback
+	 */
 	public function test_hidden_taxonomy_is_not_served_to_contributors() {
 		$menu = wp_insert_term( 'Primary menu', 'nav_menu' );
 		$this->assertNotWPError( $menu );
@@ -169,12 +192,17 @@ class Tests_OpenStation_MyWordpressTermStats extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		$this->assertSame( 200, $this->dispatch( 'nav_menu', $menu['term_id'] )->get_status() );
 	}
-
+	/**
+	 * @covers ::openstation_my_wordpress_register_term_stats_route
+	 */
 	public function test_subscriber_is_rejected_by_route() {
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertSame( 403, $this->dispatch()->get_status() );
 	}
 
+	/**
+	 * @covers ::openstation_my_wordpress_register_term_stats_route
+	 */
 	public function test_filter_narrowed_route_refuses_admins() {
 		add_filter( 'openstation_my_wordpress_user_can_use', '__return_false' );
 

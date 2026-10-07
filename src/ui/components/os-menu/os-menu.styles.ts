@@ -12,7 +12,6 @@ export const menuStyles = css`
 		min-width: 220px;
 		padding: 4px;
 		background: var( --os-window-bg, #fff );
-
 		background-image: var( --os-ui-menu-bg-image, none );
 		background-repeat: var( --os-ui-menu-bg-image-repeat, repeat );
 		background-size: var( --os-ui-menu-bg-image-size, auto );
@@ -66,7 +65,6 @@ export const menuItemStyles = css`
 		color: var( --os-ui-fg, #000 );
 		outline: none;
 	}
-
 	button:focus-visible {
 		outline: none;
 		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
@@ -88,7 +86,6 @@ export const menuItemStyles = css`
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-
 	.os-menu-item__check {
 		flex-shrink: 0;
 		width: 16px;
@@ -102,7 +99,6 @@ export const menuItemStyles = css`
 	.os-menu-item__check[ hidden ] {
 		display: none;
 	}
-
 	:host( [ checked ] ) .os-menu-item__check {
 		background-color: transparent;
 		background-image: var(

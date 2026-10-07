@@ -16,7 +16,6 @@ module.exports = {
 	],
 	plugins: [ 'local-rules' ],
 	settings: {
-
 		'import/resolver': {
 			typescript: {},
 			node: {
@@ -25,19 +24,14 @@ module.exports = {
 		},
 	},
 	rules: {
-
 		'jsdoc/require-param-type': 'off',
 		'jsdoc/require-returns-type': 'off',
 		'jsdoc/no-undefined-types': 'off',
-
 		'jsdoc/require-jsdoc': 'off',
 		'jsdoc/require-param': 'off',
 		'jsdoc/require-returns': 'off',
-
 		'@wordpress/dependency-group': 'off',
-
 		'no-console': [ 'error', { allow: [ 'warn', 'error', 'info' ] } ],
-
 		camelcase: [
 			'error',
 			{
@@ -55,26 +49,19 @@ module.exports = {
 				ignoreDestructuring: true,
 			},
 		],
-
 		'no-unused-vars': 'off',
 		'@typescript-eslint/no-unused-vars': [
 			'error',
 			{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
 		],
-
 		'@wordpress/valid-sprintf': 'off',
-
 		'no-mixed-operators': 'off',
-
 		indent: [ 'error', 'tab', {
 			ignoredNodes: [ 'TemplateLiteral *' ],
 			SwitchCase: 1,
 		} ],
-
 		'no-duplicate-imports': 'off',
-
 		'local-rules/os-component-registration': 'error',
-
 		'local-rules/os-file-length': [ 'warn', { max: 1000, idealMin: 300, idealMax: 600 } ],
 		'no-restricted-syntax': [
 			'error',
@@ -112,23 +99,18 @@ module.exports = {
 			parser: 'espree',
 			parserOptions: { project: null },
 			rules: {
-
 				'@typescript-eslint/no-var-requires': 'off',
 			},
 		},
 		{
-
 			files: [ 'src/chromeless-bridge.js' ],
 			env: { browser: true },
 			parser: 'espree',
 			parserOptions: { project: null, ecmaVersion: 2020 },
 			rules: {
-
 				'@typescript-eslint/no-explicit-any': 'off',
 				'@typescript-eslint/explicit-module-boundary-types': 'off',
-
 				'no-restricted-syntax': 'off',
-
 				'no-var': 'off',
 				'object-shorthand': 'off',
 				'space-before-function-paren': 'off',
@@ -141,9 +123,7 @@ module.exports = {
 				'wrap-iife': 'off',
 				'func-call-spacing': 'off',
 				'@typescript-eslint/no-this-alias': 'off',
-
 				'react-hooks/exhaustive-deps': 'off',
-
 				'@wordpress/no-global-active-element': 'off',
 			},
 		},

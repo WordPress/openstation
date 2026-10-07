@@ -41,22 +41,15 @@ interface EditorPreviewManager {
 interface PreviewPairing {
 	editorWindowId: string;
 	previewWindowId: string;
-
 	postKey: string;
-
 	openUrl: string;
-
 	unsubscribe: () => void;
-
 	reloadTimer: number | null;
-
 	watchId: string;
 }
 
 interface EditorPreviewState {
-
 	pairings: Map< string, PreviewPairing >;
-
 	busyEditors: Set< string >;
 }
 
@@ -120,7 +113,6 @@ function teardownPairing(
 	try {
 		pairing.unsubscribe();
 	} catch {
-
 	}
 
 	stopLiveWatch( manager, pairing );
@@ -228,7 +220,6 @@ function stopLiveWatch(
 			window.location.origin,
 		);
 	} catch {
-
 	}
 	pairing.watchId = '';
 }
@@ -274,7 +265,6 @@ function startLiveWatch(
 		);
 		pairing.watchId = watchId;
 	} catch {
-
 	}
 }
 
@@ -344,6 +334,7 @@ async function onEyeClick(
 	) }-${ content.id }`;
 	let title = __( 'Preview' );
 	if ( content.label ) {
+		/* translators: %s: post title. */
 		title = sprintf( __( 'Preview: %s' ), content.label );
 	}
 

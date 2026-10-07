@@ -103,7 +103,6 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 
 	test( 're-open with the home URL does not yank a sub-navigated window back', async () => {
 		const win = await manager.open( openConfig() );
-
 		const assigned = fakeContentWindow(
 			win.iframe!,
 			`${ PLUGINS_URL }?plugin_status=active&paged=2&openstation_chromeless=1`,
@@ -127,7 +126,6 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 
 		expect( again ).toBe( win );
 		expect( manager.getAll() ).toHaveLength( 1 );
-
 		expect( assigned ).toHaveLength( 1 );
 		const target = new URL( assigned[ 0 ] );
 		expect( target.searchParams.get( 'action' ) ).toBe( 'activate' );

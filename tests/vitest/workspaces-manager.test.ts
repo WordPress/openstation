@@ -64,7 +64,6 @@ function navItems(): NavItem[] {
 			icon: 'dashicons-admin-generic',
 			windowId: 'my-panel',
 		},
-
 		{
 			id: 'os-exit',
 			kind: 'control',
@@ -130,7 +129,6 @@ describe( 'workspace operations', () => {
 	} );
 
 	afterEach( async () => {
-
 		await new Promise< void >( ( resolve ) =>
 			requestAnimationFrame( () => requestAnimationFrame( resolve ) ),
 		);
@@ -154,14 +152,12 @@ describe( 'workspace operations', () => {
 		const profile = getWorkspaceProfile( manager, created.id );
 		expect( profile?.preset ).toBe( 'publishing' );
 		expect( profile?.layout ).toBe( 'focus' );
-
 		expect( refreshLayout ).toHaveBeenCalled();
 	} );
 
 	test( 'create() without a template leaves a plain Space', () => {
 		const created = createWorkspace( deps, { activate: false } );
 		expect( getWorkspaceProfile( manager, created.id ) ).toBeNull();
-
 		expect( manager.getActiveDesktopId() ).not.toBe( created.id );
 	} );
 
@@ -198,7 +194,6 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'provision opens the launch list once and never again', async () => {
-
 		const open = vi
 			.spyOn( manager, 'openNew' )
 			.mockResolvedValue( {} as never );
@@ -224,7 +219,6 @@ describe( 'workspace operations', () => {
 			url: `${ ADMIN_URL }post-new.php`,
 			desktopId: created.id,
 		} );
-
 		expect( openNative ).toHaveBeenCalledWith( 'my-panel' );
 		expect(
 			getWorkspaceProfile( manager, created.id )?.provisioned,
@@ -238,7 +232,6 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'a focus desk leads with its first entry, not the window that opened last', async () => {
-
 		const created = createWorkspace( deps, { preset: 'publishing' } );
 
 		provisionWorkspace( deps, created.id );
@@ -250,7 +243,6 @@ describe( 'workspace operations', () => {
 			manager
 				.getAll()
 				.find( ( w ) => w.config.url === `${ ADMIN_URL }${ page }` )!;
-
 		expect( pageOf( 'post-new.php' ).element.style.left ).toBe( '16px' );
 		expect( pageOf( 'post-new.php' ).element.style.width ).toBe(
 			`${ Math.floor( 1568 * 0.64 ) }px`,
@@ -305,9 +297,7 @@ describe( 'workspace operations', () => {
 				color: '',
 				apps: { mode: 'all', ids: [] },
 				windows: [
-
 					{ match: 'edit.php', url: 'post-new.php' },
-
 					{ match: 'edit.php', url: 'edit.php' },
 				],
 				layout: 'free',
@@ -351,14 +341,12 @@ describe( 'workspace operations', () => {
 				icon: 'dashicons-desktop',
 				color: '',
 				apps: { mode: 'all', ids: [] },
-
 				windows: [
 					{ match: 'edit.php', url: 'post-new.php' },
 					{ match: 'edit.php', url: 'edit.php' },
 					{ match: 'my-panel' },
 				],
 				layout: 'free',
-
 				provisioned: true,
 			},
 		} );
@@ -383,7 +371,6 @@ describe( 'workspace operations', () => {
 		expect( open.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
 			url: `${ ADMIN_URL }post-new.php`,
 		} );
-
 		expect( openNative ).toHaveBeenCalledWith( 'my-panel' );
 	} );
 
@@ -402,7 +389,6 @@ describe( 'workspace operations', () => {
 				provisioned: true,
 			},
 		} );
-
 		const baseId = deps.deriveWindowId(
 			absoluteAdminUrl( 'edit.php', ADMIN_URL ),
 		);
@@ -568,7 +554,6 @@ describe( 'workspace operations', () => {
 				title: 'Posts',
 				url: `${ ADMIN_URL }edit.php`,
 			},
-
 			{ match: 'my-panel', title: 'My panel' },
 		] );
 		expect( captured[ 1 ] ).not.toHaveProperty( 'url' );
@@ -576,7 +561,6 @@ describe( 'workspace operations', () => {
 
 	test( 'capture records where each window is, in a form that survives a resize', async () => {
 		const created = createWorkspace( deps, { preset: 'publishing' } );
-
 		const free = await manager.open( {
 			id: 'edit-php',
 			url: `${ ADMIN_URL }edit.php`,
@@ -589,7 +573,6 @@ describe( 'workspace operations', () => {
 		Object.defineProperty( free.element, 'offsetTop', { value: 90, configurable: true } );
 		Object.defineProperty( free.element, 'offsetWidth', { value: 800, configurable: true } );
 		Object.defineProperty( free.element, 'offsetHeight', { value: 450, configurable: true } );
-
 		const snapped = await manager.open( {
 			id: 'upload-php',
 			url: `${ ADMIN_URL }upload.php`,
@@ -632,14 +615,10 @@ describe( 'workspace operations', () => {
 		} );
 
 		expect( saved?.windows.map( ( w ) => w.match ) ).toEqual( [ 'edit-php' ] );
-
 		expect( saved?.layout ).toBe( 'free' );
-
 		expect( saved?.provisioned ).toBe( true );
 		expect( saved?.widgets ).toEqual( { mode: 'only', ids: [ 'clock', 'desktop-mode/notes' ] } );
-
 		expect( saved?.apps ).toEqual( { mode: 'only', ids: [ 'edit-php', 'my-panel' ] } );
-
 		expect( saved?.preset ).toBe( 'commerce' );
 		expect( getWorkspaceProfile( manager, created.id ) ).toEqual( saved );
 		expect( log.some( ( e ) => e.name === 'os.workspaces.updated' ) ).toBe( true );
@@ -651,7 +630,6 @@ describe( 'workspace operations', () => {
 		const saved = saveDeskToWorkspace( deps, plain );
 		expect( saved ).not.toBeNull();
 		expect( getWorkspaceProfile( manager, plain )?.provisioned ).toBe( true );
-
 		expect( saved?.apps.mode ).toBe( 'all' );
 		expect( saved?.widgets?.mode ).toBe( 'all' );
 		expect( saveDeskToWorkspace( deps, 'desktop-nope' ) ).toBeNull();
@@ -696,7 +674,6 @@ describe( 'workspace operations', () => {
 				icon: 'dashicons-admin-generic',
 			} );
 		}
-
 		expect( captureWorkspaceWindows( manager, created.id ) ).toHaveLength(
 			WORKSPACE_MAX_WINDOWS,
 		);
@@ -750,7 +727,6 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'the look is applied before the widgets', () => {
-
 		const order: string[] = [];
 		setAppearance.mockImplementation( () => order.push( 'appearance' ) );
 		setVisibleWidgets.mockImplementation( () => order.push( 'widgets' ) );
@@ -785,7 +761,6 @@ describe( 'workspace operations', () => {
 	} );
 
 	test( 'a profile with no widgets field hands the column back', () => {
-
 		const desk = createWorkspace( deps, {
 			profile: {
 				preset: '',
@@ -857,7 +832,6 @@ describe( 'workspace operations', () => {
 		expect( absoluteAdminUrl( 'edit.php?post_type=product', ADMIN_URL ) ).toBe(
 			`${ ADMIN_URL }edit.php?post_type=product`,
 		);
-
 		expect(
 			absoluteAdminUrl( 'https://other.test/x', ADMIN_URL ),
 		).toBe( 'https://other.test/x' );
@@ -880,7 +854,6 @@ describe( 'template server sync', () => {
 	} );
 
 	test( 'before the server has spoken, every built-in stands', () => {
-
 		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
 			'commerce',
 			'learning',
@@ -893,7 +866,6 @@ describe( 'template server sync', () => {
 			{ id: 'learning' },
 			{ id: 'publishing' },
 		] );
-
 		expect( listWorkspacePresets().map( ( p ) => p.id ) ).toEqual( [
 			'learning',
 			'publishing',
@@ -922,7 +894,6 @@ describe( 'template server sync', () => {
 			layout: 'columns',
 			apps: [ 'edit-comments.php' ],
 		} );
-
 		expect( listWorkspacePresets().at( -1 )?.id ).toBe( 'support' );
 	} );
 

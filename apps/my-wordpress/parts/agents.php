@@ -25,7 +25,6 @@ function agents_list() {
 	foreach ( openstation_agent_get_agents() as $user ) {
 		$shape = openstation_agents_rest_shape_user( $user );
 		if ( $shape ) {
-
 			$shape['profileUrl'] = esc_url_raw( admin_url( 'user-edit.php?user_id=' . (int) $shape['id'] ) );
 			$out[]               = $shape;
 		}
@@ -45,7 +44,6 @@ function agents_payload( Os $os, State $state ) {
 	$enabled      = agents_enabled();
 	$can_manage   = agents_can_manage();
 	$ai_available = function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available();
-
 	$ai_ready = $ai_available && (
 		( function_exists( 'openstation_ai_assistant_provider_configured' ) && openstation_ai_assistant_provider_configured() )
 		|| ( function_exists( 'openstation_ai_provider_configured' ) && openstation_ai_provider_configured() )
@@ -60,7 +58,6 @@ function agents_payload( Os $os, State $state ) {
 		'aiReady'       => $ai_ready,
 		'connectorsUrl' => esc_url_raw( admin_url( 'options-connectors.php' ) ),
 		'runWindowId'   => 'desktop-mode-agent-run',
-
 		'restRoot'      => esc_url_raw( rest_url() ),
 		'restNonce'     => wp_create_nonce( 'wp_rest' ),
 		'list'          => $enabled ? agents_list() : array(),
@@ -74,7 +71,6 @@ function agents_payload( Os $os, State $state ) {
 		'hooks'         => $enabled && function_exists( 'openstation_agent_hooks_catalogue' )
 			? array_values( openstation_agent_hooks_catalogue() )
 			: array(),
-
 		'roles'         => $enabled && $can_manage && function_exists( 'openstation_agent_allowed_roles' )
 			? array_values(
 				array_map(
@@ -108,7 +104,6 @@ function agent_draft_action( State $state ) {
 		return;
 	}
 	$cast = agents_cast_of( $state );
-
 	$cast['drafting'] = false;
 	$state->set( 'cast', $cast );
 	$brief = trim( (string) ( $cast['brief'] ?? '' ) );
@@ -121,7 +116,6 @@ function agent_draft_action( State $state ) {
 		$state->set( 'briefError', $draft->get_error_message() );
 		return;
 	}
-
 	foreach ( array( 'name', 'description', 'instructions' ) as $field ) {
 		if ( '' !== trim( (string) ( $draft[ $field ] ?? '' ) ) ) {
 			$cast[ $field ] = trim( (string) $draft[ $field ] );
@@ -136,11 +130,9 @@ function agent_draft_action( State $state ) {
 	if ( isset( $draft['abilities'] ) && is_array( $draft['abilities'] ) ) {
 		$cast['abilities'] = array_values( array_map( 'strval', $draft['abilities'] ) );
 	}
-
 	if ( '' !== (string) ( $cast['instructions'] ?? '' ) ) {
 		$cast['brief'] = (string) $cast['instructions'];
 	}
-
 	$state->set( 'cast', $cast )->set( 'wstep', 1 )->set( 'briefError', '' );
 }
 
@@ -192,7 +184,6 @@ function agent_update_action( State $state, Os $os, array $args ) {
 		$state->set( 'agentNotice', $updated->get_error_message() );
 		return;
 	}
-
 	if ( array_key_exists( 'abilities', $fields ) ) {
 		$state->set( 'agentNotice', __( 'Abilities saved.', 'desktop-mode' ) );
 	} elseif ( array_key_exists( 'triggers', $fields ) ) {

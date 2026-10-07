@@ -44,7 +44,6 @@ function openstation_recycle_bin_register_rest_routes() {
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => 'openstation_recycle_bin_rest_permission',
 			'callback'            => 'openstation_recycle_bin_rest_restore',
-
 			'args'                => array(
 				'items' => array(
 					'type'     => 'array',

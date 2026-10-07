@@ -13,20 +13,15 @@ export const DIFFICULTY_MODES: readonly DifficultyMode[] = [
 ];
 
 interface DifficultyPreset {
-
 	spawn: [ number, number ];
-
 	speed: [ number, number ];
-
 	concurrentStart: number;
 	concurrentSteps: ReadonlyArray< [ number, number ] >;
-
 	bandStart: [ number, number ];
 	bandSteps: ReadonlyArray< [ number, number, number ] >;
 }
 
 const PRESETS: Record< DifficultyMode, DifficultyPreset > = {
-
 	easy: {
 		spawn: [ 3200, 900 ],
 		speed: [ 40, 170 ],
@@ -46,7 +41,6 @@ const PRESETS: Record< DifficultyMode, DifficultyPreset > = {
 			[ 300, 6, 12 ],
 		],
 	},
-
 	medium: {
 		spawn: [ 2400, 700 ],
 		speed: [ 75, 230 ],
@@ -67,7 +61,6 @@ const PRESETS: Record< DifficultyMode, DifficultyPreset > = {
 			[ 300, 7, 12 ],
 		],
 	},
-
 	hard: {
 		spawn: [ 1700, 550 ],
 		speed: [ 110, 300 ],
@@ -90,16 +83,11 @@ const PRESETS: Record< DifficultyMode, DifficultyPreset > = {
 };
 
 export interface DifficultySnapshot {
-
 	spawnIntervalMs: number;
-
 	fallSpeed: number;
-
 	maxConcurrent: number;
-
 	minLength: number;
 	maxLength: number;
-
 	level: number;
 }
 

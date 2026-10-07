@@ -24,10 +24,8 @@ describe( 'renderIcon — silhouette SVGs', () => {
 		expect( el.tagName ).toBe( 'SPAN' );
 		expect( el.classList.contains( 'x' ) ).toBe( true );
 		expect( el.getAttribute( 'aria-hidden' ) ).toBe( 'true' );
-
 		expect( el.style.backgroundColor.toLowerCase() ).toBe( 'currentcolor' );
 		expect( el.style.getPropertyValue( 'mask' ) ).toContain( SILHOUETTE );
-
 		expect( el.style.backgroundImage ).toBe( 'none' );
 	} );
 
@@ -45,7 +43,6 @@ describe( 'renderIcon — silhouette SVGs', () => {
 		expect( el.tagName ).toBe( 'SPAN' );
 		expect( el.style.backgroundImage ).toContain( FIXED_COLOUR );
 		expect( el.style.backgroundSize ).toBe( 'contain' );
-
 		expect( el.style.getPropertyValue( 'mask' ) ).toBe( '' );
 		expect( el.style.backgroundColor ).toBe( '' );
 	} );
@@ -71,7 +68,6 @@ describe( 'renderIcon — silhouette SVGs', () => {
 	} );
 
 	test( 'base64 that passes the charset check but not atob degrades safely', () => {
-
 		const el = renderIcon( 'data:image/svg+xml;base64,QUJDR', { title: 'Foo' } );
 
 		expect( el.tagName ).toBe( 'SPAN' );

@@ -207,7 +207,6 @@ describe( 'syncActiveTab', () => {
 		] );
 
 		syncActiveTab( win, ADMIN + 'admin.php?page=mailpoet-newsletters' );
-
 		syncActiveTab(
 			win,
 			ADMIN + 'admin.php?page=mailpoet-landingpage&openstation_chromeless=1',
@@ -304,7 +303,6 @@ describe( 'syncActiveTab', () => {
 		} as unknown as Event );
 
 		expect( opened ).toEqual( [ 'desktop-mode-posts' ] );
-
 		expect( iframe.src ).toBe( ADMIN + 'post-new.php' );
 		expect( activeLabels( win ) ).toEqual( [ 'Add New Post' ] );
 	} );
@@ -507,7 +505,6 @@ describe( 'observeTabOverflow', () => {
 		frames = [];
 		raf = window.requestAnimationFrame;
 		caf = window.cancelAnimationFrame;
-
 		window.requestAnimationFrame = ( ( cb: FrameRequestCallback ) => {
 			frames.push( () => cb( 0 ) );
 			return frames.length;
@@ -637,10 +634,10 @@ describe( 'observeTabOverflow', () => {
 		} );
 		const realRO = globalThis.ResizeObserver;
 		const realMO = globalThis.MutationObserver;
-
-		Reflect.deleteProperty( globalThis, 'ResizeObserver' );
-
-		Reflect.deleteProperty( globalThis, 'MutationObserver' );
+		// @ts-expect-error deliberately removing the globals
+		delete globalThis.ResizeObserver;
+		// @ts-expect-error deliberately removing the globals
+		delete globalThis.MutationObserver;
 
 		try {
 			const stop = observeTabOverflow( strip );
@@ -660,10 +657,8 @@ describe( 'addExternalTab', () => {
 
 	beforeEach( () => {
 		vi.useFakeTimers();
-
 		installHooksStub();
 		open = vi.spyOn( window, 'open' ).mockReturnValue( null );
-
 		Element.prototype.scrollIntoView = vi.fn();
 	} );
 

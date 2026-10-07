@@ -18,7 +18,6 @@ export function gameTitle( id: string ): string {
 }
 
 export interface GamesChallengesClientDeps {
-
 	currentUserId: number;
 }
 
@@ -40,7 +39,7 @@ export async function acceptAndPlay( row: GameChallengeRow ): Promise< void > {
 
 function promptRecipient( row: GameChallengeRow ): void {
 	const message = sprintf(
-
+		/* translators: 1: challenger display name, 2: game title/slug, 3: score. */
 		__( '%1$s challenged you to %2$s — beat %3$s!' ),
 		row.challengerName,
 		gameTitle( row.game ),
@@ -74,8 +73,10 @@ function promptRecipient( row: GameChallengeRow ): void {
 function promptChallenger( row: GameChallengeRow ): void {
 	let format: string;
 	if ( 'beaten' === row.result ) {
+		/* translators: 1: recipient display name, 2: their score, 3: the score to beat. */
 		format = __( '%1$s beat your score: %2$s vs your %3$s.' );
 	} else {
+		/* translators: 1: recipient display name, 2: their score, 3: the score to beat. */
 		format = __( '%1$s did not beat your score: %2$s vs your %3$s.' );
 	}
 	const message = sprintf(
@@ -131,7 +132,6 @@ export function bootGamesChallenges( deps: GamesChallengesClientDeps ): void {
 		}
 	};
 	subscribeChallenges( scan );
-
 	scan();
 }
 

@@ -52,7 +52,6 @@ describe( 'tile-payload seam', () => {
 		expect( tilePayloadAccepts( notePayload, ctx ) ).toBe( true );
 		expect( tilePayloadAccepts( filePayload, ctx ) ).toBe( false );
 		expect( tilePayloadAcceptLabel( 'note', ctx ) ).toBe( 'Convert to post' );
-
 		expect( tilePayloadAcceptLabel( 'desktop-file', ctx ) ).toBeUndefined();
 	} );
 
@@ -116,7 +115,6 @@ describe( 'tile-payload seam', () => {
 	} );
 
 	describe( 'several handlers per payload type', () => {
-
 		const forRef = ( ref: string, onDrop = vi.fn() ) => ( {
 			appliesTo: ( ctx: TilePayloadContext ) =>
 				ctx.placement.file.ref === ref,

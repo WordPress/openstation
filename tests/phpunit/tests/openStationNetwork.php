@@ -1,5 +1,33 @@
 <?php
-
+/**
+ * @group openstation
+ * @covers ::openstation_network_keypair
+ * @covers ::openstation_network_sign
+ * @covers ::openstation_network_verify
+ * @covers ::openstation_network_is_public_key
+ * @covers ::openstation_network_identity
+ * @covers ::openstation_network_fetch_identity
+ * @covers ::openstation_network_add_member
+ * @covers ::openstation_network_remove_member
+ * @covers ::openstation_network_check_member
+ * @covers ::openstation_network_member_by_key
+ * @covers ::openstation_network_hub_list
+ * @covers ::openstation_rest_network_list_permission
+ * @covers ::openstation_network_request_signer
+ * @covers ::openstation_network_join
+ * @covers ::openstation_network_leave
+ * @covers ::openstation_network_refresh_list
+ * @covers ::openstation_network_member_payload
+ * @covers ::openstation_network_hub_payload
+ * @covers ::openstation_multisite_payload
+ * @covers ::openstation_native_window_offered_here
+ * @covers ::openstation_network_mint_hop
+ * @covers ::openstation_network_verify_hop
+ * @covers ::openstation_network_hop_issuer_key
+ * @covers ::openstation_network_hop_user
+ * @covers ::openstation_network_hop_landing
+ * @covers ::openstation_rest_network_hop
+ */
 class Tests_OpenStation_Network extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -13,7 +41,6 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
-
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 	}
 
@@ -255,7 +282,6 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 					)
 				);
 			}
-
 			if ( empty( $args['headers']['X-OpenStation-Key'] ) || $args['headers']['X-OpenStation-Key'] !== $me ) {
 				return self::json_response( array( 'message' => 'not a member' ), 403 );
 			}
@@ -466,7 +492,6 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 		$this->assertIsArray( $forged, 'Validly signed, so it verifies…' );
 		$this->assertNull( openstation_network_hop_user( $forged ), '…and logs nobody in: the email is the source user\'s to edit, not proof of an account here.' );
 		if ( is_multisite() ) {
-
 			$fresh = self::foreign_token( $pair );
 			$this->assertIsArray( openstation_network_verify_hop( $fresh ) );
 			switch_to_blog( self::factory()->blog->create() );
@@ -575,7 +600,6 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 		$app      = $registry->get( 'openstation-network' );
 		$this->assertNotNull( $app );
 		$this->assertSame( 'any', $app->manifest()['admin'] );
-
 		$this->assertSame( 'none', $app->manifest()['placement'] );
 		$this->assertIsArray( $app->manifest()['desktop_icon'] );
 

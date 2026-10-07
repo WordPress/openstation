@@ -342,7 +342,6 @@ export function applyProps( root: Element, seen: WeakMap< Element, Record< strin
 			try {
 				value = JSON.parse( attr.value );
 			} catch {
-
 			}
 			( el as unknown as Record< string, unknown > )[ propName( attr.name ) ] = value;
 			if ( ! last ) {

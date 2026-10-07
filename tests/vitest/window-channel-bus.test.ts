@@ -147,11 +147,9 @@ describe( 'window-channel bus', () => {
 	} );
 
 	test( 'sends queued AFTER ready do NOT flush retroactively (caller delivers directly)', () => {
-
 		const flush = vi.fn();
 		markWindowContentReady( 'win-1' );
 		enqueueWindowSend( 'win-1', 'a', null, flush );
-
 		expect( flush ).not.toHaveBeenCalled();
 	} );
 
@@ -161,7 +159,6 @@ describe( 'window-channel bus', () => {
 		markWindowContentReady( 'win-1' );
 		clearWindowChannels( 'win-1' );
 		expect( isWindowContentReady( 'win-1' ) ).toBe( false );
-
 		enqueueWindowSend( 'win-1', 'b', null, flush );
 		markWindowContentReady( 'win-1' );
 		expect( flush ).toHaveBeenCalledTimes( 2 );

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-mio
+ */
 class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 
 	public function data_fixture_cases() {
@@ -8,7 +11,7 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 			$path,
 			'The portrait fixture is missing. Regenerate with UPDATE_MIO_PORTRAITS=1 npx vitest run mio-portrait.'
 		);
-		$fixture = json_decode( file_get_contents( $path ), true );
+		$fixture = json_decode( file_get_contents( $path ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reading a test fixture off disk.
 
 		$out = array();
 		foreach ( $fixture['cases'] as $case ) {
@@ -22,6 +25,9 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 		return $out;
 	}
 
+	/**
+	 * @dataProvider data_fixture_cases
+	 */
 	public function test_matches_the_typescript_renderer( $config, $size, $label, $want ) {
 		$got = openstation_mio_portrait_svg( $config, $size, $label );
 		$hint = "The PHP portrait for '{$label}' does not match the one TypeScript draws. "
@@ -48,11 +54,9 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 	}
 
 	public function test_carries_no_text_and_no_caller_supplied_string() {
-
 		$svg = openstation_mio_portrait_svg( array(), 96, 'x' );
 
 		preg_match_all( '/<\/?([A-Za-z][\w:-]*)/', $svg, $m );
-
 		$allowed = array( 'svg', 'defs', 'linearGradient', 'stop', 'path', 'use', 'rect', 'clipPath' );
 		foreach ( array_unique( $m[1] ) as $tag ) {
 			$this->assertContains( $tag, $allowed, "Unexpected <{$tag}> in a portrait." );
@@ -62,7 +66,6 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 	}
 
 	public function test_scopes_ids_so_several_can_share_one_document() {
-
 		$a = openstation_mio_portrait_svg( array( 'physics' => array( 'shapePreset' => 'star' ) ), 96, 'a' );
 		$b = openstation_mio_portrait_svg( array( 'physics' => array( 'shapePreset' => 'heart' ) ), 96, 'b' );
 
@@ -80,7 +83,6 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 	}
 
 	public function test_accepts_colours_as_hex_strings_or_ints() {
-
 		$as_string = openstation_mio_portrait_svg(
 			array( 'appearance' => array( 'bodyColor' => '#123456' ) ),
 			96,
@@ -101,7 +103,6 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 			preg_match( '/viewBox="-([\d.]+)/', $svg, $m );
 			return (float) $m[1];
 		};
-
 		$this->assertGreaterThan( $box( 'star' ), $box( 'drop' ) );
 		$this->assertGreaterThan( $box( 'circle' ), $box( 'star' ) );
 	}
@@ -135,7 +136,6 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 	}
 
 	public function test_clamp_drops_the_shuffle() {
-
 		$look = openstation_mio_clamp_look(
 			array( 'physics' => array( 'shapeShuffle' => 60 ) )
 		);
@@ -147,7 +147,6 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 			$look = openstation_mio_clamp_look( $junk );
 			$this->assertIsArray( $look['appearance'] );
 			$this->assertIsArray( $look['physics'] );
-
 			$this->assertStringStartsWith( '<svg', openstation_mio_portrait_svg( $look, 48, 'j' ) );
 		}
 	}
@@ -155,7 +154,6 @@ class Tests_OpenStation_MioPortrait extends WP_UnitTestCase {
 	public function test_clamp_returns_colours_as_ints() {
 		$look = openstation_mio_clamp_look( array( 'appearance' => array( 'bodyColor' => '#abcdef' ) ) );
 		$this->assertSame( 0xabcdef, $look['appearance']['bodyColor'] );
-
 		$this->assertIsInt( $look['appearance']['eyeColor'] );
 	}
 }

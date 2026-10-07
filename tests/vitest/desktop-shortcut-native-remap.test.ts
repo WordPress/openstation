@@ -114,7 +114,6 @@ describe( 'wallpaper shortcut → native window', () => {
 		openShortcut( mods, `${ ADMIN_URL }edit.php` );
 
 		expect( openById ).toHaveBeenCalledWith( 'desktop-mode-posts' );
-
 		expect( windowManagerOpen ).not.toHaveBeenCalled();
 
 		mods.remap._resetNativeUrlRemap();

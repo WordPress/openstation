@@ -42,12 +42,10 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 			el.classList.remove( storedClass );
 			el.removeAttribute( EFFECT_CLASS_ATTR );
 		}
-
 		const priorId = el.getAttribute( EFFECT_ATTR );
 		if ( priorId ) {
 			getUnfocusEffect( priorId )?.clear?.( el );
 		}
-
 		for ( const def of allEffects ) {
 			if ( def.className ) {
 				el.classList.remove( def.className );
@@ -70,23 +68,19 @@ export function startUnfocusEngine( { manager, osSettings }: UnfocusEngineDeps )
 			currentId === UNFOCUS_EFFECT_NONE
 				? undefined
 				: getUnfocusEffect( currentId );
-
 		const allEffects = listUnfocusEffects();
 		for ( const win of manager.getAll() ) {
 			const el = win.element;
 			if ( ! el ) {
 				continue;
 			}
-
 			clear( el, allEffects );
 			if ( ! def || win.isFocused() || win.state === 'minimized' ) {
 				continue;
 			}
-
 			if ( isSplitTile( win ) ) {
 				continue;
 			}
-
 			if ( hostsCanvas( el ) ) {
 				continue;
 			}

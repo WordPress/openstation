@@ -67,7 +67,6 @@ describe( '<os-switch>', () => {
 
 		expect( el.hasAttribute( 'checked' ) ).toBe( true );
 		expect( heard.own ).toEqual( { checked: true, value: 'dock' } );
-
 		expect( heard.alias ).toEqual( heard.own );
 	} );
 
@@ -119,7 +118,6 @@ describe( '<os-switch>', () => {
 		button.dispatchEvent( pointer( 'pointerup', 16 ) );
 
 		expect( el.hasAttribute( 'checked' ) ).toBe( true );
-
 		expect( el.style.getPropertyValue( '--_drag' ) ).toBe( '' );
 		expect( el.hasAttribute( 'data-dragging' ) ).toBe( false );
 	} );
@@ -136,7 +134,6 @@ describe( '<os-switch>', () => {
 		} );
 
 		button.dispatchEvent( pointer( 'pointerdown', 0 ) );
-
 		button.dispatchEvent( pointer( 'pointermove', 11 ) );
 		button.dispatchEvent( pointer( 'pointerup', 11 ) );
 
@@ -161,7 +158,6 @@ describe( '<os-switch>', () => {
 		button.dispatchEvent( pointer( 'pointerdown', 0 ) );
 		button.dispatchEvent( pointer( 'pointermove', 18 ) );
 		button.dispatchEvent( pointer( 'pointerup', 18 ) );
-
 		button.click();
 
 		expect( el.hasAttribute( 'checked' ) ).toBe( true );
@@ -175,7 +171,6 @@ describe( '<os-switch>', () => {
 		button.dispatchEvent( pointer( 'pointermove', 2 ) );
 		expect( el.hasAttribute( 'data-dragging' ) ).toBe( false );
 		button.dispatchEvent( pointer( 'pointerup', 2 ) );
-
 		expect( el.hasAttribute( 'checked' ) ).toBe( false );
 		button.click();
 
@@ -187,7 +182,6 @@ describe( '<os-switch>', () => {
 		layOut( button, 20 );
 
 		button.dispatchEvent( pointer( 'pointerdown', 0 ) );
-
 		button.dispatchEvent( pointer( 'pointermove', 30 ) );
 		expect( el.style.getPropertyValue( '--_drag' ) ).toBe( '0px' );
 
@@ -224,7 +218,6 @@ describe( '<os-switch>', () => {
 
 	test( 'the description renders and is wired to aria-describedby only when present', async () => {
 		const { button } = await mount( `<os-switch label="Dock"></os-switch>` );
-
 		expect( button.hasAttribute( 'aria-describedby' ) ).toBe( false );
 
 		const { el: el2, button: button2 } = await mount(
@@ -253,10 +246,8 @@ describe( '<os-switch>', () => {
 			.shadowRoot!.querySelector( 'button' )!;
 
 		expect( button.className ).not.toContain( 'os-holo-fill' );
-
 		expect( styles.cssText ).not.toContain( '.os-holo-fill' );
 		expect( styles.cssText ).not.toContain( '.os-holo-edge' );
-
 		expect( styles.cssText ).toMatch(
 			/button\s*{[^}]*background-color:\s*var\(\s*--_holo-track\s*\)/,
 		);
@@ -285,7 +276,6 @@ describe( '<os-switch>', () => {
 		expect( styles.cssText ).toMatch(
 			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*background-color:\s*var\(\s*--os-ui-accent/,
 		);
-
 		expect( styles.cssText ).toMatch(
 			/button:focus-visible\s*{[^}]*var\( --_holo-focus \),\s*inset 0 0 0 1px var\( --_holo-track-edge \)/,
 		);

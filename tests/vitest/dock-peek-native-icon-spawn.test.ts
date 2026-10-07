@@ -15,7 +15,6 @@ function makeManagerStub() {
 }
 
 function synthIconDockItem( overrides: Partial< DockItem > = {} ): DockItem {
-
 	return {
 		id: 'desktop:desktop-mode-my-wordpress',
 		title: 'My WordPress',
@@ -39,7 +38,6 @@ describe( 'Dock — dock-peek "+" on native-window-targeted icon', () => {
 
 	test( '"+" routes through wp.os.openNewWindow when item has windowId + empty url', () => {
 		const openNewWindow = vi.fn().mockReturnValue( true );
-
 		( window as unknown as { wp: { hooks: unknown; os?: { openNewWindow: typeof openNewWindow } } } )
 			.wp.os = { openNewWindow };
 
@@ -56,13 +54,11 @@ describe( 'Dock — dock-peek "+" on native-window-targeted icon', () => {
 			'desktop-mode-my-wordpress',
 			{ source: 'dock-peek' },
 		);
-
 		expect( manager.openNew ).not.toHaveBeenCalled();
 	} );
 
 	test( '"+" still falls through to iframe openNew for regular menu items', () => {
 		const manager = makeManagerStub();
-
 		const item: DockItem = {
 			id: 'plugin-x',
 			title: 'Plugin X',

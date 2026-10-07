@@ -40,6 +40,7 @@ function openstation_beta_ajax_state() {
 		return;
 	}
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in openstation_beta_ajax_guard().
 	$force = ! empty( $_POST['refresh'] );
 	$state = openstation_beta_state( $force );
 	if ( is_wp_error( $state ) ) {
@@ -57,8 +58,9 @@ function openstation_beta_ajax_switch() {
 		return;
 	}
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in openstation_beta_ajax_guard().
 	$source = isset( $_POST['source'] ) ? sanitize_key( wp_unslash( $_POST['source'] ) ) : '';
-
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified in openstation_beta_ajax_guard().
 	$id = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
 
 	$result = openstation_beta_switch( $source, $id );

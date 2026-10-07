@@ -1,11 +1,7 @@
 export interface UpdateCountsEntry {
-
 	total: number;
-
 	formatted: string;
-
 	text: string;
-
 	url: string;
 }
 

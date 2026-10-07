@@ -31,7 +31,6 @@ function frameWith( options: {
 	if ( options.chromeless ) {
 		body.classList.add( 'os-chromeless' );
 	}
-
 	const doc = { body, location: { pathname: options.pathname } };
 	return { contentDocument: doc } as unknown as HTMLIFrameElement;
 }
@@ -130,7 +129,6 @@ describe( 'plugin-presence', () => {
 	} );
 
 	test( 'a 404 without rest_no_route leaves the shell alone', async () => {
-
 		fetchMock.mockResolvedValue( {
 			status: 404,
 			json: () => Promise.resolve( { code: 'rest_forbidden' } ),
@@ -153,7 +151,6 @@ describe( 'plugin-presence', () => {
 	} );
 
 	test( 'rest_no_route navigates the top frame to the dashboard', async () => {
-
 		vi.useFakeTimers();
 		fetchMock.mockResolvedValue( goneResponse() );
 		noteFrameLoaded( adminFrame() );
@@ -218,7 +215,6 @@ describe( 'plugin-presence', () => {
 			noteFrameLoaded( adminFrame() );
 			await vi.runAllTimersAsync();
 			await vi.advanceTimersByTimeAsync( 31_000 );
-
 			noteFrameLoaded(
 				frameWith( {
 					pathname: '/wp-admin/index.php',

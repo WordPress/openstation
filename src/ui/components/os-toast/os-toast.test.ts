@@ -101,7 +101,6 @@ describe( '<os-toast>', () => {
 
 		toast.dispatchEvent( new Event( 'mouseenter' ) );
 		expect( toast.hasAttribute( 'held' ) ).toBe( true );
-
 		toast.dispatchEvent( new Event( 'mouseenter' ) );
 		toast.dispatchEvent( new Event( 'mouseleave' ) );
 		expect( toast.hasAttribute( 'held' ) ).toBe( false );
@@ -116,7 +115,6 @@ describe( '<os-toast>', () => {
 		toast.dispatchEvent( new Event( 'mouseenter' ) );
 		toast.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
 		toast.dispatchEvent( new Event( 'mouseleave' ) );
-
 		expect( toast.hasAttribute( 'held' ) ).toBe( true );
 
 		toast.dispatchEvent(
@@ -132,7 +130,6 @@ describe( '<os-toast>', () => {
 		const close = toast.shadowRoot!.querySelector( '.os-toast__close' )!;
 
 		toast.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
-
 		toast.dispatchEvent(
 			new FocusEvent( 'focusout', {
 				bubbles: true,

@@ -18,7 +18,6 @@ export function bootstrapPwa(
 		config.pwa.appName || 'WordPress',
 		showToast,
 	);
-
 	const onShellUpdated = reloadShell
 		? (): void => {
 			showToast( {
@@ -34,7 +33,6 @@ export function bootstrapPwa(
 			} );
 		}
 		: undefined;
-
 	void registerServiceWorker( config.pwa, {
 		forceReplace: !! config.pwa.forceReplaceSw,
 		onShellUpdated,

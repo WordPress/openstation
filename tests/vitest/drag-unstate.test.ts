@@ -49,7 +49,6 @@ function mountWindow( cfg: WindowConfig ): {
 }
 
 function fakePointer( target: HTMLElement, clientX: number, clientY: number ): PointerEvent {
-
 	const e = new MouseEvent( 'pointerdown', { button: 0, bubbles: true } );
 	Object.defineProperty( e, 'target', { value: target } );
 	Object.defineProperty( e, 'pointerId', { value: 1 } );
@@ -78,9 +77,7 @@ describe( 'drag auto-unstate', () => {
 	test( 'drag from MAXIMIZED title bar applies --dragging before geometry change', () => {
 		const handle = mountWindow( baseConfig() );
 		const { win, cleanup } = handle;
-
-		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => {            } } );
-
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { } } );
 		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1600, bottom: 40,
@@ -97,17 +94,14 @@ describe( 'drag auto-unstate', () => {
 		win._savedGeometry = { x: 40, y: 40, width: 800, height: 600 };
 
 		handleDragStart( win, fakePointer( win._titleBar, 1200, 20 ) );
-
 		expect( win.element.classList.contains( 'os-window--maximized' ) ).toBe( true );
 
 		fakeMove( win._titleBar, 1200, 20, 20, 0 );
 
 		expect( win.element.classList.contains( 'os-window--dragging' ) ).toBe( true );
 		expect( win.element.classList.contains( 'os-window--maximized' ) ).toBe( false );
-
 		expect( win.element.style.width ).toBe( '800px' );
 		expect( win.element.style.height ).toBe( '600px' );
-
 		const left = parseInt( win.element.style.left, 10 );
 		expect( 1220 - left ).toBe( 600 );
 		expect( win.state ).toBe( 'normal' );
@@ -117,7 +111,7 @@ describe( 'drag auto-unstate', () => {
 	test( 'drag from SNAPPED-LEFT title bar un-snaps + restores floating size under cursor', () => {
 		const handle = mountWindow( baseConfig() );
 		const { win, cleanup } = handle;
-		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => {            } } );
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { } } );
 		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 800, bottom: 40,
@@ -146,13 +140,11 @@ describe( 'drag auto-unstate', () => {
 	} );
 
 	test( 'un-state position subtracts the desktop area origin (admin bar + dock)', () => {
-
 		const handle = mountWindow( baseConfig() );
 		const { win, parent, cleanup } = handle;
-		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => {            } } );
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { } } );
 		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
 			value: () => ( {
-
 				left: 56, top: 32, right: 1600, bottom: 72,
 				width: 1544, height: 40, x: 56, y: 32, toJSON: () => ( {} ),
 			} ) as DOMRect,
@@ -173,24 +165,20 @@ describe( 'drag auto-unstate', () => {
 		win._savedGeometry = { x: 100, y: 100, width: 800, height: 600 };
 
 		handleDragStart( win, fakePointer( win._titleBar, 800, 52 ) );
-
 		fakeMove( win._titleBar, 800, 52, 20, 0 );
 
 		expect( win.element.style.top ).toBe( '0px' );
 
 		const left = parseInt( win.element.style.left, 10 );
-
 		expect( left ).toBeGreaterThanOrEqual( 378 );
 		expect( left ).toBeLessThanOrEqual( 380 );
 		cleanup();
 	} );
 
 	test( 'un-snap from SNAPPED-LEFT clamps the anchor at the edge — no drag dead zone', () => {
-
 		const handle = mountWindow( baseConfig() );
 		const { win, cleanup } = handle;
-		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => {            } } );
-
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { } } );
 		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 800, bottom: 40,
@@ -204,7 +192,6 @@ describe( 'drag auto-unstate', () => {
 		win.element.style.top = '0px';
 		win.element.style.width = '800px';
 		win.element.style.height = '900px';
-
 		win._savedGeometry = { x: 40, y: 40, width: 1200, height: 700 };
 
 		handleDragStart( win, fakePointer( win._titleBar, 400, 20 ) );
@@ -221,7 +208,7 @@ describe( 'drag auto-unstate', () => {
 	test( 'drag from maximized WITHOUT saved geometry falls back to 60% of parent', () => {
 		const handle = mountWindow( baseConfig() );
 		const { win, cleanup } = handle;
-		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => {            } } );
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { } } );
 		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1600, bottom: 40,
@@ -239,16 +226,14 @@ describe( 'drag auto-unstate', () => {
 		fakeMove( win._titleBar, 800, 20, 20, 0 );
 
 		expect( win.element.style.width ).toBe( '960px' );
-
 		expect( win.element.style.height ).toBe( '630px' );
 		cleanup();
 	} );
 
 	test( 'plain click (no movement) on maximized title bar leaves state untouched', () => {
-
 		const handle = mountWindow( baseConfig() );
 		const { win, cleanup } = handle;
-		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => {            } } );
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { } } );
 		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 0, top: 0, right: 1600, bottom: 40,
@@ -263,7 +248,6 @@ describe( 'drag auto-unstate', () => {
 		win._savedGeometry = { x: 40, y: 40, width: 800, height: 600 };
 
 		handleDragStart( win, fakePointer( win._titleBar, 800, 20 ) );
-
 		fakeMove( win._titleBar, 800, 20, 2, 0 );
 		const up = new MouseEvent( 'pointerup', { bubbles: true } );
 		Object.defineProperty( up, 'pointerId', { value: 1 } );
@@ -279,7 +263,7 @@ describe( 'drag auto-unstate', () => {
 	test( 'drag bounds: allows bleeding off left, right, and bottom up to GRAB_MARGIN, locks top at y=0', () => {
 		const handle = mountWindow( baseConfig() );
 		const { win, cleanup } = handle;
-		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => {            } } );
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { } } );
 		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
 			value: () => ( {
 				left: 100, top: 100, right: 900, bottom: 140,
@@ -314,7 +298,6 @@ describe( 'clampWindowPosition', () => {
 	const bounds = { x: 0, y: 0, width: 1600, height: 900 };
 
 	test( 'clamps left/right/bottom to GRAB_MARGIN and top to EDGE_MARGIN', () => {
-
 		expect( clampWindowPosition( 100, 100, 800, bounds ) ).toEqual( { x: 100, y: 100 } );
 
 		expect( clampWindowPosition( -1000, 100, 800, bounds ) ).toEqual( { x: -760, y: 100 } );
@@ -327,7 +310,6 @@ describe( 'clampWindowPosition', () => {
 	} );
 
 	test( 'clamps against the work area, not the desktop area', () => {
-
 		const workArea = { x: 60, y: 0, width: 1540, height: 820 };
 
 		expect( clampWindowPosition( 100, 2000, 800, workArea ) ).toEqual( { x: 100, y: 780 } );

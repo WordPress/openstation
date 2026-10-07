@@ -4,11 +4,8 @@ defined( 'ABSPATH' ) || exit;
 
 function openstation_chromeless_trimmed_scripts() {
 	$handles = array(
-
 		'admin-bar',
-
 		'os-admin-bar',
-
 		'wpcom-admin-bar',
 		'wpcom-notes-common',
 		'wpcom-notes-admin-bar',
@@ -20,7 +17,6 @@ function openstation_chromeless_trimmed_scripts() {
 
 function openstation_chromeless_trimmed_styles() {
 	$handles = array(
-
 		'admin-bar',
 		'wpcom-notes-admin-bar',
 	);
@@ -55,13 +51,11 @@ function openstation_chromeless_suppress_emoji() {
 
 	remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
 	remove_action( 'admin_enqueue_scripts', 'wp_enqueue_emoji_styles' );
-
 	remove_action( 'admin_print_styles', 'print_emoji_styles' );
 }
 add_action( 'admin_init', 'openstation_chromeless_suppress_emoji' );
 
 function openstation_command_palette_root_handles() {
-
 	return (array) apply_filters(
 		'openstation_command_palette_root_handles',
 		array( 'wp-commands', 'wp-core-commands' )
@@ -84,7 +78,6 @@ function openstation_is_core_package_handle( $dependencies, $handle ) {
 
 function openstation_handle_depends_on( $dependencies, $handle, $roots, &$memo ) {
 	if ( array_key_exists( $handle, $memo ) ) {
-
 		return ( true === $memo[ $handle ] );
 	}
 	if ( ! isset( $dependencies->registered[ $handle ] ) ) {
@@ -124,7 +117,6 @@ function openstation_handle_has_no_src( $dependencies, $handle ) {
 }
 
 function openstation_command_palette_trims_dependents() {
-
 	return (bool) apply_filters( 'openstation_command_palette_trim_dependents', true );
 }
 
@@ -175,8 +167,9 @@ function openstation_command_palette_handle_owner( $dependencies, $handle ) {
 function openstation_command_palette_owns_screen( $dependencies, $handle ) {
 	$owner = openstation_command_palette_handle_owner( $dependencies, $handle );
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen routing.
 	$page = isset( $_GET['page'] )
-
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen routing.
 		? sanitize_text_field( wp_unslash( $_GET['page'] ) )
 		: '';
 	$uri  = isset( $_SERVER['REQUEST_URI'] )
@@ -298,7 +291,6 @@ function openstation_chromeless_filter_palette_style_print_list( $handles ) {
 	if ( ! is_array( $handles ) || ! openstation_chromeless_should_trim_command_palette() ) {
 		return $handles;
 	}
-
 	$scripts = wp_scripts();
 	if ( $scripts
 		&& empty( openstation_chromeless_command_palette_drops( $scripts, $scripts->queue ) ) ) {

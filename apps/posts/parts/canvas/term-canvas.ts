@@ -22,45 +22,29 @@ export const SPOTLIGHT_RADIUS = POST_RING_RADIUS + 130;
 export interface TermCanvasSpec {
 	taxonomy: 'categories' | 'tags';
 	restTaxonomy: 'category' | 'post_tag';
-
 	modifier: string;
 	unavailable: string;
 	loadFailed: string;
 	emptyHint: string;
 	chrome: { buttons: ChromeButton[]; searchPlaceholder: string; searchAria: string; hint: string };
-
 	layers: readonly string[];
 	fan: { chipFontSize: number; chipTextRes: number; pagerLabelSize: number; pagerGlyphSize: number; pagerTextRes?: number };
 }
 
 export interface TermCanvasHooks {
-
 	themeChanged: () => void;
-
 	center: ( id: number ) => { x: number; y: number; tone: number } | null;
-
 	countReconciled: ( id: number, total: number ) => void;
-
 	focusChanged: () => void;
-
 	focusOpened?: ( center: { x: number; y: number } ) => void;
-
 	focusClosed?: () => void;
-
 	bounds: () => Bounds | null;
-
 	frame: ( dt: number ) => void;
-
 	countsChanged: () => void;
-
 	dragging: () => boolean;
-
 	pointerMove: ( ev: PixiPointerEvent, cursorWorld: PixiPoint ) => boolean;
-
 	pointerUp: ( ev?: PixiPointerEvent ) => void | Promise< void >;
-
 	cancelGesture: () => void;
-
 	search: ( q: string ) => Array< { id: number; count: number; name: string } >;
 }
 
@@ -77,20 +61,13 @@ export interface TermCanvas {
 	interaction: Interaction;
 	camera: Camera;
 	fan: PostFan;
-
 	terms: TermRow[];
-
 	nudge: { x: number; y: number; radius: number } | null;
-
 	focusOn: ( id: number ) => Promise< void >;
 	closeFocus: () => void;
-
 	recenter: () => void;
-
 	syncEmptyHint: ( show: boolean ) => void;
-
 	refreshCounts: () => Promise< void >;
-
 	start: ( hooks: TermCanvasHooks ) => void;
 	teardown: () => void;
 }
@@ -315,7 +292,6 @@ export async function createTermCanvas( host: HTMLElement, env: CanvasEnv, spec:
 					hooks?.countsChanged();
 				}
 			} catch {
-
 			}
 		},
 

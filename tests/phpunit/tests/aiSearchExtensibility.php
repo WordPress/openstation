@@ -1,9 +1,11 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-ai
+ */
 class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 
 	public function tear_down() {
-
 		remove_all_filters( 'openstation_ai_system_prompt_appendix' );
 		remove_all_filters( 'openstation_ai_system_prompt_replace_capability' );
 		remove_all_filters( 'openstation_ai_system_prompt' );
@@ -13,11 +15,17 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_core_instructions_pass_through_when_nothing_extends() {
 		$out = openstation_ai_compose_instructions( 'CORE', array( 'user_id' => 1 ) );
 		$this->assertSame( 'CORE', $out );
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_appendix_filter_stacks_onto_core() {
 		add_filter( 'openstation_ai_system_prompt_appendix', static function () {
 			return 'APPENDIX';
@@ -26,6 +34,9 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 		$this->assertSame( "CORE\n\nAPPENDIX", $out );
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_client_append_concatenates() {
 		$out = openstation_ai_compose_instructions(
 			'CORE',
@@ -35,6 +46,9 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 		$this->assertSame( "CORE\n\nCLIENT", $out );
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_client_replace_from_admin_replaces_everything() {
 		$admin = $this->factory()->user->create( array( 'role' => 'administrator' ) );
 		add_filter( 'openstation_ai_system_prompt_appendix', static function () {
@@ -48,6 +62,9 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 		$this->assertSame( 'REPLACEMENT', $out );
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_client_replace_from_non_admin_silently_downgrades_to_append() {
 		$subscriber = $this->factory()->user->create( array( 'role' => 'subscriber' ) );
 		$out        = openstation_ai_compose_instructions(
@@ -55,13 +72,14 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 			array( 'user_id' => $subscriber ),
 			array( 'text' => 'DOWNGRADED', 'mode' => 'replace' )
 		);
-
 		$this->assertSame( "CORE\n\nDOWNGRADED", $out );
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_replace_capability_filter_can_loosen_gate() {
 		$subscriber = $this->factory()->user->create( array( 'role' => 'subscriber' ) );
-
 		add_filter( 'openstation_ai_system_prompt_replace_capability', static function () {
 			return 'read';
 		} );
@@ -73,6 +91,9 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 		$this->assertSame( 'REPLACEMENT', $out );
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_final_transform_filter_runs_last() {
 		add_filter( 'openstation_ai_system_prompt_appendix', static function () {
 			return 'APPENDIX';
@@ -84,6 +105,9 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 		$this->assertSame( "CORE\n\nAPPENDIX\n---\nDISCLAIMER", $out );
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_appendix_filter_receives_context_shape() {
 		$captured = null;
 		add_filter( 'openstation_ai_system_prompt_appendix', static function ( $a, $ctx ) use ( &$captured ) {
@@ -110,6 +134,9 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 		$this->assertSame( 'append', $captured['client_override'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_compose_instructions
+	 */
 	public function test_client_override_context_is_null_when_no_client_text() {
 		$captured = null;
 		add_filter( 'openstation_ai_system_prompt_appendix', static function ( $a, $ctx ) use ( &$captured ) {
@@ -122,6 +149,9 @@ class Tests_OpenStation_AiSearchExtensibility extends WP_UnitTestCase {
 		$this->assertNull( $captured['client_override'] );
 	}
 
+	/**
+	 * @covers ::openstation_ai_run_search
+	 */
 	public function test_command_allowed_filter_exists_in_core_flow() {
 		$fired = 0;
 		add_filter( 'openstation_ai_command_allowed', static function ( $entry, $slug, $ctx ) use ( &$fired ) {

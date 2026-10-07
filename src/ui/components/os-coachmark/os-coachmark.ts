@@ -16,19 +16,13 @@ const LOOK: Record< TailEdge, [ number, number ] > = {
 };
 
 const GAP = 12;
-
 const PEEK_CLEARANCE = 4;
-
 const MARGIN = 12;
-
 const OUTLINE_INSET = 4;
-
 const SPEAKER_PAD = 16;
-
 const TAIL_EDGE = 28;
 
 export const COACHMARK_EXIT_MS = 180;
-
 const STEP_MS = 360;
 
 const ANCHOR_GONE = 'gone';
@@ -170,7 +164,6 @@ export class OsCoachmark extends Component {
 				return;
 			}
 			const target = root.querySelector< HTMLElement >( '[data-demo="target"]' );
-
 			show.onclick = () => {
 				mark.anchor = target;
 				mark.setAttribute( 'open', '' );
@@ -187,19 +180,15 @@ export class OsCoachmark extends Component {
 	} as const;
 
 	private _anchor: Element | null = null;
-
 	private _returnFocus: HTMLElement | null = null;
 	private _shown = false;
 	private _raf = 0;
 	private _lastKey = '';
 	private _listeners: AbortController | null = null;
-
 	private _leaving = false;
 	private _exitTimer = 0;
 	private _stepTimer = 0;
-
 	private _speakerKey = '';
-
 	private _lookKey = '';
 
 	get anchor(): Element | null {
@@ -238,7 +227,6 @@ export class OsCoachmark extends Component {
 		const open = this.hasAttribute( 'open' );
 		const step = this.getAttribute( 'step' );
 		const total = this.getAttribute( 'total' );
-
 		const meta =
 			step && total ? this.getAttribute( 'counter-label' ) || `${ step } of ${ total }` : '';
 		const primary = this.getAttribute( 'primary-label' ) ?? 'Next';
@@ -278,7 +266,6 @@ export class OsCoachmark extends Component {
 
 	protected requestUpdate(): void {
 		super.requestUpdate();
-
 		queueMicrotask( () => queueMicrotask( () => this._afterRender() ) );
 	}
 
@@ -302,7 +289,6 @@ export class OsCoachmark extends Component {
 		if ( ! layer ) {
 			return;
 		}
-
 		this._finishExit( false );
 		this.card?.classList.remove( 'swap' );
 		this._shown = true;
@@ -312,7 +298,6 @@ export class OsCoachmark extends Component {
 		try {
 			layer.showPopover?.();
 		} catch {
-
 		}
 		this._listeners = new AbortController();
 		const { signal } = this._listeners;
@@ -329,7 +314,6 @@ export class OsCoachmark extends Component {
 
 	private _hide(): void {
 		this._teardown();
-
 		const back = this._returnFocus;
 		this._returnFocus = null;
 		if ( back && back.isConnected ) {
@@ -339,7 +323,6 @@ export class OsCoachmark extends Component {
 		if ( ! layer ) {
 			return;
 		}
-
 		this._leaving = true;
 		layer.classList.add( 'leaving' );
 		this.requestUpdate();
@@ -359,7 +342,6 @@ export class OsCoachmark extends Component {
 			try {
 				layer.hidePopover?.();
 			} catch {
-
 			}
 		}
 		this.requestUpdate();
@@ -373,11 +355,9 @@ export class OsCoachmark extends Component {
 		}
 		layer.classList.add( 'stepping' );
 		card.classList.remove( 'swap' );
-
 		void card.offsetWidth;
 		card.classList.add( 'swap' );
 		window.clearTimeout( this._stepTimer );
-
 		this._stepTimer = window.setTimeout( () => {
 			layer.classList.remove( 'stepping' );
 		}, STEP_MS );
@@ -428,7 +408,6 @@ export class OsCoachmark extends Component {
 		const cr = card.getBoundingClientRect();
 		const anchor = this._anchor && hasBox( this._anchor ) ? this._anchor : null;
 		const speaker = Math.max( 0, Number( this.getAttribute( 'speaker-size' ) ) || 0 );
-
 		const gap = GAP;
 
 		if ( ! anchor ) {
@@ -437,7 +416,6 @@ export class OsCoachmark extends Component {
 			const top = Math.max( MARGIN, ( vh - cr.height ) / 2 );
 			card.style.left = `${ left }px`;
 			card.style.top = `${ top }px`;
-
 			this._lastKey = this._anchor ? ANCHOR_GONE : '';
 			if ( speaker > 0 ) {
 				this._placeSpeaker( 'top', left, top, cr, speaker );
@@ -485,7 +463,6 @@ export class OsCoachmark extends Component {
 		let side: Side;
 		if ( ! named ) {
 			side = SIDES.reduce( ( best, s ) => ( room[ s ] > room[ best ] ? s : best ), SIDES[ 0 ] );
-
 			if ( fits( 'bottom' ) ) {
 				side = 'bottom';
 			} else if ( fits( 'top' ) ) {
@@ -563,7 +540,6 @@ export class OsCoachmark extends Component {
 
 	private _look( edge: TailEdge | null ): void {
 		this._speakerKey = '';
-
 		const key = edge ?? '';
 		if ( key === this._lookKey ) {
 			return;

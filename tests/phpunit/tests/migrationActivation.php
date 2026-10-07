@@ -1,10 +1,12 @@
 <?php
-
+/**
+ * @group openstation
+ * @group migrations
+ */
 class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-
 		delete_option( OPENSTATION_MIGRATION_OPTION );
 	}
 
@@ -13,6 +15,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		return false === $stored ? null : (int) $stored;
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_runner_is_registered_on_activation() {
 		$this->assertNotFalse(
 			has_action(
@@ -22,6 +27,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_migrations_load_outside_the_admin_module_guard() {
 		$loader = file_get_contents( OPENSTATION_DIR . 'desktop-mode.php' );
 
@@ -37,6 +45,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_activation_records_the_shipped_version() {
 		self::factory()->user->create();
 
@@ -45,6 +56,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		$this->assertSame( OPENSTATION_MIGRATION_VERSION, $this->stored_version() );
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_activation_still_clears_site_level_leftovers() {
 		update_option( 'desktop_mode_ai_platform', array( 'apiKey' => 'sk-secret-leftover' ) );
 		self::factory()->user->create();
@@ -58,6 +72,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		$this->assertSame( OPENSTATION_MIGRATION_VERSION, $this->stored_version() );
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_activation_still_unschedules_stale_ai_cron() {
 		wp_schedule_single_event( time() + HOUR_IN_SECONDS, 'desktop_mode_ai_analyze_post', array( 1 ) );
 		self::factory()->user->create();
@@ -70,6 +87,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_activated_install_runs_no_further_migration() {
 		$user_id = self::factory()->user->create();
 		openstation_run_migrations_on_activation();
@@ -82,6 +102,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_portal_auto_enable_after_activation_earns_no_notice() {
 		$user_id = self::factory()->user->create();
 
@@ -96,6 +119,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_existing_version_is_never_moved() {
 		update_option( OPENSTATION_MIGRATION_OPTION, 2, false );
 
@@ -104,6 +130,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		$this->assertSame( 2, $this->stored_version() );
 	}
 
+	/**
+	 * @covers ::openstation_run_migrations_on_activation
+	 */
 	public function test_prior_use_defers_to_admin_init() {
 		$user_id = self::factory()->user->create();
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
@@ -124,6 +153,9 @@ class Tests_OpenStation_MigrationActivation extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_users_with_prior_desktop_use
+	 */
 	public function test_saved_settings_alone_defer_to_admin_init() {
 		$user_id = self::factory()->user->create();
 		openstation_save_os_settings( $user_id, array( 'wallpaper' => 'custom-gradient' ) );

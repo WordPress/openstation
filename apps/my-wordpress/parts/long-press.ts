@@ -1,5 +1,4 @@
 export const LONG_PRESS_MS = 500;
-
 export const LONG_PRESS_SLOP_PX = 10;
 
 export interface LongPressHandlers {
@@ -45,7 +44,6 @@ export function longPress(
 			const y = e.clientY;
 			const timer = setTimeout( () => {
 				presses.delete( el );
-
 				const swallow = ( ev: Event ): void => {
 					ev.stopPropagation();
 					ev.preventDefault();

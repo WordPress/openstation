@@ -37,7 +37,6 @@ function installFakeJQuery(): JQueryHandlers {
 
 describe( 'presence', () => {
 	beforeEach( () => {
-
 		installHooksStub();
 		_resetAllSharedStoresForTests();
 		_resetHeartbeatBusForTests();
@@ -120,7 +119,6 @@ describe( 'presence', () => {
 				newStatus: detail.newStatus,
 			} );
 		} );
-
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
@@ -130,7 +128,6 @@ describe( 'presence', () => {
 				},
 			},
 		);
-
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
@@ -140,7 +137,6 @@ describe( 'presence', () => {
 				},
 			},
 		);
-
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
@@ -173,7 +169,6 @@ describe( 'presence', () => {
 		);
 		const out = getAll();
 		out.delete( 7 );
-
 		expect( getStatus( 7 ) ).toBe( 'online' );
 	} );
 
@@ -182,7 +177,6 @@ describe( 'presence', () => {
 		bootHeartbeatBus();
 		bootPresenceProbe();
 		bootPresenceProbe();
-
 		expect( () => markActive() ).not.toThrow();
 	} );
 
@@ -209,7 +203,6 @@ describe( 'presence', () => {
 	} );
 
 	test( 'public presenceApi exposes applyBatch as the canonical entry', () => {
-
 		expect( typeof presenceApi.applyBatch ).toBe( 'function' );
 
 		const events: Array< unknown > = [];

@@ -35,7 +35,6 @@ function parseDatetime( raw: string | null ): Date | null {
 	if ( hasTimezone( raw ) ) {
 		return tryDate( raw );
 	}
-
 	return tryDate( raw.replace( ' ', 'T' ) + 'Z' );
 }
 
@@ -112,7 +111,6 @@ function compactText( date: Date, now: number ): string {
 	if ( abs( diffSec ) < 45 ) {
 		return getNarrowRtf().format( 0, 'second' );
 	}
-
 	if ( abs( diffSec ) > 7 * 24 * 60 * 60 ) {
 		return date.toLocaleDateString( undefined, {
 			month: 'short',
@@ -178,7 +176,6 @@ export class OsRelativeTime extends Component {
 			? compactText( date, now )
 			: relativeText( date, now );
 		const absolute = date.toLocaleString();
-
 		return html`<time datetime=${ date.toISOString() } title=${ absolute }
 			>${ text }</time
 		>`;

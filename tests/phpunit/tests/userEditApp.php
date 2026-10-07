@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group user-edit-app
+ */
 class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -13,7 +16,6 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
-
 		if ( is_multisite() ) {
 			grant_super_admin( self::$admin_id );
 		}
@@ -38,6 +40,9 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers \OpenStation\App::manifest
+	 */
 	public function test_manifest_mirrors_the_legacy_windows_registration() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-user-edit' );
 		$this->assertNotNull( $app );
@@ -50,10 +55,12 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertSame( 520, $manifest['min_height'] );
 		$this->assertSame( 'none', $manifest['placement'] );
 		$this->assertSame( array( 'userId' => 0 ), $manifest['state'] );
-
 		$this->assertSame( array( 'reopen' ), $manifest['lifecycle'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App::allows
+	 */
 	public function test_gate_admits_any_logged_in_user_and_follows_the_legacy_filter() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-user-edit' );
 		$this->assertTrue( $app->allows( openstation_apps_os() ) );
@@ -68,6 +75,9 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertFalse( $app->allows( openstation_apps_os() ) );
 	}
 
+	/**
+	 * @covers ::openstation_users_window_role_label_map
+	 */
 	public function test_the_role_facts_follow_the_viewers_promote_capability() {
 		$app = openstation_apps_registry()->get( 'desktop-mode-user-edit' );
 
@@ -76,7 +86,6 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'administrator', $config['assignableRoles'] );
 		$this->assertArrayHasKey( 'editor', $config['assignableRoles'] );
 		$this->assertArrayHasKey( 'subscriber', $config['assignableRoles'] );
-
 		$this->assertArrayHasKey( 'subscriber', $config['allRoles'] );
 		$this->assertSame( self::$admin_id, $config['currentUserId'] );
 		$this->assertNotEmpty( $config['colorSchemes'] );
@@ -88,6 +97,9 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertSame( array(), $config['assignableRoles'], 'no promote_users → no assignable roles' );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_mount_reads_the_user_from_the_params_and_falls_back_to_the_viewer() {
 		$targeted = $this->dispatch( 'mount', array( 'userId' => self::$editor_id ) );
 		$this->assertTrue( $targeted['ok'] );
@@ -98,6 +110,9 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, $own['state']['userId'] );
 	}
 
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
 	public function test_reopen_retargets_the_live_window() {
 		$response = $this->dispatch( 'reopen', array( 'userId' => self::$editor_id ), array( 'userId' => self::$admin_id ) );
 		$this->assertTrue( $response['ok'] );
@@ -107,8 +122,11 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertSame( self::$admin_id, $plain['state']['userId'], 'a reopen without an id lands on the viewer' );
 	}
 
+	/**
+	 * @covers ::openstation_users_profile_register_script
+	 * @covers ::openstation_users_profile_window_args
+	 */
 	public function test_the_profile_bundle_is_registered_and_rides_both_windows() {
-
 		$this->assertArrayHasKey( 'scripts', openstation_users_profile_window_args( array(), 'desktop-mode-users' ) );
 		$this->assertTrue( wp_script_is( 'openstation-user-profile', 'registered' ) );
 
@@ -120,13 +138,15 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertSame( array(), openstation_users_profile_window_args( array(), 'desktop-mode-posts' ) );
 	}
 
+	/**
+	 * @covers ::openstation_user_edit_window_register_meta
+	 */
 	public function test_personal_options_and_contact_methods_round_trip_through_core_put() {
 		$signal = static function ( $methods ) {
 			$methods['signal'] = 'Signal';
 			return $methods;
 		};
 		add_filter( 'user_contactmethods', $signal );
-
 		openstation_user_edit_window_register_meta();
 		$request = new WP_REST_Request( 'PUT', '/wp/v2/users/' . self::$editor_id );
 		$request->set_body_params(
@@ -148,6 +168,9 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertSame( 'midnight', $response->get_data()['meta']['admin_color'] );
 	}
 
+	/**
+	 * @covers ::openstation_user_edit_window_rest_permission
+	 */
 	public function test_the_routes_refuse_a_viewer_without_edit_user_on_the_target() {
 		wp_set_current_user( self::$editor_id );
 		$base   = '/desktop-mode/v1/users/' . self::$admin_id;
@@ -173,6 +196,9 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertSame( self::$editor_id, $own->get_data()['userId'] );
 	}
 
+	/**
+	 * @covers ::openstation_user_edit_window_compute_insights
+	 */
 	public function test_insights_carry_names_and_titles_as_plain_text() {
 		wp_update_user(
 			array(
@@ -192,6 +218,9 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 		$this->assertSame( 'Salt & Pepper', $insights['recentPosts'][0]['title'] );
 	}
 
+	/**
+	 * @covers ::openstation_user_edit_window_rest_destroy_sessions
+	 */
 	public function test_destroy_sessions_spares_this_device_for_self_by_default() {
 		$manager = WP_Session_Tokens::get_instance( self::$admin_id );
 		$manager->destroy_all();

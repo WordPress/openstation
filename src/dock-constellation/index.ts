@@ -6,7 +6,6 @@ import { hashTitleToHue } from '../ui/util/hash-hue';
 import { deriveWindowId, sanitizeClassName } from '../utils';
 import { applyIconMask } from '../desktop-themes/paint-tinted-icon';
 import { CONSTELLATION_FLAG } from './active';
-
 import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu-events';
 import { resolveNativeUrlRemap } from '../native-url-remap';
 import {
@@ -16,17 +15,11 @@ import {
 } from './routing';
 
 const SHOW_DELAY_MS = 130;
-
 const HIDE_DELAY_MS = 240;
-
 const EXIT_MS = 160;
-
 const BEAM_GAP_PX = 14;
-
 const BEAM_INSET_PX = 18;
-
 const VIEWPORT_MARGIN_PX = 12;
-
 const MIN_PANEL_HEIGHT_PX = 160;
 
 const OPEN_BODY_CLASS = 'os-constellation-open';
@@ -63,14 +56,11 @@ function prefersReducedMotion(): boolean {
 }
 
 export interface DockConstellationDeps extends ConstellationRouting {
-
 	getMenuItems: () => DockItem[];
-
 	getSystemItem?: ( id: string ) => SystemDockItem | null;
 }
 
 export interface ConstellationMenu {
-
 	id: string;
 	title: string;
 	icon: string;
@@ -79,11 +69,8 @@ export interface ConstellationMenu {
 }
 
 export interface ConstellationPanelContext {
-
 	item: ConstellationMenu;
-
 	instances: OsWindow[];
-
 	tile: HTMLElement;
 }
 
@@ -152,7 +139,6 @@ export function mountDockConstellation(
 			dying.remove();
 		} else {
 			dying.classList.remove( 'os-constellation--open' );
-
 			dying.classList.add( 'os-constellation--closing' );
 			closing.add( dying );
 			window.setTimeout( () => {
@@ -170,7 +156,6 @@ export function mountDockConstellation(
 		}
 		doAction( HOOKS.CONSTELLATION_CLOSED, {
 			menuSlug: previousAnchor ? keyOf( previousAnchor ) : '',
-
 			handoff: opts.handoff === true,
 		} );
 	};
@@ -203,20 +188,17 @@ export function mountDockConstellation(
 
 		const instances = instancesFor( deps, item );
 		panel = buildPanel( deps, item, instances, tile, close );
-
 		for ( const row of rowsOf( panel ) ) {
 			row.tabIndex = -1;
 		}
 		anchor = tile;
 		anchorSlug = slug;
-
 		panel.dataset.osCnSide = sideFor( tile );
 		document.body.appendChild( panel );
 		syncBodyFlag();
 		tile.setAttribute( 'data-constellation-open', '' );
 		inheritShellVars( panel );
 		position( panel, tile );
-
 		requestAnimationFrame( () => {
 			panel?.classList.add( 'os-constellation--open' );
 			if ( focusFirst && panel ) {
@@ -284,7 +266,6 @@ export function mountDockConstellation(
 				focusRow( panel, current + 1 );
 			} else if ( e.key === 'ArrowUp' ) {
 				e.preventDefault();
-
 				if ( current <= 0 ) {
 					close( true );
 				} else {
@@ -301,7 +282,6 @@ export function mountDockConstellation(
 			}
 			return;
 		}
-
 		const tile = tileFrom( e.target );
 		if ( ! tile ) {
 			return;
@@ -347,14 +327,11 @@ export function mountDockConstellation(
 	window.addEventListener( 'resize', onInvalidate );
 	window.addEventListener( 'blur', onInvalidate );
 	document.addEventListener( 'os-layout-changed', onInvalidate );
-
 	document.addEventListener( ITEM_MENU_OPENING_EVENT, onInvalidate );
-
 	document.addEventListener( 'scroll', onScroll, true );
 
 	return (): void => {
 		close( false, true );
-
 		for ( const ghost of closing ) {
 			ghost.remove();
 		}
@@ -383,7 +360,6 @@ function resolveMenu(
 		if ( ! item ) {
 			return null;
 		}
-
 		const submenu = item.selfLabel
 			? [ { title: item.selfLabel, url: item.url }, ...item.submenu ]
 			: item.submenu;
@@ -426,7 +402,6 @@ function instancesFor(
 		) ) {
 			seen.add( win );
 		}
-
 		const parentKey = deriveWindowId( item.menuItem.url, deps.adminUrl );
 		if ( parentKey ) {
 			const activeDesktop = deps.windowManager.getActiveDesktopId();
@@ -468,7 +443,6 @@ function resolveBaseId(
 	if ( item.windowId ) {
 		return item.windowId;
 	}
-
 	return (
 		resolveNativeUrlRemap( item.url ) ??
 		deriveWindowId( item.url, deps.adminUrl )
@@ -488,12 +462,11 @@ function buildPanel(
 	root.setAttribute(
 		'aria-label',
 		sprintf(
-
+			// translators: %s is an admin menu title (e.g. "Appearance").
 			__( '%s menu' ),
 			item.title,
 		),
 	);
-
 	root.style.setProperty( '--os-cn-hue', String( hashTitleToHue( item.title ) ) );
 
 	const surface = document.createElement( 'div' );
@@ -580,7 +553,6 @@ function buildHead(
 			openMenuItem( deps, item.menuItem );
 			return;
 		}
-
 		runRow( deps, item, item.submenu[ 0 ], event );
 	} );
 
@@ -624,7 +596,7 @@ function buildInstancesGroup(
 	group.appendChild(
 		legend(
 			sprintf(
-
+				// translators: %d is a count of currently-open windows.
 				_n( '%d open window', '%d open windows', instances.length ),
 				instances.length,
 			),
@@ -703,7 +675,6 @@ function buildSubmenuRow(
 	row.className = 'os-constellation__row os-constellation__row--sub';
 	row.setAttribute( 'role', 'menuitem' );
 	row.style.setProperty( '--os-cn-row', String( index ) );
-
 	row.style.setProperty(
 		'--os-cn-row-hue',
 		String( hashTitleToHue( sub.title ) ),
@@ -724,7 +695,6 @@ function buildSubmenuRow(
 		mark.className = 'dashicons dashicons-external os-constellation__row-offsite';
 		mark.setAttribute( 'aria-hidden', 'true' );
 		row.appendChild( mark );
-
 		const note = document.createElement( 'span' );
 		note.className = 'os-constellation__row-note';
 		note.textContent = __( '(opens in a new tab)' );
@@ -802,7 +772,6 @@ function inheritShellVars( panel: HTMLElement ): void {
 
 function position( panel: HTMLElement, tile: HTMLElement ): void {
 	const rect = tile.getBoundingClientRect();
-
 	const side = sideFor( tile );
 
 	const available =
@@ -827,7 +796,6 @@ function position( panel: HTMLElement, tile: HTMLElement ): void {
 			Math.min( rect.top, vh - VIEWPORT_MARGIN_PX - height ),
 		);
 		panel.style.top = `${ top }px`;
-
 		const beamY = Math.max(
 			BEAM_INSET_PX,
 			Math.min(
@@ -857,3 +825,4 @@ function position( panel: HTMLElement, tile: HTMLElement ): void {
 		}
 	} );
 }
+

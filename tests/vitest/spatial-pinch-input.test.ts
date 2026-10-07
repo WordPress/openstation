@@ -46,7 +46,6 @@ describe( 'touch input shared by spatial views', () => {
 		pointer( stage.firstElementChild!, 'pointerdown', 2, 200 );
 		pointer( window, 'pointermove', 2, 300 );
 		expect( camera() ).toEqual( { scale: 2, x: -100, y: -100 } );
-
 		expect( 150 * camera().scale + camera().x ).toBe( 200 );
 		pointer( window, 'pointermove', 2, 150 );
 		expect( camera() ).toEqual( { scale: .5, x: 50, y: 50 } );

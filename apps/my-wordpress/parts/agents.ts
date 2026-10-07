@@ -39,7 +39,6 @@ export function emptyCast( role: string, seed: number ): CastDraft {
 		instructions: '',
 		role,
 		abilities: [],
-
 		triggers: [ { kind: 'chat', config: {} } ],
 		copiedFrom: '',
 		faceSeed: seed,
@@ -100,6 +99,7 @@ export function openChatWindow( payload: AgentsPayload, agent: Agent ): void {
 	} );
 	const opened = shell().openWindow?.( payload.runWindowId, { source: 'agents' } );
 	if ( ! opened && typeof shell().openWindow !== 'function' ) {
+		// eslint-disable-next-line no-console
 		console.warn(
 			'[desktop-mode/agents] wp.os.openWindow is missing — desktop shell may not be ready.',
 		);
@@ -153,7 +153,6 @@ export async function sendAgentToDesktop( agent: Agent ): Promise< string > {
 			roots = got as Array< { x?: number; y?: number } >;
 		}
 	} catch {
-
 	}
 	let x = 16;
 	let y = 16;
@@ -219,7 +218,6 @@ export function agentsAiNotice( payload: AgentsPayload ): TemplateResult | '' {
 	const noClient = __(
 		'This WordPress does not ship the AI Client (WordPress 7.0+). Agents can be defined but not run.',
 	);
-
 	const connectorsLink = html`
 		<a
 			href=${ payload.connectorsUrl }
@@ -323,7 +321,6 @@ export function agentsCastGrid( ctx: Ctx, payload: AgentsPayload ): TemplateResu
 			  `
 			: '';
 		const cast = agentsPreviewCast( payload );
-
 		if ( cast === null ) {
 			return html`
 				<os-empty-state

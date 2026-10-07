@@ -10,9 +10,7 @@ export interface PixiContainer {
 	destroy( opts?: unknown ): void;
 	visible: boolean;
 	zIndex: number;
-
 	cacheAsTexture?: ( enabled: boolean ) => void;
-
 	pivot?: { set( x: number, y: number ): void };
 }
 
@@ -74,7 +72,6 @@ export interface PixiApp {
 	};
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 

@@ -34,7 +34,6 @@ function api(): MioStyleApi | null {
 }
 
 const MENU_CLASS = 'os-mio-menu';
-
 const PANEL_CLASS = 'os-mio-panel';
 
 function intToHex( value: number ): string {
@@ -108,7 +107,6 @@ function toggle(
 ): HTMLElement {
 	const el = document.createElement( 'os-checkbox' );
 	el.setAttribute( 'label', label );
-
 	el.setAttribute( 'block', '' );
 	if ( checked ) {
 		el.setAttribute( 'checked', '' );
@@ -205,7 +203,6 @@ function openMioStylePanelImmediate(): void {
 		const config = mio.getConfig();
 		const appearance = config.appearance;
 		const physics = config.physics;
-
 		const current: LookValues = { ...appearance, ...physics };
 		const set = ( partial: LookPartial ): void => mio.setStyle( partial );
 
@@ -235,7 +232,6 @@ function openMioStylePanelImmediate(): void {
 			section( __( 'Shape' ), [
 				shapePicker( physics.shapePreset, ( preset ) => {
 					set( { shapePreset: preset } );
-
 					paint();
 				} ),
 				...corners,
@@ -371,7 +367,6 @@ function openMioStylePanelImmediate(): void {
 					current,
 					set,
 				),
-
 				slider(
 					{
 						key: 'linerWidth',
@@ -390,13 +385,11 @@ function openMioStylePanelImmediate(): void {
 						label: __( 'Glow' ),
 						min: 0,
 						max: 20,
-
 						step: 0.1,
 					},
 					current,
 					set,
 				),
-
 			] ),
 			section( __( 'Gradient' ), [
 				slider(

@@ -10,29 +10,23 @@ export interface StatusBarSegment {
 	id: string;
 	label: string;
 	icon?: string;
-
 	align?: 'start' | 'end';
-
 	sort?: number;
-
 	onClick?: ( e: MouseEvent ) => void;
 }
 
 export interface StatusBarSelectionSource {
 	count: () => number;
-
 	subscribe: ( cb: () => void ) => () => void;
 }
 
 export interface StatusBarContext {
 	folderId: number;
-
 	selectedCount: number;
 	totals: {
 		files: number;
 		folders: number;
 		total: number;
-
 		bytes: number;
 	};
 }
@@ -94,13 +88,11 @@ function computeSegments( ctx: StatusBarContext ): StatusBarSegment[] {
 			label:
 				pluralize( files, 'file', 'files' ) +
 				( folders > 0 ? `, ${ pluralize( folders, 'folder', 'folders' ) }` : '' ) +
-
 				( bytes > 0 ? ` (${ formatBytes( bytes ) })` : '' ),
 			align: 'start',
 			sort: 10,
 		},
 	];
-
 	if ( ctx.selectedCount > 0 ) {
 		builtIns.push( {
 			id: 'selection',

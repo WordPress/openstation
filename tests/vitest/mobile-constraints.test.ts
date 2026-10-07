@@ -74,7 +74,6 @@ function fakeManager( wins: FakeWin[], desks: string[] = [ 'desktop-1' ] ) {
 		wins.push( w );
 		return w;
 	} );
-
 	const moveWindowToDesktop = vi.fn( ( id: string, desktopId: string ) => {
 		const w = wins.find( ( x ) => x.id === id );
 		if ( ! w || ! desks.includes( desktopId ) ) {
@@ -284,7 +283,6 @@ describe( 'installMobileConstraints', () => {
 
 	test( 'a window opened on another desk is folded onto the active one; the session records its own desk', () => {
 		const mode = fakeMode( 'mobile' );
-
 		const restored = fakeWin( 'r', { config: { baseId: 'r', desktopId: 'desktop-2' } } );
 		const here = fakeWin( 'h', { config: { baseId: 'h', desktopId: 'desktop-1' } } );
 		const wins = [ restored, here ];
@@ -309,9 +307,7 @@ describe( 'installMobileConstraints', () => {
 			updated: 2,
 		};
 		const saved = applyFilters( HOOKS.SESSION_SNAPSHOT, snapshot );
-
 		expect( saved.windows[ 0 ] ).toMatchObject( { id: 'r', desktopId: 'desktop-2', state: 'normal', x: 10, y: 20 } );
-
 		expect( saved.windows[ 1 ] ).toMatchObject( { id: 'h', desktopId: 'desktop-1', x: 10, y: 20 } );
 
 		doAction( HOOKS.WINDOW_CLOSED, { windowId: 'r' } );
@@ -330,13 +326,11 @@ describe( 'installMobileConstraints', () => {
 		const away = fakeWin( 'a', { config: { baseId: 'a', desktopId: 'desktop-2' } } );
 		const gone = fakeWin( 'g', { config: { baseId: 'g', desktopId: 'desktop-3' } } );
 		const here = fakeWin( 'h', { config: { baseId: 'h', desktopId: 'desktop-1' } } );
-
 		const desks = [ 'desktop-1', 'desktop-2', 'desktop-3' ];
 		const { manager, moveWindowToDesktop, focus } = fakeManager( [ here, gone, away ], desks );
 		const c = installMobileConstraints( { manager, mode: mode.api, openNative: () => false } );
 
 		mode.set( 'mobile' );
-
 		expect( moveWindowToDesktop.mock.calls ).toEqual( [
 			[ 'g', 'desktop-1' ],
 			[ 'a', 'desktop-1' ],
@@ -351,7 +345,6 @@ describe( 'installMobileConstraints', () => {
 		expect( gone.config.desktopId ).toBe( 'desktop-1' );
 		expect( here.config.desktopId ).toBe( 'desktop-1' );
 		expect( c.foldedIds() ).toEqual( [] );
-
 		expect( focus ).toHaveBeenCalledTimes( 1 );
 		expect( ( focus.mock.calls[ 0 ][ 0 ] as FakeWin ).id ).toBe( 'g' );
 		c.dispose();

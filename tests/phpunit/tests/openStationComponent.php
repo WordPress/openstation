@@ -1,5 +1,9 @@
-<?php
 
+<?php
+/**
+ * @group openstation
+ * @group os-components
+ */
 class Tests_OpenStation_Component extends WP_UnitTestCase {
 
 	private function render( $tag, $attrs = array(), $content = '' ) {
@@ -8,6 +12,9 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		return (string) ob_get_clean();
 	}
 
+	/**
+	 * @covers ::openstation_component
+	 */
 	public function test_style_array_serializes_to_inline_declarations() {
 		$html = $this->render( 'os-stack', array(
 			'gap'   => 12,
@@ -24,6 +31,9 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_format_css_value
+	 */
 	public function test_style_array_auto_units_length_properties() {
 		$html = $this->render( 'os-stack', array(
 			'style' => array(
@@ -45,6 +55,9 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'padding-bottom: 0px', $html );
 	}
 
+	/**
+	 * @covers ::openstation_component
+	 */
 	public function test_style_array_with_unit_strings_passes_through() {
 		$html = $this->render( 'os-stack', array(
 			'style' => array(
@@ -58,6 +71,9 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'color: rebeccapurple', $html );
 	}
 
+	/**
+	 * @covers ::openstation_component
+	 */
 	public function test_style_string_value_still_works() {
 		$html = $this->render( 'os-stack', array(
 			'style' => 'padding: 12px; margin: 0',
@@ -68,6 +84,9 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_serialize_style_array
+	 */
 	public function test_style_array_drops_malformed_property_names() {
 		$html = $this->render( 'os-stack', array(
 			'style' => array(
@@ -82,6 +101,9 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'expression', $html );
 	}
 
+	/**
+	 * @covers ::openstation_serialize_style_array
+	 */
 	public function test_style_array_drops_null_and_false_values() {
 		$html = $this->render( 'os-stack', array(
 			'style' => array(
@@ -97,6 +119,9 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		$this->assertStringNotContainsString( 'color:', $html );
 	}
 
+	/**
+	 * @covers ::openstation_component
+	 */
 	public function test_empty_style_array_produces_no_attribute() {
 		$html = $this->render( 'os-stack', array(
 			'gap'   => 12,
@@ -106,18 +131,22 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'gap="12"', $html );
 	}
 
+	/**
+	 * @covers ::openstation_component
+	 */
 	public function test_style_array_output_is_escaped() {
 		$html = $this->render( 'os-stack', array(
 			'style' => array(
 				'background' => '" onclick="alert(1)"',
 			),
 		) );
-
 		$this->assertStringContainsString( '&quot;', $html );
-
 		$this->assertStringNotContainsString( '" onclick="', $html );
 	}
 
+	/**
+	 * @covers ::openstation_component
+	 */
 	public function test_boolean_attribute_renders_bare() {
 		$html = $this->render( 'os-stack', array(
 			'hidden' => true,
@@ -125,19 +154,27 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '/<os-stack\s+hidden>/', $html );
 	}
 
+	/**
+	 * @covers ::openstation_component
+	 */
 	public function test_numeric_zero_value_renders_as_padding_0() {
-
 		$html = $this->render( 'os-stack', array(
 			'padding' => 0,
 		) );
 		$this->assertStringContainsString( 'padding="0"', $html );
 	}
 
+	/**
+	 * @covers ::openstation_component
+	 */
 	public function test_content_is_echoed_verbatim() {
 		$html = $this->render( 'os-stack', array(), '<p>inner</p>' );
 		$this->assertStringContainsString( '<p>inner</p>', $html );
 	}
 
+	/**
+	 * @covers ::openstation_format_css_value
+	 */
 	public function test_format_css_value_handles_edge_values() {
 		$this->assertSame( '', openstation_format_css_value( 'padding', null ) );
 		$this->assertSame( '', openstation_format_css_value( 'padding', false ) );

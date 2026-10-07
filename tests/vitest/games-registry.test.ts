@@ -144,7 +144,6 @@ describe( 'games/server-sync.ts', () => {
 		expect( entry?.config ).toEqual( {
 			wordsUrl: 'https://example.test/words.txt',
 		} );
-
 		expect(
 			document.querySelectorAll( 'script[data-os-vendor]' ),
 		).toHaveLength( 0 );

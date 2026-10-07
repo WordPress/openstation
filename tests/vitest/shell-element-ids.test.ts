@@ -57,7 +57,6 @@ describe( 'shell element ids', () => {
 	} );
 
 	test( 'no client lookup targets a pre-rebrand shell id', () => {
-
 		const stale = [ ...lookedUpIds ].filter( ( id ) =>
 			SHELL_IDS.some(
 				( current ) =>

@@ -65,13 +65,10 @@ describe( 'maybeShowUpdate', () => {
 			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( toastMock ).not.toHaveBeenCalled();
-
 		expect( resolveArt ).toHaveBeenCalledWith( '7.0', true );
 		const c = lastCard();
-
 		expect( c.message ).toBe( 'WordPress 7.0 "Armstrong" is available.' );
 		expect( c.artUrl ).toBe( ART.artUrl );
-
 		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0.1' );
 	} );
 
@@ -80,7 +77,6 @@ describe( 'maybeShowUpdate', () => {
 			update: { version: '7.0.1', branch: '7.0', url: '/u', crossing: false },
 			openUrl, resolveArt, loadImage, showCard,
 		} );
-
 		expect( lastCard().message ).toBe( 'WordPress 7.0.1 is available.' );
 	} );
 

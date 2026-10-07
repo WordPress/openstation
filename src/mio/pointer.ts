@@ -1,7 +1,5 @@
 export interface PointerTracker {
-
 	get: () => { x: number; y: number } | null;
-
 	destroy: () => void;
 }
 
@@ -68,7 +66,6 @@ export function createPointerTracker(): PointerTracker {
 				window.location.origin,
 			);
 		} catch {
-
 		}
 	};
 
@@ -81,7 +78,6 @@ export function createPointerTracker(): PointerTracker {
 					window.location.origin,
 				);
 			} catch {
-
 			}
 		}
 	};
@@ -94,7 +90,6 @@ export function createPointerTracker(): PointerTracker {
 		if ( ! data || typeof data.type !== 'string' ) {
 			return;
 		}
-
 		if ( data.type === 'os-bridge-ready' ) {
 			enableIn( e.source );
 			return;

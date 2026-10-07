@@ -54,7 +54,7 @@ export async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: Pos
 			typeof confirm === 'function'
 				? confirm( ids.length )
 				: sprintf(
-
+					/* translators: %d: row count. */
 					confirm,
 					ids.length,
 				);
@@ -68,6 +68,7 @@ export async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: Pos
 			return;
 		}
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( `${ LOG } bulk action "${ action.id }" failed`, err );
 	}
 	postsCtx.table.clearSelection();

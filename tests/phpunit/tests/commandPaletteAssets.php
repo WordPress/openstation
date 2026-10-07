@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-command-palette-assets
+ */
 class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -16,6 +19,9 @@ class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_build_command_palette_assets_payload
+	 */
 	public function test_builder_leaves_the_boot_queues_untouched() {
 		$scripts_before = wp_scripts()->queue;
 		$styles_before  = wp_styles()->queue;
@@ -29,6 +35,9 @@ class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 		$this->assertSame( $todo_before, wp_scripts()->to_do, 'The live $to_do was mutated — dependency resolution must run on a clone.' );
 	}
 
+	/**
+	 * @covers ::openstation_build_command_palette_assets_payload
+	 */
 	public function test_manifest_is_dependency_ordered_and_contains_the_roots() {
 		$payload = openstation_build_command_palette_assets_payload();
 		$this->assertNotNull( $payload );
@@ -45,7 +54,6 @@ class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 			}
 			foreach ( $registry[ $handle ]->deps as $dep ) {
 				if ( ! isset( $position[ $dep ] ) ) {
-
 					continue;
 				}
 				$this->assertLessThan(
@@ -57,6 +65,9 @@ class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_build_command_palette_assets_payload
+	 */
 	public function test_the_initialize_call_rides_the_core_commands_entry() {
 		$payload = openstation_build_command_palette_assets_payload();
 		$this->assertNotNull( $payload );
@@ -74,6 +85,9 @@ class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_build_command_palette_assets_payload
+	 */
 	public function test_the_menu_command_list_is_not_embedded_twice() {
 		$payload = openstation_build_command_palette_assets_payload();
 		$this->assertNotNull( $payload );
@@ -98,12 +112,18 @@ class Tests_OpenStation_CommandPaletteAssets extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_build_command_palette_assets_payload
+	 */
 	public function test_manifest_carries_the_style_chain() {
 		$payload = openstation_build_command_palette_assets_payload();
 		$this->assertNotNull( $payload );
 		$this->assertContains( 'wp-commands', wp_list_pluck( $payload['styles'], 'handle' ) );
 	}
 
+	/**
+	 * @covers ::openstation_defer_core_command_palette
+	 */
 	public function test_core_default_enqueue_is_unhooked_on_shell_pages_only() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		set_current_screen( OPENSTATION_SHELL_SCREEN_ID );

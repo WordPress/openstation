@@ -59,14 +59,12 @@ export const styles = css`
 		);
 		border-color: transparent;
 		color: var( --wp-admin-theme-color, #2271b1 );
-
 		animation:
 			os-save-status-modem-stutter 1.8s ease-in-out infinite,
 			os-save-status-modem-glow    2.4s ease-in-out infinite;
 	}
 
 	@keyframes os-save-status-modem-stutter {
-
 		0%, 4%    { opacity: 1; }
 
 		5%, 30%   { opacity: 0.22; }
@@ -237,7 +235,6 @@ export const styles = css`
 	:host( [ phase='failed' ] ) .os-save-status__glyph {
 		display: inline-block;
 		color: var( --os-ui-fg-on-accent, #fff );
-
 		width: calc( var( --os-ui-save-status-size, 12px ) * 0.66 );
 		height: calc( var( --os-ui-save-status-size, 12px ) * 0.66 );
 	}

@@ -7,7 +7,6 @@ export const styles = css`
 			--os-ui-spinner-color,
 			var( --wp-admin-theme-color, #21759b )
 		);
-
 		--_accent: var(
 			--os-ui-spinner-accent,
 			var( --os-ui-fg-on-accent, #fff )
@@ -15,7 +14,6 @@ export const styles = css`
 		--_size: var( --os-ui-spinner-size, 48px );
 		width: var( --_size );
 		height: var( --_size );
-
 		color: var( --_color );
 		vertical-align: middle;
 		line-height: 0;

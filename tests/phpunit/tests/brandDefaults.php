@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-brand
+ */
 class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 
 	const WALLPAPERS = array(
@@ -16,6 +19,9 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 		parent::tear_down();
 	}
 
+	/**
+	 * @covers ::openstation_register_builtin_wallpapers
+	 */
 	public function test_brand_wallpapers_are_registered() {
 		$registry = openstation_desktop_wallpaper_registry();
 
@@ -25,6 +31,9 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_register_builtin_wallpapers
+	 */
 	public function test_brand_wallpaper_artwork_ships_and_is_referenced() {
 		foreach ( self::WALLPAPERS as $id => $file ) {
 			$path = OPENSTATION_DIR . 'assets/wallpapers/' . $file;
@@ -40,6 +49,10 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_get_default_wallpaper
+	 * @covers ::openstation_default_os_settings
+	 */
 	public function test_galaxy_is_the_default_desk() {
 		$this->assertSame( 'galaxy', openstation_get_default_wallpaper() );
 
@@ -52,6 +65,10 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_get_accent_colors
+	 * @covers ::openstation_default_os_settings
+	 */
 	public function test_pulse_is_the_default_accent() {
 		$defaults = openstation_default_os_settings();
 		$this->assertSame( 'pulse', $defaults['accent'] );
@@ -73,6 +90,9 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_get_accent_colors
+	 */
 	public function test_wordpress_accents_are_still_offered() {
 		$ids = wp_list_pluck( openstation_get_accent_colors(), 'id' );
 

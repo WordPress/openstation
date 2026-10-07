@@ -5,14 +5,11 @@ import type { DockOrientation } from '../dock';
 import { sanitizeClassName } from '../utils';
 import { hashTitleToHue } from '../ui/util/hash-hue';
 import { isConstellationMounted } from '../dock-constellation/active';
-
 import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu-events';
 import { applyFilters, HOOKS } from '../hooks';
 
 export interface DockPeekCardContext {
-
 	window: WPWindow;
-
 	item: { id: string; title: string; icon: string; url: string };
 }
 
@@ -24,28 +21,20 @@ export interface DockPeekDeps {
 		icon: string;
 		url: string;
 	};
-
 	getInstances: () => WPWindow[];
-
 	enableGhost?: boolean;
 	windowManager: WindowManager;
 	getOrientation: () => DockOrientation;
-
 	openNew: () => void;
-
 	suppressTooltip: ( on: boolean ) => void;
 }
 
 const SHOW_DELAY_MS = 180;
-
 const HIDE_DELAY_MS = 220;
-
 const STAGGER_MS = 32;
 
 interface PreviewEntry {
-
 	wasMinimized: boolean;
-
 	previouslyFocusedId: string | null;
 }
 
@@ -89,14 +78,12 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		if ( e.pointerType !== 'mouse' ) {
 			return;
 		}
-
 		if (
 			isConstellationMounted() &&
 			( tile.dataset.menuSlug || tile.dataset.constellationId )
 		) {
 			return;
 		}
-
 		if ( ! shouldShowPeek( deps ) ) {
 			return;
 		}
@@ -140,7 +127,6 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 		previewByWindowId = new Map();
 		popover = buildPopover( deps, () => tearDown(), previewByWindowId );
 		document.body.appendChild( popover );
-
 		inheritShellSchemeVars( popover );
 		positionPopover( popover, tile, deps.getOrientation() );
 
@@ -191,7 +177,7 @@ function buildPopover(
 	root.className = 'os-dock-peek';
 	root.setAttribute( 'role', 'menu' );
 	root.setAttribute( 'aria-label', sprintf(
-
+		// translators: %s is the dock item's admin-page title (e.g., "Posts")
 		__( '%s — open windows' ),
 		deps.item.title,
 	) );
@@ -296,7 +282,6 @@ function buildInstanceCard(
 		defaultBody,
 		ctx,
 	);
-
 	if ( body !== defaultBody ) {
 		body.classList.add( 'os-dock-peek__card-body--custom' );
 	}
@@ -391,7 +376,6 @@ function spawnFocusViewTransition(
 		focus();
 		return;
 	}
-
 	const targetEl = win.element;
 	card.style.setProperty( 'view-transition-name', vtName );
 	targetEl.style.setProperty( 'view-transition-name', vtName );
@@ -433,7 +417,7 @@ function buildGhostCard(
 	const label = document.createElement( 'span' );
 	label.className = 'os-dock-peek__card-label';
 	label.textContent = sprintf(
-
+		// translators: %s is the admin-page title (e.g., "Posts")
 		__( 'New %s' ),
 		deps.item.title,
 	);
@@ -539,6 +523,5 @@ function clampToViewport(
 	popover.style.setProperty( '--peek-clamp-x', `${ dx }px` );
 	popover.style.setProperty( '--peek-clamp-y', `${ dy }px` );
 	popover.classList.add( 'os-dock-peek--clamped' );
-
 	void orientation;
 }

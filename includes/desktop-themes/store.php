@@ -7,7 +7,6 @@ const OPENSTATION_DESKTOP_THEMES_OPTION = 'desktop_mode_desktop_themes';
 function openstation_desktop_themes_dir( $slug = '' ) {
 	$uploads = wp_get_upload_dir();
 	$base    = trailingslashit( $uploads['basedir'] ) . 'desktop-mode-themes';
-
 	$base = (string) apply_filters( 'openstation_desktop_themes_base_dir', $base );
 	$slug = sanitize_key( (string) $slug );
 	return '' !== $slug ? $base . '/' . $slug : $base;
@@ -16,7 +15,6 @@ function openstation_desktop_themes_dir( $slug = '' ) {
 function openstation_desktop_themes_url( $slug = '' ) {
 	$uploads = wp_get_upload_dir();
 	$url     = untrailingslashit( $uploads['baseurl'] ) . '/desktop-mode-themes';
-
 	$url  = (string) apply_filters( 'openstation_desktop_themes_base_url', $url );
 	$slug = sanitize_key( (string) $slug );
 	return '' !== $slug ? $url . '/' . $slug : $url;
@@ -34,7 +32,7 @@ function openstation_desktop_themes_ensure_dir() {
 
 	$index = $base . '/index.php';
 	if ( ! file_exists( $index ) ) {
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		file_put_contents( $index, "<?php // Silence is golden.\n" );
 	}
 
@@ -47,7 +45,7 @@ function openstation_desktop_themes_ensure_dir() {
 			. "\t<IfModule mod_authz_core.c>\n\t\tRequire all denied\n\t</IfModule>\n"
 			. "\t<IfModule !mod_authz_core.c>\n\t\tOrder deny,allow\n\t\tDeny from all\n\t</IfModule>\n"
 			. "</FilesMatch>\n";
-
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
 		file_put_contents( $htaccess, $rules );
 	}
 
@@ -85,7 +83,6 @@ function openstation_desktop_theme_get( $slug ) {
 }
 
 function openstation_desktop_theme_upload_capability() {
-
 	return (string) apply_filters( 'openstation_desktop_theme_upload_capability', 'manage_options' );
 }
 
@@ -95,7 +92,6 @@ function openstation_desktop_theme_slug_from_id( $id ) {
 
 function openstation_desktop_theme_icon_slots() {
 	$slots = array(
-
 		'WINDOW_CONTROL_MINIMIZE',
 		'WINDOW_CONTROL_MAXIMIZE',
 		'WINDOW_CONTROL_FULLSCREEN',
@@ -104,15 +100,12 @@ function openstation_desktop_theme_icon_slots() {
 		'WINDOW_CONTROL_MENU',
 		'WINDOW_CONTROL_RELOAD',
 		'WINDOW_CONTROL_DETACH',
-
 		'OS_SETTINGS',
 		'RECYCLE_BIN',
 		'BUG_REPORT',
 		'EXIT_OPENSTATION',
 		'PWA_INSTALL',
-
 		'DEFAULT_APP_ICON',
-
 		'FOLDER',
 		'FILE_SHORTCUT',
 		'FILE_POST',
@@ -124,18 +117,15 @@ function openstation_desktop_theme_icon_slots() {
 		'FILE_BOOKMARK',
 		'FILE_LINK',
 		'FILE_EMBED',
-
 		'RECYCLE_RESTORE',
 		'RECYCLE_DELETE',
 	);
-
 	return (array) apply_filters( 'openstation_desktop_theme_icon_slots', $slots );
 }
 
 function openstation_desktop_theme_texture_slots() {
 	$corner_size = '--os-window-corner-size';
 	$slots       = array(
-
 		'TITLEBAR'             => array(
 			'type' => 'image',
 			'prop' => '--os-titlebar-image',
@@ -143,7 +133,6 @@ function openstation_desktop_theme_texture_slots() {
 		'TITLEBAR_FOCUSED'     => array(
 			'type'       => 'image',
 			'prop'       => '--os-titlebar-image-focused',
-
 			'companions' => false,
 		),
 		'WINDOW_FRAME'         => array(
@@ -174,7 +163,6 @@ function openstation_desktop_theme_texture_slots() {
 			'prop'      => '--os-window-corner-sw-image',
 			'sizeGroup' => $corner_size,
 		),
-
 		'TITLEBAR_CONTROLS'    => array(
 			'type' => 'image',
 			'prop' => '--os-titlebar-controls-image',
@@ -191,7 +179,6 @@ function openstation_desktop_theme_texture_slots() {
 			'type' => 'image',
 			'prop' => '--os-tabs-image',
 		),
-
 		'DOCK'                 => array(
 			'type' => 'image',
 			'prop' => '--os-dock-bg-image',
@@ -212,7 +199,6 @@ function openstation_desktop_theme_texture_slots() {
 			'type' => 'image',
 			'prop' => '--os-widget-image',
 		),
-
 		'MENU'                 => array(
 			'type' => 'image',
 			'prop' => '--os-ui-menu-bg-image',
@@ -242,7 +228,6 @@ function openstation_desktop_theme_texture_slots() {
 			'prop' => '--os-ui-button-bg-image',
 		),
 	);
-
 	return (array) apply_filters( 'openstation_desktop_theme_texture_slots', $slots );
 }
 
@@ -264,7 +249,6 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 			),
 		),
 	);
-
 	$schema = (array) apply_filters(
 		'openstation_desktop_theme_recommended_os_settings_schema',
 		$schema
@@ -316,7 +300,6 @@ function openstation_desktop_theme_asset_extensions( $kind = 'image' ) {
 		'image' => array( 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg' ),
 		'font'  => array( 'woff2', 'woff', 'ttf', 'otf' ),
 	);
-
 	$extensions = (array) apply_filters(
 		'openstation_desktop_theme_asset_extensions',
 		isset( $map[ $kind ] ) ? $map[ $kind ] : array(),
@@ -337,13 +320,10 @@ function openstation_desktop_theme_asset_extensions( $kind = 'image' ) {
 }
 
 function openstation_desktop_theme_font_caps() {
-
 	$caps = (array) apply_filters(
 		'openstation_desktop_theme_font_caps',
 		array(
-
 			'max_faces'   => 16,
-
 			'max_sources' => 4,
 		)
 	);
@@ -355,20 +335,15 @@ function openstation_desktop_theme_font_caps() {
 
 function openstation_desktop_theme_zip_caps() {
 	$caps = array(
-
 		'max_entries'      => 256,
-
 		'max_uncompressed' => 32 * 1024 * 1024,
-
 		'max_file'         => 8 * 1024 * 1024,
-
 		'extensions'       => array_merge(
 			array( 'json', 'txt', 'md' ),
 			openstation_desktop_theme_asset_extensions( 'image' ),
 			openstation_desktop_theme_asset_extensions( 'font' )
 		),
 	);
-
 	$caps = (array) apply_filters( 'openstation_desktop_theme_zip_caps', $caps );
 
 	return array(
@@ -390,6 +365,5 @@ function openstation_desktop_theme_zip_caps() {
 }
 
 function openstation_desktop_themes_payload_cap() {
-
 	return max( 1, (int) apply_filters( 'openstation_desktop_themes_payload_cap', 24 ) );
 }

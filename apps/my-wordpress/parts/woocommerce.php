@@ -47,7 +47,6 @@ function woo_sections( Os $os ) {
 			'label'      => __( 'Orders', 'desktop-mode' ),
 			'icon'       => 'dashicons-cart',
 			'kind'       => 'post',
-
 			'post_type'  => 'shop_order',
 			'capability' => (string) $orders->cap->edit_posts,
 			'thumbnails' => false,
@@ -65,10 +64,8 @@ function woo_sections( Os $os ) {
 			'id'         => 'wc-customers',
 			'label'      => __( 'Customers', 'desktop-mode' ),
 			'icon'       => 'dashicons-groups',
-
 			'kind'       => 'user',
 			'post_type'  => '',
-
 			'capability' => '',
 			'thumbnails' => true,
 			'group'      => $group['id'],
@@ -86,7 +83,6 @@ function woo_decorate_section( array $section, \WP_Post_Type $post_type ) {
 		return $section;
 	}
 	$section = (array) openstation_my_wordpress_woo_entity_icon( $section, $post_type );
-
 	unset( $section['listFields'], $section['listQuery'], $section['tileSize'] );
 	return $section;
 }
@@ -141,13 +137,13 @@ function woo_order_item( $order ) {
 	return array(
 		'id'        => (int) $order->get_id(),
 		'title'     => sprintf(
-
+			/* translators: 1: order number, 2: formatted order total. */
 			__( '#%1$s · %2$s', 'desktop-mode' ),
 			$order->get_order_number(),
 			$total
 		),
 		'subtitle'  => sprintf(
-
+			/* translators: 1: customer name, 2: date. */
 			__( '%1$s — %2$s', 'desktop-mode' ),
 			'' !== $name ? $name : __( 'Guest', 'desktop-mode' ),
 			$date
@@ -155,7 +151,6 @@ function woo_order_item( $order ) {
 		'status'    => 'publish',
 		'excerpt'   => '',
 		'thumb'     => '',
-
 		'link'      => method_exists( $order, 'get_edit_order_url' )
 			? esc_url_raw( (string) $order->get_edit_order_url() )
 			: '',
@@ -164,7 +159,6 @@ function woo_order_item( $order ) {
 		'canEdit'   => method_exists( $order, 'get_edit_order_url' ),
 		'canDelete' => false,
 		'wcStatus'  => (string) $order->get_status(),
-
 		'customer'  => '' !== $name ? $name : __( 'Guest', 'desktop-mode' ),
 		'date'      => $order->get_date_created() ? $order->get_date_created()->format( 'c' ) : '',
 		'modified'  => $order->get_date_modified() ? $order->get_date_modified()->format( 'c' ) : '',
@@ -231,7 +225,6 @@ function woo_orders_page( State $state ) {
 
 	$items = array();
 	foreach ( $orders as $maybe_order ) {
-
 		$order = is_scalar( $maybe_order ) ? wc_get_order( (int) $maybe_order ) : $maybe_order;
 		if ( ! $order instanceof \WC_Abstract_Order ) {
 			continue;
@@ -239,7 +232,7 @@ function woo_orders_page( State $state ) {
 		try {
 			$items[] = woo_order_item( $order );
 		} catch ( \Throwable $e ) {
-
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log(
 				sprintf(
 					'[openstation] Skipped order %d in the My WordPress app: %s',
@@ -268,7 +261,6 @@ function woo_customers_page( Os $os, State $state ) {
 	);
 
 	if ( $capped ) {
-
 		$args['role']    = 'customer';
 		$args['orderby'] = 'registered';
 		$args['order']   = 'DESC';
@@ -278,14 +270,12 @@ function woo_customers_page( Os $os, State $state ) {
 			return Os::page( array(), 0, $page, $per_page );
 		}
 		$args['include'] = $ids;
-
 		$args['orderby'] = 'include';
 	}
 
 	if ( '' !== $query ) {
 		$args['search']         = '*' . $query . '*';
 		$args['search_columns'] = array( 'user_login', 'user_email', 'user_nicename', 'display_name' );
-
 		if ( ! $capped ) {
 			$args['orderby'] = 'display_name';
 			$args['order']   = 'ASC';
@@ -339,7 +329,7 @@ function woo_query_args( array $args, array $section, State $state ) {
 			$args['orderby']  = 'post__in';
 			unset( $args['order'] );
 		} else {
-			$args['meta_key'] = '_stock_status';
+			$args['meta_key'] = '_stock_status'; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 			$args['orderby']  = array(
 				'meta_value' => 'DESC',
 				'date'       => 'DESC',
@@ -375,7 +365,6 @@ function woo_extras( \WP_Post $post ) {
 		$slugs = wp_get_post_terms( $product->get_id(), 'product_cat', array( 'fields' => 'slugs' ) );
 		return array(
 			'openstation_woo' => array(
-
 				'band'        => openstation_my_wordpress_woo_product_band_id( $product ),
 				'stockStatus' => $product->get_stock_status(),
 				'stockLevel'  => $product->managing_stock() ? (int) $product->get_stock_quantity() : null,
@@ -419,7 +408,6 @@ function woo_allowed( array $section, $id, $verb ) {
 		return null;
 	}
 	if ( 'edit' !== $verb ) {
-
 		return false;
 	}
 	$orders = get_post_type_object( 'shop_order' );

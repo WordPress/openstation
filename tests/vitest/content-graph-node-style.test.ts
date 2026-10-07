@@ -40,7 +40,6 @@ describe( 'node style', () => {
 	} );
 
 	test( 'honours the style passed at construction', () => {
-
 		expect( makeScene( 'icon' ).getNodeStyle() ).toBe( 'icon' );
 	} );
 
@@ -66,7 +65,6 @@ describe( 'node style', () => {
 	} );
 
 	test( 'setNodeStyle to the current style leaves the cache alone', () => {
-
 		const scene = makeScene();
 		const internals = scene as unknown as SceneInternals;
 		internals.nodeViews.set( 1, { discKey: 'painted' } );

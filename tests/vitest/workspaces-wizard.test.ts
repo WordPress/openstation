@@ -117,7 +117,6 @@ describe( 'workspace wizard', () => {
 	let onSave: ReturnType< typeof vi.fn >;
 
 	beforeEach( () => {
-
 		installHooksStub();
 		onCreate = vi.fn();
 		onSave = vi.fn();
@@ -141,7 +140,6 @@ describe( 'workspace wizard', () => {
 		expect( result.profile ).toBeNull();
 		expect( result.preset ).toBeUndefined();
 		expect( result.label ).toBe( '' );
-
 		expect( modal() ).toBeNull();
 	} );
 
@@ -160,7 +158,6 @@ describe( 'workspace wizard', () => {
 
 	test( 'activating the selected card again commits it', () => {
 		openWorkspaceWizard( options( { onCreate } ) );
-
 		cards()[ 0 ].dispatchEvent( new CustomEvent( 'os-card-click' ) );
 		expect( onCreate ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -188,7 +185,6 @@ describe( 'workspace wizard', () => {
 		expect( currentStep() ).toBe( 'Look' );
 		button( 'Next' ).click();
 		expect( currentStep() ).toBe( 'Windows' );
-
 		expect( footerButtons().map( ( b ) => b.textContent?.trim() ) ).not.toContain(
 			'Next',
 		);
@@ -261,7 +257,6 @@ describe( 'workspace wizard', () => {
 			.dispatchEvent(
 				new CustomEvent( 'os-switch-change', { detail: { checked: true } } ),
 			);
-
 		const swatch = modal().querySelector( 'os-swatch[value="dark"]' )!;
 		swatch.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'dark' } } ) );
 
@@ -277,7 +272,6 @@ describe( 'workspace wizard', () => {
 				apps: [
 					{ id: 'edit-php', title: 'Posts', kind: 'core', url: 'edit.php' },
 					{ id: 'my-panel', title: 'My panel', kind: 'app', windowId: 'my-panel' },
-
 					{ id: 'os-exit', title: 'Exit', kind: 'control', locked: true },
 				],
 			} ),
@@ -307,10 +301,8 @@ describe( 'workspace wizard', () => {
 		const result: WorkspaceWizardResult = onCreate.mock.calls[ 0 ][ 0 ];
 		expect( result.profile?.windows ).toEqual( [
 			{ match: 'edit-php', title: 'Posts', url: 'edit.php' },
-
 			{ match: 'my-panel', title: 'My panel' },
 		] );
-
 		expect( result.profile?.provisioned ).toBe( false );
 	} );
 
@@ -330,7 +322,6 @@ describe( 'workspace wizard', () => {
 		const labels = Array.from( modal().querySelectorAll( 'os-button' ) ).map(
 			( b ) => b.textContent?.trim(),
 		);
-
 		expect( labels ).not.toContain( 'Open them now' );
 		expect( labels ).not.toContain( 'Arrange now' );
 	} );
@@ -385,7 +376,6 @@ describe( 'workspace wizard', () => {
 				onSave,
 			} ),
 		);
-
 		expect( jumpableSteps() ).toEqual( [ 'Apps', 'Widgets', 'Look', 'Windows' ] );
 		jumpTo( 'Look' );
 		expect( currentStep() ).toBe( 'Look' );
@@ -396,7 +386,6 @@ describe( 'workspace wizard', () => {
 	test( 'jumping past Start still reads the template into the draft', () => {
 		openWorkspaceWizard( options( { onCreate } ) );
 		cards()[ 1 ].dispatchEvent( new CustomEvent( 'os-card-click' ) );
-
 		jumpTo( 'Look' );
 		expect( currentStep() ).toBe( 'Look' );
 

@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-notes
+ */
 class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 
 	protected static $owner_id;
@@ -58,6 +61,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		return $request;
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_permission
+	 */
 	public function test_permission_requires_login() {
 		wp_set_current_user( 0 );
 		$result = openstation_notes_rest_permission();
@@ -65,6 +71,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 401, $result->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_permission
+	 */
 	public function test_permission_requires_openstation() {
 		$muggle = self::factory()->user->create( array( 'role' => 'editor' ) );
 		wp_set_current_user( $muggle );
@@ -73,6 +82,10 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 403, $result->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_create
+	 * @covers ::openstation_notes_prepare
+	 */
 	public function test_create_defaults_to_private_and_forces_author() {
 		$note = $this->create_note();
 		$this->assertFalse( $note['public'] );
@@ -85,12 +98,14 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $note['z'] );
 		$this->assertGreaterThan( 0, $note['updatedAtMs'] );
 		$this->assertSame( 'private', get_post_status( $note['id'] ) );
-
 		$this->assertSame( 'Buy milk', get_post( $note['id'] )->post_title );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_create
+	 * @covers ::openstation_notes_rest_update
+	 */
 	public function test_seed_is_stamped_at_creation_and_never_updated() {
-
 		$note = $this->create_note( array( 'seed' => 777 ) );
 		$this->assertSame( 777, $note['seed'] );
 
@@ -110,6 +125,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 777, $resp->get_data()['seed'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_create
+	 */
 	public function test_create_gates_on_the_user_can_create_filter() {
 		add_filter( 'openstation_notes_user_can_create', '__return_false' );
 		$resp = openstation_notes_rest_create( $this->create_request() );
@@ -118,12 +136,18 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 403, $resp->get_error_data()['status'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_create
+	 */
 	public function test_create_public_note_is_publish_status() {
 		$note = $this->create_note( array( 'public' => true ) );
 		$this->assertTrue( $note['public'] );
 		$this->assertSame( 'publish', get_post_status( $note['id'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_create
+	 */
 	public function test_create_whitelists_color_and_clamps_position() {
 		$note = $this->create_note(
 			array(
@@ -137,6 +161,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 0.0, $note['y'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_list
+	 */
 	public function test_list_returns_own_notes_and_only_public_notes_of_others() {
 		$own_private = $this->create_note( array( 'text' => 'mine private' ) );
 		$own_public  = $this->create_note( array( 'text' => 'mine public', 'public' => true ) );
@@ -165,6 +192,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_update
+	 */
 	public function test_update_persists_partial_fields() {
 		$note = $this->create_note();
 		$resp = openstation_notes_rest_update(
@@ -189,6 +219,10 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 'New first line', get_post( $note['id'] )->post_title );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_update
+	 * @covers ::openstation_notes_require_owner
+	 */
 	public function test_non_owner_cannot_update_even_as_admin() {
 		$note = $this->create_note( array( 'public' => true ) );
 
@@ -210,6 +244,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 'Buy milk', get_post( $note['id'] )->post_content );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_update
+	 */
 	public function test_stale_token_conflicts_with_server_copy_attached() {
 		$note = $this->create_note();
 		$resp = openstation_notes_rest_update(
@@ -229,6 +266,10 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 'Buy milk', $data['current']['text'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_delete
+	 * @covers ::openstation_notes_rest_restore
+	 */
 	public function test_delete_trashes_and_restore_untrashes_to_prior_status() {
 		$note = $this->create_note( array( 'public' => true ) );
 
@@ -249,6 +290,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertTrue( $resp->get_data()['public'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_delete
+	 */
 	public function test_non_owner_cannot_delete() {
 		$note = $this->create_note( array( 'public' => true ) );
 		wp_set_current_user( self::$admin_id );
@@ -260,6 +304,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 'publish', get_post_status( $note['id'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_get_note
+	 */
 	public function test_unknown_or_foreign_post_types_are_404() {
 		$request = new WP_REST_Request( 'PATCH', '/desktop-mode/v1/notes/999999' );
 		$request->set_param( 'id', 999999 );
@@ -281,6 +328,10 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		return $request;
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_convert
+	 * @covers ::openstation_notes_text_to_blocks
+	 */
 	public function test_convert_spawns_draft_and_trashes_note() {
 		$note = $this->create_note( array( 'text' => "First para\nsame para\n\nSecond para" ) );
 
@@ -305,10 +356,13 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 'First para', $draft->post_title );
 		$this->assertStringContainsString( '<!-- wp:paragraph -->', $draft->post_content );
 		$this->assertSame( 2, substr_count( $draft->post_content, '<!-- wp:paragraph -->' ) );
-
 		$this->assertMatchesRegularExpression( '/First para<br>\s*same para/', $draft->post_content );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_convert
+	 * @covers ::openstation_notes_draft_edit_url
+	 */
 	public function test_convert_edit_url_stays_on_site_when_edit_links_are_filtered() {
 		$note = $this->create_note( array( 'text' => 'something new' ) );
 		$off_site = static function () {
@@ -327,6 +381,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_convert
+	 */
 	public function test_convert_requires_edit_posts_capability() {
 		$note = $this->create_note();
 
@@ -342,6 +399,10 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 'private', get_post_status( $note['id'] ), 'A rejected convert leaves the note untouched.' );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_convert
+	 * @covers ::openstation_notes_require_owner
+	 */
 	public function test_non_owner_cannot_convert_even_as_admin() {
 		$note = $this->create_note( array( 'public' => true ) );
 
@@ -352,6 +413,10 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 'publish', get_post_status( $note['id'] ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_convert
+	 * @covers ::openstation_notes_rest_restore
+	 */
 	public function test_restore_after_convert_undoes_both_sides() {
 		$note = $this->create_note( array( 'public' => true, 'text' => 'draft me' ) );
 
@@ -369,6 +434,9 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( '', get_post_meta( $note['id'], '_wpd_note_converted_post', true ) );
 	}
 
+	/**
+	 * @covers ::openstation_notes_rest_convert
+	 */
 	public function test_convert_post_args_filter_can_override_type_and_status() {
 		$note = $this->create_note( array( 'text' => 'make me a page' ) );
 
@@ -387,6 +455,10 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 'pending', $draft->post_status );
 	}
 
+	/**
+	 * @covers ::openstation_notes_compute_heartbeat_delta
+	 * @covers ::openstation_notes_query_visible_ids
+	 */
 	public function test_heartbeat_delta_visibility_matches_the_list() {
 		$own_private = $this->create_note( array( 'text' => 'mine' ) );
 
@@ -405,6 +477,10 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertGreaterThan( 0, $delta['serverTimeMs'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_compute_heartbeat_delta
+	 * @covers ::openstation_notes_alive_known_ids
+	 */
 	public function test_heartbeat_reports_trashed_and_privatized_notes_as_removed() {
 		$mine = $this->create_note( array( 'text' => 'to be trashed' ) );
 
@@ -429,12 +505,15 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertContains( $flipped['id'], $delta['removed'] );
 	}
 
+	/**
+	 * @covers ::openstation_notes_user_has_any
+	 * @covers ::openstation_notes_bump_rev
+	 */
 	public function test_has_notes_hint_is_cached_and_invalidated_by_note_changes() {
 		$user_id = self::factory()->user->create( array( 'role' => 'editor' ) );
 		wp_set_current_user( $user_id );
 
 		$this->assertFalse( openstation_notes_user_has_any() );
-
 		$this->assertStringEndsWith(
 			':0',
 			(string) get_user_meta( $user_id, '_desktop_mode_has_notes', true )

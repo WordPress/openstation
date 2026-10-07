@@ -10,7 +10,6 @@ function openstation_my_wordpress_register_comment_stats_route() {
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => 'openstation_my_wordpress_comment_stats_callback',
 			'permission_callback' => static function () {
-
 				return openstation_my_wordpress_user_can_use();
 			},
 			'args'                => array(
@@ -52,7 +51,6 @@ function openstation_my_wordpress_comment_is_visible( $comment ) {
 
 function openstation_my_wordpress_comment_stats_callback( $request ) {
 	global $wpdb;
-
 	$comment_id = (int) $request->get_param( 'id' );
 	$comment    = $comment_id > 0 ? get_comment( $comment_id ) : null;
 	if ( ! $comment ) {
@@ -85,7 +83,7 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 		);
 	}
 
-	$content_filtered = apply_filters( 'comment_text', $comment->comment_content, $comment, array() );
+	$content_filtered = apply_filters( 'comment_text', $comment->comment_content, $comment, array() ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter, applied so comment bodies render as they do everywhere else.
 	$body             = array(
 		'id'           => (int) $comment->comment_ID,
 		'parent'       => (int) $comment->comment_parent,
@@ -182,7 +180,7 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 		? "comment_approved IN ( '0', '1' )"
 		: "comment_approved = '1'";
 	$reply_rows       = $wpdb->get_results(
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $reply_status_sql is a fixed literal chosen above; no user input.
 		$wpdb->prepare(
 			"SELECT comment_ID, comment_author, comment_author_email,
 				comment_date_gmt, comment_content, comment_approved, user_id

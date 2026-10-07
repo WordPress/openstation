@@ -83,7 +83,6 @@ describe( 'window-links/server-sync.ts', () => {
 		await run( [] );
 
 		expect( registry.getWindowLinkRenderer( 'a-lasers' ) ).toBeUndefined();
-
 		expect( registry.getWindowLinkRenderer( 'untagged' ) ).toBeDefined();
 	} );
 

@@ -169,7 +169,6 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 
 		const layer = document.getElementById( 'os-window-links' );
 		expect( layer ).not.toBeNull();
-
 		expect( layer!.parentElement!.id ).toBe( 'os-area' );
 		expect( layer!.previousElementSibling!.id ).toBe( 'os-widgets' );
 
@@ -177,7 +176,6 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		expect( path ).not.toBeNull();
 		expect( path!.closest( '#os-window-links-elevated' ) ).not.toBeNull();
 		expect( path!.getAttribute( 'd' ) ).toMatch( /^M .+ C .+/ );
-
 		expect( path!.getAttribute( 'marker-end' ) ).toMatch( /^url\(#/ );
 
 		expect(
@@ -325,7 +323,6 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		const raised = manager.raise.mock.calls.map( ( c ) => c[ 0 ] );
 		expect( raised ).toContain( 'comment-win' );
 		expect( raised ).not.toContain( 'post-win' );
-
 		expect( raised ).not.toContain( 'media-win' );
 	} );
 
@@ -368,9 +365,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		const raised = manager.raise.mock.calls.map( ( c ) => c[ 0 ] );
 		expect( raised ).toContain( 'post-win' );
 		expect( raised ).not.toContain( 'comment-win' );
-
 		expect( raised ).not.toContain( 'sibling-win' );
-
 		expect(
 			siblingWin.element.classList.contains(
 				'os-window--linked',
@@ -392,7 +387,6 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 			width: 100,
 			height: 100,
 		} );
-
 		postWin.element.style.zIndex = '100';
 		strangerWin.element.style.zIndex = '101';
 		commentWin.element.style.zIndex = '102';
@@ -414,7 +408,6 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		const layer = document.getElementById(
 			'os-window-links-elevated',
 		)!;
-
 		expect( layer.style.zIndex ).toBe( '102' );
 		expect(
 			document.getElementById( 'os-window-links' )!.style
@@ -510,7 +503,6 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 	} );
 
 	test( 'split view hides the ties: snapped windows draw no edges until dragged back out', async () => {
-
 		const { engine, host } = await loadModules();
 		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 700, height: 900 } );
 		const commentWin = makeWin(
@@ -561,7 +553,6 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 	} );
 
 	test( 'overview hides the layers while it runs; exit re-shows them', async () => {
-
 		const { engine, host } = await loadModules();
 		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 100, height: 100 } );
 		const commentWin = makeWin(

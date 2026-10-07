@@ -92,7 +92,6 @@ describe( 'native-windows — prefetching the deferred bundles', () => {
 		vi.spyOn( vendorLoader, 'loadVendorScript' ).mockImplementation( async ( url: string ) => {
 			loaded.push( url );
 		} );
-
 		idle = ( window as unknown as { requestIdleCallback?: unknown } ).requestIdleCallback;
 		( window as unknown as { requestIdleCallback?: unknown } ).requestIdleCallback = undefined;
 		( window as unknown as { openStationNativeWindows?: unknown } ).openStationNativeWindows = {};

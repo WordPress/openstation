@@ -52,18 +52,12 @@ function railName( rail: NavRail ): string {
 }
 
 export interface OpenItemVisibilityMenuOpts {
-
 	x: number;
 	y: number;
-
 	id: string;
-
 	title: string;
-
 	surface: 'dock' | 'desktop';
-
 	pluginFile?: string | null;
-
 	pluginName?: string | null;
 }
 
@@ -93,7 +87,6 @@ function openItemVisibilityMenuImmediate(
 	closeMenu();
 
 	const item = findNavItem( opts.id );
-
 	if ( ! item || item.locked || item.transient ) {
 		return;
 	}
@@ -129,7 +122,7 @@ function openItemVisibilityMenuImmediate(
 		if ( onRail( placement ) ) {
 			options.push( {
 				id: 'hide-from-rail',
-
+				/* translators: %s: "dock" or "sidebar". */
 				label: sprintf( __( 'Hide from %s' ), railWord ),
 				icon: 'dashicons-hidden',
 				onPick: () => setRegion( item, 'rail', false ),
@@ -137,7 +130,7 @@ function openItemVisibilityMenuImmediate(
 		} else {
 			options.push( {
 				id: 'keep-in-rail',
-
+				/* translators: %s: "dock" or "sidebar". */
 				label: sprintf( __( 'Keep in %s' ), railWord ),
 				icon: 'dashicons-admin-post',
 				onPick: () => setRegion( item, 'rail', true ),
@@ -161,14 +154,13 @@ function openItemVisibilityMenuImmediate(
 		if ( ! onRail( placement ) ) {
 			options.push( {
 				id: 'show-on-rail',
-
+				/* translators: %s: "dock" or "sidebar". */
 				label: sprintf( __( 'Also show on %s' ), railWord ),
 				icon: 'dashicons-menu',
 				onPick: () => setRegion( item, 'rail', true ),
 			} );
 		}
 	}
-
 	if ( onRail( placement ) || onDesktop( placement ) ) {
 		options.push( {
 			id: 'hide-everywhere',
@@ -191,12 +183,11 @@ function openItemVisibilityMenuImmediate(
 
 	if ( opts.pluginFile ) {
 		const pluginFile = opts.pluginFile;
-
 		const pluginLabel = opts.pluginName || opts.title;
 		options.push( { kind: 'separator' } );
 		options.push( {
 			id: 'deactivate-plugin',
-
+			// translators: %s is the owning plugin's display name.
 			label: sprintf( __( 'Deactivate %s…' ), pluginLabel ),
 			icon: 'dashicons-trash',
 			danger: true,
@@ -211,10 +202,8 @@ function openItemVisibilityMenuImmediate(
 	menu.classList.add( 'os-item-visibility-menu' );
 	( menu as HTMLElement ).dataset.itemId = opts.id;
 	menu.style.position = 'fixed';
-
 	menu.style.left = '-9999px';
 	menu.style.top = '-9999px';
-
 	menu.style.zIndex = '1000000';
 
 	type PickableOption = Exclude< MenuOption, { kind: 'separator' } >;
@@ -222,7 +211,6 @@ function openItemVisibilityMenuImmediate(
 	for ( const opt of options ) {
 		if ( opt.kind === 'separator' ) {
 			const hr = document.createElement( 'hr' );
-
 			hr.style.cssText =
 				'border: 0; border-top: 1px solid var( --os-ui-context-menu-separator-color, rgba(255,255,255,0.12) ); margin: 4px 6px;';
 			menu.appendChild( hr );
@@ -230,7 +218,6 @@ function openItemVisibilityMenuImmediate(
 		}
 		byKey.set( opt.id, opt );
 		const node = document.createElement( 'os-context-menu-option' );
-
 		( node as HTMLElement ).dataset.menuItemId = opt.id;
 		node.setAttribute( 'value', opt.id );
 		if ( opt.icon ) {
@@ -245,14 +232,12 @@ function openItemVisibilityMenuImmediate(
 
 	menu.addEventListener( 'os-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string; value: string } > ).detail;
-
 		const key = detail?.id || detail?.value || '';
 		const opt = byKey.get( key );
 		closeMenu();
 		try {
 			opt?.onPick();
 		} catch {
-
 		}
 	} );
 
@@ -263,7 +248,6 @@ function openItemVisibilityMenuImmediate(
 		const margin = 8;
 		let left = opts.x;
 		let top: number;
-
 		if ( opts.surface === 'dock' ) {
 			top = Math.max( margin, opts.y - rect.height - margin );
 		} else {
@@ -305,7 +289,7 @@ async function confirmAndDeactivatePlugin(
 	title: string,
 ): Promise< void > {
 	const confirmed = await osConfirm( {
-
+		/* translators: %s: plugin title. */
 		title: sprintf( __( 'Deactivate %s?' ), title ),
 		message: __(
 			'This plugin will stop running on the site. You can re-activate it later from the Plugins screen.',
@@ -357,13 +341,13 @@ async function confirmAndDeactivatePlugin(
 		}
 	} catch ( err ) {
 		toastRestFailure( showToast, err, {
-
+			/* translators: %s: plugin title. */
 			lead: sprintf( __( 'Could not deactivate %s' ), title ),
-
+			/* translators: %s: plugin title. */
 			fallback: sprintf( __( 'Could not deactivate %s.' ), title ),
 			duration: 4000,
 		} );
-
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] deactivate plugin failed', err );
 		return;
 	}
@@ -373,13 +357,13 @@ async function confirmAndDeactivatePlugin(
 	const deactivatedMsg =
 		closedTitles.length > 0
 			? sprintf(
-
+				/* translators: 1: plugin title. 2: number of windows that were closed. */
 				__( '%1$s deactivated. Closed %2$d window(s).' ),
 				title,
 				closedTitles.length,
 			)
 			: sprintf(
-
+				/* translators: %s: plugin title. */
 				__( '%s deactivated.' ),
 				title,
 			);
@@ -455,7 +439,6 @@ function closeWindowsForPlugin( pluginFile: string ): string[] {
 			try {
 				liveUrl = w.iframe.src || '';
 			} catch {
-
 			}
 			if ( liveUrl ) {
 				const derivedFromLive = derive( liveUrl );
@@ -472,7 +455,6 @@ function closeWindowsForPlugin( pluginFile: string ): string[] {
 		try {
 			w.close();
 		} catch {
-
 		}
 	}
 	return titles;

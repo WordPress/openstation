@@ -6,7 +6,6 @@ function openstation_ai_normalize_response_schema( array $schema ) {
 	if ( openstation_ai_schema_is_object_node( $schema ) ) {
 		$schema['additionalProperties'] = false;
 		if ( isset( $schema['properties'] ) && is_array( $schema['properties'] ) && array() !== $schema['properties'] ) {
-
 			$schema['required'] = array_keys( $schema['properties'] );
 		}
 	}
@@ -25,7 +24,6 @@ function openstation_ai_normalize_response_schema( array $schema ) {
 		$items   = $schema['items'];
 		$is_list = array_keys( $items ) === range( 0, count( $items ) - 1 );
 		if ( $is_list && array() !== $items ) {
-
 			foreach ( $items as $i => $sub ) {
 				if ( is_array( $sub ) ) {
 					$items[ $i ] = openstation_ai_normalize_response_schema( $sub );

@@ -1,3 +1,55 @@
+/*
+ * =============================================================================
+ * OpenStation — Starter Widget styles
+ * =============================================================================
+ *
+ * NAMING CONVENTION
+ * -----------------
+ * Prefix every class with a short namespace unique to your widget.
+ * This file uses "dm-starter__" — change it to match your widget name.
+ * Without a prefix, your styles can collide with the shell's own classes
+ * or another plugin's widget running on the same page.
+ *
+ * CSS CUSTOM PROPERTIES
+ * ---------------------
+ * OpenStation declares these variables in the shell palette, so your card
+ * inherits them. Using them means your widget follows the desktop theme
+ * and the user's chosen accent without any extra code.
+ *
+ *   --os-ui-color-text          Primary text — body copy, headings
+ *   --os-ui-color-text-subtle   Muted text — labels, timestamps, metadata
+ *   --os-ui-color-border        Divider lines and borders
+ *   --os-ui-color-accent        The user's accent — buttons, highlights, links
+ *   --os-ui-color-surface       The card's glass background (rarely needed)
+ *
+ * The card is a dark glass panel under every theme, so the first four
+ * resolve to on-dark values. Always provide a fallback as the second
+ * argument to var() in case the shell loads in an unexpected context —
+ * and pick a fallback that reads on dark, or the card looks correct
+ * everywhere except where the palette is missing:
+ *   color: var(--os-ui-color-text, #fff);
+ *
+ * LAYOUT
+ * ------
+ * The card body is a block-level element with 12px padding on all sides.
+ * Your root element should fill it completely:
+ *   height: 100%; display: flex; flex-direction: column;
+ *
+ * Use flex: 1 on the main content area so it expands to fill available
+ * space, and flex-shrink: 0 on fixed-height elements like headers and
+ * footers so they do not compress when the card is resized small.
+ *
+ * RESPONSIVE SIZING
+ * -----------------
+ * When a widget is resizable, the card can be made very small by the user.
+ * Use min-width: 0 on flex children that contain text so they truncate
+ * cleanly rather than overflowing. Use white-space: nowrap + overflow:
+ * hidden + text-overflow: ellipsis on single-line text that must not wrap.
+ *
+ * Avoid fixed pixel widths on any element the user might resize. Use
+ * percentage widths or flex layout so the widget reflows gracefully.
+ */
+
 .dm-starter {
 	display: flex;
 	flex-direction: column;
@@ -6,7 +58,6 @@
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	font-size: 13px;
 	color: var(--os-ui-color-text, #1a1a1a);
-
 	min-width: 0;
 }
 
@@ -18,9 +69,7 @@
 	color: var(--os-ui-color-text-subtle, #6b7280);
 	padding-bottom: 8px;
 	border-bottom: 1px solid var(--os-ui-color-border, #e5e7eb);
-
 	flex-shrink: 0;
-
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -32,7 +81,6 @@
 	line-height: 1.5;
 	color: var(--os-ui-color-text, #1a1a1a);
 	min-width: 0;
-
 	overflow-wrap: break-word;
 }
 
@@ -46,9 +94,7 @@
 	font-size: 11px;
 	font-weight: 600;
 	cursor: pointer;
-
 	transition: opacity 0.15s ease;
-
 	align-self: flex-start;
 }
 .dm-starter__counter:hover  { opacity: 0.85; }

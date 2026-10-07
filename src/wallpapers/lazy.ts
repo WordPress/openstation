@@ -15,9 +15,7 @@ interface WallpaperGlobals {
 }
 
 interface LazyStore {
-
 	pending: Map< string, DesktopWallpaperServerEntry >;
-
 	inflight: Map< string, Promise< WallpaperDef | null > >;
 }
 
@@ -61,7 +59,6 @@ export function hydrate( id: string ): Promise< WallpaperDef | null > {
 		try {
 			await loadVendorScript( entry.scriptUrl, {
 				translations: entry.scriptTranslations,
-
 				deps: entry.scriptDeps,
 				l10n: entry.scriptL10n,
 				before: entry.scriptBefore,
@@ -77,7 +74,6 @@ export function hydrate( id: string ): Promise< WallpaperDef | null > {
 		}
 
 		let def = readDef( entry.id );
-
 		if ( def && ! def.description && entry.description ) {
 			def = { ...def, description: entry.description };
 		}
@@ -134,7 +130,6 @@ export function buildStub(
 			if ( ! def || def.type !== 'canvas' ) {
 				return () => {};
 			}
-
 			if ( def.needs && def.needs.length > 0 ) {
 				await loadModules( def.needs );
 			}

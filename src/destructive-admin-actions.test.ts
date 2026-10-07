@@ -103,12 +103,10 @@ describe( 'destructive-admin-actions: register / unregister', () => {
 		const u1 = registerDestructiveAdminAction(
 			{ id: 'plugin/bad' } as unknown as DestructiveAdminActionEntry,
 		);
-
 		const u2 = registerDestructiveAdminAction( {
 			id: '   ',
 			matches: () => true,
 		} );
-
 		const u3 = registerDestructiveAdminAction( {
 			id: 'plugin/bad-fn',
 			matches: 'nope' as unknown as DestructiveAdminActionEntry[ 'matches' ],

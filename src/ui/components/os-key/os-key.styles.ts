@@ -13,7 +13,6 @@ export const styles = css`
 	}
 	:host( [ fill-cell ] ),
 	:host {
-
 		display: flex;
 		width: 100%;
 	}
@@ -48,7 +47,6 @@ export const styles = css`
 		outline: none;
 		box-shadow: var( --_holo-focus );
 	}
-
 	button:disabled::before {
 		opacity: 0 !important;
 	}
@@ -71,7 +69,6 @@ export const styles = css`
 		color: var( --os-ui-danger, #d63638 );
 		border: 1px solid currentColor;
 	}
-
 	:host( .os-key--pressed ) button,
 	button:active:not( :disabled ) {
 		transform: scale( 0.96 );

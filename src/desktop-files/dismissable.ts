@@ -1,9 +1,6 @@
 export interface DismissableOptions {
-
 	close: () => void;
-
 	siblingSelectors?: string[];
-
 	excludeOutsideTarget?: HTMLElement;
 }
 
@@ -41,7 +38,6 @@ export function attachDismissable(
 			options.close();
 		}
 	};
-
 	document.addEventListener( 'mousedown', onAway, { capture: true } );
 	document.addEventListener( 'keydown', onKey );
 	return () => {

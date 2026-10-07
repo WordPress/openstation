@@ -42,7 +42,6 @@ describe( 'ensureGameStyles', () => {
 	} );
 
 	it( 'is a no-op when the games module is disabled', () => {
-
 		w.openStationConfig = { gameStyleHandles: [] };
 
 		ensureGameStyles();

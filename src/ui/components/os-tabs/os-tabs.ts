@@ -31,7 +31,6 @@ export class OsTab extends Component {
 				detail: '{ value: string | null }',
 			},
 		],
-
 		example: html`
 			<os-tabs value="one" label="Demo tabs">
 				<os-tab value="one">One</os-tab>
@@ -124,7 +123,6 @@ export class OsTabs extends Component {
 			this.emit( 'os-tab-change', { value: detail.value } );
 		} );
 		this.addEventListener( 'keydown', this._onKeyDown );
-
 		this._tabObserver = new MutationObserver( () => this.requestUpdate() );
 		this._tabObserver.observe( this, { childList: true } );
 	}
@@ -149,7 +147,6 @@ export class OsTabs extends Component {
 		) {
 			return;
 		}
-
 		const tabs = Array.from(
 			this.querySelectorAll< HTMLElement >( 'os-tab' ),
 		).filter( ( tab ) => ! tab.hasAttribute( 'data-search-hidden' ) );
@@ -165,7 +162,6 @@ export class OsTabs extends Component {
 			target = tabs.length - 1;
 		} else if ( e.key !== 'Home' ) {
 			const step = e.key === next ? 1 : -1;
-
 			target = ( at + step + tabs.length ) % tabs.length;
 		}
 		const value = tabs[ target ]?.getAttribute( 'value' );
@@ -175,7 +171,6 @@ export class OsTabs extends Component {
 		e.preventDefault();
 		( this as unknown as { value: string } ).value = value;
 		this.emit( 'os-tab-change', { value } );
-
 		queueMicrotask( () => {
 			tabs[ target ]?.focus();
 		} );
@@ -183,7 +178,6 @@ export class OsTabs extends Component {
 
 	set items( list: ReadonlyArray<{ value: string; label: string }> ) {
 		replaceChildren( this, 'os-tab', list );
-
 		const current =
 			( this as unknown as { value: string | null } ).value;
 		const stillValid =
@@ -201,7 +195,6 @@ export class OsTabs extends Component {
 		if ( label ) {
 			this.setAttribute( 'aria-label', label );
 		}
-
 		const vertical =
 			( this as unknown as { orientation: string | null } ).orientation ===
 			'vertical';
@@ -209,7 +202,6 @@ export class OsTabs extends Component {
 			'aria-orientation',
 			vertical ? 'vertical' : 'horizontal',
 		);
-
 		for ( const tab of Array.from( this.querySelectorAll( 'os-tab' ) ) ) {
 			if ( vertical ) {
 				tab.setAttribute( 'data-orientation', 'vertical' );
@@ -254,7 +246,6 @@ export class OsTabPanel extends Component {
 		slots: [
 			{ name: '(default)', description: 'Panel body content.' },
 		],
-
 		example: html`
 			<os-tabs value="two" label="Demo tabs">
 				<os-tab value="one">One</os-tab>
@@ -276,7 +267,6 @@ export class OsTabPanel extends Component {
 		if ( ! this.hasAttribute( 'tabindex' ) ) {
 			this.setAttribute( 'tabindex', '0' );
 		}
-
 		const owner = findOwningTabs( this );
 		if ( owner ) {
 			syncTabpanels( owner, owner.getAttribute( 'value' ) );

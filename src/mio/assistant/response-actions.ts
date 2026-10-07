@@ -58,7 +58,6 @@ export class MioResponseActions {
 			}
 			const names = new Set<string>();
 			let primary = false;
-
 			for ( const candidate of descriptors.slice( 0, 100 ) ) {
 				try {
 					if ( ! candidate || typeof candidate !== 'object' ) {
@@ -74,7 +73,6 @@ export class MioResponseActions {
 						continue;
 					}
 					names.add( action.id );
-
 					if ( action.icon !== undefined && ( typeof action.icon !== 'string' || ! /^(?:dashicons-)?[a-z][a-z0-9-]{0,63}$/.test( action.icon ) ) ) {
 						delete action.icon;
 					}
@@ -148,7 +146,6 @@ export class MioResponseActions {
 				throw new Error( __( 'This action is no longer available.' ) );
 			}
 			await entry.action.run( { signal: controller.signal, messageId, turnId: entry.turnId } );
-
 			entry.status = __( 'Done.' );
 		} catch ( error ) {
 			entry.status = error instanceof Error ? error.message.slice( 0, 500 ) : __( 'Could not complete this action. Try again.' );

@@ -31,7 +31,6 @@ export function broadcastFreshCategoryTreeToPickers( env: CellEnv ): void {
 			}
 		} )
 		.catch( () => {
-
 		} );
 }
 
@@ -48,7 +47,6 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 	env.categories.pickers.add( picker );
 
 	picker.value = row.categories ?? [];
-
 	picker.items = termRecordsOf( row, 'category' ).map( ( t ) => ( { id: t.id, name: t.name, parent: 0 } ) );
 
 	const cellState = { categoryIds: ( row.categories ?? [] ).slice() };
@@ -73,6 +71,7 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 			}
 		} )
 		.catch( ( err ) => {
+			// eslint-disable-next-line no-console
 			console.warn( '[openstation:desktop-mode-posts] category tree fetch failed', err );
 		} );
 
@@ -125,7 +124,7 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 		const ok = await env.confirm( {
 			title: __( 'Delete category?' ),
 			message: sprintf(
-
+				/* translators: %s: category name. */
 				__( 'Delete the category "%s"? Posts assigned only to it will fall back to Uncategorized.' ),
 				detail.name,
 			),
@@ -217,7 +216,6 @@ export function buildCategoriesCell( row: PostListItem, env: CellEnv ): HTMLElem
 		}
 		const previous = cellState.categoryIds.slice();
 		const merged = Array.from( new Set( [ ...previous, ...incoming ] ) );
-
 		if ( merged.length === previous.length ) {
 			return;
 		}

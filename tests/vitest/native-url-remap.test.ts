@@ -35,7 +35,6 @@ describe( 'tryNativeUrlRemap — short-circuit cases', () => {
 			nativeWindowId: 'desktop-mode-posts',
 			matches: () => true,
 		} );
-
 		expect( tryNativeUrlRemap( '/wp-admin/edit.php' ) ).toBe( false );
 	} );
 
@@ -101,13 +100,13 @@ describe( 'registry registration semantics', () => {
 	} );
 
 	test( 'malformed entries are silently dropped (defensive)', () => {
-
+		// @ts-expect-error — purposeful malformed entry
 		registerNativeUrlRemap( null );
-
+		// @ts-expect-error — purposeful malformed entry
 		registerNativeUrlRemap( { id: '', nativeWindowId: 'x', matches: () => true } );
-
+		// @ts-expect-error — purposeful malformed entry
 		registerNativeUrlRemap( { id: 'demo', nativeWindowId: '', matches: () => true } );
-
+		// @ts-expect-error — purposeful malformed entry
 		registerNativeUrlRemap( { id: 'demo', nativeWindowId: 'x' } );
 		expect( listNativeUrlRemaps() ).toHaveLength( 0 );
 	} );
@@ -165,7 +164,6 @@ describe( 'tryNativeUrlRemap — Posts case', () => {
 	} );
 
 	test( 'opt-in on but openById says "not registered" → falls through', () => {
-
 		const openById = postsEntry( { enabled: true, openOk: false } );
 		expect( tryNativeUrlRemap( ADMIN_URL + 'edit.php' ) ).toBe( false );
 		expect( openById ).toHaveBeenCalledWith( 'desktop-mode-posts' );
@@ -215,7 +213,6 @@ describe( 'tryNativeUrlRemap — the tab a click means', () => {
 	} );
 
 	test( 'os_tab names the tab, over whatever the entry asked for', () => {
-
 		const { openById } = bind();
 		expect( tryNativeUrlRemap( ADMIN_URL + 'edit.php?os_tab=categories' ) ).toBe( true );
 		expect( openById ).toHaveBeenLastCalledWith( 'desktop-mode-posts', {
@@ -236,7 +233,6 @@ describe( 'tryNativeUrlRemap — multiple entries', () => {
 			openById,
 			adminUrl: ADMIN_URL,
 		} );
-
 		registerNativeUrlRemap( {
 			id: 'a',
 			nativeWindowId: 'a',

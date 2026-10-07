@@ -4,7 +4,6 @@ defined( 'ABSPATH' ) || exit;
 
 function openstation_user_edit_window_color_schemes() {
 	$out = array();
-
 	if ( ! function_exists( 'register_admin_color_schemes' ) ) {
 		$admin_inc = ABSPATH . 'wp-admin/includes/admin.php';
 		if ( is_readable( $admin_inc ) ) {
@@ -26,7 +25,6 @@ function openstation_user_edit_window_color_schemes() {
 		}
 	}
 	if ( empty( $out ) ) {
-
 		$out['fresh'] = array(
 			'name'        => __( 'Default', 'desktop-mode' ),
 			'url'         => '',

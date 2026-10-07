@@ -9,7 +9,6 @@ type Engine = typeof import( '../../src/reveals/engine' );
 async function loadEngine(): Promise< Engine > {
 	_resetAllSharedStoresForTests();
 	vi.resetModules();
-
 	await import( '../../src/reveals/registry' );
 	return import( '../../src/reveals/engine' );
 }
@@ -75,7 +74,6 @@ describe( 'reveals/engine.ts', () => {
 		const { setActiveWindowRevealId, getActiveWindowRevealId, getActiveWindowReveal } =
 			await loadEngine();
 		setActiveWindowRevealId( 'ghost/not-registered' );
-
 		expect( getActiveWindowRevealId() ).toBe( 'ghost/not-registered' );
 		expect( getActiveWindowReveal() ).toBeNull();
 	} );

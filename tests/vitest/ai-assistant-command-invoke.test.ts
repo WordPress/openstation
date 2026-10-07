@@ -13,7 +13,6 @@ const CONFIG: AiAssistantConfig = {
 	aiSearchUrl: 'https://example.test/wp-json/desktop-mode/v1/ai/search',
 	restNonce: 'test-nonce',
 	adminUrl: 'https://example.test/wp-admin/',
-
 	isAiAvailable: () => false,
 	isOverrideEnabled: () => false,
 };
@@ -123,7 +122,6 @@ describe( 'AiAssistant — picking a command', () => {
 	test( 'a clicked row runs the command it displays, through a republish', async () => {
 		const alpha = vi.fn();
 		const beta = vi.fn();
-
 		registerCommand( { slug: 'global/a', label: 'ZZZ Alpha', owner: 'global', run: alpha } );
 		registerCommand( { slug: 'plugin/b', label: 'ZZZ Beta', run: beta } );
 

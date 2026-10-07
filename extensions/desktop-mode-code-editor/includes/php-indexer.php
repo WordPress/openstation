@@ -144,13 +144,13 @@ function openstation_code_editor_index_wp_core_hooks() {
 }
 
 function openstation_code_editor_scan_hooks_in_file( $path, array &$out ) {
-
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	$source = @file_get_contents( $path );
 	if ( false === $source ) {
 		return;
 	}
 
-	$tokens = @token_get_all( $source );
+	$tokens = @token_get_all( $source ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 	if ( ! is_array( $tokens ) ) {
 		return;
 	}

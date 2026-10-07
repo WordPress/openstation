@@ -12,7 +12,6 @@
 	position: absolute;
 	inset: 0;
 	z-index: 0;
-
 	pointer-events: none;
 }
 
@@ -36,7 +35,6 @@
 		);
 	transition: transform 90ms ease-out;
 	will-change: transform;
-
 	z-index: 0;
 }
 
@@ -54,15 +52,12 @@
 	align-items: center;
 	justify-content: flex-start;
 	gap: 6px;
-
 	box-sizing: border-box;
 	width: var( --os-tile-w, 88px );
-
 	height: var( --os-tile-h, 104px );
 	padding: 8px 4px;
 	border: 0;
 	background: transparent;
-
 	color: var( --os-tile-fg, var( --os-fg, #fff ) );
 	cursor: pointer;
 	border-radius: 8px;
@@ -70,7 +65,6 @@
 	-webkit-user-select: none;
 	user-select: none;
 	touch-action: none;
-
 	animation: os-file-tile-enter
 		var( --os-file-tile-enter-duration, 0.4s )
 		ease-out
@@ -103,7 +97,6 @@
 }
 
 .os-file-tile:focus-visible {
-
 	box-shadow: inset 0 0 0 2px
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 }
@@ -120,7 +113,6 @@
 }
 
 .os-file-tile--dragging {
-
 	opacity: 0.4;
 	cursor: grabbing;
 }
@@ -194,7 +186,6 @@
 }
 
 .os-drag-hint--accept::before {
-
 	content: '✓ ';
 }
 
@@ -357,7 +348,6 @@
 .desktop-mode-folder-window {
 	position: relative;
 	min-height: 200px;
-
 	background: var(
 		--os-folder-window-bg,
 		var( --os-window-bg, #fff )
@@ -365,15 +355,12 @@
 	color: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
 	display: flex;
 	flex-direction: column;
-
 	--os-tile-fg: var( --os-fg-on-light, var( --os-ui-fg, #1d2327 ) );
-
 	--os-tile-fg-muted: var(
 		--os-folder-window-fg-muted,
 		var( --os-ui-fg-muted, rgba( 0, 0, 0, 0.55 ) )
 	);
 	--os-tile-hover-bg: rgba( 0, 0, 0, 0.06 );
-
 	--os-tile-label-shadow: none;
 	--os-tile-label-weight: 500;
 	--os-tile-label-smoothing: antialiased;
@@ -527,7 +514,6 @@ body[ data-os-marquee ] {
 	border: 1px solid
 		var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
 	border-radius: 2px;
-
 	background: var(
 		--os-selection-marquee-bg,
 		var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.14 ) )
@@ -621,7 +607,6 @@ button.os-folder-status-bar__segment:hover {
 	position: fixed;
 	inset: 0;
 	background: var( --os-ui-scrim, rgba( 0, 0, 0, 0.45 ) );
-
 	background-image: var( --os-ui-scrim-image, none );
 	background-repeat: var( --os-ui-scrim-image-repeat, repeat );
 	background-size: var( --os-ui-scrim-image-size, auto );
@@ -634,7 +619,6 @@ button.os-folder-status-bar__segment:hover {
 }
 
 .os-create-folder-dialog {
-
 	--os-ui-fg: var( --os-ui-modal-text, #f0f0f1 );
 	--os-ui-fg-muted: var( --os-ui-modal-text-muted, #a7aaad );
 	--os-ui-border: var( --os-ui-modal-border, rgba( 255, 255, 255, 0.25 ) );
@@ -645,7 +629,6 @@ button.os-folder-status-bar__segment:hover {
 	);
 
 	width: min( 420px, 92vw );
-
 	background-color: var( --os-ui-modal-bg, #1d2327 );
 	background-image: var( --os-ui-dialog-bg-image, none );
 	background-repeat: var( --os-ui-dialog-bg-image-repeat, repeat );
@@ -695,7 +678,6 @@ button.os-folder-status-bar__segment:hover {
 .os-file-tile__label {
 	font-size: 12px;
 	line-height: 1.2;
-
 	max-width: calc( var( --os-tile-w, 88px ) - 4px );
 	text-align: center;
 	overflow: hidden;
@@ -726,7 +708,6 @@ button.os-folder-status-bar__segment:hover {
 }
 
 .os-drag-stack {
-
 	position: relative;
 }
 

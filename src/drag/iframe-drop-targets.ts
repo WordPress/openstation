@@ -28,7 +28,6 @@ let _dragManager: DragManagerApi | null = null;
 type DeregisterFn = () => void;
 
 const _suppressedIframes = new Map< HTMLIFrameElement, string >();
-
 const _activeRegistrations = new Map< HTMLIFrameElement, DeregisterFn >();
 
 let _bridgeInterceptPayload: DragBridgePayload | null = null;
@@ -220,7 +219,6 @@ function postIntoIframe(
 	try {
 		w.postMessage( msg, window.location.origin );
 	} catch {
-
 	}
 }
 
@@ -312,7 +310,6 @@ function deriveWindowIdFromIframe( iframe: HTMLIFrameElement ): string {
 		}
 		cur = cur.parentElement;
 	}
-
 	return `unknown-${ Math.random().toString( 36 ).slice( 2, 10 ) }`;
 }
 
@@ -328,7 +325,6 @@ function debugLog(
 	} catch {
 		return;
 	}
-
 	console.info(
 		'[openstation] drag-start: suppressing %d iframe(s); bridgeable=%s',
 		iframeCount,
@@ -342,7 +338,6 @@ function onDragStart( payload: unknown ): void {
 	if ( ! dragManager ) {
 		return;
 	}
-
 	const iframes = document.querySelectorAll< HTMLIFrameElement >( IFRAME_SELECTOR );
 	const isBridgeable = !! extractBridgePayload( payload );
 	debugLog( iframes.length, isBridgeable, payload );
@@ -384,7 +379,6 @@ function onDragEnd(): void {
 		try {
 			deregister();
 		} catch {
-
 		}
 	} );
 	_activeRegistrations.clear();
@@ -406,7 +400,6 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 	document.addEventListener( DRAG_EVENTS.END, () => {
 		onDragEnd();
 	} );
-
 	document.addEventListener( DRAG_EVENTS.MOVE, ( e ) => {
 		const iframe = _pointerHoveredIframe;
 		if ( ! iframe ) {
@@ -448,7 +441,6 @@ export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 					try {
 						deregister();
 					} catch {
-
 					}
 					_activeRegistrations.delete( iframe );
 				}

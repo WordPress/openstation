@@ -12,7 +12,6 @@ import {
 } from './desktops';
 import type { Window } from '../window';
 import { updateFullscreenBodyClass } from '../window/dom';
-
 import {
 	createWorkspaceFromOverview,
 	editWorkspaceFromOverview,
@@ -103,18 +102,14 @@ export function enterOverview( mgr: WindowManager ): void {
 	if ( mgr._overviewActive ) {
 		return;
 	}
-
 	flushPendingOverviewExit( mgr );
-
 	const eligible = mgr._stack.filter(
 		( w ) =>
 			w.config.desktopId === mgr._activeDesktopId,
 	);
-
 	mgr._overviewActive = true;
 
 	doAction( HOOKS.OVERVIEW_ENTERING, {} );
-
 	doAction( HOOKS.DOCK_REFRESH_ACTIVE, {} );
 
 	for ( const id of OVERVIEW_INERT_ELEMENTS ) {
@@ -123,9 +118,7 @@ export function enterOverview( mgr: WindowManager ): void {
 			( el as HTMLElement & { inert: boolean } ).inert = true;
 		}
 	}
-
 	inertWpBodyContentChildren( true );
-
 	inertWindowChildren( mgr, true );
 
 	mgr._overviewSnapshot.clear();
@@ -180,11 +173,9 @@ export function enterOverview( mgr: WindowManager ): void {
 		el.classList.add( 'os-window--overview' );
 		const dx = item.x - el.offsetLeft;
 		const dy = item.y - el.offsetTop;
-
 		el.style.transform = `translate(${ dx }px, ${ dy }px) scale(${ item.scale })`;
 
 		const label = createOverviewLabel( item );
-
 		el.insertAdjacentElement( 'afterend', label );
 		mgr._overviewLabels.set( item.win.id, label );
 	}
@@ -214,7 +205,6 @@ export function enterOverview( mgr: WindowManager ): void {
 			return;
 		}
 		mgr._overviewPressTarget = pressTargetForEvent( e );
-
 		if ( mgr._overviewPressTarget ) {
 			e.preventDefault();
 			e.stopPropagation();
@@ -255,7 +245,6 @@ export function enterOverview( mgr: WindowManager ): void {
 			exitOverview( mgr );
 			return;
 		}
-
 		if ( e.key === 'Enter' ) {
 			const target = e.target as HTMLElement | null;
 			const doc = target?.ownerDocument || document;
@@ -280,7 +269,6 @@ export function enterOverview( mgr: WindowManager ): void {
 		mgr._overviewPointerUpHandler,
 		true,
 	);
-
 	mgr._overviewClickBlocker = ( e: MouseEvent ) => {
 		const target = e.target as HTMLElement | null;
 		if ( target?.closest( '.os-overview-top-bar' ) ) {
@@ -347,7 +335,6 @@ export function cancelOverviewTimers( mgr: WindowManager ): void {
 		window.clearTimeout( mgr._overviewExitTimeoutId );
 		mgr._overviewExitTimeoutId = null;
 	}
-
 	mgr._overviewExitFinalizer = null;
 }
 
@@ -396,7 +383,6 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 		);
 	}
 	addTile.setAttribute( 'aria-label', __( 'Add new workspace' ) );
-
 	addTile.innerHTML =
 		'<span class="os-overview-top-bar__tile-preview">' +
 		'<span class="os-overview-top-bar__tile-plus" aria-hidden="true">+</span>' +
@@ -407,7 +393,6 @@ function buildOverviewTopBar( mgr: WindowManager ): HTMLElement {
 		e.stopPropagation();
 		commitAddTile( mgr );
 	} );
-
 	const addWrapper = document.createElement( 'div' );
 	addWrapper.className =
 		'os-overview-top-bar__tile-wrapper os-overview-top-bar__tile-wrapper--add';
@@ -424,7 +409,6 @@ export function commitAddTile( mgr: WindowManager ): void {
 	mgr._overviewAddTileFocused = false;
 	const created = createDesktop( mgr );
 	exitOverviewToDesktop( mgr, created.id );
-
 	createWorkspaceFromOverview( created.id );
 }
 
@@ -436,11 +420,10 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	tile.type = 'button';
 	tile.className = 'os-overview-top-bar__tile';
 	tile.dataset.desktopId = d.id;
-
 	if ( d.id === mgr._activeDesktopId && ! mgr._overviewAddTileFocused ) {
 		tile.classList.add( 'os-overview-top-bar__tile--active' );
 	}
-
+	// translators: %s is the desktop label
 	tile.setAttribute( 'aria-label', sprintf( __( 'Switch to %s' ), d.label ) );
 
 	const profile = d.profile;
@@ -457,7 +440,6 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 		glyph.setAttribute( 'aria-hidden', 'true' );
 		preview.appendChild( glyph );
 	}
-
 	const count = mgr._stack.filter(
 		( w ) => w.config.desktopId === d.id,
 	).length;
@@ -472,9 +454,8 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	const label = document.createElement( 'span' );
 	label.className = 'os-overview-top-bar__tile-label';
 	label.textContent = d.label;
-
 	label.title = sprintf(
-
+		// translators: %s is the desktop name.
 		__( '%s — double-click to rename' ),
 		d.label,
 	);
@@ -492,7 +473,6 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 		}
 		switchTimer = window.setTimeout( () => {
 			switchTimer = undefined;
-
 			if ( mgr._overviewActive ) {
 				exitOverviewToDesktop( mgr, d.id );
 			}
@@ -512,7 +492,6 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	tile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
-
 		if ( label.hasAttribute( 'contenteditable' ) ) {
 			return;
 		}
@@ -526,10 +505,11 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	if ( editable ) {
 		editBtn.setAttribute(
 			'aria-label',
-
+			// translators: %s is the desktop name.
 			sprintf( __( 'Edit %s — its apps, widgets, look and windows' ), d.label ),
 		);
 	} else {
+		// translators: %s is the desktop label
 		editBtn.setAttribute( 'aria-label', sprintf( __( 'Rename %s' ), d.label ) );
 	}
 	editBtn.title = editBtn.getAttribute( 'aria-label' ) ?? '';
@@ -541,7 +521,6 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 			beginRename( mgr, label, d );
 			return;
 		}
-
 		exitOverviewToDesktop( mgr, d.id );
 		editWorkspaceFromOverview( d.id );
 	} );
@@ -549,7 +528,7 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	const closeBtn = document.createElement( 'button' );
 	closeBtn.type = 'button';
 	closeBtn.className = 'os-overview-top-bar__tile-close';
-
+	// translators: %s is the desktop label
 	closeBtn.setAttribute( 'aria-label', sprintf( __( 'Close %s' ), d.label ) );
 	closeBtn.innerHTML = osIconSvg( 'close', { size: 16 } );
 	closeBtn.addEventListener( 'click', ( e: MouseEvent ) => {
@@ -571,10 +550,9 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 		restoreBtn.type = 'button';
 		restoreBtn.className =
 			'os-overview-top-bar__tile-action os-overview-top-bar__tile-restore';
-
 		restoreBtn.setAttribute(
 			'aria-label',
-
+			// translators: %s is the workspace name.
 			sprintf( __( 'Restore %s — reopen its windows, widgets and look' ), d.label ),
 		);
 		restoreBtn.title = restoreBtn.getAttribute( 'aria-label' ) ?? '';
@@ -604,12 +582,10 @@ function beginRename(
 	if ( label.hasAttribute( 'contenteditable' ) ) {
 		return;
 	}
-
 	label.setAttribute( 'contenteditable', 'true' );
 	try {
 		label.contentEditable = 'plaintext-only';
 	} catch {
-
 	}
 	label.spellcheck = false;
 	label.focus();
@@ -631,7 +607,6 @@ function beginRename(
 		if ( commit ) {
 			renameDesktop( mgr, d.id, label.textContent ?? '' );
 		}
-
 		if ( mgr._overviewActive ) {
 			refreshOverviewTopBar( mgr );
 		}
@@ -645,7 +620,6 @@ function beginRename(
 		}
 	} );
 	label.addEventListener( 'blur', () => finish( true ) );
-
 	label.addEventListener( 'click', ( e: MouseEvent ) => e.stopPropagation() );
 }
 
@@ -660,7 +634,6 @@ export function refreshOverviewTopBar( mgr: WindowManager ): void {
 
 function exitOverviewToDesktop( mgr: WindowManager, desktopId: string ): void {
 	switchDesktop( mgr, desktopId );
-
 	exitOverview( mgr );
 }
 
@@ -690,7 +663,7 @@ export function createOverviewLabel( item: OverviewLayoutItem ): HTMLElement {
 		const meta = document.createElement( 'span' );
 		meta.className = 'os-overview-label__meta';
 		meta.textContent = sprintf(
-
+			// translators: %d is the number of external sub-tabs open on this window.
 			_n( '· %d open tab', '· %d open tabs', tabCount ),
 			tabCount,
 		);
@@ -709,14 +682,12 @@ export function exitOverview(
 		return;
 	}
 	mgr._overviewActive = false;
-
 	mgr._overviewAddTileFocused = false;
 
 	doAction( HOOKS.OVERVIEW_EXITING, {
 		windowId: selected ? selected.id : undefined,
 		reason: selected ? 'select' : 'cancel',
 	} );
-
 	doAction( HOOKS.DOCK_REFRESH_ACTIVE, {} );
 
 	mgr._desktop.classList.remove( 'os-area--overview' );
@@ -744,7 +715,6 @@ export function exitOverview(
 			restoreOverviewFullscreenState( selected );
 			selected.restore();
 		}
-
 		mgr.focus( selected );
 		if ( maximize ) {
 			selected.maximize();
@@ -785,7 +755,6 @@ export function exitOverview(
 			mgr._overviewTopBar.remove();
 			mgr._overviewTopBar = null;
 		}
-
 		if ( mgr._overviewClickBlocker ) {
 			mgr._desktop.removeEventListener(
 				'click',
@@ -832,7 +801,6 @@ export function exitOverview(
 		);
 		mgr._overviewMouseHandler = null;
 	}
-
 	if ( mgr._lastOverviewHoverId ) {
 		doAction( HOOKS.OVERVIEW_WINDOW_UNHOVER, {
 			windowId: mgr._lastOverviewHoverId,

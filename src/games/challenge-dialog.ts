@@ -51,7 +51,7 @@ export function openChallengeDialog(
 		const summary = document.createElement( 'p' );
 		summary.className = 'os-games__challenge-summary';
 		summary.textContent = sprintf(
-
+			/* translators: 1: game title, 2: score. */
 			__( 'Challenge someone to beat your %1$s score of %2$s.' ),
 			args.gameTitle,
 			String( args.score ),
@@ -138,7 +138,7 @@ export function openChallengeDialog(
 				.then( () => {
 					showToast( {
 						message: sprintf(
-
+							/* translators: %s: opponent display name. */
 							__( 'Challenge sent to %s.' ),
 							opponent!.name,
 						),

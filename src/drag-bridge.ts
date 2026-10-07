@@ -3,11 +3,9 @@ import { createSharedStore } from './shared-store';
 export interface AttachmentDragPayload {
 	kind: 'attachment';
 	id: number;
-
 	url: string;
 	title: string;
 	alt: string;
-
 	mime: string;
 	thumbnailUrl?: string;
 	sizes?: Record< string, unknown >;
@@ -16,9 +14,7 @@ export interface AttachmentDragPayload {
 export interface PostDragPayload {
 	kind: 'post';
 	id: number;
-
 	postType: string;
-
 	url: string;
 	title: string;
 }
@@ -26,17 +22,14 @@ export interface PostDragPayload {
 export interface UserDragPayload {
 	kind: 'user';
 	id: number;
-
 	url: string;
 	title: string;
 }
 
 export interface UploadDragPayload {
 	kind: 'upload';
-
 	fileId: number;
 	title: string;
-
 	mime: string;
 	thumbnailUrl?: string;
 }
@@ -86,19 +79,16 @@ export async function resolveBridgePayload(
 	try {
 		return await resolver( payload );
 	} catch ( err ) {
+		// eslint-disable-next-line no-console
 		console.error( '[openstation] bridge payload resolver threw:', err );
 		return null;
 	}
 }
 
 export interface DragBridgeApi {
-
 	getPayload(): DragBridgePayload | null;
-
 	isDragging(): boolean;
-
 	start( payload: DragBridgePayload ): void;
-
 	end(): void;
 }
 
@@ -145,7 +135,6 @@ function normalizeLegacyPayload(
 	if ( obj.kind !== undefined && obj.kind !== null ) {
 		return payload;
 	}
-
 	if (
 		typeof obj.id === 'number' &&
 		typeof obj.url === 'string' &&
@@ -173,7 +162,6 @@ function normalizeLegacyPayload(
 
 export class DragBridge implements DragBridgeApi {
 	private _payload: DragBridgePayload | null = null;
-
 	private readonly _origin: string;
 
 	constructor() {
@@ -221,7 +209,6 @@ export class DragBridge implements DragBridgeApi {
 					this._origin,
 				);
 			} catch {
-
 			}
 		}
 	};

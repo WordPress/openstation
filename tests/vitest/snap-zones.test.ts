@@ -130,7 +130,6 @@ describe( 'snap-zones — manager lifecycle', async () => {
 
 	test( 'commitSnapIfPending writes target bounds + flips state + fires committed', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
-
 		updateSnapZoneForDrag( manager, win, 5 );
 		const log = recordActions( hooks, SNAP_HOOKS );
 
@@ -150,7 +149,6 @@ describe( 'snap-zones — manager lifecycle', async () => {
 	} );
 
 	test( 'snapTo remembers the floating rect, and a snap from a snapped state does not overwrite it', async () => {
-
 		const win = await manager.open( openConfig( 'a' ) );
 		const floating = { offsetLeft: 300, offsetTop: 200, offsetWidth: 700, offsetHeight: 500 };
 		for ( const [ prop, value ] of Object.entries( floating ) ) {
@@ -169,7 +167,6 @@ describe( 'snap-zones — manager lifecycle', async () => {
 	} );
 
 	test( 'a half widens to a minimum width, and the other side takes the remainder', async () => {
-
 		const wide = await manager.open( { ...openConfig( 'wide' ), minWidth: 1000 } );
 		const narrow = await manager.open( openConfig( 'narrow' ) );
 		const geometry = ( w: typeof wide ) => [ w.element.style.left, w.element.style.width ];
@@ -180,7 +177,6 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		expect( snapZoneBounds( manager, 'left', wide ) ).toEqual( { x: 0, y: 0, width: 1000, height: 900 } );
 		wide.snapTo( 'left' );
 		expect( geometry( wide ) ).toEqual( [ '0px', '1000px' ] );
-
 		expect( geometry( narrow ) ).toEqual( [ '1000px', '600px' ] );
 
 		wide.unsnap();
@@ -192,7 +188,6 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		const b = await manager.open( { ...openConfig( 'b' ), minWidth: 1000 } );
 		a.snapTo( 'left' );
 		b.snapTo( 'right' );
-
 		expect( [ a.element.style.left, a.element.style.width ] ).toEqual( [ '0px', '1000px' ] );
 		expect( [ b.element.style.left, b.element.style.width ] ).toEqual( [ '600px', '1000px' ] );
 	} );
@@ -203,7 +198,6 @@ describe( 'snap-zones — manager lifecycle', async () => {
 	} );
 
 	test( 'second drag while split-overview is active does NOT re-arm snap', async () => {
-
 		const win = await manager.open( openConfig( 'a' ) );
 		manager._splitOverviewActive = true;
 		const log = recordActions( hooks, SNAP_HOOKS );
@@ -224,10 +218,8 @@ describe( 'snap-zones — manager lifecycle', async () => {
 	} );
 
 	test( 'picked partner is re-clickable after the fill (no lingering --overview class)', async () => {
-
 		const anchor = await manager.open( openConfig( 'anchor' ) );
 		const partner = await manager.open( openConfig( 'partner' ) );
-
 		for ( const w of [ anchor, partner ] ) {
 			Object.defineProperty( w.element, 'offsetWidth', { value: 800, configurable: true } );
 			Object.defineProperty( w.element, 'offsetHeight', { value: 600, configurable: true } );
@@ -236,7 +228,6 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		anchor.state = 'snapped-left';
 
 		enterSplitOverview( manager, anchor, 'left' );
-
 		expect( partner.element.classList.contains( 'os-window--overview' ) ).toBe( true );
 
 		fillOppositeHalfAndExit( manager, partner );
@@ -256,13 +247,11 @@ describe( 'snap-zones — manager lifecycle', async () => {
 	} );
 
 	test( 'session-restored snapped window gets the snap class from frame 1', async () => {
-
 		const win = await manager.open( {
 			id: 'a',
 			url: 'http://example.test/wp-admin/edit.php',
 			title: 'Editor',
 			icon: 'dashicons-admin-post',
-
 			initialState: 'snapped-left',
 		} );
 
@@ -297,7 +286,6 @@ describe( 'snap-zones — manager lifecycle', async () => {
 	} );
 
 	test( 'oppositeHalfRect returns area-relative coords so thumbnails land in the right half', async () => {
-
 		const rightHalf = oppositeHalfRect( manager, 'left' );
 		expect( rightHalf.left ).toBe( 800 );
 		expect( rightHalf.width ).toBe( 800 );

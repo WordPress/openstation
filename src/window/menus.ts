@@ -86,7 +86,6 @@ export function openActionsMenu( win: Window ): void {
 			closeActionsMenu( win );
 		};
 	}
-
 	setTimeout( () => {
 		if ( win._boundOnDocumentPointerDown ) {
 			document.addEventListener(
@@ -121,7 +120,6 @@ export function closeActionsMenu( win: Window ): void {
 			true,
 		);
 	}
-
 	win._unsubscribeWindowActions?.();
 	win._unsubscribeWindowActions = null;
 }

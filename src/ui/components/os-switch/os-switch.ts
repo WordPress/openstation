@@ -163,7 +163,6 @@ export class OsSwitch extends Component {
 		this._moved = false;
 		this._dir = getComputedStyle( this ).direction === 'rtl' ? -1 : 1;
 		this.style.setProperty( '--_dir', String( this._dir ) );
-
 		this._travel = Math.max( 0, track.clientWidth - track.clientHeight );
 		track.setPointerCapture( e.pointerId );
 	}
@@ -180,7 +179,6 @@ export class OsSwitch extends Component {
 		if ( ! this._moved ) {
 			return;
 		}
-
 		const on = this._attr( 'checked' ) !== null;
 		const min = on ? -this._travel : 0;
 		const max = on ? 0 : this._travel;
@@ -201,7 +199,6 @@ export class OsSwitch extends Component {
 		if ( ! wasDrag ) {
 			return;
 		}
-
 		const on = this._attr( 'checked' ) !== null;
 		const position = ( on ? this._travel : 0 ) + delta;
 		const next = position > this._travel / 2;
@@ -232,7 +229,6 @@ export class OsSwitch extends Component {
 		if ( this._attr( 'disabled' ) !== null ) {
 			return;
 		}
-
 		if ( e.key === 'ArrowRight' || e.key === 'End' ) {
 			e.preventDefault();
 			if ( this._attr( 'checked' ) === null ) {
@@ -254,7 +250,6 @@ export class OsSwitch extends Component {
 		}
 		const detail = { checked: next, value: this._attr( 'value' ) };
 		this.emit( 'os-switch-change', detail );
-
 		this.emit( 'os-checkbox-change', detail );
 	}
 

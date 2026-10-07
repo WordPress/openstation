@@ -1,5 +1,4 @@
 <?php
-
 defined( 'ABSPATH' ) || exit;
 
 require_once dirname( __DIR__ ) . '/storage-primary.php';
@@ -9,7 +8,6 @@ function openstation_stored_files_locked( $callback, $cleanup = false ) {
 	openstation_storage_use_primary();
 	$name = 'os-files-' . md5( $wpdb->dbname . ':' . $wpdb->prefix );
 	$lock = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $name ) );
-
 	if ( '1=1' === $lock && ! $cleanup ) {
 		return $callback();
 	}
@@ -41,7 +39,6 @@ function openstation_stored_files_place_insert( $ref, $insert ) {
 }
 
 function openstation_stored_files_reconcile_failed( $stage ) {
-
 	do_action(
 		'openstation_stored_files_reconcile_failed',
 		new WP_Error( 'openstation_reconcile_failed', __( 'A file cleanup operation could not be completed.', 'desktop-mode' ), array( 'stage' => $stage ) )
@@ -91,7 +88,6 @@ function openstation_stored_files_reconcile_row( $id, $cutoff_ms ) {
 				openstation_stored_files_reconcile_failed( 'unlink_row_bytes' );
 			}
 		}
-
 		do_action( 'openstation_stored_file_deleted', (int) $row['id'], $row );
 	}
 	return true;
@@ -100,7 +96,6 @@ function openstation_stored_files_reconcile_row( $id, $cutoff_ms ) {
 function openstation_stored_files_reconcile_bytes( $owner_id, $entry, $cutoff ) {
 	global $wpdb;
 	$tables = openstation_files_table_names();
-
 	$known = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT id FROM {$tables['stored_files']} WHERE owner_id = %d AND disk_name = %s LIMIT 1 FOR UPDATE",

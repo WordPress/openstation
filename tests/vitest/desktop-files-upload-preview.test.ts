@@ -55,9 +55,7 @@ describe( 'upload preview', () => {
 		expect( img!.src ).toBe(
 			'https://example.test/wp-json/desktop-mode/v1/files/uploads/7/download?_wpnonce=abc',
 		);
-
 		expect( host.textContent ).toContain( 'image/jpeg · 2.0 KB' );
-
 		expect( host.querySelector( 'os-button' )?.textContent ).toBe( 'Download' );
 	} );
 
@@ -118,11 +116,9 @@ describe( 'upload preview', () => {
 			uploadPlacement( 'pdf', 'application/pdf' ),
 			host,
 		);
-
 		expect( host.querySelector( '.my-plugin-pdf-viewer' )?.textContent ).toBe(
 			'PDF.js viewer here',
 		);
-
 		const host2 = document.createElement( 'div' );
 		preview.renderPlacementPreview( uploadPlacement( 'image', 'image/jpeg' ), host2 );
 		await tick();

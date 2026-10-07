@@ -172,7 +172,6 @@ describe( 'focus-on-drag-hover', () => {
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS / 2 );
 		dispatchMove( 60, 60 );
 		vi.advanceTimersByTime( FOCUS_ON_DRAG_HOVER_DWELL_MS / 2 );
-
 		expect( host.focus ).toHaveBeenCalledTimes( 1 );
 	} );
 

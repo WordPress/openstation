@@ -10,27 +10,18 @@ const CURVE_SMOOTHNESS = 0.85;
 export interface RibbonSample {
 	x: number;
 	y: number;
-
 	nx: number;
 	ny: number;
 }
 
 export interface RenderFrame {
-
 	rim: readonly Particle[];
-
 	centre: { x: number; y: number };
-
 	radius: number;
-
 	elapsed: number;
-
 	gaze: { x: number; y: number } | null;
-
 	blink: number;
-
 	faceTilt?: number;
-
 	tilt: { x: number; y: number };
 }
 
@@ -81,7 +72,6 @@ export function buildRibbon(
 			const v = 1 - u;
 			const x = v * v * a.x + 2 * u * v * c.x + u * u * b.x;
 			const y = v * v * a.y + 2 * u * v * c.y + u * u * b.y;
-
 			let tx = v * ( c.x - a.x ) + u * ( b.x - c.x );
 			let ty = v * ( c.y - a.y ) + u * ( b.y - c.y );
 			let len = Math.hypot( tx, ty );
@@ -92,7 +82,6 @@ export function buildRibbon(
 				out.push( { x, y, nx: tx / len, ny: ty / len } );
 				continue;
 			}
-
 			let nx = -ty / len;
 			let ny = tx / len;
 			if ( nx * ( x - centre.x ) + ny * ( y - centre.y ) < 0 ) {
@@ -264,7 +253,6 @@ export function fillGlow(
 	if ( samples.length < 3 || peak <= 0 || reach <= 0 ) {
 		return;
 	}
-
 	let sum = 0;
 	for ( const s of samples ) {
 		sum += Math.hypot( s.x - centre.x, s.y - centre.y );
@@ -273,7 +261,6 @@ export function fillGlow(
 	if ( ! ( mean > 1e-3 ) ) {
 		return;
 	}
-
 	const dilate =
 		( px: number ): Boundary =>
 			( s ) => {
@@ -293,7 +280,6 @@ export function fillGlow(
 			samples,
 			colors,
 			dilate( ( ( i + 1 ) / n ) * reachPx ),
-
 			dilate( i === 0 ? -bleed : ( i / n ) * reachPx ),
 			alpha,
 			stride,
@@ -463,7 +449,6 @@ export function eyeLayout(
 	}
 
 	const gap = r * 0.28 * clamp( squashX, 0.5, 1.6 );
-
 	const cy = -r * 0.02 + gy;
 	const tilt = frame.faceTilt ?? 0;
 	const cos = Math.cos( tilt );
@@ -513,14 +498,12 @@ export function drawMio(
 	);
 
 	const w = appearance.outlineWidth;
-
 	const bleed = Math.max( 1, w * 0.4 );
 
 	const cells = ( count: number ): number => {
 		const s = Math.max( 2, Math.round( samples.length / count ) );
 		return s % 2 === 0 ? s : s + 1;
 	};
-
 	const fine = 2;
 	const coarse = cells( 12 );
 

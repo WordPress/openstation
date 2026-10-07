@@ -12,7 +12,6 @@ function shellEl(): HTMLElement {
 }
 
 function makeSettings(): OsSettings {
-
 	const layer = { apply: vi.fn() } as unknown as WallpaperLayer;
 	return new OsSettings( layer );
 }
@@ -50,7 +49,6 @@ describe( 'apply() — window radius', () => {
 		expect(
 			document.body.style.getPropertyValue( RADIUS_VAR ),
 		).toBe( expected );
-
 		expect( shellEl().style.getPropertyValue( RADIUS_VAR ) ).toBe(
 			expected,
 		);
@@ -59,7 +57,6 @@ describe( 'apply() — window radius', () => {
 	test( 'a later pick overwrites the shell value', () => {
 		const settings = makeSettings();
 		settings.apply();
-
 		expect( shellEl().style.getPropertyValue( RADIUS_VAR ) ).toBe( '16px' );
 
 		settings.state.windowRadius = 'sharp';
@@ -78,7 +75,6 @@ describe( 'apply() — window radius', () => {
 	} );
 
 	test( 'the shell write is an inline style, which outranks any theme rule', () => {
-
 		const settings = makeSettings();
 		settings.state.windowRadius = 'sharp';
 		settings.apply();

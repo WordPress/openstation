@@ -31,7 +31,6 @@ const AJAX_URL = 'http://example.test/wp-admin/admin-ajax.php';
 function extra( over: Partial< PluginsExtra > = {} ): PluginsExtra {
 	const caps = { activate: true, install: true, delete: true, upload: true, update: true, ...( over.caps ?? {} ) };
 	return {
-
 		menuTabs: caps.install
 			? [
 				{ id: 'installed', label: 'Installed' },
@@ -368,7 +367,6 @@ describe( 'the admin-ajax client', () => {
 			readJsonOrThrow( jsonResponse( { success: false, data: { errorCode: 'up_to_date', errorMessage: 'Latest.' } }, 400 ) ),
 		).rejects.toMatchObject( { code: 'up_to_date', message: 'Latest.', status: 400 } );
 		await expect( readJsonOrThrow( jsonResponse( { nothing: true }, 502 ) ) ).rejects.toThrow( 'Request failed (502).' );
-
 		expect( unwrapAjaxEnvelope< { slug: string } >( { slug: 'akismet' }, 200 ) ).toEqual( { slug: 'akismet' } );
 		expect( () => unwrapAjaxEnvelope( { success: false, data: { code: 'nope', message: 'No.' } }, 200 ) ).toThrow( 'No.' );
 	} );
@@ -644,7 +642,6 @@ describe( 'the Browse gallery', () => {
 		await Promise.resolve();
 		expect( fetchMock() ).toHaveBeenCalledTimes( 3 );
 		expect( Array.from( galleryEl.querySelectorAll( '[data-slug]' ) ).map( ( c ) => ( c as HTMLElement ).dataset.slug ) ).toEqual( [ 'a', 'b', 'c', 'd' ] );
-
 		expect( galleryEl.lastElementChild?.classList.contains( 'os-plugins__gallery-sentinel' ) ).toBe( true );
 	} );
 } );
@@ -864,7 +861,6 @@ describe( 'the installed plugin library', () => {
 		click( root, '.os-plugins__library-empty os-button' );
 		expect( ctx.state.search ).toBe( '' );
 		expect( root.querySelectorAll( '[data-plugin-card]' ) ).toHaveLength( 1 );
-
 		expect( field?.getAttribute( 'value' ) ?? '' ).toBe( '' );
 		const failed = mount( {}, { installed: [], error: 'Connection lost' } );
 		expect( failed.root.querySelector( 'os-notice' )?.textContent ).toContain( 'Connection lost' );

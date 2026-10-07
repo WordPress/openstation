@@ -1,9 +1,7 @@
 import { trackedFetch } from '../tracked-fetch';
 
 export interface Dictionary {
-
 	size: number;
-
 	pick: (
 		minLen: number,
 		maxLen: number,
@@ -64,7 +62,6 @@ export function parseDictionary( raw: string ): Dictionary {
 		if ( span <= 0 ) {
 			return '';
 		}
-
 		const offset = Math.floor( span * Math.pow( rng(), 1.4 ) );
 		return words[ start + Math.min( offset, span - 1 ) ];
 	};

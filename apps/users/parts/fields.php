@@ -4,11 +4,9 @@ defined( 'ABSPATH' ) || exit;
 
 function openstation_users_window_default_query_args() {
 	$args = array(
-
 		'_fields'  =>
 			'id,name,slug,email,roles,registered_date,avatar_urls,'
 			. 'openstation_last_login,openstation_presence,openstation_can_edit',
-
 		'context'  => 'edit',
 		'per_page' => 20,
 	);
@@ -45,7 +43,7 @@ function openstation_users_window_role_label_map( $viewer_id ) {
 function openstation_users_window_locales_map() {
 	$out = array(
 		'' => sprintf(
-
+			// translators: %s is the site's current locale (e.g. "en_US").
 			__( 'Site default — %s', 'desktop-mode' ),
 			get_locale()
 		),
@@ -57,7 +55,6 @@ function openstation_users_window_locales_map() {
 	foreach ( $languages as $slug ) {
 		$out[ (string) $slug ] = (string) $slug;
 	}
-
 	if ( ! isset( $out['en_US'] ) ) {
 		$out['en_US'] = 'en_US';
 	}
@@ -82,7 +79,7 @@ function openstation_users_window_stats_for( array $ids ) {
 	$types = post_type_exists( 'page' ) ? array( 'post', 'page' ) : array( 'post' );
 	$rows  = $wpdb->get_results(
 		$wpdb->prepare(
-
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$in` is a list of `%d` placeholders.
 			"SELECT post_author, post_type, COUNT(*) AS cnt FROM {$wpdb->posts} WHERE post_author IN ( $in ) AND post_status = 'publish' AND post_type IN ( " . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ' ) GROUP BY post_author, post_type',
 			array_merge( $ids, $types )
 		),
@@ -97,7 +94,7 @@ function openstation_users_window_stats_for( array $ids ) {
 	}
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$in` is a list of `%d` placeholders.
 			"SELECT user_id, COUNT(*) AS cnt FROM {$wpdb->comments} WHERE user_id IN ( $in ) AND comment_approved = '1' GROUP BY user_id",
 			$ids
 		),
@@ -160,7 +157,6 @@ function openstation_users_window_register_rest_fields() {
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
-
 				if ( $id <= 0 || ( get_current_user_id() !== $id && ! current_user_can( 'list_users' ) ) ) {
 					return null;
 				}
@@ -180,7 +176,6 @@ function openstation_users_window_register_rest_fields() {
 				if ( $id <= 0 || ! function_exists( 'openstation_presence_status_for_user' ) ) {
 					return 'offline';
 				}
-
 				if ( get_current_user_id() !== $id && ! current_user_can( 'list_users' ) ) {
 					return 'offline';
 				}

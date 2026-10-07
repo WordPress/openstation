@@ -37,7 +37,6 @@ describe( '<os-menu> + <os-menu-item>', () => {
 			'.os-menu-item__check',
 		) as HTMLElement;
 		expect( check.hidden ).toBe( false );
-
 		item.removeAttribute( 'checked' );
 		await tick();
 		expect( item.getAttribute( 'aria-checked' ) ).toBe( 'false' );

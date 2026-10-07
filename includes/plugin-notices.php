@@ -19,7 +19,7 @@ function openstation_get_plugin_notices() {
 }
 
 function openstation_plugin_notice_action_scheduler() {
-
+	// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 	if ( ! class_exists( 'ActionScheduler_Store' ) || ! function_exists( 'as_get_datetime_object' ) ) {
 		return null;
 	}
@@ -53,6 +53,7 @@ function openstation_plugin_notice_action_scheduler() {
 	if ( ! $check ) {
 		return null;
 	}
+	// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
 	$url = add_query_arg(
 		array(
@@ -67,7 +68,7 @@ function openstation_plugin_notice_action_scheduler() {
 		'id'          => 'action-scheduler-pastdue',
 		'title'       => __( 'Scheduled Actions', 'desktop-mode' ),
 		'message'     => sprintf(
-
+			/* translators: %d: number of past-due scheduled actions. */
 			_n(
 				'Action Scheduler: %d past-due action found; something may be wrong.',
 				'Action Scheduler: %d past-due actions found; something may be wrong.',

@@ -71,7 +71,6 @@ describe( 'OS Settings — Components tab', () => {
 	} );
 
 	test( 'search matches prop and event descriptions, not only names', () => {
-
 		search( el, 'clamp' );
 		expect( navTags( el ) ).toContain( 'os-number-field' );
 	} );

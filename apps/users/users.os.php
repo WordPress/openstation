@@ -34,7 +34,6 @@ function list_query( State $state ) {
 	}
 	$role = trim( (string) $state->get( 'role' ) );
 	if ( 'none' === $role ) {
-
 		$ids              = wp_get_users_with_no_role();
 		$query['include'] = $ids ? array_map( 'intval', $ids ) : array( 0 );
 	} elseif ( '' !== $role ) {
@@ -68,16 +67,13 @@ return App::define( 'desktop-mode-users' )
 	->icon( 'dashicons-admin-users' )
 	->size( 1100, 720 )
 	->min_size( 720, 480 )
-
 	->placement( 'none' )
 	->can(
 		static function () {
 			return openstation_users_window_user_can_register();
 		}
 	)
-
 	->config( 'openstation_users_profile_facts' )
-
 	->menu(
 		'users.php',
 		static function () {
@@ -108,22 +104,16 @@ return App::define( 'desktop-mode-users' )
 			'page'        => 1,
 			'perPage'     => 20,
 			'search'      => '',
-
 			'role'        => '',
-
 			'status'      => '',
 			'orderby'     => 'name',
 			'order'       => 'asc',
-
 			'tab'         => 'all',
-
 			'createError' => '',
 			'createField' => '',
-
 			'created'     => 0,
 		)
 	)
-
 	->action(
 		'filter',
 		static function ( State $state ) {
@@ -136,7 +126,6 @@ return App::define( 'desktop-mode-users' )
 			$state->set( 'page', max( 1, (int) ( $args['page'] ?? 1 ) ) );
 		}
 	)
-
 	->action(
 		'sort',
 		static function ( State $state, Os $os, array $args ) {
@@ -162,7 +151,7 @@ return App::define( 'desktop-mode-users' )
 					if ( 0 === $ok ) {
 						return __( 'No users updated.', 'desktop-mode' );
 					}
-
+					// translators: %1$d users updated, %2$d failed.
 					return sprintf( __( 'Role updated for %1$d user(s) (%2$d skipped).', 'desktop-mode' ), $ok, count( $ids ) - $ok );
 				}
 			);
@@ -185,7 +174,7 @@ return App::define( 'desktop-mode-users' )
 				$result,
 				static function ( array $result ) use ( $ids ) {
 					$ok = ok_count( $result );
-
+					// translators: %1$d users deleted, %2$d skipped.
 					return sprintf( __( '%1$d user(s) deleted (%2$d skipped).', 'desktop-mode' ), $ok, count( $ids ) - $ok );
 				}
 			);
@@ -203,7 +192,7 @@ return App::define( 'desktop-mode-users' )
 					? openstation_users_window_send_password_reset( (int) ( $args['id'] ?? 0 ) )
 					: new \WP_Error( 'openstation_users_forbidden', __( 'You are not allowed to email this user.', 'desktop-mode' ) ),
 				static function ( array $result ) {
-
+					// translators: %s is the user's email address.
 					return sprintf( __( 'Reset email sent to %s.', 'desktop-mode' ), $result['email'] );
 				}
 			);
@@ -218,7 +207,7 @@ return App::define( 'desktop-mode-users' )
 					? openstation_users_window_resend_welcome( (int) ( $args['id'] ?? 0 ) )
 					: new \WP_Error( 'openstation_users_forbidden', __( 'You are not allowed to email this user.', 'desktop-mode' ) ),
 				static function ( array $result ) {
-
+					// translators: %s is the user's email address.
 					return sprintf( __( 'Welcome email resent to %s.', 'desktop-mode' ), $result['email'] );
 				}
 			);
@@ -250,33 +239,28 @@ return App::define( 'desktop-mode-users' )
 				$os->toast( $result->get_error_message() );
 				return;
 			}
-
+			// translators: %s is the user's email address.
 			$os->toast( sprintf( __( 'User created — welcome email sent to %s.', 'desktop-mode' ), $result['email'] ) );
 			$os->announce( 'user', 'created', array( (int) $result['user_id'] ) );
-
 			$state->set( 'tab', 'all' );
 			$state->set( 'page', 1 );
 			$state->set( 'created', (int) $state->get( 'created' ) + 1 );
 		}
 	)
-
 	->watch( 'user' )
 	->data(
 		static function ( State $state ) {
 			$list = openstation_app_rest_page( 'wp/v2/users', list_query( $state ) );
-
 			if ( $state->get( 'page' ) > 1 && openstation_app_rest_page_is_out_of_range( $list ) ) {
 				$state->set( 'page', 1 );
 				$list = openstation_app_rest_page( 'wp/v2/users', list_query( $state ) );
 			}
-
 			$stats = openstation_users_window_stats_for( wp_list_pluck( $list['items'], 'id' ) );
 			foreach ( $list['items'] as $i => $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
 				if ( isset( $stats[ $id ] ) ) {
 					$list['items'][ $i ]['openstation_user_stats'] = $stats[ $id ];
 				}
-
 				if ( isset( $row['name'] ) ) {
 					$list['items'][ $i ]['name'] = openstation_plain_text_title( $row['name'] );
 				}

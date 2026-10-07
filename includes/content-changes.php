@@ -141,7 +141,6 @@ function openstation_content_changes_register_wc_hooks() {
 			openstation_content_changes_record( 'shop_order', (int) $order_id, 'updated' );
 		}
 	);
-
 	add_action(
 		'woocommerce_order_status_changed',
 		function ( $order_id ) {
@@ -197,7 +196,6 @@ function openstation_content_changes_emit_footer() {
 	$broadcasts = array();
 	foreach ( $log as $type => $by_action ) {
 		foreach ( $by_action as $action => $ids ) {
-
 			$topic = (string) apply_filters( 'openstation_content_change_topic', 'os.' . $type . '.changed', $type, $action );
 
 			$broadcasts[] = array(
@@ -228,7 +226,7 @@ function openstation_content_changes_emit_footer() {
 				return;
 			}
 			var origin = window.location.origin;
-			var broadcasts = <?php echo $broadcasts_json;                                                                                            ?>;
+			var broadcasts = <?php echo $broadcasts_json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode output. ?>;
 			for ( var i = 0; i < broadcasts.length; i++ ) {
 				try {
 					window.parent.postMessage( {
@@ -236,7 +234,7 @@ function openstation_content_changes_emit_footer() {
 						topic: broadcasts[ i ].topic,
 						payload: broadcasts[ i ].payload
 					}, origin );
-				} catch ( _err ) {                   }
+				} catch ( _err ) { /* parent gone */ }
 			}
 		} )();
 	</script>

@@ -38,14 +38,12 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			searchAria: __( 'Search categories in the mindmap' ),
 			hint: __( 'Click a node to focus + edit · drag onto another to reparent · scroll or pinch to zoom' ),
 		},
-
 		layers: [ 'edge', 'postEdge', 'post', 'node', 'chip', 'postChip' ],
 		fan: { chipFontSize: 14, chipTextRes: CHIP_TEXT_RES, pagerLabelSize: 14, pagerGlyphSize: 16, pagerTextRes: CHIP_TEXT_RES },
 	} );
 	if ( ! built ) {
 		return () => {};
 	}
-
 	const canvas: TermCanvas = built;
 	const { pixi, layers, fan, camera, interaction, world, palette } = canvas;
 	const { client } = env;
@@ -62,7 +60,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 	let dragHover: MindNode | null = null;
 	let dragStartPos: PixiPoint | null = null;
 	let dragOffset: PixiPoint = { x: 0, y: 0 };
-
 	const pinnedTargetBackup = new Map< number, { tx: number; ty: number } >();
 	let draft: { parent: number } | null = null;
 	let themeHue = readAdminThemeHue( host );
@@ -91,7 +88,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 				pinned: facts.pinned,
 			};
 			layers.node.addChild( gfx );
-
 			const created = node;
 			gfx.on( 'pointerdown', ( e ) => onNodePointerDown( e as PixiPointerEvent, created ) );
 			nodes.set( term.id, node );
@@ -119,7 +115,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			list.push( t );
 			childMap.set( t.parent, list );
 		}
-
 		const allRoots = childMap.get( 0 ) ?? [];
 		const roots = allRoots.filter( ( r ) => ! isUncategorized( r ) );
 		const uncategorized = allRoots.find( isUncategorized );
@@ -158,7 +153,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		if ( uncategorized ) {
 			upsertNode( uncategorized, { tx: 0, ty: 0, radius: nodeRadius( uncategorized.count, terms ), depth: 0, color: 0x8c8f94, pinned: true } );
 		}
-
 		canvas.syncEmptyHint( terms.length <= 1 );
 	}
 
@@ -169,13 +163,11 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			if ( ! parent ) {
 				continue;
 			}
-
 			const isOldLink = dragNode !== null && node === dragNode;
 			const isFocusEdge = fan.focusId !== null && ( node.id === fan.focusId || node.parent === fan.focusId );
 			const dimMul = fan.focusId !== null && ! isFocusEdge ? 0.35 : 1;
 			drawCurvedEdge( edgeGfx, parent.x, parent.y, node.x, node.y, parent.color, isOldLink ? { dashed: true, alpha: 0.28 * dimMul } : { alpha: 0.5 * dimMul } );
 		}
-
 		if ( dragNode && dragHover ) {
 			const { x: x1, y: y1 } = dragNode;
 			const { x: x2, y: y2, color: targetColor } = dragHover;
@@ -207,7 +199,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		node.tx = node.x;
 		node.ty = node.y;
 		dragStartPos = { x: ev.global.x, y: ev.global.y };
-
 		const local = camera.stageToWorld( ev.global );
 		dragOffset = { x: node.x - local.x, y: node.y - local.y };
 	}
@@ -239,7 +230,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		dragNode.ty = ny;
 		dragNode.gfx.x = nx;
 		dragNode.gfx.y = ny;
-
 		let hover: MindNode | null = null;
 		for ( const c of nodes.values() ) {
 			if ( c === dragNode ) {
@@ -274,12 +264,10 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		dragHover = null;
 		dragStartPos = null;
 		node.pinned = node.depth === 0;
-
 		if ( ! target && movement < 2 ) {
 			void canvas.focusOn( node.id );
 			return;
 		}
-
 		if ( target && target.id !== node.parent && ! isAncestor( node.id, target.id ) ) {
 			try {
 				await client.updateTerm( 'categories', node.id, { parent: target.id } );
@@ -330,7 +318,6 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		if ( nodes.size === 0 ) {
 			return null;
 		}
-
 		const LABEL_OVERHANG = 30;
 		const b: Bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
 		for ( const n of nodes.values() ) {

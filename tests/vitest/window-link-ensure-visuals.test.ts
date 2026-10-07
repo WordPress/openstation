@@ -37,7 +37,6 @@ describe( 'ensureWindowLinkVisuals', () => {
 	} );
 
 	it( 'loads once however many callers ask', async () => {
-
 		await Promise.all( [
 			ensureWindowLinkVisuals(),
 			ensureWindowLinkVisuals(),

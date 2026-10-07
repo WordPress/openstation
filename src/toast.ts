@@ -9,31 +9,21 @@ const FADE_OUT_MS = 200;
 const MIN_RESUME_MS = 1200;
 
 export interface ToastOptions {
-
 	message: string;
-
 	type?: string;
-
 	action?: {
 		label: string;
 		onClick: () => void;
 	};
-
 	duration?: number;
-
 	persistent?: boolean;
-
 	dismissible?: boolean;
-
 	onDismiss?: () => void;
 }
 
 export interface ToastIntent extends ToastOptions {
-
 	source?: string;
-
 	meta?: Record< string, unknown >;
-
 	cancel?: boolean;
 }
 
@@ -114,9 +104,7 @@ function renderToast( intent: ToastIntent ): () => void {
 
 	let dismissed = false;
 	let dismissTimer: number | null = null;
-
 	let remaining = intent.duration ?? DEFAULT_DURATION_MS;
-
 	let startedAt = 0;
 
 	const stopTimer = (): void => {
@@ -133,7 +121,6 @@ function renderToast( intent: ToastIntent ): () => void {
 		}
 		dismissed = true;
 		stopTimer();
-
 		restoreFocusFrom( toast );
 		toast.setAttribute( 'state', 'out' );
 		window.setTimeout( () => {
@@ -203,7 +190,6 @@ function trackExternalFocus( toast: HTMLElement ): void {
 		document.addEventListener( 'focusin', onDocumentFocusIn, true );
 	}
 	focusTrackers += 1;
-
 	const doc = toast.ownerDocument;
 	const active = doc.activeElement;
 	if (

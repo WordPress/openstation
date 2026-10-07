@@ -58,7 +58,6 @@ export class OsStack extends Component {
 		if ( align ) {
 			this.style.setProperty( '--os-ui-stack-align', align );
 		}
-
 		if ( padding !== null && /^\d+$/.test( padding ) ) {
 			this.style.setProperty( '--os-ui-stack-padding', `${ padding }px` );
 		}

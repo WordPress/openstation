@@ -21,7 +21,6 @@ function status_for_tab( $tab ) {
 		case 'trash':
 			return 'trash';
 		case 'mine':
-
 			return 'any';
 		default:
 			return 'hold';
@@ -38,7 +37,6 @@ function rail_query( State $state ) {
 	if ( '' !== $search ) {
 		$query['search'] = $search;
 	}
-
 	if ( 'mine' === $tab && get_current_user_id() > 0 ) {
 		$query['author'] = array( get_current_user_id() );
 	}
@@ -71,7 +69,7 @@ function reply_counts( array $ids ) {
 	}
 	$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 	$rows         = $wpdb->get_results(
-
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$placeholders` is a list of `%d`; the values are bound below.
 		$wpdb->prepare(
 			"SELECT comment_parent, COUNT(*) AS n FROM {$wpdb->comments} WHERE comment_parent IN ( $placeholders ) AND comment_approved IN ( '1', '0' ) GROUP BY comment_parent",
 			$ids
@@ -137,7 +135,6 @@ function thread( $selected ) {
 		$rows  = array_merge( $rows, array_values( $result['data'] ) );
 		$pages = max( 1, (int) $result['pages'] );
 	}
-
 	usort(
 		$rows,
 		static function ( $a, $b ) {

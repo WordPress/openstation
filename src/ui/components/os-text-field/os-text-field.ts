@@ -118,13 +118,11 @@ export class OsTextField extends Component {
 
 	connectedCallback(): void {
 		super.connectedCallback();
-
 		ensureAutoId( this );
 	}
 
 	protected render() {
 		const label = ( this as unknown as { label: string | null } ).label || '';
-
 		const hideLabel =
 			( this as unknown as { hideLabel: string | null } ).hideLabel !== null;
 		const value = ( this as unknown as { value: string | null } ).value ?? '';
@@ -140,7 +138,6 @@ export class OsTextField extends Component {
 		} ).autocomplete;
 		const declaredType =
 			( this as unknown as { type: string | null } ).type || 'text';
-
 		const isPassword = declaredType === 'password';
 		let autocomplete = declaredAutocomplete || 'off';
 		if ( isPassword && ( ! declaredAutocomplete || autocomplete === 'off' ) ) {
@@ -165,7 +162,6 @@ export class OsTextField extends Component {
 
 		const isPasswordIntent = declaredType === 'password';
 		const isMasked = isPasswordIntent && ! ( reveal && this._revealed );
-
 		let effectiveType: string;
 		if ( isPasswordIntent ) {
 			effectiveType = 'text';
@@ -246,7 +242,6 @@ export class OsTextField extends Component {
 
 	private _onClear(): void {
 		( this as unknown as { value: string } ).value = '';
-
 		this.emit( 'os-input-change', { value: '' } );
 		this.emit( 'os-input-commit', { value: '' } );
 		this.shadowRoot?.querySelector< HTMLInputElement >( 'input' )?.focus();

@@ -114,7 +114,6 @@ describe( 'cross-frame drops onto a files canvas', () => {
 	} );
 
 	test( 'an OS file drag is left to the upload manager', () => {
-
 		bridgeHolds( { kind: 'attachment', id: 7, url: 'x', title: 'Photo' } );
 		const dt = dataTransfer( [ 'Files', ATTACHMENT_DROP_MIME ] );
 
@@ -125,7 +124,6 @@ describe( 'cross-frame drops onto a files canvas', () => {
 	} );
 
 	test( 'a file dropped from the OS still reaches the upload manager', () => {
-
 		bridgeHolds( { kind: 'attachment', id: 7, url: 'x', title: 'Photo' } );
 		const uploadManager = vi.fn();
 		window.addEventListener( 'drop', uploadManager );
@@ -165,7 +163,6 @@ describe( 'cross-frame drops onto a files canvas', () => {
 	} );
 
 	test( 'a folder window canvas inside a window still accepts', () => {
-
 		dispose();
 		document.body.innerHTML = '';
 		const win = document.createElement( 'div' );

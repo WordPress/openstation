@@ -5,9 +5,7 @@ export interface InputHandlers {
 }
 
 export interface GameInput {
-
 	focus: () => void;
-
 	dispose: () => void;
 }
 

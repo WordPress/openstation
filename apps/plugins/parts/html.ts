@@ -47,7 +47,6 @@ export function sanitizeHtml( html: string ): string {
 			}
 		}
 	}
-
 	for ( const el of toRemove.reverse() ) {
 		el.replaceWith( body.ownerDocument.createTextNode( el.textContent ?? '' ) );
 	}

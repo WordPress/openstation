@@ -21,24 +21,19 @@ interface DisplacedGeometry {
 	width: number;
 	height: number;
 	state: WindowState;
-
 	unplaced: boolean;
 }
 
 export interface MobileConstraintsDeps {
 	manager: WindowManager;
 	mode: OsModeApi;
-
 	openNative: OpenNativeWindow;
 }
 
 export interface MobileConstraints {
 	recents: MobileRecents;
-
 	trimSessionForMobile( config: DesktopConfig ): DesktopConfig;
-
 	forcedIds(): string[];
-
 	foldedIds(): string[];
 	dispose(): void;
 }
@@ -59,7 +54,6 @@ export function splitSessionForMobile( session: Session | undefined ): {
 export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileConstraints {
 	const { manager, mode } = deps;
 	const displaced = new Map< string, DisplacedGeometry >();
-
 	const folded = new Map< string, string >();
 	let recents: SessionWindow[] = [];
 	const recentListeners = new Set< RecentsListener >();
@@ -162,7 +156,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 			if ( ! mode.isMobile() ) {
 				return geometry;
 			}
-
 			if ( geometry.state === 'minimized' ) {
 				return geometry;
 			}
@@ -172,10 +165,8 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 				width: geometry.width,
 				height: geometry.height,
 				state: geometry.state ?? 'normal',
-
 				unplaced: ! ctx.hasSavedGeometry && ! ctx.callerPinned,
 			} );
-
 			return { ...geometry, state: 'maximized' };
 		},
 	);
@@ -188,7 +179,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 	};
 	addAction( HOOKS.WINDOW_RESTORED, NS, onWindowState );
 	addAction( HOOKS.WINDOW_UNMAXIMIZED, NS, onWindowState );
-
 	addAction( HOOKS.WINDOW_OPENED, NS, ( payload: unknown ) => {
 		const id = ( payload as { windowId?: string } | null )?.windowId;
 		if ( id ) {
@@ -222,7 +212,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 			if ( ! before || ! win.isMaximized() ) {
 				continue;
 			}
-
 			if ( before.unplaced ) {
 				const placed = desktopDefaultGeometry( cascade++ );
 				if ( placed ) {
@@ -250,13 +239,10 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 						y: before.y,
 						width: before.width,
 						height: before.height,
-
 						state: before.state,
-
 						...( before.unplaced ? { unplaced: true } : {} ),
 					}
 					: {} ),
-
 				...( desk ? { desktopId: desk } : {} ),
 			};
 		} );
@@ -286,7 +272,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 				}
 				return;
 			}
-
 			const menuEntry = findMenuEntryForUrl( win.url );
 			void manager
 				.openNew( {
@@ -297,7 +282,6 @@ export function installMobileConstraints( deps: MobileConstraintsDeps ): MobileC
 					title: win.title,
 					icon: win.icon || 'dashicons-admin-generic',
 					desktopId: win.desktopId,
-
 					x: win.x,
 					y: win.y,
 					width: win.width,

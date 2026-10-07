@@ -45,27 +45,24 @@ export interface MindmapSidebarHost {
 function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
 	const { sidebar, client } = host;
 	const parentNode = d.parent !== 0 ? host.node( d.parent ) : undefined;
-
 	const color = parentNode ? parentNode.color : host.clusterColor( host.terms().length );
 	sidebarHeader(
 		sidebar,
 		hexOf( color ),
 		parentNode
 			? sprintf(
-
+				/* translators: %s: parent category name. */
 				__( 'New child of %s' ),
 				parentNode.name,
 			)
 			: __( 'New root category' ),
 	);
 	const nameInput = sidebarInput( sidebar, __( 'Name' ), '', __( 'e.g. Recipes' ) );
-
 	requestAnimationFrame( () => nameInput.focus() );
 	const slugInput = sidebarSlugInput( sidebar, '' );
 	const descInput = sidebarTextarea( sidebar, '' );
 
 	const createBtn = sidebarButton( 'primary', __( 'Create' ) );
-
 	const cancelBtn = sidebarButton( 'danger', __( 'Cancel' ) );
 	const cancel = (): void => {
 		host.setDraft( null );
@@ -92,7 +89,6 @@ function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
 				description: created.description || '',
 				isDefault: false,
 			};
-
 			if ( ! host.terms().some( ( t ) => t.id === next.id ) ) {
 				host.setTerms( host.terms().concat( next ) );
 			}
@@ -123,7 +119,7 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 	sidebarMeta(
 		sidebar,
 		sprintf(
-
+			/* translators: %d: post count. */
 			_n( '%d post in this category.', '%d posts in this category.', node.count ),
 			node.count,
 		),
@@ -166,7 +162,6 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 		if ( name === node.name && description === ( node.description || '' ) && slugRaw === currentSlug ) {
 			return;
 		}
-
 		const patch: { name: string; description: string; slug?: string } = { name, description };
 		if ( slugRaw !== currentSlug ) {
 			patch.slug = slugRaw;

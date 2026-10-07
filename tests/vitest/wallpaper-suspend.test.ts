@@ -21,7 +21,6 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 		element = document.createElement( 'div' );
 		document.body.appendChild( element );
 		layer = new WallpaperLayer( element, 'http://example.test/plugin' );
-
 		vi.spyOn( HTMLCanvasElement.prototype, 'getContext' ).mockReturnValue( {
 			drawImage: () => undefined,
 		} as unknown as CanvasRenderingContext2D );
@@ -104,7 +103,6 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 		layer.resume( 'game:a' );
 
 		expect( layer.isSuspended() ).toBe( true );
-
 		expect( log ).toEqual( [] );
 
 		layer.resume( 'game:b' );
@@ -180,7 +178,6 @@ describe( 'WallpaperLayer — suspend/resume', () => {
 		layer.apply( cssDef() );
 
 		expect( element.querySelector( '.os-wallpaper-freeze' ) ).toBeNull();
-
 		expect( layer.isSuspended() ).toBe( true );
 	} );
 

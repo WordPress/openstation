@@ -132,7 +132,6 @@ describe( 'widgets — deferred bundle loading', () => {
 	} );
 
 	test( 'a package Core concatenated into load-scripts.php is not fetched again', async () => {
-
 		const m = await loadModulesUnderTest();
 		const blob = document.createElement( 'script' );
 		blob.src =

@@ -65,7 +65,6 @@ describe( 'seedPositions', () => {
 
 	test( 'a pair opens side by side, not stacked', () => {
 		const [ a, b ] = seedPositions( 2 );
-
 		expect( a.y ).toBeCloseTo( 0, 6 );
 		expect( b.y ).toBeCloseTo( 0, 6 );
 		expect( a.x ).toBeCloseTo( -b.x, 6 );
@@ -82,7 +81,6 @@ describe( 'seedPositions', () => {
 			const c = centroid( first );
 			expect( c.x ).toBeCloseTo( 0, 6 );
 			expect( c.y ).toBeCloseTo( 0, 6 );
-
 			const d = ( p: Point, q: Point ) => Math.hypot( p.x - q.x, p.y - q.y );
 			const step = d( first[ 0 ], first[ 1 ] );
 			for ( let i = 0; i < n; i++ ) {
@@ -99,7 +97,6 @@ describe( 'seedPositions', () => {
 		const c = centroid( seeds );
 		expect( c.x ).toBeCloseTo( 0, 6 );
 		expect( c.y ).toBeCloseTo( 0, 6 );
-
 		const radii = seeds.map( ( p ) => Math.hypot( p.x, p.y ) );
 		expect( Math.max( ...radii ) - Math.min( ...radii ) ).toBeGreaterThan( 50 );
 	} );
@@ -131,7 +128,6 @@ describe( 'warmupStepLimit', () => {
 	} );
 
 	test( 'the settle budget actually settles a small board', () => {
-
 		const nodes = seedPositions( 2 ).map( ( p, i ) => makeNode( i + 1, p ) );
 		const sim = new ForceSim( nodes, [] );
 		sim.reheat( 0.12, false );
@@ -145,7 +141,6 @@ describe( 'warmupStepLimit', () => {
 		expect( a.x + b.x ).toBeCloseTo( 0, 3 );
 		expect( a.y + b.y ).toBeCloseTo( 0, 3 );
 		expect( Math.abs( a.y ) ).toBeLessThan( 1e-3 );
-
 		const d = Math.hypot( a.x - b.x, a.y - b.y );
 		expect( d ).toBeGreaterThan( 200 );
 		expect( d ).toBeLessThan( 320 );
@@ -179,9 +174,7 @@ describe( 'frameBounds', () => {
 			opts,
 		);
 		expect( target ).not.toBeNull();
-
 		expect( target!.scale ).toBe( 1.5 );
-
 		expect( target!.x ).toBeCloseTo( 540, 6 );
 		expect( target!.y ).toBeCloseTo( 360, 6 );
 	} );
@@ -196,7 +189,6 @@ describe( 'frameBounds', () => {
 			opts,
 		);
 		expect( target ).not.toBeNull();
-
 		expect( 400 * target!.scale + target!.x ).toBeCloseTo( 500, 6 );
 		expect( 200 * target!.scale + target!.y ).toBeCloseTo( 300, 6 );
 	} );

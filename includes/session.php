@@ -133,7 +133,6 @@ function openstation_save_session( $user_id, $session, $network = null ) {
 			$existing = openstation_get_session( $user_id, $network );
 			$stored   = isset( $existing['updated'] ) ? (int) $existing['updated'] : 0;
 			if ( $incoming < $stored ) {
-
 				return false;
 			}
 		}
@@ -185,7 +184,6 @@ function openstation_sanitize_session( $session, $network = null ) {
 			if ( '' === $d_label ) {
 				$d_label = $d_id;
 			}
-
 			if ( strlen( $d_label ) > 64 ) {
 				$d_label = substr( $d_label, 0, 64 );
 			}
@@ -193,7 +191,6 @@ function openstation_sanitize_session( $session, $network = null ) {
 				'id'    => $d_id,
 				'label' => $d_label,
 			);
-
 			$profile = openstation_sanitize_workspace_profile( isset( $d['profile'] ) ? $d['profile'] : null );
 			if ( null !== $profile ) {
 				$entry['profile'] = $profile;
@@ -208,12 +205,10 @@ function openstation_sanitize_session( $session, $network = null ) {
 			$clean['desktops'] = $clean_desktops;
 		}
 	}
-
 	if ( empty( $clean['desktops'] ) ) {
 		$clean['desktops'] = array( openstation_default_desktop() );
 	}
 	if ( empty( $desktop_ids ) ) {
-
 		$desktop_ids = array_map(
 			static function ( $d ) {
 				return isset( $d['id'] ) ? (string) $d['id'] : '';
@@ -232,7 +227,6 @@ function openstation_sanitize_session( $session, $network = null ) {
 			$clean['activeDesktop'] = $candidate;
 		}
 	}
-
 	if ( ! in_array( $clean['activeDesktop'], $desktop_ids, true ) ) {
 		$clean['activeDesktop'] = $desktop_ids[0];
 	}
@@ -264,11 +258,9 @@ function openstation_sanitize_session( $session, $network = null ) {
 				$url = '#' . $id;
 			} else {
 				$url = isset( $win['url'] ) ? esc_url_raw( (string) $win['url'] ) : '';
-
 				if ( '' === $url || ! openstation_session_window_url_ok( $url, $network ) ) {
 					continue;
 				}
-
 				$url = remove_query_arg(
 					array( 'openstation_chromeless', OPENSTATION_PORTAL_FLAG, OPENSTATION_CLASSIC_FLAG ),
 					$url
@@ -322,12 +314,10 @@ function openstation_sanitize_session( $session, $network = null ) {
 					if ( '' === $tab_url ) {
 						continue;
 					}
-
 					if ( strlen( $tab_url ) > 2048 ) {
 						continue;
 					}
 					$label = isset( $tab['label'] ) ? wp_strip_all_tags( (string) $tab['label'] ) : '';
-
 					if ( strlen( $label ) > 80 ) {
 						$label = substr( $label, 0, 80 );
 					}
@@ -436,7 +426,6 @@ function openstation_sanitize_session_params( $params ) {
 			continue;
 		}
 		if ( is_string( $value ) ) {
-
 			$clean[ $key ] = substr( sanitize_text_field( $value ), 0, 256 );
 		}
 	}
@@ -445,7 +434,6 @@ function openstation_sanitize_session_params( $params ) {
 }
 
 function openstation_register_session_rest_routes() {
-
 	$network_arg = array(
 		'network' => array(
 			'type'    => 'boolean',

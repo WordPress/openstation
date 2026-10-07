@@ -20,7 +20,6 @@ function openstation_register_starter_widget_assets() {
 		'os-starter-widget',
 		OPENSTATION_URL . 'assets/js/widget-starter' . $suffix . '.js',
 		array( 'wp-api-fetch' ),
-
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
 	);
@@ -40,12 +39,10 @@ add_action( 'admin_enqueue_scripts', 'openstation_enqueue_starter_widget_styles'
 
 function openstation_register_starter_widget() {
 	if ( ! function_exists( 'openstation_register_widget' ) ) {
-
 		return;
 	}
 
 	openstation_register_widget(
-
 		'desktop-mode/starter',
 		array(
 			'label'          => __( 'Starter Widget', 'desktop-mode' ),

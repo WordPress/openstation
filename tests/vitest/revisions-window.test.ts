@@ -86,7 +86,6 @@ beforeEach( () => {
 	hooks = installHooksStub();
 	showToastSpy.mockClear();
 	window.localStorage.clear();
-
 	vi.stubGlobal(
 		'matchMedia',
 		vi.fn( ( query: string ) => ( {
@@ -191,13 +190,11 @@ describe( 'openRevisionsWindow', () => {
 		expect( config.url ).toBe( REVISIONS_URL );
 		expect( config.title ).toBe( 'Revisions: Hello world' );
 		expect( config.icon ).toBe( 'dashicons-backup' );
-
 		expect( config.content ).toMatchObject( {
 			type: 'revisions',
 			id: 7,
 			root: { type: 'post', id: 7 },
 		} );
-
 		expect( config.ephemeral ).toBeUndefined();
 	} );
 
@@ -332,7 +329,6 @@ describe( 'opening geometry', () => {
 		await openRevisionsWindow( manager, win );
 
 		const config = manager.open.mock.calls[ 0 ][ 0 ];
-
 		expect( config.x ).toBe( 756 );
 		expect( config.y ).toBe( 60 );
 		expect( config.width ).toBeGreaterThan( 0 );
@@ -410,7 +406,6 @@ describe( 'revisionWindowPlacement', () => {
 	} );
 
 	test( 'takes the opposite corner when neither side fits', () => {
-
 		const rect = revisionWindowPlacement(
 			{ x: 20, y: 20, width: 1500, height: 500 },
 			desktop,

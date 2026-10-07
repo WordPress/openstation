@@ -67,12 +67,10 @@ describe( 'createLoadingOverlay', () => {
 
 	test( 're-arms cleanly after a hide (the per-chip-toggle sequence)', () => {
 		const overlay = createLoadingOverlay( el );
-
 		overlay.show();
 		vi.advanceTimersByTime( LOADING_OVERLAY_DELAY_MS );
 		expect( overlay.isVisible() ).toBe( true );
 		overlay.hide();
-
 		overlay.show();
 		vi.advanceTimersByTime( LOADING_OVERLAY_DELAY_MS - 1 );
 		expect( overlay.isVisible() ).toBe( false );

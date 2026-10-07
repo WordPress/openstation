@@ -1,13 +1,8 @@
 export interface Palette {
-
 	id: string;
-
 	label?: string;
-
 	open(): void;
-
 	close(): void;
-
 	isOpen(): boolean;
 }
 
@@ -76,7 +71,6 @@ export function notifyPaletteVisibility( id: string, open: boolean ): void {
 			} ),
 		);
 	} catch {
-
 	}
 }
 
@@ -97,7 +91,6 @@ export function cyclePalettes(): void {
 			palettes[ 0 ].open();
 			notifyPaletteVisibility( palettes[ 0 ].id, true );
 		} catch {
-
 		}
 		return;
 	}
@@ -106,7 +99,6 @@ export function cyclePalettes(): void {
 		palettes[ cur ].close();
 		notifyPaletteVisibility( palettes[ cur ].id, false );
 	} catch {
-
 	}
 
 	const next = cur + 1;
@@ -115,7 +107,6 @@ export function cyclePalettes(): void {
 			palettes[ next ].open();
 			notifyPaletteVisibility( palettes[ next ].id, true );
 		} catch {
-
 		}
 	}
 }
@@ -133,7 +124,6 @@ export function openPaletteOnly( id: string ): void {
 					notifyPaletteVisibility( p.id, false );
 				}
 			} catch {
-
 			}
 		}
 	}
@@ -141,7 +131,6 @@ export function openPaletteOnly( id: string ): void {
 		target.open();
 		notifyPaletteVisibility( target.id, true );
 	} catch {
-
 	}
 }
 
@@ -162,7 +151,6 @@ export function installPaletteShortcut(): void {
 			if ( e.shiftKey || e.altKey ) {
 				return;
 			}
-
 			e.preventDefault();
 			e.stopImmediatePropagation();
 			cyclePalettes();

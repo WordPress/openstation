@@ -81,7 +81,6 @@ export class OsCheckbox extends Component {
 	private _onChange( e: Event ): void {
 		const input = e.target as HTMLInputElement;
 		const next = input.checked;
-
 		if ( next ) {
 			this.setAttribute( 'checked', '' );
 		} else {

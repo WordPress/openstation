@@ -47,7 +47,6 @@ function morphChildList( parent: Element, toNodes: Node[] ): void {
 			const candidate = keyed.get( key );
 			if ( candidate && compatible( candidate, to ) ) {
 				from = candidate;
-
 				keyed.delete( key );
 				if ( candidate !== current ) {
 					parent.insertBefore( candidate, current );
@@ -88,7 +87,6 @@ function morphNode( from: Node, to: Node, active: Element | null ): void {
 
 	const focused = !! active && ( fromEl === active || fromEl.contains( active ) );
 	syncAttributes( fromEl, toEl, focused );
-
 	morphChildList( fromEl, Array.from( toEl.childNodes ) );
 	syncFormValue( fromEl, toEl, focused );
 }

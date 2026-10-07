@@ -4,6 +4,9 @@ if ( ! class_exists( 'Feed_Buddy_Service' ) ) {
 	require_once dirname( __DIR__, 2 ) . '/desktop-mode-feed-buddy.php';
 }
 
+/**
+ * @group openstation
+ */
 class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 
 	private $service;

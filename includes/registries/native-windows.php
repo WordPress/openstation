@@ -19,7 +19,6 @@ function openstation_register_window( $id, $args = array() ) {
 		'scripts'          => array(),
 		'styles'           => array(),
 		'preload_script'   => false,
-
 		'style'            => '',
 		'width'            => 520,
 		'height'           => 400,
@@ -34,7 +33,6 @@ function openstation_register_window( $id, $args = array() ) {
 		'autofocus'        => false,
 		'main_tab_label'   => '',
 		'main_tab_padding' => '',
-
 		'menu_pages'       => array(),
 		'config'           => array(),
 	);
@@ -48,7 +46,7 @@ function openstation_register_window( $id, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this native window.', 'desktop-mode' ),
 					(string) $cap
 				),
@@ -89,7 +87,6 @@ function openstation_register_window( $id, $args = array() ) {
 		'icon'             => (string) $args['icon'],
 		'template'         => $args['template'],
 		'script'           => (string) $args['script'],
-
 		'scripts'          => array_values(
 			array_unique(
 				array_filter(
@@ -100,7 +97,6 @@ function openstation_register_window( $id, $args = array() ) {
 				)
 			)
 		),
-
 		'styles'           => array_values(
 			array_unique(
 				array_filter(
@@ -119,16 +115,12 @@ function openstation_register_window( $id, $args = array() ) {
 		'min_height'       => (int) $args['min_height'],
 		'placement'        => $placement,
 		'nav_kind'         => $nav_kind,
-
 		'admin'            => $args['admin'],
-
 		'dock_order'       => (int) $args['dock_order'],
 		'placeable'        => (bool) $args['placeable'],
 		'autofocus'        => $args['autofocus'],
 		'main_tab_label'   => (string) $args['main_tab_label'],
-
 		'main_tab_padding' => $args['main_tab_padding'],
-
 		'menu_pages'       => is_array( $args['menu_pages'] ) ? array_values( $args['menu_pages'] ) : array(),
 		'config'           => is_array( $args['config'] ) ? $args['config'] : array(),
 	);
@@ -151,6 +143,7 @@ function openstation_native_window_registry( $id = '', $entry = null ) {
 	return isset( $store[ $id ] ) ? $store[ $id ] : null;
 }
 
+
 function openstation_native_window_allowed_html() {
 	$base = wp_kses_allowed_html( 'post' );
 
@@ -169,12 +162,10 @@ function openstation_native_window_allowed_html() {
 		'draggable'       => true,
 		'contenteditable' => true,
 		'data-*'          => true,
-
 		'aria-label'      => true,
 		'aria-labelledby' => true,
 		'aria-current'    => true,
 		'aria-hidden'     => true,
-
 		'full-width'      => true,
 	);
 
@@ -252,7 +243,6 @@ function openstation_native_window_allowed_html() {
 			'orientation'    => true,
 			'level'          => true,
 			'collapsed'      => true,
-
 			'submit-label'   => true,
 			'reset-label'    => true,
 			'busy'           => true,
@@ -477,7 +467,6 @@ function openstation_build_native_window_template_html( $entry ) {
 		&& '' !== (string) $entry['main_tab_padding']
 		? (int) $entry['main_tab_padding']
 		: 16;
-
 	$padding = (int) apply_filters(
 		'openstation_native_window_tab_wrap_padding',
 		$default_padding,
@@ -549,14 +538,12 @@ function openstation_enqueue_native_window_scripts() {
 			foreach ( (array) $entry['scripts'] as $companion ) {
 				wp_enqueue_script( $companion );
 			}
-
 			if ( ! empty( $entry['styles'] ) ) {
 				foreach ( (array) $entry['styles'] as $companion_style ) {
 					wp_enqueue_style( $companion_style );
 				}
 			}
 		}
-
 		wp_localize_script(
 			$entry['script'],
 			'openStationNativeWindow_' . str_replace( '-', '_', $entry['id'] ),
@@ -620,8 +607,7 @@ function openstation_render_native_window_templates() {
 			'<template id="os-native-window-%s">',
 			esc_attr( $entry['id'] )
 		);
-
-		echo openstation_kses_native_window_template( $html );
+		echo openstation_kses_native_window_template( $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 		echo '</template>';
 	}
 }

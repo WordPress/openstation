@@ -4,15 +4,10 @@ import '../os-button/os-button';
 import '../os-icon/os-icon';
 
 export interface OsTokenDefinition {
-
 	token: string;
-
 	label: string;
-
 	group?: string;
-
 	sample?: string;
-
 	description?: string;
 }
 
@@ -121,7 +116,6 @@ export class OsTokenField extends Component {
 
 	private _tokens: OsTokenDefinition[] = [];
 	private _value = '';
-
 	private caret: { start: number; end: number } | null = null;
 
 	public get tokens(): OsTokenDefinition[] {
@@ -138,7 +132,6 @@ export class OsTokenField extends Component {
 	public set value( next: string ) {
 		this._value = typeof next === 'string' ? next : '';
 		const field = this.field;
-
 		if ( field && field.value !== this._value ) {
 			field.value = this._value;
 		}
@@ -262,7 +255,6 @@ export class OsTokenField extends Component {
 		const hint = ( this as unknown as { hint: string | null } ).hint || '';
 		const placeholder =
 			( this as unknown as { placeholder: string | null } ).placeholder || '';
-
 		const attrs = this as unknown as Record< string, string | null >;
 		const insertLabel = attrs[ 'insert-label' ] || 'Insert a value';
 		const previewLabel = attrs[ 'preview-label' ] || 'Reads as';

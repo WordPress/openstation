@@ -1,5 +1,4 @@
 import { __ } from '@openstation/app';
-
 import '../../../src/ui/components/os-card/os-card';
 import '../../../src/ui/components/os-empty-state/os-empty-state';
 import '../../../src/ui/components/os-rating-summary/os-rating-summary';
@@ -104,7 +103,6 @@ export function renderReviews( host: PluginsHost, slug: string, info: WpOrgPlugi
 function paintReviewList( host: HTMLElement, resp: PluginReviewsResponse, slug: string ): void {
 	host.replaceChildren();
 	const reviewsUrl = wpOrgUrl( slug, '#reviews' );
-
 	if ( ! resp.parsed ) {
 		const empty = emptyState(
 			'external',
@@ -120,7 +118,6 @@ function paintReviewList( host: HTMLElement, resp: PluginReviewsResponse, slug: 
 		host.appendChild( empty );
 		return;
 	}
-
 	if ( resp.items.length === 0 ) {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'os-plugins__reviews-cta';

@@ -12,7 +12,6 @@ export function installWindowActivityNotifier( manager: WindowManager ): void {
 				window.location.origin,
 			);
 		} catch {
-
 		}
 	};
 

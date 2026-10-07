@@ -1,28 +1,20 @@
 export interface SelectionModelOptions< K > {
-
 	order: () => K[];
-
 	onChange?: ( keys: K[] ) => void;
 }
 
 export interface SelectionModel< K > {
-
 	keys: () => K[];
 	has: ( key: K ) => boolean;
 	size: () => number;
-
 	anchor: () => K | null;
-
 	set: ( keys: readonly K[] ) => void;
 	add: ( key: K ) => void;
 	remove: ( key: K ) => void;
-
 	toggle: ( key: K ) => void;
-
 	selectRange: ( key: K, additive?: boolean ) => void;
 	selectAll: () => void;
 	clear: () => void;
-
 	prune: () => boolean;
 	subscribe: ( cb: ( keys: K[] ) => void ) => () => void;
 }
@@ -47,6 +39,7 @@ export function createSelectionModel< K >(
 			try {
 				cb( snapshot );
 			} catch ( err ) {
+				// eslint-disable-next-line no-console
 				console.error( '[openstation] selection listener threw:', err );
 			}
 		}
@@ -110,7 +103,6 @@ export function createSelectionModel< K >(
 			if ( to < 0 ) {
 				return;
 			}
-
 			if ( from < 0 ) {
 				commit( () => {
 					if ( ! additive ) {

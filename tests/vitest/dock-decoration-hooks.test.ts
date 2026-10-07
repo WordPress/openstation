@@ -85,7 +85,6 @@ describe( 'dock decoration hooks', () => {
 		const tile = container.querySelector( '[data-menu-slug="edit.php"]' );
 		expect( tile ).not.toBeNull();
 		expect( tile?.classList.contains( 'plugin-decorated' ) ).toBe( true );
-
 		expect( tile?.classList.contains( 'os-dock__item' ) ).toBe(
 			true,
 		);
@@ -105,7 +104,6 @@ describe( 'dock decoration hooks', () => {
 		);
 
 		const { container } = mount( [ makeItem() ] );
-
 		const wrap = container.querySelector( '.os-dock__scroll > .plugin-wrap' );
 		expect( wrap ).not.toBeNull();
 		expect( wrap?.querySelector( '[data-menu-slug="edit.php"]' ) ).not.toBeNull();
@@ -235,7 +233,6 @@ describe( 'dock decoration hooks', () => {
 		wp.hooks.addAction( HOOKS.DOCK_TILE_RENDERED, 'test/t', tiles );
 
 		const { dock } = mount( [ makeItem() ] );
-
 		expect( before ).toHaveBeenCalledTimes( 1 );
 		expect( tiles ).toHaveBeenCalledTimes( 1 );
 		expect( after ).toHaveBeenCalledTimes( 1 );

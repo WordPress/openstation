@@ -4,7 +4,6 @@ defined( 'ABSPATH' ) || exit;
 
 function openstation_get_accent_colors() {
 	$defaults = array(
-
 		array(
 			'id'    => 'pulse',
 			'label' => __( 'Pulse', 'desktop-mode' ),
@@ -15,7 +14,6 @@ function openstation_get_accent_colors() {
 			'label' => __( 'Nebula', 'desktop-mode' ),
 			'value' => '#ec9bff',
 		),
-
 		array(
 			'id'    => 'sirius',
 			'label' => __( 'Sirius', 'desktop-mode' ),

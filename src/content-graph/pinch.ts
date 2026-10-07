@@ -1,9 +1,6 @@
 export interface Camera {
-
 	scale: number;
-
 	x: number;
-
 	y: number;
 }
 
@@ -43,10 +40,8 @@ export function pinchCamera(
 
 	const from = midpoint( prev );
 	const to = midpoint( next );
-
 	const worldX = ( from.x - camera.x ) / camera.scale;
 	const worldY = ( from.y - camera.y ) / camera.scale;
-
 	return {
 		scale,
 		x: to.x - worldX * scale,

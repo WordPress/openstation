@@ -23,7 +23,6 @@ function openstation_desktop_theme_is_safe_css_value( $value ) {
 			return false;
 		}
 	}
-
 	$depth = 0;
 	$len   = strlen( $value );
 	for ( $i = 0; $i < $len; $i++ ) {
@@ -46,7 +45,6 @@ function openstation_sanitize_desktop_theme_tokens( $raw ) {
 	$out   = array();
 	$count = 0;
 	foreach ( $raw as $key => $value ) {
-
 		if ( $count >= 2048 ) {
 			break;
 		}
@@ -54,7 +52,6 @@ function openstation_sanitize_desktop_theme_tokens( $raw ) {
 			continue;
 		}
 		$key = strtolower( trim( $key ) );
-
 		if (
 			'--wp-admin-theme-color' !== $key
 			&& ! preg_match( '/^--os-[a-z0-9-]+$/', $key )
@@ -79,12 +76,10 @@ function openstation_desktop_theme_is_color_value( $value ) {
 	if ( '' === $value || strlen( $value ) > 64 ) {
 		return false;
 	}
-
 	if ( ! openstation_desktop_theme_is_safe_css_value( $value ) ) {
 		return false;
 	}
 	if ( 0 === strcasecmp( 'currentcolor', $value ) ) {
-
 		return true;
 	}
 	if ( preg_match( '/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i', $value ) ) {
@@ -93,7 +88,6 @@ function openstation_desktop_theme_is_color_value( $value ) {
 	if ( preg_match( '/^(rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([0-9a-z%.,\/ +-]+\)$/i', $value ) ) {
 		return true;
 	}
-
 	return (bool) preg_match( '/^[a-z]{3,24}$/i', $value );
 }
 
@@ -112,7 +106,6 @@ function openstation_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defau
 			continue;
 		}
 		$slot = trim( $slot );
-
 		$is_app = 0 === strpos( $slot, 'APP:' );
 		if ( $is_app ) {
 			$app_slug = sanitize_key( substr( $slot, 4 ) );
@@ -221,7 +214,6 @@ function openstation_desktop_theme_is_position_value( $value ) {
 		if ( in_array( $part, $keywords, true ) ) {
 			continue;
 		}
-
 		if ( preg_match( '/^-?(0|\d+(\.\d+)?(px|%|rem|em))$/', $part ) ) {
 			continue;
 		}
@@ -260,14 +252,12 @@ function openstation_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 		);
 
 		if ( 'border-image' === $type ) {
-
 			if ( isset( $descriptor['slice'] ) && is_string( $descriptor['slice'] ) ) {
 				$slice = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['slice'] ) ) );
 				if ( preg_match( '/^\d+( \d+){0,3}( fill)?$/', $slice ) ) {
 					$entry['slice'] = $slice;
 				}
 			}
-
 			if ( isset( $descriptor['width'] ) && is_string( $descriptor['width'] ) ) {
 				$width = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['width'] ) ) );
 				$parts = preg_split( '/ /', $width );
@@ -284,7 +274,6 @@ function openstation_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 					}
 				}
 			}
-
 			if ( isset( $descriptor['repeat'] ) && is_string( $descriptor['repeat'] ) ) {
 				$value = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['repeat'] ) ) );
 				$parts = preg_split( '/ /', $value );
@@ -378,7 +367,6 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			if ( count( $sources ) >= $caps['max_sources'] ) {
 				break;
 			}
-
 			if ( is_array( $candidate ) && isset( $candidate['path'] ) ) {
 				$candidate = $candidate['path'];
 			}
@@ -399,7 +387,6 @@ function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			);
 		}
 		if ( empty( $sources ) ) {
-
 			continue;
 		}
 
@@ -493,7 +480,6 @@ function openstation_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) 
 	if ( is_string( $raw ) ) {
 		$raw = array( array( 'path' => $raw ) );
 	} elseif ( is_array( $raw ) && isset( $raw['path'] ) ) {
-
 		$raw = array( $raw );
 	}
 	if ( ! is_array( $raw ) ) {
@@ -587,7 +573,6 @@ function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 		if ( ! isset( $raw[ $key ] ) ) {
 			continue;
 		}
-
 		if ( isset( $rule['int'] ) ) {
 			if ( ! is_numeric( $raw[ $key ] ) ) {
 				continue;
@@ -611,7 +596,6 @@ function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 			}
 			continue;
 		}
-
 		$slug = sanitize_key( $value );
 		if ( '' !== $slug ) {
 			$out[ $key ] = $slug;
@@ -718,14 +702,12 @@ function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 			isset( $raw['fonts'] ) ? $raw['fonts'] : null,
 			$asset_resolver
 		),
-
 		'wallpapers'            => openstation_sanitize_desktop_theme_wallpapers(
 			isset( $raw['wallpapers'] ) ? $raw['wallpapers'] : (
 				isset( $raw['wallpaper'] ) ? $raw['wallpaper'] : null
 			),
 			$asset_resolver
 		),
-
 		'recommendedOsSettings' => openstation_sanitize_desktop_theme_recommended_os_settings(
 			isset( $raw['recommendedOsSettings'] ) ? $raw['recommendedOsSettings'] : null
 		),
@@ -778,7 +760,6 @@ function openstation_desktop_theme_url_asset_resolver() {
 			return false;
 		}
 		$url = trim( $url );
-
 		if ( ! preg_match( '~^https?://~i', $url ) ) {
 			return false;
 		}

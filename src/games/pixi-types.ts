@@ -66,7 +66,6 @@ export interface PixiApp {
 		render( container?: unknown ): void;
 	};
 	init( opts: unknown ): Promise< void >;
-
 	resize(): void;
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }

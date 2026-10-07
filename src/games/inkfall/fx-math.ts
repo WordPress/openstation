@@ -1,9 +1,6 @@
 export interface ScatterParticle {
-
 	vx: number;
-
 	vy: number;
-
 	spin: number;
 }
 
@@ -34,7 +31,6 @@ export function integrateStep(
 	const vyNext = particle.vy + SCATTER_GRAVITY * dt;
 	return {
 		dx: particle.vx * dt,
-
 		dy: ( ( particle.vy + vyNext ) / 2 ) * dt,
 		dRotation: particle.spin * dt,
 		vyNext,

@@ -54,14 +54,12 @@ describe( 'the dev guards', () => {
 			windowId: 'w1',
 			host: host( '<button os-action="svae">Save</button><button os-action="save">OK</button>' ),
 		} );
-
 		return session.dispatch( 'mount' ).then( async () => {
 			await flush();
 			const typoWarnings = warn.mock.calls.filter( ( c ) =>
 				String( c[ 0 ] ).includes( 'os-action="svae"' ),
 			);
 			expect( typoWarnings ).toHaveLength( 1 );
-
 			expect(
 				warn.mock.calls.some( ( c ) => String( c[ 0 ] ).includes( '"save"' ) ),
 			).toBe( false );
@@ -160,7 +158,6 @@ describe( 'renderedText', () => {
 		expect( text ).toContain( 'Events' );
 		expect( text ).toContain( 'today' );
 		expect( text ).toContain( 'plain' );
-
 		expect( hostEl.textContent ).not.toContain( '1,204' );
 		hostEl.remove();
 	} );
@@ -172,18 +169,15 @@ describe( 'the client-API queue', () => {
 		const early = vi.fn();
 		( window as unknown as { openStationAppsPending?: unknown } ).openStationAppsPending = [ early ];
 		const { publishClientApi } = await import( '../../src/app-runtime/index' );
-
 		expect( early ).toHaveBeenCalledTimes( 1 );
 		const api = early.mock.calls[ 0 ][ 0 ] as Record< string, unknown >;
 		expect( typeof api.defineApp ).toBe( 'function' );
 		expect( typeof api.html ).toBe( 'function' );
 		expect( typeof api.createPagedList ).toBe( 'function' );
-
 		const late = vi.fn();
 		( window as unknown as { openStationAppsPending: { push: ( fn: unknown ) => void } } )
 			.openStationAppsPending.push( late );
 		expect( late ).toHaveBeenCalledTimes( 1 );
-
 		publishClientApi();
 		expect( early ).toHaveBeenCalledTimes( 1 );
 	} );

@@ -49,7 +49,7 @@ function run_bulk( Os $os, array $items, $callback, $action ) {
 	if ( array() !== $errors ) {
 		$os->toast(
 			sprintf(
-
+				/* translators: %d: number of items that could not be processed. */
 				__( '%d item(s) could not be processed.', 'desktop-mode' ),
 				count( $errors )
 			)
@@ -59,12 +59,10 @@ function run_bulk( Os $os, array $items, $callback, $action ) {
 
 return App::define( 'desktop-mode-recycle-bin' )
 	->title( __( 'Trash', 'desktop-mode' ) )
-
 	->icon( function_exists( 'openstation_recycle_bin_icon_svg' ) ? openstation_recycle_bin_icon_svg() : 'dashicons-trash' )
 	->config( function_exists( 'openstation_recycle_bin_icon_uris' ) ? openstation_recycle_bin_icon_uris() : array() )
 	->size( 880, 560 )
 	->min_size( 520, 360 )
-
 	->nav_kind( 'control' )
 	->dock_order( 40 )
 	->placeable()
@@ -75,24 +73,20 @@ return App::define( 'desktop-mode-recycle-bin' )
 				: current_user_can( 'edit_posts' );
 		}
 	)
-
 	->state(
 		array(
 			'filter' => '',
 			'search' => '',
 		)
 	)
-
 	->action(
 		'show',
 		static function () {
-
 		}
 	)
 	->action(
 		'reopen',
 		static function () {
-
 		}
 	)
 	->action(
@@ -107,7 +101,6 @@ return App::define( 'desktop-mode-recycle-bin' )
 			run_bulk( $os, refs( $args ), 'openstation_recycle_bin_purge', 'deleted' );
 		}
 	)
-
 	->watch( '*' )
 	->data(
 		static function ( State $state ) {
@@ -120,9 +113,7 @@ return App::define( 'desktop-mode-recycle-bin' )
 			);
 			return array(
 				'items'      => $payload['items'],
-
 				'total'      => (int) $payload['total'],
-
 				'mediaTrash' => defined( 'MEDIA_TRASH' ) && MEDIA_TRASH,
 			);
 		}

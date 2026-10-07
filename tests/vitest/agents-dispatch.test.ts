@@ -170,7 +170,6 @@ describe( 'dispatchAgentDrop', () => {
 		const transcript = agentsChatStore.state.transcripts[ 9 ];
 		expect( transcript ).toHaveLength( 2 );
 		expect( transcript[ 0 ].role ).toBe( 'user' );
-
 		expect( transcript[ 0 ].attachment ).toEqual( {
 			kind: 'media',
 			id: 44,
@@ -318,5 +317,6 @@ describe( 'dispatchAgentDrop', () => {
 			( JSON.parse( String( init.body ) ) as { history: unknown[] } ).history,
 		).toEqual( [ { role: 'user', text: 'Propose a revision' } ] );
 	} );
+
 
 } );

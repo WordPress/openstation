@@ -2,15 +2,10 @@ import { applyFilters, HOOKS } from '../hooks';
 import type { WindowManager } from '../window-manager';
 
 export interface WallpaperSurface {
-
 	id: string;
-
 	kind: 'window' | 'shell' | 'dock' | 'widget' | 'custom';
-
 	rect: { x: number; y: number; width: number; height: number };
-
 	face: 'top' | 'bottom' | 'left' | 'right';
-
 	element: HTMLElement | null;
 }
 
@@ -21,7 +16,6 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		if ( w.state === 'minimized' ) {
 			continue;
 		}
-
 		if ( w.element.offsetParent === null ) {
 			continue;
 		}
@@ -63,7 +57,6 @@ export function collectWallpaperSurfaces( manager: WindowManager ): WallpaperSur
 		}
 		const placement =
 			dockEl.getAttribute( 'data-os-dock-placement' ) ?? 'bottom';
-
 		const id = dockIndex === 0 ? 'dock:edge' : `dock:edge:${ dockIndex }`;
 		dockIndex++;
 		if ( placement === 'bottom' ) {

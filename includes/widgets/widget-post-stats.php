@@ -31,14 +31,13 @@ function openstation_post_stats_callback() {
 	}
 
 	$months_back = 6;
-
 	$cutoff = gmdate(
 		'Y-m-01 00:00:00',
 		strtotime( current_time( 'Y-m-01' ) . ' -' . ( $months_back - 1 ) . ' months' )
 	);
 
 	if ( $see_others ) {
-
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single aggregate GROUP BY, result cached in the transient below.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT DATE_FORMAT( post_date, '%%Y-%%m' ) AS ym, post_status, COUNT(*) AS cnt
@@ -53,7 +52,7 @@ function openstation_post_stats_callback() {
 			ARRAY_A
 		);
 	} else {
-
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single aggregate GROUP BY, result cached in the transient below.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT DATE_FORMAT( post_date, '%%Y-%%m' ) AS ym, post_status, COUNT(*) AS cnt

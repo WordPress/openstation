@@ -71,7 +71,6 @@ return App::define( 'openstation-code-blue' )
 			),
 		)
 	)
-
 	->action(
 		'refresh',
 		static function ( State $state ) {

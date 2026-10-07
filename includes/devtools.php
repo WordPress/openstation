@@ -19,7 +19,6 @@ function openstation_debug_session_for_request() {
 	if ( '' === $raw ) {
 		return '';
 	}
-
 	$sanitised = preg_replace( '/[^A-Za-z0-9\-]/', '', $raw );
 	if ( ! is_string( $sanitised ) || '' === $sanitised || strlen( $sanitised ) > 64 ) {
 		return '';
@@ -76,7 +75,6 @@ function openstation_debug_drain( $session_id, $since = 0, $channel = null ) {
 	if ( null !== $channel && '' !== (string) $channel ) {
 		$channels[] = (string) $channel;
 	} else {
-
 		$declared = apply_filters( 'openstation_debug_channels', array(), $session_id );
 		if ( is_array( $declared ) ) {
 			foreach ( $declared as $ch ) {
@@ -128,7 +126,6 @@ function openstation_rest_debug_drain( WP_REST_Request $request ) {
 	$channels   = $request->get_param( 'channels' );
 
 	if ( is_array( $channels ) && count( $channels ) > 0 ) {
-
 		$cursor     = $since;
 		$all_events = array();
 		foreach ( $channels as $ch ) {
@@ -164,7 +161,6 @@ function openstation_rest_debug_drain( WP_REST_Request $request ) {
 
 function openstation_rest_debug_permission() {
 	$allowed = is_user_logged_in() && current_user_can( 'manage_options' );
-
 	return (bool) apply_filters( 'openstation_debug_rest_permission', $allowed );
 }
 

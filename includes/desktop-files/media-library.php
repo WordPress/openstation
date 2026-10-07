@@ -28,7 +28,7 @@ function openstation_stored_file_find_attachment( $row ) {
 			'orderby'        => 'ID',
 			'order'          => 'ASC',
 			'no_found_rows'  => true,
-
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- one attachment per stored file; the lookup is bounded to one row.
 			'meta_query'     => array(
 				array(
 					'key'   => OPENSTATION_MEDIA_SOURCE_META,
@@ -107,7 +107,6 @@ function openstation_stored_file_to_attachment( $file_id, $user_id ) {
 	$post_data = array(
 		'post_author' => $user_id,
 	);
-
 	$post_data = (array) apply_filters( 'openstation_stored_file_media_post_data', $post_data, $row, $user_id );
 
 	$attachment_id = media_handle_sideload(
@@ -211,7 +210,6 @@ function openstation_stored_file_start_post( $file_id, $post_type, $user_id ) {
 	$row           = openstation_stored_files_get( $file_id );
 
 	$content = openstation_attachment_block_markup( $attachment_id );
-
 	$content = (string) apply_filters( 'openstation_stored_file_start_post_content', $content, $attachment_id, $post_type, $row );
 
 	$args = array(
@@ -221,7 +219,6 @@ function openstation_stored_file_start_post( $file_id, $post_type, $user_id ) {
 		'post_content' => $content,
 		'post_author'  => $user_id,
 	);
-
 	$args = (array) apply_filters( 'openstation_stored_file_start_post_args', $args, $attachment_id, $post_type, $row );
 
 	$post_id = wp_insert_post( wp_slash( $args ), true );
@@ -290,7 +287,6 @@ function openstation_stored_files_attach_to_post( $post_id, $file_ids, $user_id 
 	}
 
 	$markup = implode( "\n\n", array_map( 'openstation_attachment_block_markup', $attachment_ids ) );
-
 	$markup = (string) apply_filters( 'openstation_stored_file_attach_content', $markup, $attachment_ids, $post, $file_ids );
 
 	$appended = false;

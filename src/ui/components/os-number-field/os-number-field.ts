@@ -170,7 +170,6 @@ export class OsNumberField extends Component {
 		if ( ! Number.isFinite( n ) ) {
 			return;
 		}
-
 		( this as unknown as { value: string } ).value = String( n );
 		this.emit( 'os-input-change', { value: n } );
 	}
@@ -182,7 +181,6 @@ export class OsNumberField extends Component {
 			return;
 		}
 		const clamped = this._clamp( n );
-
 		if ( clamped !== n ) {
 			input.value = String( clamped );
 			( this as unknown as { value: string } ).value = String( clamped );

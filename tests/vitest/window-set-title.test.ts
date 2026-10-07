@@ -62,7 +62,6 @@ describe( 'Window.setTitle', () => {
 	} );
 
 	test( 'the name survives a window-slot repaint', () => {
-
 		const mounted = mountWindow( baseConfig() );
 		cleanup = mounted.cleanup;
 
@@ -73,7 +72,6 @@ describe( 'Window.setTitle', () => {
 	} );
 
 	test( 'a title slot override that removed the span is not a crash', () => {
-
 		const mounted = mountWindow(
 			baseConfig( { appearance: { slots: { title: null } } } )
 		);

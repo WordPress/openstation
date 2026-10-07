@@ -148,7 +148,6 @@ describe( 'wallpaper config dialog', () => {
 		expect( received!.settings ).toEqual( { wind: 10 } );
 
 		received!.setSettings( { size: 8 } );
-
 		expect( stub.updateOsSettings ).toHaveBeenCalledWith(
 			{ wallpaperSettings: { 'test-configurable': { wind: 10, size: 8 } } },
 			expect.anything(),

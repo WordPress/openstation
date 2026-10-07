@@ -17,14 +17,12 @@ function makeBoundsEmitter(
 		pending = true;
 		requestAnimationFrame( () => {
 			pending = false;
-
 			if ( phase === 'drag' && ! win._isDragging ) {
 				return;
 			}
 			if ( phase === 'resize' && ! win._isResizing ) {
 				return;
 			}
-
 			if ( win._isDestroyed || ! win.element.isConnected ) {
 				return;
 			}
@@ -39,7 +37,6 @@ function makeBoundsEmitter(
 					phase,
 				} );
 			} catch {
-
 			}
 		} );
 	};
@@ -111,7 +108,6 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		if ( ke.key !== 'Alt' ) {
 			return;
 		}
-
 		ke.preventDefault();
 		setModifier( ke.type === 'keydown', lastClientX, lastClientY );
 	};
@@ -213,7 +209,6 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		try {
 			win._titleBar.releasePointerCapture( pointerId );
 		} catch {
-
 		}
 	};
 
@@ -292,7 +287,6 @@ function captureUnstateParams(
 		isMaximized: win.state === 'maximized',
 		cursorRatioX,
 		titleBarHeight: titleRect.height,
-
 		areaLeft: parentRect?.left ?? 0,
 		areaTop: parentRect?.top ?? 0,
 		targetW: w,
@@ -313,7 +307,6 @@ function commitUnstate(
 	);
 	win.element.style.width = `${ params.targetW }px`;
 	win.element.style.height = `${ params.targetH }px`;
-
 	const left = Math.max(
 		EDGE_MARGIN,
 		Math.round(
@@ -412,7 +405,6 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 		handle.removeEventListener( 'pointerup', onResizeEnd );
 		handle.removeEventListener( 'pointercancel', onResizeEnd );
 		handle.removeEventListener( 'lostpointercapture', onResizeEnd );
-
 		win._gridSpan = null;
 		win._emitChange( 'resized' );
 		const payload = {
@@ -450,17 +442,14 @@ export function computeResize(
 	if ( dir === 'ne' || dir === 'se' ) {
 		width = Math.max( minWidth, startW + dx );
 	}
-
 	if ( dir === 'nw' || dir === 'sw' ) {
 		const nextWidth = Math.max( minWidth, startW - dx );
 		x = startLeft + ( startW - nextWidth );
 		width = nextWidth;
 	}
-
 	if ( dir === 'se' || dir === 'sw' ) {
 		height = Math.max( minHeight, startH + dy );
 	}
-
 	if ( dir === 'ne' || dir === 'nw' ) {
 		const nextHeight = Math.max( minHeight, startH - dy );
 		y = startTop + ( startH - nextHeight );
@@ -476,7 +465,6 @@ export function computeResize(
 			minHeight,
 			Math.round( height / snap.cellHeight ) * snap.cellHeight,
 		);
-
 		if ( dir === 'nw' || dir === 'sw' ) {
 			x = startLeft + ( width - nextWidth );
 		}

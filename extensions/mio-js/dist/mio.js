@@ -1,6 +1,6 @@
 var MioBundle = function() {
   "use strict";
-  var ExtensionType =                 ((ExtensionType2) => {
+  var ExtensionType = /* @__PURE__ */ ((ExtensionType2) => {
     ExtensionType2["Application"] = "application";
     ExtensionType2["WebGLPipes"] = "webgl-pipes";
     ExtensionType2["WebGLPipesAdaptor"] = "webgl-pipes-adaptor";
@@ -44,20 +44,15 @@ var MioBundle = function() {
   };
   const normalizeExtensionPriority = (ext, defaultPriority) => normalizeExtension(ext).priority ?? defaultPriority;
   const extensions = {
-
     _addHandlers: {},
-
     _removeHandlers: {},
-
     _queue: {},
-
     remove(...extensions2) {
       extensions2.map(normalizeExtension).forEach((ext) => {
         ext.type.forEach((type) => this._removeHandlers[type]?.(ext));
       });
       return this;
     },
-
     add(...extensions2) {
       extensions2.map(normalizeExtension).forEach((ext) => {
         ext.type.forEach((type) => {
@@ -73,7 +68,6 @@ var MioBundle = function() {
       });
       return this;
     },
-
     handle(type, onAdd, onRemove) {
       const addHandlers = this._addHandlers;
       const removeHandlers = this._removeHandlers;
@@ -89,7 +83,6 @@ var MioBundle = function() {
       }
       return this;
     },
-
     handleByMap(type, map) {
       return this.handle(
         type,
@@ -105,7 +98,6 @@ var MioBundle = function() {
         }
       );
     },
-
     handleByNamedList(type, map, defaultPriority = -1) {
       return this.handle(
         type,
@@ -123,7 +115,6 @@ var MioBundle = function() {
         }
       );
     },
-
     handleByList(type, list, defaultPriority = -1) {
       return this.handle(
         type,
@@ -142,7 +133,6 @@ var MioBundle = function() {
         }
       );
     },
-
     mixin(Target, ...sources2) {
       for (const source2 of sources2) {
         Object.defineProperties(Target.prototype, Object.getOwnPropertyDescriptors(source2));
@@ -172,17 +162,14 @@ var MioBundle = function() {
     }
   };
   class ObservablePoint {
-
     constructor(observer, x2, y2) {
       this._x = x2 || 0;
       this._y = y2 || 0;
       this._observer = observer;
     }
-
     clone(observer) {
       return new ObservablePoint(observer ?? this._observer, this._x, this._y);
     }
-
     set(x2 = 0, y2 = x2) {
       if (this._x !== x2 || this._y !== y2) {
         this._x = x2;
@@ -191,7 +178,6 @@ var MioBundle = function() {
       }
       return this;
     }
-
     copyFrom(p2) {
       if (this._x !== p2.x || this._y !== p2.y) {
         this._x = p2.x;
@@ -200,19 +186,16 @@ var MioBundle = function() {
       }
       return this;
     }
-
     copyTo(p2) {
       p2.set(this._x, this._y);
       return p2;
     }
-
     equals(p2) {
       return p2.x === this._x && p2.y === this._y;
     }
     toString() {
       return `[pixi.js/math:ObservablePoint x=${this._x} y=${this._y} scope=${this._observer}]`;
     }
-
     get x() {
       return this._x;
     }
@@ -222,7 +205,6 @@ var MioBundle = function() {
         this._observer._onUpdate(this);
       }
     }
-
     get y() {
       return this._y;
     }
@@ -242,7 +224,7 @@ var MioBundle = function() {
     function Events() {
     }
     if (Object.create) {
-      Events.prototype =                 Object.create(null);
+      Events.prototype = /* @__PURE__ */ Object.create(null);
       if (!new Events().__proto__) prefix = false;
     }
     function EE(fn, context2, once) {
@@ -394,37 +376,31 @@ var MioBundle = function() {
     }
   })(eventemitter3);
   var eventemitter3Exports = eventemitter3.exports;
-  const EventEmitter =                 getDefaultExportFromCjs(eventemitter3Exports);
+  const EventEmitter = /* @__PURE__ */ getDefaultExportFromCjs(eventemitter3Exports);
   const PI_2 = Math.PI * 2;
   const RAD_TO_DEG = 180 / Math.PI;
   const DEG_TO_RAD = Math.PI / 180;
   class Point {
-
     constructor(x2 = 0, y2 = 0) {
       this.x = 0;
       this.y = 0;
       this.x = x2;
       this.y = y2;
     }
-
     clone() {
       return new Point(this.x, this.y);
     }
-
     copyFrom(p2) {
       this.set(p2.x, p2.y);
       return this;
     }
-
     copyTo(p2) {
       p2.set(this.x, this.y);
       return p2;
     }
-
     equals(p2) {
       return p2.x === this.x && p2.y === this.y;
     }
-
     set(x2 = 0, y2 = x2) {
       this.x = x2;
       this.y = y2;
@@ -433,7 +409,6 @@ var MioBundle = function() {
     toString() {
       return `[pixi.js/math:Point x=${this.x} y=${this.y}]`;
     }
-
     static get shared() {
       tempPoint.x = 0;
       tempPoint.y = 0;
@@ -442,7 +417,6 @@ var MioBundle = function() {
   }
   const tempPoint = new Point();
   class Matrix {
-
     constructor(a2 = 1, b2 = 0, c2 = 0, d2 = 1, tx = 0, ty = 0) {
       this.array = null;
       this.a = a2;
@@ -452,7 +426,6 @@ var MioBundle = function() {
       this.tx = tx;
       this.ty = ty;
     }
-
     fromArray(array) {
       this.a = array[0];
       this.b = array[1];
@@ -461,7 +434,6 @@ var MioBundle = function() {
       this.tx = array[2];
       this.ty = array[5];
     }
-
     set(a2, b2, c2, d2, tx, ty) {
       this.a = a2;
       this.b = b2;
@@ -471,7 +443,6 @@ var MioBundle = function() {
       this.ty = ty;
       return this;
     }
-
     toArray(transpose, out2) {
       if (!this.array) {
         this.array = new Float32Array(9);
@@ -500,7 +471,6 @@ var MioBundle = function() {
       }
       return array;
     }
-
     apply(pos, newPos) {
       newPos = newPos || new Point();
       const x2 = pos.x;
@@ -509,7 +479,6 @@ var MioBundle = function() {
       newPos.y = this.b * x2 + this.d * y2 + this.ty;
       return newPos;
     }
-
     applyInverse(pos, newPos) {
       newPos = newPos || new Point();
       const a2 = this.a;
@@ -525,13 +494,11 @@ var MioBundle = function() {
       newPos.y = a2 * id * y2 + -b2 * id * x2 + (-ty * a2 + tx * b2) * id;
       return newPos;
     }
-
     translate(x2, y2) {
       this.tx += x2;
       this.ty += y2;
       return this;
     }
-
     scale(x2, y2) {
       this.a *= x2;
       this.d *= y2;
@@ -541,7 +508,6 @@ var MioBundle = function() {
       this.ty *= y2;
       return this;
     }
-
     rotate(angle) {
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
@@ -556,7 +522,6 @@ var MioBundle = function() {
       this.ty = tx1 * sin + this.ty * cos;
       return this;
     }
-
     append(matrix) {
       const a1 = this.a;
       const b1 = this.b;
@@ -570,7 +535,6 @@ var MioBundle = function() {
       this.ty = matrix.tx * b1 + matrix.ty * d1 + this.ty;
       return this;
     }
-
     appendFrom(a2, b2) {
       const a1 = a2.a;
       const b1 = a2.b;
@@ -590,7 +554,6 @@ var MioBundle = function() {
       this.ty = tx * b22 + ty * d2 + b2.ty;
       return this;
     }
-
     setTransform(x2, y2, pivotX, pivotY, scaleX, scaleY, rotation, skewX, skewY) {
       this.a = Math.cos(rotation + skewY) * scaleX;
       this.b = Math.sin(rotation + skewY) * scaleX;
@@ -600,7 +563,6 @@ var MioBundle = function() {
       this.ty = y2 - (pivotX * this.b + pivotY * this.d);
       return this;
     }
-
     prepend(matrix) {
       const tx1 = this.tx;
       if (matrix.a !== 1 || matrix.b !== 0 || matrix.c !== 0 || matrix.d !== 1) {
@@ -615,7 +577,6 @@ var MioBundle = function() {
       this.ty = tx1 * matrix.b + this.ty * matrix.d + matrix.ty;
       return this;
     }
-
     decompose(transform) {
       const a2 = this.a;
       const b2 = this.b;
@@ -639,7 +600,6 @@ var MioBundle = function() {
       transform.position.y = this.ty + (pivot.x * b2 + pivot.y * d2);
       return transform;
     }
-
     invert() {
       const a1 = this.a;
       const b1 = this.b;
@@ -655,11 +615,9 @@ var MioBundle = function() {
       this.ty = -(a1 * this.ty - b1 * tx1) / n2;
       return this;
     }
-
     isIdentity() {
       return this.a === 1 && this.b === 0 && this.c === 0 && this.d === 1 && this.tx === 0 && this.ty === 0;
     }
-
     identity() {
       this.a = 1;
       this.b = 0;
@@ -669,7 +627,6 @@ var MioBundle = function() {
       this.ty = 0;
       return this;
     }
-
     clone() {
       const matrix = new Matrix();
       matrix.a = this.a;
@@ -680,7 +637,6 @@ var MioBundle = function() {
       matrix.ty = this.ty;
       return matrix;
     }
-
     copyTo(matrix) {
       matrix.a = this.a;
       matrix.b = this.b;
@@ -690,7 +646,6 @@ var MioBundle = function() {
       matrix.ty = this.ty;
       return matrix;
     }
-
     copyFrom(matrix) {
       this.a = matrix.a;
       this.b = matrix.b;
@@ -700,18 +655,15 @@ var MioBundle = function() {
       this.ty = matrix.ty;
       return this;
     }
-
     equals(matrix) {
       return matrix.a === this.a && matrix.b === this.b && matrix.c === this.c && matrix.d === this.d && matrix.tx === this.tx && matrix.ty === this.ty;
     }
     toString() {
       return `[pixi.js:Matrix a=${this.a} b=${this.b} c=${this.c} d=${this.d} tx=${this.tx} ty=${this.ty}]`;
     }
-
     static get IDENTITY() {
       return identityMatrix$1.identity();
     }
-
     static get shared() {
       return tempMatrix$6.identity();
     }
@@ -750,54 +702,32 @@ var MioBundle = function() {
   }
   init();
   const groupD8 = {
-
     E: 0,
-
     SE: 1,
-
     S: 2,
-
     SW: 3,
-
     W: 4,
-
     NW: 5,
-
     N: 6,
-
     NE: 7,
-
     MIRROR_VERTICAL: 8,
-
     MAIN_DIAGONAL: 10,
-
     MIRROR_HORIZONTAL: 12,
-
     REVERSE_DIAGONAL: 14,
-
     uX: (ind) => ux[ind],
-
     uY: (ind) => uy[ind],
-
     vX: (ind) => vx[ind],
-
     vY: (ind) => vy[ind],
-
     inv: (rotation) => {
       if (rotation & 8) {
         return rotation & 15;
       }
       return -rotation & 7;
     },
-
     add: (rotationSecond, rotationFirst) => rotationCayley[rotationSecond][rotationFirst],
-
     sub: (rotationSecond, rotationFirst) => rotationCayley[rotationSecond][groupD8.inv(rotationFirst)],
-
     rotate180: (rotation) => rotation ^ 4,
-
     isVertical: (rotation) => (rotation & 3) === 2,
-
     byDirection: (dx, dy) => {
       if (Math.abs(dx) * 2 <= Math.abs(dy)) {
         if (dy >= 0) {
@@ -819,7 +749,6 @@ var MioBundle = function() {
       }
       return groupD8.NW;
     },
-
     matrixAppendRotationInv: (matrix, rotation, tx = 0, ty = 0, dw = 0, dh = 0) => {
       const mat = rotationMatrices[groupD8.inv(rotation)];
       const a2 = mat.a;
@@ -839,7 +768,6 @@ var MioBundle = function() {
       matrix.tx = finalTx * a1 + finalTy * c1 + matrix.tx;
       matrix.ty = finalTx * b1 + finalTy * d1 + matrix.ty;
     },
-
     transformRectCoords: (rect, sourceFrame, rotation, out2) => {
       const { x: x2, y: y2, width, height } = rect;
       const { x: frameX, y: frameY, width: frameWidth, height: frameHeight } = sourceFrame;
@@ -873,7 +801,6 @@ var MioBundle = function() {
   };
   const tempPoints = [new Point(), new Point(), new Point(), new Point()];
   class Rectangle {
-
     constructor(x2 = 0, y2 = 0, width = 0, height = 0) {
       this.type = "rectangle";
       this.x = Number(x2);
@@ -881,35 +808,27 @@ var MioBundle = function() {
       this.width = Number(width);
       this.height = Number(height);
     }
-
     get left() {
       return this.x;
     }
-
     get right() {
       return this.x + this.width;
     }
-
     get top() {
       return this.y;
     }
-
     get bottom() {
       return this.y + this.height;
     }
-
     isEmpty() {
       return this.left === this.right || this.top === this.bottom;
     }
-
     static get EMPTY() {
       return new Rectangle(0, 0, 0, 0);
     }
-
     clone() {
       return new Rectangle(this.x, this.y, this.width, this.height);
     }
-
     copyFromBounds(bounds) {
       this.x = bounds.minX;
       this.y = bounds.minY;
@@ -917,7 +836,6 @@ var MioBundle = function() {
       this.height = bounds.maxY - bounds.minY;
       return this;
     }
-
     copyFrom(rectangle) {
       this.x = rectangle.x;
       this.y = rectangle.y;
@@ -925,12 +843,10 @@ var MioBundle = function() {
       this.height = rectangle.height;
       return this;
     }
-
     copyTo(rectangle) {
       rectangle.copyFrom(this);
       return rectangle;
     }
-
     contains(x2, y2) {
       if (this.width <= 0 || this.height <= 0) {
         return false;
@@ -942,7 +858,6 @@ var MioBundle = function() {
       }
       return false;
     }
-
     strokeContains(x2, y2, strokeWidth, alignment = 0.5) {
       const { width, height } = this;
       if (width <= 0 || height <= 0) return false;
@@ -960,7 +875,6 @@ var MioBundle = function() {
       const innerBottom = _y + height - strokeWidthInner;
       return x2 >= outerLeft && x2 <= outerRight && y2 >= outerTop && y2 <= outerBottom && !(x2 > innerLeft && x2 < innerRight && y2 > innerTop && y2 < innerBottom);
     }
-
     intersects(other, transform) {
       if (!transform) {
         const x02 = this.x < other.x ? other.x : this.x;
@@ -1017,7 +931,6 @@ var MioBundle = function() {
       }
       return true;
     }
-
     pad(paddingX = 0, paddingY = paddingX) {
       this.x -= paddingX;
       this.y -= paddingY;
@@ -1025,7 +938,6 @@ var MioBundle = function() {
       this.height += paddingY * 2;
       return this;
     }
-
     fit(rectangle) {
       const x1 = Math.max(this.x, rectangle.x);
       const x2 = Math.min(this.x + this.width, rectangle.x + rectangle.width);
@@ -1037,7 +949,6 @@ var MioBundle = function() {
       this.height = Math.max(y2 - y1, 0);
       return this;
     }
-
     ceil(resolution = 1, eps = 1e-3) {
       const x2 = Math.ceil((this.x + this.width - eps) * resolution) / resolution;
       const y2 = Math.ceil((this.y + this.height - eps) * resolution) / resolution;
@@ -1047,7 +958,6 @@ var MioBundle = function() {
       this.height = y2 - this.y;
       return this;
     }
-
     scale(x2, y2 = x2) {
       this.x *= x2;
       this.y *= y2;
@@ -1055,7 +965,6 @@ var MioBundle = function() {
       this.height *= y2;
       return this;
     }
-
     enlarge(rectangle) {
       const x1 = Math.min(this.x, rectangle.x);
       const x2 = Math.max(this.x + this.width, rectangle.x + rectangle.width);
@@ -1067,13 +976,11 @@ var MioBundle = function() {
       this.height = y2 - y1;
       return this;
     }
-
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       out2.copyFrom(this);
       return out2;
     }
-
     containsRect(other) {
       if (this.width <= 0 || this.height <= 0) return false;
       const x1 = other.x;
@@ -1082,7 +989,6 @@ var MioBundle = function() {
       const y2 = other.y + other.height;
       return x1 >= this.x && x1 < this.x + this.width && y1 >= this.y && y1 < this.y + this.height && x2 >= this.x && x2 < this.x + this.width && y2 >= this.y && y2 < this.y + this.height;
     }
-
     set(x2, y2, width, height) {
       this.x = x2;
       this.y = y2;
@@ -1103,7 +1009,7 @@ var MioBundle = function() {
     }
     return ++uidCache[name];
   }
-  const warnings =                 new Set();
+  const warnings = /* @__PURE__ */ new Set();
   const v8_0_0 = "8.0.0";
   const v8_3_4 = "8.3.4";
   const deprecationState = {
@@ -1178,7 +1084,7 @@ Deprecated since v${version}`;
     }
     return result;
   }
-  const idHash$1 =                 Object.create(null);
+  const idHash$1 = /* @__PURE__ */ Object.create(null);
   function createResourceIdFromString(value) {
     const id = idHash$1[value];
     if (id === void 0) {
@@ -1187,7 +1093,6 @@ Deprecated since v${version}`;
     return id;
   }
   const _TextureStyle = class _TextureStyle2 extends EventEmitter {
-
     constructor(options = {}) {
       super();
       this._resourceType = "textureSampler";
@@ -1213,7 +1118,6 @@ Deprecated since v${version}`;
       this.addressModeV = value;
       this.addressModeW = value;
     }
-
     get addressMode() {
       return this.addressModeU;
     }
@@ -1229,11 +1133,9 @@ Deprecated since v${version}`;
       this.minFilter = value;
       this.mipmapFilter = value;
     }
-
     get scaleMode() {
       return this.magFilter;
     }
-
     set maxAnisotropy(value) {
       this._maxAnisotropy = Math.min(value, 16);
       if (this._maxAnisotropy > 1) {
@@ -1243,7 +1145,6 @@ Deprecated since v${version}`;
     get maxAnisotropy() {
       return this._maxAnisotropy;
     }
-
     get _resourceId() {
       return this._sharedResourceId || this._generateResourceId();
     }
@@ -1256,7 +1157,6 @@ Deprecated since v${version}`;
       this._sharedResourceId = createResourceIdFromString(bigKey);
       return this._resourceId;
     }
-
     destroy() {
       this.destroyed = true;
       this.emit("destroy", this);
@@ -1270,11 +1170,10 @@ Deprecated since v${version}`;
   };
   let TextureStyle = _TextureStyle;
   const _TextureSource = class _TextureSource2 extends EventEmitter {
-
     constructor(options = {}) {
       super();
       this.options = options;
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
       this._gcLastUsed = -1;
       this.uid = uid$1("textureSource");
       this._resourceType = "textureSource";
@@ -1326,11 +1225,9 @@ Deprecated since v${version}`;
       this.destroyed = false;
       this._refreshPOT();
     }
-
     get source() {
       return this;
     }
-
     get style() {
       return this._style;
     }
@@ -1341,56 +1238,48 @@ Deprecated since v${version}`;
       this._style?.on("change", this._onStyleChange, this);
       this._onStyleChange();
     }
-
     set maxAnisotropy(value) {
       this._style.maxAnisotropy = value;
     }
     get maxAnisotropy() {
       return this._style.maxAnisotropy;
     }
-
     get addressMode() {
       return this._style.addressMode;
     }
     set addressMode(value) {
       this._style.addressMode = value;
     }
-
     get repeatMode() {
       return this._style.addressMode;
     }
     set repeatMode(value) {
       this._style.addressMode = value;
     }
-
     get magFilter() {
       return this._style.magFilter;
     }
     set magFilter(value) {
       this._style.magFilter = value;
     }
-
     get minFilter() {
       return this._style.minFilter;
     }
     set minFilter(value) {
       this._style.minFilter = value;
     }
-
     get mipmapFilter() {
       return this._style.mipmapFilter;
     }
     set mipmapFilter(value) {
       this._style.mipmapFilter = value;
     }
-
     get lodMinClamp() {
       return this._style.lodMinClamp;
     }
     set lodMinClamp(value) {
       this._style.lodMinClamp = value;
     }
-
     get lodMaxClamp() {
       return this._style.lodMaxClamp;
     }
@@ -1400,7 +1289,6 @@ Deprecated since v${version}`;
     _onStyleChange() {
       this.emit("styleChange", this);
     }
-
     update() {
       if (this.resource) {
         const resolution = this._resolution;
@@ -1409,7 +1297,6 @@ Deprecated since v${version}`;
       }
       this.emit("update", this);
     }
-
     destroy() {
       this.destroyed = true;
       this.unload();
@@ -1422,7 +1309,6 @@ Deprecated since v${version}`;
       this.resource = null;
       this.removeAllListeners();
     }
-
     unload() {
       this._resourceId = uid$1("resource");
       this.emit("change", this);
@@ -1430,19 +1316,16 @@ Deprecated since v${version}`;
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy?.();
       }
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
     }
-
     get resourceWidth() {
       const { resource } = this;
       return resource.naturalWidth || resource.videoWidth || resource.displayWidth || resource.width;
     }
-
     get resourceHeight() {
       const { resource } = this;
       return resource.naturalHeight || resource.videoHeight || resource.displayHeight || resource.height;
     }
-
     get resolution() {
       return this._resolution;
     }
@@ -1452,7 +1335,6 @@ Deprecated since v${version}`;
       this.width = this.pixelWidth / resolution;
       this.height = this.pixelHeight / resolution;
     }
-
     resize(width, height, resolution) {
       resolution || (resolution = this._resolution);
       width || (width = this.width);
@@ -1473,7 +1355,6 @@ Deprecated since v${version}`;
       this.emit("change", this);
       return true;
     }
-
     updateMipmaps() {
       if (this.autoGenerateMipmaps && this.mipLevelCount > 1) {
         this.emit("updateMipmaps", this);
@@ -1488,11 +1369,9 @@ Deprecated since v${version}`;
     set scaleMode(value) {
       this._style.scaleMode = value;
     }
-
     get scaleMode() {
       return this._style.scaleMode;
     }
-
     _refreshPOT() {
       this.isPowerOfTwo = isPow2(this.pixelWidth) && isPow2(this.pixelHeight);
     }
@@ -1549,7 +1428,6 @@ Deprecated since v${version}`;
   BufferImageSource.extension = ExtensionType.TextureSource;
   const tempMat = new Matrix();
   class TextureMatrix {
-
     constructor(texture, clampMargin) {
       this.mapCoord = new Matrix();
       this.uClampFrame = new Float32Array(4);
@@ -1564,7 +1442,6 @@ Deprecated since v${version}`;
       this.isSimple = false;
       this.texture = texture;
     }
-
     get texture() {
       return this._texture;
     }
@@ -1576,7 +1453,6 @@ Deprecated since v${version}`;
       }
       this.update();
     }
-
     multiplyUvs(uvs, out2) {
       if (out2 === void 0) {
         out2 = uvs;
@@ -1590,7 +1466,6 @@ Deprecated since v${version}`;
       }
       return out2;
     }
-
     update() {
       const tex = this._texture;
       this._updateID++;
@@ -1624,7 +1499,6 @@ Deprecated since v${version}`;
     }
   }
   class Texture extends EventEmitter {
-
     constructor({
       source: source2,
       label,
@@ -1670,26 +1544,21 @@ Deprecated since v${version}`;
       value.on("resize", this.update, this);
       this.emit("update", this);
     }
-
     get source() {
       return this._source;
     }
-
     get textureMatrix() {
       if (!this._textureMatrix) {
         this._textureMatrix = new TextureMatrix(this);
       }
       return this._textureMatrix;
     }
-
     get width() {
       return this.orig.width;
     }
-
     get height() {
       return this.orig.height;
     }
-
     updateUvs() {
       const { uvs, frame } = this;
       const { width, height } = this._source;
@@ -1726,7 +1595,6 @@ Deprecated since v${version}`;
         uvs.y3 = nY + nH;
       }
     }
-
     destroy(destroySource = false) {
       if (this._source) {
         this._source.off("resize", this.update, this);
@@ -1740,7 +1608,6 @@ Deprecated since v${version}`;
       this.emit("destroy", this);
       this.removeAllListeners();
     }
-
     update() {
       if (this.noFrame) {
         this.frame.width = this._source.width;
@@ -1749,7 +1616,6 @@ Deprecated since v${version}`;
       this.updateUvs();
       this.emit("update", this);
     }
-
     get baseTexture() {
       deprecation(v8_0_0, "Texture.baseTexture is now Texture.source");
       return this._source;
@@ -1792,7 +1658,6 @@ Deprecated since v${version}`;
   }
   const defaultMatrix = new Matrix();
   class Bounds {
-
     constructor(minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity) {
       this.minX = Infinity;
       this.minY = Infinity;
@@ -1804,11 +1669,9 @@ Deprecated since v${version}`;
       this.maxX = maxX;
       this.maxY = maxY;
     }
-
     isEmpty() {
       return this.minX > this.maxX || this.minY > this.maxY;
     }
-
     get rectangle() {
       if (!this._rectangle) {
         this._rectangle = new Rectangle();
@@ -1824,7 +1687,6 @@ Deprecated since v${version}`;
       }
       return rectangle;
     }
-
     clear() {
       this.minX = Infinity;
       this.minY = Infinity;
@@ -1833,14 +1695,12 @@ Deprecated since v${version}`;
       this.matrix = defaultMatrix;
       return this;
     }
-
     set(x0, y0, x1, y1) {
       this.minX = x0;
       this.minY = y0;
       this.maxX = x1;
       this.maxY = y1;
     }
-
     addFrame(x0, y0, x1, y1, matrix) {
       matrix || (matrix = this.matrix);
       const a2 = matrix.a;
@@ -1882,22 +1742,18 @@ Deprecated since v${version}`;
       this.maxX = maxX;
       this.maxY = maxY;
     }
-
     addRect(rect, matrix) {
       this.addFrame(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, matrix);
     }
-
     addBounds(bounds, matrix) {
       this.addFrame(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY, matrix);
     }
-
     addBoundsMask(mask) {
       this.minX = this.minX > mask.minX ? this.minX : mask.minX;
       this.minY = this.minY > mask.minY ? this.minY : mask.minY;
       this.maxX = this.maxX < mask.maxX ? this.maxX : mask.maxX;
       this.maxY = this.maxY < mask.maxY ? this.maxY : mask.maxY;
     }
-
     applyMatrix(matrix) {
       const minX = this.minX;
       const minY = this.minY;
@@ -1929,7 +1785,6 @@ Deprecated since v${version}`;
       this.maxX = x2 > this.maxX ? x2 : this.maxX;
       this.maxY = y2 > this.maxY ? y2 : this.maxY;
     }
-
     fit(rect) {
       if (this.minX < rect.left) this.minX = rect.left;
       if (this.maxX > rect.right) this.maxX = rect.right;
@@ -1937,7 +1792,6 @@ Deprecated since v${version}`;
       if (this.maxY > rect.bottom) this.maxY = rect.bottom;
       return this;
     }
-
     fitBounds(left, right, top, bottom) {
       if (this.minX < left) this.minX = left;
       if (this.maxX > right) this.maxX = right;
@@ -1945,7 +1799,6 @@ Deprecated since v${version}`;
       if (this.maxY > bottom) this.maxY = bottom;
       return this;
     }
-
     pad(paddingX, paddingY = paddingX) {
       this.minX -= paddingX;
       this.maxX += paddingX;
@@ -1953,7 +1806,6 @@ Deprecated since v${version}`;
       this.maxY += paddingY;
       return this;
     }
-
     ceil() {
       this.minX = Math.floor(this.minX);
       this.minY = Math.floor(this.minY);
@@ -1961,11 +1813,9 @@ Deprecated since v${version}`;
       this.maxY = Math.ceil(this.maxY);
       return this;
     }
-
     clone() {
       return new Bounds(this.minX, this.minY, this.maxX, this.maxY);
     }
-
     scale(x2, y2 = x2) {
       this.minX *= x2;
       this.minY *= y2;
@@ -1973,7 +1823,6 @@ Deprecated since v${version}`;
       this.maxY *= y2;
       return this;
     }
-
     get x() {
       return this.minX;
     }
@@ -1982,7 +1831,6 @@ Deprecated since v${version}`;
       this.minX = value;
       this.maxX = value + width;
     }
-
     get y() {
       return this.minY;
     }
@@ -1991,45 +1839,36 @@ Deprecated since v${version}`;
       this.minY = value;
       this.maxY = value + height;
     }
-
     get width() {
       return this.maxX - this.minX;
     }
     set width(value) {
       this.maxX = this.minX + value;
     }
-
     get height() {
       return this.maxY - this.minY;
     }
     set height(value) {
       this.maxY = this.minY + value;
     }
-
     get left() {
       return this.minX;
     }
-
     get right() {
       return this.maxX;
     }
-
     get top() {
       return this.minY;
     }
-
     get bottom() {
       return this.maxY;
     }
-
     get isPositive() {
       return this.maxX - this.minX > 0 && this.maxY - this.minY > 0;
     }
-
     get isValid() {
       return this.minX + this.minY !== Infinity;
     }
-
     addVertexData(vertexData, beginOffset, endOffset, matrix) {
       let minX = this.minX;
       let minY = this.minY;
@@ -2057,18 +1896,15 @@ Deprecated since v${version}`;
       this.maxX = maxX;
       this.maxY = maxY;
     }
-
     containsPoint(x2, y2) {
       if (this.minX <= x2 && this.minY <= y2 && this.maxX >= x2 && this.maxY >= y2) {
         return true;
       }
       return false;
     }
-
     toString() {
       return `[pixi.js:Bounds minX=${this.minX} minY=${this.minY} maxX=${this.maxX} maxY=${this.maxY} width=${this.width} height=${this.height}]`;
     }
-
     copyFrom(bounds) {
       this.minX = bounds.minX;
       this.minY = bounds.minY;
@@ -2236,7 +2072,6 @@ Deprecated since v${version}`;
   }
   k([namesPlugin]);
   const _Color = class _Color2 {
-
     constructor(value = 16777215) {
       this._value = null;
       this._components = new Float32Array(4);
@@ -2244,28 +2079,22 @@ Deprecated since v${version}`;
       this._int = 16777215;
       this.value = value;
     }
-
     get red() {
       return this._components[0];
     }
-
     get green() {
       return this._components[1];
     }
-
     get blue() {
       return this._components[2];
     }
-
     get alpha() {
       return this._components[3];
     }
-
     setValue(value) {
       this.value = value;
       return this;
     }
-
     set value(value) {
       if (value instanceof _Color2) {
         this._value = this._cloneSource(value._value);
@@ -2281,7 +2110,6 @@ Deprecated since v${version}`;
     get value() {
       return this._value;
     }
-
     _cloneSource(value) {
       if (typeof value === "string" || typeof value === "number" || value instanceof Number || value === null) {
         return value;
@@ -2292,7 +2120,6 @@ Deprecated since v${version}`;
       }
       return value;
     }
-
     _isSourceEqual(value1, value2) {
       const type1 = typeof value1;
       const type2 = typeof value2;
@@ -2315,22 +2142,18 @@ Deprecated since v${version}`;
       }
       return value1 === value2;
     }
-
     toRgba() {
       const [r2, g2, b2, a2] = this._components;
       return { r: r2, g: g2, b: b2, a: a2 };
     }
-
     toRgb() {
       const [r2, g2, b2] = this._components;
       return { r: r2, g: g2, b: b2 };
     }
-
     toRgbaString() {
       const [r2, g2, b2] = this.toUint8RgbArray();
       return `rgba(${r2},${g2},${b2},${this.alpha})`;
     }
-
     toUint8RgbArray(out2) {
       const [r2, g2, b2] = this._components;
       if (!this._arrayRgb) {
@@ -2342,7 +2165,6 @@ Deprecated since v${version}`;
       out2[2] = Math.round(b2 * 255);
       return out2;
     }
-
     toArray(out2) {
       if (!this._arrayRgba) {
         this._arrayRgba = [];
@@ -2355,7 +2177,6 @@ Deprecated since v${version}`;
       out2[3] = a2;
       return out2;
     }
-
     toRgbArray(out2) {
       if (!this._arrayRgb) {
         this._arrayRgb = [];
@@ -2367,21 +2188,17 @@ Deprecated since v${version}`;
       out2[2] = b2;
       return out2;
     }
-
     toNumber() {
       return this._int;
     }
-
     toBgrNumber() {
       const [r2, g2, b2] = this.toUint8RgbArray();
       return (b2 << 16) + (g2 << 8) + r2;
     }
-
     toLittleEndianNumber() {
       const value = this._int;
       return (value >> 16) + (value & 65280) + ((value & 255) << 16);
     }
-
     multiply(value) {
       const [r2, g2, b2, a2] = _Color2._temp.setValue(value)._components;
       this._components[0] *= r2;
@@ -2392,7 +2209,6 @@ Deprecated since v${version}`;
       this._value = null;
       return this;
     }
-
     premultiply(alpha, applyToRGB = true) {
       if (applyToRGB) {
         this._components[0] *= alpha;
@@ -2404,7 +2220,6 @@ Deprecated since v${version}`;
       this._value = null;
       return this;
     }
-
     toPremultiplied(alpha, applyToRGB = true) {
       if (alpha === 1) {
         return (255 << 24) + this._int;
@@ -2422,24 +2237,20 @@ Deprecated since v${version}`;
       }
       return (alpha * 255 << 24) + (r2 << 16) + (g2 << 8) + b2;
     }
-
     toHex() {
       const hexString = this._int.toString(16);
       return `#${"000000".substring(0, 6 - hexString.length) + hexString}`;
     }
-
     toHexa() {
       const alphaValue = Math.round(this._components[3] * 255);
       const alphaString = alphaValue.toString(16);
       return this.toHex() + "00".substring(0, 2 - alphaString.length) + alphaString;
     }
-
     setAlpha(alpha) {
       this._components[3] = this._clamp(alpha);
       this._value = null;
       return this;
     }
-
     _normalize(value) {
       let r2;
       let g2;
@@ -2486,13 +2297,11 @@ Deprecated since v${version}`;
         throw new Error(`Unable to convert color ${value}`);
       }
     }
-
     _refreshInt() {
       this._clamp(this._components);
       const [r2, g2, b2] = this._components;
       this._int = (r2 * 255 << 16) + (g2 * 255 << 8) + (b2 * 255 | 0);
     }
-
     _clamp(value, min = 0, max = 1) {
       if (typeof value === "number") {
         return Math.min(Math.max(value, min), max);
@@ -2502,7 +2311,6 @@ Deprecated since v${version}`;
       });
       return value;
     }
-
     static isColorLike(value) {
       return typeof value === "number" || typeof value === "string" || value instanceof Number || value instanceof _Color2 || Array.isArray(value) || value instanceof Uint8Array || value instanceof Uint8ClampedArray || value instanceof Float32Array || value.r !== void 0 && value.g !== void 0 && value.b !== void 0 || value.r !== void 0 && value.g !== void 0 && value.b !== void 0 && value.a !== void 0 || value.h !== void 0 && value.s !== void 0 && value.l !== void 0 || value.h !== void 0 && value.s !== void 0 && value.l !== void 0 && value.a !== void 0 || value.h !== void 0 && value.s !== void 0 && value.v !== void 0 || value.h !== void 0 && value.s !== void 0 && value.v !== void 0 && value.a !== void 0;
     }
@@ -2528,35 +2336,27 @@ Deprecated since v${version}`;
     }
   }
   const GlobalResourceRegistry = {
-
-    _registeredResources:                 new Set(),
-
+    _registeredResources: /* @__PURE__ */ new Set(),
     register(pool) {
       this._registeredResources.add(pool);
     },
-
     unregister(pool) {
       this._registeredResources.delete(pool);
     },
-
     release() {
       this._registeredResources.forEach((pool) => pool.clear());
     },
-
     get registeredCount() {
       return this._registeredResources.size;
     },
-
     isRegistered(pool) {
       return this._registeredResources.has(pool);
     },
-
     reset() {
       this._registeredResources.clear();
     }
   };
   class Pool {
-
     constructor(ClassType, initialSize) {
       this._pool = [];
       this._count = 0;
@@ -2566,14 +2366,12 @@ Deprecated since v${version}`;
         this.prepopulate(initialSize);
       }
     }
-
     prepopulate(total) {
       for (let i2 = 0; i2 < total; i2++) {
         this._pool[this._index++] = new this._classType();
       }
       this._count += total;
     }
-
     get(data) {
       let item;
       if (this._index > 0) {
@@ -2585,24 +2383,19 @@ Deprecated since v${version}`;
       item.init?.(data);
       return item;
     }
-
     return(item) {
       item.reset?.();
       this._pool[this._index++] = item;
     }
-
     get totalSize() {
       return this._count;
     }
-
     get totalFree() {
       return this._index;
     }
-
     get totalUsed() {
       return this._count - this._index;
     }
-
     clear() {
       if (this._pool.length > 0 && this._pool[0].destroy) {
         for (let i2 = 0; i2 < this._index; i2++) {
@@ -2616,31 +2409,26 @@ Deprecated since v${version}`;
   }
   class PoolGroupClass {
     constructor() {
-      this._poolsByClass =                 new Map();
+      this._poolsByClass = /* @__PURE__ */ new Map();
     }
-
     prepopulate(Class, total) {
       const classPool = this.getPool(Class);
       classPool.prepopulate(total);
     }
-
     get(Class, data) {
       const pool = this.getPool(Class);
       return pool.get(data);
     }
-
     return(item) {
       const pool = this.getPool(item.constructor);
       pool.return(item);
     }
-
     getPool(ClassType) {
       if (!this._poolsByClass.has(ClassType)) {
         this._poolsByClass.set(ClassType, new Pool(ClassType));
       }
       return this._poolsByClass.get(ClassType);
     }
-
     stats() {
       const stats = {};
       this._poolsByClass.forEach((pool) => {
@@ -2653,7 +2441,6 @@ Deprecated since v${version}`;
       });
       return stats;
     }
-
     clear() {
       this._poolsByClass.forEach((pool) => pool.clear());
       this._poolsByClass.clear();
@@ -3462,22 +3249,18 @@ Deprecated since v${version}`;
       this.renderables = [];
       this.gcTick = 0;
     }
-
     reset() {
       this.instructionSize = 0;
     }
-
     destroy() {
       this.instructions.length = 0;
       this.renderables.length = 0;
       this.renderPipes = null;
       this.gcTick = 0;
     }
-
     add(instruction) {
       this.instructions[this.instructionSize++] = instruction;
     }
-
     log() {
       this.instructions.length = this.instructionSize;
       console.table(this.instructions, ["type", "action"]);
@@ -3485,15 +3268,13 @@ Deprecated since v${version}`;
   }
   let count = 0;
   class TexturePoolClass {
-
     constructor(textureOptions) {
-      this._poolKeyHash =                 Object.create(null);
+      this._poolKeyHash = /* @__PURE__ */ Object.create(null);
       this._texturePool = {};
       this.textureOptions = textureOptions || {};
       this.enableFullScreen = false;
       this.textureStyle = new TextureStyle(this.textureOptions);
     }
-
     createTexture(pixelWidth, pixelHeight, antialias, autoGenerateMipmaps) {
       const textureSource = new TextureSource({
         ...this.textureOptions,
@@ -3509,7 +3290,6 @@ Deprecated since v${version}`;
         label: `texturePool_${count++}`
       });
     }
-
     getOptimalTexture(frameWidth, frameHeight, resolution = 1, antialias, autoGenerateMipmaps = false) {
       let po2Width = Math.ceil(frameWidth * resolution - 1e-6);
       let po2Height = Math.ceil(frameHeight * resolution - 1e-6);
@@ -3538,12 +3318,10 @@ Deprecated since v${version}`;
       this._poolKeyHash[texture.uid] = key;
       return texture;
     }
-
     getSameSizeTexture(texture, antialias = false) {
       const source2 = texture.source;
       return this.getOptimalTexture(texture.width, texture.height, source2._resolution, antialias);
     }
-
     returnTexture(renderTexture, resetStyle = false) {
       const key = this._poolKeyHash[renderTexture.uid];
       if (resetStyle) {
@@ -3551,7 +3329,6 @@ Deprecated since v${version}`;
       }
       this._texturePool[key].push(renderTexture);
     }
-
     clear(destroyTextures) {
       destroyTextures = destroyTextures !== false;
       if (destroyTextures) {
@@ -3580,7 +3357,7 @@ Deprecated since v${version}`;
       this.worldColorAlpha = 4294967295;
       this.worldColor = 16777215;
       this.worldAlpha = 1;
-      this.childrenToUpdate =                 Object.create(null);
+      this.childrenToUpdate = /* @__PURE__ */ Object.create(null);
       this.updateTick = 0;
       this.gcTick = 0;
       this.childrenRenderablesToUpdate = { list: [], index: 0 };
@@ -3718,7 +3495,6 @@ Deprecated since v${version}`;
     get isRenderable() {
       return this.root.localDisplayStatus === 7 && this.worldAlpha > 0;
     }
-
     addOnRender(container) {
       this._onRenderContainers.push(container);
     }
@@ -3759,14 +3535,12 @@ Deprecated since v${version}`;
     invalidateMatrices() {
       this._matrixDirty = 7;
     }
-
     get inverseWorldTransform() {
       if ((this._matrixDirty & 1) === 0) return this._inverseWorldTransform;
       this._matrixDirty &= -2;
       this._inverseWorldTransform || (this._inverseWorldTransform = new Matrix());
       return this._inverseWorldTransform.copyFrom(this.worldTransform).invert();
     }
-
     get textureOffsetInverseTransform() {
       if ((this._matrixDirty & 2) === 0) return this._textureOffsetInverseTransform;
       this._matrixDirty &= -3;
@@ -3776,7 +3550,6 @@ Deprecated since v${version}`;
         -this._textureBounds.y
       );
     }
-
     get inverseParentTextureTransform() {
       if ((this._matrixDirty & 4) === 0) return this._inverseParentTextureTransform;
       this._matrixDirty &= -5;
@@ -3790,7 +3563,6 @@ Deprecated since v${version}`;
       }
       return this.worldTransform;
     }
-
     get cacheToLocalTransform() {
       if (this.isCachedAsTexture) {
         return this.textureOffsetInverseTransform;
@@ -3866,21 +3638,17 @@ Deprecated since v${version}`;
       options.children?.forEach((child) => this.addChild(child));
       options.parent?.addChild(this);
     }
-
     static mixin(source2) {
       deprecation("8.8.0", "Container.mixin is deprecated, please use extensions.mixin instead.");
       extensions.mixin(Container, source2);
     }
-
     set _didChangeId(value) {
       this._didViewChangeTick = value >> 12 & 4095;
       this._didContainerChangeTick = value & 4095;
     }
-
     get _didChangeId() {
       return this._didContainerChangeTick & 4095 | (this._didViewChangeTick & 4095) << 12;
     }
-
     addChild(...children) {
       if (!this.allowChildren) {
         deprecation(v8_0_0, "addChild: Only Containers will be allowed to add children in v8.0.0");
@@ -3920,7 +3688,6 @@ Deprecated since v${version}`;
       }
       return child;
     }
-
     removeChild(...children) {
       if (children.length > 1) {
         for (let i2 = 0; i2 < children.length; i2++) {
@@ -3947,7 +3714,6 @@ Deprecated since v${version}`;
       }
       return child;
     }
-
     _onUpdate(point) {
       if (point) {
         if (point === this._skew) {
@@ -3969,11 +3735,9 @@ Deprecated since v${version}`;
         this.disableRenderGroup();
       }
     }
-
     get isRenderGroup() {
       return !!this.renderGroup;
     }
-
     enableRenderGroup() {
       if (this.renderGroup) return;
       const parentRenderGroup = this.parentRenderGroup;
@@ -3983,7 +3747,6 @@ Deprecated since v${version}`;
       parentRenderGroup?.addChild(this);
       this._updateIsSimple();
     }
-
     disableRenderGroup() {
       if (!this.renderGroup) return;
       const parentRenderGroup = this.parentRenderGroup;
@@ -3994,11 +3757,9 @@ Deprecated since v${version}`;
       parentRenderGroup?.addChild(this);
       this._updateIsSimple();
     }
-
     _updateIsSimple() {
       this.isSimple = !this.renderGroup && this.effects.length === 0;
     }
-
     get worldTransform() {
       this._worldTransform || (this._worldTransform = new Matrix());
       if (this.renderGroup) {
@@ -4008,28 +3769,24 @@ Deprecated since v${version}`;
       }
       return this._worldTransform;
     }
-
     get x() {
       return this._position.x;
     }
     set x(value) {
       this._position.x = value;
     }
-
     get y() {
       return this._position.y;
     }
     set y(value) {
       this._position.y = value;
     }
-
     get position() {
       return this._position;
     }
     set position(value) {
       this._position.copyFrom(value);
     }
-
     get rotation() {
       return this._rotation;
     }
@@ -4039,14 +3796,12 @@ Deprecated since v${version}`;
         this._onUpdate(this._skew);
       }
     }
-
     get angle() {
       return this.rotation * RAD_TO_DEG;
     }
     set angle(value) {
       this.rotation = value * DEG_TO_RAD;
     }
-
     get pivot() {
       if (this._pivot === defaultPivot) {
         this._pivot = new ObservablePoint(this, 0, 0);
@@ -4062,7 +3817,6 @@ Deprecated since v${version}`;
       }
       typeof value === "number" ? this._pivot.set(value) : this._pivot.copyFrom(value);
     }
-
     get skew() {
       if (this._skew === defaultSkew) {
         this._skew = new ObservablePoint(this, 0, 0);
@@ -4075,7 +3829,6 @@ Deprecated since v${version}`;
       }
       this._skew.copyFrom(value);
     }
-
     get scale() {
       if (this._scale === defaultScale) {
         this._scale = new ObservablePoint(this, 1, 1);
@@ -4091,7 +3844,6 @@ Deprecated since v${version}`;
       }
       typeof value === "number" ? this._scale.set(value) : this._scale.copyFrom(value);
     }
-
     get origin() {
       if (this._origin === defaultOrigin) {
         this._origin = new ObservablePoint(this, 0, 0);
@@ -4107,7 +3859,6 @@ Deprecated since v${version}`;
       }
       typeof value === "number" ? this._origin.set(value) : this._origin.copyFrom(value);
     }
-
     get width() {
       return Math.abs(this.scale.x * this.getLocalBounds().width);
     }
@@ -4115,7 +3866,6 @@ Deprecated since v${version}`;
       const localWidth = this.getLocalBounds().width;
       this._setWidth(value, localWidth);
     }
-
     get height() {
       return Math.abs(this.scale.y * this.getLocalBounds().height);
     }
@@ -4123,7 +3873,6 @@ Deprecated since v${version}`;
       const localHeight = this.getLocalBounds().height;
       this._setHeight(value, localHeight);
     }
-
     getSize(out2) {
       if (!out2) {
         out2 = {};
@@ -4133,7 +3882,6 @@ Deprecated since v${version}`;
       out2.height = Math.abs(this.scale.y * bounds.height);
       return out2;
     }
-
     setSize(value, height) {
       const size = this.getLocalBounds();
       if (typeof value === "object") {
@@ -4145,7 +3893,6 @@ Deprecated since v${version}`;
       value !== void 0 && this._setWidth(value, size.width);
       height !== void 0 && this._setHeight(height, size.height);
     }
-
     _updateSkew() {
       const rotation = this._rotation;
       const skew = this._skew;
@@ -4154,7 +3901,6 @@ Deprecated since v${version}`;
       this._cy = -Math.sin(rotation - skew._x);
       this._sy = Math.cos(rotation - skew._x);
     }
-
     updateTransform(opts) {
       this.position.set(
         typeof opts.x === "number" ? opts.x : this.position.x,
@@ -4179,11 +3925,9 @@ Deprecated since v${version}`;
       );
       return this;
     }
-
     setFromMatrix(matrix) {
       matrix.decompose(this);
     }
-
     updateLocalTransform() {
       const localTransformChangeId = this._didContainerChangeTick;
       if (this._didLocalTransformChangeId === localTransformChangeId) return;
@@ -4206,14 +3950,12 @@ Deprecated since v${version}`;
       lt.tx = position._x - (px * lt.a + py * lt.c) + (ox * lt.a + oy * lt.c) - ox;
       lt.ty = position._y - (px * lt.b + py * lt.d) + (ox * lt.b + oy * lt.d) - oy;
     }
-
     set alpha(value) {
       if (value === this.localAlpha) return;
       this.localAlpha = value;
       this._updateFlags |= UPDATE_COLOR;
       this._onUpdate();
     }
-
     get alpha() {
       return this.localAlpha;
     }
@@ -4225,11 +3967,9 @@ Deprecated since v${version}`;
       this._updateFlags |= UPDATE_COLOR;
       this._onUpdate();
     }
-
     get tint() {
       return bgr2rgb(this.localColor);
     }
-
     set blendMode(value) {
       if (this.localBlendMode === value) return;
       if (this.parentRenderGroup) {
@@ -4239,11 +3979,9 @@ Deprecated since v${version}`;
       this.localBlendMode = value;
       this._onUpdate();
     }
-
     get blendMode() {
       return this.localBlendMode;
     }
-
     get visible() {
       return !!(this.localDisplayStatus & 2);
     }
@@ -4258,11 +3996,9 @@ Deprecated since v${version}`;
       this._onUpdate();
       this.emit("visibleChanged", value);
     }
-
     get culled() {
       return !(this.localDisplayStatus & 4);
     }
-
     set culled(value) {
       const valueNumber = value ? 0 : 4;
       if ((this.localDisplayStatus & 4) === valueNumber) return;
@@ -4273,7 +4009,6 @@ Deprecated since v${version}`;
       this.localDisplayStatus ^= 4;
       this._onUpdate();
     }
-
     get renderable() {
       return !!(this.localDisplayStatus & 1);
     }
@@ -4287,11 +4022,9 @@ Deprecated since v${version}`;
       }
       this._onUpdate();
     }
-
     get isRenderable() {
       return this.localDisplayStatus === 7 && this.groupAlpha > 0;
     }
-
     destroy(options = false) {
       if (this.destroyed) return;
       this.destroyed = true;
@@ -4343,34 +4076,30 @@ Deprecated since v${version}`;
       this.allowChildren = false;
       this._roundPixels = 0;
       this._lastUsed = -1;
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
       this.autoGarbageCollect = true;
       this._gcLastUsed = -1;
       this._bounds = new Bounds(0, 1, 0, 0);
       this._boundsDirty = true;
       this.autoGarbageCollect = options.autoGarbageCollect ?? true;
     }
-
     get bounds() {
       if (!this._boundsDirty) return this._bounds;
       this.updateBounds();
       this._boundsDirty = false;
       return this._bounds;
     }
-
     get roundPixels() {
       return !!this._roundPixels;
     }
     set roundPixels(value) {
       this._roundPixels = value ? 1 : 0;
     }
-
     containsPoint(point) {
       const bounds = this.bounds;
       const { x: x2, y: y2 } = point;
       return x2 >= bounds.minX && x2 <= bounds.maxX && y2 >= bounds.minY && y2 <= bounds.maxY;
     }
-
     onViewUpdate() {
       this._didViewChangeTick++;
       this._boundsDirty = true;
@@ -4381,13 +4110,12 @@ Deprecated since v${version}`;
         renderGroup.onChildViewUpdate(this);
       }
     }
-
     unload() {
       this.emit("unload", this);
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy();
       }
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
       this.onViewUpdate();
     }
     destroy(options) {
@@ -4395,7 +4123,6 @@ Deprecated since v${version}`;
       super.destroy(options);
       this._bounds = null;
     }
-
     collectRenderablesSimple(instructionSet, renderer, currentLayer) {
       const { renderPipes: renderPipes2 } = renderer;
       renderPipes2.blendMode.pushBlendMode(this, this.groupBlendMode, instructionSet);
@@ -4414,7 +4141,6 @@ Deprecated since v${version}`;
     }
   }
   class Sprite extends ViewContainer {
-
     constructor(options = Texture.EMPTY) {
       if (options instanceof Texture) {
         options = { texture: options };
@@ -4445,7 +4171,6 @@ Deprecated since v${version}`;
       if (width !== void 0) this.width = width;
       if (height !== void 0) this.height = height;
     }
-
     static from(source2, skipCache = false) {
       if (source2 instanceof Texture) {
         return new Sprite(source2);
@@ -4467,21 +4192,17 @@ Deprecated since v${version}`;
       }
       this.onViewUpdate();
     }
-
     get texture() {
       return this._texture;
     }
-
     get visualBounds() {
       updateQuadBounds(this._visualBounds, this._anchor, this._texture);
       return this._visualBounds;
     }
-
     get sourceBounds() {
       deprecation("8.6.1", "Sprite.sourceBounds is deprecated, use visualBounds instead.");
       return this.visualBounds;
     }
-
     updateBounds() {
       const anchor = this._anchor;
       const texture = this._texture;
@@ -4492,7 +4213,6 @@ Deprecated since v${version}`;
       bounds.minY = -anchor._y * height;
       bounds.maxY = bounds.minY + height;
     }
-
     destroy(options = false) {
       super.destroy(options);
       const destroyTexture = typeof options === "boolean" ? options : options?.texture;
@@ -4505,14 +4225,12 @@ Deprecated since v${version}`;
       this._bounds = null;
       this._anchor = null;
     }
-
     get anchor() {
       return this._anchor;
     }
     set anchor(value) {
       typeof value === "number" ? this._anchor.set(value) : this._anchor.copyFrom(value);
     }
-
     get width() {
       return Math.abs(this.scale.x) * this._texture.orig.width;
     }
@@ -4520,7 +4238,6 @@ Deprecated since v${version}`;
       this._setWidth(value, this._texture.orig.width);
       this._width = value;
     }
-
     get height() {
       return Math.abs(this.scale.y) * this._texture.orig.height;
     }
@@ -4528,14 +4245,12 @@ Deprecated since v${version}`;
       this._setHeight(value, this._texture.orig.height);
       this._height = value;
     }
-
     getSize(out2) {
       out2 || (out2 = {});
       out2.width = Math.abs(this.scale.x) * this._texture.orig.width;
       out2.height = Math.abs(this.scale.y) * this._texture.orig.height;
       return out2;
     }
-
     setSize(value, height) {
       if (typeof value === "object") {
         height = value.height ?? value.width;
@@ -4696,11 +4411,9 @@ Deprecated since v${version}`;
   };
   let currentAdapter = BrowserAdapter;
   const DOMAdapter = {
-
     get() {
       return currentAdapter;
     },
-
     set(adapter) {
       currentAdapter = adapter;
     }
@@ -4748,7 +4461,6 @@ Deprecated since v${version}`;
     static test(resource) {
       return globalThis.HTMLCanvasElement && resource instanceof HTMLCanvasElement || globalThis.OffscreenCanvas && resource instanceof OffscreenCanvas;
     }
-
     get context2D() {
       return this._context2D || (this._context2D = this.resource.getContext("2d"));
     }
@@ -4765,7 +4477,7 @@ Deprecated since v${version}`;
     }
   }
   ImageSource.extension = ExtensionType.TextureSource;
-  var UPDATE_PRIORITY =                 ((UPDATE_PRIORITY2) => {
+  var UPDATE_PRIORITY = /* @__PURE__ */ ((UPDATE_PRIORITY2) => {
     UPDATE_PRIORITY2[UPDATE_PRIORITY2["INTERACTION"] = 50] = "INTERACTION";
     UPDATE_PRIORITY2[UPDATE_PRIORITY2["HIGH"] = 25] = "HIGH";
     UPDATE_PRIORITY2[UPDATE_PRIORITY2["NORMAL"] = 0] = "NORMAL";
@@ -4774,7 +4486,6 @@ Deprecated since v${version}`;
     return UPDATE_PRIORITY2;
   })(UPDATE_PRIORITY || {});
   class TickerListener {
-
     constructor(fn, context2 = null, priority = 0, once = false) {
       this.next = null;
       this.previous = null;
@@ -4784,11 +4495,9 @@ Deprecated since v${version}`;
       this.priority = priority;
       this._once = once;
     }
-
     match(fn, context2 = null) {
       return this._fn === fn && this._context === context2;
     }
-
     emit(ticker) {
       if (this._fn) {
         if (this._context) {
@@ -4806,7 +4515,6 @@ Deprecated since v${version}`;
       }
       return redirect;
     }
-
     connect(previous) {
       this.previous = previous;
       if (previous.next) {
@@ -4815,7 +4523,6 @@ Deprecated since v${version}`;
       this.next = previous.next;
       previous.next = this;
     }
-
     destroy(hard = false) {
       this._destroyed = true;
       this._fn = null;
@@ -4857,7 +4564,6 @@ Deprecated since v${version}`;
         }
       };
     }
-
     _requestIfNeeded() {
       if (this._requestId === null && this._head.next) {
         this.lastTime = performance.now();
@@ -4865,14 +4571,12 @@ Deprecated since v${version}`;
         this._requestId = requestAnimationFrame(this._tick);
       }
     }
-
     _cancelIfNeeded() {
       if (this._requestId !== null) {
         cancelAnimationFrame(this._requestId);
         this._requestId = null;
       }
     }
-
     _startIfPossible() {
       if (this.started) {
         this._requestIfNeeded();
@@ -4880,15 +4584,12 @@ Deprecated since v${version}`;
         this.start();
       }
     }
-
     add(fn, context2, priority = UPDATE_PRIORITY.NORMAL) {
       return this._addListener(new TickerListener(fn, context2, priority));
     }
-
     addOnce(fn, context2, priority = UPDATE_PRIORITY.NORMAL) {
       return this._addListener(new TickerListener(fn, context2, priority, true));
     }
-
     _addListener(listener) {
       let current = this._head.next;
       let previous = this._head;
@@ -4910,7 +4611,6 @@ Deprecated since v${version}`;
       this._startIfPossible();
       return this;
     }
-
     remove(fn, context2) {
       let listener = this._head.next;
       while (listener) {
@@ -4925,7 +4625,6 @@ Deprecated since v${version}`;
       }
       return this;
     }
-
     get count() {
       if (!this._head) {
         return 0;
@@ -4937,21 +4636,18 @@ Deprecated since v${version}`;
       }
       return count2;
     }
-
     start() {
       if (!this.started) {
         this.started = true;
         this._requestIfNeeded();
       }
     }
-
     stop() {
       if (this.started) {
         this.started = false;
         this._cancelIfNeeded();
       }
     }
-
     destroy() {
       if (!this._protected) {
         this.stop();
@@ -4963,7 +4659,6 @@ Deprecated since v${version}`;
         this._head = null;
       }
     }
-
     update(currentTime = performance.now()) {
       let elapsedMS;
       if (currentTime > this.lastTime) {
@@ -4994,11 +4689,9 @@ Deprecated since v${version}`;
       }
       this.lastTime = currentTime;
     }
-
     get FPS() {
       return 1e3 / this.elapsedMS;
     }
-
     get minFPS() {
       return 1e3 / this._maxElapsedMS;
     }
@@ -5009,7 +4702,6 @@ Deprecated since v${version}`;
         this.maxFPS = fps;
       }
     }
-
     get maxFPS() {
       if (this._minElapsedMS) {
         return Math.round(1e3 / this._minElapsedMS);
@@ -5026,7 +4718,6 @@ Deprecated since v${version}`;
         this._minElapsedMS = 1 / (fps / 1e3);
       }
     }
-
     static get shared() {
       if (!_Ticker2._shared) {
         const shared = _Ticker2._shared = new _Ticker2();
@@ -5035,7 +4726,6 @@ Deprecated since v${version}`;
       }
       return _Ticker2._shared;
     }
-
     static get system() {
       if (!_Ticker2._system) {
         const system = _Ticker2._system = new _Ticker2();
@@ -5122,7 +4812,6 @@ Deprecated since v${version}`;
         void this.load();
       }
     }
-
     updateFrame() {
       if (this.destroyed) {
         return;
@@ -5138,7 +4827,6 @@ Deprecated since v${version}`;
         this.update();
       }
     }
-
     _videoFrameRequestCallback() {
       this.updateFrame();
       if (this.destroyed) {
@@ -5149,11 +4837,9 @@ Deprecated since v${version}`;
         );
       }
     }
-
     get isValid() {
       return !!this.resource.videoWidth && !!this.resource.videoHeight;
     }
-
     async load() {
       if (this._load) {
         return this._load;
@@ -5195,7 +4881,6 @@ Deprecated since v${version}`;
       });
       return this._load;
     }
-
     _onError(event) {
       this.resource.removeEventListener("error", this._onError, true);
       this.emit("error", event);
@@ -5205,25 +4890,20 @@ Deprecated since v${version}`;
         this._resolve = null;
       }
     }
-
     _isSourcePlaying() {
       const source2 = this.resource;
       return !source2.paused && !source2.ended;
     }
-
     _isSourceReady() {
       const source2 = this.resource;
       return source2.readyState > 2;
     }
-
     _onPlayStart() {
       this._configureAutoUpdate();
     }
-
     _onPlayStop() {
       this._configureAutoUpdate();
     }
-
     _onSeeked() {
       if (this._autoUpdate && !this._isSourcePlaying()) {
         this._msToNextUpdate = 0;
@@ -5231,7 +4911,6 @@ Deprecated since v${version}`;
         this._msToNextUpdate = 0;
       }
     }
-
     _onLoadedMetadata() {
       if (!this.isValid) {
         return;
@@ -5252,7 +4931,6 @@ Deprecated since v${version}`;
       }
       this._mediaReady();
     }
-
     _mediaReady() {
       const source2 = this.resource;
       if (this.isValid) {
@@ -5273,7 +4951,6 @@ Deprecated since v${version}`;
         void this.resource.play();
       }
     }
-
     destroy() {
       this._configureAutoUpdate();
       const source2 = this.resource;
@@ -5291,7 +4968,6 @@ Deprecated since v${version}`;
       }
       super.destroy();
     }
-
     get autoUpdate() {
       return this._autoUpdate;
     }
@@ -5301,7 +4977,6 @@ Deprecated since v${version}`;
         this._configureAutoUpdate();
       }
     }
-
     get updateFPS() {
       return this._updateFPS;
     }
@@ -5311,7 +4986,6 @@ Deprecated since v${version}`;
         this._configureAutoUpdate();
       }
     }
-
     _configureAutoUpdate() {
       if (this._autoUpdate && this._isSourcePlaying()) {
         if (!this._updateFPS && this.resource.requestVideoFrameCallback) {
@@ -5355,21 +5029,13 @@ Deprecated since v${version}`;
   _VideoSource.extension = ExtensionType.TextureSource;
   _VideoSource.defaultOptions = {
     ...TextureSource.defaultOptions,
-
     autoLoad: true,
-
     autoPlay: true,
-
     updateFPS: 0,
-
     crossorigin: true,
-
     loop: false,
-
     muted: true,
-
     playsinline: true,
-
     preload: false
   };
   _VideoSource.MIME_TYPES = {
@@ -5389,19 +5055,16 @@ Deprecated since v${version}`;
   class CacheClass {
     constructor() {
       this._parsers = [];
-      this._cache =                 new Map();
-      this._cacheMap =                 new Map();
+      this._cache = /* @__PURE__ */ new Map();
+      this._cacheMap = /* @__PURE__ */ new Map();
     }
-
     reset() {
       this._cacheMap.clear();
       this._cache.clear();
     }
-
     has(key) {
       return this._cache.has(key);
     }
-
     get(key) {
       const result = this._cache.get(key);
       if (!result) {
@@ -5409,7 +5072,6 @@ Deprecated since v${version}`;
       }
       return result;
     }
-
     set(key, value) {
       const keys = convertToList(key);
       let cacheableAssets;
@@ -5442,7 +5104,6 @@ Deprecated since v${version}`;
         this._cache.set(key2, cacheableMap.get(key2));
       });
     }
-
     remove(key) {
       if (!this._cacheMap.has(key)) {
         warn(`[Assets] Asset id ${key} was not found in the Cache`);
@@ -5457,7 +5118,6 @@ Deprecated since v${version}`;
         this._cacheMap.delete(key2);
       });
     }
-
     get parsers() {
       return this._parsers;
     }
@@ -5506,11 +5166,11 @@ Deprecated since v${version}`;
   Texture.from = textureFrom;
   TextureSource.from = textureSourceFrom;
   extensions.add(AlphaMask, ColorMask, StencilMask, VideoSource, ImageSource, CanvasSource, BufferImageSource);
-  const pixiUnused =                 Object.freeze(                Object.defineProperty({
+  const pixiUnused = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null
   }, Symbol.toStringTag, { value: "Module" }));
-  const idCounts =                 Object.create(null);
-  const idHash =                 Object.create(null);
+  const idCounts = /* @__PURE__ */ Object.create(null);
+  const idHash = /* @__PURE__ */ Object.create(null);
   function createIdFromString(value, groupId) {
     let id = idHash[value];
     if (id === void 0) {
@@ -5607,20 +5267,14 @@ ${src}`;
     return src.replace("#version 300 es", "");
   }
   const processes = {
-
     stripVersion,
-
     ensurePrecision,
-
     addProgramDefines,
-
     setProgramName,
-
     insertVersion
   };
-  const programCache$1 =                 Object.create(null);
+  const programCache$1 = /* @__PURE__ */ Object.create(null);
   const _GlProgram = class _GlProgram2 {
-
     constructor(options) {
       options = { ..._GlProgram2.defaultOptions, ...options };
       const isES300 = options.fragment.indexOf("#version 300 es") !== -1;
@@ -5650,7 +5304,6 @@ ${src}`;
       this.transformFeedbackVaryings = options.transformFeedbackVaryings;
       this._key = createIdFromString(`${this.vertex}:${this.fragment}`, "gl-program");
     }
-
     destroy() {
       this.fragment = null;
       this.vertex = null;
@@ -5660,7 +5313,6 @@ ${src}`;
       this.transformFeedbackVaryings = null;
       programCache$1[this._cacheKey] = null;
     }
-
     static from(options) {
       const key = `${options.vertex}:${options.fragment}`;
       if (!programCache$1[key]) {
@@ -5817,7 +5469,6 @@ ${src}`;
       return { name, members };
     }).filter(({ name }) => groups.some(
       (group) => (
-
         group.type === name || group.type.includes(`<${name}>`)
       )
     )) ?? [];
@@ -5826,7 +5477,7 @@ ${src}`;
       structs
     };
   }
-  var ShaderStage =                 ((ShaderStage2) => {
+  var ShaderStage = /* @__PURE__ */ ((ShaderStage2) => {
     ShaderStage2[ShaderStage2["VERTEX"] = 1] = "VERTEX";
     ShaderStage2[ShaderStage2["FRAGMENT"] = 2] = "FRAGMENT";
     ShaderStage2[ShaderStage2["COMPUTE"] = 4] = "COMPUTE";
@@ -5904,8 +5555,8 @@ ${src}`;
     return layout;
   }
   function removeStructAndGroupDuplicates(vertexStructsAndGroups, fragmentStructsAndGroups) {
-    const structNameSet =                 new Set();
-    const dupeGroupKeySet =                 new Set();
+    const structNameSet = /* @__PURE__ */ new Set();
+    const dupeGroupKeySet = /* @__PURE__ */ new Set();
     const structs = [...vertexStructsAndGroups.structs, ...fragmentStructsAndGroups.structs].filter((struct) => {
       if (structNameSet.has(struct.name)) {
         return false;
@@ -5923,9 +5574,8 @@ ${src}`;
     });
     return { structs, groups };
   }
-  const programCache =                 Object.create(null);
+  const programCache = /* @__PURE__ */ Object.create(null);
   class GpuProgram {
-
     constructor(options) {
       this._layoutKey = 0;
       this._attributeLocationsKey = 0;
@@ -5947,7 +5597,6 @@ ${src}`;
       this.autoAssignLocalUniforms = !!(this.layout[1]?.localUniforms !== void 0);
       this._generateProgramKey();
     }
-
     _generateProgramKey() {
       const { vertex: vertex2, fragment: fragment2 } = this;
       const bigKey = vertex2.source + fragment2.source + vertex2.entryPoint + fragment2.entryPoint;
@@ -5957,7 +5606,6 @@ ${src}`;
       this._attributeData ?? (this._attributeData = extractAttributesFromGpuProgram(this.vertex));
       return this._attributeData;
     }
-
     destroy() {
       this.gpuLayout = null;
       this.layout = null;
@@ -5966,7 +5614,6 @@ ${src}`;
       this.vertex = null;
       programCache[this._cacheKey] = null;
     }
-
     static from(options) {
       const key = `${options.vertex.source}:${options.fragment.source}:${options.fragment.entryPoint}:${options.vertex.entryPoint}`;
       if (!programCache[key]) {
@@ -6051,7 +5698,6 @@ ${src}`;
     return null;
   }
   const _UniformGroup = class _UniformGroup2 {
-
     constructor(uniformStructures, options) {
       this._touched = 0;
       this.uid = uid$1("uniform");
@@ -6088,22 +5734,18 @@ ${src}`;
         (i2) => `${i2}-${uniformStructures[i2].type}`
       ).join("-"), "uniform-group");
     }
-
     update() {
       this._dirtyId++;
     }
   };
   _UniformGroup.defaultOptions = {
-
     ubo: false,
-
     isStatic: false
   };
   let UniformGroup = _UniformGroup;
   class BindGroup {
-
     constructor(resources) {
-      this.resources =                 Object.create(null);
+      this.resources = /* @__PURE__ */ Object.create(null);
       this._dirty = true;
       let index = 0;
       for (const i2 in resources) {
@@ -6112,7 +5754,6 @@ ${src}`;
       }
       this._updateKey();
     }
-
     _updateKey() {
       if (!this._dirty) return;
       this._dirty = false;
@@ -6123,7 +5764,6 @@ ${src}`;
       }
       this._key = keyParts.join("|");
     }
-
     setResource(resource, index) {
       const currentResource = this.resources[index];
       if (resource === currentResource) return;
@@ -6132,11 +5772,9 @@ ${src}`;
       this.resources[index] = resource;
       this._dirty = true;
     }
-
     getResource(index) {
       return this.resources[index];
     }
-
     _touch(now, tick) {
       const resources = this.resources;
       for (const i2 in resources) {
@@ -6144,7 +5782,6 @@ ${src}`;
         resources[i2]._touched = tick;
       }
     }
-
     destroy() {
       const resources = this.resources;
       for (const i2 in resources) {
@@ -6162,7 +5799,7 @@ ${src}`;
       }
     }
   }
-  var RendererType =                 ((RendererType2) => {
+  var RendererType = /* @__PURE__ */ ((RendererType2) => {
     RendererType2[RendererType2["WEBGL"] = 1] = "WEBGL";
     RendererType2[RendererType2["WEBGPU"] = 2] = "WEBGPU";
     RendererType2[RendererType2["CANVAS"] = 4] = "CANVAS";
@@ -6173,7 +5810,7 @@ ${src}`;
     constructor(options) {
       super();
       this.uid = uid$1("shader");
-      this._uniformBindMap =                 Object.create(null);
+      this._uniformBindMap = /* @__PURE__ */ Object.create(null);
       this._ownedBindGroups = [];
       this._destroyed = false;
       let {
@@ -6262,7 +5899,6 @@ ${src}`;
       this._uniformBindMap = groupMap;
       this.resources = this._buildResourceAccessor(groups, nameHash);
     }
-
     addResource(name, groupIndex, bindIndex) {
       var _a, _b;
       (_a = this._uniformBindMap)[groupIndex] || (_a[groupIndex] = {});
@@ -6287,7 +5923,6 @@ ${src}`;
       }
       return uniformsOut;
     }
-
     destroy(destroyPrograms = false) {
       if (this._destroyed) return;
       this._destroyed = true;
@@ -6351,7 +5986,6 @@ ${src}`;
       this.blend = true;
       this.depthMask = true;
     }
-
     get blend() {
       return !!(this.data & 1 << BLEND$1);
     }
@@ -6360,7 +5994,6 @@ ${src}`;
         this.data ^= 1 << BLEND$1;
       }
     }
-
     get offsets() {
       return !!(this.data & 1 << OFFSET$1);
     }
@@ -6369,7 +6002,6 @@ ${src}`;
         this.data ^= 1 << OFFSET$1;
       }
     }
-
     set cullMode(value) {
       if (value === "none") {
         this.culling = false;
@@ -6384,7 +6016,6 @@ ${src}`;
       }
       return this.clockwiseFrontFace ? "front" : "back";
     }
-
     get culling() {
       return !!(this.data & 1 << CULLING$1);
     }
@@ -6393,7 +6024,6 @@ ${src}`;
         this.data ^= 1 << CULLING$1;
       }
     }
-
     get depthTest() {
       return !!(this.data & 1 << DEPTH_TEST$1);
     }
@@ -6402,7 +6032,6 @@ ${src}`;
         this.data ^= 1 << DEPTH_TEST$1;
       }
     }
-
     get depthMask() {
       return !!(this.data & 1 << DEPTH_MASK$1);
     }
@@ -6411,7 +6040,6 @@ ${src}`;
         this.data ^= 1 << DEPTH_MASK$1;
       }
     }
-
     get clockwiseFrontFace() {
       return !!(this.data & 1 << WINDING$1);
     }
@@ -6420,7 +6048,6 @@ ${src}`;
         this.data ^= 1 << WINDING$1;
       }
     }
-
     get blendMode() {
       return this._blendMode;
     }
@@ -6429,7 +6056,6 @@ ${src}`;
       this._blendMode = value;
       this._blendModeId = blendModeIds[value] || 0;
     }
-
     get polygonOffset() {
       return this._polygonOffset;
     }
@@ -6440,7 +6066,6 @@ ${src}`;
     toString() {
       return `[pixi.js/core:State blendMode=${this.blendMode} clockwiseFrontFace=${this.clockwiseFrontFace} culling=${this.culling} depthMask=${this.depthMask} polygonOffset=${this.polygonOffset}]`;
     }
-
     static for2d() {
       const state = new _State2();
       state.depthTest = false;
@@ -6451,7 +6076,6 @@ ${src}`;
   _State.default2d = _State.for2d();
   let State = _State;
   const _Filter = class _Filter2 extends Shader {
-
     constructor(options) {
       options = { ..._Filter2.defaultOptions, ...options };
       super(options);
@@ -6472,19 +6096,15 @@ ${src}`;
         this.addResource("uBackTexture", 0, 3);
       }
     }
-
     apply(filterManager, input, output, clearMode) {
       filterManager.applyFilter(this, input, output, clearMode);
     }
-
     get blendMode() {
       return this._state.blendMode;
     }
-
     set blendMode(value) {
       this._state.blendMode = value;
     }
-
     static from(options) {
       const { gpu, gl, ...rest } = options;
       let gpuProgram;
@@ -6931,20 +6551,14 @@ ${src}`;
   function createNode(i2, x2, y2) {
     return {
       i: i2,
-
       x: x2,
       y: y2,
-
       prev: null,
-
       next: null,
       z: 0,
-
       prevZ: null,
-
       nextZ: null,
       steiner: false
-
     };
   }
   function signedArea(data, start2, end, dim) {
@@ -6956,7 +6570,7 @@ ${src}`;
     return sum;
   }
   const earcut = earcut$1.default || earcut$1;
-  var CLEAR =                 ((CLEAR2) => {
+  var CLEAR = /* @__PURE__ */ ((CLEAR2) => {
     CLEAR2[CLEAR2["NONE"] = 0] = "NONE";
     CLEAR2[CLEAR2["COLOR"] = 16384] = "COLOR";
     CLEAR2[CLEAR2["STENCIL"] = 1024] = "STENCIL";
@@ -6968,12 +6582,10 @@ ${src}`;
     return CLEAR2;
   })(CLEAR || {});
   class SystemRunner {
-
     constructor(name) {
       this.items = [];
       this._name = name;
     }
-
     emit(a0, a1, a2, a3, a4, a5, a6, a7) {
       const { name, items } = this;
       for (let i2 = 0, len = items.length; i2 < len; i2++) {
@@ -6981,7 +6593,6 @@ ${src}`;
       }
       return this;
     }
-
     add(item) {
       if (item[this._name]) {
         this.remove(item);
@@ -6989,7 +6600,6 @@ ${src}`;
       }
       return this;
     }
-
     remove(item) {
       const index = this.items.indexOf(item);
       if (index !== -1) {
@@ -6997,26 +6607,21 @@ ${src}`;
       }
       return this;
     }
-
     contains(item) {
       return this.items.indexOf(item) !== -1;
     }
-
     removeAll() {
       this.items.length = 0;
       return this;
     }
-
     destroy() {
       this.removeAll();
       this.items = null;
       this._name = null;
     }
-
     get empty() {
       return this.items.length === 0;
     }
-
     get name() {
       return this._name;
     }
@@ -7035,15 +6640,14 @@ ${src}`;
     "prerender"
   ];
   const _AbstractRenderer = class _AbstractRenderer2 extends EventEmitter {
-
     constructor(config) {
       super();
       this.tick = 0;
       this.uid = uid$1("renderer");
-      this.runners =                 Object.create(null);
-      this.renderPipes =                 Object.create(null);
+      this.runners = /* @__PURE__ */ Object.create(null);
+      this.renderPipes = /* @__PURE__ */ Object.create(null);
       this._initOptions = {};
-      this._systemsHash =                 Object.create(null);
+      this._systemsHash = /* @__PURE__ */ Object.create(null);
       this.type = config.type;
       this.name = config.name;
       this.config = config;
@@ -7051,7 +6655,6 @@ ${src}`;
       this._addRunners(...combinedRunners);
       this._unsafeEvalCheck();
     }
-
     async init(options = {}) {
       const skip = options.skipExtensionImports === true ? true : options.manageImports === false;
       await loadEnvironmentExtensions(skip);
@@ -7103,7 +6706,6 @@ ${src}`;
       this.runners.renderEnd.emit(options);
       this.runners.postrender.emit(options);
     }
-
     resize(desiredScreenWidth, desiredScreenHeight, resolution) {
       const previousResolution = this.view.resolution;
       this.view.resize(desiredScreenWidth, desiredScreenHeight, resolution);
@@ -7112,7 +6714,6 @@ ${src}`;
         this.runners.resolutionChange.emit(resolution);
       }
     }
-
     clear(options = {}) {
       const renderer = this;
       options.target || (options.target = renderer.renderTarget.renderTarget);
@@ -7122,7 +6723,6 @@ ${src}`;
       Color.shared.setValue(clearColor ?? this.background.colorRgba);
       renderer.renderTarget.clear(target, clear, Color.shared.toArray(), mipLevel ?? 0, layer2 ?? 0);
     }
-
     get resolution() {
       return this.view.resolution;
     }
@@ -7130,32 +6730,25 @@ ${src}`;
       this.view.resolution = value;
       this.runners.resolutionChange.emit(value);
     }
-
     get width() {
       return this.view.texture.frame.width;
     }
-
     get height() {
       return this.view.texture.frame.height;
     }
-
     get canvas() {
       return this.view.canvas;
     }
-
     get lastObjectRendered() {
       return this._lastObjectRendered;
     }
-
     get renderingToScreen() {
       const renderer = this;
       return renderer.renderTarget.renderingToScreen;
     }
-
     get screen() {
       return this.view.screen;
     }
-
     _addRunners(...runnerIds) {
       runnerIds.forEach((runnerId) => {
         this.runners[runnerId] = new SystemRunner(runnerId);
@@ -7168,7 +6761,6 @@ ${src}`;
         this._addSystem(val.value, val.name);
       }
     }
-
     _addSystem(ClassRef, name) {
       const system = new ClassRef(this);
       if (this[name]) {
@@ -7210,31 +6802,24 @@ ${src}`;
       this.renderPipes = null;
       this.removeAllListeners();
     }
-
     generateTexture(options) {
       return this.textureGenerator.generateTexture(options);
     }
-
     get roundPixels() {
       return !!this._roundPixels;
     }
-
     _unsafeEvalCheck() {
       if (!unsafeEvalSupported()) {
         throw new Error("Current environment does not allow unsafe-eval, please use pixi.js/unsafe-eval module to enable support.");
       }
     }
-
     resetState() {
       this.runners.resetState.emit();
     }
   };
   _AbstractRenderer.defaultOptions = {
-
     resolution: 1,
-
     failIfMajorPerformanceCaveat: false,
-
     roundPixels: false
   };
   let AbstractRenderer = _AbstractRenderer;
@@ -7364,7 +6949,6 @@ ${src}`;
     priority: -10
   };
   class ResizePlugin {
-
     static init(options) {
       Object.defineProperty(
         this,
@@ -7419,7 +7003,6 @@ ${src}`;
       this._resizeTo = null;
       this.resizeTo = options.resizeTo || null;
     }
-
     static destroy() {
       globalThis.removeEventListener("resize", this.queueResize);
       this._cancelResize();
@@ -7431,7 +7014,6 @@ ${src}`;
   }
   ResizePlugin.extension = ExtensionType.Application;
   class TickerPlugin {
-
     static init(options) {
       options = Object.assign({
         autoStart: true,
@@ -7468,7 +7050,6 @@ ${src}`;
         this.start();
       }
     }
-
     static destroy() {
       if (this._ticker) {
         const oldTicker = this._ticker;
@@ -7487,7 +7068,6 @@ ${src}`;
         deprecation(v8_0_0, "Application constructor options are deprecated, please use Application.init() instead.");
       }
     }
-
     async init(options) {
       options = { ...options };
       this.stage || (this.stage = new Container());
@@ -7496,28 +7076,22 @@ ${src}`;
         plugin.init.call(this, options);
       });
     }
-
     render() {
       this.renderer.render({ container: this.stage });
     }
-
     get canvas() {
       return this.renderer.canvas;
     }
-
     get view() {
       deprecation(v8_0_0, "Application.view is deprecated, please use Application.canvas instead.");
       return this.renderer.canvas;
     }
-
     get screen() {
       return this.renderer.screen;
     }
-
     get domContainerRoot() {
       return this.renderer.renderPipes.dom?._domElement;
     }
-
     destroy(rendererDestroyOptions = false, options = false) {
       const plugins = _Application2._plugins.slice(0);
       plugins.reverse();
@@ -7563,7 +7137,7 @@ ${src}`;
     var numbers = args.match(number);
     return numbers ? numbers.map(Number) : [];
   }
-  const parse$1 =                 getDefaultExportFromCjs(parseSvgPath);
+  const parse$1 = /* @__PURE__ */ getDefaultExportFromCjs(parseSvgPath);
   function parseSVGPath(svgPath, path) {
     const commands = parse$1(svgPath);
     const subpaths = [];
@@ -7617,26 +7191,20 @@ ${src}`;
           path.bezierCurveTo(
             data[1],
             data[2],
-
             data[3],
             data[4],
-
             lastX,
             lastY
-
           );
           break;
         case "c":
           path.bezierCurveTo(
             lastX + data[1],
             lastY + data[2],
-
             lastX + data[3],
             lastY + data[4],
-
             lastX + data[5],
             lastY + data[6]
-
           );
           lastX += data[5];
           lastY += data[6];
@@ -7647,20 +7215,16 @@ ${src}`;
           path.bezierCurveToShort(
             data[1],
             data[2],
-
             lastX,
             lastY
-
           );
           break;
         case "s":
           path.bezierCurveToShort(
             lastX + data[1],
             lastY + data[2],
-
             lastX + data[3],
             lastY + data[4]
-
           );
           lastX += data[3];
           lastY += data[4];
@@ -7671,20 +7235,16 @@ ${src}`;
           path.quadraticCurveTo(
             data[1],
             data[2],
-
             lastX,
             lastY
-
           );
           break;
         case "q":
           path.quadraticCurveTo(
             lastX + data[1],
             lastY + data[2],
-
             lastX + data[3],
             lastY + data[4]
-
           );
           lastX += data[3];
           lastY += data[4];
@@ -7695,7 +7255,6 @@ ${src}`;
           path.quadraticCurveToShort(
             lastX,
             lastY
-
           );
           break;
         case "t":
@@ -7704,7 +7263,6 @@ ${src}`;
           path.quadraticCurveToShort(
             lastX,
             lastY
-
           );
           break;
         case "A":
@@ -7712,18 +7270,12 @@ ${src}`;
           lastY = data[7];
           path.arcToSvg(
             data[1],
-
             data[2],
-
             data[3],
-
             data[4],
-
             data[5],
-
             lastX,
             lastY
-
           );
           break;
         case "a":
@@ -7731,18 +7283,12 @@ ${src}`;
           lastY += data[7];
           path.arcToSvg(
             data[1],
-
             data[2],
-
             data[3],
-
             data[4],
-
             data[5],
-
             lastX,
             lastY
-
           );
           break;
         case "Z":
@@ -7773,18 +7319,15 @@ ${src}`;
     return path;
   }
   class Circle {
-
     constructor(x2 = 0, y2 = 0, radius = 0) {
       this.type = "circle";
       this.x = x2;
       this.y = y2;
       this.radius = radius;
     }
-
     clone() {
       return new Circle(this.x, this.y, this.radius);
     }
-
     contains(x2, y2) {
       if (this.radius <= 0) return false;
       const r2 = this.radius * this.radius;
@@ -7794,7 +7337,6 @@ ${src}`;
       dy *= dy;
       return dx + dy <= r2;
     }
-
     strokeContains(x2, y2, width, alignment = 0.5) {
       if (this.radius === 0) return false;
       const dx = this.x - x2;
@@ -7804,7 +7346,6 @@ ${src}`;
       const distance = Math.sqrt(dx * dx + dy * dy);
       return distance <= radius + outerWidth && distance > radius - (width - outerWidth);
     }
-
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       out2.x = this.x - this.radius;
@@ -7813,14 +7354,12 @@ ${src}`;
       out2.height = this.radius * 2;
       return out2;
     }
-
     copyFrom(circle) {
       this.x = circle.x;
       this.y = circle.y;
       this.radius = circle.radius;
       return this;
     }
-
     copyTo(circle) {
       circle.copyFrom(this);
       return circle;
@@ -7830,7 +7369,6 @@ ${src}`;
     }
   }
   class Ellipse {
-
     constructor(x2 = 0, y2 = 0, halfWidth = 0, halfHeight = 0) {
       this.type = "ellipse";
       this.x = x2;
@@ -7838,11 +7376,9 @@ ${src}`;
       this.halfWidth = halfWidth;
       this.halfHeight = halfHeight;
     }
-
     clone() {
       return new Ellipse(this.x, this.y, this.halfWidth, this.halfHeight);
     }
-
     contains(x2, y2) {
       if (this.halfWidth <= 0 || this.halfHeight <= 0) {
         return false;
@@ -7853,7 +7389,6 @@ ${src}`;
       normy *= normy;
       return normx + normy <= 1;
     }
-
     strokeContains(x2, y2, strokeWidth, alignment = 0.5) {
       const { halfWidth, halfHeight } = this;
       if (halfWidth <= 0 || halfHeight <= 0) {
@@ -7871,7 +7406,6 @@ ${src}`;
       const outerEllipse = normalizedX * normalizedX / (outerHorizontal * outerHorizontal) + normalizedY * normalizedY / (outerVertical * outerVertical);
       return innerEllipse > 1 && outerEllipse <= 1;
     }
-
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       out2.x = this.x - this.halfWidth;
@@ -7880,7 +7414,6 @@ ${src}`;
       out2.height = this.halfHeight * 2;
       return out2;
     }
-
     copyFrom(ellipse) {
       this.x = ellipse.x;
       this.y = ellipse.y;
@@ -7888,7 +7421,6 @@ ${src}`;
       this.halfHeight = ellipse.halfHeight;
       return this;
     }
-
     copyTo(ellipse) {
       ellipse.copyFrom(this);
       return ellipse;
@@ -7927,7 +7459,6 @@ ${src}`;
   let tempRect$3;
   let tempRect2;
   class Polygon {
-
     constructor(...points) {
       this.type = "polygon";
       let flat = Array.isArray(points[0]) ? points[0] : points;
@@ -7941,7 +7472,6 @@ ${src}`;
       this.points = flat;
       this.closePath = true;
     }
-
     isClockwise() {
       let area2 = 0;
       const points = this.points;
@@ -7955,7 +7485,6 @@ ${src}`;
       }
       return area2 < 0;
     }
-
     containsPolygon(polygon) {
       const thisBounds = this.getBounds(tempRect$3);
       const otherBounds = polygon.getBounds(tempRect2);
@@ -7972,14 +7501,12 @@ ${src}`;
       }
       return true;
     }
-
     clone() {
       const points = this.points.slice();
       const polygon = new Polygon(points);
       polygon.closePath = this.closePath;
       return polygon;
     }
-
     contains(x2, y2) {
       let inside = false;
       const length2 = this.points.length / 2;
@@ -7995,7 +7522,6 @@ ${src}`;
       }
       return inside;
     }
-
     strokeContains(x2, y2, strokeWidth, alignment = 0.5) {
       const strokeWidthSquared = strokeWidth * strokeWidth;
       const rightWidthSquared = strokeWidthSquared * (1 - alignment);
@@ -8015,7 +7541,6 @@ ${src}`;
       }
       return false;
     }
-
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       const points = this.points;
@@ -8037,13 +7562,11 @@ ${src}`;
       out2.height = maxY - minY;
       return out2;
     }
-
     copyFrom(polygon) {
       this.points = polygon.points.slice();
       this.closePath = polygon.closePath;
       return this;
     }
-
     copyTo(polygon) {
       polygon.copyFrom(this);
       return polygon;
@@ -8051,29 +7574,23 @@ ${src}`;
     toString() {
       return `[pixi.js/math:PolygoncloseStroke=${this.closePath}points=${this.points.reduce((pointsDesc, currentPoint) => `${pointsDesc}, ${currentPoint}`, "")}]`;
     }
-
     get lastX() {
       return this.points[this.points.length - 2];
     }
-
     get lastY() {
       return this.points[this.points.length - 1];
     }
-
     get x() {
       deprecation("8.11.0", "Polygon.lastX is deprecated, please use Polygon.lastX instead.");
       return this.points[this.points.length - 2];
     }
-
     get y() {
       deprecation("8.11.0", "Polygon.y is deprecated, please use Polygon.lastY instead.");
       return this.points[this.points.length - 1];
     }
-
     get startX() {
       return this.points[0];
     }
-
     get startY() {
       return this.points[1];
     }
@@ -8085,7 +7602,6 @@ ${src}`;
     return distance >= radius - strokeWidthInner && distance <= radius + strokeWidthOuter;
   };
   class RoundedRectangle {
-
     constructor(x2 = 0, y2 = 0, width = 0, height = 0, radius = 20) {
       this.type = "roundedRectangle";
       this.x = x2;
@@ -8094,7 +7610,6 @@ ${src}`;
       this.height = height;
       this.radius = radius;
     }
-
     getBounds(out2) {
       out2 || (out2 = new Rectangle());
       out2.x = this.x;
@@ -8103,11 +7618,9 @@ ${src}`;
       out2.height = this.height;
       return out2;
     }
-
     clone() {
       return new RoundedRectangle(this.x, this.y, this.width, this.height, this.radius);
     }
-
     copyFrom(rectangle) {
       this.x = rectangle.x;
       this.y = rectangle.y;
@@ -8115,12 +7628,10 @@ ${src}`;
       this.height = rectangle.height;
       return this;
     }
-
     copyTo(rectangle) {
       rectangle.copyFrom(this);
       return rectangle;
     }
-
     contains(x2, y2) {
       if (this.width <= 0 || this.height <= 0) {
         return false;
@@ -8153,7 +7664,6 @@ ${src}`;
       }
       return false;
     }
-
     strokeContains(pX, pY, strokeWidth, alignment = 0.5) {
       const { x: x2, y: y2, width, height, radius } = this;
       const strokeWidthOuter = strokeWidth * (1 - alignment);
@@ -8171,7 +7681,6 @@ ${src}`;
         return true;
       }
       return (
-
         pX < innerX && pY < innerY && isCornerWithinStroke(
           pX,
           pY,
@@ -8246,53 +7755,45 @@ ${src}`;
       this.float32View = new Float32Array(this.rawBinaryData);
       this.size = this.rawBinaryData.byteLength;
     }
-
     get int8View() {
       if (!this._int8View) {
         this._int8View = new Int8Array(this.rawBinaryData);
       }
       return this._int8View;
     }
-
     get uint8View() {
       if (!this._uint8View) {
         this._uint8View = new Uint8Array(this.rawBinaryData);
       }
       return this._uint8View;
     }
-
     get int16View() {
       if (!this._int16View) {
         this._int16View = new Int16Array(this.rawBinaryData);
       }
       return this._int16View;
     }
-
     get int32View() {
       if (!this._int32View) {
         this._int32View = new Int32Array(this.rawBinaryData);
       }
       return this._int32View;
     }
-
     get float64View() {
       if (!this._float64Array) {
         this._float64Array = new Float64Array(this.rawBinaryData);
       }
       return this._float64Array;
     }
-
     get bigUint64View() {
       if (!this._bigUint64Array) {
         this._bigUint64Array = new BigUint64Array(this.rawBinaryData);
       }
       return this._bigUint64Array;
     }
-
     view(type) {
       return this[`${type}View`];
     }
-
     destroy() {
       this.rawBinaryData = null;
       this.uint32View = null;
@@ -8305,7 +7806,6 @@ ${src}`;
       this._float64Array = null;
       this._bigUint64Array = null;
     }
-
     static sizeOf(type) {
       switch (type) {
         case "int8":
@@ -8341,7 +7841,7 @@ ${src}`;
     add: "add-npm",
     screen: "screen-npm"
   };
-  var STENCIL_MODES =                 ((STENCIL_MODES2) => {
+  var STENCIL_MODES = /* @__PURE__ */ ((STENCIL_MODES2) => {
     STENCIL_MODES2[STENCIL_MODES2["DISABLED"] = 0] = "DISABLED";
     STENCIL_MODES2[STENCIL_MODES2["RENDERING_MASK_ADD"] = 1] = "RENDERING_MASK_ADD";
     STENCIL_MODES2[STENCIL_MODES2["MASK_ACTIVE"] = 2] = "MASK_ACTIVE";
@@ -8411,11 +7911,10 @@ ${src}`;
   }
   class BatchTextureArray {
     constructor() {
-      this.ids =                 Object.create(null);
+      this.ids = /* @__PURE__ */ Object.create(null);
       this.textures = [];
       this.count = 0;
     }
-
     clear() {
       for (let i2 = 0; i2 < this.count; i2++) {
         const t2 = this.textures[i2];
@@ -8531,7 +8030,6 @@ ${src}`;
         );
       }
     }
-
     break(instructionSet) {
       const elements = this._elements;
       if (!elements[this.elementStart]) return;
@@ -8692,12 +8190,10 @@ ${src}`;
     finish(instructionSet) {
       this.break(instructionSet);
     }
-
     ensureAttributeBuffer(size) {
       if (size * 4 <= this.attributeBuffer.size) return;
       this._resizeAttributeBuffer(size * 4);
     }
-
     ensureIndexBuffer(size) {
       if (size <= this.indexBuffer.length) return;
       this._resizeIndexBuffer(size);
@@ -8739,7 +8235,6 @@ ${src}`;
         indexBuffer[index++] = indicesOffset + indices[i2 + indexOffset] - attributeOffset;
       }
     }
-
     destroy(options = {}) {
       if (this.batches === null) return;
       for (let i2 = 0; i2 < this.batchIndex; i2++) {
@@ -8767,7 +8262,7 @@ ${src}`;
     indicesInitialSize: 6
   };
   let Batcher = _Batcher;
-  var BufferUsage =                 ((BufferUsage2) => {
+  var BufferUsage = /* @__PURE__ */ ((BufferUsage2) => {
     BufferUsage2[BufferUsage2["MAP_READ"] = 1] = "MAP_READ";
     BufferUsage2[BufferUsage2["MAP_WRITE"] = 2] = "MAP_WRITE";
     BufferUsage2[BufferUsage2["COPY_SRC"] = 4] = "COPY_SRC";
@@ -8782,12 +8277,11 @@ ${src}`;
     return BufferUsage2;
   })(BufferUsage || {});
   class Buffer extends EventEmitter {
-
     constructor(options) {
       let { data, size } = options;
       const { usage, label, shrinkToFit } = options;
       super();
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
       this._gcLastUsed = -1;
       this.autoGarbageCollect = true;
       this.uid = uid$1("buffer");
@@ -8812,7 +8306,6 @@ ${src}`;
       };
       this.shrinkToFit = shrinkToFit ?? true;
     }
-
     get data() {
       return this._data;
     }
@@ -8825,7 +8318,6 @@ ${src}`;
       }
       return this._dataInt32;
     }
-
     get static() {
       return !!(this.descriptor.usage & BufferUsage.STATIC);
     }
@@ -8836,7 +8328,6 @@ ${src}`;
         this.descriptor.usage &= ~BufferUsage.STATIC;
       }
     }
-
     setDataWithSize(value, size, syncGPU) {
       this._updateID++;
       this._updateSize = size * value.BYTES_PER_ELEMENT;
@@ -8859,21 +8350,18 @@ ${src}`;
       }
       if (syncGPU) this.emit("update", this);
     }
-
     update(sizeInBytes) {
       this._updateSize = sizeInBytes ?? this._updateSize;
       this._updateID++;
       this.emit("update", this);
     }
-
     unload() {
       this.emit("unload", this);
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy();
       }
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
     }
-
     destroy() {
       this.destroyed = true;
       this.unload();
@@ -8945,10 +8433,9 @@ ${src}`;
     return attribute;
   }
   class Geometry extends EventEmitter {
-
     constructor(options = {}) {
       super();
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
       this.autoGarbageCollect = true;
       this._gcLastUsed = -1;
       this.uid = uid$1("geometry");
@@ -8974,19 +8461,15 @@ ${src}`;
       this._boundsDirty = true;
       this.emit("update", this);
     }
-
     getAttribute(id) {
       return this.attributes[id];
     }
-
     getIndex() {
       return this.indexBuffer;
     }
-
     getBuffer(id) {
       return this.getAttribute(id).buffer;
     }
-
     getSize() {
       for (const i2 in this.attributes) {
         const attribute = this.attributes[i2];
@@ -8995,7 +8478,6 @@ ${src}`;
       }
       return 0;
     }
-
     addAttribute(name, attributeOption) {
       const attribute = ensureIsAttribute(attributeOption);
       const bufferIndex = this.buffers.indexOf(attribute.buffer);
@@ -9006,26 +8488,22 @@ ${src}`;
       }
       this.attributes[name] = attribute;
     }
-
     addIndex(indexBuffer) {
       this.indexBuffer = ensureIsBuffer(indexBuffer, true);
       this.buffers.push(this.indexBuffer);
     }
-
     get bounds() {
       if (!this._boundsDirty) return this._bounds;
       this._boundsDirty = false;
       return getGeometryBounds(this, "aPosition", this._bounds);
     }
-
     unload() {
       this.emit("unload", this);
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy();
       }
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
     }
-
     destroy(destroyBuffers = false) {
       this.emit("destroy", this);
       this.removeAllListeners();
@@ -9055,7 +8533,6 @@ ${src}`;
         data: placeHolderIndexData,
         label: "index-batch-buffer",
         usage: BufferUsage.INDEX | BufferUsage.COPY_DST,
-
         shrinkToFit: false
       });
       const stride = vertexSize * 4;
@@ -9206,8 +8683,8 @@ ${parts.join("\n")}
     }
     return out2;
   }
-  const cacheMap =                 Object.create(null);
-  const bitCacheMap =                 new Map();
+  const cacheMap = /* @__PURE__ */ Object.create(null);
+  const bitCacheMap = /* @__PURE__ */ new Map();
   let CACHE_UID = 0;
   function compileHighShader({
     template,
@@ -9260,7 +8737,6 @@ ${parts.join("\n")}
     };
   }
   const vertexGPUTemplate = (
-
     `
     @in aPosition: vec2<f32>;
     @in aUV: vec2<f32>;
@@ -9308,7 +8784,6 @@ ${parts.join("\n")}
 `
   );
   const fragmentGPUTemplate = (
-
     `
     @in vUV : vec2<f32>;
     @in vColor : vec4<f32>;
@@ -9335,7 +8810,6 @@ ${parts.join("\n")}
 `
   );
   const vertexGlTemplate = (
-
     `
     in vec2 aPosition;
     in vec2 aUV;
@@ -9375,7 +8849,6 @@ ${parts.join("\n")}
 `
   );
   const fragmentGlTemplate = (
-
     `
 
     in vec4 vColor;
@@ -9403,7 +8876,6 @@ ${parts.join("\n")}
     name: "global-uniforms-bit",
     vertex: {
       header: (
-
         `
         struct GlobalUniforms {
             uProjectionMatrix:mat3x3<f32>,
@@ -9421,7 +8893,6 @@ ${parts.join("\n")}
     name: "global-uniforms-bit",
     vertex: {
       header: (
-
         `
           uniform mat3 uProjectionMatrix;
           uniform mat3 uWorldTransformMatrix;
@@ -9473,13 +8944,11 @@ ${parts.join("\n")}
     name: "color-bit",
     vertex: {
       header: (
-
         `
             @in aColor: vec4<f32>;
         `
       ),
       main: (
-
         `
             vColor *= vec4<f32>(aColor.rgb * aColor.a, aColor.a);
         `
@@ -9490,13 +8959,11 @@ ${parts.join("\n")}
     name: "color-bit",
     vertex: {
       header: (
-
         `
             in vec4 aColor;
         `
       ),
       main: (
-
         `
             vColor *= vec4(aColor.rgb * aColor.a, aColor.a);
         `
@@ -9629,7 +9096,6 @@ ${parts.join("\n")}
     name: "round-pixels-bit",
     vertex: {
       header: (
-
         `
             fn roundPixels(position: vec2<f32>, targetSize: vec2<f32>) -> vec2<f32>
             {
@@ -9643,7 +9109,6 @@ ${parts.join("\n")}
     name: "round-pixels-bit",
     vertex: {
       header: (
-
         `
             vec2 roundPixels(vec2 position, vec2 targetSize)
             {
@@ -9704,7 +9169,6 @@ ${parts.join("\n")}
       defaultShader ?? (defaultShader = new DefaultShader(options.maxTextures));
       this.shader = defaultShader;
     }
-
     packAttributes(element, float32View, uint32View, index, textureId) {
       const textureIdAndRound = textureId << 16 | element.roundPixels & 65535;
       const wt = element.transform;
@@ -9730,7 +9194,6 @@ ${parts.join("\n")}
         uint32View[index++] = textureIdAndRound;
       }
     }
-
     packQuadAttributes(element, float32View, uint32View, index, textureId) {
       const texture = element.texture;
       const wt = element.transform;
@@ -9773,7 +9236,6 @@ ${parts.join("\n")}
       uint32View[index + 22] = argb;
       uint32View[index + 23] = textureIdAndRound;
     }
-
     _updateMaxTextures(maxTextures) {
       if (this.shader.maxTextures === maxTextures) return;
       defaultShader = new DefaultShader(maxTextures);
@@ -9793,14 +9255,13 @@ ${parts.join("\n")}
   let DefaultBatcher = _DefaultBatcher;
   class GCManagedHash {
     constructor(options) {
-      this.items =                 Object.create(null);
+      this.items = /* @__PURE__ */ Object.create(null);
       const { renderer, type, onUnload, priority, name } = options;
       this._renderer = renderer;
       renderer.gc.addResourceHash(this, "items", type, priority ?? 0);
       this._onUnload = onUnload;
       this.name = name;
     }
-
     add(item) {
       if (this.items[item.uid]) return false;
       this.items[item.uid] = item;
@@ -9822,7 +9283,7 @@ ${parts.join("\n")}
     }
     destroy(...args) {
       this.removeAll(...args);
-      this.items =                 Object.create(null);
+      this.items = /* @__PURE__ */ Object.create(null);
       this._renderer = null;
       this._onUnload = null;
     }
@@ -10620,12 +10081,10 @@ ${parts.join("\n")}
         this.addColorStop(stop2.offset, stop2.color);
       });
     }
-
     addColorStop(offset2, color) {
       this.colorStops.push({ offset: offset2, color: Color.shared.setValue(color).toHexa() });
       return this;
     }
-
     buildLinearGradient() {
       if (this.texture) return;
       let { x: x0, y: y0 } = this.start;
@@ -10671,7 +10130,6 @@ ${parts.join("\n")}
       }
       this.transform = m2;
     }
-
     buildGradient() {
       if (!this.texture) this._tick++;
       if (this.type === "linear") {
@@ -10680,7 +10138,6 @@ ${parts.join("\n")}
         this.buildRadialGradient();
       }
     }
-
     buildRadialGradient() {
       if (this.texture) return;
       const colorStops = this.colorStops.length ? this.colorStops : emptyColorStops;
@@ -10726,7 +10183,6 @@ ${parts.join("\n")}
       }
       this.transform = m2;
     }
-
     destroy() {
       this.texture?.destroy(true);
       this.texture = null;
@@ -10737,7 +10193,6 @@ ${parts.join("\n")}
       this.center = null;
       this.outerCenter = null;
     }
-
     get styleKey() {
       return `fill-gradient-${this.uid}-${this._tick}`;
     }
@@ -11009,7 +10464,6 @@ ${parts.join("\n")}
       this.batcher ? this.batcher._updateMaxTextures(maxTextures) : this.batcher = new DefaultBatcher({ maxTextures });
       this.instructions.reset();
     }
-
     get geometry() {
       deprecation(v8_3_4, "GraphicsContextRenderData#geometry is deprecated, please use batcher.geometry instead.");
       return this.batcher.geometry;
@@ -11026,15 +10480,12 @@ ${parts.join("\n")}
       this._renderer = renderer;
       this._managedContexts = new GCManagedHash({ renderer, type: "resource", name: "graphicsContext" });
     }
-
     init(options) {
       _GraphicsContextSystem2.defaultOptions.bezierSmoothness = options?.bezierSmoothness ?? _GraphicsContextSystem2.defaultOptions.bezierSmoothness;
     }
-
     getContextRenderData(context2) {
       return context2._gpuData[this._renderer.uid].graphicsData || this._initContextRenderData(context2);
     }
-
     updateGpuContext(context2) {
       const hasContext = !!context2._gpuData[this._renderer.uid];
       const gpuContext = context2._gpuData[this._renderer.uid] || this._initContext(context2);
@@ -11055,7 +10506,6 @@ ${parts.join("\n")}
       }
       return gpuContext;
     }
-
     getGpuContext(context2) {
       return context2._gpuData[this._renderer.uid] || this._initContext(context2);
     }
@@ -11114,7 +10564,6 @@ ${parts.join("\n")}
     name: "graphicsContext"
   };
   _GraphicsContextSystem.defaultOptions = {
-
     bezierSmoothness: 0.5
   };
   let GraphicsContextSystem = _GraphicsContextSystem;
@@ -11125,7 +10574,6 @@ ${parts.join("\n")}
     const scale = 1;
     const smoothing = Math.min(
       0.99,
-
       Math.max(0, smoothness ?? GraphicsContextSystem.defaultOptions.bezierSmoothness)
     );
     let distanceTolerance = (PATH_DISTANCE_EPSILON$1 - smoothing) / scale;
@@ -11198,7 +10646,6 @@ ${parts.join("\n")}
     const scale = 1;
     const smoothing = Math.min(
       0.99,
-
       Math.max(0, smoothness ?? GraphicsContextSystem.defaultOptions.bezierSmoothness)
     );
     let distanceTolerance = (PATH_DISTANCE_EPSILON - smoothing) / scale;
@@ -11581,12 +11028,10 @@ ${parts.join("\n")}
       this._graphicsPath2D = graphicsPath2D;
       this.signed = graphicsPath2D.checkForHoles;
     }
-
     moveTo(x2, y2) {
       this.startPoly(x2, y2);
       return this;
     }
-
     lineTo(x2, y2) {
       this._ensurePoly();
       const points = this._currentPoly.points;
@@ -11597,21 +11042,18 @@ ${parts.join("\n")}
       }
       return this;
     }
-
     arc(x2, y2, radius, startAngle, endAngle, counterclockwise) {
       this._ensurePoly(false);
       const points = this._currentPoly.points;
       buildArc(points, x2, y2, radius, startAngle, endAngle, counterclockwise);
       return this;
     }
-
     arcTo(x1, y1, x2, y2, radius) {
       this._ensurePoly();
       const points = this._currentPoly.points;
       buildArcTo(points, x1, y1, x2, y2, radius);
       return this;
     }
-
     arcToSvg(rx, ry, xAxisRotation, largeArcFlag, sweepFlag, x2, y2) {
       const points = this._currentPoly.points;
       buildArcToSvg(
@@ -11628,7 +11070,6 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2, smoothness) {
       this._ensurePoly();
       const currentPoly = this._currentPoly;
@@ -11646,7 +11087,6 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     quadraticCurveTo(cp1x, cp1y, x2, y2, smoothing) {
       this._ensurePoly();
       const currentPoly = this._currentPoly;
@@ -11662,12 +11102,10 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     closePath() {
       this.endPoly(true);
       return this;
     }
-
     addPath(path, transform) {
       this.endPoly();
       if (transform && !transform.isIdentity()) {
@@ -11701,28 +11139,23 @@ ${parts.join("\n")}
       }
       return this;
     }
-
     finish(closePath = false) {
       this.endPoly(closePath);
     }
-
     rect(x2, y2, w2, h2, transform) {
       this.drawShape(new Rectangle(x2, y2, w2, h2), transform);
       return this;
     }
-
     circle(x2, y2, radius, transform) {
       this.drawShape(new Circle(x2, y2, radius), transform);
       return this;
     }
-
     poly(points, close, transform) {
       const polygon = new Polygon(points);
       polygon.closePath = close;
       this.drawShape(polygon, transform);
       return this;
     }
-
     regularPoly(x2, y2, radius, sides, rotation = 0, transform) {
       sides = Math.max(sides | 0, 3);
       const startAngle = -1 * Math.PI / 2 + rotation;
@@ -11738,7 +11171,6 @@ ${parts.join("\n")}
       this.poly(polygon, true, transform);
       return this;
     }
-
     roundPoly(x2, y2, radius, sides, corner, rotation = 0, smoothness) {
       sides = Math.max(sides | 0, 3);
       if (corner <= 0) {
@@ -11768,7 +11200,6 @@ ${parts.join("\n")}
       }
       return this.closePath();
     }
-
     roundShape(points, radius, useQuadratic = false, smoothness) {
       if (points.length < 3) {
         return this;
@@ -11780,7 +11211,6 @@ ${parts.join("\n")}
       }
       return this.closePath();
     }
-
     filletRect(x2, y2, width, height, fillet) {
       if (fillet === 0) {
         return this.rect(x2, y2, width, height);
@@ -11793,7 +11223,6 @@ ${parts.join("\n")}
       const size = Math.abs(inset);
       return this.moveTo(x2, y2 + size).arcTo(x2 + dir, y2 + dir, x2 + size, y2, size).lineTo(right - size, y2).arcTo(right - dir, y2 + dir, right, y2 + size, size).lineTo(right, bottom - size).arcTo(right - dir, bottom - dir, x2 + width - size, bottom, size).lineTo(x2 + size, bottom).arcTo(x2 + dir, bottom - dir, x2, bottom - size, size).closePath();
     }
-
     chamferRect(x2, y2, width, height, chamfer, transform) {
       if (chamfer <= 0) {
         return this.rect(x2, y2, width, height);
@@ -11826,23 +11255,19 @@ ${parts.join("\n")}
       }
       return this.poly(points, true, transform);
     }
-
     ellipse(x2, y2, radiusX, radiusY, transform) {
       this.drawShape(new Ellipse(x2, y2, radiusX, radiusY), transform);
       return this;
     }
-
     roundRect(x2, y2, w2, h2, radius, transform) {
       this.drawShape(new RoundedRectangle(x2, y2, w2, h2, radius), transform);
       return this;
     }
-
     drawShape(shape, matrix) {
       this.endPoly();
       this.shapePrimitives.push({ shape, transform: matrix });
       return this;
     }
-
     startPoly(x2, y2) {
       let currentPoly = this._currentPoly;
       if (currentPoly) {
@@ -11853,7 +11278,6 @@ ${parts.join("\n")}
       this._currentPoly = currentPoly;
       return this;
     }
-
     endPoly(closePath = false) {
       const shape = this._currentPoly;
       if (shape && shape.points.length > 2) {
@@ -11883,7 +11307,6 @@ ${parts.join("\n")}
         }
       }
     }
-
     buildPath() {
       const path = this._graphicsPath2D;
       this.shapePrimitives.length = 0;
@@ -11894,7 +11317,6 @@ ${parts.join("\n")}
       }
       this.finish();
     }
-
     get bounds() {
       const bounds = this._bounds;
       bounds.clear();
@@ -11912,7 +11334,6 @@ ${parts.join("\n")}
     }
   }
   class GraphicsPath {
-
     constructor(instructions, signed = false) {
       this.instructions = [];
       this.uid = uid$1("graphicsPath");
@@ -11924,7 +11345,6 @@ ${parts.join("\n")}
         this.instructions = instructions?.slice() ?? [];
       }
     }
-
     get shapePath() {
       if (!this._shapePath) {
         this._shapePath = new ShapePath(this);
@@ -11935,7 +11355,6 @@ ${parts.join("\n")}
       }
       return this._shapePath;
     }
-
     addPath(path, transform) {
       path = path.clone();
       this.instructions.push({ action: "addPath", data: [path, transform] });
@@ -11962,7 +11381,6 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-
     bezierCurveToShort(cp2x, cp2y, x2, y2, smoothness) {
       const last = this.instructions[this.instructions.length - 1];
       const lastPoint = this.getLastPoint(Point.shared);
@@ -11983,7 +11401,6 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-
     closePath() {
       this.instructions.push({ action: "closePath", data: [] });
       this._dirty = true;
@@ -12008,7 +11425,6 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-
     quadraticCurveToShort(x2, y2, smoothness) {
       const last = this.instructions[this.instructions.length - 1];
       const lastPoint = this.getLastPoint(Point.shared);
@@ -12029,13 +11445,11 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-
     rect(x2, y2, w2, h2, transform) {
       this.instructions.push({ action: "rect", data: [x2, y2, w2, h2, transform] });
       this._dirty = true;
       return this;
     }
-
     circle(x2, y2, radius, transform) {
       this.instructions.push({ action: "circle", data: [x2, y2, radius, transform] });
       this._dirty = true;
@@ -12076,7 +11490,7 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-
+    // eslint-disable-next-line max-len
     star(x2, y2, points, radius, innerRadius, rotation, transform) {
       innerRadius || (innerRadius = radius / 2);
       const startAngle = -1 * Math.PI / 2 + rotation;
@@ -12094,7 +11508,6 @@ ${parts.join("\n")}
       this.poly(polygon, true, transform);
       return this;
     }
-
     clone(deep = false) {
       const newGraphicsPath2D = new GraphicsPath();
       newGraphicsPath2D.checkForHoles = this.checkForHoles;
@@ -12113,7 +11526,6 @@ ${parts.join("\n")}
       this._dirty = true;
       return this;
     }
-
     transform(matrix) {
       if (matrix.isIdentity()) return this;
       const a2 = matrix.a;
@@ -12210,7 +11622,6 @@ ${parts.join("\n")}
     get bounds() {
       return this.shapePath.bounds;
     }
-
     getLastPoint(out2) {
       let index = this.instructions.length - 1;
       let lastInstruction = this.instructions[index];
@@ -12311,29 +11722,17 @@ ${parts.join("\n")}
     return match ? match[1] : "";
   }
   const styleAttributes = {
-
     fill: { type: "paint", default: 0 },
-
     "fill-opacity": { type: "number", default: 1 },
-
     stroke: { type: "paint", default: 0 },
-
     "stroke-width": { type: "number", default: 1 },
-
     "stroke-opacity": { type: "number", default: 1 },
-
     "stroke-linecap": { type: "string", default: "butt" },
-
     "stroke-linejoin": { type: "string", default: "miter" },
-
     "stroke-miterlimit": { type: "number", default: 10 },
-
     "stroke-dasharray": { type: "string", default: "none" },
-
     "stroke-dashoffset": { type: "number", default: 0 },
-
     opacity: { type: "number", default: 1 }
-
   };
   function parseSVGStyle(svg, session) {
     const style = svg.getAttribute("style");
@@ -12666,7 +12065,6 @@ ${parts.join("\n")}
         texture.source.style.addressModeV = repetitionMap[repetition].addressModeV;
       }
     }
-
     setTransform(transform) {
       const texture = this.texture;
       this.transform.copyFrom(transform);
@@ -12677,7 +12075,6 @@ ${parts.join("\n")}
       );
       this._tick++;
     }
-
     get texture() {
       return this._texture;
     }
@@ -12686,11 +12083,9 @@ ${parts.join("\n")}
       this._texture = value;
       this._tick++;
     }
-
     get styleKey() {
       return `fill-pattern-${this.uid}-${this._tick}`;
     }
-
     destroy() {
       this.texture.destroy(true);
       this.texture = null;
@@ -12824,7 +12219,7 @@ ${parts.join("\n")}
   const _GraphicsContext = class _GraphicsContext2 extends EventEmitter {
     constructor() {
       super(...arguments);
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
       this.autoGarbageCollect = true;
       this._gcLastUsed = -1;
       this.uid = uid$1("graphicsContext");
@@ -12841,7 +12236,6 @@ ${parts.join("\n")}
       this._bounds = new Bounds();
       this._boundsDirty = true;
     }
-
     clone() {
       const clone = new _GraphicsContext2();
       clone.batchMode = this.batchMode;
@@ -12855,26 +12249,22 @@ ${parts.join("\n")}
       clone._boundsDirty = true;
       return clone;
     }
-
     get fillStyle() {
       return this._fillStyle;
     }
     set fillStyle(value) {
       this._fillStyle = toFillStyle(value, _GraphicsContext2.defaultFillStyle);
     }
-
     get strokeStyle() {
       return this._strokeStyle;
     }
     set strokeStyle(value) {
       this._strokeStyle = toStrokeStyle(value, _GraphicsContext2.defaultStrokeStyle);
     }
-
     setFillStyle(style) {
       this._fillStyle = toFillStyle(style, _GraphicsContext2.defaultFillStyle);
       return this;
     }
-
     setStrokeStyle(style) {
       this._strokeStyle = toFillStyle(style, _GraphicsContext2.defaultStrokeStyle);
       return this;
@@ -12896,7 +12286,6 @@ ${parts.join("\n")}
       this.onUpdate();
       return this;
     }
-
     beginPath() {
       this._activePath = new GraphicsPath();
       return this;
@@ -12919,7 +12308,6 @@ ${parts.join("\n")}
       }
       this.instructions.push({
         action: "fill",
-
         data: { style: this.fillStyle, path }
       });
       this.onUpdate();
@@ -12932,7 +12320,6 @@ ${parts.join("\n")}
       this._activePath.clear();
       this._activePath.moveTo(x2, y2);
     }
-
     stroke(style) {
       let path;
       const lastInstruction = this.instructions[this.instructions.length - 1];
@@ -12947,7 +12334,6 @@ ${parts.join("\n")}
       }
       this.instructions.push({
         action: "stroke",
-
         data: { style: this.strokeStyle, path }
       });
       this.onUpdate();
@@ -12955,7 +12341,6 @@ ${parts.join("\n")}
       this._tick = 0;
       return this;
     }
-
     cut() {
       for (let i2 = 0; i2 < 2; i2++) {
         const lastInstruction = this.instructions[this.instructions.length - 1 - i2];
@@ -12974,7 +12359,6 @@ ${parts.join("\n")}
       this._initNextPathLocation();
       return this;
     }
-
     arc(x2, y2, radius, startAngle, endAngle, counterclockwise) {
       this._tick++;
       const t2 = this._transform;
@@ -12988,7 +12372,6 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     arcTo(x1, y1, x2, y2, radius) {
       this._tick++;
       const t2 = this._transform;
@@ -13001,7 +12384,6 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     arcToSvg(rx, ry, xAxisRotation, largeArcFlag, sweepFlag, x2, y2) {
       this._tick++;
       const t2 = this._transform;
@@ -13009,7 +12391,6 @@ ${parts.join("\n")}
         rx,
         ry,
         xAxisRotation,
-
         largeArcFlag,
         sweepFlag,
         t2.a * x2 + t2.c * y2 + t2.tx,
@@ -13017,7 +12398,6 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2, smoothness) {
       this._tick++;
       const t2 = this._transform;
@@ -13032,31 +12412,26 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     closePath() {
       this._tick++;
       this._activePath?.closePath();
       return this;
     }
-
     ellipse(x2, y2, radiusX, radiusY) {
       this._tick++;
       this._activePath.ellipse(x2, y2, radiusX, radiusY, this._transform.clone());
       return this;
     }
-
     circle(x2, y2, radius) {
       this._tick++;
       this._activePath.circle(x2, y2, radius, this._transform.clone());
       return this;
     }
-
     path(path) {
       this._tick++;
       this._activePath.addPath(path, this._transform.clone());
       return this;
     }
-
     lineTo(x2, y2) {
       this._tick++;
       const t2 = this._transform;
@@ -13066,7 +12441,6 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     moveTo(x2, y2) {
       this._tick++;
       const t2 = this._transform;
@@ -13084,7 +12458,6 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     quadraticCurveTo(cpx, cpy, x2, y2, smoothness) {
       this._tick++;
       const t2 = this._transform;
@@ -13097,67 +12470,56 @@ ${parts.join("\n")}
       );
       return this;
     }
-
     rect(x2, y2, w2, h2) {
       this._tick++;
       this._activePath.rect(x2, y2, w2, h2, this._transform.clone());
       return this;
     }
-
     roundRect(x2, y2, w2, h2, radius) {
       this._tick++;
       this._activePath.roundRect(x2, y2, w2, h2, radius, this._transform.clone());
       return this;
     }
-
     poly(points, close) {
       this._tick++;
       this._activePath.poly(points, close, this._transform.clone());
       return this;
     }
-
     regularPoly(x2, y2, radius, sides, rotation = 0, transform) {
       this._tick++;
       this._activePath.regularPoly(x2, y2, radius, sides, rotation, transform);
       return this;
     }
-
     roundPoly(x2, y2, radius, sides, corner, rotation) {
       this._tick++;
       this._activePath.roundPoly(x2, y2, radius, sides, corner, rotation);
       return this;
     }
-
     roundShape(points, radius, useQuadratic, smoothness) {
       this._tick++;
       this._activePath.roundShape(points, radius, useQuadratic, smoothness);
       return this;
     }
-
     filletRect(x2, y2, width, height, fillet) {
       this._tick++;
       this._activePath.filletRect(x2, y2, width, height, fillet);
       return this;
     }
-
     chamferRect(x2, y2, width, height, chamfer, transform) {
       this._tick++;
       this._activePath.chamferRect(x2, y2, width, height, chamfer, transform);
       return this;
     }
-
     star(x2, y2, points, radius, innerRadius = 0, rotation = 0) {
       this._tick++;
       this._activePath.star(x2, y2, points, radius, innerRadius, rotation, this._transform.clone());
       return this;
     }
-
     svg(svg) {
       this._tick++;
       SVGParser(svg, this);
       return this;
     }
-
     restore() {
       const state = this._stateStack.pop();
       if (state) {
@@ -13167,7 +12529,6 @@ ${parts.join("\n")}
       }
       return this;
     }
-
     save() {
       this._stateStack.push({
         transform: this._transform.clone(),
@@ -13176,21 +12537,17 @@ ${parts.join("\n")}
       });
       return this;
     }
-
     getTransform() {
       return this._transform;
     }
-
     resetTransform() {
       this._transform.identity();
       return this;
     }
-
     rotate(angle) {
       this._transform.rotate(angle);
       return this;
     }
-
     scale(x2, y2 = x2) {
       this._transform.scale(x2, y2);
       return this;
@@ -13212,12 +12569,10 @@ ${parts.join("\n")}
       this._transform.append(tempMatrix$3);
       return this;
     }
-
     translate(x2, y2 = x2) {
       this._transform.translate(x2, y2);
       return this;
     }
-
     clear() {
       this._activePath.clear();
       this.instructions.length = 0;
@@ -13230,7 +12585,6 @@ ${parts.join("\n")}
       this.dirty = true;
       this.emit("update", this, 16);
     }
-
     get bounds() {
       if (!this._boundsDirty) return this._bounds;
       this._boundsDirty = false;
@@ -13267,7 +12621,6 @@ ${parts.join("\n")}
       }
       return bounds;
     }
-
     containsPoint(point) {
       if (!this.bounds.containsPoint(point.x, point.y)) return false;
       const instructions = this.instructions;
@@ -13308,15 +12661,13 @@ ${parts.join("\n")}
       }
       return hasHit;
     }
-
     unload() {
       this.emit("unload", this);
       for (const key in this._gpuData) {
         this._gpuData[key]?.destroy();
       }
-      this._gpuData =                 Object.create(null);
+      this._gpuData = /* @__PURE__ */ Object.create(null);
     }
-
     destroy(options = false) {
       if (this.destroyed) return;
       this.destroyed = true;
@@ -13346,43 +12697,25 @@ ${parts.join("\n")}
     }
   };
   _GraphicsContext.defaultFillStyle = {
-
     color: 16777215,
-
     alpha: 1,
-
     texture: Texture.WHITE,
-
     matrix: null,
-
     fill: null,
-
     textureSpace: "local"
   };
   _GraphicsContext.defaultStrokeStyle = {
-
     width: 1,
-
     color: 16777215,
-
     alpha: 1,
-
     alignment: 0.5,
-
     miterLimit: 10,
-
     cap: "butt",
-
     join: "miter",
-
     texture: Texture.WHITE,
-
     matrix: null,
-
     fill: null,
-
     textureSpace: "local",
-
     pixelLine: false
   };
   let GraphicsContext = _GraphicsContext;
@@ -13424,8 +12757,8 @@ ${parts.join("\n")}
     cacheStepsPerColorChannel: 8,
     canUseMultiply: canUseNewCanvasBlendModes(),
     tintMethod: null,
-    _canvasSourceCache:                 new WeakMap(),
-    _unpremultipliedCache:                 new WeakMap(),
+    _canvasSourceCache: /* @__PURE__ */ new WeakMap(),
+    _unpremultipliedCache: /* @__PURE__ */ new WeakMap(),
     getCanvasSource: (texture) => {
       const source2 = texture.source;
       const resource = source2?.resource;
@@ -13542,7 +12875,6 @@ ${parts.join("\n")}
       cache[stringColor] = pattern;
       return pattern;
     },
-
     applyPatternTransform: (pattern, matrix, invert = true) => {
       if (!matrix) return;
       const patternAny = pattern;
@@ -13691,7 +13023,6 @@ ${parts.join("\n")}
       }
       context2.putImageData(imageData, 0, 0);
     },
-
     _applyInverseRotation: (context2, rotate, srcWidth, srcHeight) => {
       const inv = groupD8.inv(rotate);
       const a2 = groupD8.uX(inv);
@@ -13706,11 +13037,10 @@ ${parts.join("\n")}
   canvasUtils.tintMethod = canvasUtils.canUseMultiply ? canvasUtils.tintWithMultiply : canvasUtils.tintWithPerPixel;
   class CanvasPoolClass {
     constructor(canvasOptions) {
-      this._canvasPool =                 Object.create(null);
+      this._canvasPool = /* @__PURE__ */ Object.create(null);
       this.canvasOptions = canvasOptions || {};
       this.enableFullScreen = false;
     }
-
     _createCanvasAndContext(pixelWidth, pixelHeight) {
       const canvas = DOMAdapter.get().createCanvas();
       canvas.width = pixelWidth;
@@ -13718,7 +13048,6 @@ ${parts.join("\n")}
       const context2 = canvas.getContext("2d");
       return { canvas, context: context2 };
     }
-
     getOptimalCanvasAndContext(minWidth, minHeight, resolution = 1) {
       minWidth = Math.ceil(minWidth * resolution - 1e-6);
       minHeight = Math.ceil(minHeight * resolution - 1e-6);
@@ -13734,7 +13063,6 @@ ${parts.join("\n")}
       }
       return canvasAndContext;
     }
-
     returnCanvasAndContext(canvasAndContext) {
       const canvas = canvasAndContext.canvas;
       const { width, height } = canvas;
@@ -13808,16 +13136,14 @@ ${parts.join("\n")}
     }
   }
   class CanvasFilterSystem {
-
     constructor(renderer) {
       this._filterStack = [];
       this._filterStackIndex = 0;
       this._savedStates = [];
       this._alphaMultiplier = 1;
-      this._warnedFilterTypes =                 new Set();
+      this._warnedFilterTypes = /* @__PURE__ */ new Set();
       this.renderer = renderer;
     }
-
     push(instruction) {
       const filterFrame = this._pushFilterFrame();
       const filters = instruction.filterEffect.filters;
@@ -13876,7 +13202,6 @@ ${parts.join("\n")}
         context2.filter = previousFilter !== "none" ? `${previousFilter} ${filterFrame.cssFilterString}` : filterFrame.cssFilterString;
       }
     }
-
     pop() {
       const filterFrame = this._popFilterFrame();
       if (filterFrame.skip) {
@@ -13894,7 +13219,6 @@ ${parts.join("\n")}
       }
       this._alphaMultiplier = savedState.alphaMultiplier;
     }
-
     generateFilteredTexture({ texture, filters }) {
       if (!filters?.length || filters.every((filter) => !filter.enabled)) {
         return texture;
@@ -13953,7 +13277,6 @@ ${parts.join("\n")}
       context2.globalAlpha = 1;
       return getPo2TextureFromSource(canvas, width, height, resolution);
     }
-
     _calculateFilterArea(instruction, bounds) {
       if (instruction.renderables) {
         getGlobalRenderableBounds(instruction.renderables, bounds);
@@ -14000,7 +13323,6 @@ ${parts.join("\n")}
       this._filterStackIndex--;
       return this._filterStack[this._filterStackIndex];
     }
-
     destroy() {
       this._filterStack = null;
       this._savedStates = null;
@@ -14145,7 +13467,6 @@ ${parts.join("\n")}
     });
   }
   const _BlurFilterPass = class _BlurFilterPass2 extends Filter {
-
     constructor(options) {
       options = { ..._BlurFilterPass2.defaultOptions, ...options };
       const glProgram = generateBlurGlProgram(options.horizontal, options.kernelSize);
@@ -14168,7 +13489,6 @@ ${parts.join("\n")}
       this._blurUniforms = this.resources.blurUniforms;
       this._uniforms = this._blurUniforms.uniforms;
     }
-
     apply(filterManager, input, output, clearMode) {
       if (this.legacy) {
         this._applyLegacy(filterManager, input, output, clearMode);
@@ -14227,7 +13547,6 @@ ${parts.join("\n")}
         TexturePool.returnTexture(tempTexture);
       }
     }
-
     _calculateInitialStrength() {
       let sumOfSquares = 1;
       let coefficient = 0.5;
@@ -14237,7 +13556,6 @@ ${parts.join("\n")}
       }
       return this.strength / Math.sqrt(sumOfSquares);
     }
-
     get blur() {
       return this.strength;
     }
@@ -14245,7 +13563,6 @@ ${parts.join("\n")}
       this.padding = 1 + Math.abs(value) * 2;
       this.strength = value;
     }
-
     get quality() {
       return this._quality;
     }
@@ -14255,13 +13572,9 @@ ${parts.join("\n")}
     }
   };
   _BlurFilterPass.defaultOptions = {
-
     strength: 8,
-
     quality: 4,
-
     kernelSize: 5,
-
     legacy: false
   };
   let BlurFilterPass = _BlurFilterPass;
@@ -14290,7 +13603,6 @@ ${parts.join("\n")}
       this.strengthY = strengthY ?? strength;
       this.repeatEdgePixels = false;
     }
-
     apply(filterManager, input, output, clearMode) {
       const xStrength = Math.abs(this.blurXFilter.strength);
       const yStrength = Math.abs(this.blurYFilter.strength);
@@ -14316,7 +13628,6 @@ ${parts.join("\n")}
         this.padding = Math.max(Math.abs(this.blurXFilter.blur), Math.abs(this.blurYFilter.blur)) * 2;
       }
     }
-
     get strength() {
       if (this.strengthX !== this.strengthY) {
         throw new Error("BlurFilter's strengthX and strengthY are different");
@@ -14327,14 +13638,12 @@ ${parts.join("\n")}
       this.blurXFilter.blur = this.blurYFilter.blur = value;
       this.updatePadding();
     }
-
     get quality() {
       return this.blurXFilter.quality;
     }
     set quality(value) {
       this.blurXFilter.quality = this.blurYFilter.quality = value;
     }
-
     get strengthX() {
       return this.blurXFilter.blur;
     }
@@ -14342,7 +13651,6 @@ ${parts.join("\n")}
       this.blurXFilter.blur = value;
       this.updatePadding();
     }
-
     get strengthY() {
       return this.blurYFilter.blur;
     }
@@ -14350,7 +13658,6 @@ ${parts.join("\n")}
       this.blurYFilter.blur = value;
       this.updatePadding();
     }
-
     get blur() {
       deprecation("8.3.0", "BlurFilter.blur is deprecated, please use BlurFilter.strength instead.");
       return this.strength;
@@ -14359,7 +13666,6 @@ ${parts.join("\n")}
       deprecation("8.3.0", "BlurFilter.blur is deprecated, please use BlurFilter.strength instead.");
       this.strength = value;
     }
-
     get blurX() {
       deprecation("8.3.0", "BlurFilter.blurX is deprecated, please use BlurFilter.strengthX instead.");
       return this.strengthX;
@@ -14368,7 +13674,6 @@ ${parts.join("\n")}
       deprecation("8.3.0", "BlurFilter.blurX is deprecated, please use BlurFilter.strengthX instead.");
       this.strengthX = value;
     }
-
     get blurY() {
       deprecation("8.3.0", "BlurFilter.blurY is deprecated, please use BlurFilter.strengthY instead.");
       return this.strengthY;
@@ -14377,7 +13682,6 @@ ${parts.join("\n")}
       deprecation("8.3.0", "BlurFilter.blurY is deprecated, please use BlurFilter.strengthY instead.");
       this.strengthY = value;
     }
-
     get repeatEdgePixels() {
       return this._repeatEdgePixels;
     }
@@ -14387,13 +13691,9 @@ ${parts.join("\n")}
     }
   }
   BlurFilter.defaultOptions = {
-
     strength: 8,
-
     quality: 4,
-
     kernelSize: 5,
-
     legacy: false
   };
   var fragment$1 = "in vec2 vTextureCoord;\nout vec4 finalColor;\nuniform sampler2D uTexture;\nvoid main() {\n    finalColor = texture(uTexture, vTextureCoord);\n}\n";
@@ -14499,11 +13799,9 @@ ${parts.join("\n")}
       this._globalFilterBindGroup = new BindGroup({});
       this.renderer = renderer;
     }
-
     get activeBackTexture() {
       return this._activeFilterData?.backTexture;
     }
-
     push(instruction) {
       const renderer = this.renderer;
       const filters = instruction.filterEffect.filters;
@@ -14543,7 +13841,6 @@ ${parts.join("\n")}
       );
       this._setupFilterTextures(filterData, bounds, renderer, previousFilterData);
     }
-
     generateFilteredTexture({ texture, filters }) {
       const filterData = this._pushFilterData();
       this._activeFilterData = filterData;
@@ -14588,7 +13885,6 @@ ${parts.join("\n")}
       outputTexture.source.alphaMode = "premultiplied-alpha";
       return outputTexture;
     }
-
     pop() {
       const renderer = this.renderer;
       const filterData = this._popFilterData();
@@ -14604,7 +13900,6 @@ ${parts.join("\n")}
       }
       TexturePool.returnTexture(filterData.inputTexture);
     }
-
     getBackTexture(lastRenderSurface, bounds, previousBounds) {
       const backgroundResolution = lastRenderSurface.colorTexture.source._resolution;
       const backTexture = TexturePool.getOptimalTexture(
@@ -14632,7 +13927,6 @@ ${parts.join("\n")}
       );
       return backTexture;
     }
-
     applyFilter(filter, input, output, clear) {
       const renderer = this.renderer;
       const filterData = this._activeFilterData;
@@ -14651,7 +13945,6 @@ ${parts.join("\n")}
       const filterToApply = filter.enabled ? filter : this._getPassthroughFilter();
       this._setupBindGroupsAndRender(filterToApply, input, renderer);
     }
-
     calculateSpriteMatrix(outputMatrix, sprite) {
       const data = this._activeFilterData;
       const mappedMatrix = outputMatrix.set(
@@ -14684,7 +13977,6 @@ ${parts.join("\n")}
       this._passthroughFilter ?? (this._passthroughFilter = new PassthroughFilter());
       return this._passthroughFilter;
     }
-
     _setupBindGroupsAndRender(filter, input, renderer) {
       if (renderer.renderPipes.uniformBatch) {
         const batchUniforms = renderer.renderPipes.uniformBatch.getUboResource(this._filterGlobalUniforms);
@@ -14705,7 +13997,6 @@ ${parts.join("\n")}
         renderer.renderTarget.finishRenderPass();
       }
     }
-
     _setupFilterTextures(filterData, bounds, renderer, previousFilterData) {
       filterData.backTexture = Texture.EMPTY;
       filterData.inputTexture = TexturePool.getOptimalTexture(
@@ -14724,7 +14015,6 @@ ${parts.join("\n")}
         offset: bounds
       });
     }
-
     _calculateGlobalFrame(filterData, offsetX, offsetY, globalResolution, sourceWidth, sourceHeight) {
       const globalFrame = filterData.globalFrame;
       globalFrame.x = offsetX * globalResolution;
@@ -14732,7 +14022,6 @@ ${parts.join("\n")}
       globalFrame.width = sourceWidth * globalResolution;
       globalFrame.height = sourceHeight * globalResolution;
     }
-
     _updateFilterUniforms(input, output, filterData, offsetX, offsetY, resolution, isFinalTarget, clear) {
       const uniforms = this._filterGlobalUniforms.uniforms;
       const outputFrame = uniforms.uOutputFrame;
@@ -14780,7 +14069,6 @@ ${parts.join("\n")}
       outputTexture[2] = renderTarget.isRoot ? -1 : 1;
       this._filterGlobalUniforms.update();
     }
-
     _findFilterResolution(rootResolution) {
       let currentIndex = this._filterStackIndex - 1;
       while (currentIndex > 0 && this._filterStack[currentIndex].skip) {
@@ -14788,7 +14076,6 @@ ${parts.join("\n")}
       }
       return currentIndex > 0 && this._filterStack[currentIndex].inputTexture ? this._filterStack[currentIndex].inputTexture.source._resolution : rootResolution;
     }
-
     _findPreviousFilterOffset() {
       let offsetX = 0;
       let offsetY = 0;
@@ -14804,7 +14091,6 @@ ${parts.join("\n")}
       }
       return { x: offsetX, y: offsetY };
     }
-
     _calculateFilterArea(instruction, bounds) {
       if (instruction.renderables) {
         getGlobalRenderableBounds(instruction.renderables, bounds);
@@ -15012,7 +14298,6 @@ ${parts.join("\n")}
     constructor() {
       this.isBatchable = false;
     }
-
     reset() {
       this.isBatchable = false;
       this.context = null;
@@ -15021,7 +14306,6 @@ ${parts.join("\n")}
         this.graphicsData = null;
       }
     }
-
     destroy() {
       this.reset();
     }
@@ -15030,11 +14314,9 @@ ${parts.join("\n")}
     constructor() {
       this.instructions = new InstructionSet();
     }
-
     init() {
       this.instructions.reset();
     }
-
     destroy() {
       this.instructions.destroy();
       this.instructions = null;
@@ -15045,16 +14327,13 @@ ${parts.join("\n")}
       this._renderer = renderer;
       this._managedContexts = new GCManagedHash({ renderer, type: "resource", name: "graphicsContext" });
     }
-
     init(options) {
       _CanvasGraphicsContextSystem2.defaultOptions.bezierSmoothness = options?.bezierSmoothness ?? _CanvasGraphicsContextSystem2.defaultOptions.bezierSmoothness;
     }
-
     getContextRenderData(context2) {
       const gpuContext = this.getGpuContext(context2);
       return gpuContext.graphicsData || this._initContextRenderData(context2);
     }
-
     updateGpuContext(context2) {
       const gpuData = context2._gpuData;
       const hasContext = !!gpuData[this._renderer.uid];
@@ -15068,7 +14347,6 @@ ${parts.join("\n")}
       }
       return gpuContext;
     }
-
     getGpuContext(context2) {
       const gpuData = context2._gpuData;
       return gpuData[this._renderer.uid] || this._initContext(context2);
@@ -15099,7 +14377,6 @@ ${parts.join("\n")}
     name: "graphicsContext"
   };
   _CanvasGraphicsContextSystem.defaultOptions = {
-
     bezierSmoothness: 0.5
   };
   let CanvasGraphicsContextSystem = _CanvasGraphicsContextSystem;
@@ -15281,7 +14558,6 @@ ${parts.join("\n")}
   extensions.add(CanvasGraphicsContextSystem);
   extensions.add(GraphicsContextSystem);
   class Graphics extends ViewContainer {
-
     constructor(options) {
       if (options instanceof GraphicsContext) {
         options = { context: options };
@@ -15313,22 +14589,17 @@ ${parts.join("\n")}
       this._context.on("unload", this.unload, this);
       this.onViewUpdate();
     }
-
     get context() {
       return this._context;
     }
-
     get bounds() {
       return this._context.bounds;
     }
-
     updateBounds() {
     }
-
     containsPoint(point) {
       return this._context.containsPoint(point);
     }
-
     destroy(options) {
       if (this._ownedContext && !options) {
         this._ownedContext.destroy(options);
@@ -15339,7 +14610,6 @@ ${parts.join("\n")}
       this._context = null;
       super.destroy(options);
     }
-
     _onTouch(now) {
       this._gcLastUsed = now;
       this._context._gcLastUsed = now;
@@ -15348,29 +14618,24 @@ ${parts.join("\n")}
       this.context[method](...args);
       return this;
     }
-
     setFillStyle(...args) {
       return this._callContextMethod("setFillStyle", args);
     }
-
     setStrokeStyle(...args) {
       return this._callContextMethod("setStrokeStyle", args);
     }
     fill(...args) {
       return this._callContextMethod("fill", args);
     }
-
     stroke(...args) {
       return this._callContextMethod("stroke", args);
     }
     texture(...args) {
       return this._callContextMethod("texture", args);
     }
-
     beginPath() {
       return this._callContextMethod("beginPath", []);
     }
-
     cut() {
       return this._callContextMethod("cut", []);
     }
@@ -15386,7 +14651,6 @@ ${parts.join("\n")}
     bezierCurveTo(...args) {
       return this._callContextMethod("bezierCurveTo", args);
     }
-
     closePath() {
       return this._callContextMethod("closePath", []);
     }
@@ -15441,15 +14705,12 @@ ${parts.join("\n")}
     restore(...args) {
       return this._callContextMethod("restore", args);
     }
-
     save() {
       return this._callContextMethod("save", []);
     }
-
     getTransform() {
       return this.context.getTransform();
     }
-
     resetTransform() {
       return this._callContextMethod("resetTransform", []);
     }
@@ -15468,25 +14729,21 @@ ${parts.join("\n")}
     translateTransform(...args) {
       return this._callContextMethod("translate", args);
     }
-
     clear() {
       return this._callContextMethod("clear", []);
     }
-
     get fillStyle() {
       return this._context.fillStyle;
     }
     set fillStyle(value) {
       this._context.fillStyle = value;
     }
-
     get strokeStyle() {
       return this._context.strokeStyle;
     }
     set strokeStyle(value) {
       this._context.strokeStyle = value;
     }
-
     clone(deep = false) {
       if (deep) {
         return new Graphics(this._context.clone());
@@ -15495,7 +14752,6 @@ ${parts.join("\n")}
       const clone = new Graphics(this._context);
       return clone;
     }
-
     lineStyle(width, color, alpha) {
       deprecation(v8_0_0, "Graphics#lineStyle is no longer needed. Use Graphics#setStrokeStyle to set the stroke style.");
       const strokeStyle = {};
@@ -15505,7 +14761,6 @@ ${parts.join("\n")}
       this.context.strokeStyle = strokeStyle;
       return this;
     }
-
     beginFill(color, alpha) {
       deprecation(v8_0_0, "Graphics#beginFill is no longer needed. Use Graphics#fill to fill the shape with the desired style.");
       const fillStyle = {};
@@ -15514,7 +14769,6 @@ ${parts.join("\n")}
       this.context.fillStyle = fillStyle;
       return this;
     }
-
     endFill() {
       deprecation(v8_0_0, "Graphics#endFill is no longer needed. Use Graphics#fill to fill the shape with the desired style.");
       this.context.fill();
@@ -15524,32 +14778,26 @@ ${parts.join("\n")}
       }
       return this;
     }
-
     drawCircle(...args) {
       deprecation(v8_0_0, "Graphics#drawCircle has been renamed to Graphics#circle");
       return this._callContextMethod("circle", args);
     }
-
     drawEllipse(...args) {
       deprecation(v8_0_0, "Graphics#drawEllipse has been renamed to Graphics#ellipse");
       return this._callContextMethod("ellipse", args);
     }
-
     drawPolygon(...args) {
       deprecation(v8_0_0, "Graphics#drawPolygon has been renamed to Graphics#poly");
       return this._callContextMethod("poly", args);
     }
-
     drawRect(...args) {
       deprecation(v8_0_0, "Graphics#drawRect has been renamed to Graphics#rect");
       return this._callContextMethod("rect", args);
     }
-
     drawRoundedRect(...args) {
       deprecation(v8_0_0, "Graphics#drawRoundedRect has been renamed to Graphics#roundRect");
       return this._callContextMethod("roundRect", args);
     }
-
     drawStar(...args) {
       deprecation(v8_0_0, "Graphics#drawStar has been renamed to Graphics#star");
       return this._callContextMethod("star", args);
@@ -15558,7 +14806,6 @@ ${parts.join("\n")}
   const localUniformBit = {
     vertex: {
       header: (
-
         `
 
             struct LocalUniforms {
@@ -15571,14 +14818,12 @@ ${parts.join("\n")}
         `
       ),
       main: (
-
         `
             vColor *= localUniforms.uColor;
             modelMatrix *= localUniforms.uTransformMatrix;
         `
       ),
       end: (
-
         `
             if(localUniforms.uRound == 1)
             {
@@ -15591,7 +14836,6 @@ ${parts.join("\n")}
   ({
     vertex: {
       ...localUniformBit.vertex,
-
       header: localUniformBit.vertex.header.replace("group(1)", "group(2)")
     }
   });
@@ -15599,7 +14843,6 @@ ${parts.join("\n")}
     name: "local-uniform-bit",
     vertex: {
       header: (
-
         `
 
             uniform mat3 uTransformMatrix;
@@ -15608,14 +14851,12 @@ ${parts.join("\n")}
         `
       ),
       main: (
-
         `
             vColor *= uColor;
             modelMatrix = uTransformMatrix;
         `
       ),
       end: (
-
         `
             if(uRound == 1.)
             {
@@ -15852,8 +15093,8 @@ ${parts.join("\n")}
   const _BatcherPipe = class _BatcherPipe2 {
     constructor(renderer, adaptor) {
       this.state = State.for2d();
-      this._batchersByInstructionSet =                 Object.create(null);
-      this._activeBatches =                 Object.create(null);
+      this._batchersByInstructionSet = /* @__PURE__ */ Object.create(null);
+      this._activeBatches = /* @__PURE__ */ Object.create(null);
       this.renderer = renderer;
       this._adaptor = adaptor;
       this._adaptor.init?.(this);
@@ -15864,7 +15105,7 @@ ${parts.join("\n")}
     buildStart(instructionSet) {
       let batchers = this._batchersByInstructionSet[instructionSet.uid];
       if (!batchers) {
-        batchers = this._batchersByInstructionSet[instructionSet.uid] =                 Object.create(null);
+        batchers = this._batchersByInstructionSet[instructionSet.uid] = /* @__PURE__ */ Object.create(null);
         batchers.default || (batchers.default = new DefaultBatcher({
           maxTextures: this.renderer.limits.maxBatchableTextures
         }));
@@ -15938,7 +15179,7 @@ ${parts.join("\n")}
     ],
     name: "batch"
   };
-  _BatcherPipe._availableBatchers =                 Object.create(null);
+  _BatcherPipe._availableBatchers = /* @__PURE__ */ Object.create(null);
   let BatcherPipe = _BatcherPipe;
   extensions.handleByMap(ExtensionType.Batcher, BatcherPipe._availableBatchers);
   extensions.add(DefaultBatcher);
@@ -15946,13 +15187,11 @@ ${parts.join("\n")}
     name: "texture-bit",
     vertex: {
       header: (
-
         `
             uniform mat3 uTextureMatrix;
         `
       ),
       main: (
-
         `
             uv = (uTextureMatrix * vec3(uv, 1.0)).xy;
         `
@@ -15960,14 +15199,13 @@ ${parts.join("\n")}
     },
     fragment: {
       header: (
-
         `
         uniform sampler2D uTexture;
+
 
         `
       ),
       main: (
-
         `
             outColor = texture(uTexture, vUV);
         `
@@ -16352,7 +15590,7 @@ ${parts.join("\n")}
   }
   class CanvasStencilMaskPipe {
     constructor(renderer) {
-      this._warnedMaskTypes =                 new Set();
+      this._warnedMaskTypes = /* @__PURE__ */ new Set();
       this._canvasMaskStack = [];
       this._renderer = renderer;
     }
@@ -16486,7 +15724,7 @@ ${parts.join("\n")}
   class StencilMaskPipe {
     constructor(renderer) {
       this._maskStackHash = {};
-      this._maskHash =                 new WeakMap();
+      this._maskHash = /* @__PURE__ */ new WeakMap();
       this._renderer = renderer;
     }
     push(mask, _container, instructionSet) {
@@ -16605,7 +15843,7 @@ ${parts.join("\n")}
   const FALLBACK_BLEND = "source-over";
   function mapCanvasBlendModesToPixi() {
     const supportsAdvanced = canUseNewCanvasBlendModes();
-    const map =                 Object.create(null);
+    const map = /* @__PURE__ */ Object.create(null);
     map.inherit = FALLBACK_BLEND;
     map.none = FALLBACK_BLEND;
     map.normal = "source-over";
@@ -16643,7 +15881,6 @@ ${parts.join("\n")}
   }
   const tempMatrix$2 = new Matrix();
   class CanvasContextSystem {
-
     constructor(renderer) {
       this.activeResolution = 1;
       this.smoothProperty = "imageSmoothingEnabled";
@@ -16651,13 +15888,12 @@ ${parts.join("\n")}
       this._activeBlendMode = "normal";
       this._projTransform = null;
       this._outerBlend = false;
-      this._warnedBlendModes =                 new Set();
+      this._warnedBlendModes = /* @__PURE__ */ new Set();
       this._renderer = renderer;
     }
     resolutionChange(resolution) {
       this.activeResolution = resolution;
     }
-
     init() {
       const alpha = this._renderer.background.alpha < 1;
       this.rootContext = this._renderer.canvas.getContext(
@@ -16679,7 +15915,6 @@ ${parts.join("\n")}
         }
       }
     }
-
     setContextTransform(transform, roundPixels, localResolution, skipGlobalTransform) {
       const globalTransform = skipGlobalTransform ? Matrix.IDENTITY : this._renderer.globalUniforms.globalUniformData?.worldTransformMatrix || Matrix.IDENTITY;
       let mat = tempMatrix$2;
@@ -16714,7 +15949,6 @@ ${parts.join("\n")}
         );
       }
     }
-
     clear(clearColor, alpha) {
       const context2 = this.activeContext;
       const renderer = this._renderer;
@@ -16727,7 +15961,6 @@ ${parts.join("\n")}
         context2.globalAlpha = 1;
       }
     }
-
     setBlendMode(blendMode) {
       if (this._activeBlendMode === blendMode) return;
       this._activeBlendMode = blendMode;
@@ -16745,7 +15978,6 @@ ${parts.join("\n")}
       }
       this.activeContext.globalCompositeOperation = mappedBlend;
     }
-
     destroy() {
       this.rootContext = null;
       this.activeContext = null;
@@ -17267,7 +16499,7 @@ ${parts.join("\n")}
     constructor(renderer) {
       this._blendModeStack = [];
       this._isAdvanced = false;
-      this._filterHash =                 Object.create(null);
+      this._filterHash = /* @__PURE__ */ Object.create(null);
       this._renderer = renderer;
       this._renderer.runners.prerender.add(this);
     }
@@ -17275,18 +16507,15 @@ ${parts.join("\n")}
       this._activeBlendMode = "normal";
       this._isAdvanced = false;
     }
-
     pushBlendMode(renderable, blendMode, instructionSet) {
       this._blendModeStack.push(blendMode);
       this.setBlendMode(renderable, blendMode, instructionSet);
     }
-
     popBlendMode(instructionSet) {
       this._blendModeStack.pop();
       const blendMode = this._blendModeStack[this._activeBlendMode.length - 1] ?? "normal";
       this.setBlendMode(null, blendMode, instructionSet);
     }
-
     setBlendMode(renderable, blendMode, instructionSet) {
       const isRenderGroup = renderable instanceof RenderGroup;
       if (this._activeBlendMode === blendMode) {
@@ -17339,16 +16568,13 @@ ${parts.join("\n")}
         canBundle: false
       });
     }
-
     buildStart() {
       this._isAdvanced = false;
     }
-
     buildEnd(instructionSet) {
       if (!this._isAdvanced) return;
       this._endAdvancedBlendMode(instructionSet);
     }
-
     destroy() {
       this._renderer = null;
       this._renderableList = null;
@@ -17640,7 +16866,6 @@ ${parts.join("\n")}
       this.color = this._backgroundColor;
       this.alpha = 1;
     }
-
     init(options) {
       options = { ..._BackgroundSystem2.defaultOptions, ...options };
       this.clearBeforeRender = options.clearBeforeRender;
@@ -17648,7 +16873,6 @@ ${parts.join("\n")}
       this.alpha = options.backgroundAlpha;
       this._backgroundColor.setAlpha(options.backgroundAlpha);
     }
-
     get color() {
       return this._backgroundColor;
     }
@@ -17661,18 +16885,15 @@ ${parts.join("\n")}
       }
       this._backgroundColor.setValue(value);
     }
-
     get alpha() {
       return this._backgroundColor.alpha;
     }
     set alpha(value) {
       this._backgroundColor.setAlpha(value);
     }
-
     get colorRgba() {
       return this._backgroundColor.toArray();
     }
-
     destroy() {
     }
   };
@@ -17686,11 +16907,8 @@ ${parts.join("\n")}
     priority: 0
   };
   _BackgroundSystem.defaultOptions = {
-
     backgroundAlpha: 1,
-
     backgroundColor: 0,
-
     clearBeforeRender: true
   };
   let BackgroundSystem = _BackgroundSystem;
@@ -17700,7 +16918,6 @@ ${parts.join("\n")}
     webp: "image/webp"
   };
   const _ExtractSystem = class _ExtractSystem2 {
-
     constructor(renderer) {
       this._renderer = renderer;
     }
@@ -17716,13 +16933,11 @@ ${parts.join("\n")}
         ...options
       };
     }
-
     async image(options) {
       const image = DOMAdapter.get().createImage();
       image.src = await this.base64(options);
       return image;
     }
-
     async base64(options) {
       options = this._normalizeOptions(
         options,
@@ -17758,7 +16973,6 @@ ${parts.join("\n")}
       }
       throw new Error("Extract.base64() requires ICanvas.toDataURL, ICanvas.toBlob, or ICanvas.convertToBlob to be implemented");
     }
-
     canvas(options) {
       options = this._normalizeOptions(options);
       const target = options.target;
@@ -17771,7 +16985,6 @@ ${parts.join("\n")}
       texture.destroy(true);
       return canvas;
     }
-
     pixels(options) {
       options = this._normalizeOptions(options);
       const target = options.target;
@@ -17783,13 +16996,11 @@ ${parts.join("\n")}
       }
       return pixelInfo;
     }
-
     texture(options) {
       options = this._normalizeOptions(options);
       if (options.target instanceof Texture) return options.target;
       return this._renderer.textureGenerator.generateTexture(options);
     }
-
     download(options) {
       options = this._normalizeOptions(options);
       const canvas = this.canvas(options);
@@ -17800,7 +17011,6 @@ ${parts.join("\n")}
       link.click();
       document.body.removeChild(link);
     }
-
     log(options) {
       const width = options.width ?? 200;
       options = this._normalizeOptions(options);
@@ -17833,7 +17043,6 @@ ${parts.join("\n")}
   };
   let ExtractSystem = _ExtractSystem;
   class RenderTexture extends Texture {
-
     static create(options) {
       const { dynamic, textureOptions, ...rest } = options;
       return new RenderTexture({
@@ -17842,7 +17051,6 @@ ${parts.join("\n")}
         dynamic: dynamic ?? false
       });
     }
-
     resize(width, height, resolution) {
       this.source.resize(width, height, resolution);
       return this;
@@ -17855,7 +17063,6 @@ ${parts.join("\n")}
     constructor(renderer) {
       this._renderer = renderer;
     }
-
     generateTexture(options) {
       if (options instanceof Container) {
         options = {
@@ -17920,7 +17127,7 @@ ${parts.join("\n")}
       }
     }
     if (!clean) return hash;
-    const cleanHash2 =                 Object.create(null);
+    const cleanHash2 = /* @__PURE__ */ Object.create(null);
     for (const i2 in hash) {
       const value = hash[i2];
       if (value) {
@@ -17942,7 +17149,6 @@ ${parts.join("\n")}
     return arr;
   }
   const _GCSystem = class _GCSystem2 {
-
     constructor(renderer) {
       this._managedResources = [];
       this._managedResourceHashes = [];
@@ -17950,7 +17156,6 @@ ${parts.join("\n")}
       this._ready = false;
       this._renderer = renderer;
     }
-
     init(options) {
       options = { ..._GCSystem2.defaultOptions, ...options };
       this.maxUnusedTime = options.gcMaxUnusedTime;
@@ -17958,11 +17163,9 @@ ${parts.join("\n")}
       this.enabled = options.gcActive;
       this.now = performance.now();
     }
-
     get enabled() {
       return !!this._handler;
     }
-
     set enabled(value) {
       if (this.enabled === value) return;
       if (value) {
@@ -17993,19 +17196,16 @@ ${parts.join("\n")}
         this._collectionsHandler = 0;
       }
     }
-
     prerender({ container }) {
       this.now = performance.now();
       container.renderGroup.gcTick = this._renderer.tick++;
       this._updateInstructionGCTick(container.renderGroup, container.renderGroup.gcTick);
     }
-
     postrender() {
       if (!this._ready || !this.enabled) return;
       this.run();
       this._ready = false;
     }
-
     _updateInstructionGCTick(renderGroup, gcTick) {
       renderGroup.instructionSet.gcTick = gcTick;
       renderGroup.gcTick = gcTick;
@@ -18013,7 +17213,6 @@ ${parts.join("\n")}
         this._updateInstructionGCTick(child, gcTick);
       }
     }
-
     addCollection(context2, collection, type) {
       this._managedCollections.push({
         context: context2,
@@ -18021,7 +17220,6 @@ ${parts.join("\n")}
         type
       });
     }
-
     addResource(resource, type) {
       if (resource._gcLastUsed !== -1) {
         resource._gcLastUsed = this.now;
@@ -18038,7 +17236,6 @@ ${parts.join("\n")}
       resource.once("unload", this.removeResource, this);
       this._managedResources.push(resource);
     }
-
     removeResource(resource) {
       const gcData = resource._gcData;
       if (!gcData) return;
@@ -18053,7 +17250,6 @@ ${parts.join("\n")}
       resource._gcData = null;
       resource._gcLastUsed = -1;
     }
-
     addResourceHash(context2, hash, type, priority = 0) {
       this._managedResourceHashes.push({
         context: context2,
@@ -18063,7 +17259,6 @@ ${parts.join("\n")}
       });
       this._managedResourceHashes.sort((a2, b2) => a2.priority - b2.priority);
     }
-
     run() {
       const now = performance.now();
       const managedResourceHashes = this._managedResourceHashes;
@@ -18103,9 +17298,8 @@ ${parts.join("\n")}
       }
       return writeIndex;
     }
-
     _createHashClone(hashValue, stopKey) {
-      const hashClone =                 Object.create(null);
+      const hashClone = /* @__PURE__ */ Object.create(null);
       for (const k2 in hashValue) {
         if (k2 === stopKey) break;
         if (hashValue[k2] !== null) hashClone[k2] = hashValue[k2];
@@ -18161,7 +17355,6 @@ ${parts.join("\n")}
         context2[hash] = hashClone;
       }
     }
-
     destroy() {
       this.enabled = false;
       this._managedResources.forEach((resource) => {
@@ -18183,11 +17376,8 @@ ${parts.join("\n")}
     priority: 0
   };
   _GCSystem.defaultOptions = {
-
     gcActive: true,
-
     gcMaxUnusedTime: 6e4,
-
     gcFrequency: 3e4
   };
   let GCSystem = _GCSystem;
@@ -18285,7 +17475,6 @@ ${parts.join("\n")}
       const globalUniforms = new UniformGroup({
         uProjectionMatrix: { value: new Matrix(), type: "mat3x3<f32>" },
         uWorldTransformMatrix: { value: new Matrix(), type: "mat3x3<f32>" },
-
         uWorldColorAlpha: { value: new Float32Array(4), type: "vec4<f32>" },
         uResolution: { value: [0, 0], type: "vec2<f32>" }
       }, {
@@ -18317,11 +17506,9 @@ ${parts.join("\n")}
       this._tasks = [];
       this._offset = 0;
     }
-
     init() {
       Ticker.system.add(this._update, this);
     }
-
     repeat(func, duration, useOffset = true) {
       const id = uid++;
       let offset2 = 0;
@@ -18340,7 +17527,6 @@ ${parts.join("\n")}
       });
       return id;
     }
-
     cancel(id) {
       for (let i2 = 0; i2 < this._tasks.length; i2++) {
         if (this._tasks[i2].id === id) {
@@ -18349,7 +17535,6 @@ ${parts.join("\n")}
         }
       }
     }
-
     _update() {
       const now = performance.now();
       for (let i2 = 0; i2 < this._tasks.length; i2++) {
@@ -18361,7 +17546,6 @@ ${parts.join("\n")}
         }
       }
     }
-
     destroy() {
       Ticker.system.remove(this._update, this);
       this._tasks.length = 0;
@@ -18403,7 +17587,6 @@ ${parts.join("\n")}
     constructor(renderer) {
       this._renderer = renderer;
     }
-
     init(options) {
       if (options.hello) {
         let name = this._renderer.name;
@@ -18424,50 +17607,40 @@ ${parts.join("\n")}
     priority: -2
   };
   HelloSystem.defaultOptions = {
-
     hello: false
   };
   const _RenderableGCSystem = class _RenderableGCSystem2 {
-
     constructor(renderer) {
       this._renderer = renderer;
     }
-
     init(options) {
       options = { ..._RenderableGCSystem2.defaultOptions, ...options };
       this.maxUnusedTime = options.renderableGCMaxUnusedTime;
     }
-
     get enabled() {
       deprecation("8.15.0", "RenderableGCSystem.enabled is deprecated, please use the GCSystem.enabled instead.");
       return this._renderer.gc.enabled;
     }
-
     set enabled(value) {
       deprecation("8.15.0", "RenderableGCSystem.enabled is deprecated, please use the GCSystem.enabled instead.");
       this._renderer.gc.enabled = value;
     }
-
     addManagedHash(context2, hash) {
       deprecation("8.15.0", "RenderableGCSystem.addManagedHash is deprecated, please use the GCSystem.addCollection instead.");
       this._renderer.gc.addCollection(context2, hash, "hash");
     }
-
     addManagedArray(context2, hash) {
       deprecation("8.15.0", "RenderableGCSystem.addManagedArray is deprecated, please use the GCSystem.addCollection instead.");
       this._renderer.gc.addCollection(context2, hash, "array");
     }
-
     addRenderable(_renderable) {
       deprecation("8.15.0", "RenderableGCSystem.addRenderable is deprecated, please use the GCSystem instead.");
       this._renderer.gc.addResource(_renderable, "renderable");
     }
-
     run() {
       deprecation("8.15.0", "RenderableGCSystem.run is deprecated, please use the GCSystem instead.");
       this._renderer.gc.run();
     }
-
     destroy() {
       this._renderer = null;
     }
@@ -18482,20 +17655,15 @@ ${parts.join("\n")}
     priority: 0
   };
   _RenderableGCSystem.defaultOptions = {
-
     renderableGCActive: true,
-
     renderableGCMaxUnusedTime: 6e4,
-
     renderableGCFrequency: 3e4
   };
   let RenderableGCSystem = _RenderableGCSystem;
   const _TextureGCSystem = class _TextureGCSystem2 {
-
     get count() {
       return this._renderer.tick;
     }
-
     get checkCount() {
       return this._checkCount;
     }
@@ -18503,7 +17671,6 @@ ${parts.join("\n")}
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
       this._checkCount = value;
     }
-
     get maxIdle() {
       return this._renderer.gc.maxUnusedTime / 1e3 * 60;
     }
@@ -18511,14 +17678,13 @@ ${parts.join("\n")}
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
       this._renderer.gc.maxUnusedTime = value / 60 * 1e3;
     }
-
+    // eslint-disable-next-line dot-notation
     get checkCountMax() {
       return Math.floor(this._renderer.gc["_frequency"] / 1e3);
     }
     set checkCountMax(_value) {
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
     }
-
     get active() {
       return this._renderer.gc.enabled;
     }
@@ -18526,7 +17692,6 @@ ${parts.join("\n")}
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
       this._renderer.gc.enabled = value;
     }
-
     constructor(renderer) {
       this._renderer = renderer;
       this._checkCount = 0;
@@ -18542,7 +17707,6 @@ ${parts.join("\n")}
         this.checkCountMax = options.textureGCCheckCountMax;
       }
     }
-
     run() {
       deprecation("8.15.0", "TextureGCSystem.run is deprecated, please use the GCSystem instead.");
       this._renderer.gc.run();
@@ -18559,18 +17723,13 @@ ${parts.join("\n")}
     name: "textureGC"
   };
   _TextureGCSystem.defaultOptions = {
-
     textureGCActive: true,
-
     textureGCAMaxIdle: null,
-
     textureGCMaxIdle: 60 * 60,
-
     textureGCCheckCountMax: 600
   };
   let TextureGCSystem = _TextureGCSystem;
   const _RenderTarget = class _RenderTarget2 {
-
     constructor(descriptor = {}) {
       this.uid = uid$1("renderTarget");
       this.colorTextures = [];
@@ -18635,7 +17794,6 @@ ${parts.join("\n")}
     onSourceResize(source2) {
       this.resize(source2.width, source2.height, source2._resolution, true);
     }
-
     ensureDepthStencilTexture() {
       if (!this.depthStencilTexture) {
         this.depthStencilTexture = new TextureSource({
@@ -18646,7 +17804,6 @@ ${parts.join("\n")}
           autoGenerateMipmaps: false,
           antialias: false,
           mipLevelCount: 1
-
         });
       }
     }
@@ -18674,25 +17831,17 @@ ${parts.join("\n")}
     }
   };
   _RenderTarget.defaultOptions = {
-
     width: 0,
-
     height: 0,
-
     resolution: 1,
-
     colorTextures: 1,
-
     stencil: false,
-
     depth: false,
-
     antialias: false,
-
     isRoot: false
   };
   let RenderTarget = _RenderTarget;
-  const canvasCache =                 new Map();
+  const canvasCache = /* @__PURE__ */ new Map();
   GlobalResourceRegistry.register(canvasCache);
   function getCanvasTexture(canvas, options) {
     if (!canvasCache.has(canvas)) {
@@ -18714,14 +17863,12 @@ ${parts.join("\n")}
     return canvasCache.get(canvas);
   }
   const _ViewSystem = class _ViewSystem2 {
-
     get autoDensity() {
       return this.texture.source.autoDensity;
     }
     set autoDensity(value) {
       this.texture.source.autoDensity = value;
     }
-
     get resolution() {
       return this.texture.source._resolution;
     }
@@ -18732,7 +17879,6 @@ ${parts.join("\n")}
         value
       );
     }
-
     init(options) {
       options = {
         ..._ViewSystem2.defaultOptions,
@@ -18754,13 +17900,11 @@ ${parts.join("\n")}
       this.texture.source.transparent = options.backgroundAlpha < 1;
       this.resolution = options.resolution;
     }
-
     resize(desiredScreenWidth, desiredScreenHeight, resolution) {
       this.texture.source.resize(desiredScreenWidth, desiredScreenHeight, resolution);
       this.screen.width = this.texture.frame.width;
       this.screen.height = this.texture.frame.height;
     }
-
     destroy(options = false) {
       const removeView = typeof options === "boolean" ? options : !!options?.removeView;
       if (removeView && this.canvas.parentNode) {
@@ -18779,13 +17923,9 @@ ${parts.join("\n")}
     priority: 0
   };
   _ViewSystem.defaultOptions = {
-
     width: 800,
-
     height: 600,
-
     autoDensity: false,
-
     antialias: false
   };
   let ViewSystem = _ViewSystem;
@@ -18835,17 +17975,15 @@ ${parts.join("\n")}
       this.onRenderTargetChange = new SystemRunner("onRenderTargetChange");
       this.projectionMatrix = new Matrix();
       this.defaultClearColor = [0, 0, 0, 0];
-      this._renderSurfaceToRenderTargetHash =                 new Map();
-      this._gpuRenderTargetHash =                 Object.create(null);
+      this._renderSurfaceToRenderTargetHash = /* @__PURE__ */ new Map();
+      this._gpuRenderTargetHash = /* @__PURE__ */ Object.create(null);
       this._renderTargetStack = [];
       this._renderer = renderer;
       renderer.gc.addCollection(this, "_gpuRenderTargetHash", "hash");
     }
-
     finishRenderPass() {
       this.adaptor.finishRenderPass(this.renderTarget);
     }
-
     renderStart({
       target,
       clear,
@@ -18871,7 +18009,6 @@ ${parts.join("\n")}
     postrender() {
       this.adaptor.postrender?.(this.rootRenderTarget);
     }
-
     bind(renderSurface, clear = true, clearColor, frame, mipLevel = 0, layer2 = 0) {
       const renderTarget = this.getRenderTarget(renderSurface);
       const didChange = this.renderTarget !== renderTarget;
@@ -18953,9 +18090,8 @@ ${parts.join("\n")}
       );
     }
     contextChange() {
-      this._gpuRenderTargetHash =                 Object.create(null);
+      this._gpuRenderTargetHash = /* @__PURE__ */ Object.create(null);
     }
-
     push(renderSurface, clear = CLEAR.ALL, clearColor, frame, mipLevel = 0, layer2 = 0) {
       const renderTarget = this.bind(renderSurface, clear, clearColor, frame, mipLevel, layer2);
       this._renderTargetStack.push({
@@ -18966,7 +18102,6 @@ ${parts.join("\n")}
       });
       return renderTarget;
     }
-
     pop() {
       this._renderTargetStack.pop();
       const currentRenderTargetData = this._renderTargetStack[this._renderTargetStack.length - 1];
@@ -18979,14 +18114,12 @@ ${parts.join("\n")}
         currentRenderTargetData.layer
       );
     }
-
     getRenderTarget(renderSurface) {
       if (renderSurface.isTexture) {
         renderSurface = renderSurface.source;
       }
       return this._renderSurfaceToRenderTargetHash.get(renderSurface) ?? this._initRenderTarget(renderSurface);
     }
-
     copyToTexture(sourceRenderSurfaceTexture, destinationTexture, originSrc, size, originDest) {
       if (originSrc.x < 0) {
         size.width += originSrc.x;
@@ -19009,14 +18142,12 @@ ${parts.join("\n")}
         originDest
       );
     }
-
     ensureDepthStencil() {
       if (!this.renderTarget.stencil) {
         this.renderTarget.stencil = true;
         this.adaptor.startRenderPass(this.renderTarget, false, null, this.viewport, 0, this.layer);
       }
     }
-
     destroy() {
       this._renderer = null;
       this._renderSurfaceToRenderTargetHash.forEach((renderTarget, key) => {
@@ -19025,7 +18156,7 @@ ${parts.join("\n")}
         }
       });
       this._renderSurfaceToRenderTargetHash.clear();
-      this._gpuRenderTargetHash =                 Object.create(null);
+      this._gpuRenderTargetHash = /* @__PURE__ */ Object.create(null);
     }
     _initRenderTarget(renderSurface) {
       let renderTarget = null;
@@ -19063,12 +18194,10 @@ ${parts.join("\n")}
     }
   }
   class CanvasRenderTargetAdaptor {
-
     init(renderer, renderTargetSystem) {
       this._renderer = renderer;
       this._renderTargetSystem = renderTargetSystem;
     }
-
     initGpuRenderTarget(renderTarget) {
       const colorTexture = renderTarget.colorTexture;
       const { canvas, context: context2 } = this._ensureCanvas(colorTexture);
@@ -19079,14 +18208,12 @@ ${parts.join("\n")}
         height: canvas.height
       };
     }
-
     resizeGpuRenderTarget(renderTarget) {
       const colorTexture = renderTarget.colorTexture;
       const { canvas } = this._ensureCanvas(colorTexture);
       canvas.width = renderTarget.pixelWidth;
       canvas.height = renderTarget.pixelHeight;
     }
-
     startRenderPass(renderTarget, clear, clearColor, viewport) {
       const gpuRenderTarget = this._renderTargetSystem.getGpuRenderTarget(renderTarget);
       this._renderer.canvasContext.activeContext = gpuRenderTarget.context;
@@ -19095,7 +18222,6 @@ ${parts.join("\n")}
         this.clear(renderTarget, clear, clearColor, viewport);
       }
     }
-
     clear(renderTarget, _clear, clearColor, viewport) {
       const gpuRenderTarget = this._renderTargetSystem.getGpuRenderTarget(renderTarget);
       const context2 = gpuRenderTarget.context;
@@ -19112,10 +18238,8 @@ ${parts.join("\n")}
         }
       }
     }
-
     finishRenderPass() {
     }
-
     copyToTexture(sourceRenderSurfaceTexture, destinationTexture, originSrc, size, originDest) {
       const sourceGpuTarget = this._renderTargetSystem.getGpuRenderTarget(sourceRenderSurfaceTexture);
       const sourceCanvas = sourceGpuTarget.canvas;
@@ -19137,7 +18261,6 @@ ${parts.join("\n")}
       destSource.update();
       return destinationTexture;
     }
-
     destroyGpuRenderTarget(_gpuRenderTarget) {
     }
     _ensureCanvas(source2) {
@@ -19166,16 +18289,12 @@ ${parts.join("\n")}
     name: "renderTarget"
   };
   class CanvasTextureSystem {
-
     constructor(renderer) {
     }
-
     init() {
     }
-
     initSource(_source) {
     }
-
     generateCanvas(texture) {
       const canvas = DOMAdapter.get().createCanvas();
       const context2 = canvas.getContext("2d");
@@ -19204,7 +18323,6 @@ ${parts.join("\n")}
       );
       return canvas;
     }
-
     getPixels(texture) {
       const canvas = this.generateCanvas(texture);
       const context2 = canvas.getContext("2d", { willReadFrequently: true });
@@ -19215,7 +18333,6 @@ ${parts.join("\n")}
         height: canvas.height
       };
     }
-
     destroy() {
     }
   }
@@ -19265,11 +18382,11 @@ ${parts.join("\n")}
       super(systemConfig);
     }
   }
-  const CanvasRenderer$1 =                 Object.freeze(                Object.defineProperty({
+  const CanvasRenderer$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null,
     CanvasRenderer
   }, Symbol.toStringTag, { value: "Module" }));
-  var BUFFER_TYPE =                 ((BUFFER_TYPE2) => {
+  var BUFFER_TYPE = /* @__PURE__ */ ((BUFFER_TYPE2) => {
     BUFFER_TYPE2[BUFFER_TYPE2["ELEMENT_ARRAY_BUFFER"] = 34963] = "ELEMENT_ARRAY_BUFFER";
     BUFFER_TYPE2[BUFFER_TYPE2["ARRAY_BUFFER"] = 34962] = "ARRAY_BUFFER";
     BUFFER_TYPE2[BUFFER_TYPE2["UNIFORM_BUFFER"] = 35345] = "UNIFORM_BUFFER";
@@ -19294,9 +18411,8 @@ ${parts.join("\n")}
     }
   }
   class GlBufferSystem {
-
     constructor(renderer) {
-      this._boundBufferBases =                 Object.create(null);
+      this._boundBufferBases = /* @__PURE__ */ Object.create(null);
       this._minBaseLocation = 0;
       this._nextBindBaseIndex = this._minBaseLocation;
       this._bindCallId = 0;
@@ -19308,14 +18424,12 @@ ${parts.join("\n")}
         name: "glBuffer"
       });
     }
-
     destroy() {
       this._managedBuffers.destroy();
       this._renderer = null;
       this._gl = null;
       this._boundBufferBases = {};
     }
-
     contextChange() {
       this._gl = this._renderer.gl;
       this.destroyAll(true);
@@ -19325,13 +18439,11 @@ ${parts.join("\n")}
       buffer._gcLastUsed = this._renderer.gc.now;
       return buffer._gpuData[this._renderer.uid] || this.createGLBuffer(buffer);
     }
-
     bind(buffer) {
       const { _gl: gl } = this;
       const glBuffer = this.getGlBuffer(buffer);
       gl.bindBuffer(glBuffer.type, glBuffer.buffer);
     }
-
     bindBufferBase(glBuffer, index) {
       const { _gl: gl } = this;
       if (this._boundBufferBases[index] !== glBuffer) {
@@ -19387,7 +18499,6 @@ ${parts.join("\n")}
       }
       return -1;
     }
-
     bindBufferRange(glBuffer, index, offset2, size) {
       const { _gl: gl } = this;
       offset2 || (offset2 = 0);
@@ -19395,7 +18506,6 @@ ${parts.join("\n")}
       this._boundBufferBases[index] = null;
       gl.bindBufferRange(gl.UNIFORM_BUFFER, index || 0, glBuffer.buffer, offset2 * 256, size || 256);
     }
-
     updateBuffer(buffer) {
       const { _gl: gl } = this;
       const glBuffer = this.getGlBuffer(buffer);
@@ -19419,7 +18529,6 @@ ${parts.join("\n")}
       }
       return glBuffer;
     }
-
     destroyAll(contextLost = false) {
       this._managedBuffers.removeAll(contextLost);
     }
@@ -19428,7 +18537,6 @@ ${parts.join("\n")}
       if (!glBuffer) return;
       if (!contextLost) this._gl.deleteBuffer(glBuffer.buffer);
     }
-
     createGLBuffer(buffer) {
       const { _gl: gl } = this;
       let type = BUFFER_TYPE.ARRAY_BUFFER;
@@ -19443,7 +18551,7 @@ ${parts.join("\n")}
       return glBuffer;
     }
     resetState() {
-      this._boundBufferBases =                 Object.create(null);
+      this._boundBufferBases = /* @__PURE__ */ Object.create(null);
     }
   }
   GlBufferSystem.extension = {
@@ -19453,34 +18561,24 @@ ${parts.join("\n")}
     name: "buffer"
   };
   const _GlContextSystem = class _GlContextSystem2 {
-
     constructor(renderer) {
       this.supports = {
-
         uint32Indices: true,
-
         uniformBufferObject: true,
-
         vertexArrayObject: true,
-
         srgbTextures: true,
-
         nonPowOf2wrapping: true,
-
         msaa: true,
-
         nonPowOf2mipmaps: true
       };
       this._renderer = renderer;
-      this.extensions =                 Object.create(null);
+      this.extensions = /* @__PURE__ */ Object.create(null);
       this.handleContextLost = this.handleContextLost.bind(this);
       this.handleContextRestored = this.handleContextRestored.bind(this);
     }
-
     get isLost() {
       return !this.gl || this.gl.isContextLost();
     }
-
     contextChange(gl) {
       this.gl = gl;
       this._renderer.gl = gl;
@@ -19526,7 +18624,6 @@ ${parts.join("\n")}
         canvas.height = Math.max(targetCanvas.height, targetCanvas.height);
       }
     }
-
     initFromContext(gl) {
       this.gl = gl;
       this.webGLVersion = gl instanceof DOMAdapter.get().getWebGLRenderingContext() ? 1 : 2;
@@ -19537,7 +18634,6 @@ ${parts.join("\n")}
       element.addEventListener("webglcontextlost", this.handleContextLost, false);
       element.addEventListener("webglcontextrestored", this.handleContextRestored, false);
     }
-
     createContext(preferWebGLVersion, options) {
       let gl;
       const canvas = this.canvas;
@@ -19553,7 +18649,6 @@ ${parts.join("\n")}
       this.gl = gl;
       this.initFromContext(this.gl);
     }
-
     getExtensions() {
       const { gl } = this;
       const common = {
@@ -19561,7 +18656,7 @@ ${parts.join("\n")}
         floatTextureLinear: gl.getExtension("OES_texture_float_linear"),
         s3tc: gl.getExtension("WEBGL_compressed_texture_s3tc"),
         s3tc_sRGB: gl.getExtension("WEBGL_compressed_texture_s3tc_srgb"),
-
+        // eslint-disable-line camelcase
         etc: gl.getExtension("WEBGL_compressed_texture_etc"),
         etc1: gl.getExtension("WEBGL_compressed_texture_etc1"),
         pvrtc: gl.getExtension("WEBGL_compressed_texture_pvrtc") || gl.getExtension("WEBKIT_WEBGL_compressed_texture_pvrtc"),
@@ -19578,7 +18673,6 @@ ${parts.join("\n")}
           depthTexture: gl.getExtension("WEBGL_depth_texture"),
           vertexArrayObject: gl.getExtension("OES_vertex_array_object") || gl.getExtension("MOZ_OES_vertex_array_object") || gl.getExtension("WEBKIT_OES_vertex_array_object"),
           uint32ElementIndex: gl.getExtension("OES_element_index_uint"),
-
           floatTexture: gl.getExtension("OES_texture_float"),
           floatTextureLinear: gl.getExtension("OES_texture_float_linear"),
           textureHalfFloat: gl.getExtension("OES_texture_half_float"),
@@ -19597,7 +18691,6 @@ ${parts.join("\n")}
         }
       }
     }
-
     handleContextLost(event) {
       event.preventDefault();
       if (this._contextLossForced) {
@@ -19609,7 +18702,6 @@ ${parts.join("\n")}
         }, 0);
       }
     }
-
     handleContextRestored() {
       this.getExtensions();
       this._renderer.runners.contextChange.emit(this.gl);
@@ -19622,12 +18714,10 @@ ${parts.join("\n")}
       this.gl.useProgram(null);
       this.extensions.loseContext?.loseContext();
     }
-
     forceContextLoss() {
       this.extensions.loseContext?.loseContext();
       this._contextLossForced = true;
     }
-
     validateContext(gl) {
       const attributes = gl.getContextAttributes();
       if (attributes && !attributes.stencil) {
@@ -19655,17 +18745,11 @@ ${parts.join("\n")}
     name: "context"
   };
   _GlContextSystem.defaultOptions = {
-
     context: null,
-
     premultipliedAlpha: true,
-
     preserveDrawingBuffer: false,
-
     powerPreference: void 0,
-
     preferWebGLVersion: 2,
-
     multiView: false
   };
   let GlContextSystem = _GlContextSystem;
@@ -19703,7 +18787,7 @@ ${parts.join("\n")}
       tempStart[attribute.buffer.uid] += getAttributeInfoFromFormat(attribute.format).stride;
     }
   }
-  var GL_FORMATS =                 ((GL_FORMATS2) => {
+  var GL_FORMATS = /* @__PURE__ */ ((GL_FORMATS2) => {
     GL_FORMATS2[GL_FORMATS2["RGBA"] = 6408] = "RGBA";
     GL_FORMATS2[GL_FORMATS2["RGB"] = 6407] = "RGB";
     GL_FORMATS2[GL_FORMATS2["RG"] = 33319] = "RG";
@@ -19719,7 +18803,7 @@ ${parts.join("\n")}
     GL_FORMATS2[GL_FORMATS2["DEPTH_STENCIL"] = 34041] = "DEPTH_STENCIL";
     return GL_FORMATS2;
   })(GL_FORMATS || {});
-  var GL_TARGETS =                 ((GL_TARGETS2) => {
+  var GL_TARGETS = /* @__PURE__ */ ((GL_TARGETS2) => {
     GL_TARGETS2[GL_TARGETS2["TEXTURE_2D"] = 3553] = "TEXTURE_2D";
     GL_TARGETS2[GL_TARGETS2["TEXTURE_CUBE_MAP"] = 34067] = "TEXTURE_CUBE_MAP";
     GL_TARGETS2[GL_TARGETS2["TEXTURE_2D_ARRAY"] = 35866] = "TEXTURE_2D_ARRAY";
@@ -19731,7 +18815,7 @@ ${parts.join("\n")}
     GL_TARGETS2[GL_TARGETS2["TEXTURE_CUBE_MAP_NEGATIVE_Z"] = 34074] = "TEXTURE_CUBE_MAP_NEGATIVE_Z";
     return GL_TARGETS2;
   })(GL_TARGETS || {});
-  var GL_TYPES =                 ((GL_TYPES2) => {
+  var GL_TYPES = /* @__PURE__ */ ((GL_TYPES2) => {
     GL_TYPES2[GL_TYPES2["UNSIGNED_BYTE"] = 5121] = "UNSIGNED_BYTE";
     GL_TYPES2[GL_TYPES2["UNSIGNED_SHORT"] = 5123] = "UNSIGNED_SHORT";
     GL_TYPES2[GL_TYPES2["UNSIGNED_SHORT_5_6_5"] = 33635] = "UNSIGNED_SHORT_5_6_5";
@@ -19794,14 +18878,13 @@ ${parts.join("\n")}
   };
   class GlGeometryGpuData {
     constructor() {
-      this.vaoCache =                 Object.create(null);
+      this.vaoCache = /* @__PURE__ */ Object.create(null);
     }
     destroy() {
-      this.vaoCache =                 Object.create(null);
+      this.vaoCache = /* @__PURE__ */ Object.create(null);
     }
   }
   class GlGeometrySystem {
-
     constructor(renderer) {
       this._renderer = renderer;
       this._activeGeometry = null;
@@ -19815,7 +18898,6 @@ ${parts.join("\n")}
         name: "glGeometry"
       });
     }
-
     contextChange() {
       const gl = this.gl = this._renderer.gl;
       if (!this._renderer.context.supports.vertexArrayObject) {
@@ -19841,7 +18923,6 @@ ${parts.join("\n")}
       this._activeGeometry = null;
       this._activeVao = null;
     }
-
     bind(geometry, program) {
       const gl = this.gl;
       this._activeGeometry = geometry;
@@ -19852,11 +18933,9 @@ ${parts.join("\n")}
       }
       this.updateBuffers();
     }
-
     resetState() {
       this.unbind();
     }
-
     updateBuffers() {
       const geometry = this._activeGeometry;
       const bufferSystem = this._renderer.buffer;
@@ -19866,7 +18945,6 @@ ${parts.join("\n")}
       }
       geometry._gcLastUsed = this._renderer.gc.now;
     }
-
     checkCompatibility(geometry, program) {
       const geometryAttributes = geometry.attributes;
       const shaderAttributes = program._attributeData;
@@ -19876,7 +18954,6 @@ ${parts.join("\n")}
         }
       }
     }
-
     getSignature(geometry, program) {
       const attribs = geometry.attributes;
       const shaderAttributes = program._attributeData;
@@ -19891,7 +18968,6 @@ ${parts.join("\n")}
     getVao(geometry, program) {
       return geometry._gpuData[this._renderer.uid]?.vaoCache[program._key] || this.initGeometryVao(geometry, program);
     }
-
     initGeometryVao(geometry, program, _incRefCount = true) {
       const gl = this._renderer.gl;
       const bufferSystem = this._renderer.buffer;
@@ -19937,11 +19013,9 @@ ${parts.join("\n")}
         }
       }
     }
-
     destroyAll(contextLost = false) {
       this._managedGeometries.removeAll(contextLost);
     }
-
     activateVao(geometry, program) {
       const gl = this._renderer.gl;
       const bufferSystem = this._renderer.buffer;
@@ -19993,7 +19067,6 @@ ${parts.join("\n")}
         }
       }
     }
-
     draw(topology, size, start2, instanceCount) {
       const { gl } = this._renderer;
       const geometry = this._activeGeometry;
@@ -20014,7 +19087,6 @@ ${parts.join("\n")}
       }
       return this;
     }
-
     unbind() {
       this.gl.bindVertexArray(null);
       this._activeVao = null;
@@ -20039,13 +19111,10 @@ ${parts.join("\n")}
       aPosition: [
         -1,
         -1,
-
         3,
         -1,
-
         -1,
         3
-
       ]
     }
   });
@@ -20095,7 +19164,6 @@ ${parts.join("\n")}
         }
       });
     }
-
     renderStart(options) {
       const renderTarget = this._renderer.renderTarget.getRenderTarget(options.target);
       this._useBackBufferThisRender = this.useBackBuffer && !!renderTarget.isRoot;
@@ -20136,7 +19204,6 @@ ${parts.join("\n")}
       );
       return this._backBufferTexture;
     }
-
     destroy() {
       if (this._backBufferTexture) {
         this._backBufferTexture.destroy();
@@ -20152,7 +19219,6 @@ ${parts.join("\n")}
     priority: 1
   };
   _GlBackBufferSystem.defaultOptions = {
-
     useBackBuffer: false
   };
   let GlBackBufferSystem = _GlBackBufferSystem;
@@ -20293,7 +19359,7 @@ ${parts.join("\n")}
         stencilReference: 0,
         stencilMode: STENCIL_MODES.NONE
       };
-      this._renderTargetStencilState =                 Object.create(null);
+      this._renderTargetStencilState = /* @__PURE__ */ Object.create(null);
       renderer.renderTarget.onRenderTargetChange.add(this);
     }
     contextChange(gl) {
@@ -20371,11 +19437,10 @@ ${parts.join("\n")}
   };
   class UboSystem {
     constructor(adaptor) {
-      this._syncFunctionHash =                 Object.create(null);
+      this._syncFunctionHash = /* @__PURE__ */ Object.create(null);
       this._adaptor = adaptor;
       this._systemCheck();
     }
-
     _systemCheck() {
       if (!unsafeEvalSupported()) {
         throw new Error("Current environment does not allow unsafe-eval, please use pixi.js/unsafe-eval module to enable support.");
@@ -20446,7 +19511,6 @@ ${parts.join("\n")}
     "mat2x2<f32>": 16 * 2,
     "mat3x3<f32>": 16 * 3,
     "mat4x4<f32>": 16 * 4
-
   };
   function createUboElementsSTD40(uniformData) {
     const uboElements = uniformData.map((data) => ({
@@ -20481,7 +19545,6 @@ ${parts.join("\n")}
     return { uboElements, size: offset2 };
   }
   const uniformParsers = [
-
     {
       type: "mat3x3<f32>",
       test: (data) => {
@@ -20504,7 +19567,6 @@ ${parts.join("\n")}
             gl.uniformMatrix3fv(ud[name].location, false, uv[name].toArray(true));
         `
     },
-
     {
       type: "vec4<f32>",
       test: (data) => data.type === "vec4<f32>" && data.size === 1 && data.value.width !== void 0,
@@ -20527,7 +19589,6 @@ ${parts.join("\n")}
             }
         `
     },
-
     {
       type: "vec2<f32>",
       test: (data) => data.type === "vec2<f32>" && data.size === 1 && data.value.x !== void 0,
@@ -20546,7 +19607,6 @@ ${parts.join("\n")}
             }
         `
     },
-
     {
       type: "vec4<f32>",
       test: (data) => data.type === "vec4<f32>" && data.size === 1 && data.value.red !== void 0,
@@ -20569,7 +19629,6 @@ ${parts.join("\n")}
             }
         `
     },
-
     {
       type: "vec3<f32>",
       test: (data) => data.type === "vec3<f32>" && data.size === 1 && data.value.red !== void 0,
@@ -20627,7 +19686,6 @@ ${parts.join("\n")}
           const template = singleSettersMap[uboElement.data.type];
           offset2 = uboElement.offset / 4;
           funcFragments.push(
-
             `
                     v = uv.${name};
                     offset += ${offset2 - prev};
@@ -21163,7 +20221,6 @@ ${parts.join("\n")}
     name: "renderTarget"
   };
   class BufferResource extends EventEmitter {
-
     constructor({ buffer, offset: offset2, size }) {
       super();
       this.uid = uid$1("buffer");
@@ -21181,7 +20238,6 @@ ${parts.join("\n")}
       this._resourceId = uid$1("resource");
       this.emit("change", this);
     }
-
     destroy(destroyBuffer = false) {
       this.destroyed = true;
       if (destroyBuffer) {
@@ -21258,7 +20314,6 @@ ${parts.join("\n")}
     return new Function("r", "s", "sD", functionSource);
   }
   class GlProgramData {
-
     constructor(program, uniformData) {
       this.program = program;
       this.uniformData = uniformData;
@@ -21266,7 +20321,6 @@ ${parts.join("\n")}
       this.uniformDirtyGroups = {};
       this.uniformBlockBindings = {};
     }
-
     destroy() {
       this.uniformData = null;
       this.uniformGroups = null;
@@ -21439,7 +20493,6 @@ ${parts.join("\n")}
       const format = mapGlToVertexFormat(gl, attribData.type);
       attributes[attribData.name] = {
         location: 0,
-
         format,
         stride: getAttributeInfoFromFormat(format).stride,
         offset: 0,
@@ -21584,17 +20637,16 @@ ${parts.join("\n")}
   class GlShaderSystem {
     constructor(renderer) {
       this._activeProgram = null;
-      this._programDataHash =                 Object.create(null);
-      this._shaderSyncFunctions =                 Object.create(null);
+      this._programDataHash = /* @__PURE__ */ Object.create(null);
+      this._shaderSyncFunctions = /* @__PURE__ */ Object.create(null);
       this._renderer = renderer;
     }
     contextChange(gl) {
       this._gl = gl;
-      this._programDataHash =                 Object.create(null);
-      this._shaderSyncFunctions =                 Object.create(null);
+      this._programDataHash = /* @__PURE__ */ Object.create(null);
+      this._shaderSyncFunctions = /* @__PURE__ */ Object.create(null);
       this._activeProgram = null;
     }
-
     bind(shader, skipSync) {
       this._setProgram(shader.glProgram);
       if (skipSync) return;
@@ -21607,11 +20659,9 @@ ${parts.join("\n")}
       this._renderer.buffer.nextBindBase(!!shader.glProgram.transformFeedbackVaryings);
       syncFunction(this._renderer, shader, defaultSyncData);
     }
-
     updateUniformGroup(uniformGroup) {
       this._renderer.uniformGroup.updateUniformGroup(uniformGroup, this._activeProgram, defaultSyncData);
     }
-
     bindUniformBlock(uniformGroup, name, index = 0) {
       const bufferSystem = this._renderer.buffer;
       const programData = this._getProgramData(this._activeProgram);
@@ -21643,7 +20693,6 @@ ${parts.join("\n")}
       const programData = this._getProgramData(program);
       this._gl.useProgram(programData.program);
     }
-
     _getProgramData(program) {
       return this._programDataHash[program._key] || this._createProgramData(program);
     }
@@ -21662,7 +20711,6 @@ ${parts.join("\n")}
       this._renderer = null;
       this._gl = null;
     }
-
     _generateShaderSync(shader, shaderSystem) {
       return generateShaderSyncCode(shader, shaderSystem);
     }
@@ -21841,7 +20889,6 @@ ${parts.join("\n")}
     return new Function("ud", "uv", "renderer", "syncData", funcFragments.join("\n"));
   }
   class GlUniformGroupSystem {
-
     constructor(renderer) {
       this._cache = {};
       this._uniformGroupSyncHash = {};
@@ -21852,7 +20899,6 @@ ${parts.join("\n")}
     contextChange(gl) {
       this.gl = gl;
     }
-
     updateUniformGroup(group, program, syncData) {
       const programData = this._renderer.shader._getProgramData(program);
       if (!group.isStatic || group._dirtyId !== programData.uniformDirtyGroups[group.uid]) {
@@ -21861,7 +20907,6 @@ ${parts.join("\n")}
         syncFunc(programData.uniformData, group.uniforms, this._renderer, syncData);
       }
     }
-
     _getUniformSyncFunction(group, program) {
       return this._uniformGroupSyncHash[group._signature]?.[program._key] || this._createUniformSyncFunction(group, program);
     }
@@ -21877,7 +20922,6 @@ ${parts.join("\n")}
     _generateUniformsSync(group, uniformData) {
       return generateUniformsSync(group, uniformData);
     }
-
     _getSignature(group, uniformData, preFix) {
       const uniforms = group.uniforms;
       const strings = [`${preFix}-`];
@@ -21889,7 +20933,6 @@ ${parts.join("\n")}
       }
       return strings.join("-");
     }
-
     destroy() {
       this._renderer = null;
       this._cache = null;
@@ -21963,7 +21006,6 @@ ${parts.join("\n")}
       this.blendModesMap = mapWebGLBlendModesToPixi(gl);
       this.resetState();
     }
-
     set(state) {
       state || (state = this.defaultState);
       if (this.stateId !== state.data) {
@@ -21982,7 +21024,6 @@ ${parts.join("\n")}
         this.checks[i2](this, state);
       }
     }
-
     forceState(state) {
       state || (state = this.defaultState);
       for (let i2 = 0; i2 < this.map.length; i2++) {
@@ -21993,25 +21034,20 @@ ${parts.join("\n")}
       }
       this.stateId = state.data;
     }
-
     setBlend(value) {
       this._updateCheck(_GlStateSystem2._checkBlendMode, value);
       this.gl[value ? "enable" : "disable"](this.gl.BLEND);
     }
-
     setOffset(value) {
       this._updateCheck(_GlStateSystem2._checkPolygonOffset, value);
       this.gl[value ? "enable" : "disable"](this.gl.POLYGON_OFFSET_FILL);
     }
-
     setDepthTest(value) {
       this.gl[value ? "enable" : "disable"](this.gl.DEPTH_TEST);
     }
-
     setDepthMask(value) {
       this.gl.depthMask(value);
     }
-
     setCullFace(value) {
       this._cullFace = value;
       this.gl[value ? "enable" : "disable"](this.gl.CULL_FACE);
@@ -22019,7 +21055,6 @@ ${parts.join("\n")}
         this.setFrontFace(this._frontFace);
       }
     }
-
     setFrontFace(value) {
       this._frontFace = value;
       this._frontFaceDirty = false;
@@ -22029,7 +21064,6 @@ ${parts.join("\n")}
         this.gl.frontFace(this.gl[faceMode ? "CW" : "CCW"]);
       }
     }
-
     setBlendMode(value) {
       if (!this.blendModesMap[value]) {
         value = "normal";
@@ -22053,11 +21087,9 @@ ${parts.join("\n")}
         gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
       }
     }
-
     setPolygonOffset(value, scale) {
       this.gl.polygonOffset(value, scale);
     }
-
     resetState() {
       this._glFrontFace = false;
       this._frontFace = false;
@@ -22071,7 +21103,6 @@ ${parts.join("\n")}
       this.blendMode = "";
       this.setBlendMode("normal");
     }
-
     _updateCheck(func, value) {
       const index = this.checks.indexOf(func);
       if (value && index === -1) {
@@ -22080,15 +21111,12 @@ ${parts.join("\n")}
         this.checks.splice(index, 1);
       }
     }
-
     static _checkBlendMode(system, state) {
       system.setBlendMode(state.blendMode);
     }
-
     static _checkPolygonOffset(system, state) {
       system.setPolygonOffset(1, state.polygonOffset);
     }
-
     destroy() {
       this.gl = null;
       this.checks.length = 0;
@@ -22164,7 +21192,6 @@ ${parts.join("\n")}
     "bc6h-rgb-float": true,
     "bc7-rgba-unorm": true,
     "bc7-rgba-unorm-srgb": true,
-
     "etc2-rgb8unorm": true,
     "etc2-rgb8unorm-srgb": true,
     "etc2-rgb8a1unorm": true,
@@ -22175,7 +21202,6 @@ ${parts.join("\n")}
     "eac-r11snorm": true,
     "eac-rg11unorm": true,
     "eac-rg11snorm": true,
-
     "astc-4x4-unorm": true,
     "astc-4x4-unorm-srgb": true,
     "astc-5x4-unorm": true,
@@ -22258,9 +21284,7 @@ ${parts.join("\n")}
             glTexture,
             gl,
             webGLVersion,
-
             GL_TARGETS.TEXTURE_CUBE_MAP_POSITIVE_X + faceIndex,
-
             (glTexture._layerInitMask & 1 << faceIndex) === 0
           );
           glTexture._layerInitMask |= 1 << faceIndex;
@@ -22480,12 +21504,10 @@ ${parts.join("\n")}
   }
   function mapFormatToGlFormat(gl) {
     return {
-
       r8unorm: gl.RED,
       r8snorm: gl.RED,
       r8uint: gl.RED,
       r8sint: gl.RED,
-
       r16uint: gl.RED,
       r16sint: gl.RED,
       r16float: gl.RED,
@@ -22493,7 +21515,6 @@ ${parts.join("\n")}
       rg8snorm: gl.RG,
       rg8uint: gl.RG,
       rg8sint: gl.RG,
-
       r32uint: gl.RED,
       r32sint: gl.RED,
       r32float: gl.RED,
@@ -22502,7 +21523,6 @@ ${parts.join("\n")}
       rg16float: gl.RG,
       rgba8unorm: gl.RGBA,
       "rgba8unorm-srgb": gl.RGBA,
-
       rgba8snorm: gl.RGBA,
       rgba8uint: gl.RGBA,
       rgba8sint: gl.RGBA,
@@ -22511,18 +21531,15 @@ ${parts.join("\n")}
       rgb9e5ufloat: gl.RGB,
       rgb10a2unorm: gl.RGBA,
       rg11b10ufloat: gl.RGB,
-
       rg32uint: gl.RG,
       rg32sint: gl.RG,
       rg32float: gl.RG,
       rgba16uint: gl.RGBA,
       rgba16sint: gl.RGBA,
       rgba16float: gl.RGBA,
-
       rgba32uint: gl.RGBA,
       rgba32sint: gl.RGBA,
       rgba32float: gl.RGBA,
-
       stencil8: gl.STENCIL_INDEX8,
       depth16unorm: gl.DEPTH_COMPONENT,
       depth24plus: gl.DEPTH_COMPONENT,
@@ -22547,12 +21564,10 @@ ${parts.join("\n")}
       };
     }
     return {
-
       r8unorm: gl.R8,
       r8snorm: gl.R8_SNORM,
       r8uint: gl.R8UI,
       r8sint: gl.R8I,
-
       r16uint: gl.R16UI,
       r16sint: gl.R16I,
       r16float: gl.R16F,
@@ -22560,7 +21575,6 @@ ${parts.join("\n")}
       rg8snorm: gl.RG8_SNORM,
       rg8uint: gl.RG8UI,
       rg8sint: gl.RG8I,
-
       r32uint: gl.R32UI,
       r32sint: gl.R32I,
       r32float: gl.R32F,
@@ -22569,7 +21583,6 @@ ${parts.join("\n")}
       rg16float: gl.RG16F,
       rgba8unorm: gl.RGBA,
       ...srgb,
-
       rgba8snorm: gl.RGBA8_SNORM,
       rgba8uint: gl.RGBA8UI,
       rgba8sint: gl.RGBA8I,
@@ -22577,25 +21590,21 @@ ${parts.join("\n")}
       rgb9e5ufloat: gl.RGB9_E5,
       rgb10a2unorm: gl.RGB10_A2,
       rg11b10ufloat: gl.R11F_G11F_B10F,
-
       rg32uint: gl.RG32UI,
       rg32sint: gl.RG32I,
       rg32float: gl.RG32F,
       rgba16uint: gl.RGBA16UI,
       rgba16sint: gl.RGBA16I,
       rgba16float: gl.RGBA16F,
-
       rgba32uint: gl.RGBA32UI,
       rgba32sint: gl.RGBA32I,
       rgba32float: gl.RGBA32F,
-
       stencil8: gl.STENCIL_INDEX8,
       depth16unorm: gl.DEPTH_COMPONENT16,
       depth24plus: gl.DEPTH_COMPONENT24,
       "depth24plus-stencil8": gl.DEPTH24_STENCIL8,
       depth32float: gl.DEPTH_COMPONENT32F,
       "depth32float-stencil8": gl.DEPTH32F_STENCIL8,
-
       ...extensions2.s3tc ? {
         "bc1-rgba-unorm": extensions2.s3tc.COMPRESSED_RGBA_S3TC_DXT1_EXT,
         "bc2-rgba-unorm": extensions2.s3tc.COMPRESSED_RGBA_S3TC_DXT3_EXT,
@@ -22626,9 +21635,7 @@ ${parts.join("\n")}
         "etc2-rgba8unorm": extensions2.etc.COMPRESSED_RGBA8_ETC2_EAC,
         "etc2-rgba8unorm-srgb": extensions2.etc.COMPRESSED_SRGB8_ALPHA8_ETC2_EAC,
         "eac-r11unorm": extensions2.etc.COMPRESSED_R11_EAC,
-
         "eac-rg11unorm": extensions2.etc.COMPRESSED_SIGNED_RG11_EAC
-
       } : {},
       ...extensions2.astc ? {
         "astc-4x4-unorm": extensions2.astc.COMPRESSED_RGBA_ASTC_4x4_KHR,
@@ -22664,12 +21671,10 @@ ${parts.join("\n")}
   }
   function mapFormatToGlType(gl) {
     return {
-
       r8unorm: gl.UNSIGNED_BYTE,
       r8snorm: gl.BYTE,
       r8uint: gl.UNSIGNED_BYTE,
       r8sint: gl.BYTE,
-
       r16uint: gl.UNSIGNED_SHORT,
       r16sint: gl.SHORT,
       r16float: gl.HALF_FLOAT,
@@ -22677,7 +21682,6 @@ ${parts.join("\n")}
       rg8snorm: gl.BYTE,
       rg8uint: gl.UNSIGNED_BYTE,
       rg8sint: gl.BYTE,
-
       r32uint: gl.UNSIGNED_INT,
       r32sint: gl.INT,
       r32float: gl.FLOAT,
@@ -22686,7 +21690,6 @@ ${parts.join("\n")}
       rg16float: gl.HALF_FLOAT,
       rgba8unorm: gl.UNSIGNED_BYTE,
       "rgba8unorm-srgb": gl.UNSIGNED_BYTE,
-
       rgba8snorm: gl.BYTE,
       rgba8uint: gl.UNSIGNED_BYTE,
       rgba8sint: gl.BYTE,
@@ -22695,18 +21698,15 @@ ${parts.join("\n")}
       rgb9e5ufloat: gl.UNSIGNED_INT_5_9_9_9_REV,
       rgb10a2unorm: gl.UNSIGNED_INT_2_10_10_10_REV,
       rg11b10ufloat: gl.UNSIGNED_INT_10F_11F_11F_REV,
-
       rg32uint: gl.UNSIGNED_INT,
       rg32sint: gl.INT,
       rg32float: gl.FLOAT,
       rgba16uint: gl.UNSIGNED_SHORT,
       rgba16sint: gl.SHORT,
       rgba16float: gl.HALF_FLOAT,
-
       rgba32uint: gl.UNSIGNED_INT,
       rgba32sint: gl.INT,
       rgba32float: gl.FLOAT,
-
       stencil8: gl.UNSIGNED_BYTE,
       depth16unorm: gl.UNSIGNED_SHORT,
       depth24plus: gl.UNSIGNED_INT,
@@ -22720,7 +21720,6 @@ ${parts.join("\n")}
       "2d": gl.TEXTURE_2D,
       cube: gl.TEXTURE_CUBE_MAP,
       "1d": null,
-
       "3d": gl?.TEXTURE_3D || null,
       "2d-array": gl?.TEXTURE_2D_ARRAY || null,
       "cube-array": gl?.TEXTURE_CUBE_MAP_ARRAY || null
@@ -22729,10 +21728,10 @@ ${parts.join("\n")}
   const BYTES_PER_PIXEL = 4;
   class GlTextureSystem {
     constructor(renderer) {
-      this._glSamplers =                 Object.create(null);
+      this._glSamplers = /* @__PURE__ */ Object.create(null);
       this._boundTextures = [];
       this._activeTextureLocation = -1;
-      this._boundSamplers =                 Object.create(null);
+      this._boundSamplers = /* @__PURE__ */ Object.create(null);
       this._premultiplyAlpha = false;
       this._useSeparateSamplers = false;
       this._renderer = renderer;
@@ -22753,7 +21752,6 @@ ${parts.join("\n")}
         cube: createGlUploadCubeTextureResource(baseUploaders)
       };
     }
-
     get managedTextures() {
       return Object.values(this._managedTextures.items);
     }
@@ -22766,14 +21764,13 @@ ${parts.join("\n")}
         this._mapViewDimensionToGlTarget = mapViewDimensionToGlTarget(gl);
       }
       this._managedTextures.removeAll(true);
-      this._glSamplers =                 Object.create(null);
-      this._boundSamplers =                 Object.create(null);
+      this._glSamplers = /* @__PURE__ */ Object.create(null);
+      this._boundSamplers = /* @__PURE__ */ Object.create(null);
       this._premultiplyAlpha = false;
       for (let i2 = 0; i2 < 16; i2++) {
         this.bind(Texture.EMPTY, i2);
       }
     }
-
     initSource(source2) {
       this.bind(source2);
     }
@@ -22878,7 +21875,6 @@ ${parts.join("\n")}
         this._renderer.context.extensions.anisotropicFiltering,
         "texParameteri",
         glTexture.target,
-
         !this._renderer.context.supports.nonPowOf2wrapping && !source2.isPowerOfTwo,
         firstCreation
       );
@@ -23030,7 +22026,6 @@ ${parts.join("\n")}
         h2 = Math.max(h2 >> 1, 1);
       }
     }
-
     _applyMipRange(glTexture, source2) {
       if (this._renderer.context.webGLVersion !== 2) return;
       if (source2.mipLevelCount <= 1) return;
@@ -23111,7 +22106,7 @@ ${parts.join("\n")}
     resetState() {
       this._activeTextureLocation = -1;
       this._boundTextures.fill(Texture.EMPTY.source);
-      this._boundSamplers =                 Object.create(null);
+      this._boundSamplers = /* @__PURE__ */ Object.create(null);
       const gl = this._gl;
       this._premultiplyAlpha = false;
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, this._premultiplyAlpha);
@@ -23274,7 +22269,7 @@ ${parts.join("\n")}
       super(systemConfig);
     }
   }
-  const WebGLRenderer$1 =                 Object.freeze(                Object.defineProperty({
+  const WebGLRenderer$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null,
     WebGLRenderer
   }, Symbol.toStringTag, { value: "Module" }));
@@ -23282,49 +22277,34 @@ ${parts.join("\n")}
   const MIO_DEFAULTS = {
     appearance: {
       radius: 56,
-
       bodyColor: 789263,
       bodyAlpha: 1,
-
       hueStart: 296.5,
       hueSpan: -52.5,
       hueAngle: 225,
-
       hueDrift: 0,
       hueSpin: 0,
       hueLoop: true,
-
       saturation: 1,
-
       lightness: 0.75,
-
       iridescence: 0,
-
       outlineWidth: 3,
-
       glow: 10,
       glowBlur: true,
-
       eyeColor: 16776191,
       eyeScale: 0.3
     },
     physics: {
-
       points: 12,
-
       shapePreset: "blob",
-
       shapeLobes: 3,
       shapeAmount: 1,
       shapeAngle: 0,
-
       shapeShuffle: 60,
-
       radialStiffness: 460,
       edgeStiffness: 540,
       bendStiffness: 170,
       pressure: 2400,
-
       damping: 9,
       airDamping: 0.5,
       magnetStrength: 2200,
@@ -23362,15 +22342,15 @@ ${parts.join("\n")}
     } catch {
     }
   }
-  const MAGNET_KINDS =                 new Set([
+  const MAGNET_KINDS = /* @__PURE__ */ new Set([
     "window",
     "widget"
   ]);
-  const CHROME_KINDS =                 new Set([
+  const CHROME_KINDS = /* @__PURE__ */ new Set([
     "dock",
     "shell"
   ]);
-  const FORBIDDEN_KINDS =                 new Set([
+  const FORBIDDEN_KINDS = /* @__PURE__ */ new Set([
     "dock"
   ]);
   function collectObstacles(surfaces, origin, bounds) {
@@ -23664,8 +22644,8 @@ ${parts.join("\n")}
   }
   const MAX_STALE_MS = 250;
   function keyed(obstacles) {
-    const out2 =                 new Map();
-    const seen =                 new Map();
+    const out2 = /* @__PURE__ */ new Map();
+    const seen = /* @__PURE__ */ new Map();
     for (const o2 of obstacles) {
       const n2 = seen.get(o2.id) ?? 0;
       seen.set(o2.id, n2 + 1);
@@ -23690,8 +22670,8 @@ ${parts.join("\n")}
   }
   function createObstacleTrack(intervalMs) {
     const interval = Math.max(1, intervalMs);
-    let previous =                 new Map();
-    let current =                 new Map();
+    let previous = /* @__PURE__ */ new Map();
+    let current = /* @__PURE__ */ new Map();
     let currentList = [];
     let sampledAt = 0;
     let still = true;
@@ -23745,7 +22725,7 @@ ${parts.join("\n")}
     let position = null;
     let leaveTimer = null;
     let destroyed = false;
-    const frameCache =                 new WeakMap();
+    const frameCache = /* @__PURE__ */ new WeakMap();
     const cancelLeave = () => {
       if (leaveTimer !== null) {
         clearTimeout(leaveTimer);
@@ -24108,7 +23088,6 @@ ${parts.join("\n")}
         samples,
         colors,
         dilate((i2 + 1) / n2 * reachPx),
-
         dilate(i2 === 0 ? -bleed : i2 / n2 * reachPx),
         alpha,
         stride
@@ -24482,7 +23461,6 @@ ${parts.join("\n")}
       rim,
       radius,
       profile,
-
       restArea: 0.5 * n2 * radius * radius * Math.sin(2 * Math.PI / n2),
       elapsed: 0,
       accumulator: 0
@@ -25420,7 +24398,6 @@ ${parts.join("\n")}
       stepSoftBody(body, seconds, {
         physics: config.physics,
         magnet,
-
         obstacles,
         bounds,
         dragTarget
@@ -25574,9 +24551,7 @@ ${parts.join("\n")}
       return config;
     }
     return {
-
       appearance: { ...config.appearance, hueDrift: 0, hueSpin: 0 },
-
       physics: { ...config.physics, floatAmplitude: 0, shapeShuffle: 0 }
     };
   }
@@ -25624,7 +24599,6 @@ ${parts.join("\n")}
           new pixi.BlurFilter({
             strength: blur,
             quality: 2,
-
             blendMode: GLOW_BLEND
           })
         ];
@@ -25647,7 +24621,6 @@ ${parts.join("\n")}
             Math.max(3, config.appearance.radius * 0.12)
           ),
           quality: 2,
-
           blendMode: GLOW_BLEND
         })
       ];
@@ -25728,10 +24701,8 @@ ${parts.join("\n")}
       }
       out2.push({
         id: `mio-marker:${index}`,
-
         kind: "window",
         rect,
-
         face: "top",
         element: el
       });
@@ -25773,7 +24744,13 @@ ${parts.join("\n")}
 }
 
 #${LAYER_ID} .os-mio__handle {
-
+	/*
+	 * PHYSICAL top/left, deliberately: the handle is placed every
+	 * frame by a translate3d() carrying canvas coordinates, and
+	 * transform is always physical. A logical inset-inline-start would
+	 * flip the origin under RTL while the translation kept pushing
+	 * rightwards, and the handle would walk off screen.
+	 */
 	position: absolute;
 	top: 0;
 	left: 0;
@@ -25928,10 +24905,10 @@ ${parts.join("\n")}
   }
   extensions.add(FilterSystem, CanvasFilterSystem);
   extensions.add(FilterPipe);
-  const browserAll =                 Object.freeze(                Object.defineProperty({
+  const browserAll = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null
   }, Symbol.toStringTag, { value: "Module" }));
-  const webworkerAll =                 Object.freeze(                Object.defineProperty({
+  const webworkerAll = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
     __proto__: null
   }, Symbol.toStringTag, { value: "Module" }));
   return api;

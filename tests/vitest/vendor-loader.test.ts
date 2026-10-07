@@ -21,7 +21,6 @@ describe( 'loadVendorScript — no double injection', () => {
 	} );
 
 	test( 'a page-enqueued script is not injected again', async () => {
-
 		const enqueued = document.createElement( 'script' );
 		enqueued.src = `${ BUNDLE }?ver=0.9.8`;
 		document.head.appendChild( enqueued );
@@ -48,14 +47,12 @@ describe( 'loadVendorScript — no double injection', () => {
 
 		const other =
 			'http://example.test/wp-content/plugins/x/assets/js/b.min.js';
-
 		void loadVendorScript( other );
 
 		expect( scriptCount( '/b.min.js' ) ).toBe( 1 );
 	} );
 
 	test( 'the same path on a different origin is a different bundle', () => {
-
 		const first = document.createElement( 'script' );
 		first.src = 'http://cdn-one.test/dist/index.js?ver=1';
 		document.head.appendChild( first );
@@ -63,12 +60,10 @@ describe( 'loadVendorScript — no double injection', () => {
 		void loadVendorScript( 'http://cdn-two.test/dist/index.js' );
 
 		expect( scriptCount( '/dist/index.js' ) ).toBe( 2 );
-
 		expect( first.dataset.osVendor ).toBeUndefined();
 	} );
 
 	test( 'a protocol-relative URL resolves against the document', () => {
-
 		const url =
 			'http://example.test/wp-content/plugins/x/assets/js/d.min.js';
 		const enqueued = document.createElement( 'script' );
@@ -81,7 +76,6 @@ describe( 'loadVendorScript — no double injection', () => {
 	} );
 
 	test( 'the adopted tag is marked so re-entry short-circuits', async () => {
-
 		const url =
 			'http://example.test/wp-content/plugins/x/assets/js/c.min.js';
 		const enqueued = document.createElement( 'script' );
@@ -91,7 +85,6 @@ describe( 'loadVendorScript — no double injection', () => {
 		await loadVendorScript( url );
 
 		expect( scriptCount( '/c.min.js' ) ).toBe( 1 );
-
 		expect( enqueued.dataset.osVendor ).toBe( url );
 		expect( enqueued.dataset.loaded ).toBe( '1' );
 	} );
@@ -139,7 +132,6 @@ describe( 'loadVendorScript — alias dependencies', () => {
 			'window.xConfigReady=true;',
 		] );
 		expect( scriptCount( '/alias-a.js' ) ).toBe( 1 );
-
 		expect( scriptCount( 'x-config' ) ).toBe( 0 );
 	} );
 
@@ -165,7 +157,6 @@ describe( 'loadVendorScript — alias dependencies', () => {
 	} );
 
 	test( 'an alias Core already printed is not replayed', async () => {
-
 		const printed = document.createElement( 'script' );
 		printed.id = 'x-boot-config-js-before';
 		printed.textContent = 'window.xBoot={};';

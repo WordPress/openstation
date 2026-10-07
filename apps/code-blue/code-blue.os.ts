@@ -14,7 +14,6 @@ export interface LogEntry {
 	line: number;
 	trace: string;
 	signature: string;
-
 	origin: Origin;
 }
 
@@ -221,7 +220,7 @@ const originKindLabel = ( kind: Origin[ 'kind' ] ): string =>
 const originLabel = ( o: Origin ): string =>
 	o.slug === ''
 		? originKindLabel( o.kind )
-		: sprintf( __( '%1$s — %2$s' ), originKindLabel( o.kind ), o.slug );
+		: sprintf( /* translators: 1: origin kind, e.g. "Plugin". 2: directory slug, e.g. "woocommerce". */ __( '%1$s — %2$s' ), originKindLabel( o.kind ), o.slug );
 
 export function buildReport( g: IssueGroup, origin: Origin, environment: readonly EnvRow[] ): string {
 	const facts: string[] = [];
@@ -337,7 +336,7 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 				<os-cluster gap="10" align="end" class="os-cb__toolbar">
 					<os-select label=${ __( 'Log source' ) } class="os-cb__source" os-bind="source" os-action="source" value=${ state.source }>
 						${ data.sources.map( ( s ) => html`<os-option value=${ s.id } ?disabled=${ s.exists && ! s.readable }>${
-							s.exists ? `${ s.label } (${ formatBytes( s.size ) })` : sprintf( __( '%s (empty)' ), s.label )
+							s.exists ? `${ s.label } (${ formatBytes( s.size ) })` : sprintf( /* translators: %s: log source label. */ __( '%s (empty)' ), s.label )
 						}</os-option>` ) }
 					</os-select>
 					<os-segmented label=${ __( 'Time range' ) } os-bind="range" value=${ state.range }>
@@ -353,7 +352,7 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 					<os-button variant="secondary" os-action="refresh">${ __( 'Refresh' ) }</os-button>
 					<os-button variant="danger" os-action="clear" os-confirm-danger
 						os-confirm-title=${ __( 'Clear this log?' ) } os-confirm-label=${ __( 'Clear log' ) }
-						os-confirm=${ sprintf( __( 'Every entry in %s will be deleted from disk. This cannot be undone.' ), source?.path ?? '' ) }
+						os-confirm=${ sprintf( /* translators: %s: log file path. */ __( 'Every entry in %s will be deleted from disk. This cannot be undone.' ), source?.path ?? '' ) }
 						?disabled=${ clearDisabled }>${ __( 'Clear log' ) }</os-button>
 				</os-cluster>
 
@@ -377,7 +376,7 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 					empty=${ __( 'No events in this range.' ) }></os-histogram>
 
 				<section class="os-cb__card os-cb__issues">
-					<div class="os-cb__card-head"><h2 class="os-cb__card-title">${ sprintf( _n( 'Issues (%s)', 'Issues (%s)', groups.length ), groups.length.toLocaleString() ) }</h2></div>
+					<div class="os-cb__card-head"><h2 class="os-cb__card-title">${ sprintf( /* translators: %s: number of grouped issues. */ _n( 'Issues (%s)', 'Issues (%s)', groups.length ), groups.length.toLocaleString() ) }</h2></div>
 					<ul class="os-cb__list">
 						${ groups.length === 0 ? html`<li class="os-cb__list-empty"><os-empty-state heading=${ empty[ 0 ] } description=${ empty[ 1 ] }></os-empty-state></li>` : groups.map( issue ) }
 					</ul>
@@ -386,8 +385,8 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 				${ source
 					? html`<os-cluster justify="space-between" class="os-cb__footer">
 						<span>${ [
-							sprintf( __( 'Scanned %1$s of %2$s' ), formatBytes( data.scanned ), formatBytes( source.size ) ),
-							sprintf( _n( '%s entry', '%s entries', data.entries.length ), data.entries.length.toLocaleString() ),
+							sprintf( /* translators: 1: bytes scanned, 2: total file size. */ __( 'Scanned %1$s of %2$s' ), formatBytes( data.scanned ), formatBytes( source.size ) ),
+							sprintf( /* translators: %s: number of parsed log entries. */ _n( '%s entry', '%s entries', data.entries.length ), data.entries.length.toLocaleString() ),
 							data.truncated ? __( 'older entries not shown' ) : '',
 						].filter( Boolean ).join( ' · ' ) }</span>
 						<span>${ __( 'Updated' ) } <os-relative-time datetime=${ iso( data.now ) }></os-relative-time></span>

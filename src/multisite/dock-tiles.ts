@@ -18,9 +18,7 @@ export function getNetworkAdminTileDef(
 		title: __( 'Network Admin' ),
 		icon: 'dashicons-admin-multisite',
 		placeable: true,
-
 		navKind: 'core',
-
 		onOpen: ( event? ) => openOtherAdmin( network.url, event ),
 		get submenu() {
 			return network.rows.map( ( { title, url } ) => ( {

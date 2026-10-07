@@ -37,7 +37,6 @@ beforeEach( () => {
 	el = document.createElement( 'div' );
 	document.body.appendChild( el );
 	const data = appData();
-
 	dispatch = vi.fn( async ( action: string, args?: Record< string, unknown > ) => {
 		if ( action === 'extended' ) {
 			Object.assign( data.extendedOptions!, ( args as { options: Record< string, boolean > } ).options );

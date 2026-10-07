@@ -17,9 +17,7 @@ interface ShellTourApi {
 
 export interface ShellTourLoaderDeps extends Omit< ShellTourDeps, 'config' > {
 	config: DesktopConfig;
-
 	isMobile: () => boolean;
-
 	updateNoticeShown?: Promise< boolean >;
 }
 
@@ -94,15 +92,12 @@ export function installShellTour( deps: ShellTourLoaderDeps ): () => void {
 	};
 
 	document.addEventListener( SHELL_TOUR_START_EVENT, () => start( deps ), { signal } );
-
 	document.addEventListener( 'os-intros-reset', () => start( deps ), { signal } );
-
 	addAction< [ { id?: string } ] >( HOOKS.DESKTOP_ICON_CLICKED, NS, ( detail ) => {
 		if ( detail?.id === SHELL_TOUR_ICON_ID ) {
 			start( deps );
 		}
 	} );
-
 	addAction< [ { mode?: string } ] >( HOOKS.MODE_CHANGED, NS, ( change ) => {
 		if ( 'mobile' === change?.mode ) {
 			generation++;

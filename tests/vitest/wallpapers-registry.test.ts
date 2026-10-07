@@ -16,7 +16,6 @@ import { CUSTOM_GRADIENT_ID } from '../../src/settings/constants';
 type Registry = typeof import( '../../src/wallpapers/registry' );
 
 async function loadRegistry(): Promise<Registry> {
-
 	_resetAllSharedStoresForTests();
 	vi.resetModules();
 	return await import( '../../src/wallpapers/registry' );
@@ -116,7 +115,6 @@ describe( 'wallpapers/registry.ts', () => {
 			'vitest/bad',
 			() => 'not an array',
 		);
-
 		const result = all();
 		expect( result ).toHaveLength( 1 );
 		expect( result[ 0 ].id ).toBe( 'test' );
@@ -132,7 +130,6 @@ describe( 'wallpapers/registry.ts', () => {
 
 describe( 'wallpapers/tone.ts', () => {
 	test( 'a declared tone is taken at its word, measuring nothing', async () => {
-
 		await expect(
 			resolveWallpaperTone( {
 				id: 'declared',
@@ -146,7 +143,6 @@ describe( 'wallpapers/tone.ts', () => {
 	} );
 
 	test( 'an undeclared wallpaper is dark, whatever it is made of', async () => {
-
 		await expect(
 			resolveWallpaperTone( {
 				id: 'canvas',
@@ -177,7 +173,6 @@ describe( 'wallpapers/tone.ts', () => {
 	} );
 
 	test( 'an authored gradient is never measured, however bright it averages', async () => {
-
 		const tones = await Promise.all(
 			[
 				'linear-gradient(135deg, #1a2980 0%, #26d0ce 100%)',
@@ -201,7 +196,6 @@ describe( 'wallpapers/tone.ts', () => {
 	} );
 
 	test( 'the threshold is where Void ink overtakes Starlight', () => {
-
 		expect( toneForLuminance( relativeLuminance( 128, 128, 128 ) ) ).toBe(
 			'light',
 		);
@@ -211,7 +205,6 @@ describe( 'wallpapers/tone.ts', () => {
 	} );
 
 	test( 'an image outranks a colour sitting beside it', async () => {
-
 		expect(
 			firstCssUrl( 'url("/uploads/desk.jpg") center/cover no-repeat, #1d2327' ),
 		).toBe( '/uploads/desk.jpg' );

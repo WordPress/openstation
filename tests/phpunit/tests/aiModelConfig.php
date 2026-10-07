@@ -1,4 +1,8 @@
 <?php
+/**
+ * @group openstation
+ * @group os-ai
+ */
 
 class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 
@@ -40,6 +44,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		}
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_default_config_is_only_the_output_ceiling() {
 		$builder = $this->builder();
 
@@ -54,6 +61,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_non_array_filter_result_still_gets_the_ceiling() {
 		$this->filter_returns( false );
 		$builder = $this->builder();
@@ -63,6 +73,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertNull( $builder->preference );
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_max_tokens_and_temperature_are_coerced() {
 		$this->filter_returns(
 			array(
@@ -78,6 +91,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 0.2, $builder->model_config->getTemperature() );
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_zero_temperature_is_kept() {
 		$this->filter_returns( array( 'temperature' => 0.0 ) );
 		$builder = $this->builder();
@@ -87,6 +103,10 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 0.0, $builder->model_config->getTemperature() );
 	}
 
+	/**
+	 * @dataProvider data_unusable_config
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_unusable_config_is_ignored( $config ) {
 		$this->filter_returns( $config );
 		$builder = $this->builder();
@@ -110,11 +130,13 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 			'non-numeric temperature' => array( array( 'temperature' => 'hot' ) ),
 			'empty options'           => array( array( 'custom_options' => array() ) ),
 			'non-array options'       => array( array( 'custom_options' => 'thinking' ) ),
-
 			'top-level provider key'  => array( array( 'thinking' => array( 'type' => 'adaptive' ) ) ),
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_custom_options_reach_the_model_config() {
 		$options = array(
 			'thinking'      => array( 'type' => 'adaptive' ),
@@ -128,6 +150,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( $options, $builder->model_config->getCustomOptions() );
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_model_id_routes_through_model_preference() {
 		$this->filter_returns( array( 'model' => 'claude-sonnet-5' ) );
 		$builder = $this->builder();
@@ -137,6 +162,10 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( array( 'claude-sonnet-5' ), $builder->preference );
 	}
 
+	/**
+	 * @dataProvider data_unusable_model
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_unusable_model_is_ignored( $model ) {
 		$this->filter_returns( array( 'model' => $model ) );
 		$builder = $this->builder();
@@ -152,11 +181,13 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 			'whitespace only' => array( "  \t " ),
 			'integer'         => array( 0 ),
 			'null'            => array( null ),
-
 			'tuple'           => array( array( 'anthropic', 'claude-sonnet-5' ) ),
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_config_is_applied_before_the_model() {
 		$this->filter_returns(
 			array(
@@ -183,6 +214,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( array( 'config', 'model' ), $builder->order );
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_non_string_option_keys_are_dropped() {
 		$this->filter_returns(
 			array(
@@ -202,6 +236,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_apply_model_config
+	 */
 	public function test_context_is_filled_with_defaults() {
 		$seen = null;
 		add_filter(
@@ -245,6 +282,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		return $capture;
 	}
 
+	/**
+	 * @covers ::openstation_ai_client_generate
+	 */
 	public function test_client_generate_forwards_the_callers_source() {
 		$capture = $this->capture_source();
 
@@ -260,6 +300,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 'agents/runner', $capture->source );
 	}
 
+	/**
+	 * @covers ::openstation_ai_run_followup
+	 */
 	public function test_followup_reports_its_source() {
 		$capture = $this->capture_source();
 
@@ -268,6 +311,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 'ai-copilot/followup', $capture->source );
 	}
 
+	/**
+	 * @covers ::openstation_ai_analyze_comment_now
+	 */
 	public function test_comment_analysis_reports_its_source() {
 		$capture    = $this->capture_source();
 		$comment_id = self::factory()->comment->create( array( 'comment_content' => 'Nice post!' ) );
@@ -277,6 +323,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 'ai-copilot/comment-analysis', $capture->source );
 	}
 
+	/**
+	 * @covers ::openstation_rest_draft_suggestions
+	 */
 	public function test_draft_suggestions_report_their_source() {
 		$capture = $this->capture_source();
 		$post_id = self::factory()->post->create( array( 'post_status' => 'draft' ) );
@@ -306,6 +355,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_ai_result_is_truncated
+	 */
 	public function test_length_finish_reason_is_truncation() {
 		$this->assertTrue(
 			openstation_ai_result_is_truncated(
@@ -320,6 +372,9 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertFalse( openstation_ai_result_is_truncated( new stdClass() ), 'No candidates is not truncation.' );
 	}
 
+	/**
+	 * @covers ::openstation_ai_output_truncated_error
+	 */
 	public function test_truncated_error_carries_the_usage() {
 		$error = openstation_ai_output_truncated_error( 'finish reason: length', array( 'completion' => 4096 ) );
 

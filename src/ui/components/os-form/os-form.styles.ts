@@ -1,7 +1,6 @@
 import { css } from '../../core';
 
 export const osFormStyles = css`
-
 	:host {
 		display: block;
 		container-type: inline-size;
@@ -50,7 +49,6 @@ export const osFormStyles = css`
 		grid-column: 1 / -1;
 	}
 	::slotted( [ slot ] ) {
-
 		display: contents;
 	}
 

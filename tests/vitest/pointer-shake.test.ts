@@ -26,7 +26,6 @@ function zigzag(
 	const cy = opts.cy ?? 300;
 	const half = periodMs / 2;
 	for ( let t = 0; t <= durationMs; t += 16 ) {
-
 		const phase = ( t % periodMs ) / half;
 		const tri = phase <= 1 ? -1 + 2 * phase : 3 - 2 * phase;
 		const offset = tri * amplitude;
@@ -43,7 +42,6 @@ function zigzag(
 describe( 'shake detector', () => {
 	test( 'a sustained side-to-side shake is detected', () => {
 		const det = createShakeDetector();
-
 		const hit = zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 1600 } );
 		expect( hit ).not.toBeNull();
 		expect( hit!.axis ).toBe( 'x' );
@@ -67,7 +65,6 @@ describe( 'shake detector', () => {
 	} );
 
 	test( 'jitter is not a shake', () => {
-
 		const det = createShakeDetector();
 		expect(
 			zigzag( det, { amplitude: 4, periodMs: 60, durationMs: 4000 } ),
@@ -75,7 +72,6 @@ describe( 'shake detector', () => {
 	} );
 
 	test( 'a single overshoot correction is not a shake', () => {
-
 		const det = createShakeDetector();
 		expect(
 			zigzag( det, { amplitude: 60, periodMs: 600, durationMs: 900 } ),
@@ -83,7 +79,6 @@ describe( 'shake detector', () => {
 	} );
 
 	test( 'a fast flick that meets the count is not a shake', () => {
-
 		const det = createShakeDetector();
 		expect(
 			zigzag( det, { amplitude: 40, periodMs: 120, durationMs: 420 } ),
@@ -92,7 +87,6 @@ describe( 'shake detector', () => {
 
 	test( 'two wiggles a pause apart are not summed into one shake', () => {
 		const det = createShakeDetector();
-
 		expect(
 			zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 420, startT: 0 } ),
 		).toBeNull();
@@ -105,7 +99,6 @@ describe( 'shake detector', () => {
 		const det = createShakeDetector();
 		const first = zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 1600, startT: 0 } );
 		expect( first ).not.toBeNull();
-
 		const within = zigzag( det, {
 			amplitude: 40,
 			periodMs: 240,
@@ -119,7 +112,6 @@ describe( 'shake detector', () => {
 		const det = createShakeDetector();
 		zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 800, startT: 0 } );
 		det.reset();
-
 		expect(
 			zigzag( det, { amplitude: 40, periodMs: 240, durationMs: 800, startT: 816 } ),
 		).toBeNull();

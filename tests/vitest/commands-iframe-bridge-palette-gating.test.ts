@@ -144,7 +144,6 @@ describe( 'IframeCommandBridge — palette gating', () => {
 			'os-commands-unsubscribe',
 		] );
 		expect( sentTypes( b ) ).toEqual( [ 'os-commands-subscribe' ] );
-
 		expect( unregisterByOwner ).toHaveBeenCalledWith( 'iframe:edit-post' );
 	} );
 

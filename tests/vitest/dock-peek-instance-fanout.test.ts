@@ -20,7 +20,6 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 	} );
 
 	test( 'getInstances returns every window sharing the resolved baseId even when multi is false', () => {
-
 		const windows = [
 			makeWindowStub( 'desktop-mode-my-wordpress', 'desktop-mode-my-wordpress' ),
 			makeWindowStub(
@@ -66,7 +65,6 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 		new Dock( container, manager, [ item ], 'http://localhost/wp-admin/', 'left' );
 
 		expect( spy ).toHaveBeenCalled();
-
 		const instances = peekDeps[ 0 ].getInstances();
 		expect( instances.map( ( w ) => w.id ) ).toEqual( [
 			'desktop-mode-my-wordpress',

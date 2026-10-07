@@ -62,7 +62,6 @@ type PanelView =
 
 export interface PanelCallbacks {
 	onClose: () => void;
-
 	onViewChange?: ( key: string | null ) => void;
 }
 
@@ -85,7 +84,6 @@ export function renderPanel(
 	callbacks: PanelCallbacks,
 ): PanelHandle {
 	host.replaceChildren();
-
 	host.hidden = false;
 	host.classList.add( 'os-content-graph__panel--closed' );
 
@@ -169,7 +167,6 @@ export function renderPanel(
 		const exit =
 			direction === 'forward' ? 'page-to-left' : 'page-to-right';
 		next.classList.add( `os-content-graph__${ enter }` );
-
 		void next.offsetWidth;
 		const mySeq = ++pageSeq;
 		requestAnimationFrame( () => {
@@ -193,7 +190,6 @@ export function renderPanel(
 			prev.remove();
 		};
 		prev.addEventListener( 'transitionend', cleanup );
-
 		setTimeout( cleanup, 360 );
 	};
 
@@ -223,7 +219,6 @@ export function renderPanel(
 		href: string,
 		labelText: string,
 		icon: string,
-
 		windowKey?: string,
 	): void => {
 		const api = desktopApi();
@@ -233,7 +228,6 @@ export function renderPanel(
 			}
 			return;
 		}
-
 		const focused = api.windowManager.getFocused?.();
 		if ( focused?.isFullscreen?.() ) {
 			focused.toggleFullscreen?.();
@@ -439,7 +433,7 @@ export function renderPanel(
 		{
 			const myWp = button( {
 				label: sprintf(
-
+					// translators: %s is the site title.
 					__( 'Open in %s' ),
 					getConfig().siteName?.trim() || __( 'WordPress' ),
 				),
@@ -1057,7 +1051,7 @@ export function renderPanel(
 		labelEl.className =
 			'os-content-graph__panel-section-label';
 		labelEl.textContent = sprintf(
-
+			/* translators: %d: number of comment replies. */
 			_n( 'Reply (%d)', 'Replies (%d)', replies.length ),
 			replies.length,
 		);
@@ -1211,7 +1205,7 @@ export function renderPanel(
 					}
 					currentView = { ...currentView, loading: false };
 					renderCurrent();
-
+					// eslint-disable-next-line no-console
 					console.warn( '[content-graph] user-stats failed', err );
 				} );
 		},
@@ -1255,7 +1249,7 @@ export function renderPanel(
 					}
 					currentView = { ...currentView, loading: false };
 					renderCurrent();
-
+					// eslint-disable-next-line no-console
 					console.warn( '[content-graph] term-stats failed', err );
 				} );
 		},
@@ -1299,7 +1293,7 @@ export function renderPanel(
 					}
 					currentView = { ...currentView, loading: false };
 					renderCurrent();
-
+					// eslint-disable-next-line no-console
 					console.warn(
 						'[content-graph] comment-stats failed',
 						err,

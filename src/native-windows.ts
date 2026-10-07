@@ -40,30 +40,23 @@ import {
 
 export interface WindowLifecycleHandlers {
 	opened?: () => void;
-
 	reopened?: ( payload: {
 		baseId: string;
 		wasMinimized: boolean;
 		navigated?: boolean;
 	} ) => void;
 	focused?: () => void;
-
 	blurred?: ( payload: { focusedTo: string | null } ) => void;
 	closing?: ( payload: { element: HTMLElement } ) => void;
 	closed?: () => void;
 	minimized?: () => void;
 	restored?: () => void;
 	maximized?: () => void;
-
 	unmaximized?: () => void;
-
 	fullscreenEntered?: () => void;
-
 	fullscreenExited?: () => void;
 	resized?: ( payload: { width: number; height: number } ) => void;
-
 	bodyResized?: ( payload: { width: number; height: number } ) => void;
-
 	boundsChanged?: ( payload: {
 		x: number;
 		y: number;
@@ -233,14 +226,12 @@ function buildNativeRenderContext(
 		try {
 			controller.abort();
 		} catch {
-
 		}
 		while ( teardowns.length ) {
 			const off = teardowns.pop();
 			try {
 				off?.();
 			} catch {
-
 			}
 		}
 	};
@@ -309,7 +300,6 @@ function buildIframeContentRender(
 						}
 					}
 				} catch {
-
 				}
 			}
 
@@ -344,7 +334,6 @@ function buildIframeContentRender(
 				).__openStationConnectionBridge;
 				bridgeRouter?.routeIncomingFromIframe( data, windowId );
 			}
-
 			if (
 				data &&
 				typeof data === 'object' &&
@@ -427,7 +416,6 @@ export function embedAdminPage(
 			try {
 				fn();
 			} catch {
-
 			}
 		}
 		host.replaceChildren();
@@ -455,14 +443,12 @@ export function createRegisterWindow(
 		}
 
 		const userOnClose = def.onClose;
-
 		const onClose: typeof userOnClose = def.iframeContent
 			? ( () => {
 				for ( const fn of cleanups ) {
 					try {
 						fn();
 					} catch {
-
 					}
 				}
 				userOnClose?.();
@@ -497,7 +483,6 @@ export function createRegisterWindow(
 }
 
 export interface OnWindowOptions {
-
 	persistent?: boolean;
 }
 
@@ -552,10 +537,8 @@ export function onWindow(
 			if ( p.windowId !== id ) {
 				return;
 			}
-
 			const { windowId: _w, ...rest } = p;
 			( handler as ( x: unknown ) => void )( rest );
-
 			if ( key === 'closed' && ! persistent ) {
 				unsubscribe();
 			}
@@ -567,9 +550,7 @@ export function onWindow(
 
 export interface NativeWindowRegistryDeps {
 	manager: WindowManager;
-
 	appendSystemTile: ( item: SystemDockItem ) => void;
-
 	removeSystemTile: ( id: string ) => void;
 	desktopArea: HTMLElement;
 }
@@ -581,7 +562,6 @@ type RenderCallback = (
 
 interface NativeWindowGlobals {
 	openStationNativeWindows?: Record< string, RenderCallback | undefined >;
-
 	wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
 }
 
@@ -594,9 +574,7 @@ function readGlobalRegistry(): Record< string, RenderCallback | undefined > {
 }
 
 export interface NativeWindowSync {
-
 	sync: ( list: NativeWindowServerEntry[] ) => Promise< void >;
-
 	openById: (
 		id: string,
 		opts?: {
@@ -620,7 +598,6 @@ export interface NativeWindowSync {
 	) => boolean;
 
 	loadScriptById: ( id: string ) => Promise< boolean >;
-
 	prewarmById: ( id: string ) => Promise< boolean >;
 }
 
@@ -653,7 +630,6 @@ function declareServerTabs(
 	setPanelTabs(
 		winEl,
 		tabs.map( ( tab ) => ( { value: tab.value, label: tab.label } ) ),
-
 		tabs.find( ( tab ) => tab.isMain )?.value,
 	);
 }
@@ -663,7 +639,6 @@ export function hydrateServerEntries(
 	scriptData?: NativeWindowScriptData,
 ): NativeWindowServerEntry[] {
 	const data = scriptData ?? {};
-
 	const depsOf = ( handle: string | undefined ): LazyScriptDependency[] | undefined => {
 		const own = handle ? data[ handle ] : undefined;
 		if ( ! own?.deps || own.deps.length === 0 ) {
@@ -752,10 +727,8 @@ export function createNativeWindowSync(
 	const registered = new Set< string >();
 	const injectedTemplates = new Set< string >();
 	const loadedScripts = new Set< string >();
-
 	const inflightScripts = new Map< string, Promise< void > >();
 	const loadedStyles = new Set< string >();
-
 	const entriesById = new Map< string, NativeWindowServerEntry >();
 
 	const resolveSizeForEntry = (
@@ -775,7 +748,6 @@ export function createNativeWindowSync(
 		if ( injectedTemplates.has( entry.templateId ) ) {
 			return;
 		}
-
 		if ( document.getElementById( entry.templateId ) ) {
 			injectedTemplates.add( entry.templateId );
 			return;
@@ -799,7 +771,6 @@ export function createNativeWindowSync(
 		if ( ! url || loadedStyles.has( url ) ) {
 			return;
 		}
-
 		const safeUrl = url.replace( /\\/g, '\\\\' ).replace( /"/g, '\\"' );
 		const existing = document.head.querySelector< HTMLLinkElement >(
 			`link[rel="stylesheet"][href="${ safeUrl }"]`,
@@ -813,7 +784,6 @@ export function createNativeWindowSync(
 			}
 			document.head.appendChild( link );
 		}
-
 		if ( Array.isArray( style.styleInline ) ) {
 			for ( const css of style.styleInline ) {
 				if ( typeof css !== 'string' || css === '' ) {
@@ -889,14 +859,12 @@ export function createNativeWindowSync(
 		if ( pending ) {
 			return pending.then( () => injectScriptDataOnce( dataKey, script ) );
 		}
-
 		injectedScriptData.add( dataKey );
 		const load = loadVendorScript( url, {
 			translations: script.scriptTranslations,
 			l10n: script.scriptL10n,
 			before: script.scriptBefore,
 			after: script.scriptAfter,
-
 			deps: script.scriptDeps,
 		} )
 			.catch( ( err ) => {
@@ -993,20 +961,15 @@ export function createNativeWindowSync(
 	const buildRender = ( entry: NativeWindowServerEntry ): RenderCallback => {
 		return async ( body, ctx ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );
-
 			declareServerTabs( body, entry );
-
 			await ensureScript( entry );
-
 			const apps = (
 				window.wp?.os as unknown as
 					| { apps?: { refresh?: () => unknown } }
 					| undefined
 			)?.apps;
 			apps?.refresh?.();
-
 			const render = readGlobalRegistry()[ entry.id ];
-
 			return render?.( body, ctx );
 		};
 	};
@@ -1033,7 +996,6 @@ export function createNativeWindowSync(
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
-
 			...( params ? { params } : {} ),
 		} );
 	};
@@ -1114,7 +1076,6 @@ export function createNativeWindowSync(
 			icon: entry.icon,
 			windowId: entry.id,
 			navKind: 'control' === entry.navKind ? 'control' : 'app',
-
 			defaultPlacement: 'rail',
 			order: entry.dockOrder,
 			placeable: true === entry.placeable,
@@ -1162,7 +1123,6 @@ export function createNativeWindowSync(
 			unregisterNativeUrlRemap( id );
 			return;
 		}
-
 		const claims = pages.map( ( page ) => ( {
 			tab: page.id,
 			key: adminPageKey( page.page ),
@@ -1186,7 +1146,6 @@ export function createNativeWindowSync(
 		for ( const entry of list ) {
 			incoming.add( entry.id );
 			syncMenuPages( entry );
-
 			entriesById.set( entry.id, entry );
 		}
 
@@ -1217,7 +1176,6 @@ export function createNativeWindowSync(
 		if ( ! entry ) {
 			return false;
 		}
-
 		activity.publish( 'os/open-requested', {
 			windowId: id,
 			source: opts.source ?? 'api',
@@ -1284,7 +1242,6 @@ export function createNativeWindowSync(
 			}
 			const baseId = win.config.baseId || win.id;
 			saveNativeWindowGeometry( baseId, { width, height } );
-
 			if ( win.element ) {
 				saveNativeWindowPosition( baseId, {
 					x: win.element.offsetLeft,
@@ -1332,7 +1289,6 @@ export function createNativeWindowSync(
 			if ( ! windowId ) {
 				return;
 			}
-
 			if ( isMobileStamped() ) {
 				return;
 			}

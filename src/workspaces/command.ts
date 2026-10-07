@@ -37,7 +37,7 @@ export function registerWorkspaceCommand(
 			if ( desktopId === activeId ) {
 				return __( 'You are here' );
 			}
-
+			// translators: %d is a number of open windows.
 			return sprintf( __( '%d open' ), countOn( desktopId ) );
 		};
 		const rows = deps.manager.getDesktops().map( ( d ) => ( {
@@ -127,13 +127,12 @@ export function registerWorkspaceCommand(
 			}
 			const ql = q.toLowerCase();
 			const list = entries();
-
 			const match =
 				list.find( ( row ) => row.label.toLowerCase() === ql ) ??
 				list.find( ( row ) => row.label.toLowerCase().includes( ql ) );
 			if ( ! match ) {
 				return sprintf(
-
+					// translators: %s is what the user typed.
 					__(
 						'No workspace matching **%s** — try `/workspace` alone to see them all.',
 					),

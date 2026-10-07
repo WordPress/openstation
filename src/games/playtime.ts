@@ -4,11 +4,8 @@ import { recordPlaytime } from './rest';
 const FLUSH_INTERVAL_MS = 60_000;
 
 export interface PlaytimeTracker {
-
 	pause: () => void;
-
 	resume: () => void;
-
 	stop: () => void;
 }
 
@@ -99,15 +96,16 @@ export function formatPlaytime( seconds: number ): string {
 	const minutes = Math.floor( ( total % 3600 ) / 60 );
 	if ( hours > 0 ) {
 		return sprintf(
-
+			/* translators: 1: hours, 2: minutes. */
 			__( '%1$dh %2$dm' ),
 			hours,
 			minutes,
 		);
 	}
 	if ( minutes > 0 ) {
+		/* translators: %d: minutes. */
 		return sprintf( __( '%dm' ), minutes );
 	}
-
+	/* translators: %d: seconds. */
 	return sprintf( __( '%ds' ), total );
 }

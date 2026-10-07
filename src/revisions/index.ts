@@ -43,7 +43,7 @@ export function revisionsLabel(
 	const count = content?.revisionCount;
 	if ( typeof count === 'number' && count > 0 ) {
 		return sprintf(
-
+			/* translators: %d: number of revisions. */
 			__( 'View revisions (%d)' ),
 			count,
 		);
@@ -67,7 +67,6 @@ function openingGeometry(
 	}
 	const editorEl = manager.getById( editorId )?.element;
 	const area = document.getElementById( 'os-area' );
-
 	if (
 		! editorEl ||
 		! area ||
@@ -103,7 +102,7 @@ export async function openRevisionsWindow(
 	let title = __( 'Revisions' );
 	if ( content.label ) {
 		title = sprintf(
-
+			/* translators: %s: post title. */
 			__( 'Revisions: %s' ),
 			content.label,
 		);
@@ -139,6 +138,7 @@ export async function openRevisionsWindow(
 	) {
 		config = filtered;
 	} else if ( typeof console !== 'undefined' ) {
+		// eslint-disable-next-line no-console
 		console.warn(
 			'[openstation] `os.revisions.window-config` filter ' +
 				'returned an invalid config; using the default.',
@@ -167,7 +167,6 @@ export function bootRevisions( {
 		id: 'desktop-mode/view-revisions',
 		label: ( win ) => revisionsLabel( getWindowContent( win.id ) ),
 		icon: 'dashicons-backup',
-
 		order: 60,
 		isVisible: ( win ) => !! getWindowContent( win.id )?.revisionsUrl,
 		onSelect: ( win ) => {

@@ -13,7 +13,6 @@ import { paintWindowControls } from '../../src/window-chrome/controls/render';
 import { registerBuiltInControls } from '../../src/window-chrome/controls/built-ins';
 import type { Window as DesktopWindow } from '../../src/window';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
-
 import '../../src/ui/components/os-window-button/os-window-button';
 
 const tick = (): Promise< void > => Promise.resolve();
@@ -68,7 +67,6 @@ describe( 'window-control buttons — accessible names', () => {
 		for ( const name of names ) {
 			expect( name.length ).toBeGreaterThan( 0 );
 		}
-
 		expect( new Set( names ).size ).toBe( names.length );
 	} );
 } );
@@ -86,7 +84,6 @@ describe( 'tab strip — no empty tablist', () => {
 	test( 'a window with no submenu exposes no tablist and no nav landmark', () => {
 		const el = createWindowElement( { ...BASE_CONFIG, id: 'a11y-no-subs' } );
 		const strip = el.querySelector< HTMLElement >( '.os-window__tabs' )!;
-
 		expect( strip.getAttribute( 'role' ) ).toBe( 'presentation' );
 		expect( strip.hasAttribute( 'aria-label' ) ).toBe( false );
 	} );
@@ -141,7 +138,6 @@ describe( 'loading state — exposed, not hidden', () => {
 		expect( overlay.getAttribute( 'aria-hidden' ) ).toBeNull();
 		expect( overlay.getAttribute( 'role' ) ).toBe( 'status' );
 		expect( overlay.getAttribute( 'aria-live' ) ).toBe( 'polite' );
-
 		expect(
 			overlay.querySelector( 'os-spinner' )!.getAttribute( 'label' ),
 		).toBe( 'Loading window content' );
@@ -150,7 +146,6 @@ describe( 'loading state — exposed, not hidden', () => {
 	test( 'aria-busy tracks the loading → ready → loading cycle', () => {
 		const el = createWindowElement( { ...BASE_CONFIG, id: 'a11y-busy' } );
 		document.body.appendChild( el );
-
 		expect( el.getAttribute( 'aria-busy' ) ).toBe( 'true' );
 
 		markWindowContentReady( 'a11y-busy' );

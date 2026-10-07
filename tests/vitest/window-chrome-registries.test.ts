@@ -119,7 +119,7 @@ describe( 'WindowTheme registry', () => {
 			registerWindowTheme( {
 				id: 'plug/z',
 				tokens: { '--x': 'y' },
-
+				// @ts-expect-error — runtime validation
 				match: 'not-a-function',
 			} ),
 		).toThrow( RegistrationError );
@@ -303,7 +303,7 @@ describe( 'WindowControl registry', () => {
 				id: 'plug/x',
 				label: 'X',
 				icon: 'close',
-
+				// @ts-expect-error — runtime validation
 				placement: 'top',
 				match: () => true,
 				onClick: () => {},
@@ -401,7 +401,7 @@ describe( 'WindowSlot registry', () => {
 		expect( () =>
 			registerWindowSlot( {
 				id: 'plug/x',
-
+				// @ts-expect-error — runtime validation
 				slot: 'not-a-slot',
 				match: () => true,
 				render: () => {},
@@ -412,7 +412,7 @@ describe( 'WindowSlot registry', () => {
 	test( 'register throws when render is missing', () => {
 		expect( () =>
 			registerWindowSlot( {
-
+				// @ts-expect-error — runtime validation
 				id: 'plug/x',
 				slot: 'title',
 				match: () => true,
@@ -485,7 +485,7 @@ describe( 'WindowChrome registry (Experimental)', () => {
 			registerWindowChrome( {
 				id: 'plug/x',
 				match: () => true,
-
+				// @ts-expect-error — runtime validation
 				render: undefined,
 			} ),
 		).toThrow( RegistrationError );

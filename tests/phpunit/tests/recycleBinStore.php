@@ -1,5 +1,7 @@
 <?php
-
+/**
+ * @group openstation
+ */
 class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -37,8 +39,10 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		return $ids;
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_empty
+	 */
 	public function test_single_call_purges_at_most_one_chunk_and_reports_remaining() {
-
 		$this->trash_n_posts( 250 );
 
 		$result = openstation_recycle_bin_empty();
@@ -52,6 +56,9 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_empty
+	 */
 	public function test_iterating_until_remaining_is_zero_empties_the_bin() {
 		$this->trash_n_posts( 250 );
 
@@ -75,6 +82,9 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		$this->assertSame( 0, $after['total'] );
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_empty
+	 */
 	public function test_chunk_size_filter_is_honored() {
 		$this->trash_n_posts( 30 );
 		add_filter(
@@ -90,6 +100,9 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		$this->assertSame( 20, $result['remaining'] );
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_empty
+	 */
 	public function test_chunk_size_filter_floors_to_one() {
 		$this->trash_n_posts( 3 );
 		add_filter(
@@ -117,6 +130,9 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		return $post_id;
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_count
+	 */
 	public function test_count_is_global_for_users_with_edit_others_posts() {
 		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
 		$this->trash_post_as( self::$admin_id, 'admin-trash-2' );
@@ -127,6 +143,9 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		$this->assertSame( 3, openstation_recycle_bin_count() );
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_count
+	 */
 	public function test_count_is_author_scoped_without_edit_others_posts() {
 		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
 		$this->trash_post_as( self::$admin_id, 'admin-trash-2' );
@@ -141,6 +160,9 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_count
+	 */
 	public function test_count_is_zero_for_users_without_edit_posts() {
 		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
 		$this->trash_post_as( self::$author_id, 'author-trash-1' );
@@ -154,6 +176,9 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_heartbeat_received
+	 */
 	public function test_heartbeat_attaches_count_only_when_changed() {
 		$this->trash_n_posts( 2 );
 		$latest = (int) get_option( OPENSTATION_RECYCLE_BIN_CHANGE_OPTION, 0 );
@@ -175,11 +200,17 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'count', $caught_up['openstation_recycle_bin'] );
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_heartbeat_received
+	 */
 	public function test_heartbeat_ignores_ticks_without_the_seen_ts_field() {
 		$response = openstation_recycle_bin_heartbeat_received( array(), array() );
 		$this->assertArrayNotHasKey( 'openstation_recycle_bin', $response );
 	}
 
+	/**
+	 * @covers ::openstation_recycle_bin_inject_shell_config
+	 */
 	public function test_config_filters_inject_recycle_bin_post_types() {
 		$config = apply_filters( 'openstation_shell_config', array() );
 		$this->assertIsArray( $config );

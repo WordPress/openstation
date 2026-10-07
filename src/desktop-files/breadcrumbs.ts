@@ -1,16 +1,12 @@
 import { __ } from '../i18n';
 
 export interface BreadcrumbSegment {
-
 	label: string;
-
 	onClick?: () => void;
 }
 
 export interface BreadcrumbsOptions {
-
 	onBack?: () => void;
-
 	backDisabled?: boolean;
 }
 
@@ -59,7 +55,6 @@ export function renderBreadcrumbs(
 			sep.textContent = '›';
 			nav.appendChild( sep );
 		}
-
 		if ( ! seg.onClick ) {
 			const here = document.createElement( 'span' );
 			here.className = `${ ROOT_CLASS }__crumb ${ ROOT_CLASS }__crumb--current`;

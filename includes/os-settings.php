@@ -28,43 +28,26 @@ const OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
 function openstation_default_os_settings() {
 	return array(
 		'wallpaper'                   => 'galaxy',
-
 		'accent'                      => 'pulse',
-
 		'customAccent'                => '#f252fc',
 		'dockSize'                    => 'default',
-
 		'windowRadius'                => 'round',
 		'openWindowsAs'               => 'default',
-
 		'adminBarMode'                => 'hidden',
-
 		'dockBehavior'                => 'static',
-
 		'sideDockBehavior'            => 'static',
-
 		'desktopLayout'               => 'unified',
-
 		'dockPlacement'               => 'bottom',
 		'dockRailRenderer'            => 'default',
-
 		'desktopTheme'                => '',
-
 		'appliedThemeRecommendations' => array(),
 		'unfocusEffect'               => 'darken',
-
 		'windowReveal'                => 'none',
-
 		'windowRevealDuration'        => 0,
-
 		'windowLinkRenderer'          => 'svg-splines',
-
 		'windowLinkVisibility'        => 'always',
-
 		'windowLinksEnabled'          => true,
-
 		'windowLinkRaiseOnFocus'      => true,
-
 		'windowLinkHighlight'         => true,
 		'customGradient'              => array(
 			'from'  => '#2271b1',
@@ -72,60 +55,38 @@ function openstation_default_os_settings() {
 			'angle' => 135,
 		),
 		'customImage'                 => null,
-
 		'wallpaperSettings'           => array(),
 		'libraryHdOnly'               => true,
 		'ai'                          => array(
 			'enabled' => false,
 		),
-
 		'heartbeatRate'               => 60,
 		'nativePostsEnabled'          => false,
-
 		'nativePostsHiddenColumns'    => array(),
-
 		'nativePagesHiddenColumns'    => array(),
-
 		'nativePagesEnabled'          => false,
-
 		'nativeUsersEnabled'          => false,
-
 		'nativePluginsEnabled'        => false,
-
 		'nativeCommentsEnabled'       => false,
-
 		'stationHomeEnabled'          => false,
-
 		'adminAssetCacheEnabled'      => true,
 		'windowPrewarmEnabled'        => true,
-
 		'showDesktopOnWallpaperClick' => false,
-
 		'confirmCloseAllWindows'      => true,
-
 		'mioEnabled'                  => false,
 		'mioApiEnabled'               => false,
 		'mioShowOnWallpaper'          => true,
-
 		'mioStyle'                    => array(
 			'appearance' => array(),
 			'physics'    => array(),
 		),
-
 		'showPostStatusRibbons'       => true,
-
 		'developerModeEnabled'        => false,
-
 		'foldersSharingEnabled'       => true,
-
 		'navPlacement'                => array(),
-
 		'navOrder'                    => array(),
-
 		'mobileLayout'                => 'auto',
-
 		'mobileTabs'                  => array(),
-
 		'dockPromotedPositions'       => array(),
 	);
 }
@@ -182,7 +143,6 @@ function openstation_migrate_item_visibility( $visibility ) {
 		if ( '' === $id ) {
 			continue;
 		}
-
 		if ( $id === $key || ! isset( $out[ $id ] ) ) {
 			$out[ $id ] = $map[ $val ];
 		}
@@ -273,7 +233,6 @@ function openstation_sanitize_os_settings( $raw ) {
 			}
 			$applied_theme_recommendations[] = $theme_slug;
 		}
-
 		$applied_theme_recommendations = array_slice(
 			array_values( array_unique( $applied_theme_recommendations ) ),
 			-64
@@ -449,7 +408,6 @@ function openstation_sanitize_os_settings( $raw ) {
 			}
 			$native_posts_hidden_columns[] = $slug;
 		}
-
 		$native_posts_hidden_columns = array_slice( array_values( array_unique( $native_posts_hidden_columns ) ), 0, 32 );
 	}
 
@@ -466,7 +424,6 @@ function openstation_sanitize_os_settings( $raw ) {
 			}
 			$native_pages_hidden_columns[] = $slug;
 		}
-
 		$native_pages_hidden_columns = array_slice( array_values( array_unique( $native_pages_hidden_columns ) ), 0, 32 );
 	}
 

@@ -67,9 +67,7 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( PNG_DATA_URI );
-
 		expect( img!.draggable ).toBe( false );
-
 		expect(
 			tile.querySelector( 'span.os-file-tile__icon.dashicons' ),
 		).toBeNull();

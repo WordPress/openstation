@@ -37,7 +37,6 @@ function collect(): WallpaperSurface[] {
 	try {
 		matches = document.querySelectorAll( selector );
 	} catch {
-
 		return [];
 	}
 	const out: WallpaperSurface[] = [];
@@ -60,10 +59,8 @@ function collect(): WallpaperSurface[] {
 		}
 		out.push( {
 			id: `mio-marker:${ index }`,
-
 			kind: 'window',
 			rect,
-
 			face: 'top',
 			element: el as HTMLElement,
 		} );
@@ -86,7 +83,6 @@ function install(): void {
 	if ( installed ) {
 		return;
 	}
-
 	const w = window as unknown as {
 		wp?: { os?: { getWallpaperSurfaces?: () => WallpaperSurface[] } };
 	};

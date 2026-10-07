@@ -1,7 +1,5 @@
 export interface ScriptRef {
-
 	url?: string;
-
 	handle?: string;
 }
 
@@ -31,7 +29,6 @@ export function findScriptByPath( url: string ): HTMLScriptElement | null {
 				return tag;
 			}
 		} catch {
-
 		}
 	}
 	return null;
@@ -69,7 +66,6 @@ function handlesInConcatUrl( src: string ): string[] {
 				.filter( Boolean );
 		}
 	} catch {
-
 	}
 
 	concatenated.set( src, handles );

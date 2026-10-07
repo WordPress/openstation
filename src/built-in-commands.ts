@@ -8,15 +8,10 @@ import {
 import type { DockItemConfig, DesktopConfig } from './types';
 
 export interface OpenableWindow {
-
 	id: string;
-
 	label: string;
-
 	description?: string;
-
 	icon?: string;
-
 	open: () => void;
 }
 

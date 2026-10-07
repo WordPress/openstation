@@ -10,7 +10,6 @@ import {
 
 describe( 'sanitizeMioLook', () => {
 	test( 'anything unreadable becomes an empty look', () => {
-
 		for ( const raw of [
 			undefined,
 			null,
@@ -39,7 +38,6 @@ describe( 'sanitizeMioLook', () => {
 	test( 'drops every key outside the whitelist', () => {
 		const look = sanitizeMioLook( {
 			appearance: { glow: 1, notAThing: 5 },
-
 			physics: { shapePreset: 'heart', radialStiffness: 9, pressure: 0 },
 		} );
 		expect( Object.keys( look.appearance ) ).toEqual( [ 'glow' ] );
@@ -61,14 +59,12 @@ describe( 'sanitizeMioLook', () => {
 	} );
 
 	test( 'a partial look stays partial', () => {
-
 		const look = sanitizeMioLook( { appearance: { glow: 1 }, physics: {} } );
 		expect( Object.keys( look.appearance ) ).toHaveLength( 1 );
 		expect( look.appearance ).not.toHaveProperty( 'hueStart' );
 	} );
 
 	test( 'the whitelists match the config they mirror', () => {
-
 		for ( const key of LOOK_PHYSICS_KEYS ) {
 			expect( MIO_DEFAULTS.physics ).toHaveProperty( key );
 		}
@@ -91,7 +87,6 @@ describe( 'sanitizeMioLook', () => {
 
 describe( 'splitMioLook', () => {
 	test( 'routes a flat bag to the group each key belongs to', () => {
-
 		expect(
 			splitMioLook( {
 				glow: 2,

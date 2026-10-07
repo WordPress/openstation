@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-chromeless
+ */
 class Tests_OpenStation_ChromelessTopFrame extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -35,13 +38,18 @@ class Tests_OpenStation_ChromelessTopFrame extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_the_bridge_is_emitted_on_a_chromeless_request() {
-
 		openstation_chromeless_bridge_script();
 
 		$this->assertTrue( wp_script_is( 'os-chromeless-bridge', 'enqueued' ) );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_a_stranded_top_level_page_still_strips_the_flag() {
 		$markup = $this->bridge_markup();
 
@@ -50,6 +58,9 @@ class Tests_OpenStation_ChromelessTopFrame extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'window.location.replace', $markup );
 	}
 
+	/**
+	 * @covers ::openstation_chromeless_bridge_script
+	 */
 	public function test_a_hosted_top_level_page_is_left_alone() {
 		$markup = $this->bridge_markup();
 

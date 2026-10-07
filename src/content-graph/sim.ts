@@ -9,7 +9,6 @@ export interface SimOptions {
 }
 
 export const DEFAULT_SIM_OPTIONS: SimOptions = {
-
 	repulsion: 26000,
 	springK: 0.04,
 	springLen: 200,
@@ -20,24 +19,18 @@ export const DEFAULT_SIM_OPTIONS: SimOptions = {
 const ALPHA_DECAY = 0.992;
 const ALPHA_MIN = 0.01;
 const ALPHA_REHEAT = 1;
-
 const MAX_VELOCITY = 12;
 
 export class ForceSim {
 	public nodes: GraphNode[];
 	public edges: GraphEdge[];
 	public opts: SimOptions;
-
 	public dragOrigin: { x: number; y: number } | null = null;
 	public dragInfluenceRadius = 500;
-
 	public groupAssignment: Map< number, string[] > | null = null;
-
 	public groupOrder: string[] | null = null;
 	public groupAttractorStrength = 0.12;
-
 	public groupOrderSpacing = 320;
-
 	public groupOrderStaggerY = 0;
 	private alpha = ALPHA_REHEAT;
 
@@ -56,7 +49,6 @@ export class ForceSim {
 		if ( ! kick ) {
 			return;
 		}
-
 		const kickStrength = value * 3;
 		for ( const n of this.nodes ) {
 			if ( n.pinned ) {
@@ -134,7 +126,6 @@ export class ForceSim {
 				n.vy -= n.y * gravity;
 				n.vx *= damping;
 				n.vy *= damping;
-
 				if ( n.vx > MAX_VELOCITY ) {
 					n.vx = MAX_VELOCITY;
 				} else if ( n.vx < -MAX_VELOCITY ) {

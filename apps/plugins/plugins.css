@@ -1,7 +1,6 @@
 .desktop-mode-plugins {
 	max-width: 100%;
 	min-width: 0;
-
 	overflow: hidden;
 	position: relative;
 	box-sizing: border-box;
@@ -235,7 +234,6 @@
 	border-block-end: 1px solid var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) );
 	flex: 0 0 auto;
 	overflow: hidden;
-
 	border-start-start-radius: 14px;
 	border-start-end-radius: 14px;
 }
@@ -445,7 +443,6 @@
 
 .os-plugins__upload-card {
 	width: min( 480px, calc( 100% - 32px ) );
-
 	background: var( --os-ui-card-bg, var( --os-ui-surface, #fff ) );
 	border-radius: 14px;
 	padding: 22px 22px 18px;

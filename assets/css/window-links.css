@@ -25,7 +25,6 @@
 
 .os-window-link__path {
 	fill: none;
-
 	stroke: var(--os-window-link-color, #2271b1);
 	stroke-opacity: 0.55;
 	stroke-width: var(--os-window-link-width, 1.5px);

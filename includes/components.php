@@ -5,12 +5,11 @@ defined( 'ABSPATH' ) || exit;
 function openstation_component( $tag, $attrs = array(), $content = '' ) {
 	$tag = strtolower( (string) $tag );
 	if ( ! preg_match( '/^os-[a-z][a-z0-9-]*$/', $tag ) ) {
-
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			_doing_it_wrong(
 				__FUNCTION__,
 				sprintf(
-
+					/* translators: %s: the attempted tag name. */
 					esc_html__( 'openstation_component() only accepts tags with the os- prefix; got "%s".', 'desktop-mode' ),
 					esc_html( $tag )
 				),
@@ -24,13 +23,11 @@ function openstation_component( $tag, $attrs = array(), $content = '' ) {
 	foreach ( (array) $attrs as $key => $value ) {
 		$key = (string) $key;
 		if ( ! preg_match( '/^[A-Za-z_][A-Za-z0-9_:.-]*$/', $key ) ) {
-
 			continue;
 		}
 		if ( false === $value || null === $value ) {
 			continue;
 		}
-
 		if ( 'style' === strtolower( $key ) && is_array( $value ) ) {
 			$serialized = openstation_serialize_style_array( $value );
 			if ( '' === $serialized ) {
@@ -43,16 +40,14 @@ function openstation_component( $tag, $attrs = array(), $content = '' ) {
 			continue;
 		}
 		if ( true === $value || '' === $value ) {
-
 			$attr_parts[] = esc_attr( $key );
 			continue;
 		}
 		if ( is_array( $value ) || is_object( $value ) ) {
-
 			_doing_it_wrong(
 				__FUNCTION__,
 				sprintf(
-
+					/* translators: 1: attribute name, 2: tag name. */
 					esc_html__( 'Attribute "%1$s" on <%2$s> received a non-scalar value (array/object). Only the `style` attribute accepts an array; other attributes must be strings, booleans, or null. The attribute was skipped.', 'desktop-mode' ),
 					esc_html( $key ),
 					esc_html( $tag )
@@ -72,12 +67,9 @@ function openstation_component( $tag, $attrs = array(), $content = '' ) {
 
 	printf(
 		'<%1$s%2$s>%3$s</%1$s>',
-
-		$tag,
-
-		$attr_str,
-
-		$content
+		$tag, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		$attr_str, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		$content // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	);
 }
 
@@ -180,6 +172,15 @@ function openstation_format_css_value( $property, $value ) {
 	}
 	return $text;
 }
+
+
+
+
+
+
+
+
+
 
 function openstation_enqueue_script( $handle, $src, $extra_deps = array(), $version = null, $in_footer = true ) {
 	$deps = array_merge(

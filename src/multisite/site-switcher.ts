@@ -3,22 +3,16 @@ import { hopToAdmin, wantsBrowserTab, type HopMinter } from './hop';
 import { leaveInstance, type HopDirection } from './instance-transition';
 import { isTextEntryFocus } from '../window-manager/switcher';
 import { __ } from '../i18n';
-
 import '../ui/components/os-segmented/os-segmented';
 
 export const OVERVIEW_ARG = 'openstation_overview';
 
 export interface SiteSwitcherEntry {
-
 	value: string;
 	label: string;
-
 	shellUrl: string;
-
 	external: boolean;
-
 	foreign: boolean;
-
 	tabUrl?: string;
 }
 
@@ -75,9 +69,7 @@ export function siteSwitcherEntries(
 }
 
 export interface SiteSwitchDeps {
-
 	hop?: ( url: string, event?: MouseEvent ) => void;
-
 	mint?: HopMinter;
 }
 
@@ -98,7 +90,6 @@ export function switchToSite(
 		window.open( entry.tabUrl, '_blank', 'noopener' );
 		return true;
 	}
-
 	const from = entries.findIndex( ( x ) => x.value === current );
 	const direction: HopDirection = to > from ? 'next' : 'prev';
 	const plain = shellUrlInOverview( entry.shellUrl, direction );
@@ -135,7 +126,6 @@ export function installSiteSwitcherKeys(
 		) {
 			return;
 		}
-
 		const current = multisite.current ?? '';
 		const entries = siteSwitcherEntries( multisite ).filter(
 			( x ) => ! x.tabUrl || x.value === current,
@@ -217,7 +207,6 @@ export function buildSiteSwitcher(
 		if ( ! entry ) {
 			return;
 		}
-
 		if ( entry.tabUrl && ( e.type === 'click' || 1 === e.button ) ) {
 			e.preventDefault();
 			e.stopPropagation();
@@ -234,7 +223,6 @@ export function buildSiteSwitcher(
 			hop( plain, e );
 			return;
 		}
-
 		const tab = window.open( '', '_blank' );
 		void deps.mint( entry.shellUrl, 'next' )
 			.catch( () => null )

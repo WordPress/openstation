@@ -105,7 +105,6 @@ describe( 'File Associations OS Settings tab', () => {
 				bubbles: true,
 			} ),
 		);
-
 		await Promise.resolve();
 		expect( fetchSpy ).toHaveBeenCalledTimes( 1 );
 		const init = fetchSpy.mock.calls[ 0 ][ 1 ] as RequestInit;

@@ -34,7 +34,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		try {
 			window.localStorage.removeItem( 'desktop-mode-snap-to-grid' );
 		} catch {
-
 		}
 		desktop = document.createElement( 'div' );
 		Object.defineProperty( desktop, 'getBoundingClientRect', {
@@ -94,7 +93,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 			rows: number;
 		};
 		expect( payload.windowCount ).toBe( 4 );
-
 		expect( payload.cols ).toBe( 2 );
 		expect( payload.rows ).toBe( 2 );
 	} );
@@ -187,10 +185,8 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		const cfg = manager.getSnapConfig();
 
 		expect( cfg.enabled ).toBe( true );
-
 		expect( cfg.cellWidth ).toBeGreaterThanOrEqual( 40 );
 		expect( cfg.cellHeight ).toBeGreaterThanOrEqual( 40 );
-
 		expect( cfg.cellWidth ).toBeLessThan( 400 );
 		expect( cfg.cellHeight ).toBeLessThan( 400 );
 	} );
@@ -208,7 +204,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		await manager.open( openConfig( 'b' ) );
 		await manager.open( openConfig( 'c' ) );
 		await manager.open( openConfig( 'd' ) );
-
 		hooks.addFilter(
 			'os.arrange.tile.dimensions',
 			'test/force-1x4',
@@ -256,7 +251,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		await manager.open( openConfig( 'b' ) );
 		await manager.open( openConfig( 'c' ) );
 		await manager.open( openConfig( 'd' ) );
-
 		hooks.addFilter(
 			'os.arrange.tile.dimensions',
 			'test/bad-grid',
@@ -290,7 +284,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 			( e ) => e.name === 'os.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
-
 		expect( payload.cols * payload.rows ).toBeGreaterThanOrEqual( 2 );
 	} );
 
@@ -346,7 +339,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 
 	test( 'un-maximize with snap on rounds restored geometry to grid cells', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
-
 		win.element.style.left = '137px';
 		win.element.style.top = '83px';
 		win.element.style.width = '801px';
@@ -367,7 +359,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		const finalH = parseInt( win.element.style.height, 10 );
 		expect( finalLeft % cfg.cellWidth ).toBe( 0 );
 		expect( finalTop % cfg.cellHeight ).toBe( 0 );
-
 		if ( finalW > 320 ) {
 			expect( finalW % cfg.cellWidth ).toBe( 0 );
 		}
@@ -419,10 +410,8 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', async () => 
 		const titleBar = win.element.querySelector(
 			'.os-window__titlebar',
 		) as HTMLElement;
-
 		titleBar.setPointerCapture =
 			titleBar.setPointerCapture ?? ( () => undefined );
-
 		const down = new MouseEvent( 'pointerdown', {
 			bubbles: true,
 			clientX: 400,
@@ -431,7 +420,6 @@ describe( 'Window — drag of a maximized window auto-unmaximizes', async () => 
 		} );
 		Object.defineProperty( down, 'pointerId', { value: 1 } );
 		titleBar.dispatchEvent( down );
-
 		const move = new MouseEvent( 'pointermove', {
 			bubbles: true,
 			clientX: 420,

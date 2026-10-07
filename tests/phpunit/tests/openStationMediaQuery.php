@@ -1,5 +1,8 @@
 <?php
-
+/**
+ * @group openstation
+ * @group os-media-query
+ */
 class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 
 	protected static $admin_id;
@@ -27,6 +30,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		return $attachment_id;
 	}
 
+	/**
+	 * @covers ::openstation_stamp_media_dimensions
+	 */
 	public function test_stamp_writes_flat_numeric_meta_on_upload() {
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 
@@ -40,6 +46,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_stamp_media_dimensions
+	 */
 	public function test_stamp_handles_missing_dimensions_with_zero() {
 		$attachment_id = self::factory()->attachment->create(
 			array( 'post_mime_type' => 'image/svg+xml' )
@@ -50,6 +59,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertSame( '0', get_post_meta( $attachment_id, OPENSTATION_META_HEIGHT, true ) );
 	}
 
+	/**
+	 * @covers ::openstation_register_media_query_params
+	 */
 	public function test_collection_params_register_the_dimension_filters() {
 		$route_options = rest_get_server()->get_routes( 'wp/v2' );
 
@@ -67,6 +79,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'openstation_min_height', $get_route['args'] );
 	}
 
+	/**
+	 * @covers ::openstation_filter_media_by_dimensions
+	 */
 	public function test_rest_media_query_filters_by_min_width() {
 		$small = $this->make_attachment( 800, 600 );
 		$big   = $this->make_attachment( 1920, 1080 );
@@ -86,6 +101,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertNotContains( $small, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_filter_media_by_dimensions
+	 */
 	public function test_rest_media_query_filters_by_min_width_and_height() {
 		$wide   = $this->make_attachment( 2000, 500 );
 		$tall   = $this->make_attachment( 500, 2000 );
@@ -107,6 +125,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertNotContains( $tall, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_filter_media_by_dimensions
+	 */
 	public function test_rest_media_query_without_params_returns_all() {
 		$small = $this->make_attachment( 100, 100 );
 		$big   = $this->make_attachment( 1920, 1080 );
@@ -124,6 +145,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertContains( $big, $ids );
 	}
 
+	/**
+	 * @covers ::openstation_filter_media_by_dimensions
+	 */
 	public function test_rest_media_query_skips_backfill_for_anonymous_requests() {
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 		delete_post_meta( $attachment_id, OPENSTATION_META_WIDTH );
@@ -145,6 +169,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertFalse( get_option( OPENSTATION_BACKFILL_DONE_OPTION ) );
 	}
 
+	/**
+	 * @covers ::openstation_filter_media_by_dimensions
+	 */
 	public function test_rest_media_query_runs_backfill_for_logged_in_users() {
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 		delete_post_meta( $attachment_id, OPENSTATION_META_WIDTH );
@@ -165,8 +192,10 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_backfill_media_dimensions
+	 */
 	public function test_backfill_stamps_attachments_without_dimension_meta() {
-
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 		delete_post_meta( $attachment_id, OPENSTATION_META_WIDTH );
 		delete_post_meta( $attachment_id, OPENSTATION_META_HEIGHT );
@@ -180,8 +209,10 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::openstation_backfill_media_dimensions
+	 */
 	public function test_backfill_flips_completion_flag_when_nothing_left() {
-
 		$this->make_attachment( 1920, 1080 );
 		$this->make_attachment( 1024, 768 );
 
@@ -191,6 +222,9 @@ class Tests_OpenStation_MediaQuery extends WP_UnitTestCase {
 		$this->assertSame( '1', (string) get_option( OPENSTATION_BACKFILL_DONE_OPTION ) );
 	}
 
+	/**
+	 * @covers ::openstation_backfill_media_dimensions
+	 */
 	public function test_backfill_noop_after_flag_is_set() {
 		update_option( OPENSTATION_BACKFILL_DONE_OPTION, 1 );
 

@@ -28,7 +28,7 @@ function openstation_register_wallpaper( $id, $args = array() ) {
 			return openstation_registration_error(
 				'openstation_capability_denied',
 				sprintf(
-
+					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this wallpaper.', 'desktop-mode' ),
 					(string) $cap
 				),
@@ -49,7 +49,6 @@ function openstation_register_wallpaper( $id, $args = array() ) {
 	$type = in_array( $args['type'], array( 'css', 'canvas' ), true )
 		? $args['type']
 		: 'canvas';
-
 	if ( 'canvas' === $type && '' === (string) $args['script'] ) {
 		return openstation_registration_error(
 			'openstation_missing_script',
@@ -65,15 +64,12 @@ function openstation_register_wallpaper( $id, $args = array() ) {
 
 	$entry = array(
 		'id'          => $id,
-
 		'label'       => sanitize_text_field( (string) $args['label'] ),
 		'preview'     => (string) $args['preview'],
 		'type'        => $type,
 		'value'       => $value,
 		'script'      => (string) $args['script'],
-
 		'description' => sanitize_textarea_field( (string) $args['description'] ),
-
 		'tone'        => in_array( $args['tone'], array( 'light', 'dark' ), true ) ? (string) $args['tone'] : '',
 	);
 	openstation_desktop_wallpaper_registry( $id, $entry );
@@ -100,7 +96,6 @@ function openstation_build_desktop_wallpapers_payload() {
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
-
 	$registry = apply_filters( 'openstation_wallpapers', $registry );
 	if ( ! is_array( $registry ) ) {
 		return array();
@@ -126,7 +121,6 @@ function openstation_build_desktop_wallpapers_payload() {
 			'scriptAfter'        => $payload['after'],
 			'scriptL10n'         => $payload['l10n'],
 			'scriptTranslations' => $payload['translations'],
-
 			'scriptDeps'         => openstation_resolve_script_dependencies( $handle ),
 		);
 	}

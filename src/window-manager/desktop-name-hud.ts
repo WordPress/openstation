@@ -17,7 +17,6 @@ export function showDesktopNameHud( area: HTMLElement, label: string ): void {
 	if ( ! hud ) {
 		hud = document.createElement( 'div' );
 		hud.className = CLS;
-
 		hud.setAttribute( 'role', 'status' );
 	}
 	hud.textContent = label;

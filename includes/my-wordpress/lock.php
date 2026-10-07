@@ -73,7 +73,6 @@ function openstation_my_wordpress_post_contributors_payload( $post_id ) {
 		$post_id,
 		array(
 			'fields'      => 'ids',
-
 			'numberposts' => -1,
 		)
 	);

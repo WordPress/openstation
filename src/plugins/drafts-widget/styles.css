@@ -102,7 +102,6 @@ a.dm-drafts__link:focus:not( :focus-visible ) {
 	--os-ui-button-border: none;
 	--os-ui-button-border-radius: 6px;
 	--os-ui-button-bg: transparent;
-
 	--os-ui-button-fg: currentColor;
 }
 
@@ -225,7 +224,6 @@ body.os-active .dm-drafts__link {
 		var( --os-ui-danger, #d63638 ) 65%,
 		currentColor
 	);
-
 	padding: 8px 10px;
 	border-radius: 6px;
 	border: 1px solid var( --os-ui-notice-border );
@@ -359,7 +357,6 @@ body.os-active .dm-drafts__link {
 	);
 	--os-ui-button-fg: currentColor;
 	--os-ui-button-bg: color-mix( in srgb, currentColor 15%, transparent );
-
 	--os-ui-button-bg-hover: color-mix( in srgb, currentColor 15%, transparent );
 	--os-ui-button-border: 1px solid
 		color-mix( in srgb, var( --dm-drafts-applied ) 60%, transparent );

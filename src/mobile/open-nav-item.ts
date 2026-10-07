@@ -8,7 +8,6 @@ import type { WindowManager } from '../window-manager';
 export interface NavItemOpenerDeps {
 	manager: WindowManager;
 	adminUrl: string;
-
 	openNative: ( id: string ) => boolean;
 }
 

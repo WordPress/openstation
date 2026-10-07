@@ -3,15 +3,10 @@ import { createSharedStore } from '../shared-store';
 const WINDOW_ID = 'my-wordpress';
 
 export interface ExplorerOpenTarget {
-
 	kind: 'detail' | 'media' | null;
-
 	entityId: string;
-
 	id: number;
-
 	title: string;
-
 	requestedAt: number;
 }
 

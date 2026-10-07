@@ -44,7 +44,6 @@ describe( 'DropTargetRegistry', () => {
 	} );
 
 	test( '.os-window stops the walk and returns null', () => {
-
 		const reg = new DropTargetRegistry();
 		const wallpaper = document.createElement( 'div' );
 		wallpaper.id = 'wallpaper';
@@ -60,12 +59,10 @@ describe( 'DropTargetRegistry', () => {
 		} );
 
 		expect( reg.hitTest( iframe ) ).toBeNull();
-
 		expect( reg.hitTest( wallpaper )?.id ).toBe( 'wallpaper' );
 	} );
 
 	test( 'a target registered INSIDE the window claims its own region', () => {
-
 		const reg = new DropTargetRegistry();
 		const wallpaper = document.createElement( 'div' );
 		const win = document.createElement( 'div' );
@@ -115,7 +112,6 @@ describe( 'DropTargetRegistry', () => {
 		expect( reg.list().length ).toBe( 1 );
 		deregister();
 		expect( reg.list().length ).toBe( 0 );
-
 		expect( () => deregister() ).not.toThrow();
 	} );
 
@@ -126,9 +122,7 @@ describe( 'DropTargetRegistry', () => {
 			id: 'x', element: el, accept: () => true, onDrop: () => undefined,
 		} );
 		const snapshot = reg.list() as Array< unknown >;
-
 		expect( snapshot.length ).toBe( 1 );
-
 		snapshot.push( 'extra' );
 		expect( reg.list().length ).toBe( 1 );
 	} );

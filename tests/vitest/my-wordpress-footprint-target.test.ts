@@ -72,7 +72,6 @@ describe( 'footprint-target — openUserFootprintWindow', () => {
 		expect( got.userId ).toBe( 12 );
 		expect( got.userName ).toBe( 'Carol' );
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
-
 		expect( openWindow ).toHaveBeenCalledWith( WINDOW_ID, {
 			source: 'my-wordpress/open-user-footprint',
 			params: { footprint: 12, fpName: 'Carol' },
@@ -135,7 +134,6 @@ describe( 'iframe-bridge — os-open-user-footprint', () => {
 			params: { footprint: 42, fpName: 'Jane Doe' },
 		} );
 		expect( readFootprintTarget().userId ).toBe( 42 );
-
 		expect( close ).not.toHaveBeenCalled();
 	} );
 
@@ -169,7 +167,6 @@ describe( 'iframe-bridge — os-open-user-footprint', () => {
 
 describe( 'footprint-target — window-stash fallback (no shared store yet)', () => {
 	test( 'set / read round-trip via window._wpdFootprintTarget before the store exists', async () => {
-
 		vi.resetModules();
 		( window as unknown as { wp?: unknown } ).wp = {};
 		delete ( window as unknown as { _wpdFootprintTarget?: unknown } )

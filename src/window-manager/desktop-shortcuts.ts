@@ -19,7 +19,6 @@ export function switchToAdjacentDesktop(
 		return false;
 	}
 	const step = direction === 'next' ? 1 : -1;
-
 	const targetIdx = ( idx + step + desktops.length ) % desktops.length;
 	if ( targetIdx === idx ) {
 		return false;
@@ -36,7 +35,6 @@ export function cycleOverviewCursor(
 		return false;
 	}
 	const desktops = mgr.getDesktops();
-
 	const cycleLength = desktops.length + 1;
 	const ADD_INDEX = desktops.length;
 	const currentIdx = mgr._overviewAddTileFocused
@@ -108,7 +106,6 @@ export function exitShowDesktopIfActive( mgr: WindowManager ): boolean {
 	if ( ! isShowDesktopActive( mgr ) ) {
 		return false;
 	}
-
 	mgr.toggleShowDesktop();
 	return true;
 }
@@ -127,7 +124,6 @@ export function installDesktopArrowShortcuts( mgr: WindowManager ): void {
 			if ( e.ctrlKey || e.metaKey || e.altKey || e.shiftKey ) {
 				return;
 			}
-
 			if ( isMobileStamped() ) {
 				return;
 			}
@@ -159,14 +155,12 @@ export function installDesktopArrowShortcuts( mgr: WindowManager ): void {
 						: switchToAdjacentDesktop( mgr, 'next' );
 					break;
 				case 'ArrowUp':
-
 					handled =
 						exitOverviewIfActive( mgr ) ||
 						exitShowDesktopIfActive( mgr ) ||
 						toggleOverview( mgr );
 					break;
 				case 'ArrowDown':
-
 					handled = exitOverviewIfActive( mgr ) || toggleShowDesktop( mgr );
 					break;
 			}

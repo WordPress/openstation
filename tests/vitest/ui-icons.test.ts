@@ -14,7 +14,6 @@ import {
 
 describe( 'the icon set', () => {
 	test( 'is nineteen from Core and eleven of ours', () => {
-
 		expect( OS_CORE_ICON_NAMES ).toHaveLength( 19 );
 		expect( OS_OWN_ICON_NAMES ).toHaveLength( 11 );
 		expect( OS_ICON_NAMES ).toHaveLength( 30 );
@@ -22,7 +21,6 @@ describe( 'the icon set', () => {
 	} );
 
 	test( 'names the eleven that are ours', () => {
-
 		expect( [ ...OS_OWN_ICON_NAMES ].sort() ).toEqual( [
 			'apps',
 			'command',
@@ -40,7 +38,6 @@ describe( 'the icon set', () => {
 
 	test.each( OS_ICON_NAMES )( '%s paints in currentColor only', ( name ) => {
 		const markup = osIconSvg( name );
-
 		const hardcoded = markup.match(
 			/(?:fill|stroke|stop-color)\s*[=:]\s*"?\s*(#[0-9a-f]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\))/gi
 		);
@@ -51,22 +48,18 @@ describe( 'the icon set', () => {
 	} );
 
 	test.each( OS_ICON_NAMES )( '%s is on the 24x24 grid', ( name ) => {
-
 		expect( osIconSvg( name ) ).toContain( 'viewBox="0 0 24 24"' );
 	} );
 
 	test.each( OS_OWN_ICON_NAMES )( '%s keeps its stroke', ( name ) => {
-
 		expect( OS_ICONS[ name ].a ).toContain( 'stroke-width="1.5"' );
 	} );
 
 	test.each( OS_CORE_ICON_NAMES )( '%s stays filled', ( name ) => {
-
 		expect( OS_ICONS[ name ].a ).toBe( 'fill="currentColor"' );
 	} );
 
 	test( 'carries no title element', () => {
-
 		for ( const name of OS_ICON_NAMES ) {
 			expect( OS_ICONS[ name ].b ).not.toContain( '<title' );
 		}
@@ -90,21 +83,18 @@ describe( 'osIconSvg', () => {
 	} );
 
 	test( 'size null leaves the box to CSS', () => {
-
 		const markup = osIconSvg( 'close', { size: null } );
 		expect( markup ).not.toContain( 'width=' );
 		expect( markup ).not.toContain( 'height=' );
 	} );
 
 	test( 'rotation wraps rather than redrawing', () => {
-
 		const markup = osIconSvg( 'chevron-right', { rotate: 90 } );
 		expect( markup ).toContain( '<g transform="rotate(90 12 12)">' );
 		expect( markup ).toContain( OS_ICONS[ 'chevron-right' ].b );
 	} );
 
 	test( 'escapes a title and a class name', () => {
-
 		const markup = osIconSvg( 'close', {
 			title: '"><script>x</script>',
 			className: 'a"b',
@@ -114,7 +104,6 @@ describe( 'osIconSvg', () => {
 	} );
 
 	test( 'an unknown name renders nothing', () => {
-
 		expect( osIconSvg( 'not-an-icon' ) ).toBe( '' );
 		expect( osIconDataUri( 'not-an-icon' ) ).toBe( '' );
 		expect( osIconDef( 'not-an-icon' ) ).toBeNull();
@@ -123,7 +112,6 @@ describe( 'osIconSvg', () => {
 	} );
 
 	test( 'inherited object keys are not icons', () => {
-
 		expect( osIconDef( 'constructor' ) ).toBeNull();
 		expect( osIconDef( 'toString' ) ).toBeNull();
 	} );
@@ -131,7 +119,6 @@ describe( 'osIconSvg', () => {
 
 describe( 'osIcon', () => {
 	test( 'returns a parsed SVG element in the SVG namespace', () => {
-
 		const el = osIcon( 'close', { size: 16 } );
 		expect( el.namespaceURI ).toBe( 'http://www.w3.org/2000/svg' );
 		expect( el.tagName.toLowerCase() ).toBe( 'svg' );
@@ -140,7 +127,6 @@ describe( 'osIcon', () => {
 	} );
 
 	test( 'hands out a fresh element every call', () => {
-
 		expect( osIcon( 'close' ) ).not.toBe( osIcon( 'close' ) );
 	} );
 
@@ -153,7 +139,6 @@ describe( 'osIcon', () => {
 
 describe( 'osIconDataUri', () => {
 	test( 'percent-encodes rather than base64', () => {
-
 		const uri = osIconDataUri( 'spaces', { size: 32 } );
 		expect( uri.startsWith( 'data:image/svg+xml,' ) ).toBe( true );
 		expect( decodeURIComponent( uri.slice( 'data:image/svg+xml,'.length ) ) ).toBe(
@@ -162,7 +147,6 @@ describe( 'osIconDataUri', () => {
 	} );
 
 	test( 'survives the CSS url() sanitiser in os-window-button', () => {
-
 		const uri = osIconDataUri( 'window' );
 		expect( uri ).not.toMatch( /['"()\\<>\s]/ );
 	} );
@@ -191,7 +175,6 @@ describe( 'wp.os.iconSet', () => {
 	} );
 
 	test( 'cannot be reassigned by one plugin on behalf of the rest', () => {
-
 		expect( Object.isFrozen( osIconSetApi ) ).toBe( true );
 		expect( () => {
 			( osIconSetApi as { svg: unknown } ).svg = () => 'pwned';
@@ -200,7 +183,6 @@ describe( 'wp.os.iconSet', () => {
 	} );
 
 	test( 'hands out copies of its lists, not the originals', () => {
-
 		expect( Object.isFrozen( osIconSetApi.names ) ).toBe( true );
 		expect( osIconSetApi.names ).not.toBe( OS_ICON_NAMES );
 		expect( osIconSetApi.ours ).not.toBe( OS_OWN_ICON_NAMES );

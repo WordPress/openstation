@@ -13,7 +13,6 @@ function samples( count = 400 ) {
 	for ( let i = 0; i < count; i++ ) {
 		out.push( randomMioLook() );
 	}
-
 	out.push( randomMioLook( seeded( [ 0 ] ) ) );
 	out.push( randomMioLook( seeded( [ 0.999999 ] ) ) );
 	return out;
@@ -21,7 +20,6 @@ function samples( count = 400 ) {
 
 describe( 'randomMioLook', () => {
 	test( 'never rotates the silhouette', () => {
-
 		for ( const look of samples() ) {
 			expect( look.physics.shapeAngle ).toBe( 0 );
 		}
@@ -34,7 +32,6 @@ describe( 'randomMioLook', () => {
 	} );
 
 	test( 'never lands on a grey or a dim companion', () => {
-
 		for ( const look of samples() ) {
 			expect( look.appearance.saturation ).toBeGreaterThanOrEqual( 0.68 );
 			expect( look.appearance.lightness ).toBeGreaterThanOrEqual( 0.52 );
@@ -46,7 +43,7 @@ describe( 'randomMioLook', () => {
 	test( 'keeps the body dark enough for the ring to read against', () => {
 		for ( const look of samples() ) {
 			const body = look.appearance.bodyColor as number;
-
+			/* eslint-disable no-bitwise -- packed 24-bit colour. */
 			for ( const channel of [
 				( body >> 16 ) & 0xff,
 				( body >> 8 ) & 0xff,
@@ -54,13 +51,12 @@ describe( 'randomMioLook', () => {
 			] ) {
 				expect( channel ).toBeLessThan( 48 );
 			}
-
+			/* eslint-enable no-bitwise */
 			expect( look.appearance.bodyAlpha ).toBeGreaterThan( 0.7 );
 		}
 	} );
 
 	test( 'never picks a shape the shuffle would not', () => {
-
 		for ( const look of samples() ) {
 			expect( look.physics.shapePreset ).not.toBe( 'custom' );
 			expect( look.physics.shapePreset ).not.toBe( 'circle' );
@@ -75,9 +71,7 @@ describe( 'randomMioLook', () => {
 
 	test( 'leaves Mio alive but never twitchy', () => {
 		for ( const look of samples() ) {
-
 			expect( look.physics.idleWobble ).toBeGreaterThan( 0 );
-
 			expect( look.physics.idleWobble ).toBeLessThanOrEqual( 0.16 );
 			expect( look.physics.idleWobbleSpeed ).toBeLessThanOrEqual( 1.1 );
 		}
@@ -95,7 +89,6 @@ describe( 'randomMioLook', () => {
 	} );
 
 	test( 'every value survives the sanitizer unchanged', () => {
-
 		for ( const look of samples( 200 ) ) {
 			const config = sanitizeMioConfig( {
 				appearance: look.appearance,
@@ -118,7 +111,6 @@ describe( 'randomMioLook', () => {
 	} );
 
 	test( 'is driven entirely by the injected random source', () => {
-
 		const source = (): number[] => [ 0.1, 0.9, 0.42, 0.7, 0.05, 0.6 ];
 		expect( randomMioLook( seeded( source() ) ) ).toEqual(
 			randomMioLook( seeded( source() ) ),

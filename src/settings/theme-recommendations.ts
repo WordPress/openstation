@@ -18,7 +18,6 @@ const SYSTEM_DEFAULT_RECOMMENDATIONS: RecommendedOsSettings = {
 };
 
 export interface ApplyThemeRecommendationsOptions {
-
 	force?: boolean;
 }
 

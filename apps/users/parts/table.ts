@@ -3,7 +3,6 @@ import { isMobileStamped } from '../../../src/mode/stamp';
 import { applyAvatarSrc, pickAvatarUrl } from '../../../src/ui/util/avatar-resolve';
 import { makeRowActionButton } from '../../../src/ui/util/row-action-button';
 import { openUserEditWindow } from '../../../src/open-targets/user-edit-window';
-
 import '../../../src/ui/components/os-table/os-table';
 import '../../../src/ui/components/os-avatar/os-avatar';
 import '../../../src/ui/components/os-icon/os-icon';
@@ -136,6 +135,7 @@ export function openProfile( userId: number, actions: RowActions ): void {
 	openUserEditWindow( userId, {
 		source: 'users-window/row-click',
 		fallback: () => {
+			// eslint-disable-next-line no-console
 			console.error( '[openstation:desktop-mode-users] the User Edit window is not registered for this user.' );
 			actions.toast( __( 'Profile window not registered — see console.' ) );
 		},
@@ -215,7 +215,6 @@ function buildStatsCell( row: UserListItem ): HTMLElement {
 		const span = document.createElement( 'span' );
 		span.style.cssText = 'display:inline-flex;align-items:center;gap:3px;';
 		span.title = label;
-
 		const ic = document.createElement( 'os-icon' );
 		ic.setAttribute( 'name', dashicon );
 		ic.setAttribute( 'size', '14' );
@@ -258,7 +257,6 @@ function buildActionsCell( row: UserListItem, cfg: ListConfig, actions: RowActio
 		cell.style.color = MUTED;
 		return cell;
 	}
-
 	const mk = ( label: string, dashicon: string, fn: () => void ): HTMLElement => {
 		const ic = document.createElement( 'os-icon' );
 		ic.setAttribute( 'name', dashicon );
@@ -326,7 +324,6 @@ export function buildColumns(
 			render: ( _v, row ) => memo( cache, row.id, 'registered', () => timeCell( row.registered_date, '—' ) ),
 		},
 	];
-
 	if ( cfg.canEdit === true ) {
 		cols.push( {
 			key: 'actions',

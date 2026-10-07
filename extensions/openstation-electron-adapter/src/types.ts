@@ -18,12 +18,10 @@ export interface HostInfo {
 	isDesktopHost: true;
 	protocol: number;
 	platform: string;
-
 	osLabel: string;
 	appVersion: string;
 	electronVersion?: string;
 	hostId: string;
-
 	freedWindows: string[];
 }
 
@@ -72,14 +70,11 @@ export interface DesktopFrameBridge {
 	osLabel: string;
 	getWindowId(): string;
 	onReady( cb: ( windowId: string ) => void ): void;
-
 	openWindow?( req: FreeWindowRequest ): Promise< { ok: boolean; error?: string } >;
 }
 
 export interface AgentPairing {
-
 	url: string;
-
 	token?: string;
 	hasAgent: boolean;
 	osLabel?: string;
