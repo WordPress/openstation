@@ -5255,21 +5255,10 @@ function init(): void {
 				notifyPaletteVisibility( palette.id, false );
 			}
 		},
-		// Mío gets a card of its own, which switches it on the way its dock
-		// tile does, and the tour switches it back off at the end unless
-		// the user had it on already. The tour never runs on a phone,
-		// where Mío never boots.
-		mio: {
-			isOn: () => mioApi.isEnabled(),
-			turnOn: () => {
-				void mioApi.enable();
-			},
-			turnOff: () => mioApi.disable(),
-			findTile: () =>
-				document.querySelector(
-					`.os-dock__item[data-system-id="${ MIO_TILE_ID }"]`,
-				),
-		},
+		// A small drawing of Mío on every card; the companion itself is
+		// not touched. The tour never runs on a phone, where Mío never
+		// boots.
+		mio: true,
 		refreshDesktopIcons: spendMenuRefresh,
 		// The assistant is a modal with a full-screen backdrop, so its
 		// root element would be an anchor with no room beside it: the

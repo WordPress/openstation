@@ -1,14 +1,14 @@
 /**
- * The shell tour — up to six coachmarks on a user's first boot, and a
+ * The shell tour — five coachmarks on a user's first boot, and a
  * closing card after them.
  *
- * Where the menus are, how to change the layout, then the gestures
- * that make the station a station rather than a wallpaper behind
- * wp-admin: open a window, snap it, meet Mío, press ⌘K. The two opening
- * cards orient; the ones that follow each complete when the user
- * actually does the thing — a window opens, a snap commits, Mío comes
- * on, the palette opens — and every card carries an action so nobody
- * is stuck. There is no scrim: the snap card asks the user to drag a
+ * Where the menus are, how to change the layout, then the three
+ * gestures that make the station a station rather than a wallpaper
+ * behind wp-admin: open a window, snap it, press ⌘K. The two opening
+ * cards orient; the three that follow each complete when the user
+ * actually does the thing — a window opens, a snap commits, the
+ * palette opens — and every card carries an action so nobody is
+ * stuck. There is no scrim: the snap card asks the user to drag a
  * window, so the desk has to be live underneath.
  *
  * ## Quiet on purpose
@@ -18,9 +18,8 @@
  * is selected, and a ring of the same colour around it marked nothing.
  * The only colour the tour brings is Mío, small, peeking over the top
  * of each card and looking at the thing it is about. Mío on the card is
- * a drawing, not the companion: the companion is switched on by the
- * Meet Mío card, and switched back off at the end for a user who did
- * not have it on before.
+ * a drawing, not the companion: the tour neither switches the
+ * companion on nor summons it, and leaves the user's choice alone.
  *
  * ## It takes its entry points, not the shell
  *
@@ -66,9 +65,6 @@ export { SHELL_TOUR_INTRO_SLUG, SHELL_TOUR_START_EVENT };
 
 /** Hook namespace for the step listeners. */
 const NS = 'openstation/shell-tour';
-
-/** What the Mío controller fires when the companion comes on, by any route. */
-const MIO_ENABLED = 'os.mio.enabled';
 
 /**
  * Where step 1 points. The Posts tile by its dock id (the classic
@@ -146,27 +142,12 @@ export interface ShellTourDeps {
 	/** Closes the assistant palette. */
 	closePalette: () => void;
 	/**
-	 * Mío, on this desk. Optional: without it the cards carry no Mío and
-	 * there is no Meet Mío card.
-	 *
-	 * `isOn` is asked at the start, where a user who already keeps Mío
-	 * is not offered it, and again on arriving at the card, in case they
-	 * switched it on from the dock in the meantime. `turnOn` switches the
-	 * companion on the way the dock tile does; the card completes on the
-	 * `os.mio.enabled` action, whichever of the two did it. `findTile` is
-	 * the dock tile the card points at, null when the user has hidden it.
-	 *
-	 * `turnOff` is the tidy-up: a Mío that was off when the tour began is
-	 * off again when it ends, like the windows the tour opened. The card
-	 * is a demonstration, not a decision; the dock tile is where the
-	 * user makes that one.
+	 * Whether Mío lives on this desk. True puts the small drawing of it
+	 * on every card; the companion itself is never touched. Absent or
+	 * false (the phone layer, a build without Mío) leaves the cards
+	 * plain.
 	 */
-	mio?: {
-		isOn: () => boolean;
-		turnOn: () => void;
-		turnOff: () => void;
-		findTile: () => Element | null;
-	};
+	mio?: boolean;
 	/**
 	 * Rebuild the desktop icons from a fresh payload. The relaunch icon
 	 * is a server registration, so this is how it appears after a skip
@@ -186,7 +167,7 @@ export interface ShellTourDeps {
 export type ShellTourEndReason = 'done' | 'skip' | 'escape' | 'restart' | 'teardown';
 
 export interface ShellTourHandle {
-	/** Zero-based index of the current card (the last is the closing card). */
+	/** Zero-based index of the current card (5 is the closing card). */
 	readonly step: number;
 	end( reason: ShellTourEndReason ): void;
 }
@@ -196,7 +177,7 @@ export interface ShellTourHandle {
  * have to be renumbered every time a card moves, silently pointing a
  * signal at the wrong step; a name cannot drift.
  */
-type StepId = 'menus' | 'layout' | 'open-window' | 'snap' | 'mio' | 'palette' | 'done';
+type StepId = 'menus' | 'layout' | 'open-window' | 'snap' | 'palette' | 'done';
 
 interface StepDef {
 	id: StepId;
@@ -321,13 +302,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	mark.className = 'os-shell-tour';
 	// The tail does the pointing; what it points at keeps its own look.
 	mark.setAttribute( 'highlight', 'none' );
-	const mio = deps.mio ?? null;
-	const peek = mio ? mioPeek() : null;
-	// Whether Mío was the user's choice before the tour. The Meet Mío
-	// card switches it on to show it; the tidy-up switches it back off
-	// unless it was on already, so a first run leaves the desk as it
-	// found it.
-	const mioWasOn = mio ? mio.isOn() : true;
+	const peek = deps.mio ? mioPeek() : null;
 	( deps.host ?? document.body ).appendChild( mark );
 
 	let index = 0;
@@ -366,7 +341,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	const openedByTour = new Set< string >();
 	let ended = false;
 
-	const allSteps: StepDef[] = [
+	const steps: StepDef[] = [
 		{
 			id: 'menus',
 			heading: __( 'All your menu items are here' ),
@@ -487,26 +462,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			},
 		},
 		{
-			// Before the palette card, not after it: the assistant that card
-			// opens is a modal whose backdrop covers the dock, tile and all.
-			id: 'mio',
-			heading: __( 'Meet Mío' ),
-			body: () => [
-				paragraph(
-					__( 'Mío is a small companion for your desk. Have a look now; when the tour is over, this dock tile is where you switch it on and off.' ),
-				),
-			],
-			primary: __( 'Turn on Mío' ),
-			secondary: __( 'Skip tour' ),
-			anchor: () => mio?.findTile() ?? null,
-			doIt: () => {
-				// Persisted as the user's choice, the same as a click on the
-				// tile; `os.mio.enabled` advances the step when it fires.
-				mio?.turnOn();
-				return false;
-			},
-		},
-		{
 			id: 'palette',
 			heading: __( 'Find anything' ),
 			body: () => {
@@ -556,8 +511,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			doIt: () => true,
 		},
 	];
-	// No Mío card for a desk without Mío, or for someone who already keeps it on.
-	const steps = allSteps.filter( ( step ) => 'mio' !== step.id || ( !! mio && ! mio.isOn() ) );
 	const TOTAL = steps.length - 1;
 
 	const paint = (): void => {
@@ -631,11 +584,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			return;
 		}
 		index += 1;
-		// Switched on from the dock while the tour was on an earlier card:
-		// there is nothing left for this one to offer.
-		if ( 'mio' === steps[ index ]?.id && mio?.isOn() && index < TOTAL ) {
-			index += 1;
-		}
 		if ( 'snap' === steps[ index ]?.id ) {
 			// A window already against that edge would not move, and a
 			// card whose "Do it for me" changes nothing reads as broken.
@@ -675,16 +623,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			}
 		}
 		openedByTour.clear();
-		// The Meet Mío card put the companion on screen to show it; a
-		// user who did not have it before gets their desk back without
-		// it. Whoever keeps Mío on keeps it.
-		if ( mio && ! mioWasOn && mio.isOn() ) {
-			try {
-				mio.turnOff();
-			} catch {
-				/* same */
-			}
-		}
 	};
 
 	const handle: ShellTourHandle = {
@@ -700,7 +638,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			removeAction( HOOKS.WINDOW_OPENED, NS );
 			removeAction( HOOKS.WINDOW_REOPENED, NS );
 			removeAction( HOOKS.SNAP_ZONE_COMMITTED, NS );
-			removeAction( MIO_ENABLED, NS );
 			// Let the coachmark fade out and hand focus back before the
 			// node goes; removing it sooner cuts the fade short.
 			mark.removeAttribute( 'open' );
@@ -756,12 +693,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	);
 	addAction( HOOKS.SNAP_ZONE_COMMITTED, NS, () => {
 		if ( 'snap' === steps[ index ]?.id ) {
-			advance();
-		}
-	} );
-	// The tile and "Turn on Mío" both land here, so either completes it.
-	addAction( MIO_ENABLED, NS, () => {
-		if ( 'mio' === steps[ index ]?.id ) {
 			advance();
 		}
 	} );

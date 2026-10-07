@@ -409,108 +409,22 @@ describe( 'shell tour', () => {
 		expect( mark().anchor ).toBe( section );
 	} );
 
-	/** A Mío on this desk, off until something turns it on. */
-	const fakeMio = ( on = false ) => {
-		const tile = document.createElement( 'div' );
-		document.body.appendChild( tile );
-		const mio = {
-			on,
-			isOn: () => mio.on,
-			// What the controller does: switch on, then fire the action.
-			turnOn: vi.fn( () => {
-				mio.on = true;
-				hooks.doAction( 'os.mio.enabled', {} );
-			} ),
-			turnOff: vi.fn( () => {
-				mio.on = false;
-			} ),
-			findTile: () => tile,
-		};
-		return { mio, tile };
-	};
-	/** From 'Open a window' to the card after the snap. */
-	const openAndSnap = ( id: string ): void => {
-		const win = fakeWindow( id );
-		windows.set( id, win );
-		hooks.doAction( HOOKS.WINDOW_OPENED, { windowId: id } );
-		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, { windowId: id, zone: 'left' } );
-	};
-
-	test( 'Mío peeks over every card, and its own card switches it on for real', async () => {
-		const { mio, tile } = fakeMio();
-		deps.mio = mio;
+	test( 'Mío peeks over every card, as a drawing: the companion is never touched', async () => {
+		deps.mio = true;
 		startShellTour( deps );
 		await settle();
 		// Pointing with the tail, leaving the target's own look alone.
 		expect( mark().getAttribute( 'highlight' ) ).toBe( 'none' );
 		expect( mark().querySelector( '[slot="peek"]' ) ).not.toBeNull();
-		expect( mark().getAttribute( 'total' ) ).toBe( '6' );
+		expect( mark().getAttribute( 'total' ) ).toBe( '5' );
 
 		skipIntroCards();
 		// Still there on later cards: the body is replaced, the peek is not.
 		expect( mark().querySelector( '[slot="peek"]' ) ).not.toBeNull();
-		openAndSnap( 'w7' );
-		expect( mark().getAttribute( 'heading' ) ).toBe( 'Meet Mío' );
-		expect( mark().anchor ).toBe( tile );
-
-		primary().click();
-		expect( mio.turnOn ).toHaveBeenCalledTimes( 1 );
-		expect( mark().getAttribute( 'heading' ) ).toBe( 'Find anything' );
-
-		// Mío was off before the tour, so the tidy-up at the end puts it
-		// away again with the windows the tour opened.
-		document.dispatchEvent( new CustomEvent( 'os-palette-opened', { detail: { id: 'x' } } ) );
-		primary().click();
-		expect( isShellTourRunning() ).toBe( false );
-		expect( mio.turnOff ).toHaveBeenCalledTimes( 1 );
-		expect( mio.on ).toBe( false );
+		expect( hooks.didAction( 'os.mio.enabled' ) ).toBe( 0 );
 	} );
 
-	test( 'a skip after Meet Mío puts Mío away too; a Mío the user already kept stays on', async () => {
-		const { mio } = fakeMio();
-		deps.mio = mio;
-		startShellTour( deps );
-		await settle();
-		skipIntroCards();
-		openAndSnap( 'w9' );
-		primary().click();
-		expect( mio.on ).toBe( true );
-		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.secondary' )!.click();
-		expect( mio.turnOff ).toHaveBeenCalledTimes( 1 );
-		mark().remove();
-
-		const kept = fakeMio( true ).mio;
-		deps.mio = kept;
-		startShellTour( deps );
-		await settle();
-		mark().shadowRoot!.querySelector< HTMLElement >( 'os-button.secondary' )!.click();
-		expect( kept.turnOff ).not.toHaveBeenCalled();
-		expect( kept.on ).toBe( true );
-	} );
-
-	test( 'no Mío card for someone who keeps Mío on, or turns it on from the dock first', async () => {
-		deps.mio = fakeMio( true ).mio;
-		startShellTour( deps );
-		await settle();
-		expect( mark().getAttribute( 'total' ) ).toBe( '5' );
-		endShellTour();
-		// Still fading out; the next run's card is the one to click.
-		mark().remove();
-
-		const { mio } = fakeMio();
-		deps.mio = mio;
-		startShellTour( deps );
-		await settle();
-		skipIntroCards();
-		// The dock tile, clicked while the tour is on another card.
-		mio.on = true;
-		hooks.doAction( 'os.mio.enabled', {} );
-		expect( mark().getAttribute( 'heading' ) ).toBe( 'Open a window' );
-		openAndSnap( 'w8' );
-		expect( mark().getAttribute( 'heading' ) ).toBe( 'Find anything' );
-	} );
-
-	test( 'without a Mío on this desk there is no Mío on the cards and no Mío card', async () => {
+	test( 'without a Mío on this desk there is no Mío on the cards', async () => {
 		startShellTour( deps );
 		await settle();
 		expect( mark().querySelector( '[slot="peek"]' ) ).toBeNull();
