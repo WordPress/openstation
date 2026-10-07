@@ -1,6 +1,6 @@
 /**
- * The shell tour — up to six coachmarks, most of which advance on the
- * real events.
+ * The shell tour — five coachmarks, three of which advance on the real
+ * events.
  *
  * Pins the contract the tour exists for: the two opening cards orient
  * and step on click, a gesture step completes when the user does the
