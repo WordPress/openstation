@@ -105,6 +105,51 @@ function openstation_ai_ability_tool_name( $ability_name ) {
 }
 
 /**
+ * Maps abilities to model-facing tool names that are unique within one
+ * request.
+ *
+ * Stripping the namespace means two plugins can land on the same name
+ * (`desktop-mode/get-site-context` and `acme/get-site-context`), and
+ * providers reject the whole request when tool names repeat ("Tool names
+ * must be unique"). OpenStation's own abilities claim their bare names
+ * first, because the system prompt and progress labels refer to those.
+ * Any later ability whose bare name is taken keeps its namespace
+ * (`acme_get_site_context`) so it stays callable; one that still
+ * collides is dropped.
+ *
+ * @param string[] $ability_names Fully-namespaced ability names.
+ * @return array<string,string> Tool name => ability name, own abilities first.
+ */
+function openstation_ai_unique_ability_tool_names( array $ability_names ) {
+	$own    = array();
+	$others = array();
+	foreach ( $ability_names as $ability_name ) {
+		$ability_name = (string) $ability_name;
+		if ( 0 === strpos( $ability_name, 'desktop-mode/' ) ) {
+			$own[] = $ability_name;
+		} else {
+			$others[] = $ability_name;
+		}
+	}
+
+	$map = array();
+	foreach ( array_merge( $own, $others ) as $ability_name ) {
+		$candidates = array(
+			openstation_ai_ability_tool_name( $ability_name ),
+			openstation_ai_ability_tool_name( str_replace( '/', '_', $ability_name ) ),
+		);
+		foreach ( $candidates as $tool_name ) {
+			if ( '' !== $tool_name && ! isset( $map[ $tool_name ] ) ) {
+				$map[ $tool_name ] = $ability_name;
+				break;
+			}
+		}
+	}
+
+	return $map;
+}
+
+/**
  * Permission callback: any logged-in user who can read the site.
  *
  * Mirrors the read-only search/navigation tools, which were ungated beyond the

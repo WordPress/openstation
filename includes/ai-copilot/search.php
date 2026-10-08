@@ -1155,13 +1155,14 @@ The message field is always a friendly sentence or two shown directly to the use
 	$ability_by_tool = array();
 	$builtin_tools   = array();
 
-	foreach ( openstation_ai_search_ability_names() as $ability_name ) {
+	// Names are de-duplicated across namespaces up front: providers 400 the
+	// whole request when two tools share a name.
+	foreach ( openstation_ai_unique_ability_tool_names( openstation_ai_search_ability_names() ) as $tool_name => $ability_name ) {
 		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
 		if ( ! $ability instanceof WP_Ability ) {
 			continue;
 		}
 
-		$tool_name                     = openstation_ai_ability_tool_name( $ability_name );
 		$ability_by_tool[ $tool_name ] = $ability_name;
 		$valid_tools[]                 = $tool_name;
 
@@ -1291,6 +1292,23 @@ The message field is always a friendly sentence or two shown directly to the use
 			$tools[ $ti ]['parameters'] = openstation_ai_normalize_tool_schema( $tool['parameters'] );
 		}
 	}
+
+	// Backstop for the unique-name rule: a filter can inject a tool twice, or
+	// a command tool can shadow an ability named `command_*`. Providers reject
+	// the whole request over one repeat, so keep the first tool of each name.
+	$seen_tool_names = array();
+	foreach ( $tools as $ti => $tool ) {
+		$name = is_array( $tool ) && isset( $tool['name'] ) ? (string) $tool['name'] : '';
+		if ( '' === $name ) {
+			continue;
+		}
+		if ( isset( $seen_tool_names[ $name ] ) ) {
+			unset( $tools[ $ti ] );
+			continue;
+		}
+		$seen_tool_names[ $name ] = true;
+	}
+	$tools = array_values( $tools );
 
 	// Widen the permitted-tools list with the command tools — the agent loop
 	// rejects any `function_call` whose name isn't in here (built-in ability

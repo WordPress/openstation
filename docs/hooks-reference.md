@@ -2522,6 +2522,8 @@ apply_filters( 'openstation_ai_request', array $extra, array $core );
 
 Transforms the full tool list (built-in ability tools + client commands) once per run, just before it goes to the provider. Add tools, remove tools, rewrite descriptions. (To add a server-dispatched tool, register a read-only ability — see "Extending the Copilot's tools" below.)
 
+Tool names must be unique, because providers reject the whole request when one repeats. If the filtered list still contains a duplicate name, the first tool with that name is kept and the rest are dropped.
+
 ```php
 apply_filters( 'openstation_ai_tools', array $tools, array $context );
 ```
@@ -2587,7 +2589,7 @@ do_action( 'openstation_ai_search_started', array $context );
 
 ### `openstation_ai_tool_called` — Stable
 
-Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped.
+Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`).
 
 ```php
 do_action( 'openstation_ai_tool_called', array $payload );
