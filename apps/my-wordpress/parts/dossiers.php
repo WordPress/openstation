@@ -239,10 +239,21 @@ function sub( Os $os, array $section, $id, $relation ) {
 		case 'revisions':
 			$label = __( 'Revisions', 'desktop-mode' );
 			foreach ( wp_get_post_revisions( $id ) as $revision ) {
+				// A grid of identical clock icons, each labelled with
+				// Core's whole "author, 2 days ago (October 6, 2026 @
+				// 09:22:49)" sentence, told revisions apart by nothing
+				// a glance could catch. The author's face is the
+				// picture, the label is just "2 days ago", and the
+				// author and exact date ride in the tooltip.
+				$facts  = revision_facts( $revision );
 				$rows[] = array(
 					'id'       => (int) $revision->ID,
-					'title'    => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ), // Core leads with an avatar <img>; the client prints a title as text.
-					'subtitle' => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $revision->post_author ) ),
+					'title'    => $facts['autosave']
+						/* translators: %s: how long ago, e.g. "2 days ago". */
+						? sprintf( __( '%s · Autosave', 'desktop-mode' ), $facts['ago'] )
+						: $facts['ago'],
+					'subtitle' => $facts['author'] . ' · ' . $facts['date'],
+					'thumb'    => $facts['avatar'],
 					'icon'     => 'dashicons-backup',
 					'editUrl'  => current_user_can( 'edit_post', $id )
 						? admin_url( 'revision.php?revision=' . (int) $revision->ID )
@@ -257,6 +268,31 @@ function sub( Os $os, array $section, $id, $relation ) {
 	return array(
 		'label' => $label,
 		'rows'  => $rows,
+	);
+}
+
+/**
+ * The facts a revision is told apart by: who saved it, how long ago,
+ * the exact moment, whether it was an autosave, and the author's face.
+ *
+ * A revision whose author was deleted keeps a dangling `post_author`;
+ * it reads "Unknown author" rather than Core's leading ", 3 weeks ago".
+ *
+ * @param \WP_Post $revision Revision post.
+ * @return array{author: string, ago: string, date: string, autosave: bool, avatar: string}
+ */
+function revision_facts( $revision ) {
+	$author_id = (int) $revision->post_author;
+	$author    = $author_id ? (string) get_the_author_meta( 'display_name', $author_id ) : '';
+	$saved_gmt = (int) get_post_modified_time( 'U', true, $revision );
+
+	return array(
+		'author'   => '' !== $author ? openstation_plain_text_title( $author ) : __( 'Unknown author', 'desktop-mode' ),
+		/* translators: %s: human-readable time difference, e.g. "2 days". */
+		'ago'      => sprintf( __( '%s ago', 'desktop-mode' ), human_time_diff( $saved_gmt ) ),
+		'date'     => (string) wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $saved_gmt ),
+		'autosave' => (bool) wp_is_post_autosave( $revision ),
+		'avatar'   => '' !== $author ? (string) get_avatar_url( $author_id, array( 'size' => 128 ) ) : '',
 	);
 }
 
@@ -352,10 +388,20 @@ function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 			if ( ! $revision || (int) $revision->post_parent !== (int) $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
 				return null;
 			}
+			$facts = revision_facts( $revision );
 			return array(
 				'kind'    => 'revision',
-				'title'   => openstation_plain_text_title( wp_post_revision_title_expanded( $revision, false ) ), // Same as the row title: no avatar <img>.
-				'author'  => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $revision->post_author ) ),
+				// Plain text, built from the same facts as the tile: Core's
+				// expanded title leads with an avatar <img> and, for a
+				// deleted author, with a stray ", ".
+				'title'   => sprintf(
+					/* translators: 1: author name, 2: how long ago, 3: exact date. */
+					__( '%1$s, %2$s (%3$s)', 'desktop-mode' ),
+					$facts['author'],
+					$facts['ago'],
+					$facts['date']
+				),
+				'author'  => $facts['author'],
 				'date'    => (string) get_the_date( '', $revision ) . ' ' . get_the_time( '', $revision ),
 				'content' => wp_kses_post( (string) apply_filters( 'the_content', (string) $revision->post_content ) ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own content pipeline.
 			);
