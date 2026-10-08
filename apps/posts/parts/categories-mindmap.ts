@@ -497,6 +497,24 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			buildTree();
 			camera.fitToView( treeBounds(), { animate: true } );
 		},
+		termsReloaded: () => {
+			// Another window recategorised a post or edited a term. Same
+			// rebuild as `countsChanged`, but the camera stays put: the
+			// user is looking at this window while the other one saves.
+			for ( const t of canvas.terms ) {
+				const node = nodes.get( t.id );
+				if ( node && node.count !== t.count ) {
+					node.count = t.count;
+					chips.relayout( node );
+				}
+			}
+			buildTree();
+			// The editor shows the focused term's count; repainting it
+			// would wipe a half-typed name or an open new-category draft.
+			if ( draft === null && ! canvas.sidebar.contains( document.activeElement ) ) {
+				paintSidebar( sidebarHost );
+			}
+		},
 		dragging: () => dragNode !== null,
 		pointerMove: ( _ev, cursorWorld ) => {
 			if ( ! dragNode ) {
