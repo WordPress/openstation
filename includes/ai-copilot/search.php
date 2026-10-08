@@ -1355,7 +1355,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		'request_id' => $request_id,
 	);
 
-	$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
+	$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
 
 	if ( is_wp_error( $turn ) ) {
 		return $turn;
@@ -1389,86 +1389,98 @@ The message field is always a friendly sentence or two shown directly to the use
 	};
 	$accrue_usage( $turn );
 
+	// Turns a toolless model turn into the final response. Shared by the
+	// loop and the wrap-up turn below, so both answer the same way.
+	$finish = static function ( $answer_turn, $continue ) use ( $query, $user_id, $request_id, &$iterations, &$last_has_more, &$total_usage, &$last_model ) {
+		// A toolless turn with no extractable text never reaches here:
+		// openstation_ai_client_generate() returns
+		// `openstation_ai_empty_answer` for that case, handled with the
+		// other generation errors above.
+		$text = (string) ( $answer_turn['text'] ?? '' );
+
+		$answer = json_decode( $text, true );
+		if ( ! is_array( $answer ) ) {
+			return new WP_Error( 'openstation_ai_result_parse', __( 'Could not parse structured search answer.', 'desktop-mode' ) );
+		}
+
+		$answer_type = isset( $answer['answer_type'] ) && in_array( $answer['answer_type'], array( 'entity', 'navigation', 'chat' ), true )
+			? (string) $answer['answer_type']
+			: 'chat';
+		$message     = isset( $answer['message'] ) ? (string) $answer['message'] : '';
+		$entity_id   = ( isset( $answer['entity_id'] ) && is_int( $answer['entity_id'] ) )
+			? $answer['entity_id'] : null;
+		$entity_type = ( isset( $answer['entity_type'] ) && is_string( $answer['entity_type'] ) )
+			? $answer['entity_type'] : null;
+		$admin_links = isset( $answer['admin_links'] ) && is_array( $answer['admin_links'] )
+			? $answer['admin_links'] : null;
+
+		$entity = null;
+		if ( 'entity' === $answer_type && $entity_id && $entity_type ) {
+			$entity = openstation_ai_search_build_entity( $entity_type, $entity_id );
+		}
+
+		$final = array(
+			'answer_type' => $answer_type,
+			'message'     => $message,
+			'entity'      => $entity,
+			'admin_links' => $admin_links,
+			'iterations'  => $iterations + 1,
+			'exhausted'   => ! $last_has_more,
+			'continue'    => $continue,
+			'request_id'  => $request_id,
+		);
+
+		/**
+		 * Final transform hook — fires right before the HTTP
+		 * response is returned. Plugins can rewrite `message`,
+		 * inject `admin_links`, coerce `answer_type`, etc.
+		 *
+		 * @param array $answer  Final answer payload.
+		 * @param array $context { query, user_id, request_id }.
+		 */
+		$final = (array) apply_filters(
+			'openstation_ai_answer',
+			$final,
+			array(
+				'query'      => $query,
+				'user_id'    => $user_id,
+				'request_id' => $request_id,
+			)
+		);
+
+		do_action(
+			'openstation_ai_search_completed',
+			array(
+				'query'       => $query,
+				'user_id'     => $user_id,
+				'request_id'  => $request_id,
+				'answer_type' => $final['answer_type'] ?? 'chat',
+				'iterations'  => $final['iterations'] ?? 0,
+				'usage'       => $total_usage,
+				'model'       => $last_model,
+			)
+		);
+
+		return $final;
+	};
+
+	// Every tool result, so a run that ends without an answer can still be
+	// answered from what it found (see the wrap-up turn after the loop).
+	$gathered = array();
+
 	// -----------------------------------------------------------------------
 	// Agentic loop — each iteration either executes tool calls or returns
 	// the final answer. The full ordered conversation (user query, assistant
 	// turns, tool results) is accumulated in $messages and re-sent each turn.
 	// -----------------------------------------------------------------------
-	for ( $i = 0; $i < OPENSTATION_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
+	// `<=`: the last round's results produce one more turn, and that turn
+	// may be the answer. With `<` it was generated and never read.
+	for ( $i = 0; $i <= OPENSTATION_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
 		$function_calls = is_array( $turn['function_calls'] ?? null ) ? $turn['function_calls'] : array();
 
 		// No tool calls in this response → final answer.
 		if ( empty( $function_calls ) ) {
-			// A toolless turn with no extractable text never reaches here:
-			// openstation_ai_client_generate() returns
-			// `openstation_ai_empty_answer` for that case, handled with the
-			// other generation errors above.
-			$text = (string) ( $turn['text'] ?? '' );
-
-			$answer = json_decode( $text, true );
-			if ( ! is_array( $answer ) ) {
-				return new WP_Error( 'openstation_ai_result_parse', __( 'Could not parse structured search answer.', 'desktop-mode' ) );
-			}
-
-			$answer_type = isset( $answer['answer_type'] ) && in_array( $answer['answer_type'], array( 'entity', 'navigation', 'chat' ), true )
-				? (string) $answer['answer_type']
-				: 'chat';
-			$message     = isset( $answer['message'] ) ? (string) $answer['message'] : '';
-			$entity_id   = ( isset( $answer['entity_id'] ) && is_int( $answer['entity_id'] ) )
-				? $answer['entity_id'] : null;
-			$entity_type = ( isset( $answer['entity_type'] ) && is_string( $answer['entity_type'] ) )
-				? $answer['entity_type'] : null;
-			$admin_links = isset( $answer['admin_links'] ) && is_array( $answer['admin_links'] )
-				? $answer['admin_links'] : null;
-
-			$entity = null;
-			if ( 'entity' === $answer_type && $entity_id && $entity_type ) {
-				$entity = openstation_ai_search_build_entity( $entity_type, $entity_id );
-			}
-
-			$final = array(
-				'answer_type' => $answer_type,
-				'message'     => $message,
-				'entity'      => $entity,
-				'admin_links' => $admin_links,
-				'iterations'  => $iterations + 1,
-				'exhausted'   => ! $last_has_more,
-				'continue'    => null,
-				'request_id'  => $request_id,
-			);
-
-			/**
-			 * Final transform hook — fires right before the HTTP
-			 * response is returned. Plugins can rewrite `message`,
-			 * inject `admin_links`, coerce `answer_type`, etc.
-			 *
-			 * @param array $answer  Final answer payload.
-			 * @param array $context { query, user_id, request_id }.
-			 */
-			$final = (array) apply_filters(
-				'openstation_ai_answer',
-				$final,
-				array(
-					'query'      => $query,
-					'user_id'    => $user_id,
-					'request_id' => $request_id,
-				)
-			);
-
-			do_action(
-				'openstation_ai_search_completed',
-				array(
-					'query'       => $query,
-					'user_id'     => $user_id,
-					'request_id'  => $request_id,
-					'answer_type' => $final['answer_type'] ?? 'chat',
-					'iterations'  => $final['iterations'] ?? 0,
-					'usage'       => $total_usage,
-					'model'       => $last_model,
-				)
-			);
-
-			return $final;
+			return $finish( $turn, null );
 		}
 
 		// -------------------------------------------------------------------
@@ -1540,6 +1552,12 @@ The message field is always a friendly sentence or two shown directly to the use
 			);
 
 			return $final;
+		}
+
+		// Out of rounds: the model still wants tools. The wrap-up turn after
+		// the loop answers from what it has gathered instead.
+		if ( $i >= OPENSTATION_AI_SEARCH_MAX_ITERATIONS ) {
+			break;
 		}
 
 		// Execute each tool call and collect results as
@@ -1638,6 +1656,11 @@ The message field is always a friendly sentence or two shown directly to the use
 				'name'     => $tool_name,
 				'response' => $batch,
 			);
+			$gathered[]     = array(
+				'tool'   => $tool_name,
+				'args'   => $args,
+				'result' => $batch,
+			);
 		}
 
 		++$iterations;
@@ -1647,7 +1670,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		$messages[] = $turn['message'];
 		$messages[] = openstation_ai_tool_result_message( $tool_outputs );
 
-		$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
+		$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
 
 		if ( is_wp_error( $turn ) ) {
 			return $turn;
@@ -1671,6 +1694,31 @@ The message field is always a friendly sentence or two shown directly to the use
 			'offset'      => $next_offset,
 			'label'       => openstation_ai_continue_label( $resume_tool, $next_offset + 1 ),
 		);
+	}
+
+	// Wrap-up turn: answer from everything the run found. Without it, a model
+	// that kept refining after a first search had already hit (e.g. searched
+	// "performance", got the posts, then searched "direct") threw all of it
+	// away for the stock "couldn't find" message. A fresh conversation with
+	// no tools, because providers reject tool-call history with no tools.
+	if ( ! empty( $gathered ) ) {
+		$wrap_up = openstation_ai_search_generate(
+			$user_id,
+			array( openstation_ai_user_text_message( openstation_ai_search_wrap_up_prompt( $query, $gathered ) ) ),
+			array(),
+			$answer_schema,
+			$instructions,
+			array_merge( $generation_context, array( 'source' => 'ai-copilot/search-wrap-up' ) )
+		);
+		if ( ! is_wp_error( $wrap_up ) ) {
+			$accrue_usage( $wrap_up );
+			if ( empty( $wrap_up['function_calls'] ) ) {
+				$answer = $finish( $wrap_up, $continue );
+				if ( ! is_wp_error( $answer ) ) {
+					return $answer;
+				}
+			}
+		}
 	}
 
 	$final = array(
@@ -1712,6 +1760,71 @@ The message field is always a friendly sentence or two shown directly to the use
 	);
 
 	return $final;
+}
+
+/**
+ * Runs one generation turn of the search loop.
+ *
+ * A thin pass-through to {@see openstation_ai_client_generate()} with a
+ * pre-filter in front, so tests (and alternative runtimes) can script the
+ * model's turns. Mirrors `openstation_agent_runner_generate`.
+ *
+ * @param int        $user_id       Requesting user id.
+ * @param array      $messages      Ordered conversation as SDK Message objects.
+ * @param array      $tools         Tool definitions; empty on the wrap-up turn.
+ * @param array|null $answer_schema JSON Schema for the final answer.
+ * @param string     $instructions  System instruction.
+ * @param array      $context       `{ source, request_id }`.
+ * @return array|WP_Error Same shape as openstation_ai_client_generate().
+ */
+function openstation_ai_search_generate( $user_id, array $messages, array $tools, $answer_schema, $instructions, array $context ) {
+	/**
+	 * Pre-filter one search generation turn. Return a non-null
+	 * `{ text, function_calls, message, usage, model }` array (or a
+	 * WP_Error) to short-circuit the Core AI Client.
+	 *
+	 * @param array|WP_Error|null $generated Null to proceed with the AI Client.
+	 * @param array               $messages  Ordered conversation.
+	 * @param array               $tools     Tool definitions; empty on the wrap-up turn.
+	 * @param array               $context   `{ source, request_id }`. `source` is
+	 *                                       `ai-copilot/search-wrap-up` on the wrap-up turn.
+	 * @param int                 $user_id   Requesting user id.
+	 */
+	$generated = apply_filters( 'openstation_ai_search_generate', null, $messages, $tools, $context, (int) $user_id );
+	if ( null !== $generated ) {
+		return $generated;
+	}
+	return openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $context );
+}
+
+/**
+ * The single user message for the search wrap-up turn.
+ *
+ * Carries the user's request and every tool result the run gathered, so a
+ * toolless turn can answer from them. Large runs are cut from the oldest
+ * end: the latest results are the ones the model was refining toward.
+ *
+ * @param string $query    The user's request.
+ * @param array  $gathered `[ { tool, args, result } ]` in call order.
+ * @return string
+ */
+function openstation_ai_search_wrap_up_prompt( $query, array $gathered ) {
+	$budget  = 60000;
+	$entries = array();
+	foreach ( array_reverse( $gathered ) as $entry ) {
+		$json = (string) wp_json_encode( $entry );
+		if ( $budget - strlen( $json ) < 0 && ! empty( $entries ) ) {
+			break;
+		}
+		$budget   -= strlen( $json );
+		$entries[] = $json;
+	}
+
+	return sprintf(
+		"The user asked: %s\n\nYour searches are done and no tools are available now. These are the results they returned:\n%s\n\nAnswer the user's request from these results, using the answer format. If one item fits, return it as \"entity\"; if several fit, return up to 3 as \"navigation\" links built from their edit_url. Only say you found nothing if none of these results fit.",
+		$query,
+		implode( "\n", array_reverse( $entries ) )
+	);
 }
 
 /**

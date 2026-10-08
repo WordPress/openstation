@@ -2587,6 +2587,27 @@ do_action( 'openstation_ai_search_started', array $context );
 
 `phase` is `'follow_up'` when the event fires for the second leg of the agentic command-dispatch flow (triggered by the client sending `ask( q, { followUp: true } )`). Omitted on the primary leg.
 
+### `openstation_ai_search_generate` — Experimental *(filter)*
+
+Pre-filter for one generation turn of the Copilot search loop
+(`POST /ai/search`). Return a non-null
+`{ text, function_calls, message, usage, model }` array (or a
+`WP_Error`) to short-circuit the Core AI Client — the seam PHPUnit and
+alternative runtimes plug into. Mirrors `openstation_agent_runner_generate`.
+
+A run that uses all of its tool rounds without answering ends with one
+**wrap-up turn**: a fresh conversation carrying the request and every
+tool result the run gathered, with no tools offered, so the model answers
+from what it found. That turn arrives with an empty `$tools` and
+`$context['source'] === 'ai-copilot/search-wrap-up'`. If it fails, the
+run falls back to the "couldn't find a clear match" answer.
+
+- **Param** `array|WP_Error|null $generated` — null to proceed with the AI Client.
+- **Param** `array $messages` — ordered conversation (SDK `Message` objects).
+- **Param** `array $tools` — tool definitions; empty on the wrap-up turn.
+- **Param** `array $context` — `{ source, request_id }`.
+- **Param** `int $user_id`
+
 ### `openstation_ai_tool_called` — Stable
 
 Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`).
