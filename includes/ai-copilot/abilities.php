@@ -198,7 +198,7 @@ function openstation_ai_register_abilities() {
 		'properties'           => array(
 			'query'  => array(
 				'type'        => 'string',
-				'description' => 'Keyword search terms matched against the title and content (WordPress native search). Distil the user\'s request to the essential nouns — e.g. for "that post I wrote about making paella" pass "paella". Avoid stop-words and full sentences. Pass an empty string to list the newest items with no keyword filter — the right call for questions about who, how many or the latest, rather than about particular words.',
+				'description' => 'Keyword search terms matched against the title and content (WordPress native search). Distil the user\'s request to the essential nouns — e.g. for "that post I wrote about making paella" pass "paella". Avoid stop-words and full sentences. An empty string lists everything, newest first — only for questions about who, how many or the latest, never to look for a topic.',
 			),
 			'offset' => array(
 				'type'        => 'integer',
@@ -254,7 +254,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/search-posts',
 		array(
 			'label'               => __( 'Search posts', 'desktop-mode' ),
-			'description'         => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article: pass the key search terms as `query`. Pass an empty `query` to list the newest posts (`total` is the full count). Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
+			'description'         => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article: pass the key search terms as `query`. Only for listing or counting questions ("how many posts do I have?") pass an empty `query`, which lists the newest posts (`total` is the full count). Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => $query_offset_input,
 			'output_schema'       => $search_output,

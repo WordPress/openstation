@@ -267,7 +267,7 @@ function openstation_ai_search_answer_schema() {
 			'answer_type' => array(
 				'type'        => 'string',
 				'enum'        => array( 'entity', 'navigation', 'chat' ),
-				'description' => 'Classification of the answer: "entity" when you identified a specific post/page/comment the user was asking about. "navigation" when you are returning admin_links: wp-admin destinations or plugin install links. "chat" for everything else, including summaries of tool results (error logs, site info), greetings, clarifications and "I couldn\'t find anything".',
+				'description' => 'Classification of the answer: "entity" when you identified a specific post/page/comment the user was asking about. "navigation" when you are returning admin_links: wp-admin destinations, plugin install links, or several matching posts/pages/comments. "chat" for everything else, including summaries of tool results (error logs, site info), greetings, clarifications and "I couldn\'t find anything".',
 			),
 			'message'     => array(
 				'type'        => 'string',
@@ -308,7 +308,7 @@ function openstation_ai_search_answer_schema() {
 					),
 					array( 'type' => 'null' ),
 				),
-				'description' => 'List of 1-3 wp-admin destinations (copy verbatim from the list_admin_pages tool result). Required when answer_type is "navigation"; set to null otherwise.',
+				'description' => 'List of 1-3 destinations: wp-admin pages (copy verbatim from the list_admin_pages tool result), plugin install links, or several matching posts/pages/comments (url = the item\'s edit_url from the search result). Required when answer_type is "navigation"; set to null otherwise.',
 			),
 		),
 	);
@@ -418,7 +418,7 @@ function openstation_ai_search_fetch_posts( $post_type, $query, $offset ) {
 			'type'     => $post->post_type,
 			// Comparison data for the model — real title + content excerpt.
 			'title'    => wp_strip_all_tags( $post->post_title ),
-			'excerpt'  => openstation_ai_search_excerpt( $post->post_content ),
+			'excerpt'  => openstation_ai_search_excerpt( $post->post_content, $query ),
 			'date'     => $post->post_date ? substr( $post->post_date, 0, 10 ) : '',
 			// Links — passed through so the UI can link to the entity
 			// once the agent identifies a match.
@@ -444,13 +444,32 @@ function openstation_ai_search_fetch_posts( $post_type, $query, $offset ) {
 /**
  * Trims raw post/comment content into a plain-text excerpt for the model.
  *
+ * With a keyword query the window is centred on the first matching word,
+ * so the model can see WHY an item matched. Always cutting from the start
+ * hid the match whenever it sat past the first 300 characters, and the
+ * model then discarded genuine hits as irrelevant and kept searching.
+ *
  * @param string $content Raw post/comment content.
+ * @param string $query   Optional. The keyword query the item matched.
  * @return string
  */
-function openstation_ai_search_excerpt( $content ) {
-	$text = wp_strip_all_tags( (string) $content );
-	$text = preg_replace( '/\s+/', ' ', trim( $text ) );
-	return (string) mb_substr( $text, 0, 300 );
+function openstation_ai_search_excerpt( $content, $query = '' ) {
+	$length = 300;
+	$text   = wp_strip_all_tags( (string) $content );
+	$text   = preg_replace( '/\s+/', ' ', trim( $text ) );
+
+	$start = 0;
+	foreach ( preg_split( '/\s+/', trim( (string) $query ) ) as $word ) {
+		$pos = '' !== $word ? mb_stripos( $text, $word ) : false;
+		if ( false !== $pos ) {
+			// A third of the window as lead-in, so the match reads in context.
+			$start = max( 0, $pos - (int) ( $length / 3 ) );
+			break;
+		}
+	}
+
+	$excerpt = (string) mb_substr( $text, $start, $length );
+	return $start > 0 ? '…' . $excerpt : $excerpt;
 }
 
 /**
@@ -599,7 +618,7 @@ function openstation_ai_search_fetch_comments( $query, $offset ) {
 			'post_title'  => $parent_title,
 			// The name the post shows beside the comment, never its email or IP.
 			'author_name' => openstation_plain_text_title( get_comment_author( $comment ) ),
-			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content ),
+			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content, $query ),
 			// Links.
 			'url'         => (string) get_comment_link( $comment ),
 			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
@@ -702,7 +721,7 @@ function openstation_ai_search_fetch_comments_by_post( $post_id, $query, $offset
 			'post_id'     => $post_id,
 			'post_title'  => $parent_title,
 			'author_name' => openstation_plain_text_title( get_comment_author( $comment ) ),
-			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content ),
+			'excerpt'     => openstation_ai_search_excerpt( $comment->comment_content, $query ),
 			'url'         => (string) get_comment_link( $comment ),
 			'edit_url'    => admin_url( 'comment.php?action=editcomment&c=' . (int) $comment->comment_ID ),
 		);
@@ -1094,8 +1113,9 @@ You are a friendly, conversational assistant embedded in a WordPress site. You h
 Tone: warm, concise, helpful. First person (\"I found this post…\", \"Here's where you'll find that…\"). Not a search engine tone — no \"Match found\" or robot phrasing.
 
 How to work the tools (your actual tool list is authoritative; use any tool that fits the request):
-- Content lookups: a search only returns items that contain every word of `query`, so search for one distinctive word at a time (\"autumn\", not \"autumn spiced recipe\"). When the request offers several candidate words, call the tool once per word in the same turn instead of one after another. Stop once a returned title and excerpt clearly match; if nothing matched, try other words or the next offset before telling the user you found nothing.
-- Listing and counting: questions about who, how many or the latest (\"who has commented?\", \"how many posts do I have?\", \"latest comments\") are not keyword searches. Call the matching search_* tool once with an empty `query`, then answer from its items and `total` with answer_type \"chat\". Never search for words from the question itself, like \"comment\" or \"created\".
+- Content lookups: a search only returns items that contain every word of `query`, so search for one distinctive word at a time (\"autumn\", not \"autumn spiced recipe\"). When the request offers several candidate words, call the tool once per word in the same turn instead of one after another.
+- Every item a keyword search returns really contains that keyword, and its excerpt shows where. Answer from those results; don't page past them looking for a better one. One item fits → answer_type \"entity\". Two or more fit → answer_type \"navigation\" with up to 3 admin_links built from the results (title = the item's title, url = its edit_url, description = its date and a few words on why it matches, icon = \"dashicons-admin-post\" for posts, \"dashicons-admin-page\" for pages, \"dashicons-admin-comments\" for comments). Only when a search returns nothing, try another word.
+- Listing and counting: questions about who, how many or the latest (\"who has commented?\", \"how many posts do I have?\", \"latest comments\") are not keyword searches. Call the matching search_* tool once with an empty `query`, then answer from its items and `total` with answer_type \"chat\". Never search for words from the question itself, like \"comment\" or \"created\". Never use an empty `query` to look for a topic: it lists everything, newest first.
 - Plugin recommendations: present the best 3-5 as admin_links titled like \"Plugin Name · 5M+ installs · 4.8★\".
 - Error logs: summarise the most important errors first (fatal, then warnings, then notices) instead of copying entries.
 
@@ -1109,7 +1129,7 @@ Choosing which track:
 
 Always return one of three answer_type values in the structured output:
 - \"entity\": you identified a single post/page/comment. Fill entity_id + entity_type. admin_links = null.
-- \"navigation\": you're recommending admin pages OR plugin install links. Fill admin_links. entity_id + entity_type = null.
+- \"navigation\": you're recommending admin pages, plugin install links, OR several posts/pages/comments that match. Fill admin_links. entity_id + entity_type = null.
 - \"chat\": you're answering conversationally — including results summarised from any tool (error logs, environment/version info, other plugins' tools), greetings, and \"nothing found\" answers. entity_id + entity_type + admin_links all null.
 
 The message field is always a friendly sentence or two shown directly to the user. Make it sound like a person, not a log line.
