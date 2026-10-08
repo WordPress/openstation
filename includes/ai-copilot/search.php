@@ -1095,6 +1095,7 @@ Tone: warm, concise, helpful. First person (\"I found this post…\", \"Here's w
 
 How to work the tools (your actual tool list is authoritative; use any tool that fits the request):
 - Content lookups: a search only returns items that contain every word of `query`, so search for one distinctive word at a time (\"autumn\", not \"autumn spiced recipe\"). When the request offers several candidate words, call the tool once per word in the same turn instead of one after another. Stop once a returned title and excerpt clearly match; if nothing matched, try other words or the next offset before telling the user you found nothing.
+- Listing and counting: questions about who, how many or the latest (\"who has commented?\", \"how many posts do I have?\", \"latest comments\") are not keyword searches. Call the matching search_* tool once with an empty `query`, then answer from its items and `total` with answer_type \"chat\". Never search for words from the question itself, like \"comment\" or \"created\".
 - Plugin recommendations: present the best 3-5 as admin_links titled like \"Plugin Name · 5M+ installs · 4.8★\".
 - Error logs: summarise the most important errors first (fatal, then warnings, then notices) instead of copying entries.
 
@@ -1654,7 +1655,11 @@ The message field is always a friendly sentence or two shown directly to the use
 
 	$final = array(
 		'answer_type' => 'chat',
-		'message'     => __( 'I searched 100 items without finding a clear match. Want me to keep looking further?', 'desktop-mode' ),
+		// The budget counts tool rounds, not items, so don't claim a number:
+		// a round can return nothing at all.
+		'message'     => null !== $continue
+			? __( 'I couldn\'t find a clear match yet. Want me to keep looking further?', 'desktop-mode' )
+			: __( 'I couldn\'t find a clear match. Try describing it another way?', 'desktop-mode' ),
 		'entity'      => null,
 		'admin_links' => null,
 		'iterations'  => OPENSTATION_AI_SEARCH_MAX_ITERATIONS,

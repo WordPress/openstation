@@ -198,7 +198,7 @@ function openstation_ai_register_abilities() {
 		'properties'           => array(
 			'query'  => array(
 				'type'        => 'string',
-				'description' => 'Keyword search terms matched against the title and content (WordPress native search). Distil the user\'s request to the essential nouns — e.g. for "that post I wrote about making paella" pass "paella". Avoid stop-words and full sentences.',
+				'description' => 'Keyword search terms matched against the title and content (WordPress native search). Distil the user\'s request to the essential nouns — e.g. for "that post I wrote about making paella" pass "paella". Avoid stop-words and full sentences. Pass an empty string to list the newest items with no keyword filter — the right call for questions about who, how many or the latest, rather than about particular words.',
 			),
 			'offset' => array(
 				'type'        => 'integer',
@@ -254,7 +254,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/search-posts',
 		array(
 			'label'               => __( 'Search posts', 'desktop-mode' ),
-			'description'         => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article. Pass the key search terms as `query`. Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
+			'description'         => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article: pass the key search terms as `query`. Pass an empty `query` to list the newest posts (`total` is the full count). Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => $query_offset_input,
 			'output_schema'       => $search_output,
@@ -286,7 +286,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/search-comments',
 		array(
 			'label'               => __( 'Search comments', 'desktop-mode' ),
-			'description'         => 'Keyword-searches approved WordPress comments by their text (WordPress native search), across all posts the requesting user is allowed to read — comments on private, draft, or password-protected posts the user cannot access are excluded. Use this when the user remembers something a reader said but does not know which post it was on. Pass the distinctive words from the comment as `query`. Returns up to 10 matching comments with the commenter\'s name (`author_name`), an excerpt, parent post title, and URLs. If has_more is true, call again with the next offset.',
+			'description'         => 'Keyword-searches approved WordPress comments by their text (WordPress native search), across all posts the requesting user is allowed to read — comments on private, draft, or password-protected posts the user cannot access are excluded. Use this when the user remembers something a reader said but does not know which post it was on: pass the distinctive words from the comment as `query`. Also use it, with an empty `query`, for questions about the comments themselves — who has commented, the latest comments, how many there are (`total` is the full count). Returns up to 10 matching comments with the commenter\'s name (`author_name`), an excerpt, parent post title, and URLs. If has_more is true, call again with the next offset.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => $query_offset_input,
 			'output_schema'       => $search_output,
