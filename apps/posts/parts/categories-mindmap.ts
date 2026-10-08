@@ -528,7 +528,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			buildTree();
 			// The editor shows the focused term's count; repainting it
 			// would wipe a half-typed name or an open new-category draft.
-			if ( draft === null && ! canvas.sidebar.contains( document.activeElement ) ) {
+			if ( draft === null && ! canvas.sidebar.contains( canvas.sidebar.ownerDocument.activeElement ) ) {
 				paintSidebar( sidebarHost );
 			}
 		},
