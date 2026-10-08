@@ -1167,7 +1167,7 @@ export interface NativeWindowSync {
 	 * unknown id, an open window, a window that is not an App Framework
 	 * app, or one already warm.
 	 */
-	prewarmById: ( id: string ) => Promise< boolean >;
+	prewarmById: ( id: string, opts?: { params?: Record< string, string | number | boolean > } ) => Promise< boolean >;
 }
 
 /** State owned by session restore rather than a native-window definition. */
@@ -2255,16 +2255,21 @@ export function createNativeWindowSync(
 	 * `prewarm` to call, or a config the runtime does not own) gets
 	 * its bundles into the tab and no more.
 	 */
-	const prewarmById = async ( id: string ): Promise< boolean > => {
+	const prewarmById = async (
+		id: string,
+		opts: { params?: Record< string, string | number | boolean > } = {},
+	): Promise< boolean > => {
 		const entry = entriesById.get( id );
 		if ( ! entry || manager.getById( id ) ) {
 			return false;
 		}
 		await ensureScript( entry );
 		const apps = (
-			window as unknown as { wp?: { os?: { apps?: { prewarm?: ( appId: string ) => boolean } } } }
+			window as unknown as {
+				wp?: { os?: { apps?: { prewarm?: ( appId: string, params?: Record< string, string | number | boolean > ) => boolean } } };
+			}
 		).wp?.os?.apps;
-		return apps?.prewarm?.( id ) === true;
+		return apps?.prewarm?.( id, opts.params ?? {} ) === true;
 	};
 
 	return {

@@ -22,7 +22,7 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
 | [`wp.os.loadWindowScript( id )`](#wposloadwindowscript-id---stable) | Load a native window's bundle without opening it — for reaching an API the bundle publishes on `wp.os`. Window bundles load on first open. | **Stable** |
-| [`wp.os.prewarmWindow( id )`](#wposprewarmwindow-id---experimental) | Warm a closed native window ahead of its open: bundles into the tab, and an app window's first `mount` sent now and held for the click. What the dock does on hover intent. | **Experimental** |
+| [`wp.os.prewarmWindow( id, opts? )`](#wposprewarmwindow-id-opts---experimental) | Warm a closed native window ahead of its open: bundles into the tab, and an app window's first `mount` sent now and held for the click. What the dock does on hover intent. | **Experimental** |
 | [`wp.os.loadComponents( tags? )`](#wposloadcomponents-tags---stable) | Make `<os-*>` tags upgrade on demand. The runtime route to the component kit for plugin code that can't import the modules at build time. | **Stable** |
 | [`wp.os.getWindowParams( id )`](#wposgetwindowparams-id---stable) | What an open window is showing right now — for code with no render callback to read `ctx.params` from. | **Stable** |
 | [`wp.os.registerNativeUrlRemap( entry )`](#wposregisternativeurlremap-entry---stable) | Claim an admin URL for a native window, so every open path in the shell routes to it instead of an iframe. | **Stable** |
@@ -1518,19 +1518,22 @@ Companion bundles declared via the window's `'scripts'` arg load first, in decla
 
 ---
 
-### `wp.os.prewarmWindow( id )` — Experimental
+### `wp.os.prewarmWindow( id, opts? )` — Experimental
 
 Warm a registered native window **ahead of its open**.
 
 ```typescript
-wp.os.prewarmWindow( id: string ): Promise< boolean >;
+wp.os.prewarmWindow(
+	id: string,
+	opts?: { params?: Record< string, string | number | boolean > },
+): Promise< boolean >;
 ```
 
-Two things happen. The window's bundles come into the tab exactly as `loadWindowScript()` brings them (a no-op once they are there — the shell also prefetches every deferred bundle in idle time after boot, so this is mostly a parse). Then, for an [App Framework](./app-framework.md) window, the runtime sends the window's **first `mount` request now** — the same body the opening window would send, the declared state and no params — and holds the answer for ~30 s. The open that follows takes it instead of fetching: the frame paints from the client `placeholder`, and the rows are on screen a frame later.
+Two things happen. The window's bundles come into the tab exactly as `loadWindowScript()` brings them (a no-op once they are there — the shell also prefetches every deferred bundle in idle time after boot, so this is mostly a parse). Then, for an [App Framework](./app-framework.md) window, the runtime sends the window's **first `mount` request now** — the same body the opening window would send: the declared state and `opts.params` — and holds the answer for ~30 s. The open that follows takes it instead of fetching: the frame paints from the client `placeholder`, and the rows are on screen a frame later.
 
 This is what the dock does on a sustained mouse hover over a native window's tile — a system tile, a launcher synthesised from a registered icon, or a menu URL a native remap captures (Posts, Users, Plugins, Comments with their native windows on) — when **Prewarm windows on hover** is enabled; iframe tiles get `windowManager.prewarm()` from the same gesture. A plugin with its own intent signal (a focused row, a pointer heading for a button) calls it directly.
 
-Resolves `true` when a mount was started; `false` when there was nothing to warm — an unknown id, a window that is already open, a native window that is not an app, or one warmed a moment ago. A warm is taken **once**, by the next default open; a window opened with params (a deep link) always fetches, since its state is the server's to derive; a warm that failed is dropped and the open fetches as it always did.
+Resolves `true` when a mount was started; `false` when there was nothing to warm — an unknown id, a window that is already open, a native window that is not an app, or one warmed a moment ago. A warm is taken **once**, by the next open **with the same params**. Pass the params the open will carry: a URL remap opens even a plain dock click with params (the native Comments window opens `{ post: 0 }`, Plugins `{ tab: 'installed' }`), and the dock warms remapped tiles with exactly those. An open whose params differ from every warm (a deep link) fetches, since its state is the server's to derive. A warm that failed is dropped and the open fetches as it always did.
 
 
 ---
@@ -2949,7 +2952,7 @@ wp.os.apps.dispatch( windowId: string, action: string, args?: Record< string, un
 wp.os.apps.local( windowId: string, action: string, args?: Record< string, unknown > ): void;   // client-view apps: no request
 wp.os.apps.session( windowId: string, view?: string ): Session | undefined;
 wp.os.apps.refresh(): string[];   // re-scan window configs for app definitions; returns newly registered ids
-wp.os.apps.prewarm( id: string ): boolean;   // send a closed app window's first `mount` now; the open takes the answer. Prefer wp.os.prewarmWindow( id ), which loads the bundles first.
+wp.os.apps.prewarm( id: string, params?: Record< string, string | number | boolean > ): boolean;   // send a closed app window's first `mount` now (with these open params); an open with the same params takes the answer. Prefer wp.os.prewarmWindow( id, { params } ), which loads the bundles first.
 ```
 
 An app with a client view (`<file>.os.ts`, see [`app-framework.md` → The client view](./app-framework.md#the-client-view--osts)) publishes `window.openStationApps[ id ]` from its bundle; `session.data` is what its `App::data()` returned on the last server response.

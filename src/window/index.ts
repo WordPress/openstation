@@ -139,6 +139,7 @@ import {
 import { handleDragStart, handleResizeStart } from './pointer';
 import { navigateWithUnsavedGuard } from './unsaved-guard';
 import { speculateDocument } from '../pwa/speculate';
+import { resolveNativeUrlRemapTarget } from '../native-url-remap';
 
 /**
  * Ask the service worker to fetch a submenu tab's screen ahead of the
@@ -148,6 +149,11 @@ import { speculateDocument } from '../pwa/speculate';
  * worker matches exactly, and a tab's raw `data-url` is missing the
  * chromeless flag `withChromelessParam()` adds on navigation.
  *
+ * A tab a native window claims never loads in this iframe: the click
+ * opens that window instead (`handleTabStripClick()` consults the remap
+ * registry first). So it warms that window, with the params the click
+ * will open it with, the same warm the dock gives a remapped tile.
+ *
  * @param rawUrl The tab's declared admin URL.
  */
 function speculateTabDocument( rawUrl: string ): void {
@@ -156,11 +162,22 @@ function speculateTabDocument( rawUrl: string ): void {
 			wp?: {
 				os?: {
 					getOsSettings?: () => { windowPrewarmEnabled?: boolean };
+					prewarmWindow?: (
+						id: string,
+						opts?: { params?: Record< string, string | number | boolean > },
+					) => Promise< boolean >;
 				};
 			};
 		}
 	).wp?.os;
 	if ( ! os?.getOsSettings?.().windowPrewarmEnabled ) {
+		return;
+	}
+	const native = resolveNativeUrlRemapTarget( rawUrl );
+	if ( native ) {
+		void ( native.params
+			? os.prewarmWindow?.( native.id, { params: native.params } )
+			: os.prewarmWindow?.( native.id ) );
 		return;
 	}
 	const target = withChromelessParam( rawUrl );
@@ -1477,7 +1494,7 @@ export class Window {
 				// list the user had just acted on could come back
 				// stale. There is nothing to warm here: the document is
 				// already in the iframe.
-				if ( tab?.classList.contains( 'is-active' ) ) {
+				if ( tab?.classList.contains( 'os-window__tab--active' ) ) {
 					return;
 				}
 				// Require a dwell. `pointerover` fires on every crossing

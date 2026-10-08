@@ -220,11 +220,13 @@ export function createSession( deps: SessionDeps ): Session {
 		try {
 			// A hover on the dock tile may have sent this window's first
 			// `mount` already (`wp.os.apps.prewarm`); the answer is taken
-			// once, for the default open only — a deep link derives its
-			// state on the server. A warm that failed falls through to
-			// the request it stood in for.
-			if ( action === 'mount' && view === 'main' && Object.keys( params ).length === 0 ) {
-				const warmed = await takePrewarm( config.id );
+			// once, and only when it was warmed with these same params.
+			// That includes the params a URL remap puts on a plain dock
+			// click (Comments `{ post: 0 }`): requiring NO params threw
+			// those warms away and fetched again. A warm that failed
+			// falls through to the request it stood in for.
+			if ( action === 'mount' && view === 'main' ) {
+				const warmed = await takePrewarm( config.id, params as Record< string, string | number | boolean > );
 				if ( disposed ) {
 					return false;
 				}
