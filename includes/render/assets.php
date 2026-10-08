@@ -750,6 +750,9 @@ function openstation_enqueue_assets() {
 			// reload after a connector is configured in Settings → Connectors.
 			'aiStatusUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
 			'extendedOptions'               => current_user_can( 'manage_options' ) ? openstation_get_extended_options() : null,
+			// Agents offered as "Send to <agent>" on desktop and folder
+			// tiles. See `src/desktop-files/agent-menu-items.ts`.
+			'agentsSendTo'                  => function_exists( 'openstation_agents_send_to_targets' ) ? openstation_agents_send_to_targets() : array(),
 			'extendedOptionsUrl'            => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
 			// Site-wide games kill switch (Extended options). Exposed to
 			// every user — the shell skips the challenges Heartbeat

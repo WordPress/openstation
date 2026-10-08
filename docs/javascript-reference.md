@@ -6716,7 +6716,13 @@ top of the base `DesktopFileShape`.
 `desktop-mode/upload-start-post` / `desktop-mode/upload-start-page`
 (images, with `canStartPost` / `canStartPage`), and
 `desktop-mode/folder-zip-download` on folder tiles when
-`zipAvailable`. Plugins reorder/hide them like any other item.
+`zipAvailable`, and `desktop-mode/agent-send-to-<agentId>` ("Send to
+<agent>") on post, page, media and user tiles, one per agent whose
+`send-to` trigger accepts that entity kind. The agents come from
+`openStationConfig.agentsSendTo` (`openstation_agents_send_to_targets()`
+on the server: agents the viewer may invoke, empty while the framework
+is off) and refresh on `os.agents.roster-changed`. Plugins reorder/hide
+them like any other item.
 
 **Media Library routes** — `POST /uploads/<id>/media` copies the
 file into the Media Library and answers `{ attachmentId, created,
