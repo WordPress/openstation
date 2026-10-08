@@ -100,10 +100,42 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 			rows: number;
 		};
 		expect( payload.windowCount ).toBe( 4 );
-		// 1600x900 area — closest to areaAspect 1.78 is 2x2
-		// (cellAspect 1.78), beating 4x1 (3.56) and 1x4 (0.44).
 		expect( payload.cols ).toBe( 2 );
 		expect( payload.rows ).toBe( 2 );
+	} );
+
+	test( 'tile() with 3 windows on a landscape area splits it in thirds', async () => {
+		const wins = [
+			await manager.open( openConfig( 'a' ) ),
+			await manager.open( openConfig( 'b' ) ),
+			await manager.open( openConfig( 'c' ) ),
+		];
+
+		manager.tile();
+
+		// 1568 of row - 2 gaps of 12 = 1544, three shares of 514.
+		expect( wins.map( ( w ) => [ w.element.style.left, w.element.style.width ] ) ).toEqual( [
+			[ '16px', '514px' ],
+			[ '542px', '514px' ],
+			[ '1068px', '514px' ],
+		] );
+		expect( wins.map( ( w ) => w.element.style.top ) ).toEqual( [ '16px', '16px', '16px' ] );
+	} );
+
+	test( 'tile() lets a short last row share its whole width', async () => {
+		const wins = [];
+		for ( const id of [ 'a', 'b', 'c', 'd', 'e' ] ) {
+			wins.push( await manager.open( openConfig( id ) ) );
+		}
+
+		manager.tile();
+
+		// 3x2: three thirds on top, two halves underneath, no empty cell.
+		const last = wins.slice( 3 ).map( ( w ) => [ w.element.style.left, w.element.style.width ] );
+		expect( last ).toEqual( [
+			[ '16px', '778px' ],
+			[ '806px', '778px' ],
+		] );
 	} );
 
 	test( 'tile() gives a window its minimum width out of its row', async () => {
@@ -299,8 +331,6 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 			( e ) => e.name === 'os.arrange.tile.applied',
 		);
 		const payload = applied!.args[ 0 ] as { cols: number; rows: number };
-		// Default for 2 windows on landscape is 2×1 (cellAspect 800
-		// vs area 1.78 — closer than 1×2's 0.89).
 		expect( payload.cols * payload.rows ).toBeGreaterThanOrEqual( 2 );
 	} );
 

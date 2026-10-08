@@ -3501,7 +3501,8 @@ function init(): void {
 				// `windowId` on the rows that open one is what lets
 				// the flyout list System's live windows the way it
 				// lists an admin menu's. Rows that open nothing
-				// (Fullscreen, Log out) leave it unset.
+				// (Fullscreen, Tile all windows, Log out) leave it
+				// unset.
 				const rows: SubmenuItem[] = [
 					{
 						title: 'OpenStation Preferences',
@@ -3524,6 +3525,11 @@ function init(): void {
 						title: 'Fullscreen',
 						url: '',
 						onSelect: toggleFullscreen,
+					},
+					{
+						title: 'Tile all windows',
+						url: '',
+						onSelect: () => manager.tile(),
 					},
 					{
 						title: 'Keyboard shortcuts',
