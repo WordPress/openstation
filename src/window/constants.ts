@@ -117,3 +117,14 @@ export const LOADING_OVERLAY_CLASS = 'os-window__loading';
  * cannot disagree. Do not re-derive it from a clock.
  */
 export const LOADING_OVERLAY_VISIBLE_CLASS = 'os-window__loading--visible';
+
+/**
+ * The `<os-spinner>` preset and size every window-sized load paints:
+ * the window overlay (`src/window/dom.ts`) and an admin page embedded
+ * in a native window's panel (`embedAdminPage()` in
+ * `src/native-windows.ts`). Shared so the two cannot drift — when they
+ * did, a tab switch in a native app swapped the large WordPress mark
+ * for a 48px default-sized one, which read as the loader shrinking.
+ */
+export const LOADING_SPINNER_PRESET = 'classic';
+export const LOADING_SPINNER_SIZE = 'clamp(96px, 14vw, 192px)';

@@ -119,6 +119,17 @@
 	 * reloads the page on save, which re-runs the announcement
 	 * naturally — this block never engages there (no `core/editor`
 	 * store on the page).
+	 *
+	 * Autosaves are skipped — they can't change terms or links, the
+	 * live preview watch fires one after every typing pause, and on a
+	 * published post they only write an autosave revision — with one
+	 * exception: an autosave of a NEW post. That is the save that turns
+	 * the auto-draft into a real draft, and Gutenberg often makes it on
+	 * its own before the user clicks "Save draft" (after which the
+	 * button reads "Saved" and there is nothing left to click). The
+	 * page-render identity is null on `post-new.php`, so without this
+	 * refetch the window never learns its post exists — the Preview eye
+	 * stayed disabled until the window was reopened.
 	 */
 	window.addEventListener( 'load', function () {
 		try {
@@ -136,22 +147,27 @@
 			}
 			var wasSaving = false;
 			var wasNew = false;
+			var wasAutosave = false;
 			var inFlight = false;
 			wpg.data.subscribe( function () {
-				var saving =
-					editor.isSavingPost() &&
-					! ( editor.isAutosavingPost && editor.isAutosavingPost() );
+				var saving = editor.isSavingPost();
 				if ( saving && ! wasSaving ) {
-					// Capture "is this the first real save?" on the tick
-					// where saving STARTS — after the save completes the
-					// post is no longer new and the flag reads false.
+					// Capture "is this the first save?" and "is it an
+					// autosave?" on the tick where saving STARTS — once
+					// the save completes neither flag reads true.
 					wasNew = !! (
 						editor.isEditedPostNew && editor.isEditedPostNew()
+					);
+					wasAutosave = !! (
+						editor.isAutosavingPost && editor.isAutosavingPost()
 					);
 				}
 				var finished = wasSaving && ! saving;
 				wasSaving = saving;
 				if ( ! finished || inFlight ) {
+					return;
+				}
+				if ( wasAutosave && ! wasNew ) {
 					return;
 				}
 				if (

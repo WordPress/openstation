@@ -866,7 +866,8 @@ function openstation_window_related_entities_sanitize( $related ) {
  * Recomputes a post's content identity — label, outbound `links`
  * references, and the `related` navigation items — outside a page
  * render. The chromeless bridge's editor save-watcher hits this
- * after every non-autosave Gutenberg save (Gutenberg saves over REST
+ * after every non-autosave Gutenberg save, and after a new post's first
+ * autosave (Gutenberg saves over REST
  * without reloading, so the page-render announcement alone would go
  * stale the moment the user adds a category or an image) and
  * re-announces the fresh identity to the parent shell.
