@@ -377,6 +377,14 @@ body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon {
 }
 
 /*
+ * Core nudges the W down 2px to centre it from the top of its cell.
+ * The flex cell above already centres it, so the nudge would sit it low.
+ */
+body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon::before {
+	top: 0;
+}
+
+/*
  * Classic wpcontent carries a `margin-left: 160px` for the sidebar. With
  * the sidebar hidden we let wpcontent fall back to flush — the shell is
  * fixed-positioned anyway so this doesn't change the shell's layout, it
@@ -1024,7 +1032,9 @@ body.os-has-fullscreen-window .os-shell {
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
 	border: 1px solid rgba( 255, 255, 255, 0.08 );
 	border-radius: 14px;
-	color: var( --os-ui-fg-on-accent, #fff );
+	/* The widget contract's text colour, which is what a widget's own
+	 * stylesheet is told to read. */
+	color: var( --os-ui-color-text, var( --os-ui-fg-on-accent, #fff ) );
 	box-shadow:
 		0 8px 28px rgba( 0, 0, 0, 0.35 ),
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
@@ -1436,7 +1446,7 @@ body.os-has-fullscreen-window .os-shell {
 .os-widget-clock__date {
 	margin-top: 4px;
 	font-size: 13px;
-	color: rgba( 255, 255, 255, 0.75 );
+	color: var( --os-ui-color-text-subtle, rgba( 255, 255, 255, 0.75 ) );
 	letter-spacing: 0.02em;
 }
 

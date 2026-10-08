@@ -302,6 +302,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	host.appendChild( container );
 
 	let lastFingerprint = '';
+	// Set by a desktop-theme switch: every tile's icon resolves
+	// differently while no placement changed, so the fingerprint and
+	// the patch paths below cannot see it.
+	let rebuildTiles = false;
 
 	/**
 	 * Resolve a selected key (the placement id as a string) back to
@@ -609,14 +613,16 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			return ap - bp;
 		} );
 		const fp = fingerprint( list );
-		if ( fp === lastFingerprint ) {
+		if ( fp === lastFingerprint && ! rebuildTiles ) {
 			return;
 		}
 		lastFingerprint = fp;
+		const rebuild = rebuildTiles;
+		rebuildTiles = false;
 
 		// Fastest path: position-only changes (intra-folder drag,
 		// auto-arrange). Same set, same structure, no rewiring.
-		if ( tryPatchPositions( list, container, canvas, order ) ) {
+		if ( ! rebuild && tryPatchPositions( list, container, canvas, order ) ) {
 			return;
 		}
 
@@ -625,7 +631,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		// the file-creation, shortcut-drop, and delete flows — which
 		// otherwise would each visibly flash the wallpaper with a
 		// full `replaceChildren()` rebuild.
-		if ( tryPatchIncremental( list ) ) {
+		if ( ! rebuild && tryPatchIncremental( list ) ) {
 			return;
 		}
 
@@ -1033,6 +1039,11 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		repaint( state );
 		reflow();
 	} );
+	const onThemeChanged = (): void => {
+		rebuildTiles = true;
+		repaint( filesStoreApi.getState() );
+	};
+	document.addEventListener( 'os-desktop-theme-changed', onThemeChanged );
 
 	// Hydrate from REST if we haven't seen this folder yet. Resolves
 	// the `hydrated` promise so the boot path can hold off revealing
@@ -1264,6 +1275,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		hydrated,
 		dispose() {
 			off();
+			document.removeEventListener( 'os-desktop-theme-changed', onThemeChanged );
 			resizeObserver?.disconnect();
 			resizeObserver = null;
 			for ( const deregister of dropTargetDeregisters ) {
