@@ -58,7 +58,10 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		modifier: 'os-mindmap',
 		unavailable: __( 'Mindmap unavailable.' ),
 		loadFailed: __( 'Couldn’t load categories:' ),
-		emptyHint: __( 'No custom categories yet. Click "Add root category" to start branching.' ),
+		// Accurate whatever the default is called: a renamed default
+		// ("OpenStation") is still the only category, and still the one
+		// untagged posts fall into.
+		emptyHint: __( 'Only the default category so far. Click "Add root category" to start branching.' ),
 		chrome: {
 			buttons: [
 				{ variant: 'primary', icon: 'dashicons-plus', label: __( 'Add root category' ) },
@@ -388,6 +391,10 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		},
 		clearPosts: () => fan.clear(),
 		loadPosts: () => fan.load(),
+		isDefault: ( id ) => {
+			const term = canvas.terms.find( ( t ) => t.id === id );
+			return !! term && isUncategorized( term );
+		},
 	};
 
 	function treeBounds(): Bounds | null {
