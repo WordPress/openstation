@@ -2314,6 +2314,7 @@ function init(): void {
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
 	osSettings.apply();
+	osSettings.applyWidgets = ( ids ) => widgetLayer?.setEnabledIds( ids );
 
 	// Read the current preference whenever a user opens a window.
 	manager.openWindowsAs = () => osSettings.state.openWindowsAs;

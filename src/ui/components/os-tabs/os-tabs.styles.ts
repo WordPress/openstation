@@ -124,6 +124,9 @@ export const tabStyles = css`
 		--_tab-edge-w: var( --os-ui-tab-edge-width, 2px );
 		--_tab-bloom-o: var( --os-ui-tab-bloom-opacity, 1 );
 		--_tab-fill: var( --os-ui-tab-fill, transparent );
+		/* The label on the selected row, for a fill dark enough to need
+		 * light text (an inverted highlight). */
+		--_tab-fg: var( --os-ui-tab-selected-fg, var( --os-ui-fg, #1d2327 ) );
 		--_tab-radius: var( --os-ui-tab-radius, 0px );
 		--_tab-inset: var( --os-ui-tab-inset, 0px );
 	}
@@ -229,6 +232,7 @@ export const tabStyles = css`
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button {
 		background-color: var( --_tab-fill );
 		background-image: var( --_tab-wash );
+		color: var( --_tab-fg );
 		/*
 		 * No weight bump. Body Small is Regular, and the edge already
 		 * says which row this is. A second signal only makes the

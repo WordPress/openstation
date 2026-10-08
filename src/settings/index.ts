@@ -138,6 +138,12 @@ export class OsSettings {
 	public layer: WallpaperLayer;
 
 	/**
+	 * Takes a theme's recommended widget column. The column is stored
+	 * per browser by the widget layer, which the shell wires in here.
+	 */
+	public applyWidgets: ( ids: readonly string[] ) => void = () => undefined;
+
+	/**
 	 * Subscribers to Preferences changes — the Preferences app, the
 	 * engines that read a key at use time (unfocus effects, window
 	 * links, the navigation model), and third-party tabs. Fired from
@@ -624,6 +630,9 @@ export class OsSettings {
 		if ( Object.keys( applied ).length > 0 ) {
 			this.save();
 			this.apply();
+		}
+		if ( applied.widgets ) {
+			this.applyWidgets( applied.widgets );
 		}
 		return applied;
 	}

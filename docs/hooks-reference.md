@@ -5351,27 +5351,37 @@ add_filter(
         $schema['acmeDensity'] = array( 'enum' => array( 'cosy', 'roomy' ) );
         // An id resolved against a JS registry at apply time.
         $schema['acmeRenderer'] = array( 'slug' => true );
+        // A six-digit hex colour.
+        $schema['acmeTint'] = array( 'hex' => true );
         // A whole number, clamped into range.
         $schema['acmeDelay'] = array( 'int' => array( 'min' => 0, 'max' => 500 ) );
+        // Ids mapped to a closed set, merged into the user's own map.
+        $schema['acmePanels'] = array( 'map' => array( 'open', 'closed' ) );
+        // A list of ids; an empty list is a value.
+        $schema['acmeCards'] = array( 'ids' => true );
         return $schema;
     }
 );
 ```
 
-Core ships eight entries: `dockSize`, `desktopLayout`, `dockPlacement`,
+Core ships thirteen entries: `dockSize`, `desktopLayout`, `dockPlacement`,
 `windowRadius` and `adminBarMode` as `enum` rules mirroring the matching
-`OPENSTATION_OS_SETTINGS_*` constants; `dockRailRenderer` and
-`windowReveal` as `slug` rules; and `windowRevealDuration` as an `int`
-rule bounded by `OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN` /
-`_MAX`.
+`OPENSTATION_OS_SETTINGS_*` constants; `dockRailRenderer`,
+`windowReveal`, `accent` and `wallpaper` as `slug` rules; `accentColor`
+as a `hex` rule; `windowRevealDuration` as an `int` rule bounded by
+`OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN` / `_MAX`; `navPlacement`
+as a `map` rule; and `widgets` as an `ids` rule.
 
-Three grammars:
+Six grammars:
 
 | Grammar | Shape | Validation |
 |---|---|---|
 | `enum` | `array( 'enum' => array( … ) )` | Value must be in the list, else the key drops. |
 | `slug` | `array( 'slug' => true )` | PHP checks the `sanitize_key()` charset; the shell drops the key at apply time when nothing is registered under that id. |
+| `hex` | `array( 'hex' => true )` | A six-digit hex colour, lowercased. |
 | `int` | `array( 'int' => array( 'min' => …, 'max' => … ) )` | Numeric values are **clamped** into range rather than dropped; non-numeric values drop. |
+| `map` | `array( 'map' => array( … ) )` | An object of `sanitize_key()` ids to a value in the list; bad entries drop, up to 64 kept. The shell merges it into the setting's existing map. |
+| `ids` | `array( 'ids' => true )` | A list of ids (`A-Za-z0-9_/-`, the slash for namespaced ids), de-duplicated, up to 32 kept. `[]` is kept: it means "none". |
 
 An entry with none of a non-empty `enum` array, `slug => true`, or a
 well-formed `int` range (`min` and `max` both numeric, `min <= max`) is

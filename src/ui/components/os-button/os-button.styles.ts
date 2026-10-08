@@ -75,7 +75,15 @@ export const styles = css`
 		padding: var( --os-ui-button-padding, 6px 12px );
 		border-radius: var( --os-ui-button-border-radius, 6px );
 		font: inherit;
-		font-weight: 500;
+		font-weight: var( --os-ui-button-font-weight, 500 );
+		/*
+		 * A bevel drawn as inset shadows (a raised key, and the same key
+		 * pressed in). Read through a private alias so the press swaps
+		 * the alias rather than declaring box-shadow, and every rule
+		 * below that paints a glow or a focus ring still wins as before.
+		 */
+		--_btn-shadow: var( --os-ui-button-shadow, none );
+		box-shadow: var( --_btn-shadow );
 		cursor: pointer;
 		transition: background-color var( --_holo-t ) ease, color var( --_holo-t ) ease,
 			border-color var( --_holo-t ) ease, box-shadow var( --_holo-t ) ease,
@@ -110,7 +118,11 @@ export const styles = css`
 	 * of forty keypad buttons costs nothing to animate.
 	 */
 	button:active:not( :disabled ) {
-		transform: translateY( 1px );
+		transform: var( --os-ui-button-press-transform, translateY( 1px ) );
+		--_btn-shadow: var(
+			--os-ui-button-shadow-active,
+			var( --os-ui-button-shadow, none )
+		);
 	}
 	button:hover:not( :disabled ) {
 		background-color: var( --os-ui-button-bg-hover, var( --os-ui-hover, rgba( 0, 0, 0, 0.04 ) ) );

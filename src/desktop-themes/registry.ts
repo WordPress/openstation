@@ -129,6 +129,7 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
 		recommendedOsSettings: sanitizeRecommendedOsSettings(
 			source.recommendedOsSettings,
 		),
+		drawsToolbar: source.drawsToolbar === true,
 		installedAt:
 			typeof source.installedAt === 'number' ? source.installedAt : 0,
 		source: source.source === 'code' ? 'code' : 'upload',

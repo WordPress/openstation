@@ -7633,6 +7633,7 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | `icons` | `Record<string,string>` | Slot => dashicon class or absolute image URL. |
 | `iconColors` | `Record<string,string>` | Slot => fill colour, for the slots the theme tints. A slot present here is painted as a tinted CSS mask (images) or with that `color` (dashicons); `currentColor` defers to the surface. Absent = default rendering. |
 | `recommendedOsSettings` | `RecommendedOsSettings` | Presentation preferences the theme suggests. Always an object; `{}` means it suggests nothing. |
+| `drawsToolbar` | `boolean` | Whether the theme names an `--os-toolbar-*` token, and so takes the WordPress toolbar's colours over from the admin colour scheme (the shell toggles `os-toolbar-themed` on the body). |
 | `installedAt` | `number` | Unix timestamp; `0` for code themes. |
 | `source` | `'upload' \| 'code'` | |
 
@@ -7646,6 +7647,12 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
 | `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
 | `dockRailRenderer` | `string` | A registered dock rail renderer id. |
+| `windowReveal`, `windowRevealDuration` | `string`, `number` | A registered reveal id (or `none`), and its duration in ms. |
+| `accent` | `string` | A registered accent-swatch id. |
+| `accentColor` | `string` | A six-digit hex colour, applied as the swatch with that value or as the custom accent. |
+| `wallpaper` | `string` | One of the theme's own wallpaper ids, or any registered wallpaper id. |
+| `navPlacement` | `Record< string, string >` | Dock item id to `rail` \| `desktop` \| `both` \| `hidden`, merged into the user's own map. |
+| `widgets` | `string[]` | The widget column, by widget id; `[]` is an empty desk. Stored per browser, and what a browser's first visit starts from. |
 
 **`setActive()` is presentation only.** It swaps the stylesheet and
 repaints, but does not persist — use it for a preview (a hover, a

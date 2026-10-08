@@ -51,7 +51,7 @@
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	width: 40px;
+	width: var( --os-dock-item-size, 40px );
 	flex-shrink: 0;
 }
 
@@ -61,10 +61,10 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 40px;
-	height: 40px;
+	width: var( --os-dock-item-size, 40px );
+	height: var( --os-dock-item-size, 40px );
 	border: none;
-	border-radius: 10px;
+	border-radius: var( --os-dock-item-radius, 10px );
 	cursor: pointer;
 	padding: 0;
 	background-color: transparent;
@@ -99,6 +99,19 @@
 	color: var( --os-dock-icon-color-hover, var( --os-ui-fg-on-accent, #fff ) );
 }
 
+/*
+ * DOCK_ITEM_FOCUSED texture slot — the face of the tile whose window is
+ * in front, and of any tile held down: a key that stays pressed while
+ * its window is up. Falls back to the resting face.
+ */
+.os-dock__item--focused .os-dock__item-primary,
+.os-dock__item-primary:active {
+	background-image: var(
+		--os-dock-item-image-focused,
+		var( --os-dock-item-image, none )
+	);
+}
+
 .os-dock__item-primary:hover {
 	background-color: var(
 		--os-dock-item-bg-hover,
@@ -108,11 +121,11 @@
 		--os-dock-icon-color-hover,
 		var( --os-ui-fg-on-accent, #fff )
 	);
-	transform: scale( 1.1 );
+	transform: var( --os-dock-item-hover-transform, scale( 1.1 ) );
 }
 
 .os-dock__item-primary:active {
-	transform: scale( 0.95 );
+	transform: var( --os-dock-item-press-transform, scale( 0.95 ) );
 }
 
 .os-dock__item-primary:focus-visible {
@@ -530,7 +543,7 @@
 /* Shared tooltip — placement-specific anchor modifiers applied by JS. */
 .os-dock__tooltip {
 	position: fixed;
-	padding: 6px 12px;
+	padding: var( --os-tooltip-padding, 6px 12px );
 	background: var(
 		--os-tooltip-bg,
 		var( --os-ui-scrim, rgba( 0, 0, 0, 0.85 ) )
@@ -539,11 +552,13 @@
 		--os-tooltip-fg,
 		var( --os-ui-fg-on-accent, #fff )
 	);
-	font-size: 12px;
+	font-size: var( --os-tooltip-font-size, 12px );
 	font-weight: 400;
 	line-height: 1.4;
 	white-space: nowrap;
-	border-radius: 6px;
+	border: var( --os-tooltip-border, 0 );
+	border-radius: var( --os-tooltip-radius, 6px );
+	box-shadow: var( --os-tooltip-shadow, none );
 	pointer-events: none;
 	z-index: calc( var( --os-z-dock ) + 1 );
 	opacity: 0;
@@ -652,7 +667,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --os-dock-item-outline, #fff );
+	background: var( --os-dock-active-indicator, var( --os-dock-item-outline, #fff ) );
 }
 
 .os-dock[ data-os-dock-placement="left" ]
@@ -678,7 +693,7 @@
 	height: 6px;
 	border-radius: 50%;
 	background: transparent;
-	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
+	border: 1px solid var( --os-dock-active-indicator, var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) ) );
 }
 
 /* Right dock: indicator on the opposite edge (inside-facing). */
@@ -692,7 +707,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --os-dock-item-outline, #fff );
+	background: var( --os-dock-active-indicator, var( --os-dock-item-outline, #fff ) );
 }
 
 .os-dock[ data-os-dock-placement="right" ]
@@ -708,7 +723,7 @@
 	height: 6px;
 	border-radius: 50%;
 	background: transparent;
-	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
+	border: 1px solid var( --os-dock-active-indicator, var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) ) );
 }
 
 /* "Open another" chip — left: right of tile; right: left of tile. */
@@ -861,14 +876,20 @@
  * rather than stealing vertical space from the shell body.
  * ------------------------------------------------------------------ */
 
+/*
+ * The pill's geometry is tokenized so a theme can draw a different
+ * object along the same edge: a full-width bar flush with the floor
+ * is `width: 100%`, `bottom: 0`, radius 0. The work area measures the
+ * rail's real box, so windows keep clear of whatever shape it takes.
+ */
 .os-dock[ data-os-dock-placement="bottom" ] {
 	position: absolute;
 	inset-inline-start: 0;
 	inset-inline-end: 0;
-	bottom: 12px;
+	bottom: var( --os-dock-floating-offset, 12px );
 	margin: 0 auto;
-	width: fit-content;
-	max-width: calc( 100% - 32px );
+	width: var( --os-dock-floating-width, fit-content );
+	max-width: var( --os-dock-floating-max-width, calc( 100% - 32px ) );
 	flex-direction: row;
 	justify-content: center;
 	/* Top padding is 4px instead of 8px so that the inner `__scroll`
@@ -876,9 +897,9 @@
 	 * (the tile's badge sits at top: -3px). Net vertical chrome stays
 	 * symmetric: 4px pill padding + 4px wrapper padding above the
 	 * tile, 8px pill padding below — tile is 8px from both edges. */
-	padding: 4px 12px 8px;
-	gap: 6px;
-	border-radius: 18px;
+	padding: var( --os-dock-floating-padding, 4px 12px 8px );
+	gap: var( --os-dock-floating-gap, 6px );
+	border-radius: var( --os-dock-floating-radius, 18px );
 
 	/* Warmer, more saturated glass tint than vertical placements so
 	 * the floating pill reads as a distinct piece of chrome rather
@@ -896,8 +917,8 @@
 		--os-dock-floating-bg,
 		rgba( 22, 22, 26, 0.42 )
 	);
-	backdrop-filter: blur( 28px ) saturate( 170% );
-	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
+	backdrop-filter: var( --os-dock-floating-backdrop, blur( 28px ) saturate( 170% ) );
+	-webkit-backdrop-filter: var( --os-dock-floating-backdrop, blur( 28px ) saturate( 170% ) );
 
 	/*
 	 * Hairline + inset highlight. These used to be hardcoded, which
@@ -945,7 +966,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: var( --os-dock-item-outline, #fff );
+	background: var( --os-dock-active-indicator, var( --os-dock-item-outline, #fff ) );
 }
 
 .os-dock[ data-os-dock-placement="bottom" ]
@@ -966,7 +987,7 @@
 	height: 6px;
 	border-radius: 50%;
 	background: transparent;
-	border: 1px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) );
+	border: 1px solid var( --os-dock-active-indicator, var( --os-dock-item-outline, rgba( 255, 255, 255, 0.85 ) ) );
 }
 
 /*
@@ -1040,13 +1061,11 @@
 	flex-direction: row;
 	align-items: center;
 	justify-content: start;
-	justify-content: safe center;
-	gap: 6px;
+	justify-content: var( --os-dock-floating-justify, safe center );
+	gap: var( --os-dock-floating-gap, 6px );
 	flex: 1 1 auto;
 	min-width: 0;
-	padding-top: 4px;
-	padding-bottom: 6px;
-	padding-inline: 4px;
+	padding: var( --os-dock-floating-track-padding, 4px 4px 6px );
 	overflow-x: auto;
 	/*
 	 * Authored `visible`, computed `auto` — see the note above. Kept as
@@ -1066,12 +1085,14 @@
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	gap: 6px;
+	gap: var( --os-dock-floating-gap, 6px );
 	flex-shrink: 0;
 	/* Match the scroll wrapper's badge clearance so system tiles sit
 	 * on the same vertical baseline as the menu tiles. */
-	padding-top: 4px;
-	padding-bottom: 6px;
+	padding: var( --os-dock-floating-pinned-padding, 4px 0 6px );
+	/* A well the system tiles sit in, when a theme draws one. */
+	background: var( --os-dock-pinned-bg, transparent );
+	box-shadow: var( --os-dock-pinned-shadow, none );
 }
 
 /* Separator — the line between two groups of tiles. The system one
@@ -1083,10 +1104,10 @@
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__separator {
 	position: relative;
-	width: 2px;
+	width: var( --os-dock-separator-width, 2px );
 	/* Fixed height — `60%` collapses against the floating pill's
 	   intrinsic height, leaving the line effectively invisible. */
-	height: 34px;
+	height: var( --os-dock-separator-height, 34px );
 	/* Symmetric horizontal margin so the divider sits centered in the
 	 * inter-tile gap: the 6px flex gap on each side (`__scroll`→`__pinned`
 	 * on the left, `__pinned`'s own gap on the right) plus an equal
@@ -1094,21 +1115,32 @@
 	 * divider — and the whole menu cluster with it — off the pill's
 	 * center. Wider than the tile gap on purpose: the clusters need to
 	 * read as groups before the line between them means anything. */
-	margin: auto 14px;
+	margin: auto var( --os-dock-separator-margin, 14px );
 	border-radius: 2px;
-	background: linear-gradient(
-		to bottom,
-		transparent 0%,
-		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 28%,
-		var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 72%,
-		transparent 100%
+	/*
+	 * The glowing seam by default. A theme drawing an etched groove
+	 * instead answers `--os-dock-separator-bg` with a flat colour and
+	 * `--os-dock-separator-shadow` with the highlight beside it.
+	 */
+	background: var(
+		--os-dock-separator-bg,
+		linear-gradient(
+			to bottom,
+			transparent 0%,
+			var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 28%,
+			var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 72%,
+			transparent 100%
+		)
 	);
-	box-shadow: 0 0 10px
-		color-mix(
-			in srgb,
-			var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 45%,
-			transparent
-		);
+	box-shadow: var(
+		--os-dock-separator-shadow,
+		0 0 10px
+			color-mix(
+				in srgb,
+				var( --os-dock-divider, rgba( 217, 46, 227, 0.7 ) ) 45%,
+				transparent
+			)
+	);
 	flex-shrink: 0;
 }
 
@@ -1196,7 +1228,7 @@
 }
 
 .os-dock__item[ data-system-id="os-exit" ] .os-dock__item-primary {
-	border-radius: 50%;
+	border-radius: var( --os-dock-exit-radius, 50% );
 	background-color: transparent;
 	box-shadow: inset 0 0 0 1px var(
 		--os-dock-exit-ring,
@@ -1211,7 +1243,7 @@
  */
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__item[ data-system-id="os-exit" ] {
-	margin-inline-start: 10px;
+	margin-inline-start: var( --os-dock-exit-gap, 10px );
 }
 
 .os-dock[ data-os-dock-placement="left" ]
@@ -1240,7 +1272,7 @@
 .os-dock[ data-os-dock-placement="bottom" ]
 	.os-dock__item[ data-system-id="os-exit" ]
 	.os-dock__item-primary:hover {
-	transform: translateY( 2px );
+	transform: var( --os-dock-exit-hover-transform, translateY( 2px ) );
 }
 
 .os-dock[ data-os-dock-placement="left" ]

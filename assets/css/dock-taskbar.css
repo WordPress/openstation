@@ -1,0 +1,302 @@
+/**
+ * OpenStation — the Taskbar rail renderer (`src/dock-rail/taskbar-renderer.ts`).
+ *
+ * A full-width bar along the bottom edge: Start, a button per open
+ * window, and a tray. Every rule is scoped to the rail the renderer
+ * stamps, so the sheet is inert under the default icon strip, and it
+ * loads with the dock because the renderer can be picked live.
+ *
+ * Colours fall back to the dock's own tokens, so a theme that has
+ * already dressed the dock gets a matching taskbar; `--os-taskbar-*`
+ * names are there for the parts a dock does not have.
+ */
+
+.os-dock[ data-os-dock-renderer="taskbar" ][ data-os-dock-placement="bottom" ] {
+	inset-inline: 0;
+	bottom: 0;
+	width: 100%;
+	max-width: 100%;
+	margin: 0;
+	padding: var( --os-taskbar-padding, 4px 6px );
+	border-radius: 0;
+	border-inline: 0;
+	border-block-end: 0;
+}
+
+.os-taskbar {
+	display: flex;
+	align-items: stretch;
+	gap: var( --os-taskbar-gap, 6px );
+	width: 100%;
+	height: var( --os-taskbar-height, 36px );
+	font-family: var( --os-font, inherit );
+	font-size: var( --os-taskbar-font-size, 12px );
+	color: var( --os-taskbar-fg, var( --os-dock-icon-color-hover, #fff ) );
+}
+
+.os-taskbar__icon {
+	flex-shrink: 0;
+	width: var( --os-taskbar-icon-size, 16px );
+	height: var( --os-taskbar-icon-size, 16px );
+	font-size: var( --os-taskbar-icon-size, 16px );
+	line-height: 1;
+}
+
+.os-taskbar__icon--blank {
+	visibility: hidden;
+}
+
+img.os-taskbar__icon {
+	object-fit: contain;
+}
+
+/* --- Start and the window buttons ------------------------------- */
+
+.os-taskbar__start,
+.os-taskbar__task {
+	display: inline-flex;
+	align-items: center;
+	gap: var( --os-taskbar-button-gap, 6px );
+	min-width: 0;
+	padding: var( --os-taskbar-button-padding, 0 10px );
+	border: 0;
+	border-radius: var( --os-taskbar-button-radius, 8px );
+	background-color: var( --os-taskbar-button-bg, rgba( 255, 251, 255, 0.06 ) );
+	box-shadow: var( --os-taskbar-button-shadow, none );
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.os-taskbar__start {
+	flex-shrink: 0;
+	font-weight: var( --os-taskbar-start-weight, 600 );
+}
+
+.os-taskbar__task {
+	flex: 0 1 var( --os-taskbar-task-width, 180px );
+}
+
+.os-taskbar__start:hover,
+.os-taskbar__task:hover {
+	background-color: var(
+		--os-taskbar-button-bg-hover,
+		var( --os-dock-item-bg-hover, rgba( 255, 251, 255, 0.12 ) )
+	);
+}
+
+/*
+ * Held down, open, or the window in front: the key is pressed. A theme
+ * can lay a pattern over the pressed face (the era's checkered fill)
+ * through `--os-taskbar-button-pattern-active`.
+ */
+.os-taskbar__start:active,
+.os-taskbar__start--open,
+.os-taskbar__task:active,
+.os-taskbar__task--active {
+	background-color: var( --os-taskbar-button-bg-active, rgba( 255, 251, 255, 0.16 ) );
+	box-shadow: var(
+		--os-taskbar-button-shadow-active,
+		var( --os-taskbar-button-shadow, none )
+	);
+}
+
+.os-taskbar__task--active {
+	background-image: var( --os-taskbar-button-pattern-active, none );
+	background-size: var( --os-taskbar-button-pattern-size, auto );
+	font-weight: var( --os-taskbar-task-active-weight, 400 );
+}
+
+.os-taskbar__start:focus-visible,
+.os-taskbar__task:focus-visible,
+.os-taskbar__tray-item:focus-visible {
+	outline: var( --os-taskbar-focus-outline, 2px solid var( --os-dock-item-outline, rgba( 255, 255, 255, 0.7 ) ) );
+	outline-offset: var( --os-taskbar-focus-offset, -2px );
+}
+
+.os-taskbar__task-label,
+.os-taskbar__start-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-taskbar__tasks {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: stretch;
+	gap: var( --os-taskbar-gap, 6px );
+	min-width: 0;
+	overflow: hidden;
+}
+
+/* --- The tray --------------------------------------------------- */
+
+.os-taskbar__tray {
+	display: flex;
+	flex-shrink: 0;
+	align-items: center;
+	gap: 6px;
+	padding: var( --os-taskbar-tray-padding, 0 8px );
+	border-radius: var( --os-taskbar-tray-radius, 8px );
+	background-color: var( --os-taskbar-tray-bg, transparent );
+	box-shadow: var( --os-taskbar-tray-shadow, none );
+}
+
+.os-taskbar__tray-items {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.os-taskbar__tray-item {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var( --os-taskbar-tray-item-size, 24px );
+	height: var( --os-taskbar-tray-item-size, 24px );
+	padding: 0;
+	border: 0;
+	border-radius: var( --os-taskbar-button-radius, 8px );
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+}
+
+.os-taskbar__tray-item:hover {
+	background-color: var(
+		--os-taskbar-tray-item-bg-hover,
+		var( --os-dock-item-bg-hover, rgba( 255, 251, 255, 0.12 ) )
+	);
+}
+
+.os-taskbar__clock {
+	padding-inline: 4px;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+	cursor: default;
+}
+
+/* --- The Start menu --------------------------------------------- */
+
+.os-taskbar__menu {
+	position: absolute;
+	inset-inline-start: var( --os-taskbar-menu-inset, 6px );
+	bottom: calc( 100% + var( --os-taskbar-menu-offset, 6px ) );
+	display: flex;
+	min-width: 220px;
+	padding: var( --os-taskbar-menu-padding, 4px );
+	border-radius: var( --os-taskbar-menu-radius, 12px );
+	background: var( --os-taskbar-menu-bg, var( --os-ui-surface, #1a1721 ) );
+	box-shadow: var( --os-taskbar-menu-shadow, 0 16px 40px rgba( 0, 0, 0, 0.5 ) );
+	color: var( --os-taskbar-menu-fg, var( --os-ui-fg, #fffbff ) );
+	font-family: var( --os-font, inherit );
+	font-size: var( --os-taskbar-menu-font-size, 13px );
+}
+
+.os-taskbar__menu[ hidden ] {
+	display: none;
+}
+
+/*
+ * The banner down the menu's leading edge. A hero surface by default;
+ * a theme can paint it flat.
+ */
+.os-taskbar__banner {
+	flex-shrink: 0;
+	padding: 8px 4px;
+	border-radius: var( --os-taskbar-banner-radius, 8px );
+	background: var( --os-taskbar-banner-bg, var( --os-ui-hero-mesh, #2c3338 ) );
+	color: var( --os-taskbar-banner-fg, var( --os-ui-fg, #fffbff ) );
+	font-size: var( --os-taskbar-banner-font-size, 18px );
+	line-height: 1;
+	writing-mode: vertical-rl;
+	transform: rotate( 180deg );
+	white-space: nowrap;
+}
+
+.os-taskbar__menu-list,
+.os-taskbar__submenu {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.os-taskbar__menu-list {
+	flex: 1;
+	padding-inline-start: 4px;
+}
+
+.os-taskbar__menu-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	padding: var( --os-taskbar-menu-item-padding, 6px 10px );
+	border: 0;
+	border-radius: var( --os-taskbar-menu-item-radius, 6px );
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.os-taskbar__menu-item .os-taskbar__icon {
+	width: var( --os-taskbar-menu-icon-size, 20px );
+	height: var( --os-taskbar-menu-icon-size, 20px );
+	font-size: var( --os-taskbar-menu-icon-size, 20px );
+}
+
+.os-taskbar__menu-item:hover,
+.os-taskbar__menu-item:focus-visible,
+.os-taskbar__cascade--open > .os-taskbar__menu-item {
+	outline: none;
+	background: var( --os-taskbar-menu-hover-bg, var( --os-ui-hover, rgba( 255, 251, 255, 0.08 ) ) );
+	color: var( --os-taskbar-menu-hover-fg, inherit );
+}
+
+.os-taskbar__menu-label {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* The cascade arrow: a solid triangle pointing at the submenu. */
+.os-taskbar__menu-arrow {
+	width: 0;
+	height: 0;
+	margin-inline-start: 12px;
+	border-block: 4px solid transparent;
+	border-inline-start: 4px solid currentColor;
+}
+
+.os-taskbar__menu-separator {
+	height: 1px;
+	margin: 4px 6px;
+	background: var( --os-taskbar-menu-separator, var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) ) );
+	box-shadow: var( --os-taskbar-menu-separator-shadow, none );
+}
+
+.os-taskbar__cascade {
+	position: relative;
+}
+
+.os-taskbar__submenu {
+	position: absolute;
+	top: calc( -1 * var( --os-taskbar-menu-padding, 4px ) );
+	inset-inline-start: 100%;
+	display: none;
+	min-width: 190px;
+	padding: var( --os-taskbar-menu-padding, 4px );
+	border-radius: var( --os-taskbar-menu-radius, 12px );
+	background: var( --os-taskbar-menu-bg, var( --os-ui-surface, #1a1721 ) );
+	box-shadow: var( --os-taskbar-menu-shadow, 0 16px 40px rgba( 0, 0, 0, 0.5 ) );
+	translate: 0 var( --os-taskbar-submenu-shift, 0px );
+}
+
+.os-taskbar__cascade--open > .os-taskbar__submenu {
+	display: flex;
+}
