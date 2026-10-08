@@ -777,12 +777,76 @@ function openstation_chromeless_trim_command_palette() {
 		}
 	}
 
+	openstation_chromeless_keep_components_style( $scripts );
+
 	/**
 	 * Fires after OpenStation drops the command-palette family in a window.
 	 */
 	do_action( 'openstation_chromeless_trimmed_command_palette' );
 }
 add_action( 'admin_enqueue_scripts', 'openstation_chromeless_trim_command_palette', PHP_INT_MAX );
+
+/**
+ * Keeps the `wp-components` stylesheet for screens that use the components.
+ *
+ * Core's palette enqueues the `wp-commands` stylesheet, which depends on
+ * `wp-components`, on every admin page. Plugins that render with
+ * `@wordpress/components` routinely depend on the `wp-components`
+ * SCRIPT and never declare the matching style, because in the classic
+ * admin the palette always brought it along. Trimming the palette from a
+ * window took that stylesheet away from them.
+ *
+ * What breaks first is anything that floats. A window narrower than
+ * Core's 782px "medium" breakpoint puts every Popover into its full-screen
+ * `is-expanded` mode, which drops the inline positioning and relies on
+ * `.components-popover.is-expanded` from this stylesheet. Without it the
+ * AI plugin's DataViews "View options" popover rendered as a static
+ * block below the page, so the button looked dead. Dropdowns, modals and
+ * snackbars lose their styling the same way.
+ *
+ * So if a queued plugin or theme script reaches the `wp-components`
+ * script, its stylesheet is queued too, which is what the classic admin
+ * effectively guaranteed. Screens that don't render components pay
+ * nothing.
+ *
+ * @param WP_Scripts $scripts The scripts registry.
+ */
+function openstation_chromeless_keep_components_style( $scripts ) {
+	if ( ! wp_style_is( 'wp-components', 'registered' ) || wp_style_is( 'wp-components', 'enqueued' ) ) {
+		return;
+	}
+
+	// Only screens that render components count. Core packages such as
+	// `wp-abilities` reach `wp-components` as a library on every admin
+	// page, so the walk skips them, the same structural rule the palette
+	// family walk uses ({@see openstation_handle_depends_on()}). Measured:
+	// with it, Settings and the Posts list stay lean while the AI plugin's
+	// logs and WooCommerce's admin app keep the stylesheet. Without it,
+	// every window got it.
+	$uses_components = in_array( 'wp-components', $scripts->queue, true );
+	$memo            = array();
+	foreach ( $scripts->queue as $handle ) {
+		if ( $uses_components ) {
+			break;
+		}
+		if ( openstation_is_core_package_handle( $scripts, $handle ) ) {
+			continue;
+		}
+		$uses_components = openstation_handle_depends_on( $scripts, $handle, array( 'wp-components' ), $memo );
+	}
+
+	/**
+	 * Filters whether a window keeps the `wp-components` stylesheet after
+	 * the command palette is trimmed.
+	 *
+	 * @param bool $keep Whether to enqueue it. Defaults to whether a queued
+	 *                   plugin or theme script depends on the `wp-components`
+	 *                   script.
+	 */
+	if ( apply_filters( 'openstation_chromeless_keep_components_style', $uses_components ) ) {
+		wp_enqueue_style( 'wp-components' );
+	}
+}
 
 /**
  * Second pass: strip the palette family from the actual print list.

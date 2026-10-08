@@ -2154,6 +2154,18 @@ apply_filters( 'openstation_command_palette_root_handles', string[] $handles );
 ```
 
 
+### `openstation_chromeless_keep_components_style` — Experimental
+
+Whether a window keeps the `wp-components` **stylesheet** after the palette is trimmed.
+
+Core's palette enqueues the `wp-commands` stylesheet, which depends on `wp-components`, on every admin page. Many plugins render with `@wordpress/components` and depend only on the `wp-components` *script*, never declaring the style, because the palette always supplied it. Without it, components render unstyled inside windows. The first visible symptom is floating UI: a window narrower than Core's 782px breakpoint puts Popovers into their full-screen `is-expanded` mode, which relies on that stylesheet, so a dropdown such as DataViews' "View options" renders below the page and looks dead.
+
+Defaults to `true` when the `wp-components` script is queued directly, or when a queued plugin or theme script reaches it through its own dependency chain. Core packages that only use it as a library (`wp-abilities`) don't count, so ordinary screens such as Settings stay lean.
+
+```php
+add_filter( 'openstation_chromeless_keep_components_style', '__return_true' ); // Always keep it.
+```
+
 ### `openstation_command_palette_trim_dependents` — Experimental
 
 Whether handles that merely *depend on* the palette are dropped alongside the roots. Default `true`.
