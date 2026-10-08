@@ -27,6 +27,7 @@ import {
 import type { ClientApp } from './client';
 import { morphChildren } from './morph';
 import { takePrewarm } from './prewarm';
+import { joinRestUrl } from '../rest-url';
 import {
 	appAnnounceSource,
 	type AppConfig,
@@ -443,9 +444,13 @@ export function createSession( deps: SessionDeps ): Session {
 	 * the request is attributed to this window so its spinner shows.
 	 */
 	const restFetch = ( path: string, init: RequestInit = {}, options: { silent?: boolean } = {} ): Promise< Response > => {
+		// `joinRestUrl()`, never concatenation: under Plain permalinks the
+		// root is `index.php?rest_route=/`, and appending a path that
+		// carries its own `?query` produced a second `?` and a 404 for
+		// every app (the Posts app's categories, tags, lists).
 		const url = /^https?:\/\//i.test( path )
 			? path
-			: String( config.restRoot ?? '' ) + path.replace( /^\//, '' );
+			: joinRestUrl( String( config.restRoot ?? '' ), path );
 		const headers = new Headers( init.headers );
 		if ( ! headers.has( 'Accept' ) ) {
 			headers.set( 'Accept', 'application/json' );
