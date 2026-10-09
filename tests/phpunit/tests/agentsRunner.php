@@ -125,6 +125,110 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Token usage is summed across every turn and the last resolved
+	 * model is carried out, so a subscriber can price an agent run
+	 * the way `openstation_ai_search_completed` already prices a
+	 * Copilot one.
+	 *
+	 * @covers ::openstation_agent_runner_loop
+	 */
+	public function test_usage_accrues_across_turns_and_model_is_carried() {
+		$agent = $this->create_agent();
+		$turn  = 0;
+		$this->stub_generate(
+			static function () use ( &$turn ) {
+				++$turn;
+				$common = array(
+					'usage' => array(
+						'prompt'     => 100,
+						'completion' => 20,
+						'total'      => 120,
+					),
+					'model' => array(
+						'id'   => 'claude-sonnet-5',
+						'name' => 'Claude Sonnet 5',
+					),
+				);
+				if ( 1 === $turn ) {
+					return array_merge(
+						$common,
+						array(
+							'text'           => null,
+							'function_calls' => array(
+								array(
+									'name'      => 'delete_everything',
+									'call_id'   => 'call-1',
+									'arguments' => '{}',
+								),
+							),
+							'message'        => null,
+						)
+					);
+				}
+				return array_merge(
+					$common,
+					array(
+						'text'           => 'done',
+						'function_calls' => array(),
+						'message'        => null,
+					)
+				);
+			}
+		);
+
+		$captured = null;
+		add_action(
+			'openstation_agent_completed',
+			static function ( $agent_id, $message, $result ) use ( &$captured ) {
+				$captured = $result;
+			},
+			10,
+			3
+		);
+
+		$result = openstation_agent_invoke( $agent->ID, 'go' );
+
+		$this->assertNotWPError( $result );
+		$this->assertSame( 2, $result['turns'] );
+		// Both turns cost, including the one that only asked for a tool.
+		$this->assertSame( 240, $result['usage']['total'] );
+		$this->assertSame( 200, $result['usage']['prompt'] );
+		$this->assertSame( 40, $result['usage']['completion'] );
+		$this->assertSame( 'claude-sonnet-5', $result['model']['id'] );
+		// The same figures reach the hook a metering plugin subscribes to.
+		$this->assertNotNull( $captured );
+		$this->assertSame( 240, $captured['usage']['total'] );
+		$this->assertSame( 'claude-sonnet-5', $captured['model']['id'] );
+	}
+
+	/**
+	 * A provider (or a stubbed generator) that reports no usage
+	 * leaves both keys null rather than a confident zero, which is
+	 * what tells "cost nothing" apart from "did not say".
+	 *
+	 * @covers ::openstation_agent_runner_loop
+	 */
+	public function test_unreported_usage_is_null_not_zero() {
+		$agent = $this->create_agent();
+		$this->stub_generate(
+			static function () {
+				return array(
+					'text'           => 'done',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$result = openstation_agent_invoke( $agent->ID, 'go' );
+
+		$this->assertNotWPError( $result );
+		$this->assertArrayHasKey( 'usage', $result );
+		$this->assertNull( $result['usage'] );
+		$this->assertNull( $result['model'] );
+	}
+
+	/**
 	 * A function call outside the allowlist map is answered with an
 	 * error result, not executed.
 	 *
