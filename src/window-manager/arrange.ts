@@ -1,11 +1,11 @@
 /**
  * OpenStation — Window arrangement algorithms.
  *
- * `cascade` and `tile` are the two "Arrange" commands exposed from the
- * admin-bar menu; `columns` and `focus` are what a workspace's
- * `layout` resolves to. All four touch every window on the active
- * desktop, so they sit outside the class body to keep the orchestrator
- * file readable. Snap config + grid validation live in sibling modules
+ * `cascade` and `tile` are the two general "Arrange" commands (`tile`
+ * is the System menu's "Tile all windows"); `columns` and `focus` are
+ * what a workspace's `layout` resolves to. All four touch every window
+ * on the active desktop, so they sit outside the class body to keep the
+ * orchestrator file readable. Snap config + grid validation live in sibling modules
  * (`snap.ts`, `geometry.ts`).
  *
  * Every one of them normalizes state first — restore before unwinding
@@ -129,11 +129,10 @@ export function cascade( mgr: WindowManager ): void {
 }
 
 /**
- * Tile every eligible window into a uniform grid that covers the
- * desktop area — "Show all windows," macOS-style. The grid dimensions
- * (cols × rows) are picked to maximise individual window size while
- * still fitting all of them, by matching the cell aspect ratio to the
- * desktop area's aspect ratio.
+ * Tile every eligible window into a grid that covers the work area —
+ * the System menu's "Tile all windows". Two windows split it in
+ * halves, three in thirds, four in a 2×2 square; see
+ * `pickGridDimensions` for the general rule.
  */
 export function tile( mgr: WindowManager ): void {
 	const eligible = mgr._stack.filter(
@@ -201,16 +200,17 @@ export function tile( mgr: WindowManager ): void {
 		( rect.height - padding * 2 - gap * ( rows - 1 ) ) / rows,
 	);
 
-	// Each row shares its width by minimum widths: even cells unless a
-	// window needs more, in which case its row-mates (and the empty
-	// cells of a short last row) make room. See `shareRowByMinWidth`.
+	// Each row shares its whole width between the windows on it, so a
+	// short last row leaves no empty cells: even shares unless a window
+	// needs more, in which case its row-mates make room. See
+	// `shareRowByMinWidth`.
 	for ( let row = 0; row * cols < eligible.length; row++ ) {
 		const members = eligible.slice( row * cols, row * cols + cols );
-		const mins = Array.from(
-			{ length: cols },
-			( _, col ) => members[ col ]?.config.minWidth || 0,
+		const spans = shareRowByMinWidth(
+			rect.width - padding * 2,
+			gap,
+			members.map( ( w ) => w.config.minWidth || 0 ),
 		);
-		const spans = shareRowByMinWidth( rect.width - padding * 2, gap, mins );
 		members.forEach( ( w, col ) => {
 			// See cascade: the tile is the placement now.
 			w._gridSpan = null;

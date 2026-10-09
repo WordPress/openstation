@@ -7,7 +7,7 @@
  *
  *   - `desktops.ts`  — create / switch / close virtual desktops,
  *                      visibility sync, seed from persistence.
- *   - `arrange.ts`   — cascade + tile commands from the Arrange menu.
+ *   - `arrange.ts`   — cascade, tile, and the workspace arrangements.
  *   - `snap.ts`      — snap-to-grid preference + live cell-size calc.
  *   - `overview.ts`  — the zoom-out grid + top-bar + click / key /
  *                      hover handlers.
