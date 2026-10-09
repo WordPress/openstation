@@ -18,6 +18,7 @@ import {
 	uiOf,
 	type Ctx,
 	type DetailFacts,
+	type ListItem,
 	type SectionDef,
 	type StatsRecentPost,
 	type UserPreviewAction,
@@ -222,17 +223,49 @@ function extrasSlot( slot: 'header' | 'meta' | 'footer', itemId: number ): Templ
 	></div>`;
 }
 
-export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
+/**
+ * The gallery inspector's header, Finder's: a small thumbnail beside
+ * the name. The stage next to the inspector already shows the image
+ * large, so the pane does not repeat it; type and size are in the
+ * facts below.
+ */
+function inspectorHead( title: string, row: ListItem | undefined ): TemplateResult {
+	return html`
+		<header class="os-mywp__inspector-head">
+			${ row?.thumb ? html`<img class="os-mywp__inspector-thumb" src=${ row.thumb } alt=""/>` : '' }
+			<h2 class="os-mywp__detail-title">${ title }</h2>
+		</header>
+	`;
+}
+
+/**
+ * The preview pane's dossier. `inspector` is the gallery's costume:
+ * the pane is always there, so it has no ✕, and the stage shows the
+ * image, so the hero gives way to a compact header.
+ */
+export function renderDetail( ctx: Ctx, section: SectionDef, inspector = false ): TemplateResult {
 	const { data } = ctx;
 	const detail = previewDetail( ctx );
+	const close = inspector
+		? ''
+		: html`<os-button
+			variant="ghost"
+			class="os-mywp__pane-close"
+			aria-label=${ __( 'Close details' ) }
+			@click=${ () => openPreview( ctx, 0 ) }
+		>✕</os-button>`;
 	if ( ! detail ) {
 		const row = uiOf( ctx ).list.items().find( ( item ) => item.id === ctx.state.item );
 		return html`<article class="os-mywp__detail" aria-busy=${ uiOf( ctx ).previewLoading ? 'true' : 'false' }>
-			<os-button variant="ghost" class="os-mywp__pane-close" aria-label=${ __( 'Close details' ) } @click=${ () => openPreview( ctx, 0 ) }>✕</os-button>
-			${ row?.thumb ? html`<img class="os-mywp__hero" src=${ row.thumb } alt=${ row.title }/>` : '' }
-			<h2 class="os-mywp__detail-title">${ row?.title ?? '' }</h2>
-			<p>${ row?.subtitle ?? '' }</p>
-			<p>${ row?.excerpt ?? '' }</p>
+			${ close }
+			${ inspector
+				? inspectorHead( row?.title ?? '', row )
+				: html`
+					${ row?.thumb ? html`<img class="os-mywp__hero" src=${ row.thumb } alt=${ row.title }/>` : '' }
+					<h2 class="os-mywp__detail-title">${ row?.title ?? '' }</h2>
+					<p>${ row?.subtitle ?? '' }</p>
+					<p>${ row?.excerpt ?? '' }</p>
+				` }
 			<p role="status">${ previewMessage( ctx ) }</p>
 		</article>`;
 	}
@@ -271,14 +304,10 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 	}
 	return html`
 		<article class="os-mywp__detail">
-			<os-button
-				variant="ghost"
-				class="os-mywp__pane-close"
-				aria-label=${ __( 'Close details' ) }
-				@click=${ () => openPreview( ctx, 0 ) }
-			>✕</os-button>
+			${ close }
 			${ detail.avatar ? html`<os-avatar src=${ detail.avatar } name=${ detail.title } size="xl"></os-avatar>` : '' }
-			${ detail.image
+			${ inspector ? inspectorHead( detail.title, item ) : '' }
+			${ ! inspector && detail.image
 				? html`<img
 					class="os-mywp__hero ${ detail.kind === 'media' ? 'is-zoomable' : '' }"
 					src=${ detail.image }
@@ -291,7 +320,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 					} }
 				/>`
 				: '' }
-			<h2 class="os-mywp__detail-title">${ detail.title }</h2>
+			${ inspector ? '' : html`<h2 class="os-mywp__detail-title">${ detail.title }</h2>` }
 			${ roleLabel || archiveUrl
 				? html`<p class="os-mywp__user-meta">
 					${ roleLabel ? html`<os-badge no-dot>${ roleLabel.toUpperCase() }</os-badge>` : '' }

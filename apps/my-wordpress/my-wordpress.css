@@ -333,6 +333,157 @@
 	inline-size: 100%;
 }
 
+/* ----------------------------------------------------------- gallery */
+
+/*
+ * Media's gallery view (`parts/gallery.ts`), after Finder's: the open
+ * item large on a stage, the section as a filmstrip under it, and
+ * the detail pane as an inspector that is always there. Every region
+ * has a fixed size, so stepping through the strip never moves a
+ * thing under the pointer.
+ */
+.os-mywp__gallery {
+	display: grid;
+	grid-template-columns: minmax( 0, 1fr ) 280px;
+	grid-template-rows: minmax( 0, 1fr ) auto;
+	flex: 1 1 auto;
+	min-block-size: 0;
+}
+
+/* Flex, not grid: the image's percentage max sizes then resolve
+ * against the stage's definite box, so it fits instead of
+ * spilling under the strip. */
+.os-mywp__stage {
+	grid-column: 1;
+	grid-row: 1;
+	min-block-size: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px 32px 16px;
+	overflow: hidden;
+}
+
+.os-mywp__stage-image {
+	min-inline-size: 0;
+	min-block-size: 0;
+	max-inline-size: 100%;
+	max-block-size: 100%;
+	object-fit: contain;
+	border-radius: 6px;
+	box-shadow: 0 12px 32px -12px rgba( 0, 0, 0, 0.55 );
+	cursor: zoom-in;
+}
+
+.os-mywp__stage-glyph {
+	font-size: 96px;
+	inline-size: 96px;
+	block-size: 96px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-mywp__strip {
+	grid-column: 1;
+	grid-row: 2;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 10px 12px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	border-block-start: 1px solid var( --os-ui-border, #dcdcde );
+	scrollbar-width: thin;
+}
+
+/* The open item is lifted, not tinted: the accent marks focus only. */
+.os-mywp__strip-cell {
+	flex: none;
+	display: grid;
+	place-items: center;
+	inline-size: 56px;
+	block-size: 64px;
+	padding: 4px;
+	border-radius: 8px;
+	cursor: default;
+}
+
+.os-mywp__strip-cell:hover {
+	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
+}
+
+.os-mywp__strip-cell.is-open {
+	background: var( --os-ui-surface-elevated, #dcdcde );
+}
+
+.os-mywp__strip-cell:focus-visible {
+	outline: 2px solid var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
+	outline-offset: 1px;
+}
+
+.os-mywp__strip-cell img {
+	max-inline-size: 100%;
+	max-block-size: 100%;
+	object-fit: contain;
+	border-radius: 3px;
+	pointer-events: none;
+}
+
+.os-mywp__strip-cell .dashicons {
+	font-size: 28px;
+	inline-size: 28px;
+	block-size: 28px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-mywp__inspector {
+	grid-column: 2;
+	grid-row: 1 / 3;
+	min-block-size: 0;
+	overflow-y: auto;
+	background: var( --os-ui-surface-raised, #f6f7f7 );
+	border-inline-start: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-mywp__inspector-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	align-self: stretch;
+}
+
+.os-mywp__inspector-head .os-mywp__detail-title {
+	padding-inline-end: 0;
+	font-size: 15px;
+	overflow-wrap: anywhere;
+}
+
+.os-mywp__inspector-thumb {
+	flex: none;
+	inline-size: 40px;
+	block-size: 48px;
+	object-fit: cover;
+	border-radius: 3px;
+}
+
+.os-mywp__inspector os-facts {
+	align-self: stretch;
+}
+
+/* A narrow window: the inspector moves under the strip. */
+@container ( max-width: 640px ) {
+	.os-mywp__gallery {
+		grid-template-columns: minmax( 0, 1fr );
+		grid-template-rows: minmax( 0, 1fr ) auto minmax( 0, 40% );
+	}
+
+	.os-mywp__inspector {
+		grid-column: 1;
+		grid-row: 3;
+		border-inline-start: 0;
+		border-block-start: 1px solid var( --os-ui-border, #dcdcde );
+	}
+}
+
 /* -------------------------------------------------- quick-edit modal */
 
 .os-mywp__qe {
