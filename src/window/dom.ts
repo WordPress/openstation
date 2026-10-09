@@ -9,6 +9,7 @@
 import type { WindowConfig } from '../types';
 import { urlMatchKey } from '../utils';
 import { isShellDocumentUrl } from '../shell-url';
+import { OS_TAB_PARAM } from '../native-url-remap';
 import { paintThemedControlIcon } from '../window-chrome/controls/paint-themed-icon';
 import { __, sprintf } from '../i18n';
 // Side-effect import — registers `<os-spinner>` so the loading
@@ -29,6 +30,8 @@ import {
 	LOADING_OVERLAY_CLASS,
 	LOADING_OVERLAY_SHOW_DELAY_MS,
 	LOADING_OVERLAY_VISIBLE_CLASS,
+	LOADING_SPINNER_PRESET,
+	LOADING_SPINNER_SIZE,
 } from './constants';
 
 /**
@@ -178,6 +181,19 @@ const INITIAL_ORIGIN = window.location.origin;
  * passes through here, which makes it the one gate that keeps the
  * desktop from booting a second desktop inside a window.
  */
+/**
+ * Whether a submenu row is a native window's tab rather than a page
+ * of its own — the `os_tab` tag the dock's rows carry for a menu a
+ * window is in charge of. See `App::menu()`.
+ */
+function namesAnotherWindowsTab( url: string ): boolean {
+	try {
+		return new URL( url, INITIAL_ORIGIN ).searchParams.has( OS_TAB_PARAM );
+	} catch {
+		return false;
+	}
+}
+
 export function withChromelessParam( url: string ): string | null {
 	const parsed = new URL( url, INITIAL_ORIGIN );
 	if ( parsed.origin !== INITIAL_ORIGIN ) {
@@ -245,8 +261,8 @@ function buildDefaultLoadingOverlay(): HTMLElement {
 	// the right tone for a window that's still loading. Plugins
 	// that prefer a more lively look can swap the preset via the
 	// `WINDOW_LOADING_OVERLAY` filter.
-	spinner.setAttribute( 'preset', 'classic' );
-	spinner.setAttribute( 'size', 'clamp(96px, 14vw, 192px)' );
+	spinner.setAttribute( 'preset', LOADING_SPINNER_PRESET );
+	spinner.setAttribute( 'size', LOADING_SPINNER_SIZE );
 	spinner.setAttribute( 'label', __( 'Loading window content' ) );
 	overlay.appendChild( spinner );
 	return overlay;
@@ -415,6 +431,100 @@ export function createControlButton(
 }
 
 /**
+ * Build the submenu tab buttons an iframe window's strip opens with:
+ * the synthetic "back to parent" tab, then one per sub-page, the one
+ * matching `config.url` lit.
+ *
+ * Shared by construction and by {@link setSubmenuTabs} in `tabs.ts`,
+ * which re-seeds an open window's strip when a menu refresh changes
+ * the dock entry it came from (a theme switch takes Menus and Widgets
+ * out of Appearance). Returns the buttons rather than appending them
+ * so the caller decides where in the strip they go.
+ */
+export function buildSubmenuTabs(
+	config: Pick< WindowConfig, 'submenu' | 'url' | 'parentUrl' | 'selfLabel' | 'title' >,
+): HTMLButtonElement[] {
+	const built: HTMLButtonElement[] = [];
+	// Off-site rows never become tabs: a tab loads its URL into
+	// this window's iframe, and the remote origin refuses the
+	// frame. They stay in the constellation flyout, which can hand
+	// a link to the browser.
+	//
+	// Neither do a native window's own tabs. When a window is in
+	// charge of a menu (`App::menu()`), the dock's rows for that
+	// menu ARE its tabs, tagged `os_tab`, and they mean nothing
+	// inside an iframe of a classic page: the URL renders the
+	// menu's landing page whatever the tag says, and the click
+	// would reach into the OTHER window to switch its tab. A strip
+	// navigates the window it belongs to; a row only another
+	// window can satisfy is not this window's tab.
+	const tabSubmenu = ( config.submenu ?? [] ).filter(
+		( s ) => ! s.offSite && ! namesAnotherWindowsTab( s.url ),
+	);
+
+	if ( tabSubmenu.length === 0 || ! config.url ) {
+		return [];
+	}
+	const initialKey = urlMatchKey( config.url );
+
+	// Synthetic "back to parent" tab — `helpers.php` strips WP's
+	// auto-prepended self-link from `submenu`, so without this
+	// tab the only way back to the parent listing (e.g. All
+	// Posts from inside Categories) would be to close the window
+	// and reopen it.
+	//
+	// The synthetic uses `parentUrl` (the dock landing page),
+	// falling back to `url` when the caller didn't pass one.
+	// They diverge when the iframe has been navigated to a
+	// sub-page (or restored from a session that captured one),
+	// e.g. Appearance window currently on `theme-install.php`:
+	// `url = theme-install.php`, `parentUrl = themes.php`.
+	//
+	// Dedup: skip the synthetic if a submenu entry already
+	// points at the *parent* URL. That covers the WooCommerce
+	// shape (parent URL gets rewritten to the first submenu
+	// URL like `wc-admin`, so the first submenu entry already
+	// is the back-to-parent affordance) without false-positively
+	// suppressing it on a session-restored Appearance window
+	// (where the iframe URL `theme-install.php` matches the
+	// "Add Theme" entry but `parentUrl = themes.php` doesn't).
+	const synthUrl = config.parentUrl ?? config.url;
+	const synthKey = urlMatchKey( synthUrl );
+	const parentAlreadyInSubmenu = tabSubmenu.some(
+		( s ) => urlMatchKey( s.url ) === synthKey,
+	);
+	// Labelled the way WordPress labels it — "Themes" under
+	// Appearance, "All Posts" under Posts — which is what
+	// `selfLabel` carries. `config.title` is the MENU's name,
+	// and the fallback for menus with no self-link to take a
+	// name from.
+	const seedSubmenu: { title: string; url: string }[] = parentAlreadyInSubmenu
+		? [ ...tabSubmenu ]
+		: [
+			{ title: config.selfLabel || config.title, url: synthUrl },
+			...tabSubmenu,
+		];
+
+	for ( const sub of seedSubmenu ) {
+		const tab = document.createElement( 'button' );
+		tab.className = 'os-window__tab';
+		tab.dataset.kind = 'submenu';
+		tab.setAttribute( 'type', 'button' );
+		tab.setAttribute( 'role', 'tab' );
+		tab.dataset.url = sub.url;
+		tab.textContent = sub.title;
+		if ( urlMatchKey( sub.url ) === initialKey ) {
+			tab.classList.add( 'os-window__tab--active' );
+			tab.setAttribute( 'aria-selected', 'true' );
+		} else {
+			tab.setAttribute( 'aria-selected', 'false' );
+		}
+		built.push( tab );
+	}
+	return built;
+}
+
+/**
  * Create the DOM structure for a desktop window.
  */
 export function createWindowElement( config: WindowConfig ): HTMLElement {
@@ -443,18 +553,18 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// Leading menu button — sits before the icon + title. Rendered for
 	// every window, native or iframe; per-item gating below decides
 	// which actions actually apply. Native windows skip "Open in
-	// browser tab" since they have no admin URL to hand off.
+	// classic wp-admin" since they have no admin URL to hand off.
 	//
 	// Items in order:
-	//   - Open on startup        — checkable, marks this window as
-	//                              the default-window preference.
-	//   - Open another <Page>    — only when `config.multi`.
-	//   - Open in new window     — opens the current iframe URL as a
-	//                              fresh sibling.
-	//   - Reload                 — reloads the iframe, or re-runs the
-	//                              render callback of a native window.
-	//   - Open in browser tab    — detach to a classic admin tab.
-	//                              Iframe-only — skipped for native.
+	//   - Open on startup          — checkable, marks this window as
+	//                                the default-window preference.
+	//   - Open another <Page>      — only when `config.multi`.
+	//   - Open in new window       — opens the current iframe URL as a
+	//                                fresh sibling.
+	//   - Reload                   — reloads the iframe, or re-runs the
+	//                                render callback of a native window.
+	//   - Open in classic wp-admin — detach to a classic admin tab.
+	//                                Iframe-only — skipped for native.
 	const menuBtn = document.createElement( 'os-window-button' );
 	menuBtn.setAttribute( 'icon', 'menu' );
 	// Themed override for the ⋯ glyph. Goes through the same helper
@@ -546,7 +656,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	}
 
 	if ( ! config.native ) {
-		// "Open in browser tab" — was the title bar's detach button.
+		// "Open in classic wp-admin" — was the title bar's detach button.
 		// Strips chromeless params and opens the page in a classic
 		// admin tab. Iframe-only — native windows have no URL to
 		// hand off to the browser.
@@ -556,7 +666,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		openExternal.setAttribute( 'icon', 'dashicons-external' );
 		openExternal.classList.add( 'os-window__menu-item' );
 		openExternal.classList.add( 'os-window__menu-item--open-external' );
-		openExternal.textContent = __( 'Open in browser tab' );
+		openExternal.textContent = __( 'Open in classic wp-admin' );
 		menuPanel.appendChild( openExternal );
 	}
 
@@ -854,71 +964,8 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 			tabs.dataset.tablistLabel = sprintf( __( '%s sub-pages' ), config.title );
 		}
 
-		// Off-site rows never become tabs: a tab loads its URL into
-		// this window's iframe, and the remote origin refuses the
-		// frame. They stay in the constellation flyout, which can hand
-		// a link to the browser.
-		const tabSubmenu = ( config.submenu ?? [] ).filter(
-			( s ) => ! s.offSite,
-		);
-
-		if ( tabSubmenu.length > 0 && config.url ) {
-			const initialKey = urlMatchKey( config.url );
-
-			// Synthetic "back to parent" tab — `helpers.php` strips WP's
-			// auto-prepended self-link from `submenu`, so without this
-			// tab the only way back to the parent listing (e.g. All
-			// Posts from inside Categories) would be to close the window
-			// and reopen it.
-			//
-			// The synthetic uses `parentUrl` (the dock landing page),
-			// falling back to `url` when the caller didn't pass one.
-			// They diverge when the iframe has been navigated to a
-			// sub-page (or restored from a session that captured one),
-			// e.g. Appearance window currently on `theme-install.php`:
-			// `url = theme-install.php`, `parentUrl = themes.php`.
-			//
-			// Dedup: skip the synthetic if a submenu entry already
-			// points at the *parent* URL. That covers the WooCommerce
-			// shape (parent URL gets rewritten to the first submenu
-			// URL like `wc-admin`, so the first submenu entry already
-			// is the back-to-parent affordance) without false-positively
-			// suppressing it on a session-restored Appearance window
-			// (where the iframe URL `theme-install.php` matches the
-			// "Add Theme" entry but `parentUrl = themes.php` doesn't).
-			const synthUrl = config.parentUrl ?? config.url;
-			const synthKey = urlMatchKey( synthUrl );
-			const parentAlreadyInSubmenu = tabSubmenu.some(
-				( s ) => urlMatchKey( s.url ) === synthKey,
-			);
-			// Labelled the way WordPress labels it — "Themes" under
-			// Appearance, "All Posts" under Posts — which is what
-			// `selfLabel` carries. `config.title` is the MENU's name,
-			// and the fallback for menus with no self-link to take a
-			// name from.
-			const seedSubmenu: { title: string; url: string }[] = parentAlreadyInSubmenu
-				? [ ...tabSubmenu ]
-				: [
-					{ title: config.selfLabel || config.title, url: synthUrl },
-					...tabSubmenu,
-				];
-
-			for ( const sub of seedSubmenu ) {
-				const tab = document.createElement( 'button' );
-				tab.className = 'os-window__tab';
-				tab.dataset.kind = 'submenu';
-				tab.setAttribute( 'type', 'button' );
-				tab.setAttribute( 'role', 'tab' );
-				tab.dataset.url = sub.url;
-				tab.textContent = sub.title;
-				if ( urlMatchKey( sub.url ) === initialKey ) {
-					tab.classList.add( 'os-window__tab--active' );
-					tab.setAttribute( 'aria-selected', 'true' );
-				} else {
-					tab.setAttribute( 'aria-selected', 'false' );
-				}
-				tabs.appendChild( tab );
-			}
+		for ( const tab of buildSubmenuTabs( config ) ) {
+			tabs.appendChild( tab );
 		}
 		syncTabStripSemantics( tabs );
 		el.appendChild( tabs );

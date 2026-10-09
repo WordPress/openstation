@@ -10,6 +10,8 @@
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
+import { restErrorFromResponse } from '../../core/api-client';
+import { describeRestFailure } from '../../core/rest-failure';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { startVisibilityAwarePoller } from '../../widgets/poller';
 import { decodeHTML } from '../../utils';
@@ -68,12 +70,12 @@ async function fetchComments(): Promise< CommentRow[] > {
 		{ source: 'desktop-mode/recent-comments', silent: true },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `HTTP ${ res.status }` );
+		throw await restErrorFromResponse( res );
 	}
 	return res.json() as Promise< CommentRow[] >;
 }
 
-function render( container: HTMLElement, comments: CommentRow[] | null, error: boolean ): void {
+function render( container: HTMLElement, comments: CommentRow[] | null, error: string | null ): void {
 	container.innerHTML = '';
 
 	const header = document.createElement( 'div' );
@@ -95,7 +97,7 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 	if ( error ) {
 		const err = document.createElement( 'div' );
 		err.className = 'dm-comments__error';
-		err.textContent = 'Could not load comments.';
+		err.textContent = error;
 		container.appendChild( err );
 		return;
 	}
@@ -166,11 +168,15 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 		try {
 			const comments = await fetchComments();
 			if ( ! destroyed ) {
-				render( container, comments, false );
+				render( container, comments, null );
 			}
-		} catch {
+		} catch ( err ) {
 			if ( ! destroyed ) {
-				render( container, null, true );
+				render(
+					container,
+					null,
+					describeRestFailure( err, { fallback: 'Could not load comments.' } ).message,
+				);
 			}
 		}
 	};

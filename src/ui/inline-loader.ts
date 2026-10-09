@@ -30,8 +30,7 @@
  * element for exactly the window this module exists to cover. The
  * check is a `customElements.get()` registry lookup, never a fetch:
  * awaiting another bundle in order to say "please wait" is
- * self-defeating, which is the lesson `ai-assistant/loading-placeholder`
- * already records.
+ * self-defeating.
  */
 
 import { __ } from '../i18n';
@@ -110,11 +109,13 @@ function ensureKeyframes(): void {
  * The spinning mark: the real component when it will upgrade, a bare
  * inline-styled arc when it will not.
  *
- * The fallback is styled inline rather than by class for the same
- * reason the palette placeholder is — the stylesheet that would carry
- * the class may itself be one of the things still loading.
+ * The fallback is styled inline rather than by class because the
+ * stylesheet that would carry the class may itself be one of the
+ * things still loading. Exported for the full-surface placeholders in
+ * `src/ui/surface-placeholder.ts`, which cover the same gap at the
+ * scale of a palette or a modal rather than a card.
  */
-function buildSpinner(): HTMLElement {
+export function buildLoadingSpinner(): HTMLElement {
 	if ( spinnerWillUpgrade() ) {
 		const spinner = document.createElement( 'os-spinner' );
 		// `inline` is the bare arc with no WordPress mark, sized for
@@ -194,7 +195,7 @@ export function showInlineLoader(
 		const text = document.createElement( 'span' );
 		text.textContent = label;
 
-		root.appendChild( buildSpinner() );
+		root.appendChild( buildLoadingSpinner() );
 		root.appendChild( text );
 		container.appendChild( root );
 	};

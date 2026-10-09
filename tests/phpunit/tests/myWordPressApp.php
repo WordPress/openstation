@@ -69,15 +69,17 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	 * @param string $action Action.
 	 * @param array  $state  Client state.
 	 * @param array  $args   Trigger args.
+	 * @param array  $params Open-time params.
 	 * @return array Runtime response.
 	 */
-	protected function dispatch( $action, array $state = array(), array $args = array() ) {
+	protected function dispatch( $action, array $state = array(), array $args = array(), array $params = array() ) {
 		return openstation_apps_runtime()->dispatch(
 			'my-wordpress',
 			array(
 				'action' => $action,
 				'state'  => $state,
 				'args'   => $args,
+				'params' => $params,
 			),
 			openstation_apps_os()
 		);
@@ -258,6 +260,32 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The footprint open target passes the person as open-time params,
+	 * so the FIRST paint is the footprint — a mount that ignored them
+	 * would flash the folder grid and need a second request. A live
+	 * window retargets through `reopen`; an unknown id lands nowhere.
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\mount
+	 * @covers \OpenStation\Apps\MyWordPress\reopen_action
+	 * @covers \OpenStation\Apps\MyWordPress\footprint_from_params
+	 */
+	public function test_a_footprint_param_lands_the_mount_and_the_reopen_on_that_person() {
+		$mounted = $this->dispatch( 'mount', array(), array(), array( 'footprint' => self::$author_id, 'fpName' => 'Ann <b>Author</b> <3 Q&A' ) );
+		$this->assertTrue( $mounted['ok'] );
+		$this->assertSame( self::$author_id, $mounted['state']['footprint'] );
+		$this->assertSame( 'Ann Author <3 Q&A', $mounted['state']['fpName'], 'The breadcrumb placeholder is sanitised, and stays text.' );
+
+		$plain = $this->dispatch( 'mount' );
+		$this->assertSame( 0, $plain['state']['footprint'], 'No params, no footprint.' );
+
+		$reopened = $this->dispatch( 'reopen', array( 'section' => 'posts' ), array(), array( 'footprint' => self::$editor_id ) );
+		$this->assertSame( self::$editor_id, $reopened['state']['footprint'] );
+
+		$missing = $this->dispatch( 'mount', array(), array(), array( 'footprint' => 987654 ) );
+		$this->assertSame( 0, $missing['state']['footprint'], 'An unknown id opens nothing.' );
+	}
+
+	/**
 	 * @covers \OpenStation\Apps\MyWordPress\fetch
 	 */
 	public function test_opening_a_section_ships_the_list_page() {
@@ -374,8 +402,11 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		);
 		$long  = self::factory()->post->create(
 			array(
-				'post_title'   => 'Long read',
+				// Stored the way kses stores an `&` for an Author.
+				'post_title'   => 'Long read &amp; more',
 				'post_content' => str_repeat( 'Tom &amp; Jerry go on. ', 40 ),
+				// `wp_insert_user()` stores this name with `&amp;`.
+				'post_author'  => self::factory()->user->create( array( 'display_name' => 'Pérez & Hijos' ) ),
 				// The factory invents one otherwise; the trim path is the point.
 				'post_excerpt' => '',
 			)
@@ -390,6 +421,9 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 				$this->assertStringNotContainsString( '&amp;', $candidate['excerpt'] );
 				$this->assertStringContainsString( 'Tom & Jerry', $candidate['excerpt'] );
 				$this->assertStringContainsString( '[…]', $candidate['excerpt'] );
+				// So is the tile label, which a drag or "Send to" carries on.
+				$this->assertSame( 'Long read & more', $candidate['title'] );
+				$this->assertSame( 'Pérez & Hijos', $candidate['author'] );
 			}
 		}
 
@@ -439,6 +473,34 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertSame( array( 'administrator' ), $admin['roles'] );
 		$this->assertMatchesRegularExpression( '/^\d{4}-\d\d-\d\dT/', $admin['registered'] );
 		$this->assertGreaterThanOrEqual( 1, $admin['posts'], 'The published-post count rides the row, counted once per page.' );
+	}
+
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\lock_holder
+	 */
+	public function test_list_rows_name_whoever_else_holds_the_edit_lock() {
+		require_once ABSPATH . 'wp-admin/includes/post.php';
+		// Stored as `Tom &amp; Jerry`; the client paints the name as text.
+		$holder = self::factory()->user->create(
+			array(
+				'role'         => 'editor',
+				'display_name' => 'Tom & Jerry',
+			)
+		);
+		wp_set_current_user( $holder );
+		wp_set_post_lock( self::$post_id );
+
+		$locked_by = function () {
+			$rows = $this->dispatch( 'refresh', array( 'section' => 'posts' ) )['data']['list']['items'];
+			return array_column( $rows, 'lockedBy', 'id' )[ self::$post_id ];
+		};
+		$this->assertSame( '', $locked_by(), 'Nobody is told about their own lock.' );
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 'Tom & Jerry', $locked_by() );
+
+		wp_set_current_user( self::$author_id );
+		$this->assertSame( '', $locked_by(), 'Someone who cannot edit the post never learns who is editing it.' );
 	}
 
 	/**
@@ -708,10 +770,22 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		self::factory()->comment->create(
 			array(
 				'comment_post_ID' => self::$post_id,
-				'comment_author'  => 'Ada',
-				'comment_content' => 'Great strategy, would read again.',
+				// Stored as `pre_comment_author_name` stores an `&`.
+				'comment_author'  => 'Ada &amp; Grace',
+				'comment_content' => 'Great strategy, I <3 it.',
 			)
 		);
+		$attached = self::factory()->attachment->create_object(
+			'attached.jpg',
+			self::$post_id,
+			array( 'post_mime_type' => 'image/jpeg' )
+		);
+		$featured = self::factory()->attachment->create_object(
+			'featured.jpg',
+			self::$post_id,
+			array( 'post_mime_type' => 'image/jpeg' )
+		);
+		set_post_thumbnail( self::$post_id, $featured );
 		$state = array(
 			'section' => 'posts',
 			'into'    => self::$post_id,
@@ -723,10 +797,27 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 
 		$comments = $this->dispatch( 'relation', $state, array( 'relation' => 'comments' ) );
 		$titles   = array_column( $comments['data']['sub']['rows'], 'title' );
-		$this->assertContains( 'Ada', $titles );
+		$this->assertContains( 'Ada & Grace', $titles, 'Row titles are text: the tile and the window `sub-open` titles with them.' );
+		$subtitles = array_column( $comments['data']['sub']['rows'], 'subtitle' );
+		$this->assertContains( 'Great strategy, I <3 it.', $subtitles, 'A `<` that opens no tag is text, and the excerpt keeps it.' );
 
 		$revisions = $this->dispatch( 'relation', $state, array( 'relation' => 'revisions' ) );
 		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );
+		foreach ( $revisions['data']['sub']['rows'] as $row ) {
+			// The client prints the title as text: Core's expanded revision
+			// title leads with an avatar <img>, which read as markup.
+			$this->assertStringNotContainsString( '<', $row['title'], 'A revision title is plain text, never an avatar tag.' );
+			// A tile reads "2 days ago", not Core's whole sentence: the
+			// author and the exact date are the tooltip's.
+			$this->assertMatchesRegularExpression( '/ ago( · Autosave)?$/', $row['title'] );
+			$this->assertStringContainsString( ' · ', $row['subtitle'] );
+		}
+
+		$media = $this->dispatch( 'relation', $state, array( 'relation' => 'media' ) );
+		$ids   = array_column( $media['data']['sub']['rows'], 'id' );
+		$this->assertEqualsCanonicalizing( array( $attached, $featured ), $ids, 'An attached image is listed even when it is not the featured one.' );
+		$counts = array_column( $media['data']['folder']['folders'], 'count', 'relation' );
+		$this->assertSame( 2, $counts['media'], 'A featured image that is also attached counts once.' );
 
 		$bogus = $this->dispatch( 'relation', $state, array( 'relation' => 'evil' ) );
 		$this->assertSame( '', $bogus['state']['relation'], 'Unknown relations fall back to the folder view.' );
@@ -819,6 +910,34 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	/**
 	 * @covers \OpenStation\Apps\MyWordPress\sub_detail
 	 */
+	/**
+	 * Revision tiles are told apart at a glance: the author's face as the
+	 * picture, and a revision whose author was deleted says so instead of
+	 * starting with a stray ", ".
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\revision_facts
+	 */
+	public function test_revision_rows_carry_the_author_face_and_survive_a_deleted_author() {
+		$author = self::factory()->user->create( array( 'role' => 'editor', 'display_name' => 'Rev Author' ) );
+		$post   = self::factory()->post->create( array( 'post_author' => $author ) );
+		wp_set_current_user( $author );
+		wp_update_post( array( 'ID' => $post, 'post_content' => 'First edit' ) );
+		wp_set_current_user( self::$admin_id );
+		$revision = array_values( wp_get_post_revisions( $post ) )[0];
+
+		$facts = \OpenStation\Apps\MyWordPress\revision_facts( $revision );
+		$this->assertSame( 'Rev Author', $facts['author'] );
+		$this->assertNotSame( '', $facts['avatar'], 'A known author lends the tile their avatar.' );
+		$this->assertStringEndsWith( ' ago', $facts['ago'] );
+
+		global $wpdb;
+		$wpdb->update( $wpdb->posts, array( 'post_author' => 987654 ), array( 'ID' => $revision->ID ) );
+		clean_post_cache( $revision->ID );
+		$facts = \OpenStation\Apps\MyWordPress\revision_facts( get_post( $revision->ID ) );
+		$this->assertSame( 'Unknown author', $facts['author'] );
+		$this->assertSame( '', $facts['avatar'] );
+	}
+
 	public function test_a_revision_pane_refuses_a_row_from_another_post() {
 		$other = self::factory()->post->create();
 		wp_update_post(
@@ -930,17 +1049,22 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 
 	/**
 	 * @covers \OpenStation\Apps\MyWordPress\edit_url
+	 * @covers \OpenStation\Apps\MyWordPress\edit_title
 	 */
 	public function test_edit_queues_an_open_url_effect() {
+		// Stored the way kses stores an `&`; the shell paints the
+		// window title as text, so an entity would show literally.
+		$post_id  = self::factory()->post->create( array( 'post_title' => 'Salt &amp; Pepper' ) );
 		$response = $this->dispatch(
 			'edit',
 			array( 'section' => 'posts' ),
-			array( 'item' => self::$post_id )
+			array( 'item' => $post_id )
 		);
 		$opens = $this->effects_of( $response, 'open_url' );
 		$this->assertCount( 1, $opens );
-		$this->assertStringContainsString( 'post=' . self::$post_id, $opens[0]['url'] );
+		$this->assertStringContainsString( 'post=' . $post_id, $opens[0]['url'] );
 		$this->assertStringContainsString( 'action=edit', $opens[0]['url'] );
+		$this->assertSame( 'Salt & Pepper', $opens[0]['title'] );
 	}
 
 	/**
@@ -1099,10 +1223,14 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		// against the ~800 it retired with the legacy bundle), and
 		// once more for the list view (the per-kind column model, the
 		// sortable table, the row action cluster, the column chooser —
-		// a surface the original never had). The like-for-like
-		// original it displaced measured ~32,000 lines; the whole
-		// replacement stays well under half of that.
-		$this->assertLessThan( 12500, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,500 — still well under half of the original it replaced.', $lines ) );
+		// a surface the original never had), and a notch for the
+		// `reopen` lifecycle that lands a footprint from open-time
+		// params, and a notch for revision tiles told apart at a glance
+		// (`revision_facts()`: the author's face, "2 days ago", and a
+		// deleted author named as such). The like-for-like original it displaced measured
+		// ~32,000 lines; the whole replacement stays well under half
+		// of that.
+		$this->assertLessThan( 12700, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,700 — still well under half of the original it replaced.', $lines ) );
 
 		// The house file-length rule, pinned hard for this app: every
 		// PHP and TS source stays under 1,000 lines. The lint twins

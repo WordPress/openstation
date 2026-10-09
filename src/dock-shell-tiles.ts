@@ -3,9 +3,9 @@
  * sit in.
  *
  * The tiles that answer for OpenStation itself rather than for the
- * site: Mio, Overview, System and Exit OpenStation, clustered at the
- * tail of the rail. Everything here is data; `desktop.ts` does the
- * registering.
+ * site: Site assistant, Mio, Overview, System and Exit OpenStation,
+ * clustered at the tail of the rail. Everything here is data;
+ * `desktop.ts` does the registering.
  *
  * The orders are the point of the module. Registration order cannot
  * express the intended rail: native-window tiles (Trash, and every
@@ -28,19 +28,28 @@
  * deliberately NOT Core's `settings`, because the System tile beside
  * it already means settings, and a keyboard is in neither set), so
  * converting the rest would leave one family drawn two ways inside a
- * single rail. If the tiles move to the set they move together, and
+ * single rail. A tile that wants a glyph the set already has borrows
+ * its SHAPE and redraws it here at this weight, as Overview does with
+ * `widgets`. If the tiles move to the set they move together, and
  * `osIconDataUri()` exists for exactly that.
+ *
+ * The Site assistant tile is the exception: it wears the set's
+ * `copilot` paths as they are. The sparkle is filled, so there is no
+ * stroke weight to match, and it is the brand's mark for the
+ * assistant, so a redrawn copy could only drift from it.
  */
 
 /** Tile ids. Stable strings: they key visibility overrides in Preferences. */
+export const ASSISTANT_TILE_ID = 'os-site-assistant';
 export const OVERVIEW_TILE_ID = 'os-overview';
 export const SYSTEM_TILE_ID = 'os-system';
 
 /**
- * Sort keys for the trailing cluster. Spaced by ten so a plugin can
+ * Sort keys for the trailing cluster. Spaced apart so a plugin can
  * slot between two of them without a renumbering.
  */
 export const SYSTEM_TILE_ORDER = {
+	assistant: 5,
 	mio: 10,
 	overview: 20,
 	system: 30,
@@ -48,21 +57,24 @@ export const SYSTEM_TILE_ORDER = {
 } as const;
 
 /**
- * Overview: four panes pulling apart from a centre.
+ * Overview: the brand's asymmetric bento — one large pane, three
+ * smaller ones around it.
  *
- * Drawn rather than borrowed because the two Dashicons that come
- * closest already mean something else on this rail —
- * `dashicons-grid-view` is the admin-bar Arrange menu this replaces,
- * and `dashicons-screenoptions` is Screen Options in every window's
- * overflow menu. Four rounded rects with a gap through the middle is
- * the one shape that reads as "every window at once" at 20px.
+ * The shape is `widgets` from `src/ui/icons`, transposed onto this
+ * family's 64 grid and drawn at its stroke weight rather than taken
+ * through `osIconDataUri()`, so the rail keeps one weight across all
+ * four tiles. Panes of unequal size are what separates it from the
+ * three grids of equal squares it used to be confused with:
+ * `dashicons-grid-view` on the admin bar's Arrange menu,
+ * `dashicons-screenoptions` in every window's overflow menu, and the
+ * set's own `apps`.
  */
 export const OS_OVERVIEW_SVG =
-	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="currentColor">' +
-	'<rect x="6" y="6" width="23" height="23" rx="4"/>' +
-	'<rect x="35" y="6" width="23" height="23" rx="4"/>' +
-	'<rect x="6" y="35" width="23" height="23" rx="4"/>' +
-	'<rect x="35" y="35" width="23" height="23" rx="4"/>' +
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round">' +
+	'<rect x="6" y="6" width="27" height="27" rx="5"/>' +
+	'<rect x="43" y="6" width="15" height="15" rx="5"/>' +
+	'<rect x="43" y="31" width="15" height="27" rx="5"/>' +
+	'<rect x="6" y="43" width="27" height="15" rx="5"/>' +
 	'</svg>';
 
 export const OS_OVERVIEW_ICON = `data:image/svg+xml;base64,${ btoa(
@@ -85,4 +97,18 @@ export const OS_SYSTEM_SVG =
 
 export const OS_SYSTEM_ICON = `data:image/svg+xml;base64,${ btoa(
 	OS_SYSTEM_SVG,
+) }`;
+
+/**
+ * Site assistant: the brand's copilot sparkle, the same glyph the
+ * assistant's own input shows in Ask AI mode.
+ */
+export const OS_ASSISTANT_SVG =
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">' +
+	'<path d="M10 2.5Q10.9 8.5 17.5 10Q10.9 11.5 10 17.5Q9.1 11.5 2.5 10Q9.1 8.5 10 2.5Z"/>' +
+	'<path d="M17.9 14Q18.35 17.1 21.5 17.6Q18.35 18.1 17.9 21.2Q17.45 18.1 14.3 17.6Q17.45 17.1 17.9 14Z"/>' +
+	'</svg>';
+
+export const OS_ASSISTANT_ICON = `data:image/svg+xml;base64,${ btoa(
+	OS_ASSISTANT_SVG,
 ) }`;

@@ -46,12 +46,23 @@ import {
 	saveEnabledIds,
 	saveGeometry,
 } from './state';
+import { getActiveDesktopThemeId, getDesktopTheme } from '../desktop-themes/registry';
 import { showInlineLoader } from '../ui/inline-loader';
 import { createWidgetStorage } from './storage';
 import type { WidgetGeometry, WidgetTeardown } from './types';
 
 /** First-run default — the clock. Removable like any other. */
 const DEFAULT_ENABLED_IDS = [ 'clock' ];
+
+/**
+ * The column the active desktop theme recommends, or `null` when it
+ * names none. A first run starts from it instead of the clock.
+ */
+function themeWidgetIds(): readonly string[] | null {
+	const id = getActiveDesktopThemeId();
+	const widgets = id ? getDesktopTheme( id )?.recommendedOsSettings.widgets : undefined;
+	return widgets ?? null;
+}
 
 /**
  * How far outside the column the pointer still counts as "near" for
@@ -107,6 +118,19 @@ export class WidgetLayer {
 	private unwatchPointer: ( () => void ) | null = null;
 
 	/**
+	 * Watches every mounted card's box so the add pill follows the
+	 * stack when a card changes height on its own: a notice landing
+	 * in a widget after a request, a panel folding open, a list
+	 * filling in. Nothing else sees those — the pointer watch only
+	 * re-measures on a move near the column, and someone who clicked
+	 * a widget action and is waiting on the result is not moving,
+	 * so the pill sat on top of the text that had just appeared.
+	 * `null` where `ResizeObserver` is missing (jsdom); the mount
+	 * path still re-measures once when an async mount resolves.
+	 */
+	private stackObserver: ResizeObserver | null = null;
+
+	/**
 	 * @param root         The column element (`#os-widgets`).
 	 * @param pluginUrl    Absolute plugin URL — passed to widget ctx.
 	 * @param floatingHost Parent for liberated (floating) widgets.
@@ -133,6 +157,12 @@ export class WidgetLayer {
 		this.addTile = this.buildAddTile();
 		this.root.appendChild( this.addTile );
 
+		if ( typeof ResizeObserver === 'function' ) {
+			this.stackObserver = new ResizeObserver( () =>
+				this.positionAddTile(),
+			);
+		}
+
 		this.paintEmptyState();
 		this.watchPointerProximity();
 	}
@@ -154,12 +184,12 @@ export class WidgetLayer {
 	}
 
 	public hydrate(): void {
-		// First-run: no saved list at all → seed with the default
-		// (currently just 'clock'). This writes through so the next
-		// boot sees an explicit empty [] if the user removed it,
+		// First-run: no saved list at all → seed with the active
+		// theme's column, or the clock. This writes through so the
+		// next boot sees an explicit empty [] if the user removed it,
 		// distinct from first-run.
 		if ( readRawEnabled() === null ) {
-			this.enabledIds = DEFAULT_ENABLED_IDS.filter(
+			this.enabledIds = ( themeWidgetIds() ?? DEFAULT_ENABLED_IDS ).filter(
 				( id ) => !! registry.get( id ),
 			);
 			saveEnabledIds( this.enabledIds );
@@ -240,21 +270,41 @@ export class WidgetLayer {
 			return;
 		}
 		saveEnabledIds( this.enabledIds );
-		// Drop any persisted geometry so a re-add starts docked.
-		if ( this.geometry[ id ] ) {
-			delete this.geometry[ id ];
-			saveGeometry( this.geometry );
-		}
-		// Same for the docked-height record — a re-add starts at the
-		// widget's natural (content-driven) height.
-		if ( this.dockedHeights[ id ] !== undefined ) {
-			delete this.dockedHeights[ id ];
-			saveDockedHeights( this.dockedHeights );
-		}
+		this.forgetLayout( id );
 		this.unmountById( id );
 		this.paintEmptyState();
 		doAction( HOOKS.WIDGET_REMOVED, { id } );
 		refreshWidgetPicker();
+	}
+
+	/**
+	 * Replace the user's own list, as applying a theme's recommended
+	 * column does. Ids nothing is registered under are skipped. A
+	 * workspace's column, while one is in force, stays on screen.
+	 */
+	public setEnabledIds( ids: readonly string[] ): void {
+		const next = [ ...new Set( ids ) ].filter( ( id ) => !! registry.get( id ) );
+		for ( const id of this.enabledIds ) {
+			if ( ! next.includes( id ) ) {
+				this.forgetLayout( id );
+			}
+		}
+		this.enabledIds = next;
+		saveEnabledIds( next );
+		this.setVisibleIds( this.override );
+		refreshWidgetPicker();
+	}
+
+	/** Drop a widget's stored placement, so a re-add starts docked at its natural height. */
+	private forgetLayout( id: string ): void {
+		if ( this.geometry[ id ] ) {
+			delete this.geometry[ id ];
+			saveGeometry( this.geometry );
+		}
+		if ( this.dockedHeights[ id ] !== undefined ) {
+			delete this.dockedHeights[ id ];
+			saveDockedHeights( this.dockedHeights );
+		}
 	}
 
 	/** Public read for the picker / external callers. */
@@ -292,7 +342,11 @@ export class WidgetLayer {
 		openWidgetPicker( {
 			anchor: this.addTile,
 			registry: () => registry.all(),
-			enabledIds: () => [ ...this.enabledIds ],
+			// "Added" means on this desk. Under a workspace column that
+			// is the workspace's list, not the user's, and `add` routes
+			// the same way, so an entry is never marked added while the
+			// column lacks it, nor offered when the column has it.
+			enabledIds: () => [ ...this.visibleIds() ],
 			onAdd: ( id ) => {
 				this.add( id );
 				// One pick per visit. Adding a second widget means
@@ -436,6 +490,7 @@ export class WidgetLayer {
 		}
 		this.unwatchPointer?.();
 		this.unwatchPointer = null;
+		this.stackObserver?.disconnect();
 	}
 
 	// --- Internal ---------------------------------------------------
@@ -474,6 +529,9 @@ export class WidgetLayer {
 		};
 		this.mounted.set( id, record );
 		this.placeCard( frame.card, floating );
+		// The observation is on the card, not on the column list, so a
+		// card that is liberated or re-docked stays watched either side.
+		this.stackObserver?.observe( frame.card );
 
 		const ctx = {
 			id,
@@ -497,8 +555,8 @@ export class WidgetLayer {
 			current.teardown = teardown;
 			// An async mount paints its content now, so the card can
 			// be taller than it was when the pill was last placed.
-			// On a hover device the next pointermove would fix it, but
-			// where the pill is always on (touch) nothing else would.
+			// The stack observer sees that too; this covers the hosts
+			// without one.
 			this.positionAddTile();
 			doAction( HOOKS.WIDGET_MOUNTED, { id, container: frame.body, ctx } );
 		};
@@ -564,6 +622,7 @@ export class WidgetLayer {
 		// Bumping the generation here ensures any in-flight async
 		// mount that resolves AFTER this point also tears itself down.
 		this.generation++;
+		this.stackObserver?.unobserve( record.frame.card );
 		record.frame.dispose();
 		this.mounted.delete( id );
 	}

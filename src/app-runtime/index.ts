@@ -18,6 +18,7 @@
  * @public
  */
 
+import { tryNativeUrlRemap } from '../native-url-remap';
 import { openActionMenu } from '../selection/menu';
 import type { NativeRenderContext } from '../types';
 import type { Window as DesktopWindow } from '../window';
@@ -73,8 +74,14 @@ function sessionOf( windowId: string, view = 'main' ): Session | undefined {
  * The shell surface the sessions use, built from `wp.os` per window —
  * the window id tags every content-change announce, so the window's
  * own `watch()` can skip its own echo.
+ *
+ * Exported for the suite only: the `open_url` remap rule below is a
+ * property of THIS surface, not of a session, and a session test that
+ * stubs the host cannot see it.
+ *
+ * @internal
  */
-function buildHost( ownerWindowId: string ): RuntimeHost {
+export function buildHost( ownerWindowId: string ): RuntimeHost {
 	const api = os();
 	return {
 		fetch: ( input, init, opts ) => {
@@ -95,9 +102,16 @@ function buildHost( ownerWindowId: string ): RuntimeHost {
 			} );
 		},
 		toast: ( options ) => {
-			api?.showToast(
-				options.duration ? { message: options.message, duration: options.duration } : { message: options.message },
-			);
+			const toast: { message: string; duration?: number; type?: string } = {
+				message: options.message,
+			};
+			if ( options.duration ) {
+				toast.duration = options.duration;
+			}
+			if ( options.type ) {
+				toast.type = options.type;
+			}
+			api?.showToast( toast );
 		},
 		setTitle: ( windowId, title ) => {
 			api?.windowManager.getById( windowId )?.setTitle( title );
@@ -110,6 +124,19 @@ function buildHost( ownerWindowId: string ): RuntimeHost {
 		},
 		openUrl: ( url, title, icon ) => {
 			if ( ! api ) {
+				return;
+			}
+			// An app's `open_url` effect is a URL, and a URL that a native
+			// window has claimed (`admin.php?page=my-entries` → the native
+			// Entries window) must open THAT window, not an iframe of the
+			// classic page underneath it. Every other opener in the shell
+			// consults the remap registry first (the dock, the portal, the
+			// top-window link interceptor, files-on-the-desktop, related
+			// entities); this one did not, so a plugin app's own "open X
+			// in my Dashboard" door landed on classic chrome while the
+			// dock tile beside it opened the native window. Same call,
+			// same order: remap, else iframe.
+			if ( tryNativeUrlRemap( url ) ) {
 				return;
 			}
 			const id = api.deriveWindowId( url );
@@ -543,13 +570,13 @@ os()?.registerNamespace( 'apps', {
 	 * already warm; see `wp.os.prewarmWindow( id )` for the door the
 	 * shell uses (it loads the bundles first).
 	 */
-	prewarm: ( id: string ) => {
+	prewarm: ( id: string, params: Record< string, string | number | boolean > = {} ) => {
 		const config = ( window as unknown as RuntimeGlobals ).openStationWindowConfig?.[ id ] as
 			| Partial< AppConfig >
 			| undefined;
 		if ( ! config || config.osApp !== true || sessions.has( id ) ) {
 			return false;
 		}
-		return startPrewarm( config as AppConfig, buildHost( id ).fetch );
+		return startPrewarm( config as AppConfig, buildHost( id ).fetch, params );
 	},
 } );

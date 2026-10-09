@@ -26,7 +26,6 @@ defined( 'ABSPATH' ) || exit;
 - [Add an action that works on a whole selection](./multi-selection-action.md)
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)
 - [Open a child window its owner can't cover](./child-windows.md)
-- [Custom arrange-menu action](./arrange-action.md)
 - [Ship a workspace template](./workspace-preset.md)
 - [Style a specific admin page inside the iframe](./chromeless-style-override.md)
 - [Window themes — per-window CSS variables](./window-theme.md)
@@ -52,7 +51,7 @@ defined( 'ABSPATH' ) || exit;
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)
 - [Programmatic AI Copilot — `wp.os.ai.ask()`](./ai-ask.md)
-- [Tune the AI model config (tokens, temperature, reasoning)](./ai-model-config.md)
+- [Tune the AI model config (model, tokens, reasoning)](./ai-model-config.md)
 - [AI Agents — extend and invoke from a plugin](./agents.md)
 - [Retune the Drafts widget's AI writing assistant (Experimental)](./drafts-ai-suggestions.md)
 - [Connect to a window — title-bar button + iframe pub/sub](./connect-to-window.md)
@@ -97,3 +96,5 @@ defined( 'ABSPATH' ) || exit;
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.
 
 - [Repairable form edits with MIO](mio-form-editing.md) — Experimental: structured validation, revisioned operations, status reconciliation, large-document history and receipt-bound Preview buttons.
+
+- [Edit a mixed-field record](form-record-editor.md) — collect, populate and reset scalar, boolean and tag fields through one form API.

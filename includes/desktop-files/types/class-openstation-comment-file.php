@@ -41,7 +41,7 @@ class OpenStation_Comment_File extends OpenStation_File {
 			return __( '(missing comment)', 'desktop-mode' );
 		}
 		$author  = '' !== $c->comment_author ? $c->comment_author : __( 'Anonymous', 'desktop-mode' );
-		$excerpt = wp_trim_words( wp_strip_all_tags( $c->comment_content ), 8, '…' );
+		$excerpt = wp_trim_words( openstation_strip_all_tags( $c->comment_content ), 8, '…' );
 		return sprintf( '%s — %s', $author, $excerpt );
 	}
 

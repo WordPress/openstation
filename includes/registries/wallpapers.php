@@ -78,6 +78,13 @@ defined( 'ABSPATH' ) || exit;
  *                                  active selection — what it is, where
  *                                  its data comes from, the story behind
  *                                  it. Optional.
+ *     @type string   $tone         'light' | 'dark'. Whether the desk
+ *                                  paints its icons and labels in
+ *                                  Starlight or in Void. Optional;
+ *                                  unset reads as 'dark'. Declare
+ *                                  'light' if a user would call your
+ *                                  surface pale. See
+ *                                  docs/desktop-themes.md.
  *     @type string[] $capabilities Gate: ALL caps must match. Any
  *                                  missed cap returns
  *                                  `WP_Error openstation_capability_denied`.
@@ -100,6 +107,7 @@ function openstation_register_wallpaper( $id, $args = array() ) {
 		'value'        => '',
 		'script'       => '',
 		'description'  => '',
+		'tone'         => '',
 		'capabilities' => array(),
 	);
 	$args     = wp_parse_args( $args, $defaults );
@@ -171,6 +179,9 @@ function openstation_register_wallpaper( $id, $args = array() ) {
 		// Plain text by contract — the shell renders it as text, never
 		// as HTML, so strip tags here rather than trusting every caller.
 		'description' => sanitize_textarea_field( (string) $args['description'] ),
+		// Anything else stores empty and reads as 'dark', so a typo
+		// lands on the old look rather than on invisible icons.
+		'tone'        => in_array( $args['tone'], array( 'light', 'dark' ), true ) ? (string) $args['tone'] : '',
 	);
 	openstation_desktop_wallpaper_registry( $id, $entry );
 
@@ -245,6 +256,7 @@ function openstation_build_desktop_wallpapers_payload() {
 			'type'               => isset( $entry['type'] ) ? (string) $entry['type'] : 'canvas',
 			'value'              => isset( $entry['value'] ) ? (string) $entry['value'] : '',
 			'description'        => isset( $entry['description'] ) ? (string) $entry['description'] : '',
+			'tone'               => isset( $entry['tone'] ) ? (string) $entry['tone'] : '',
 			'scriptUrl'          => $payload['url'],
 			'scriptHandle'       => $handle,
 			'scriptBefore'       => $payload['before'],

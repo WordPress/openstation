@@ -302,6 +302,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	host.appendChild( container );
 
 	let lastFingerprint = '';
+	// Set by a desktop-theme switch: every tile's icon resolves
+	// differently while no placement changed, so the fingerprint and
+	// the patch paths below cannot see it.
+	let rebuildTiles = false;
 
 	/**
 	 * Resolve a selected key (the placement id as a string) back to
@@ -380,47 +384,8 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	 * the wholesale rebuild and the incremental path so both end up
 	 * with bit-identical layouts.
 	 */
-	const computeLayout = (
-		list: readonly RestPlacementShape[],
-	): {
-		pinnedSlots: Map< number, { x: number; y: number } >;
-		displaced: Map< number, { x: number; y: number } >;
-	} => {
-		const pinnedSlots = new Map< number, { x: number; y: number } >();
-		const occupiedCells = new Set< string >();
-		let pinnedIdx = 0;
-		for ( const placement of list ) {
-			if ( ! isPinned( placement ) ) {
-				continue;
-			}
-			const slot = cellToPos( 0, pinnedIdx );
-			pinnedSlots.set( placement.id, { x: slot.x, y: slot.y } );
-			occupiedCells.add( cellKey( slot.col, slot.row ) );
-			pinnedIdx += 1;
-		}
-		const displaced = new Map< number, { x: number; y: number } >();
-		for ( const placement of list ) {
-			if ( pinnedSlots.has( placement.id ) ) {
-				continue;
-			}
-			const target = pointToCell( placement.x, placement.y );
-			const key = cellKey( target.col, target.row );
-			if ( ! occupiedCells.has( key ) ) {
-				occupiedCells.add( key );
-				continue;
-			}
-			const free = snapToEmptyCell(
-				placement.x,
-				placement.y,
-				occupiedCells,
-				canvas,
-				order,
-			);
-			occupiedCells.add( cellKey( free.col, free.row ) );
-			displaced.set( placement.id, { x: free.x, y: free.y } );
-		}
-		return { pinnedSlots, displaced };
-	};
+	const computeLayout = ( list: readonly RestPlacementShape[] ): TileLayout =>
+		computeTileLayout( list, canvas, order );
 
 	/**
 	 * Apply final position to an existing tile based on the pinned /
@@ -648,14 +613,16 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			return ap - bp;
 		} );
 		const fp = fingerprint( list );
-		if ( fp === lastFingerprint ) {
+		if ( fp === lastFingerprint && ! rebuildTiles ) {
 			return;
 		}
 		lastFingerprint = fp;
+		const rebuild = rebuildTiles;
+		rebuildTiles = false;
 
 		// Fastest path: position-only changes (intra-folder drag,
 		// auto-arrange). Same set, same structure, no rewiring.
-		if ( tryPatchPositions( list, container, canvas, order ) ) {
+		if ( ! rebuild && tryPatchPositions( list, container, canvas, order ) ) {
 			return;
 		}
 
@@ -664,7 +631,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		// the file-creation, shortcut-drop, and delete flows — which
 		// otherwise would each visibly flash the wallpaper with a
 		// full `replaceChildren()` rebuild.
-		if ( tryPatchIncremental( list ) ) {
+		if ( ! rebuild && tryPatchIncremental( list ) ) {
 			return;
 		}
 
@@ -1072,6 +1039,11 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		repaint( state );
 		reflow();
 	} );
+	const onThemeChanged = (): void => {
+		rebuildTiles = true;
+		repaint( filesStoreApi.getState() );
+	};
+	document.addEventListener( 'os-desktop-theme-changed', onThemeChanged );
 
 	// Hydrate from REST if we haven't seen this folder yet. Resolves
 	// the `hydrated` promise so the boot path can hold off revealing
@@ -1303,6 +1275,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		hydrated,
 		dispose() {
 			off();
+			document.removeEventListener( 'os-desktop-theme-changed', onThemeChanged );
 			resizeObserver?.disconnect();
 			resizeObserver = null;
 			for ( const deregister of dropTargetDeregisters ) {
@@ -1363,6 +1336,149 @@ function fingerprint( list: readonly RestPlacementShape[] ): string {
  */
 function isPinned( placement: RestPlacementShape ): boolean {
 	return Boolean( placement.file.pinned );
+}
+
+/** Where a repaint puts the tiles it does not draw at their stored pixel. */
+interface TileLayout {
+	/** Pinned tiles: column 0, in list order, whatever they store. */
+	pinnedSlots: Map< number, { x: number; y: number } >;
+	/** Tiles whose stored cell an earlier tile in the list already took. */
+	displaced: Map< number, { x: number; y: number } >;
+}
+
+/**
+ * Lay out a canvas the way its repaint will: pinned tiles anchored
+ * down column 0, every other tile at its stored cell unless an
+ * earlier one holds it, in which case it is displaced to the next
+ * free cell in `order`. `list` must already be in paint order
+ * (pinned first).
+ *
+ * Module-level so everything that needs to know where a tile is
+ * PAINTED, rather than where it is stored, asks the same function:
+ * the layer's own repaint paths, and the placement of an icon that
+ * arrived with a live refresh ({@link settleArrivedShortcuts}).
+ */
+function computeTileLayout(
+	list: readonly RestPlacementShape[],
+	canvas: GridCanvas,
+	order: GridOrder,
+): TileLayout {
+	const pinnedSlots = new Map< number, { x: number; y: number } >();
+	const occupiedCells = new Set< string >();
+	let pinnedIdx = 0;
+	for ( const placement of list ) {
+		if ( ! isPinned( placement ) ) {
+			continue;
+		}
+		const slot = cellToPos( 0, pinnedIdx );
+		pinnedSlots.set( placement.id, { x: slot.x, y: slot.y } );
+		occupiedCells.add( cellKey( slot.col, slot.row ) );
+		pinnedIdx += 1;
+	}
+	const displaced = new Map< number, { x: number; y: number } >();
+	for ( const placement of list ) {
+		if ( pinnedSlots.has( placement.id ) ) {
+			continue;
+		}
+		const target = pointToCell( placement.x, placement.y );
+		const key = cellKey( target.col, target.row );
+		if ( ! occupiedCells.has( key ) ) {
+			occupiedCells.add( key );
+			continue;
+		}
+		const free = snapToEmptyCell(
+			placement.x,
+			placement.y,
+			occupiedCells,
+			canvas,
+			order,
+		);
+		occupiedCells.add( cellKey( free.col, free.row ) );
+		displaced.set( placement.id, { x: free.x, y: free.y } );
+	}
+	return { pinnedSlots, displaced };
+}
+
+/**
+ * Give icons that a live menu refresh just brought onto the
+ * wallpaper the cell the wallpaper would have picked for them.
+ *
+ * The server mints a registered icon's placement the moment it first
+ * lists the root, and it picks that cell blind: it cannot measure the
+ * work area, so it wraps a column at `GRID_FALLBACK_ROWS`, and
+ * it counts every row it holds as taken, including rows the user
+ * cannot see (an app the navigation keeps on the dock, a plugin that
+ * has since been deactivated). So a plugin activated from the Plugins
+ * window landed at the top of a fresh column, leaving empty cells
+ * above and beside it.
+ *
+ * When the shell is open the client can do better, and it does what a
+ * shortcut drop does ({@link fileShortcutEntities}): the first free
+ * cell of the visible desktop, in its reading order, measured against
+ * the work area. Only the icons named in `refs` move, and only when
+ * their stored cell differs; the move is persisted, so the next page
+ * load paints the same desktop. Pinned and synthetic placements are
+ * never touched, and neither is an icon the navigation keeps off the
+ * wallpaper, because the shortcut sync has already taken it out of
+ * the store by the time this runs.
+ *
+ * @param host The desktop area the root layer is mounted on.
+ * @param refs Ids of the desktop icons that are new in this refresh.
+ */
+export function settleArrivedShortcuts(
+	host: HTMLElement,
+	refs: readonly string[],
+): void {
+	if ( refs.length === 0 ) {
+		return;
+	}
+	const wanted = new Set( refs );
+	const bucket = filesStoreApi.getState().placementsByFolder.get( 0 ) ?? [];
+	const isArrival = ( p: RestPlacementShape ): boolean =>
+		p.file?.type === 'shortcut' &&
+		wanted.has( p.file.ref ) &&
+		! isPinned( p ) &&
+		! isSyntheticPlacement( p );
+	const arrivals = bucket.filter( isArrival ).sort( ( a, b ) => a.id - b.id );
+	if ( arrivals.length === 0 ) {
+		return;
+	}
+
+	// What is painted without the arrivals: pinned slots, stored
+	// cells, and the cells displaced tiles were moved to. A tile that
+	// was never dragged (a promoted Trash sits at 0,0) is painted
+	// somewhere other than where it is stored, and only the repaint's
+	// own layout knows where.
+	const canvas = gridCanvasFor( host, 0 );
+	const order = orderForFolder( 0 );
+	const others = bucket
+		.filter( ( p ) => ! isArrival( p ) )
+		.sort( ( a, b ) => ( isPinned( a ) ? 0 : 1 ) - ( isPinned( b ) ? 0 : 1 ) );
+	const { pinnedSlots, displaced } = computeTileLayout( others, canvas, order );
+	const occupied = new Set< string >();
+	for ( const p of others ) {
+		const at = pinnedSlots.get( p.id ) ?? displaced.get( p.id ) ?? p;
+		const cell = pointToCell( at.x, at.y );
+		occupied.add( cellKey( cell.col, cell.row ) );
+	}
+
+	for ( const placement of arrivals ) {
+		const cell = nextFreeCell( occupied, order, canvas );
+		occupied.add( cellKey( cell.col, cell.row ) );
+		if ( cell.x === placement.x && cell.y === placement.y ) {
+			continue;
+		}
+		filesStoreApi.upsertPlacement( { ...placement, x: cell.x, y: cell.y } );
+		void rest
+			.updatePlacement( placement.id, { x: cell.x, y: cell.y } )
+			.catch( ( err: unknown ) => {
+				// eslint-disable-next-line no-console
+				console.error(
+					'[openstation] files: placing a new desktop icon failed',
+					err,
+				);
+			} );
+	}
 }
 
 /**
@@ -1729,39 +1845,7 @@ function tryPatchPositions(
 
 	// All checks passed — recompute pinned slots + displacement
 	// exactly as the wholesale path would, then apply positions.
-	const pinnedSlots = new Map< number, { x: number; y: number } >();
-	const occupiedCells = new Set< string >();
-	let pinnedIdx = 0;
-	for ( const placement of list ) {
-		if ( ! isPinned( placement ) ) {
-			continue;
-		}
-		const slot = cellToPos( 0, pinnedIdx );
-		pinnedSlots.set( placement.id, { x: slot.x, y: slot.y } );
-		occupiedCells.add( cellKey( slot.col, slot.row ) );
-		pinnedIdx += 1;
-	}
-	const displaced = new Map< number, { x: number; y: number } >();
-	for ( const placement of list ) {
-		if ( pinnedSlots.has( placement.id ) ) {
-			continue;
-		}
-		const target = pointToCell( placement.x, placement.y );
-		const key = cellKey( target.col, target.row );
-		if ( ! occupiedCells.has( key ) ) {
-			occupiedCells.add( key );
-			continue;
-		}
-		const free = snapToEmptyCell(
-			placement.x,
-			placement.y,
-			occupiedCells,
-			canvas,
-			order,
-		);
-		occupiedCells.add( cellKey( free.col, free.row ) );
-		displaced.set( placement.id, { x: free.x, y: free.y } );
-	}
+	const { pinnedSlots, displaced } = computeTileLayout( list, canvas, order );
 
 	for ( const placement of list ) {
 		const tile = byId.get( placement.id );

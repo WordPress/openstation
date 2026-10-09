@@ -276,3 +276,58 @@ function openstation_agent_face_cleanup( $user_id ) {
 	openstation_agent_face_delete( $user_id );
 }
 add_action( 'openstation_agent_deleted', 'openstation_agent_face_cleanup', 10, 1 );
+
+/**
+ * Agents Core is deleting in this request, keyed by user id.
+ *
+ * `openstation_agent_deleted` only fires from `openstation_agent_delete()`,
+ * so an agent deleted from wp-admin → Users (or `wp user delete`) would
+ * leave its files behind. By `deleted_user` the agent marker meta is
+ * already gone, so the id is noted here while the marker still exists.
+ *
+ * @param int $add Agent user id to note; 0 to only read.
+ * @return array<int, true>
+ */
+function openstation_agent_face_pending_core_deletes( $add = 0 ) {
+	static $pending = array();
+	if ( $add > 0 ) {
+		$pending[ (int) $add ] = true;
+	}
+	return $pending;
+}
+
+/**
+ * Note an agent Core is about to delete, while it is still an agent.
+ *
+ * Hooked to `delete_user` (`wp_delete_user()`) and `wpmu_delete_user`
+ * (the network delete, which does not fire `delete_user`).
+ *
+ * @param int $user_id User being deleted.
+ * @return void
+ */
+function openstation_agent_face_note_core_delete( $user_id ) {
+	if ( openstation_agent_is_agent( (int) $user_id ) ) {
+		openstation_agent_face_pending_core_deletes( (int) $user_id );
+	}
+}
+add_action( 'delete_user', 'openstation_agent_face_note_core_delete', 10, 1 );
+add_action( 'wpmu_delete_user', 'openstation_agent_face_note_core_delete', 10, 1 );
+
+/**
+ * Remove a noted agent's files once Core has deleted the user.
+ *
+ * On multisite `wp_delete_user()` only removes the user from the current
+ * site and the agent lives on, so the files go only when the user row
+ * itself is gone.
+ *
+ * @param int $user_id Deleted user id.
+ * @return void
+ */
+function openstation_agent_face_cleanup_after_core_delete( $user_id ) {
+	$pending = openstation_agent_face_pending_core_deletes();
+	if ( empty( $pending[ (int) $user_id ] ) || get_userdata( (int) $user_id ) ) {
+		return;
+	}
+	openstation_agent_face_delete( (int) $user_id );
+}
+add_action( 'deleted_user', 'openstation_agent_face_cleanup_after_core_delete', 10, 1 );

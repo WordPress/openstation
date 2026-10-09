@@ -183,6 +183,15 @@ function openstation_register_assets() {
 		array( 'os-variables', 'dashicons' ),
 		$built_version( 'assets/css/dock.css' )
 	);
+	// The Taskbar rail renderer. Scoped to the rail it stamps, so it is
+	// inert under the icon strip; loaded with the dock because the
+	// renderer can be picked live.
+	wp_register_style(
+		'os-dock-taskbar',
+		OPENSTATION_URL . 'assets/css/dock-taskbar.css',
+		array( 'os-dock' ),
+		$built_version( 'assets/css/dock-taskbar.css' )
+	);
 	wp_register_style(
 		'os-dock-peek',
 		OPENSTATION_URL . 'assets/css/dock-peek.css',
@@ -199,14 +208,6 @@ function openstation_register_assets() {
 		OPENSTATION_URL . 'assets/css/mobile.css',
 		array( 'os-variables', 'dashicons', 'os-dock', 'os-windows' ),
 		$built_version( 'assets/css/mobile.css' )
-	);
-	// The notch — the shell's top-centre voice and the site
-	// assistant's front door. Scoped to `.os-notch`.
-	wp_register_style(
-		'os-notch',
-		OPENSTATION_URL . 'assets/css/notch.css',
-		array( 'os-variables' ),
-		$built_version( 'assets/css/notch.css' )
 	);
 	// The workspace wizard. Scoped to `.os-workspace-wizard`, so it is
 	// inert until the user opens it from the overview bar's `+` or a

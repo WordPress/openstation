@@ -332,6 +332,7 @@ function openstation_shape_desktop_theme_payload_entry( $entry, $source ) {
 		'icons'                 => $icons,
 		'iconColors'            => $icon_colors,
 		'recommendedOsSettings' => $recommended,
+		'drawsToolbar'          => openstation_desktop_theme_manifest_draws_toolbar( $manifest ),
 		'installedAt'           => $installed_at,
 		'source'                => $is_upload ? 'upload' : 'code',
 	);

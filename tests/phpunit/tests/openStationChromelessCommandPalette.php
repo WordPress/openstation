@@ -29,6 +29,8 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_command_palette_contributors' );
 		remove_all_filters( 'openstation_command_palette_contributor_owns_screen' );
 		remove_all_filters( 'openstation_command_palette_trim_dependents' );
+		remove_all_filters( 'openstation_chromeless_keep_components_style' );
+		wp_dequeue_style( 'wp-components' );
 		unset( $_GET['page'] );
 		parent::tear_down();
 	}
@@ -451,6 +453,84 @@ class Tests_OpenStation_ChromelessCommandPalette extends WP_UnitTestCase {
 		$this->assertFalse( wp_script_is( 'os-test-direct', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'os-test-indirect', 'enqueued' ) );
 		$this->assertTrue( wp_script_is( 'os-test-unrelated', 'enqueued' ) );
+	}
+
+	/**
+	 * Registers `wp-components` (script and style) when this WordPress
+	 * hasn't, so the components-style tests run against a real graph.
+	 */
+	private function register_components() {
+		// Fresh registries: the queue otherwise carries scripts enqueued
+		// by earlier tests, and one components user anywhere in it keeps
+		// the stylesheet.
+		$GLOBALS['wp_scripts'] = null;
+		$GLOBALS['wp_styles']  = null;
+		if ( ! wp_script_is( 'wp-components', 'registered' ) ) {
+			wp_register_script( 'wp-components', includes_url( 'js/dist/components.js' ), array(), '1', true );
+		}
+		if ( ! wp_style_is( 'wp-components', 'registered' ) ) {
+			wp_register_style( 'wp-components', includes_url( 'css/dist/components/style.css' ), array(), '1' );
+		}
+	}
+
+	/**
+	 * The palette's `wp-commands` stylesheet was what brought
+	 * `wp-components` onto every admin page. A plugin screen that renders
+	 * components through its own bundle (the AI plugin's DataViews logs)
+	 * must keep the stylesheet once the palette is trimmed. Without it, a
+	 * Popover in a narrow window renders unstyled below the page.
+	 *
+	 * @covers ::openstation_chromeless_keep_components_style
+	 */
+	public function test_a_screen_rendering_components_keeps_their_stylesheet() {
+		$this->enter_chromeless();
+		set_current_screen( 'tools' );
+		$this->register_components();
+		// Through the plugin's own chunk, the way bundlers split it.
+		wp_register_script( 'os-test-vendor', 'https://example.org/v.js', array( 'wp-components' ), '1', true );
+		wp_register_script( 'os-test-app', 'https://example.org/a.js', array( 'os-test-vendor' ), '1', true );
+		wp_enqueue_script( 'os-test-app' );
+
+		openstation_chromeless_trim_command_palette();
+
+		$this->assertTrue( wp_style_is( 'wp-components', 'enqueued' ) );
+	}
+
+	/**
+	 * Core packages reach `wp-components` as a library on every admin
+	 * page (`wp-abilities` does), and that alone must not cost every
+	 * window the stylesheet.
+	 *
+	 * @covers ::openstation_chromeless_keep_components_style
+	 */
+	public function test_a_core_library_reaching_components_does_not_keep_the_stylesheet() {
+		$this->enter_chromeless();
+		set_current_screen( 'options-general' );
+		$this->register_components();
+		wp_register_script( 'wp-os-test-library', 'https://example.org/l.js', array( 'wp-components' ), '1', true );
+		wp_register_script( 'os-test-plain', 'https://example.org/p.js', array( 'wp-os-test-library' ), '1', true );
+		wp_enqueue_script( 'wp-os-test-library' );
+		wp_enqueue_script( 'os-test-plain' );
+
+		openstation_chromeless_trim_command_palette();
+
+		$this->assertFalse( wp_style_is( 'wp-components', 'enqueued' ) );
+	}
+
+	/**
+	 * @covers ::openstation_chromeless_keep_components_style
+	 */
+	public function test_keeping_the_components_stylesheet_is_filterable() {
+		$this->enter_chromeless();
+		set_current_screen( 'tools' );
+		$this->register_components();
+		wp_register_script( 'os-test-app', 'https://example.org/a.js', array( 'wp-components' ), '1', true );
+		wp_enqueue_script( 'os-test-app' );
+		add_filter( 'openstation_chromeless_keep_components_style', '__return_false' );
+
+		openstation_chromeless_trim_command_palette();
+
+		$this->assertFalse( wp_style_is( 'wp-components', 'enqueued' ) );
 	}
 
 	/**

@@ -11,6 +11,7 @@
 
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
+import { restErrorFromResponse } from '../core/api-client';
 import type {
 	CommentStats,
 	ContentGraphConfig,
@@ -57,7 +58,7 @@ export async function fetchPostTypes(
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `post-types: ${ res.status }` );
+		throw await restErrorFromResponse( res, `post-types: ${ res.status }` );
 	}
 	return ( await res.json() ) as PostTypeDescriptor[];
 }
@@ -78,7 +79,7 @@ export async function fetchGraph(
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `nodes: ${ res.status }` );
+		throw await restErrorFromResponse( res, `nodes: ${ res.status }` );
 	}
 	return ( await res.json() ) as GraphPayload;
 }
@@ -93,7 +94,7 @@ export async function fetchPostDetail(
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `post/${ id }: ${ res.status }` );
+		throw await restErrorFromResponse( res, `post/${ id }: ${ res.status }` );
 	}
 	return ( await res.json() ) as PostDetail;
 }
@@ -115,7 +116,7 @@ export async function fetchUserStats(
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `user-stats/${ userId }: ${ res.status }` );
+		throw await restErrorFromResponse( res, `user-stats/${ userId }: ${ res.status }` );
 	}
 	return ( await res.json() ) as UserStats;
 }
@@ -134,9 +135,7 @@ export async function fetchTermStats(
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
 	if ( ! res.ok ) {
-		throw new Error(
-			`term-stats/${ taxonomy }/${ termId }: ${ res.status }`,
-		);
+		throw await restErrorFromResponse( res, `term-stats/${ taxonomy }/${ termId }: ${ res.status }` );
 	}
 	return ( await res.json() ) as TermStats;
 }
@@ -151,7 +150,7 @@ export async function fetchCommentStats(
 		{ source: SOURCE, windowId: WINDOW_ID },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `comment-stats/${ commentId }: ${ res.status }` );
+		throw await restErrorFromResponse( res, `comment-stats/${ commentId }: ${ res.status }` );
 	}
 	return ( await res.json() ) as CommentStats;
 }

@@ -483,7 +483,10 @@
 
 .os-plugins__upload-card {
 	width: min( 480px, calc( 100% - 32px ) );
-	background: var( --os-ui-card-bg, #fff );
+	/* Chains through the palette's surface, as every card-bg reader
+	 * must: the palette declares no card-bg of its own, so a bare #fff
+	 * fallback painted a white card under the station's light text. */
+	background: var( --os-ui-card-bg, var( --os-ui-surface, #fff ) );
 	border-radius: 14px;
 	padding: 22px 22px 18px;
 	box-shadow: var( --os-ui-shadow-lg, 0 16px 48px rgba( 0, 0, 0, 0.32 ) );

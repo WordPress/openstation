@@ -21,13 +21,18 @@ import {
 	urlMatchKey,
 } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
-import { syncTabStripSemantics, withChromelessParam } from './dom';
+import {
+	buildSubmenuTabs,
+	syncTabStripSemantics,
+	withChromelessParam,
+} from './dom';
 import {
 	activatePanelTab,
 	positionTabPlate,
 	syncTabRoving,
 } from './tab-strip';
 import { navigateWithUnsavedGuard } from './unsaved-guard';
+import { tryNativeUrlRemap } from '../native-url-remap';
 import type { Window } from './index';
 
 /*
@@ -217,6 +222,122 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 }
 
 /**
+ * The page an iframe window is on, for matching against its tabs. An
+ * iframe that has not loaded yet reports `about:blank`, which names no
+ * page; the URL the window was asked to open is the truer answer then.
+ */
+function pageUrlOf( win: Window ): string | undefined {
+	const current = win.getCurrentUrl();
+	return current && current !== 'about:blank' ? current : win.config.url;
+}
+
+/**
+ * Re-seed an open iframe window's submenu tabs from the dock entry it
+ * belongs to.
+ *
+ * The strip is built once, when the window opens, but the menu behind
+ * it can change while the window stays open. Switching to a block
+ * theme from the Appearance window takes Menus, Widgets, Customize and
+ * Background out of that menu; the dock follows on the next menu
+ * refresh, and the strip has to follow too, or its Menus tab loads a
+ * screen WordPress now refuses ("Your theme does not support
+ * navigation menus or widgets").
+ *
+ * Compares the tabs it would build with the ones on screen and does
+ * nothing when they match, which is every refresh that changed some
+ * other menu: rebuilding would replay the plate and could drop
+ * keyboard focus for nothing. Otherwise the submenu tabs are replaced
+ * where they stand, external sub-tabs keep their place, and the lit
+ * tab is worked out again from the page the window is on now.
+ *
+ * @return Whether the strip changed.
+ */
+export function setSubmenuTabs(
+	win: Window,
+	entry: {
+		url: string;
+		submenu?: Window[ 'config' ][ 'submenu' ];
+		selfLabel?: string;
+	},
+): boolean {
+	const strip = win.element.querySelector< HTMLElement >( '.os-window__tabs' );
+	if ( ! strip || win.config.native ) {
+		return false;
+	}
+	const next = {
+		...win.config,
+		submenu: entry.submenu ?? [],
+		selfLabel: entry.selfLabel,
+		parentUrl: entry.url || win.config.parentUrl,
+		url: pageUrlOf( win ),
+	};
+	// No page to light a tab against, and `buildSubmenuTabs` would
+	// answer an empty list, which here would read as "every tab went".
+	if ( ! next.url ) {
+		return false;
+	}
+	const currentUrl = next.url;
+	win.config.submenu = next.submenu;
+	win.config.selfLabel = next.selfLabel;
+	win.config.parentUrl = next.parentUrl;
+
+	const fresh = buildSubmenuTabs( next );
+	const current = Array.from(
+		strip.querySelectorAll< HTMLElement >( ':scope > [data-kind="submenu"]' ),
+	);
+	const signature = ( tabs: HTMLElement[] ): string =>
+		tabs.map( ( t ) => `${ t.dataset.url ?? '' }\n${ t.textContent ?? '' }` ).join( '\n\n' );
+	if ( signature( fresh ) === signature( current ) ) {
+		return false;
+	}
+
+	// Carry the highlight over when its page is still a tab, so an
+	// off-menu page (which `syncActiveTab` leaves alone) keeps the tab
+	// the user came from.
+	const litUrl = current.find( ( t ) =>
+		t.classList.contains( 'os-window__tab--active' ),
+	)?.dataset.url;
+	if ( litUrl && ! fresh.some( ( t ) => t.classList.contains( 'os-window__tab--active' ) ) ) {
+		const keep = fresh.find( ( t ) => t.dataset.url === litUrl );
+		keep?.classList.add( 'os-window__tab--active' );
+		keep?.setAttribute( 'aria-selected', 'true' );
+	}
+
+	const hadFocus = current.some( ( t ) => t === strip.ownerDocument.activeElement );
+	const anchor =
+		current[ 0 ] ??
+		strip.querySelector( ':scope > [data-kind="main"]' )?.nextSibling ??
+		strip.querySelector( '.os-window__tab-plate' )?.nextSibling ??
+		null;
+	for ( const tab of fresh ) {
+		strip.insertBefore( tab, anchor );
+	}
+	for ( const stale of current ) {
+		stale.remove();
+	}
+
+	// The "Main" tab only stands in for a missing submenu: drop it once
+	// sub-pages exist, and bring it back if they all went while
+	// external tabs still need a way back to the admin page.
+	const main = strip.querySelector( ':scope > [data-kind="main"]' );
+	if ( fresh.length > 0 ) {
+		main?.remove();
+	} else if ( externalTabCount( win ) > 0 ) {
+		ensureMainTab( win, strip );
+	}
+
+	syncTabStripSemantics( strip );
+	syncActiveTab( win, currentUrl );
+	if ( hadFocus ) {
+		(
+			strip.querySelector< HTMLElement >( '.os-window__tab--active' ) ??
+			strip.querySelector< HTMLElement >( ':scope > .os-window__tab' )
+		)?.focus();
+	}
+	return true;
+}
+
+/**
  * Add a closeable+detachable sub-tab hosting an external URL.
  *
  * Flow:
@@ -226,13 +347,13 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
  *   2. Create an iframe for the external URL, hidden by default.
  *   3. Append a tab to the strip with label + detach + close chips.
  *   4. Switch to the new tab.
- *   5. Start a readiness probe — if the iframe's `load` event doesn't
- *      fire in that window (network failure, hard block), auto-dismiss
- *      the tab and open the URL in a real browser tab with an
- *      explanatory toast. For subtler blocks (X-Frame-Options showing
- *      the browser's error page *inside* the iframe, which does fire
- *      `load`), the user sees the error and can hit the detach button
- *      themselves.
+ *   5. Start a readiness probe: if the iframe still has no page when it
+ *      runs out (the server has not answered), auto-dismiss the tab and
+ *      open the URL in a real browser tab with an explanatory toast. A
+ *      page that is still loading keeps its tab, and so does a blocked
+ *      one: the browser shows its error page *inside* the iframe
+ *      (X-Frame-Options, a refused connection), where the user can see
+ *      it and hit the detach button themselves.
  */
 export function addExternalTab(
 	win: Window,
@@ -304,19 +425,16 @@ export function addExternalTab(
 	iframe.src = url;
 	body.appendChild( iframe );
 
-	// Readiness probe. If `load` never fires within the timeout, assume
-	// the request failed at the network layer (DNS, offline, connection
-	// refused) and fall back to a real browser tab. When `load` does
-	// fire — even for X-Frame-Options-blocked requests that render the
-	// browser's error page inside the iframe — keep the tab; the user
-	// can see the failure and hit the detach button themselves.
+	// Readiness probe. A frame with no page by the deadline gets a real
+	// browser tab instead; see `hasPage()` for why `load` alone is not
+	// the signal.
 	let loaded = false;
 	const onLoad = (): void => {
 		loaded = true;
 	};
 	iframe.addEventListener( 'load', onLoad, { once: true } );
 	const probeTimer = window.setTimeout( () => {
-		if ( loaded ) {
+		if ( loaded || hasPage( iframe ) ) {
 			return;
 		}
 		iframe.removeEventListener( 'load', onLoad );
@@ -474,6 +592,23 @@ export function detachExternalTab( win: Window, tabId: string ): void {
 }
 
 /**
+ * Whether an external sub-tab's frame has a page yet, finished or not.
+ *
+ * Not `load`: it waits for every image, script and embed on the page,
+ * so a slow front end is on screen long before it fires. A frame the
+ * server has not answered yet still holds its initial `about:blank`,
+ * and one we cannot read holds a page from another origin (the
+ * browser's own error page included).
+ */
+function hasPage( iframe: HTMLIFrameElement ): boolean {
+	try {
+		return iframe.contentWindow?.location.href !== 'about:blank';
+	} catch {
+		return true;
+	}
+}
+
+/**
  * Fallback for sub-tabs that fail to load within the probe window.
  * Dismisses the sub-tab, opens the URL as a real browser tab, and
  * flashes a toast explaining why the shell gave up on embedding.
@@ -595,6 +730,18 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 	// forward. The load listener below syncs the active-tab highlight.
 	if ( tab.dataset.url ) {
 		const destination = tab.dataset.url;
+		// Unless a native window has claimed that page. The strip is
+		// one more surface that turns a URL into a window, so it owes
+		// the remap registry the same consult the dock and the link
+		// interceptor make: with the native Posts window on, "All
+		// Posts" must not load the classic list into this iframe.
+		// The source window stays where it is — a link click can
+		// close the window it navigated, a tab click has an unsaved
+		// draft behind it — and its highlight stays on the page it is
+		// still showing.
+		if ( tryNativeUrlRemap( destination ) ) {
+			return;
+		}
 		const next = withChromelessParam( destination );
 		// Foreground the primary surface first — the submenu strip
 		// describes that frame, so the click belongs to it whatever

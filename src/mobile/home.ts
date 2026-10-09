@@ -27,12 +27,17 @@ export interface HomeGridSections {
  * over the wallpaper between windows, and a phone has neither a
  * wallpaper to float over nor windows to settle onto. Overview is the
  * desk's zoom-out grid; the phone's overview is the switcher, which
- * already sits in the tab bar. The ids are `MIO_TILE_ID`
- * (`src/mio/controller.ts`) and `OVERVIEW_TILE_ID`
+ * already sits in the tab bar. The Site assistant is the desk's ⌘K
+ * overlay, which has no phone layout. The ids are `MIO_TILE_ID`
+ * (`src/mio/controller.ts`), `OVERVIEW_TILE_ID` and `ASSISTANT_TILE_ID`
  * (`src/dock-shell-tiles.ts`), repeated here so the phone bundle does
- * not carry those modules for two strings.
+ * not carry those modules for three strings.
  */
-export const HIDDEN_ON_PHONE: ReadonlySet< string > = new Set( [ 'os-mio-toggle', 'os-overview' ] );
+export const HIDDEN_ON_PHONE: ReadonlySet< string > = new Set( [
+	'os-mio-toggle',
+	'os-overview',
+	'os-site-assistant',
+] );
 
 /**
  * Whether a tap on this item can open anything the phone can show.

@@ -6,6 +6,8 @@
  *     untouched, loading overlay never armed
  *   - swap on buffer load: old frame removed, `win.iframe` re-pointed,
  *     buffer promoted (class/name/aria cleanup)
+ *   - no swap on the about:blank load a browser fires when an iframe
+ *     is inserted without a URL
  *   - re-entrancy: a newer swap supersedes an in-flight buffer; a
  *     superseded buffer's late load is ignored
  *   - post-swap overlay contract: a later classic `reload()` still
@@ -143,6 +145,29 @@ describe( 'Window.swapReload', () => {
 		expect( buffer.src ).toContain( 'fresh=1' );
 		// Same-origin gate rode along, like navigateTo.
 		expect( buffer.src ).toContain( 'openstation_chromeless=1' );
+	} );
+
+	test( 'keeps the old page up until the twin has loaded its URL', async () => {
+		// Browsers fire `load` synchronously for an iframe inserted
+		// without a URL (its initial about:blank). jsdom doesn't, so
+		// emulate it on the insertion the swap makes.
+		const insert = Element.prototype.insertAdjacentElement;
+		vi.spyOn( Element.prototype, 'insertAdjacentElement' ).mockImplementation(
+			function ( this: Element, where: InsertPosition, el: Element ) {
+				const inserted = insert.call( this, where, el );
+				if ( el instanceof HTMLIFrameElement && ! el.getAttribute( 'src' ) ) {
+					el.dispatchEvent( new Event( 'load' ) );
+				}
+				return inserted;
+			},
+		);
+		const win = await manager.open( openConfig( 'sw-blank' ) );
+		const original = win.iframe!;
+
+		win.swapReload( '/wp-admin/a.php?v=2' );
+
+		expect( win.iframe ).toBe( original );
+		expect( original.isConnected ).toBe( true );
 	} );
 
 	test( 'a swap completing before the FIRST load clears the boot overlay', async () => {

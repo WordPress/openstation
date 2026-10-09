@@ -22,6 +22,9 @@
  *      so the href IS the navigation and it needs the referer hint
  *      the parent can no longer add on our behalf.
  *
+ * The page is a list screen (Media), so the same harness also checks
+ * that a content-change broadcast refreshes it.
+ *
  * @vitest-environment-options { "url": "http://localhost/wp-admin/upload.php?openstation_chromeless=1" }
  */
 import { describe, expect, test, beforeAll, beforeEach, vi } from 'vitest';
@@ -76,6 +79,12 @@ beforeAll( () => {
 		_identity: null,
 		_softReload: [],
 	};
+
+	// On a real page the standalone `iframe-bridge.js` prints ahead of
+	// this bundle and claims the screen-meta hoist first.
+	(
+		window as unknown as { __openStationScreenMetaInstalled: boolean }
+	).__openStationScreenMetaInstalled = true;
 
 	// eslint-disable-next-line no-eval -- the point is to exercise the
 	// emitted source rather than a re-implementation of it.
@@ -205,6 +214,37 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 		expect( adminLinkMessages()[ 0 ].url ).toContain(
 			'/wp-admin/plugin-install.php'
 		);
+	} );
+
+	// Jetpack Stats writes in-app links root-relative and a delegated
+	// handler on `#wpcom` turns them into `#!` routes. Claiming them
+	// resolved `/stats/…` against the site root and opened the front
+	// end's 404 page as an external sub-tab.
+	test( 'Jetpack Stats routes stay with Jetpack', () => {
+		const before = window.location.href;
+		history.replaceState(
+			null,
+			'',
+			'/wp-admin/admin.php?page=stats&openstation_chromeless=1'
+		);
+
+		try {
+			clickLink(
+				'<div id="wpcom"><a href="/stats/day/referrers/example.com">View all</a></div>'
+			);
+			expect( posted ).toHaveLength( 0 );
+
+			// Only Jetpack's own routes: a permalink in the app is
+			// still escalated to the shell.
+			clickLink(
+				'<div id="wpcom"><a href="/hello-world/">Hello world</a></div>'
+			);
+			expect( posted.map( ( m ) => m.type ) ).toEqual( [
+				'os-external-link',
+			] );
+		} finally {
+			history.replaceState( null, '', before );
+		}
 	} );
 } );
 
@@ -504,5 +544,33 @@ describe( 'chromeless bridge: which submits light the status ring', () => {
 		submitForm( html as string, onForm as ( ( f: HTMLFormElement ) => void ) | undefined );
 
 		expect( activityMessages() ).toHaveLength( 0 );
+	} );
+} );
+
+describe( 'chromeless bridge: a content-change broadcast', () => {
+	test( 'refreshes the list it matches in place', async () => {
+		const fetchMock = vi.fn(
+			async () => new Response( '<div id="wpbody-content">Published</div>' )
+		);
+		vi.stubGlobal( 'fetch', fetchMock );
+		document.body.innerHTML = '<div id="wpbody-content">Draft</div>';
+
+		try {
+			// What the shell posts to every window when a media item
+			// changes somewhere else.
+			window.dispatchEvent(
+				new MessageEvent( 'message', {
+					origin: window.location.origin,
+					data: { type: 'os-broadcast', topic: 'os.attachment.changed', payload: {} },
+				} )
+			);
+
+			await vi.waitFor( () =>
+				expect( document.getElementById( 'wpbody-content' )?.textContent ).toBe( 'Published' )
+			);
+			expect( fetchMock ).toHaveBeenCalledWith( window.location.href, expect.anything() );
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	} );
 } );

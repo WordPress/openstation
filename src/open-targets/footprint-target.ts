@@ -4,29 +4,29 @@
  *
  * Footprints render inside the WP Explorer APP, whose client bundle
  * is a lazy companion of its window. The click that requests one
- * originates elsewhere — most notably the chromeless `users.php`
- * iframe, whose row-action click is routed through the window-system
- * bundle's `handleWindowMessage`. Module-level state in one bundle is
- * invisible to another (see `AGENTS.md` § "Cross-bundle state"), so
- * the target user is threaded through `wp.os.createSharedStore`. (The
- * User Edit window, an App Framework app, takes its subject as an
- * open-time param instead — see `user-edit-window.ts` beside this
- * file; this store predates that contract and stays for the
- * footprint's own hand-off.)
+ * originates elsewhere — the profile sidebar, an agent card, and most
+ * notably the chromeless `users.php` iframe, whose row-action click
+ * is routed through the window-system bundle's `handleWindowMessage`.
  *
  * Flow:
  *   1. A caller (parent shell handler, plugin code) invokes
  *      `openUserFootprintWindow( { userId, userName } )`.
- *   2. That stashes the target here, then calls
- *      `wp.os.openWindow( 'my-wordpress' )`, which opens the app —
- *      loading its bundle — or focuses it when it is already open.
- *   3. The app's client view reads the target on mount (cold open)
- *      and subscribes for re-targets (warm, already-open window). See
- *      `apps/my-wordpress/parts/wire.ts`.
- *
- * Cold-start safety is the point of routing through the shared store:
- * a footprint click in a session that never opened the explorer must
- * still land on the right person once the bundle mounts.
+ *   2. That calls `wp.os.openWindow( 'my-wordpress', { params } )`
+ *      with the person as OPEN-TIME PARAMS (`footprint`, `fpName`).
+ *      On a cold open the app's `mount` derives the footprint state
+ *      from them on the server, so the first paint IS the footprint —
+ *      never the folder grid for a beat and a second request after.
+ *      On a live window the shell fires the `reopen` lifecycle and
+ *      the app retargets. Params ride the session, so a reload brings
+ *      the window back on the same person.
+ *   3. The person is ALSO stashed in the shared store below, the
+ *      contract that predates params: a plugin that stashes and
+ *      opens by hand still lands, and the app's client view
+ *      (`apps/my-wordpress/parts/wire.ts`) consumes the target on
+ *      mount and on re-targets — skipping a person the params already
+ *      put on screen. Module-level state in one bundle is invisible to
+ *      another (see `AGENTS.md` § "Cross-bundle state"), hence
+ *      `wp.os.createSharedStore`.
  */
 
 /**
@@ -74,7 +74,10 @@ interface DesktopFacade {
 	) => SharedStoreApi< T >;
 	openWindow?: (
 		id: string,
-		opts?: { source?: string },
+		opts?: {
+			source?: string;
+			params?: Record< string, string | number | boolean >;
+		},
 	) => boolean | undefined;
 }
 
@@ -196,9 +199,11 @@ export function subscribeFootprintTarget(
 }
 
 /**
- * Open (or focus) the My WordPress window scoped to a user's activity
- * footprint. Cold-start safe: stashes the shared target first, then
- * opens the window so the freshly-mounted bundle reads it back.
+ * Open (or retarget) the WP Explorer window on a user's activity
+ * footprint. The person travels as open-time params, so a cold open
+ * mounts straight onto the footprint and a live window retargets
+ * through `reopen`; the shared target is stashed as well, for the
+ * store-based contract.
  *
  * @param args          Footprint target.
  * @param args.userId   Target user id (must be a positive integer).
@@ -212,8 +217,10 @@ export function openUserFootprintWindow( args: {
 	if ( ! Number.isFinite( userId ) || userId <= 0 ) {
 		return;
 	}
-	setFootprintTarget( userId, args.userName ?? '' );
+	const userName = args.userName ?? '';
+	setFootprintTarget( userId, userName );
 	getDesktop()?.openWindow?.( WINDOW_ID, {
 		source: 'my-wordpress/open-user-footprint',
+		params: { footprint: userId, fpName: userName },
 	} );
 }

@@ -512,18 +512,52 @@ html.wp-toolbar:has( body.os-chromeless ) {
 }
 
 /*
- * `boot-layout__surfaces` is the white card the React app draws its
- * content onto. In classic admin it sits on the dark #wpwrap with
+ * The surfaces wrapper is the white card the React app draws its
+ * content onto. In classic admin it sits on the dark layout with
  * rounded corners and a margin that makes it read as a "card." Inside
- * a desktop window the surface IS the content — rounded corners and
- * side margins leave ugly bleed at the edges. Collapse it to a plain
+ * a desktop window the surface IS the content, so that frame is just
+ * bleed at the right and bottom edges. Collapse it to a plain
  * edge-to-edge surface.
+ *
+ * Core builds these class names with CSS modules, so only the
+ * `__<local-name>` suffix is stable; the hash in front of it changes
+ * with every Core build. Match on the suffix, scoped to the boot
+ * container. The bare `boot-layout__*` names are the pre-CSS-modules
+ * spelling, kept for Core builds that still ship it.
+ *
+ * The container is not a tight enough scope on its own. The page a
+ * boot screen routes to mounts INSIDE the layout, and a plugin page
+ * built with CSS modules gives its own elements the same
+ * `<hash>__<name>` shape: Jetpack's Stats v2 dashboard lays its
+ * widgets out in a `…__layout` grid, and the `min-height: 100vh` meant
+ * for Core's layout element stretched that grid to the window and
+ * spread the dashboard's rows across it, with the widgets pushed
+ * out of sight. Everything a page renders lives inside admin-ui's
+ * navigable region, so exclude that subtree: these rules only ever
+ * touch Core's own frame around the page, never the page.
  */
+.os-chromeless .boot-layout-container [class*='__surfaces']:not( .admin-ui-navigable-region * ),
+.os-chromeless .boot-layout-container [class*='__stage']:not( .admin-ui-navigable-region * ),
+.os-chromeless .boot-layout-container [class*='__canvas']:not( .admin-ui-navigable-region * ),
 .os-chromeless .boot-layout__surfaces,
 .os-chromeless .boot-layout__stage,
 .os-chromeless .boot-layout__canvas {
 	border-radius: 0 !important;
 	margin: 0 !important;
+}
+
+/*
+ * The layout element is absolutely positioned inside a zero-height
+ * `#wpbody`, so `top: 0; bottom: 0` resolve to nothing and its
+ * `min-height: calc( 100vh - <admin bar> )` is what it actually gets.
+ * A chromeless iframe has no admin bar, so that reservation shows up
+ * as a dark band along the bottom of the window. Take the full
+ * viewport back. Same navigable-region guard as above: the page's
+ * own `…__layout` elements keep their height.
+ */
+.os-chromeless .boot-layout-container [class*='__layout']:not( .admin-ui-navigable-region * ),
+.os-chromeless .boot-layout {
+	min-height: 100vh !important;
 }
 
 /*

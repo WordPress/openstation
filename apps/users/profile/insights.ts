@@ -7,6 +7,7 @@
  */
 
 import { __, _n, formatDate, sprintf } from '@openstation/app';
+import { openUserFootprintWindow } from '../../../src/open-targets/footprint-target';
 import { relativeTimeNode, serverDateMs } from './client';
 import type { ProfileConfig, UserInsightsPayload } from './types';
 
@@ -48,7 +49,11 @@ export function paintInsightsError( host: HTMLElement, err: unknown ): void {
 
 /** The compact summary for the sidebar (`<aside>`). */
 export function paintAside( host: HTMLElement, data: UserInsightsPayload, cfg: ProfileConfig ): void {
-	host.replaceChildren( buildAsideSummary( data, cfg ), buildAsideStatGrid( data ), buildContentSparkline( data ) );
+	const parts: HTMLElement[] = [ buildAsideSummary( data, cfg ), buildAsideStatGrid( data ), buildContentSparkline( data ) ];
+	if ( cfg.canViewFootprint ) {
+		parts.push( buildFootprintDoor( data ) );
+	}
+	host.replaceChildren( ...parts );
 }
 
 /** The full-width activity feed below the form. */
@@ -190,8 +195,29 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	return grid;
 }
 
+/**
+ * The sidebar's door to the activity footprint — the year-long
+ * GitHub-style view WP Explorer renders. The Users table's row action
+ * and the explorer's own dossier keep their doors; this one is the
+ * short way in from the profile itself. The hand-off is the shared
+ * footprint target, so the explorer bundle need not be loaded yet.
+ */
+function buildFootprintDoor( data: UserInsightsPayload ): HTMLElement {
+	const wrap = div( 'margin:0 0 22px;' );
+	const button = document.createElement( 'os-button' );
+	button.setAttribute( 'variant', 'secondary' );
+	button.setAttribute( 'fill-cell', '' );
+	button.setAttribute( 'data-os-user-profile-footprint', '' );
+	button.textContent = __( 'View activity footprint' );
+	button.addEventListener( 'click', () => {
+		openUserFootprintWindow( { userId: data.userId, userName: data.displayName } );
+	} );
+	wrap.appendChild( button );
+	return wrap;
+}
+
 function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
-	const wrap = div( `${ CARD }margin:0 0 22px;` );
+	const wrap = div( CARD );
 	const head = div( 'display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px;' );
 	head.appendChild( div( 'font-size:13px;font-weight:600;', __( 'Posts published — last 12 months' ) ) );
 	const total = data.contentByMonth.reduce( ( s, m ) => s + m.count, 0 );

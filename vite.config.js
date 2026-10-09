@@ -479,6 +479,15 @@ const TARGETS = {
 		fileBase: 'release-card',
 		iifeName: 'openStationReleaseCardBundle',
 	},
+	// Shell tour — the five first-boot coachmarks (`<os-coachmark>` +
+	// the step driver). Only a user's first boot, a reset or "Take the
+	// tour" needs it; injected by `src/shell-tour/loader.ts` from the
+	// main bundle. Publishes `window.openStationShellTour`.
+	'shell-tour': {
+		entry:    'src/shell-tour/entry.ts',
+		fileBase: 'shell-tour',
+		iifeName: 'openStationShellTourBundle',
+	},
 	// Deactivation feedback — the one-question dialog shown when an
 	// admin deactivates OpenStation. Enqueued on `plugins.php` (classic
 	// and chromeless, where no `<os-*>` kit exists, hence plain DOM)
@@ -488,6 +497,16 @@ const TARGETS = {
 		entry:    'src/deactivation-feedback/entry.ts',
 		fileBase: 'deactivation-feedback',
 		iifeName: 'openStationDeactivationFeedbackBundle',
+	},
+	// Usage feedback — the one-time "how is it going?" prompt card and
+	// the short optional form it opens. The main bundle keeps only the
+	// gate; this holds the card, the modal and its field kit, and is
+	// injected by `src/usage-feedback/loader.ts` for a user the server
+	// found eligible. Publishes `window.openStationUsageFeedback`.
+	'usage-feedback': {
+		entry:    'src/usage-feedback/entry.ts',
+		fileBase: 'usage-feedback',
+		iifeName: 'openStationUsageFeedbackBundle',
 	},
 	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
 	// Components for action-triggered overlays that aren't constructed

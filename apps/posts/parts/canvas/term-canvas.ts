@@ -74,6 +74,12 @@ export interface TermCanvasHooks {
 	frame: ( dt: number ) => void;
 	/** The fresh bulk counts landed and changed something: relayout. */
 	countsChanged: () => void;
+	/**
+	 * The term list was reloaded because posts or terms changed in
+	 * another window: terms may have appeared, gone or moved. Keep the
+	 * camera where the user left it. Falls back to `countsChanged`.
+	 */
+	termsReloaded?: () => void;
 	/** Whether a term is being dragged — a click then never closes the focus. */
 	dragging: () => boolean;
 	/** A stage pointer moved; return true when the canvas consumed it (a drag), false to pan. */
@@ -112,9 +118,38 @@ export interface TermCanvas {
 	syncEmptyHint: ( show: boolean ) => void;
 	/** Any-status counts from the cached bulk map; `countsChanged` when they differ. */
 	refreshCounts: () => Promise< void >;
+	/** Refetch the terms and their counts, then `termsReloaded` and refresh the fan. */
+	reload: () => Promise< void >;
 	/** Bind the metaphor and start: the loop, the search, the first fit, the counts. */
 	start: ( hooks: TermCanvasHooks ) => void;
 	teardown: () => void;
+}
+
+/** Changes arrive in bursts (an editor save, then its heartbeat echo). */
+const RELOAD_DEBOUNCE_MS = 300;
+
+/**
+ * Subscribe to the shell broadcasts that mean a canvas's terms or counts
+ * may be stale: any post saved or recategorised (`os.post.changed`), and
+ * any term of this taxonomy created, renamed, moved or deleted
+ * (`os.term.changed`). Returns the unsubscribe.
+ */
+export function subscribeToContentChanges( taxonomy: 'category' | 'post_tag', onChange: () => void ): () => void {
+	const api = window.wp?.os;
+	if ( ! api || typeof api.subscribe !== 'function' ) {
+		return () => {};
+	}
+	const offPosts = api.subscribe( 'os.post.changed', () => onChange() );
+	const offTerms = api.subscribe( 'os.term.changed', ( payload: unknown ) => {
+		const changed = ( payload as { taxonomy?: string } | null )?.taxonomy;
+		if ( ! changed || changed === taxonomy ) {
+			onChange();
+		}
+	} );
+	return () => {
+		offPosts();
+		offTerms();
+	};
 }
 
 /**
@@ -158,6 +193,8 @@ export async function createTermCanvas( host: HTMLElement, env: CanvasEnv, spec:
 	let unwatch: ( () => void ) | null = null;
 	let undirectory: ( () => void ) | null = null;
 	let unsearch: ( () => void ) | null = null;
+	let unchanges: ( () => void ) | null = null;
+	let reloadTimer: ReturnType< typeof setTimeout > | null = null;
 	let disposed = false;
 
 	const fan = createPostFan( {
@@ -353,8 +390,62 @@ export async function createTermCanvas( host: HTMLElement, env: CanvasEnv, spec:
 			}
 		},
 
+		async reload() {
+			let fresh: TermRow[];
+			try {
+				fresh = await env.client.fetchAllTerms( spec.taxonomy );
+			} catch {
+				return; // Keep what is on screen; the next change retries.
+			}
+			try {
+				const map = fresh.length > 0
+					? await env.client.fetchTermCounts( spec.restTaxonomy, fresh.map( ( t ) => t.id ) )
+					: {};
+				fresh = fresh.map( ( t ) => {
+					const count = map[ String( t.id ) ];
+					return typeof count === 'number' ? { ...t, count } : t;
+				} );
+			} catch {
+				// The term-list counts stand; the bulk map is a refinement.
+			}
+			if ( disposed ) {
+				return;
+			}
+			canvas.terms = fresh;
+			( hooks?.termsReloaded ?? hooks?.countsChanged )?.();
+			fan.forget();
+			if ( fan.focusId !== null ) {
+				if ( fresh.some( ( t ) => t.id === fan.focusId ) ) {
+					await fan.load();
+				} else {
+					canvas.closeFocus();
+				}
+			}
+		},
+
 		start( next ) {
 			hooks = next;
+			// Posts recategorised or terms edited in another window (the
+			// block editor, a Posts table cell, the heartbeat for classic
+			// saves) change the counts and the fans. One reload per burst,
+			// and never under a node the user is dragging.
+			const scheduleReload = (): void => {
+				if ( reloadTimer !== null ) {
+					clearTimeout( reloadTimer );
+				}
+				reloadTimer = setTimeout( () => {
+					reloadTimer = null;
+					if ( disposed ) {
+						return;
+					}
+					if ( hooks?.dragging() ) {
+						scheduleReload();
+						return;
+					}
+					void canvas.reload();
+				}, RELOAD_DEBOUNCE_MS );
+			};
+			unchanges = subscribeToContentChanges( spec.restTaxonomy, scheduleReload );
 			unwatch = watchStageSize( pixi, app, stage, {
 				onFirstFit: () => camera.fitToView( next.bounds() ),
 				onSettle: () => canvas.recenter(),
@@ -377,6 +468,11 @@ export async function createTermCanvas( host: HTMLElement, env: CanvasEnv, spec:
 				raf = null;
 			}
 			document.removeEventListener( 'visibilitychange', onVisibility );
+			if ( reloadTimer !== null ) {
+				clearTimeout( reloadTimer );
+				reloadTimer = null;
+			}
+			unchanges?.();
 			unwatch?.();
 			unsearch?.();
 			undirectory?.();

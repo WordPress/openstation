@@ -315,7 +315,13 @@ describe( 'view', () => {
 		expect( open.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__detail-pane' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__split--solo' ) ).toBeNull();
-		expect( open.textContent ).toContain( 'Status' );
+		// A fact's label is an attribute on <os-fact> rendered into its
+		// shadow root, like <os-stat>'s, so it is not in light-DOM text.
+		expect(
+			Array.from( open.querySelectorAll( 'os-fact' ) ).map( ( f ) =>
+				f.getAttribute( 'label' ),
+			),
+		).toContain( 'Status' );
 		expect( Array.from( open.querySelectorAll( 'os-button' ) ).some( ( button ) => button.textContent?.trim() === 'Trash' ) ).toBe( true );
 		// The pane carries WP Explorer's full verb row: the door into
 		// the detail folder sits beside the editor button.
@@ -405,7 +411,11 @@ describe( 'view', () => {
 		expect( statText ).toContain( '5 published' );
 		expect( statText ).toContain( 'Authors' );
 		expect( root.textContent ).toContain( 'Activity (last 12 months)' );
-		expect( root.textContent ).toContain( 'First post' );
+		expect(
+			Array.from( root.querySelectorAll( 'os-fact' ) ).map( ( f ) =>
+				f.getAttribute( 'label' ),
+			),
+		).toContain( 'First post' );
 		expect( root.textContent ).toContain( 'August 2026' );
 		expect( root.textContent ).toContain( 'Field recording: the 4am train' );
 		expect( root.querySelectorAll( '.os-mywp__activity-col' ) ).toHaveLength( 12 );
@@ -674,6 +684,88 @@ describe( 'view', () => {
 			expect( document.body.querySelector( '.my-plugin-card' ) ).toBeNull();
 			teardown();
 		} finally {
+			delete ( window as { wp?: unknown } ).wp;
+		}
+	} );
+
+	it( 'dragging a media tile carries what an editor window needs to insert the image', () => {
+		const start = vi.fn();
+		( window as { wp?: unknown } ).wp = { os: { dragManager: { start } } };
+		const root = document.createElement( 'div' );
+		document.body.appendChild( root );
+		try {
+			const media = section( { id: 'media', label: 'Media', kind: 'media', post_type: 'attachment' } );
+			const ctx = mockViewContext( {
+				state: state( { section: 'media' } ),
+				data: data( {
+					sections: [ media ],
+					list: page( [
+						item( {
+							id: 26,
+							title: 'Peach tree',
+							status: '',
+							thumb: 'https://example.test/peach-tree-300x225.jpg',
+							link: 'https://example.test/peach-tree.jpg',
+							mime: 'image/jpeg',
+							alt: 'A peach tree heavy with fruit',
+						} ),
+					] ),
+				} ),
+				root,
+			} );
+			( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
+				observe(): void {}
+				disconnect(): void {}
+			};
+			app.render( ctx );
+			const teardown = app.mounted( ctx ) as () => void;
+			root.querySelector( '[data-mywp-drag][data-item-id="26"]' )?.dispatchEvent(
+				new MouseEvent( 'pointerdown', { bubbles: true, button: 0 } ),
+			);
+			expect( start ).toHaveBeenCalledTimes( 1 );
+			expect( start.mock.calls[ 0 ][ 0 ].payload.data.bridgePayload ).toEqual( {
+				kind: 'attachment',
+				id: 26,
+				url: 'https://example.test/peach-tree.jpg',
+				title: 'Peach tree',
+				alt: 'A peach tree heavy with fruit',
+				mime: 'image/jpeg',
+				thumbnailUrl: 'https://example.test/peach-tree-300x225.jpg',
+			} );
+			teardown();
+		} finally {
+			root.remove();
+			delete ( window as { wp?: unknown } ).wp;
+		}
+	} );
+
+	it( 'dragging a product tile files it as a post, the only file type a post type has', () => {
+		const start = vi.fn();
+		( window as { wp?: unknown } ).wp = { os: { dragManager: { start } } };
+		const root = document.createElement( 'div' );
+		document.body.appendChild( root );
+		try {
+			const products = section( { id: 'cpt-product', label: 'Products', post_type: 'product' } );
+			const ctx = mockViewContext( {
+				state: state( { section: 'cpt-product' } ),
+				data: data( { sections: [ products ], list: page( [ item( { id: 31, title: 'Demo Mug' } ) ] ) } ),
+				root,
+			} );
+			( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
+				observe(): void {}
+				disconnect(): void {}
+			};
+			app.render( ctx );
+			const teardown = app.mounted( ctx ) as () => void;
+			root.querySelector( '[data-mywp-drag][data-item-id="31"]' )?.dispatchEvent(
+				new MouseEvent( 'pointerdown', { bubbles: true, button: 0 } ),
+			);
+			const payload = start.mock.calls[ 0 ][ 0 ].payload.data;
+			expect( payload.kind ).toBe( 'post' );
+			expect( payload.bridgePayload.postType ).toBe( 'product' );
+			teardown();
+		} finally {
+			root.remove();
 			delete ( window as { wp?: unknown } ).wp;
 		}
 	} );

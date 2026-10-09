@@ -35,9 +35,9 @@ export const DRAG_THRESHOLD_PX = 5;
 export const DRAG_THRESHOLD_SQUARED = DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX;
 
 /**
- * How long an external sub-tab's iframe gets to fire its initial
- * `load` event before we assume the request failed and fall back to
- * opening the URL in a real browser tab.
+ * How long an external sub-tab's iframe gets to receive its page
+ * before we assume the request failed and fall back to opening the
+ * URL in a real browser tab.
  */
 export const EXTERNAL_IFRAME_READY_TIMEOUT_MS = 3000;
 
@@ -117,3 +117,14 @@ export const LOADING_OVERLAY_CLASS = 'os-window__loading';
  * cannot disagree. Do not re-derive it from a clock.
  */
 export const LOADING_OVERLAY_VISIBLE_CLASS = 'os-window__loading--visible';
+
+/**
+ * The `<os-spinner>` preset and size every window-sized load paints:
+ * the window overlay (`src/window/dom.ts`) and an admin page embedded
+ * in a native window's panel (`embedAdminPage()` in
+ * `src/native-windows.ts`). Shared so the two cannot drift — when they
+ * did, a tab switch in a native app swapped the large WordPress mark
+ * for a 48px default-sized one, which read as the loader shrinking.
+ */
+export const LOADING_SPINNER_PRESET = 'classic';
+export const LOADING_SPINNER_SIZE = 'clamp(96px, 14vw, 192px)';

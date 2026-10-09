@@ -9,7 +9,7 @@
  * Three jobs:
  *
  *   1. Retire the desktop chrome — dock, widgets, wallpaper icons,
- *      admin bar, notch, window title bars and resize handles. The
+ *      admin bar, window title bars and resize handles. The
  *      elements stay in the DOM (their listeners and registries keep
  *      working); they just stop painting.
  *   2. Make every window the whole work area, between the top bar
@@ -35,7 +35,6 @@ html[data-os-mode="mobile"] .os-files-layer,
 html[data-os-mode="mobile"] .os-notes,
 html[data-os-mode="mobile"] .os-mio,
 html[data-os-mode="mobile"] #os-mio,
-html[data-os-mode="mobile"] .os-notch,
 html[data-os-mode="mobile"] .os-window__titlebar,
 html[data-os-mode="mobile"] .os-window__resize-handle {
 	display: none !important;
@@ -48,8 +47,8 @@ html[data-os-mode="mobile"].wp-toolbar {
 
 /*
  * The shell starts at the top edge, and the admin-bar height token
- * says so too: anything that still reads it (the notch's offset, a
- * plugin's own chrome) measures against a bar that is not there.
+ * says so too: anything that still reads it (a plugin's own chrome)
+ * measures against a bar that is not there.
  */
 html[data-os-mode="mobile"] .os-shell {
 	inset-block-start: 0;

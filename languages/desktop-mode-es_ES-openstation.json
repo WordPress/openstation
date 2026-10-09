@@ -12,6 +12,9 @@
             "%1$d nodes · %2$d links": [
                 ""
             ],
+            "%1$d of %2$d": [
+                ""
+            ],
             "%1$dh %2$dm": [
                 ""
             ],
@@ -115,6 +118,12 @@
             "%s sub-pages": [
                 "Subpáginas de %s"
             ],
+            "%s to find content and ask questions about your site.": [
+                ""
+            ],
+            "%s — double-click to rename": [
+                ""
+            ],
             "%s — open windows": [
                 ""
             ],
@@ -178,6 +187,9 @@
             "A writing desk. A blank page takes two thirds of the screen, the library sits in the margin, and the rest of the admin is somewhere else.": [
                 ""
             ],
+            "AI features aren’t available on this site. You can still use Commands.": [
+                ""
+            ],
             "About": [
                 ""
             ],
@@ -202,8 +214,17 @@
             "Add a window": [
                 ""
             ],
-            "Add new desktop": [
-                "Añadir nuevo escritorio"
+            "Add new workspace": [
+                ""
+            ],
+            "Add one in Connectors.": [
+                ""
+            ],
+            "Add to page": [
+                ""
+            ],
+            "Add to post": [
+                ""
             ],
             "Add widget": [
                 "Añadir widget"
@@ -212,6 +233,9 @@
                 "Añadido"
             ],
             "Agent chat": [
+                ""
+            ],
+            "All your menu items are here": [
                 ""
             ],
             "Alphabet Soup": [
@@ -227,6 +251,12 @@
                 ""
             ],
             "Always visible": [
+                ""
+            ],
+            "Answer at least one question first.": [
+                ""
+            ],
+            "Answer whichever you like. Every question is optional, and short is fine.": [
                 ""
             ],
             "Any image from your media library or an upload, sized to cover the whole desk.": [
@@ -257,6 +287,9 @@
                 ""
             ],
             "Ask MIO": [
+                ""
+            ],
+            "Ask a site administrator to connect an AI provider to use the AI assistant.": [
                 ""
             ],
             "Ask about this window, or tell me what to change.": [
@@ -295,7 +328,7 @@
             "Big": [
                 ""
             ],
-            "Blank desktop": [
+            "Blank workspace": [
                 ""
             ],
             "Blank, or set up for a job — the wizard asks.": [
@@ -403,6 +436,9 @@
             "Chat with MIO": [
                 ""
             ],
+            "Check it in Connectors.": [
+                ""
+            ],
             "Choose an app…": [
                 ""
             ],
@@ -410,6 +446,9 @@
                 ""
             ],
             "Circle": [
+                ""
+            ],
+            "Click a dock tile. Every admin screen opens as a window you can move, resize and keep beside another.": [
                 ""
             ],
             "Clock": [
@@ -490,6 +529,12 @@
             "Commerce": [
                 ""
             ],
+            "Configure the layout as you wish": [
+                ""
+            ],
+            "Connectors": [
+                ""
+            ],
             "Contributor": [
                 ""
             ],
@@ -526,16 +571,25 @@
             "Could not convert the note to a post.": [
                 ""
             ],
+            "Could not deactivate %s": [
+                ""
+            ],
             "Could not deactivate %s.": [
                 ""
             ],
             "Could not decline the challenge.": [
                 ""
             ],
+            "Could not delete the conversation.": [
+                ""
+            ],
             "Could not get suggestions.": [
                 ""
             ],
             "Could not initialise the graph renderer.": [
+                ""
+            ],
+            "Could not load conversations.": [
                 ""
             ],
             "Could not load drafts.": [
@@ -556,13 +610,19 @@
             "Could not pin the note. Please try again.": [
                 ""
             ],
+            "Could not reach the site. Check your connection and try again.": [
+                ""
+            ],
+            "Could not restore the note.": [
+                ""
+            ],
+            "Could not save the note.": [
+                ""
+            ],
             "Could not send the challenge.": [
                 ""
             ],
             "Couldn't save your latest changes — the preview shows the last saved version.": [
-                ""
-            ],
-            "Create desktop": [
                 ""
             ],
             "Create from template": [
@@ -628,9 +688,6 @@
             "Desktop": [
                 "Escritorio %d"
             ],
-            "Desktop %d": [
-                "Escritorio %d"
-            ],
             "Desktop Mode is now OpenStation": [
                 ""
             ],
@@ -667,6 +724,9 @@
             "Do I have any spam comments?": [
                 ""
             ],
+            "Do it for me": [
+                ""
+            ],
             "Dock": [
                 ""
             ],
@@ -692,6 +752,9 @@
                 ""
             ],
             "Drafts": [
+                ""
+            ],
+            "Drag the window to the left edge until the preview appears, then let go. It takes half the screen; another window can take the other half.": [
                 ""
             ],
             "Drag to pin": [
@@ -730,6 +793,24 @@
             "Edit draft": [
                 ""
             ],
+            "Edit navigation menu": [
+                ""
+            ],
+            "Edit page": [
+                ""
+            ],
+            "Edit pattern": [
+                ""
+            ],
+            "Edit post": [
+                ""
+            ],
+            "Edit template": [
+                ""
+            ],
+            "Edit template part": [
+                ""
+            ],
             "Edit this workspace…": [
                 ""
             ],
@@ -737,6 +818,9 @@
                 ""
             ],
             "Eight vertical slats retract at once, letting the page through between them.": [
+                ""
+            ],
+            "Email (optional)": [
                 ""
             ],
             "Enable MIO in the dock first": [
@@ -749,6 +833,9 @@
                 "Entrar en pantalla completa"
             ],
             "Environment included with the report": [
+                ""
+            ],
+            "Every WordPress admin menu lives on this rail. Hover a tile for its name; the ones with submenus fan them out.": [
                 ""
             ],
             "Every post type is switched off": [
@@ -800,6 +887,9 @@
                 ""
             ],
             "Find a player…": [
+                ""
+            ],
+            "Find anything": [
                 ""
             ],
             "Find my post about…": [
@@ -877,6 +967,9 @@
             "Got it": [
                 ""
             ],
+            "Got two minutes?": [
+                ""
+            ],
             "Gradient": [
                 ""
             ],
@@ -940,6 +1033,9 @@
             "How does it look?": [
                 ""
             ],
+            "How is OpenStation going?": [
+                ""
+            ],
             "Hue": [
                 ""
             ],
@@ -985,13 +1081,16 @@
             "It changed WordPress too much": [
                 ""
             ],
+            "It no longer exists. Reload the page to catch up.": [
+                ""
+            ],
             "It’s too buggy or unstable": [
                 ""
             ],
             "I’m missing features I need": [
                 ""
             ],
-            "Just a new, empty desk. Turn it into a workspace later if you like.": [
+            "Just a new, empty desk. You can customize it later if you want.": [
                 ""
             ],
             "Keep in %s": [
@@ -1010,6 +1109,9 @@
                 ""
             ],
             "Leave empty to number it": [
+                ""
+            ],
+            "Leave your email if you are happy for us to follow up with a question or two. We like to thank people who help us.": [
                 ""
             ],
             "Level": [
@@ -1159,12 +1261,6 @@
             "New %s": [
                 ""
             ],
-            "New desktop": [
-                ""
-            ],
-            "New desktop…": [
-                ""
-            ],
             "New draft": [
                 ""
             ],
@@ -1174,6 +1270,12 @@
             "New note": [
                 ""
             ],
+            "New workspace": [
+                ""
+            ],
+            "New workspace…": [
+                ""
+            ],
             "Newest first": [
                 ""
             ],
@@ -1181,6 +1283,9 @@
                 ""
             ],
             "Next paper color": [
+                ""
+            ],
+            "No AI provider is set up.": [
                 ""
             ],
             "No agent selected": [
@@ -1225,6 +1330,9 @@
             "No suggestions — press %s to run with the text you typed.": [
                 ""
             ],
+            "No thanks": [
+                ""
+            ],
             "No threads yet": [
                 ""
             ],
@@ -1258,6 +1366,9 @@
             "Note converted to a draft post": [
                 ""
             ],
+            "Note converted to a draft post. Find it under Posts → Drafts.": [
+                ""
+            ],
             "Note is now private.": [
                 ""
             ],
@@ -1274,6 +1385,9 @@
                 ""
             ],
             "Nothing is moved. Windows land where they land.": [
+                ""
+            ],
+            "Nothing is sent until you click Send. Then your answers, your language, and the OpenStation and WordPress versions go to openstation.blog, the plugin’s own site, run by Automattic. Without an email, nothing identifies you or your site.": [
                 ""
             ],
             "Nothing matches.": [
@@ -1318,6 +1432,9 @@
             "Open Preferences": [
                 ""
             ],
+            "Open a window": [
+                ""
+            ],
             "Open an agent from the Agents section of WP Explorer, or pick a past conversation.": [
                 ""
             ],
@@ -1342,7 +1459,7 @@
             "Open in a new browser tab": [
                 "Abrir en una nueva pestaña del navegador"
             ],
-            "Open in browser tab": [
+            "Open in classic wp-admin": [
                 ""
             ],
             "Open in editor": [
@@ -1372,10 +1489,10 @@
             "Open the agent in WP Explorer": [
                 ""
             ],
-            "Open the site assistant": [
+            "Open windows": [
                 ""
             ],
-            "Open windows": [
+            "OpenStation Preferences → Appearance → Desktop layout.": [
                 ""
             ],
             "OpenStation is no longer active. Returning to the WordPress dashboard…": [
@@ -1384,7 +1501,7 @@
             "OpenStation is not active on this site. Opens its admin in a new tab.": [
                 ""
             ],
-            "OpenStation’s own controls — Overview, System, Trash, Exit — always stay, so a desk can never be one you cannot leave.": [
+            "OpenStation’s own controls — Workspaces, System, Trash, Exit — always stay, so a desk can never be one you cannot leave.": [
                 ""
             ],
             "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
@@ -1475,6 +1592,9 @@
                 ""
             ],
             "Press %s to run": [
+                ""
+            ],
+            "Press %s to search screens, commands and content, or ask the assistant.": [
                 ""
             ],
             "Press Challenge to throw down one of your scores, or pick a row from the scoreboard.": [
@@ -1678,6 +1798,9 @@
             "Server returned %d": [
                 ""
             ],
+            "Set up the AI assistant": [
+                ""
+            ],
             "Shake this window when done": [
                 ""
             ],
@@ -1703,6 +1826,9 @@
                 ""
             ],
             "Show MIO on wallpaper": [
+                ""
+            ],
+            "Show me": [
                 ""
             ],
             "Show only the apps I pick": [
@@ -1738,10 +1864,16 @@
             "Skip and deactivate": [
                 ""
             ],
+            "Skip tour": [
+                ""
+            ],
             "Slats": [
                 ""
             ],
             "Small": [
+                ""
+            ],
+            "Snap it to the side": [
                 ""
             ],
             "Snow": [
@@ -1810,6 +1942,9 @@
             "Suggested commands": [
                 ""
             ],
+            "Sure": [
+                ""
+            ],
             "Surprise me": [
                 ""
             ],
@@ -1849,7 +1984,25 @@
             "Teardrop": [
                 ""
             ],
+            "Thank you! That really helps.": [
+                ""
+            ],
+            "That does not look like an email address. Fix it, or leave the field empty.": [
+                ""
+            ],
             "That drop could not be processed — please try again.": [
+                ""
+            ],
+            "The AI assistant isn’t set up yet": [
+                ""
+            ],
+            "The AI provider could not be reached. Try again in a moment.": [
+                ""
+            ],
+            "The AI provider has no credits left or is rate limiting this site. Check its plan and billing, or try again later.": [
+                ""
+            ],
+            "The AI provider rejected this site’s API key.": [
                 ""
             ],
             "The agent finished without a text answer.": [
@@ -1870,7 +2023,7 @@
             "The job status could not be read.": [
                 ""
             ],
-            "The name goes on its overview tile. The glyph and colour are how you tell it apart from the others at a glance.": [
+            "The name goes on its tile in Workspaces. The glyph and colour are how you tell it apart from the others at a glance.": [
                 ""
             ],
             "The page arrives as a grid of tiles, each opening out from its own centre.": [
@@ -1891,10 +2044,25 @@
             "The preview opens once the post has been saved.": [
                 ""
             ],
+            "The rail can move to another edge, split in two, or park itself out of the way.": [
+                ""
+            ],
+            "The server answered with error %d.": [
+                ""
+            ],
+            "The server refused the request (HTTP %d).": [
+                ""
+            ],
             "The server returned a different job.": [
                 ""
             ],
             "The server returned an invalid job state.": [
+                ""
+            ],
+            "The site sent an unreadable reply while converting the note. Check Posts → Drafts before trying again.": [
+                ""
+            ],
+            "The site sent an unreadable reply. Reload the page to check whether the change went through.": [
                 ""
             ],
             "The underlying entity is no longer available.": [
@@ -1906,7 +2074,10 @@
             "The user sent you the %1$s \"%2$s\" (id %3$s) from the \"Send to\" menu. Handle it according to your instructions, using your tools as needed.": [
                 ""
             ],
-            "The window could not update: %s": [
+            "The window could not update": [
+                ""
+            ],
+            "The window could not update.": [
                 ""
             ],
             "The windows this desk opens the first time you enter it, and how they are arranged.": [
@@ -2041,6 +2212,12 @@
             "View": [
                 ""
             ],
+            "View page": [
+                ""
+            ],
+            "View post": [
+                "Acciones de ventana"
+            ],
             "View revisions": [
                 ""
             ],
@@ -2068,16 +2245,31 @@
             "Wave %s": [
                 ""
             ],
+            "We could not send that right now. Please try again in a moment.": [
+                ""
+            ],
+            "We want your feedback to improve OpenStation. Three short questions, all optional.": [
+                ""
+            ],
             "Website": [
+                ""
+            ],
+            "What can we do for you?": [
+                ""
+            ],
+            "What do you mainly use OpenStation for?": [
                 ""
             ],
             "What does it open with?": [
                 ""
             ],
+            "What gets in your way, or what is missing?": [
+                ""
+            ],
             "What happened? What did you expect?": [
                 ""
             ],
-            "What is this desktop for?": [
+            "What is this workspace for?": [
                 ""
             ],
             "What we send: your answer, the plugin, WordPress and PHP versions, your site language, and a few anonymous site facts listed in the plugin readme. Nothing that identifies you or your site.": [
@@ -2116,6 +2308,9 @@
             "Windows": [
                 ""
             ],
+            "Windows, snapping and search: that is the station. Everything else is in OpenStation Preferences, and this tour is there too whenever you want it back.": [
+                ""
+            ],
             "Wobble speed": [
                 ""
             ],
@@ -2152,6 +2347,9 @@
             "Workspace": [
                 ""
             ],
+            "Workspace %d": [
+                ""
+            ],
             "Write a note…": [
                 ""
             ],
@@ -2170,6 +2368,9 @@
             "You are here": [
                 ""
             ],
+            "You are set": [
+                ""
+            ],
             "You beat the %1$s challenge: %2$s vs %3$s.": [
                 ""
             ],
@@ -2182,6 +2383,9 @@
             "You have unsaved changes. Are you sure you want to close this window?": [
                 ""
             ],
+            "You have unsent answers. Close again to discard them.": [
+                ""
+            ],
             "You missed the %1$s challenge: %2$s vs %3$s.": [
                 ""
             ],
@@ -2192,6 +2396,9 @@
                 ""
             ],
             "Your score could not be saved.": [
+                ""
+            ],
+            "Your session has expired. Reload the page and try again.": [
                 ""
             ],
             "applied": [
@@ -2207,6 +2414,9 @@
                 ""
             ],
             "just now": [
+                ""
+            ],
+            "list of menu item names\u0004%1$s, %2$s": [
                 ""
             ],
             "points": [

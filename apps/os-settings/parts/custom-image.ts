@@ -17,6 +17,8 @@ import {
 	getDefaultWallpaperId,
 } from '../../../src/settings/constants';
 import type { OsSettingsState } from '../../../src/settings/types';
+import { restErrorFromResponse } from '../../../src/core/api-client';
+import { describeRestFailure } from '../../../src/core/rest-failure';
 import { settings, update } from './store';
 import { extraOf, pickedChecked, pickedValue, uiOf, type Ctx, type Section } from './types';
 
@@ -74,18 +76,6 @@ function stripHtml( markup: string ): string {
 
 // -------------------------------------------------------------- REST
 
-async function errorMessage( response: Response, fallback: string ): Promise< string > {
-	try {
-		const data = ( await response.json() ) as { message?: unknown };
-		if ( data && typeof data.message === 'string' ) {
-			return data.message;
-		}
-	} catch {
-		/* keep the fallback */
-	}
-	return fallback;
-}
-
 async function fetchMediaPage(
 	ctx: Ctx,
 	page: number,
@@ -108,7 +98,7 @@ async function fetchMediaPage(
 	}
 	const response = await ctx.fetch( url.toString() );
 	if ( ! response.ok ) {
-		throw new Error( await errorMessage( response, `HTTP ${ response.status }` ) );
+		throw await restErrorFromResponse( response );
 	}
 	const totalPagesHeader = response.headers.get( 'X-WP-TotalPages' );
 	const totalPages = totalPagesHeader ? parseInt( totalPagesHeader, 10 ) : 1;
@@ -130,9 +120,7 @@ async function uploadImage( ctx: Ctx, file: File ): Promise< { id: number; url: 
 		body: file,
 	} );
 	if ( ! response.ok ) {
-		throw new Error(
-			await errorMessage( response, `Upload failed (HTTP ${ response.status }).` ),
-		);
+		throw await restErrorFromResponse( response );
 	}
 	const data = ( await response.json() ) as { id: number; source_url: string };
 	return { id: data.id, url: data.source_url };
@@ -163,7 +151,7 @@ async function handleImageFile( ctx: Ctx, file: File ): Promise< void > {
 	try {
 		choose( await uploadImage( ctx, file ) );
 	} catch ( err ) {
-		fail( err instanceof Error ? err.message : __( 'Upload failed.' ) );
+		fail( describeRestFailure( err, { fallback: __( 'Upload failed.' ) } ).message );
 	} finally {
 		lib.uploading = false;
 		ctx.repaint();
@@ -303,14 +291,10 @@ export async function loadNextPage( ctx: Ctx ): Promise< void > {
 		lib.totalPages = result.totalPages;
 		lib.loaded = lib.loaded.concat( result.items );
 	} catch ( err ) {
-		lib.error =
-			err instanceof Error
-				? sprintf(
-					/* translators: %s: the browser-supplied error message. */
-					__( 'Couldn’t load your media: %s' ),
-					err.message,
-				)
-				: __( 'Couldn’t load your media.' );
+		lib.error = describeRestFailure( err, {
+			lead: __( 'Couldn’t load your media' ),
+			fallback: __( 'Couldn’t load your media.' ),
+		} ).message;
 	} finally {
 		lib.loading = false;
 		ctx.repaint();

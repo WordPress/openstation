@@ -5,12 +5,18 @@
  * total view count, and a week-over-week delta arrow.
  *
  * Data priority:
- *   1. Jetpack Stats REST /jetpack/v4/stats/visits?unit=day&quantity=14
+ *   1. Jetpack Stats      /desktop-mode/v1/site-views-jetpack
+ *      (server reads WPCOM_Stats::get_visits(), gated on Jetpack's own
+ *      stats permission; answers available: false when it cannot)
  *   2. Meta-key fallback  /desktop-mode/v1/site-views-meta
  *      (reads _post_views_YYYY-MM-DD meta written by post-views plugins)
  *
+ * Both are asked at once; the order above only decides which answer
+ * wins.
+ *
  * Shows a friendly "no source" state rather than failing silently
- * when neither source has data.
+ * when neither source has data, and says so when Jetpack Stats has the
+ * numbers but withholds them from this user.
  *
  * Refresh: every 10 minutes.
  */
@@ -23,7 +29,8 @@ const WIDGET_ID = 'desktop-mode/site-views';
 const REFRESH_MS = 10 * 60_000;
 
 interface DayRow { date: string; views: number }
-interface ViewResult { source: string; days: DayRow[] }
+interface ViewResult { source: 'jetpack' | 'meta' | 'restricted' | 'none'; days: DayRow[] }
+interface JetpackProbe { days: DayRow[] | null; restricted: boolean }
 
 function shortDay( iso: string ): string {
 	return new Date( iso + 'T12:00:00' )
@@ -36,26 +43,24 @@ function apiRoot(): string {
 	return ( s.root ?? '/wp-json/' ).replace( /\/$/, '' );
 }
 
-async function tryJetpack(): Promise< DayRow[] | null > {
+async function tryJetpack(): Promise< JetpackProbe > {
+	const none: JetpackProbe = { days: null, restricted: false };
 	try {
 		const res = await trackedFetch(
-			apiRoot() + '/jetpack/v4/stats/visits?unit=day&quantity=14',
+			apiRoot() + '/desktop-mode/v1/site-views-jetpack',
 			{ credentials: 'same-origin' },
 			{ source: 'desktop-mode/site-views-jetpack', silent: true },
 		);
 		if ( ! res.ok ) {
-			return null;
+			return none;
 		}
-		const data = await res.json() as { data?: [ number, number ][] };
-		if ( ! Array.isArray( data?.data ) ) {
-			return null;
+		const data = await res.json() as { available?: boolean; restricted?: boolean; days?: DayRow[] };
+		if ( ! data?.available || ! Array.isArray( data.days ) ) {
+			return { days: null, restricted: !! data?.restricted };
 		}
-		return data.data.map( ( [ ts, views ] ) => ( {
-			date: new Date( ts * 1000 ).toISOString().slice( 0, 10 ),
-			views: views || 0,
-		} ) );
+		return { days: data.days, restricted: false };
 	} catch {
-		return null;
+		return none;
 	}
 }
 
@@ -80,15 +85,16 @@ async function tryMeta(): Promise< DayRow[] | null > {
 }
 
 async function fetchViewData(): Promise< ViewResult > {
-	const jetpack = await tryJetpack();
-	if ( jetpack?.length ) {
-		return { source: 'jetpack', days: jetpack };
+	// Together, not in turn: the Jetpack read can wait on WordPress.com,
+	// and the fallback should not start only once that has settled.
+	const [ jetpack, meta ] = await Promise.all( [ tryJetpack(), tryMeta() ] );
+	if ( jetpack.days?.length ) {
+		return { source: 'jetpack', days: jetpack.days };
 	}
-	const meta = await tryMeta();
 	if ( meta?.length ) {
 		return { source: 'meta', days: meta };
 	}
-	return { source: 'none', days: [] };
+	return { source: jetpack.restricted ? 'restricted' : 'none', days: [] };
 }
 
 function buildSparkPath( values: number[], W: number, H: number, pad: number ): {
@@ -128,6 +134,16 @@ function renderUI( container: HTMLElement, result: ViewResult | null, error: boo
 		e.className = 'dm-views__error';
 		e.textContent = 'Could not load view data.';
 		container.appendChild( e );
+		return;
+	}
+
+	if ( result?.source === 'restricted' ) {
+		const ns = document.createElement( 'div' );
+		ns.className = 'dm-views__no-source';
+		const p = document.createElement( 'p' );
+		p.textContent = 'Jetpack Stats is limited to certain roles on this site. Ask an administrator for access.';
+		ns.appendChild( p );
+		container.appendChild( ns );
 		return;
 	}
 

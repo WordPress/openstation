@@ -133,14 +133,14 @@ function openstation_session_now_ms() {
 function openstation_default_desktop() {
 	return array(
 		'id'    => 'desktop-1',
-		'label' => 'Desktop 1',
+		'label' => 'Workspace 1',
 	);
 }
 
 /**
  * Returns the default empty session shape.
  *
- * Includes a default desktop ("Desktop 1") so the client can always
+ * Includes a default desktop ("Workspace 1") so the client can always
  * assume at least one desktop exists at boot — the shell can't
  * function with zero desktops.
  *

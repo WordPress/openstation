@@ -28,7 +28,18 @@ import { HOOKS, addAction, doAction, removeAction } from './hooks';
 import { isMobileStamped } from './mode/stamp';
 import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
+import { isShellDocumentUrl } from './shell-url';
+import {
+	registerNativeUrlRemap,
+	unregisterNativeUrlRemap,
+} from './native-url-remap';
 import { setPanelTabs } from './window/tab-strip';
+import { getWindowContent, setWindowContent } from './window-links/engine';
+import type { WindowContentRef } from './window-links/types';
+import {
+	LOADING_SPINNER_PRESET,
+	LOADING_SPINNER_SIZE,
+} from './window/constants';
 import {
 	loadNativeWindowGeometry,
 	saveNativeWindowGeometry,
@@ -419,6 +430,35 @@ function buildIframeContentRender(
 		const unregisterSynth = registerSyntheticIframe( windowId, iframe );
 		cleanups.push( unregisterSynth );
 
+		// The page's announced identity, and what claiming it for the
+		// window displaced. See the visibility observer below.
+		let pageIdentity: WindowContentRef | null = null;
+		let claimed: WindowContentRef | null = null;
+		let displaced: WindowContentRef | null = null;
+		const syncIdentity = (): void => {
+			const shown =
+				iframe.isConnected && iframe.getClientRects().length > 0;
+			if ( pageIdentity && shown ) {
+				if ( ! claimed ) {
+					displaced = getWindowContent( windowId ) ?? null;
+				}
+				setWindowContent( windowId, pageIdentity, { source: 'bridge' } );
+				claimed = getWindowContent( windowId ) ?? null;
+				return;
+			}
+			if ( ! claimed ) {
+				return;
+			}
+			// Hand back only what is still ours: a window that closed
+			// meanwhile was already cleared by the engine, and an
+			// identity someone else set since is not ours to undo.
+			if ( getWindowContent( windowId ) === claimed ) {
+				setWindowContent( windowId, displaced, { source: 'config' } );
+			}
+			claimed = null;
+			displaced = null;
+		};
+
 		// Resolve the iframe URL's origin once; the message handler
 		// uses it for the same-origin check on inbound messages.
 		// Falls back to the shell origin for relative / invalid
@@ -533,6 +573,21 @@ function buildIframeContentRender(
 					( data as { payload?: unknown } ).payload,
 				);
 			}
+			// Content identity of the page in this iframe — the same
+			// announcement `src/window/iframe-bridge.ts` forwards for an
+			// iframe window. Same-origin only: the identity carries
+			// URLs that end up as window iframes.
+			if (
+				data &&
+				typeof data === 'object' &&
+				( data as { type?: string } ).type === 'os-content-identity' &&
+				e.origin === window.location.origin
+			) {
+				pageIdentity =
+					( data as { identity?: WindowContentRef | null } )
+						.identity ?? null;
+				syncIdentity();
+			}
 			try {
 				cfg.onMessage?.( e.data );
 			} catch ( err ) {
@@ -546,12 +601,124 @@ function buildIframeContentRender(
 		};
 		window.addEventListener( 'message', onMessage );
 
+		// A native window can hold its page in a panel the user can
+		// switch away from (the Posts app's "Add Post" tab), so the
+		// page's identity is the WINDOW's only while the iframe is on
+		// screen: the Preview eye, Related menu and window ties then
+		// follow what the user is looking at. Hiding the panel takes
+		// the window back to the identity it had before; showing it
+		// again re-claims. A ResizeObserver sees both edges — a
+		// `display: none` ancestor collapses the iframe to 0×0.
+		const visibility =
+			typeof ResizeObserver === 'function'
+				? new ResizeObserver( () => syncIdentity() )
+				: null;
+		visibility?.observe( iframe );
+
 		cleanups.push( () => {
 			window.removeEventListener( 'message', onMessage );
 			iframe.removeEventListener( 'load', onLoad );
+			visibility?.disconnect();
+			pageIdentity = null;
+			syncIdentity();
 		} );
 
 		return readyPromise;
+	};
+}
+
+/**
+ * Mount a chromeless admin page inside an element of a native
+ * window's body, and return the teardown.
+ *
+ * An app's window is its own surface, not an iframe, so a tab whose
+ * page is one of wp-admin's own had only `open_url()`, which spawns a
+ * second window — a different gesture from every other tab beside it.
+ * Same machinery as a native window registered with `iframeContent`,
+ * pointed at a host element instead of the whole body: the iframe
+ * becomes the window's synthetic iframe, so `wp.os.connect()`,
+ * `os-bridge-*` traffic and window-channel publishes all reach it.
+ *
+ * The page's content identity becomes the window's while the iframe
+ * is on screen (see `buildIframeContentRender`), so the Preview eye,
+ * revisions row, Related menu and window ties work for an embedded
+ * editor and go away when its panel is switched out. It is still NOT
+ * an iframe window: title adoption, the submenu strip and the
+ * close-time unsaved-changes query key off `Window.iframe`, and a
+ * host that embeds an editor owns those questions itself. A
+ * cross-origin URL, or the shell screen, mounts nothing and returns
+ * a no-op.
+ *
+ * @param host          Element to mount into. Its contents are replaced.
+ * @param url           Admin URL. The chromeless flag is added here.
+ * @param opts          Mount options.
+ * @param opts.windowId Fallback for a host that is not inside a window
+ *                      root yet; normally resolved from the DOM.
+ * @return Teardown: removes the listeners, the synthetic-iframe
+ *         registration and the iframe itself.
+ * @public
+ */
+export function embedAdminPage(
+	host: HTMLElement,
+	url: string,
+	opts: { windowId?: string } = {},
+): () => void {
+	let chromeless: string;
+	try {
+		const parsed = new URL( url, window.location.origin );
+		if ( parsed.origin !== window.location.origin ) {
+			return () => {};
+		}
+		if ( isShellDocumentUrl( parsed ) ) {
+			return () => {};
+		}
+		parsed.searchParams.set( 'openstation_chromeless', '1' );
+		chromeless = parsed.toString();
+	} catch {
+		return () => {};
+	}
+
+	host.replaceChildren();
+	const cleanups: ( () => void )[] = [];
+	const windowId = resolveMountedWindowId( host, opts.windowId ?? '' );
+	const ready = buildIframeContentRender( { url: chromeless }, cleanups, windowId )(
+		host,
+	);
+
+	// Styled inline, the way the iframe above is: a class of ours in
+	// someone else's body is a selector they never agreed to. The
+	// centring lives on a div rather than on the spinner, which is
+	// `display: inline-block` and would stretch with the mark left in
+	// a corner. While the page loads the busy mark is the HOST's, not
+	// the window's: the window overlay would black out the tab strip
+	// the user got here from. Same mark and size as the window overlay,
+	// though — a smaller, different spinner here read as the loader
+	// shrinking mid-load.
+	if ( getComputedStyle( host ).position === 'static' ) {
+		host.style.position = 'relative';
+	}
+	const overlay = document.createElement( 'div' );
+	overlay.style.position = 'absolute';
+	overlay.style.inset = '0';
+	overlay.style.display = 'flex';
+	overlay.style.alignItems = 'center';
+	overlay.style.justifyContent = 'center';
+	const spinner = document.createElement( 'os-spinner' );
+	spinner.setAttribute( 'preset', LOADING_SPINNER_PRESET );
+	spinner.setAttribute( 'size', LOADING_SPINNER_SIZE );
+	overlay.appendChild( spinner );
+	host.appendChild( overlay );
+	void ready.then( () => overlay.remove() );
+
+	return () => {
+		for ( const fn of cleanups ) {
+			try {
+				fn();
+			} catch {
+				/* A failing cleanup must not strand the others. */
+			}
+		}
+		host.replaceChildren();
 	};
 }
 
@@ -1000,7 +1167,7 @@ export interface NativeWindowSync {
 	 * unknown id, an open window, a window that is not an App Framework
 	 * app, or one already warm.
 	 */
-	prewarmById: ( id: string ) => Promise< boolean >;
+	prewarmById: ( id: string, opts?: { params?: Record< string, string | number | boolean > } ) => Promise< boolean >;
 }
 
 /** State owned by session restore rather than a native-window definition. */
@@ -1641,6 +1808,12 @@ export function createNativeWindowSync(
 	 * `manager.openNew()` so the next-instance-id logic kicks in. The
 	 * render callback is built fresh per call — every duplicate gets
 	 * its own template clone and its own teardown.
+	 *
+	 * Floating-vs-remembered is the manager's call, not ours: it
+	 * opens a duplicate at a cascade slot (a maximized twin would
+	 * hide the primary) and a first instance — which is what a menu
+	 * pick on a window nobody opened yet is — on the geometry the
+	 * user left it at, exactly as {@link openFromEntry} would.
 	 */
 	const openNewFromEntry = (
 		entry: NativeWindowServerEntry,
@@ -1648,12 +1821,6 @@ export function createNativeWindowSync(
 	): void => {
 		const finalRender = buildRender( entry );
 
-		// Duplicate instances always open floating — the remembered
-		// maximize preference applies to the primary window only.
-		// Passing an explicit `initialState: 'normal'` suppresses the
-		// `WindowManager.createWindow` saved-state replay (which
-		// would otherwise spawn the duplicate in the maximized state
-		// the user set on the primary).
 		const size = resolveSizeForEntry( entry );
 
 		void manager.openNew( {
@@ -1667,7 +1834,6 @@ export function createNativeWindowSync(
 			height: size.height,
 			minWidth: entry.minWidth,
 			minHeight: entry.minHeight,
-			initialState: 'normal',
 			render: finalRender,
 			autofocus: entry.autofocus,
 			ownerHandle: entry.ownerHandle || entry.scriptHandle,
@@ -1761,10 +1927,80 @@ export function createNativeWindowSync(
 		entriesById.delete( id );
 	};
 
+	/**
+	 * The admin page a URL names: its file, plus the params that make
+	 * one file two pages. `edit.php?post_type=page&paged=2` and
+	 * `edit.php?post_type=page` are the same page; `edit.php` is not.
+	 */
+	const adminPageKey = ( url: string ): string => {
+		try {
+			const parsed = new URL( url, window.location.origin );
+			const parts = [ parsed.pathname.split( '/' ).pop() ?? '' ];
+			for ( const key of [ 'post_type', 'taxonomy', 'page' ] ) {
+				const value = parsed.searchParams.get( key );
+				if ( value ) {
+					parts.push( `${ key }=${ value }` );
+				}
+			}
+			return parts.join( '&' );
+		} catch {
+			return url;
+		}
+	};
+
+	/** One remap per window, replaced whenever its pages change. */
+	const menuPagesRemapId = ( windowId: string ): string =>
+		`desktop-mode/menu-pages/${ windowId }`;
+
+	/**
+	 * Claim the admin pages a window answers for (`App::menu()`).
+	 *
+	 * The dock's own rows for that menu already carry `os_tab`, so
+	 * this is about every other way those pages are reached: a link
+	 * inside another window, the admin bar's "+ New", a workspace's
+	 * launch list, the tab strip of a classic window still open from
+	 * before the opt-in. Each page opens the window on the tab it
+	 * stands for.
+	 *
+	 * The server sends the list only while the window is the one in
+	 * charge, so an opt-in turned off arrives as an empty list and
+	 * unregisters the claim on the same menu refresh.
+	 */
+	const syncMenuPages = ( entry: NativeWindowServerEntry ): void => {
+		const id = menuPagesRemapId( entry.id );
+		const pages = entry.menuPages ?? [];
+		if ( pages.length === 0 ) {
+			unregisterNativeUrlRemap( id );
+			return;
+		}
+		// Matched on the admin file plus the params that make it a
+		// different page, so a URL carrying extra args still matches
+		// the page it is, `edit.php` never matches
+		// `edit.php?post_type=page`, and a declared slug needs no
+		// admin URL to resolve against.
+		const claims = pages.map( ( page ) => ( {
+			tab: page.id,
+			key: adminPageKey( page.page ),
+		} ) );
+		const tabFor = ( parsed: URL ): string | null =>
+			claims.find( ( claim ) => claim.key === adminPageKey( parsed.href ) )
+				?.tab ?? null;
+		registerNativeUrlRemap( {
+			id,
+			nativeWindowId: entry.id,
+			matches: ( _url, parsed ) => tabFor( parsed ) !== null,
+			params: ( _url, parsed ) => {
+				const tab = tabFor( parsed );
+				return tab ? { tab } : undefined;
+			},
+		} );
+	};
+
 	const sync = async ( list: NativeWindowServerEntry[] ) => {
 		const incoming = new Set< string >();
 		for ( const entry of list ) {
 			incoming.add( entry.id );
+			syncMenuPages( entry );
 			// Refresh the index every sync so `openById` always
 			// reflects the latest payload (a plugin update can
 			// change a window's title / dimensions / template
@@ -1778,6 +2014,7 @@ export function createNativeWindowSync(
 		for ( const id of Array.from( registered ) ) {
 			if ( ! incoming.has( id ) ) {
 				unregisterTile( id );
+				unregisterNativeUrlRemap( menuPagesRemapId( id ) );
 			}
 		}
 
@@ -2018,16 +2255,21 @@ export function createNativeWindowSync(
 	 * `prewarm` to call, or a config the runtime does not own) gets
 	 * its bundles into the tab and no more.
 	 */
-	const prewarmById = async ( id: string ): Promise< boolean > => {
+	const prewarmById = async (
+		id: string,
+		opts: { params?: Record< string, string | number | boolean > } = {},
+	): Promise< boolean > => {
 		const entry = entriesById.get( id );
 		if ( ! entry || manager.getById( id ) ) {
 			return false;
 		}
 		await ensureScript( entry );
 		const apps = (
-			window as unknown as { wp?: { os?: { apps?: { prewarm?: ( appId: string ) => boolean } } } }
+			window as unknown as {
+				wp?: { os?: { apps?: { prewarm?: ( appId: string, params?: Record< string, string | number | boolean > ) => boolean } } };
+			}
 		).wp?.os?.apps;
-		return apps?.prewarm?.( id ) === true;
+		return apps?.prewarm?.( id, opts.params ?? {} ) === true;
 	};
 
 	return {

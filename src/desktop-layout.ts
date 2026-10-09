@@ -42,6 +42,7 @@ import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { resolveNativeUrlRemap } from './native-url-remap';
 import { tryOpenExternalUrl } from './external-url';
+import { tryNativeUrlRemap } from './native-url-remap';
 import type {
 	DesktopLayoutId,
 	DockPlacementId,
@@ -633,10 +634,21 @@ export function createLayoutDispatcher(
 		// exactly what the default renderer (`Dock.openPage` /
 		// `Dock.openSubmenuPick`) does internally — same
 		// `deriveWindowId(url, adminUrl)` call, same window-
-		// config shape — so a custom renderer addresses the same
-		// window with the same id at runtime. Switching renderer
-		// mid-session doesn't lose the user's open windows.
+		// config shape, same door (`open()` for a tile, which
+		// focuses the menu's open window; `openNew()` for a submenu
+		// pick, which never does) — so a custom renderer addresses
+		// the same window with the same id at runtime. Switching
+		// renderer mid-session doesn't lose the user's open windows.
 		openItem: ( item ) => {
+			if ( tryOpenExternalUrl( item.url ) ) {
+				return;
+			}
+			// The same consult the default rail's tile click makes: a
+			// page the viewer opted a native window into opens that
+			// window, whichever renderer is painting the rail.
+			if ( tryNativeUrlRemap( item.url ) ) {
+				return;
+			}
 			const baseId = deriveWindowId( item.url, deps.adminUrl );
 			deps.windowManager.open( {
 				id: baseId,
@@ -658,7 +670,12 @@ export function createLayoutDispatcher(
 			if ( tryOpenExternalUrl( sub.url ) ) {
 				return;
 			}
-			deps.windowManager.open( {
+			if ( tryNativeUrlRemap( sub.url, { newInstance: true } ) ) {
+				return;
+			}
+			// A child page always opens its own window — two drafts
+			// side by side is the point of picking Add New twice.
+			void deps.windowManager.openNew( {
 				id: deriveWindowId( sub.url, deps.adminUrl ),
 				baseId: deriveWindowId( item.url, deps.adminUrl ),
 				url: sub.url,

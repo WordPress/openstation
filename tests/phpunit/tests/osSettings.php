@@ -19,6 +19,25 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	 * @covers ::openstation_save_os_settings
 	 * @covers ::openstation_get_os_settings
 	 */
+	public function test_open_windows_as_round_trip_and_invalid_value_fallback() {
+		$this->assertSame( 'default', openstation_default_os_settings()['openWindowsAs'] );
+		$user = self::factory()->user->create();
+		foreach ( array( 'default', 'maximized', 'focused' ) as $mode ) {
+			openstation_save_os_settings( $user, array( 'openWindowsAs' => $mode ) );
+			$this->assertSame( $mode, openstation_get_os_settings( $user )['openWindowsAs'] );
+		}
+		foreach ( array( 'fullscreen', array( 'focused' ), null ) as $invalid ) {
+			$clean = openstation_sanitize_os_settings( array( 'openWindowsAs' => $invalid ) );
+			$this->assertSame( 'default', $clean['openWindowsAs'] );
+		}
+	}
+
+	/**
+	 * @covers ::openstation_default_os_settings
+	 * @covers ::openstation_sanitize_os_settings
+	 * @covers ::openstation_save_os_settings
+	 * @covers ::openstation_get_os_settings
+	 */
 	public function test_mio_master_aliases_and_wallpaper_preference_round_trip() {
 		$this->assertFalse( openstation_default_os_settings()['mioApiEnabled'] );
 		$this->assertTrue( openstation_default_os_settings()['mioShowOnWallpaper'] );
@@ -1031,6 +1050,21 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 		$this->assertFalse( $loaded['windowLinksEnabled'] );
 		$this->assertFalse( $loaded['windowLinkRaiseOnFocus'] );
 		$this->assertTrue( $loaded['windowLinkHighlight'] );
+	}
+
+	/**
+	 * A desktop theme's wallpaper is registered as
+	 * `desktop-theme/<theme>/<id>`; folding the slashes away stored an
+	 * id no wallpaper answered to.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_theme_wallpaper_ids() {
+		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'desktop-theme/acme-neon/Dusk Sky' ) );
+		$this->assertSame( 'desktop-theme/acme-neon/dusksky', $clean['wallpaper'] );
+
+		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => '///' ) );
+		$this->assertSame( openstation_default_os_settings()['wallpaper'], $clean['wallpaper'] );
 	}
 
 	/**

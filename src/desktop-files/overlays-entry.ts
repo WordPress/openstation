@@ -9,9 +9,10 @@
  * here.
  *
  * State safety: everything stateful these modules touch
- * (`./store`, `./shares-store`) is `createSharedStore`-backed, so
- * this bundle and the shell read and write the same state even
- * though each compiles its own copy of the module code.
+ * (`./store`, `./shares-store`, the REST deps in `./rest`) is
+ * `createSharedStore`-backed, so this bundle and the shell read and
+ * write the same state even though each compiles its own copy of the
+ * module code.
  */
 
 import {

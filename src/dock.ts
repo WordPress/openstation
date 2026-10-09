@@ -25,6 +25,7 @@ import { tryOpenExternalUrl } from './external-url';
 import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import {
 	resolveNativeUrlRemap,
+	resolveNativeUrlRemapTarget,
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
@@ -1970,7 +1971,7 @@ export class Dock {
 		// 3a. Raw CSS `url(...)` value — only the live-activation icon
 		//     harvest in includes/render/chromeless-bridge.php produces
 		//     this shape. It hands us the iframe's computed
-		//     `::before { background-image }` verbatim so we can paint it
+		//     `::before { background-image }` or `mask-image` verbatim so we can paint it
 		//     identically to how F5 would (via _extractNativeMenuIcon's
 		//     shape-c branch), without losing fidelity through a data-URI
 		//     re-encode. Server-built icons never take this branch.
@@ -2097,6 +2098,7 @@ export class Dock {
 	 *   (b) a dashicon class on `.wp-menu-image` itself
 	 *   (c) a CSS background-image on `.wp-menu-image::before` (the
 	 *       `menu-icon-XYZ` pattern Yoast, WooCommerce, Jetpack, etc. use)
+	 *   (d) a CSS mask-image on `.wp-menu-image::before` (Elementor 4)
 	 *
 	 * Returns null when the URL doesn't match any admin-menu entry or
 	 * none of the three shapes are detectable.
@@ -2164,6 +2166,12 @@ export class Dock {
 		const bg = before.backgroundImage;
 		if ( bg && bg !== 'none' && ! bg.includes( 'url("")' ) ) {
 			return this._makeSvgIcon( bg );
+		}
+
+		// Shape (d): a CSS mask on ::before (Elementor 4's logo).
+		const mask = before.maskImage || before.webkitMaskImage;
+		if ( mask && mask !== 'none' && ! mask.includes( 'url("")' ) ) {
+			return this._makeSvgIcon( mask );
 		}
 
 		// Fallback within the native-menu branch: background-image on
@@ -2332,9 +2340,12 @@ export class Dock {
 		this.bindPrewarmDwell( tile, () => {
 			// A URL the native replacement is in charge of warms THAT
 			// window; the iframe page it stands for would never open.
-			const nativeId = resolveNativeUrlRemap( item.url );
-			if ( nativeId ) {
-				this.prewarmNativeWindow( nativeId );
+			// With the params the click will open it with: Comments opens
+			// `{ post: 0 }`, Plugins `{ tab: 'installed' }`, and a warm is
+			// only taken by an open with matching params.
+			const target = resolveNativeUrlRemapTarget( item.url );
+			if ( target ) {
+				this.prewarmNativeWindow( target.id, target.params );
 				return;
 			}
 			// Cross-origin URLs open in a browser tab — no iframe to warm.
@@ -2429,16 +2440,23 @@ export class Dock {
 	 * bundles and, for an app, sends its first `mount` ahead of the
 	 * open. An open window has nothing to warm; the click will focus it.
 	 */
-	private prewarmNativeWindow( id: string ): void {
+	private prewarmNativeWindow( id: string, params?: Record< string, string | number | boolean > ): void {
 		if ( this.windowManager.getById( id ) ) {
 			return;
 		}
 		const os = (
 			window as unknown as {
-				wp?: { os?: { prewarmWindow?: ( windowId: string ) => Promise< boolean > } };
+				wp?: {
+					os?: {
+						prewarmWindow?: (
+							windowId: string,
+							opts?: { params?: Record< string, string | number | boolean > },
+						) => Promise< boolean >;
+					};
+				};
 			}
 		).wp?.os;
-		void os?.prewarmWindow?.( id );
+		void ( params ? os?.prewarmWindow?.( id, { params } ) : os?.prewarmWindow?.( id ) );
 	}
 
 	private openPage( item: DockItem ): void {
@@ -2487,6 +2505,10 @@ export class Dock {
 
 		const baseId = this.deriveWindowId( item.url );
 
+		// `open`, not `openNew`: the tile is how the user gets BACK to
+		// a menu's window, so it focuses the open one and only opens
+		// when there is none. Asking for a second window of the same
+		// menu is what the submenu rows are for.
 		this.windowManager.open( {
 			id: baseId,
 			baseId,

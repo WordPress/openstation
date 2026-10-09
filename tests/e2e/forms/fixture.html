@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Form contract regression</title>
+<link rel="stylesheet" href="/assets/css/variables.css">
+<style>body { max-width: 500px; margin: 24px; }</style>
+<body class="os-active">
+<script type="module">
+import '/src/ui/components/os-form/os-form.ts';
+import '/src/ui/components/os-text-field/os-text-field.ts';
+import '/src/ui/components/os-switch/os-switch.ts';
+import '/src/ui/components/os-tag-input/os-tag-input.ts';
+import '/src/ui/components/os-button/os-button.ts';
+import legacy from '/assets/desktop-themes/legacy/theme.json';
+
+const host = document.createElement('div');
+host.innerHTML = `<os-form submit-label="Save">
+	<os-text-field name="title" label="Title" value="Initial"></os-text-field>
+	<os-text-field name="locked" label="Locked" value="Fixed" disabled></os-text-field>
+	<os-switch name="pinned" label="Pinned" checked></os-switch>
+	<os-tag-input name="tags" label="Tags"></os-tag-input>
+</os-form>`;
+host.querySelector('os-tag-input').value = [{ id: 7, label: 'Initial' }];
+document.body.append(host);
+window.submissions = [];
+window.changes = [];
+const form = host.querySelector('os-form');
+form.addEventListener('os-form-submit', ({ detail }) => {
+	window.submissions.push(detail.values);
+	form.setBusy(true);
+});
+form.addEventListener('os-form-input', ({ detail }) => {
+	window.changes.push({ name: detail.name, value: detail.value });
+});
+
+const dates = document.createElement('div');
+dates.id = 'date-themes';
+for (const theme of ['default', 'legacy']) {
+	const section = document.createElement('section');
+	section.dataset.theme = theme;
+	if (theme === 'legacy') {
+		for (const [key, value] of Object.entries(legacy.tokens)) section.style.setProperty(key, value);
+	}
+	section.style.cssText += ';padding:16px;background:var(--os-window-bg,#fff);color:var(--os-ui-fg,#1d2327)';
+	section.innerHTML = `<h2>${theme}</h2>`;
+	for (const type of ['date', 'datetime-local', 'month', 'week']) {
+		section.insertAdjacentHTML('beforeend', `<os-text-field type="${type}" label="${type}"></os-text-field>`);
+	}
+	dates.append(section);
+}
+document.body.append(dates);
+</script>
+</body>
+</html>

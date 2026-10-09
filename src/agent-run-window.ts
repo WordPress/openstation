@@ -17,6 +17,8 @@
  */
 
 import { __, sprintf } from './i18n';
+import { toastRestFailure } from './core/rest-failure';
+import { shellToast } from './core/shell-toast';
 import { renderMarkdown } from './markdown';
 import './ui/components/os-avatar/os-avatar';
 import './ui/components/os-button/os-button';
@@ -260,6 +262,8 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	// moves (a save/delete happened) — never polled.
 	let conversations: AgentConversationSummary[] = [];
 	let conversationsLoaded = false;
+	/** The last list load failed: the sidebar says so instead of "no conversations". */
+	let conversationsFailed = false;
 	let seenRev = -1;
 
 	const refreshConversations = (): void => {
@@ -274,9 +278,13 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		} )
 			.then( ( rows ) => {
 				conversations = rows;
+				conversationsFailed = false;
 			} )
-			.catch( () => {
+			.catch( ( err: unknown ) => {
 				conversations = [];
+				conversationsFailed = true;
+				// eslint-disable-next-line no-console
+				console.error( '[openstation] agents: conversations failed to load:', err );
 			} )
 			.finally( () => {
 				conversationsLoaded = true;
@@ -317,7 +325,12 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
 				row.id,
 			);
-		} catch {
+		} catch ( err ) {
+			// eslint-disable-next-line no-console
+			console.error( '[openstation] agents: conversation delete failed:', err );
+			toastRestFailure( shellToast, err, {
+				fallback: __( 'Could not delete the conversation.', 'desktop-mode' ),
+			} );
 			return;
 		}
 		const state = agentsChatStore.state;
@@ -367,7 +380,10 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		if ( conversationsLoaded && visible.length === 0 ) {
 			const none = document.createElement( 'div' );
 			none.className = 'dm-agent-chat__convs-empty';
-			none.textContent = __( 'No conversations yet.', 'desktop-mode' );
+			// A failed load is not an empty history; say which it was.
+			none.textContent = conversationsFailed
+				? __( 'Could not load conversations.', 'desktop-mode' )
+				: __( 'No conversations yet.', 'desktop-mode' );
 			list.appendChild( none );
 		}
 		for ( const row of visible ) {
@@ -416,6 +432,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				if ( isBusy() || ! cfg ) {
 					return;
 				}
+				followOnNextPaint = true;
 				void openConversation(
 					{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
 					row.id,
@@ -457,8 +474,39 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		return sidebar;
 	};
 
+	// Where the transcript's scroll box sits across repaints. The box
+	// is rebuilt on EVERY store change — each status poll of a run in
+	// flight, every two or three seconds — and the kit components in
+	// it (avatars, the spinner, the composer's textarea) render on a
+	// microtask, so its height at paint time is not its height once
+	// they have drawn: pinning scrollTop synchronously landed short by
+	// the composer's height on every tick and the latest row slid out
+	// of view again and again. The reader's position decides instead.
+	// At the bottom (within `SCROLL_SLACK`) the view follows the newest
+	// row and keeps following it as late renders resize the box;
+	// scrolled up to read, the offset is kept. The reader's own send,
+	// and opening a conversation, ask for the bottom explicitly.
+	const SCROLL_SLACK = 8;
+	let followLatest = true;
+	let followOnNextPaint = false;
+	let savedScrollTop = 0;
+	let scrollObserver: ResizeObserver | undefined;
+
+	const isAtBottom = ( el: HTMLElement ): boolean =>
+		el.scrollHeight - el.scrollTop - el.clientHeight <= SCROLL_SLACK;
+
 	const paint = (): void => {
 		const agent = agentsChatStore.state.activeAgent;
+		const prevScroll = root.querySelector< HTMLElement >(
+			'.dm-agent-chat__scroll',
+		);
+		if ( prevScroll ) {
+			savedScrollTop = prevScroll.scrollTop;
+			followLatest = followOnNextPaint || isAtBottom( prevScroll );
+		}
+		followOnNextPaint = false;
+		scrollObserver?.disconnect();
+		scrollObserver = undefined;
 		root.replaceChildren();
 
 		const wrap = document.createElement( 'div' );
@@ -579,7 +627,39 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		main.appendChild( composer );
 
 		root.appendChild( wrap );
-		scroll.scrollTop = scroll.scrollHeight;
+
+		let pinnedScrollTop = -1;
+		const settleScroll = (): void => {
+			if ( followLatest ) {
+				scroll.scrollTop = scroll.scrollHeight;
+				pinnedScrollTop = scroll.scrollTop;
+			}
+		};
+		if ( ! followLatest ) {
+			scroll.scrollTop = savedScrollTop;
+		}
+		settleScroll();
+		scroll.addEventListener( 'scroll', () => {
+			// A pin fires this too, and it dispatches only after the
+			// late renders have settled around it — so an offset that
+			// still reads as the pin is not the reader moving, even
+			// when the bottom has since moved away from it.
+			if ( followLatest && scroll.scrollTop === pinnedScrollTop ) {
+				return;
+			}
+			followLatest = isAtBottom( scroll );
+		} );
+		// The box and its rows change size after this paint returns —
+		// the composer draws, avatars and the spinner take their
+		// height, a markdown answer's images arrive. While following,
+		// every one of those re-pins the bottom.
+		if ( typeof ResizeObserver === 'function' ) {
+			scrollObserver = new ResizeObserver( settleScroll );
+			scrollObserver.observe( scroll );
+			for ( const line of scroll.children ) {
+				scrollObserver.observe( line );
+			}
+		}
 	};
 
 	const messageRow = (
@@ -728,6 +808,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		text: string,
 	): Promise< void > => {
 		const cfg = getRunConfig();
+		followOnNextPaint = true;
 		if ( ! cfg ) {
 			transcriptFor( agent ).push( {
 				role: 'error',
@@ -775,6 +856,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				if ( ! agent || ! entity ) {
 					return;
 				}
+				followOnNextPaint = true;
 				void dispatchAgentDrop( agent, entity, {
 					restRoot: dropConfig.restRoot,
 					restNonce: dropConfig.restNonce,
@@ -796,6 +878,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	paint();
 	return () => {
 		deregisterDrop?.();
+		scrollObserver?.disconnect();
 		unsubscribe();
 	};
 }

@@ -7,7 +7,9 @@
  */
 
 import { trackedFetch } from '../tracked-fetch';
+import { createFeatureClient, restErrorFromResponse } from '../core/api-client';
 import { joinRestUrl } from '../rest-url';
+import { createSharedStore } from '../shared-store';
 
 export interface RestPlacementShape {
 	id: number;
@@ -108,14 +110,21 @@ export interface FilesRestDeps {
 	nonce: string;
 }
 
-let deps: FilesRestDeps | null = null;
+// A shared store, not a module-level `let`: the `files-overlays` and
+// `file-drop` bundles compile their own copy of this module, and only
+// the shell bundle installs the deps.
+const depsStore = createSharedStore< { deps: FilesRestDeps | null } >(
+	'desktop-files/rest-deps',
+	() => ( { deps: null } ),
+);
 
 /** Install REST deps. Called once from `desktop.ts` at boot. */
 export function installRestDeps( next: FilesRestDeps ): void {
-	deps = next;
+	depsStore.state.deps = next;
 }
 
 function ensureDeps(): FilesRestDeps {
+	const { deps } = depsStore.state;
 	if ( ! deps ) {
 		throw new Error( '[openstation] files REST client called before installRestDeps().' );
 	}
@@ -156,76 +165,22 @@ export class FilesConflictError extends Error {
 	}
 }
 
-async function call< T >( path: string, init: RequestInit ): Promise< T > {
-	const { baseUrl, nonce } = ensureDeps();
-	const url = joinRestUrl( baseUrl, path );
-	const headers = new Headers( init.headers ?? {} );
-	headers.set( 'X-WP-Nonce', nonce );
-	if ( init.body && ! headers.has( 'Content-Type' ) ) {
-		headers.set( 'Content-Type', 'application/json' );
-	}
-	const res = await trackedFetch(
-		url,
-		{ ...init, headers, credentials: 'same-origin' },
-		{ source: 'desktop-mode/files' },
-	);
-	const text = await res.text();
-	let body: unknown = null;
-	let parseError: Error | null = null;
-	if ( text ) {
-		try {
-			body = JSON.parse( text );
-		} catch ( e ) {
-			body = null;
-			parseError = e as Error;
-		}
-	}
-	if ( ! res.ok ) {
-		if ( res.status === 409 ) {
-			const data = ( body as { data?: { data?: FilesConflictDetail } } | null )?.data?.data ??
-				( body as { data?: FilesConflictDetail } | null )?.data;
-			if ( data && typeof data === 'object' ) {
-				throw new FilesConflictError( data as FilesConflictDetail );
-			}
-		}
-		const err = body as { code?: string; message?: string } | null;
-		throw new Error(
-			`[openstation] files REST ${ res.status }: ${ err?.code ?? '' } ${ err?.message ?? '' }`.trim(),
-		);
-	}
-	// A 2xx with an empty or unparseable body is something the
-	// consumers can't usefully do anything with (every route in
-	// this module returns a shaped object). Two sources in
-	// practice:
-	//
-	//   - OpenStation replacing itself live (REST routes
-	//     briefly re-register, a redirect to wp-login HTML can
-	//     sneak through) — `text` is non-empty but not JSON.
-	//   - A genuinely empty 200 body (rare; usually a server
-	//     misconfiguration).
-	//
-	// Silently returning `null` would crash the consumer with a
-	// cryptic `Cannot read properties of null` far from the
-	// actual root cause. Throw with as much diagnostic as we
-	// have so the caller's `.catch` logs a meaningful line: when
-	// `text` is non-empty include the parse error + the first
-	// 120 chars of the body (usually enough to spot the PHP
-	// notice or the login-form HTML that crept in), otherwise
-	// fall back to the plain "empty body" message.
-	if ( null === body ) {
-		if ( parseError && text ) {
-			const head = text.slice( 0, 120 ).replace( /\s+/g, ' ' );
-			throw new Error(
-				`[openstation] files REST ${ res.status } returned non-JSON body — ` +
-					`${ parseError.message }. First 120 chars: ${ head }`,
-			);
-		}
-		throw new Error(
-			`[openstation] files REST ${ res.status }: empty or unparseable body.`,
-		);
-	}
-	return body as T;
-}
+/**
+ * Any other failure is a `RestError` whose console line keeps the
+ * `[openstation] files REST <status>: …` shape; a 409 with a conflict
+ * payload is a `FilesConflictError`.
+ */
+const call = createFeatureClient( {
+	prefix: '[openstation] files REST',
+	source: 'desktop-mode/files',
+	url: ( path ) => joinRestUrl( ensureDeps().baseUrl, path ),
+	nonce: () => ensureDeps().nonce,
+	conflict: ( body ) => {
+		const data = ( body as { data?: { data?: FilesConflictDetail } } | null )?.data?.data ??
+			( body as { data?: FilesConflictDetail } | null )?.data;
+		return data && typeof data === 'object' ? new FilesConflictError( data as FilesConflictDetail ) : null;
+	},
+} );
 
 // ---------------------------------------------------------------------------
 // Placements
@@ -301,7 +256,7 @@ export async function restoreTrashedItem(
 		{ source: 'desktop-mode/files' },
 	);
 	if ( ! res.ok ) {
-		throw new Error( `[openstation] restore ${ res.status }` );
+		throw await restErrorFromResponse( res );
 	}
 	return ( await res.json() ) as { ok: number[]; errors: unknown[] };
 }

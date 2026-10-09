@@ -65,8 +65,11 @@ import {
 import {
 	abortSnapIfPending,
 	commitSnapIfPending,
+	installSnapPartnerReflow,
+	snapPartnerMinWidth,
 	updateSnapZoneForDrag,
 } from './snap-zones';
+import { snapHalfRect } from './geometry';
 import {
 	beginGridSnap,
 	cancelGridSnap,
@@ -218,6 +221,15 @@ export class WindowManager {
 	private _openingWindowIds = new Set< string >();
 
 	/**
+	 * Base ids with a window still being built. A window is in the
+	 * stack only once its bundles resolve, so without this two opens
+	 * in the same tick both read "nothing of this page is open" and
+	 * both replayed the remembered geometry, landing exactly on top
+	 * of each other.
+	 */
+	private _openingBaseIds = new Set< string >();
+
+	/**
 	 * The one prewarmed (hidden, speculative) window, if any — built by
 	 * {@link prewarm} ahead of an anticipated open so the iframe's
 	 * document TTFB and parse are already paid when the user clicks.
@@ -246,8 +258,8 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _desktops: Desktop[] = [
-		// translators: default desktop name — "Desktop 1"
-		{ id: 'desktop-1', label: 'Desktop 1' },
+		// translators: default desktop name — "Workspace 1"
+		{ id: 'desktop-1', label: 'Workspace 1' },
 	];
 
 	/**
@@ -278,6 +290,7 @@ export class WindowManager {
 
 	/** Release the dock safe-area subscription when the manager is destroyed. */
 	private _unsubscribeWorkArea: () => void;
+	private _uninstallSnapPartnerReflow: () => void;
 
 	/**
 	 * Debounce timer that clears `--reflowing` from stateful windows
@@ -427,6 +440,7 @@ export class WindowManager {
 			this.desktopResizeObserver.observe( desktop );
 		}
 		this._unsubscribeWorkArea = subscribeWorkArea( () => this.reflowStatefulWindows() );
+		this._uninstallSnapPartnerReflow = installSnapPartnerReflow( this );
 		this.installIframeFocusBridge();
 	}
 
@@ -484,7 +498,8 @@ export class WindowManager {
 	/**
 	 * Re-apply state-driven bounds to any window whose geometry is
 	 * derived from the work area's dimensions: maximized (full
-	 * work area) and snapped-left / snapped-right (half work area). Also
+	 * work area) and snapped-left / snapped-right (half work area, moved
+	 * off the middle for minimum widths, see `snapHalfRect`). Also
 	 * clamps normal (floating) windows to the GRAB_MARGIN boundaries
 	 * so they are not stranded off-screen when the viewport shrinks.
 	 *
@@ -528,16 +543,17 @@ export class WindowManager {
 				w.state === 'snapped-right'
 			) {
 				w.element.classList.add( 'os-window--reflowing' );
-				const halfW = Math.floor( area.width / 2 );
-				const height = area.height;
-				const left =
-					w.state === 'snapped-left'
-						? area.x
-						: area.x + area.width - halfW;
-				w.element.style.left = `${ left }px`;
-				w.element.style.top = `${ area.y }px`;
-				w.element.style.width = `${ halfW }px`;
-				w.element.style.height = `${ height }px`;
+				const zone = w.state === 'snapped-left' ? 'left' : 'right';
+				const rect = snapHalfRect(
+					area,
+					zone,
+					w.config.minWidth || 0,
+					snapPartnerMinWidth( this, w, zone ),
+				);
+				w.element.style.left = `${ rect.x }px`;
+				w.element.style.top = `${ rect.y }px`;
+				w.element.style.width = `${ rect.width }px`;
+				w.element.style.height = `${ rect.height }px`;
 			} else if ( w.state === 'normal' ) {
 				const currentX = parseInt( w.element.style.left, 10 ) || 0;
 				const currentY = parseInt( w.element.style.top, 10 ) || 0;
@@ -903,15 +919,21 @@ export class WindowManager {
 
 	/**
 	 * Open a brand-new window even if one is already open for this
-	 * page. Only makes sense for pages flagged `multi`.
+	 * page. This is the path every menu click takes, so most calls
+	 * land here with nothing of that page open at all.
 	 *
-	 * Duplicates always open in the floating ('normal') state and at
-	 * a fresh cascade slot — the per-baseId saved size / state /
-	 * position preferences apply to the primary instance only.
-	 * Spawning a maximized twin alongside the maximized primary
+	 * Duplicates — a call made while an instance of the same baseId
+	 * is open on the active desktop — open in the floating ('normal')
+	 * state and at a fresh cascade slot; the per-baseId saved size /
+	 * state / position preferences apply to the primary instance
+	 * only. Spawning a maximized twin alongside the maximized primary
 	 * would hide the primary; landing a twin on top of the primary's
 	 * remembered position would hide it too. Callers can override
 	 * either default by passing `initialState` / `x` / `y` explicitly.
+	 *
+	 * With no instance open, this behaves like {@link open} on a
+	 * closed page: it adopts a matching prewarm and lands on the
+	 * geometry the user left that page at.
 	 *
 	 * A caller-supplied `id` that differs from `baseId` and isn't
 	 * taken yet is honoured VERBATIM rather than being reassigned to
@@ -934,12 +956,26 @@ export class WindowManager {
 			! this._openingWindowIds.has( config.id )
 				? config.id
 				: this.nextInstanceId( baseId );
+		const duplicate =
+			!! this.getByBaseIdOnActiveDesktop( baseId ) ||
+			this._openingBaseIds.has( baseId );
+		if ( ! duplicate ) {
+			// Nothing of this page is open, so the hover prewarm the
+			// dock started is still the window this call wants.
+			const adopted = this.adoptPrewarmed( baseId, config );
+			if ( adopted ) {
+				return adopted;
+			}
+		}
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
-			initialState: 'normal',
-			x: cascadeX,
-			y: cascadeY,
+			// A floating twin, so it does not hide the primary — unless
+			// the user opens every window maximized, where it lands
+			// like any other.
+			...( duplicate && 'default' === ( config.openAs ?? this.openWindowsAs() )
+				? { initialState: 'normal', x: cascadeX, y: cascadeY }
+				: {} ),
 			...config,
 			id: nextId,
 			baseId,
@@ -1037,8 +1073,16 @@ export class WindowManager {
 			workArea.y + margin,
 			Math.min( cascadeY, workArea.y + workArea.height - resolvedHeight - margin ),
 		);
+		// "Open windows as" — only for a window nobody gave a state: a
+		// session restore stages its own, and a caller that passes
+		// `openAs` has decided how this window opens.
+		const openAs =
+			! hasExplicitState && ! staged && ! createOpts.prewarm
+				? config.openAs ?? this.openWindowsAs()
+				: 'default';
 		const resolvedState =
 			config.initialState ??
+			( 'default' !== openAs ? 'maximized' : undefined ) ??
 			( saved?.state === 'maximized' ? 'maximized' : undefined );
 
 		// Clamp saved x / y to the current desktop area so a window
@@ -1214,6 +1258,7 @@ export class WindowManager {
 		// restore at boot, or a plugin opening a window
 		// programmatically right after init.
 		this._openingWindowIds.add( config.id );
+		this._openingBaseIds.add( resolvedBaseId );
 		const bundles = Promise.all( [
 			ensureWindowSystemLoaded( windowSystemBundleUrl() ),
 			ensureShellOverlaysLoaded( shellOverlaysBundleUrl() ),
@@ -1223,9 +1268,11 @@ export class WindowManager {
 			loaded = await bundles;
 		} catch ( err ) {
 			this._openingWindowIds.delete( config.id );
+			this._openingBaseIds.delete( resolvedBaseId );
 			throw err;
 		}
 		this._openingWindowIds.delete( config.id );
+		this._openingBaseIds.delete( resolvedBaseId );
 		const [ system ] = loaded;
 		const win = system.createWindow( fullConfig );
 		// The restored placement stays with the window so the next
@@ -1264,7 +1311,12 @@ export class WindowManager {
 			if ( this._cascadeDepth > 0 ) {
 				return;
 			}
-			const visible = this._stack.filter( ( x ) => x.state !== 'minimized' );
+			const activeDesktopId = this.getActiveDesktopId();
+			const visible = this._stack.filter(
+				( x ) =>
+					( x.config.desktopId || activeDesktopId ) === activeDesktopId &&
+					x.state !== 'minimized',
+			);
 			if ( visible.length > 0 ) {
 				this.focus( visible[ visible.length - 1 ] );
 			}
@@ -1361,6 +1413,8 @@ export class WindowManager {
 			this.onToggleStartupRequested?.( w );
 		};
 		win.snapConfigProvider = () => this.getSnapConfig();
+		win.snapPartnerMinWidthProvider = ( zone ) =>
+			snapPartnerMinWidth( this, win, zone );
 		// Edge-snap + split-overview flow. `onDragMove` updates the
 		// snap preview on every pointermove; `onDragEnd` commits the
 		// snap (and returns true, suppressing the pointer layer's
@@ -1436,7 +1490,41 @@ export class WindowManager {
 		// practice. No-op for iframe windows.
 		win.hydrateNative();
 
-		this.focus( win );
+		// A window opened onto another desktop (session restore, or a
+		// native window whose lazy bundle resolved after the user moved
+		// on) joins the stack without taking focus. Focusing it would
+		// switch desktops, so a restore that recreates windows on every
+		// desktop would hop between them and land wherever the last
+		// window lived. It slots in under the active desktop's windows
+		// so the stack top, which `getFocused()` reads, stays the
+		// window the user is looking at.
+		const onOtherDesktop = ( w: Window ): boolean =>
+			( w.config.desktopId || this._activeDesktopId ) !== this._activeDesktopId;
+		if ( onOtherDesktop( win ) ) {
+			this._stack.splice( this._stack.indexOf( win ), 1 );
+			let slot = this._stack.length;
+			while ( slot > 0 && ! onOtherDesktop( this._stack[ slot - 1 ] ) ) {
+				slot--;
+			}
+			this._stack.splice( slot, 0, win );
+			this._stack.forEach( ( w, i ) => w.setZIndex( BASE_Z_INDEX + i ) );
+		} else {
+			this.focus( win );
+		}
+
+		// Focused: one task in front of you — every other window on the
+		// desk steps back to the dock.
+		if ( 'focused' === openAs ) {
+			for ( const other of this._stack ) {
+				if (
+					other !== win &&
+					other.state !== 'minimized' &&
+					( other.config.desktopId || this._activeDesktopId ) === win.config.desktopId
+				) {
+					other.minimize();
+				}
+			}
+		}
 
 		const openedDetail = {
 			windowId: win.id,
@@ -1503,6 +1591,11 @@ export class WindowManager {
 	 * the call sites so every focus path is covered by construction:
 	 * click-to-focus, dock activation, taskbar, alt-tab, open-reuse.
 	 *
+	 * When the target window belongs to an inactive virtual desktop,
+	 * `focus()` automatically switches to that desktop first so the window
+	 * is revealed and properly focused rather than remaining hidden
+	 * behind `display: none` at 0×0.
+	 *
 	 * @param winOrId Window to focus, or its id.
 	 */
 	public focus( winOrId: Window | string ): void {
@@ -1540,6 +1633,18 @@ export class WindowManager {
 			// Fall through: the child is focused exactly as if it had
 			// been the argument, so it lands on top and fires the
 			// normal blur/focus pair.
+		}
+
+		// Virtual desktop alignment. If the target window belongs to a
+		// different virtual desktop, switch to it so focus never lands on an
+		// invisible (`display: none`, 0×0) window while leaving the visible
+		// desktop unfocused.
+		const targetDesktopId = win.config.desktopId || this._activeDesktopId;
+		if (
+			targetDesktopId !== this._activeDesktopId &&
+			this._desktops.some( ( d ) => d.id === targetDesktopId )
+		) {
+			this.switchDesktop( targetDesktopId, { skipFocus: true } );
 		}
 
 		// Capture the previously-focused window BEFORE the splice/push
@@ -2472,6 +2577,13 @@ export class WindowManager {
 
 	// ---- Overview delegations ----
 
+	/**
+	 * How a window nobody gave a state lands — the user's "Open windows
+	 * as" setting. Bound by the shell to the effective settings;
+	 * `'default'` for a manager built without.
+	 */
+	public openWindowsAs: () => 'default' | 'maximized' | 'focused' = () => 'default';
+
 	public enterOverview(): void {
 		// A phone has no desk to zoom out of: its overview is the app
 		// switcher. Every route into Overview — the System tile, a
@@ -2503,6 +2615,7 @@ export class WindowManager {
 	 */
 	public destroy(): void {
 		this._unsubscribeWorkArea();
+		this._uninstallSnapPartnerReflow();
 		this.desktopResizeObserver?.disconnect();
 		if ( this._reflowRestoreTimer !== null ) {
 			window.clearTimeout( this._reflowRestoreTimer );

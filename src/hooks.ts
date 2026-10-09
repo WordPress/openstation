@@ -843,6 +843,12 @@ export const HOOKS = {
 	 * action — plugins cannot cancel the open from this hook, but
 	 * can use it to track click-throughs or augment behaviour (e.g.
 	 * play a sound, surface a confirmation toast).
+	 *
+	 * Fires from both renderers: the legacy icon rail, and the files
+	 * layer's shortcut opener, which is what paints a registered icon
+	 * on a files-layer desk (the rail is hidden there). An icon with no
+	 * window and no URL opens nothing, so this action is all it does:
+	 * the shell tour's relaunch icon is answered here.
 	 */
 	DESKTOP_ICON_CLICKED: 'os.os-icon.clicked',
 	/**
@@ -1118,9 +1124,9 @@ export const HOOKS = {
 	// ------------------------------------------------------------------
 	// Overview / Arrange lifecycle actions.
 	//
-	// The "Arrange" admin-bar menu drives two layout algorithms —
-	// Cascade (instantly reposition every window in a staggered
-	// stack) and Overview (zoom-out grid view with click-to-focus).
+	// Two layout algorithms — Cascade (instantly reposition every
+	// window in a staggered stack) and Overview (zoom-out grid view
+	// with click-to-focus, reachable from the Overview dock tile).
 	// These hooks surface the state transitions so plugins can
 	// instrument analytics, apply custom transitions, override
 	// thumbnail decorations, etc. All actions; a filter for
@@ -1215,14 +1221,6 @@ export const HOOKS = {
 	 * original.
 	 */
 	ARRANGE_SNAP_CELL_SIZE: 'os.arrange.snap.cell-size',
-	/**
-	 * Action, fires when the user clicks a plugin-registered entry in
-	 * the Arrange admin-bar submenu (items added via the
-	 * `openstation_arrange_menu_items` PHP filter). Payload `{ id }`
-	 * where `id` is the item's `id` field as registered. Plugins
-	 * subscribe here to run their custom arrangement logic.
-	 */
-	ARRANGE_CUSTOM_ACTION: 'os.arrange.custom-action',
 
 	// ------------------------------------------------------------------
 	// Pointer gestures the platform does not have.

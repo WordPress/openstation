@@ -24,6 +24,11 @@
  * `preventDefault` only fires when we actually acted on the key —
  * otherwise plain ArrowDown on an empty desktop area would still
  * preventDefault a page-scroll the user expected.
+ *
+ * An open modal takes the keys back. The workspace wizard sits over
+ * the desk it is about to dress, and an arrow that switched desks or
+ * re-entered overview behind it would leave the user configuring a
+ * desk they are no longer standing on.
  */
 
 import { isMobileStamped } from '../mode/stamp';
@@ -183,6 +188,18 @@ export function exitOverviewIfActive( mgr: WindowManager ): boolean {
  * so the heuristic matches whatever flipped the user into the state
  * in the first place.
  */
+/**
+ * Whether a modal owns the screen. Both kinds carry `open` on the
+ * element itself — `<os-modal>` because the wizard sets it there, and
+ * `<os-confirm-dialog>` on its own host — so one selector answers for
+ * the light DOM without walking any shadow roots.
+ */
+function isModalOpen(): boolean {
+	return null !== document.querySelector(
+		'os-modal[open], os-confirm-dialog[open]',
+	);
+}
+
 function isShowDesktopActive( mgr: WindowManager ): boolean {
 	const all = mgr.getAll();
 	if ( all.length === 0 ) {
@@ -249,6 +266,9 @@ export function installDesktopArrowShortcuts( mgr: WindowManager ): void {
 				return;
 			}
 			if ( isTextEntryFocus( document ) ) {
+				return;
+			}
+			if ( isModalOpen() ) {
 				return;
 			}
 

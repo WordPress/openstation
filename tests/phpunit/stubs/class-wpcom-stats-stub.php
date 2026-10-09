@@ -11,10 +11,17 @@
  * Guard the require with `class_exists()` so a test environment that
  * DOES ship real Jetpack never collides with the stub.
  *
+ * Brings the `Modules` stub with it, because the reader is only asked
+ * while the Stats module is on.
+ *
  * @package OpenStation
  */
 
 namespace Automattic\Jetpack\Stats;
+
+if ( ! class_exists( '\Automattic\Jetpack\Modules' ) ) {
+	require_once __DIR__ . '/class-jetpack-modules-stub.php';
+}
 
 /**
  * Minimal WPCOM_Stats double with a scriptable `get_visits()`.

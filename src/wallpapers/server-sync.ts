@@ -68,6 +68,7 @@ export function createWallpaperRegistrySync(
 			value: entry.value,
 			preview: entry.preview !== '' ? entry.preview : entry.value,
 			description: entry.description || undefined,
+			tone: entry.tone === 'light' || entry.tone === 'dark' ? entry.tone : undefined,
 		};
 	};
 

@@ -104,8 +104,10 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		$this->assertSame( 'none', $manifest['placement'] );
 		// A profile saved elsewhere repaints the list.
 		$this->assertSame( array( 'user' ), $manifest['watch'] );
+		// `reopen` is the framework's, declared for every window that
+		// declares a menu so the client dispatches it.
 		$this->assertSame(
-			array( 'filter', 'page', 'sort', 'bulk-role', 'bulk-delete', 'send-reset', 'resend-welcome', 'create' ),
+			array( 'filter', 'page', 'sort', 'bulk-role', 'bulk-delete', 'send-reset', 'resend-welcome', 'create', 'reopen' ),
 			$manifest['actions']
 		);
 		$this->assertSame( 1, $manifest['state']['page'] );
@@ -148,7 +150,14 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		$this->assertSame( get_option( 'default_role' ), $config['defaultRole'] );
 		$this->assertNotEmpty( $config['colorSchemes'] );
 		$this->assertSame( wp_get_user_contact_methods(), $config['contactMethods'] );
-		// Both windows read the same memoised facts.
+		// Both windows read the same memoised facts — minus the tabs
+		// the framework adds for the window that declared a menu, which
+		// the Users window has and the profile editor does not.
+		$this->assertSame(
+			array( 'all', 'roles', 'activity', 'add-new', 'edit' ),
+			wp_list_pluck( $config['menuTabs'], 'id' )
+		);
+		unset( $config['menuTabs'] );
 		$this->assertSame( $config, openstation_apps_registry()->get( 'desktop-mode-user-edit' )->manifest()['config'] );
 
 		wp_set_current_user( self::$editor_id );
@@ -162,6 +171,12 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
 	public function test_mount_serves_the_rows_wp_v2_users_serves_with_the_openstation_fields() {
+		wp_update_user(
+			array(
+				'ID'           => self::$editor_id,
+				'display_name' => 'Edgar & Editor',
+			)
+		);
 		$response = $this->dispatch( 'mount' );
 		$this->assertTrue( $response['ok'] );
 		$list = $response['data']['list'];
@@ -178,6 +193,8 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 			}
 		}
 		$this->assertNotNull( $row );
+		// Core's row carries the name as stored (`&amp;`); the view paints text.
+		$this->assertSame( 'Edgar & Editor', $row['name'] );
 		// The `context=edit` fields the columns paint, and the REST
 		// fields that are cheap per row.
 		$this->assertArrayHasKey( 'email', $row );

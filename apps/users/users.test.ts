@@ -41,6 +41,15 @@ const facts: ProfileConfig = {
 	colorSchemes: {},
 };
 
+/** The declaration's tab list, as the PHP side builds it. */
+const usersTabs = ( cfg: ProfileConfig ) => [
+	{ id: 'all', label: 'People' },
+	{ id: 'roles', label: 'Roles' },
+	{ id: 'activity', label: 'Activity' },
+	...( cfg.canCreate === false ? [] : [ { id: 'add-new', label: 'Add new' } ] ),
+	{ id: 'edit', label: 'Profile' },
+];
+
 const actions: RowActions = { onSendReset: () => undefined, onResendWelcome: () => undefined, toast: () => undefined };
 
 function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = {}, extra: Partial< ProfileConfig > = {}, loading = false ) {
@@ -64,7 +73,10 @@ function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = 
 		},
 		data: { list: { items: [ user() ], total: 1, pages: 1, page: 1, perPage: 20 }, ...data },
 		root,
-		extra: { ...facts, ...extra } as Record< string, unknown >,
+		// `menuTabs` is what `App::menu()` ships in the config extra and
+		// what the strip renders from, caps already applied — see
+		// `apps/users/users.os.php`.
+		extra: { menuTabs: usersTabs( { ...facts, ...extra } ), ...facts, ...extra } as Record< string, unknown >,
 	} );
 	ctx.repaint = () => app.render( ctx );
 	ctx.dispatch = vi.fn( async () => true );

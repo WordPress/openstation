@@ -106,8 +106,13 @@ export function updateMessage( version: string, name: string ): string {
  * release card once its art is fetched + loaded, the plain toast if no
  * art is available. No-op when there's nothing to show or the release
  * was already dismissed.
+ *
+ * Resolves `true` when it put something on screen, `false` when it
+ * showed nothing. The shell tour waits on that answer: two
+ * announcements on one boot read as a broken page, and only this
+ * function knows, once the art has resolved, whether it made one.
  */
-export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void > {
+export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< boolean > {
 	const { update, openUrl } = deps;
 	if (
 		! update ||
@@ -116,7 +121,7 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 		typeof update.url !== 'string' ||
 		! update.url
 	) {
-		return;
+		return false;
 	}
 
 	const version = update.version;
@@ -133,7 +138,7 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 			: version;
 	const dismissKey = `desktop-mode/core-update:${ exact }`;
 	if ( isNoticeDismissed( dismissKey ) ) {
-		return;
+		return false;
 	}
 	// The art-less toast dismisses on its own key. Closing a fallback
 	// the user was only shown because the art wasn't ready yet must not
@@ -164,12 +169,12 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 			dismissKey,
 			onUpdate: openUpdateScreen,
 		} );
-		return;
+		return true;
 	}
 
 	// No art (unknown release / offline / image failed) → plain toast.
 	if ( isNoticeDismissed( toastDismissKey ) ) {
-		return;
+		return false;
 	}
 	showToast( {
 		message: updateMessage( version, '' ),
@@ -181,4 +186,5 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 			onClick: openUpdateScreen,
 		},
 	} );
+	return true;
 }

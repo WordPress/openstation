@@ -8,6 +8,7 @@
  * new note with a CustomEvent).
  */
 
+import type { ToastOptions } from '../toast';
 import type { DesktopConfig } from '../types';
 import { NotesLayer } from './layer';
 import { installNoteDropHandlers } from './drop-handlers';
@@ -23,7 +24,7 @@ export type { Note } from './types';
 export interface BootNotesOptions {
 	host: HTMLElement;
 	config: DesktopConfig;
-	onError?: ( message: string ) => void;
+	onError?: ( toast: ToastOptions ) => void;
 }
 
 export function bootNotes( options: BootNotesOptions ): NotesLayer | null {

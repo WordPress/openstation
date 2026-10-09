@@ -60,6 +60,39 @@ return App::define( 'desktop-mode-posts' )
 		}
 	)
 	->state( openstation_posts_app_state( 'date', 'desc' ) )
+	// The Posts menu, while this window answers for it: the dock's
+	// submenu becomes these tabs and a row opens the window on its
+	// own one. The runtime lands the window on it; the client view
+	// renders the strip from the same list.
+	->menu(
+		'edit.php',
+		static function () {
+			$tabs = array(
+				'posts' => array(
+					'label' => __( 'All posts', 'desktop-mode' ),
+					'page'  => 'edit.php',
+				),
+				'new'   => array(
+					'label' => __( 'Add Post', 'desktop-mode' ),
+					'page'  => 'post-new.php',
+				),
+			);
+			// The taxonomy tabs are the taxonomy screens, so they
+			// answer to the same capability those screens do.
+			if ( current_user_can( 'manage_categories' ) ) {
+				$tabs['categories'] = array(
+					'label' => __( 'Categories', 'desktop-mode' ),
+					'page'  => 'edit-tags.php?taxonomy=category',
+				);
+				$tabs['tags']       = array(
+					'label' => __( 'Tags', 'desktop-mode' ),
+					'page'  => 'edit-tags.php?taxonomy=post_tag',
+				);
+			}
+			return $tabs;
+		},
+		'openstation_posts_window_user_can_use'
+	)
 	->action(
 		'filter',
 		static function ( State $state ) {

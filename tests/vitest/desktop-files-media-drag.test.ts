@@ -6,6 +6,7 @@
  * resolution before posting `os-drop`, and the tile-payload handlers
  * that let media uploads land on post and page tiles.
  */
+import { RestError } from '../../src/core/api-client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 interface ConfigShape {
@@ -155,7 +156,7 @@ describe( 'upload payload resolution', () => {
 
 	test( 'a failed copy resolves to null and toasts', async () => {
 		restMock.addUploadToMediaLibrary.mockRejectedValue(
-			new Error( '[openstation] files REST 415: openstation_stored_file_not_media This file type cannot be added to the Media Library.' ),
+			new RestError( '', { status: 415, code: 'openstation_stored_file_not_media', serverMessage: 'This file type cannot be added to the Media Library.' } ),
 		);
 		const bridge = await import( '../../src/drag-bridge' );
 		const media = await import( '../../src/desktop-files/media-drag' );
@@ -347,7 +348,7 @@ describe( 'media uploads dropped on post tiles', () => {
 
 	test( 'a rejected drop surfaces the server message', async () => {
 		restMock.attachUploadsToPost.mockRejectedValue(
-			new Error( '[openstation] files REST 403: openstation_stored_file_cannot_edit_post You are not allowed to edit this post.' ),
+			new RestError( '', { status: 403, code: 'openstation_stored_file_cannot_edit_post', serverMessage: 'You are not allowed to edit this post.' } ),
 		);
 		const tp = await load();
 		tp.tilePayloadDrop( session( [ placement( uploadFile() ) ] ) as never, { clientX: 0, clientY: 0 }, { placement: placement( postFile() ) as never } );

@@ -358,6 +358,9 @@
 
 .os-pinned-note__editor {
 	flex: 1 1 auto;
+	/* Let the ink shrink inside the paper's max-height and scroll,
+	   rather than spill past the paper's bottom edge. */
+	min-height: 0;
 	font-family: var(--dm-note-hand-font);
 }
 
@@ -370,11 +373,28 @@
 	font-family: var(--dm-note-hand-font);
 	font-size: 14px;
 	line-height: 1.45;
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in srgb, var(--dm-note-ink, #4d4419) 28%, transparent)
+		transparent;
+}
+
+/* Long notes: the last line fades into the paper instead of being
+   sliced mid-glyph, so it reads as "keep scrolling", not "cut off".
+   `data-more-below` drops once the reader reaches the end, so the
+   final line is never left faded. */
+.os-pinned-note__editor[data-more-below]::part(textarea),
+.os-pinned-note__body[data-more-below] {
+	-webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+	mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
 }
 
 .os-pinned-note__body {
 	flex: 1 1 auto;
+	min-height: 0;
 	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in srgb, var(--dm-note-ink, #4d4419) 28%, transparent)
+		transparent;
 	font-family: var(--dm-note-hand-font);
 	font-size: 14px;
 	line-height: 1.45;

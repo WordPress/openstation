@@ -10,9 +10,11 @@
  *   - the os.os.* action firings
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { restoreSession } from '../../src/boot/session';
 import { WindowManager } from '../../src/window-manager';
 import { closeDesktop } from '../../src/window-manager/desktops';
 import { HOOKS } from '../../src/hooks';
+import type { DesktopConfig, Session } from '../../src/types';
 import {
 	clearHooksStub,
 	installHooksStub,
@@ -92,11 +94,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		clearHooksStub();
 	} );
 
-	test( 'starts with a single default desktop named "Desktop 1"', async () => {
+	test( 'starts with a single default desktop named "Workspace 1"', async () => {
 		const list = manager.getDesktops();
 		expect( list ).toHaveLength( 1 );
 		expect( list[ 0 ].id ).toBe( 'desktop-1' );
-		expect( list[ 0 ].label ).toBe( 'Desktop 1' );
+		expect( list[ 0 ].label ).toBe( 'Workspace 1' );
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
 	} );
 
@@ -110,7 +112,7 @@ describe( 'WindowManager — virtual desktops', async () => {
 			created.id,
 		] );
 		expect( created.id ).toBe( 'desktop-2' );
-		expect( created.label ).toBe( 'Desktop 2' );
+		expect( created.label ).toBe( 'Workspace 2' );
 
 		const evt = log.find( ( e ) => e.name === 'os.os.created' );
 		expect( evt ).toBeDefined();
@@ -228,6 +230,17 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const payload = evt!.args[ 0 ] as { desktopId: string; migratedTo: string };
 		expect( payload.desktopId ).toBe( second.id );
 		expect( payload.migratedTo ).toBe( 'desktop-1' );
+
+		// The active desk changed, so switch listeners (the workspace
+		// view among them) must hear it, after the close.
+		expect( log.map( ( e ) => e.name ) ).toEqual( [
+			'os.os.closed',
+			'os.os.switched',
+		] );
+		expect( log[ 1 ].args[ 0 ] ).toEqual( {
+			from: second.id,
+			to: 'desktop-1',
+		} );
 	} );
 
 	test( 'closing the leftmost desktop migrates to the right-neighbour', async () => {
@@ -257,9 +270,14 @@ describe( 'WindowManager — virtual desktops', async () => {
 		const third = manager.createDesktop(); // desktop-3
 		// Active is still desktop-1.
 
+		const log = recordActions( hooks, DESKTOP_HOOKS );
+
 		manager.closeDesktop( third.id );
 
 		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect(
+			log.some( ( e ) => e.name === 'os.os.switched' ),
+		).toBe( false );
 		expect( manager.getDesktops().map( ( d ) => d.id ) ).toEqual( [
 			'desktop-1',
 			'desktop-2',
@@ -1137,5 +1155,155 @@ describe( 'WindowManager — destroy()', async () => {
 	test( 'is a no-op when overview was never entered', async () => {
 		expect( () => manager.destroy() ).not.toThrow();
 		expect( manager._overviewActive ).toBe( false );
+	} );
+} );
+
+describe( 'WindowManager — cross-desktop window focus', () => {
+	let hooks: FakeWpHooks;
+	let desktopArea: HTMLElement;
+	let manager: WindowManager;
+
+	beforeEach( async () => {
+		hooks = installHooksStub();
+		desktopArea = document.createElement( 'div' );
+		Object.defineProperty( desktopArea, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0,
+				top: 0,
+				right: 1600,
+				bottom: 900,
+				width: 1600,
+				height: 900,
+			} ),
+		} );
+		Object.defineProperty( desktopArea, 'clientWidth', { value: 1600 } );
+		Object.defineProperty( desktopArea, 'clientHeight', { value: 900 } );
+		document.body.appendChild( desktopArea );
+		manager = new WindowManager( desktopArea );
+	} );
+
+	afterEach( () => {
+		manager.destroy();
+		desktopArea.remove();
+		clearHooksStub();
+	} );
+
+	test( 'focusing a window on an inactive desktop switches to that desktop and focuses it', async () => {
+		const win1 = await manager.open( openConfig( 'win1' ) );
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect( win1.isFocused() ).toBe( true );
+
+		const second = manager.createDesktop();
+		manager.switchDesktop( second.id );
+
+		const win2 = await manager.open( openConfig( 'win2' ) );
+		expect( manager.getActiveDesktopId() ).toBe( second.id );
+		expect( win2.isFocused() ).toBe( true );
+		expect( win2.element.style.display ).toBe( '' );
+
+		// Switch back to desktop 1
+		manager.switchDesktop( 'desktop-1' );
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect( win1.element.style.display ).toBe( '' );
+		expect( win2.element.style.display ).toBe( 'none' );
+
+		// Now focus win2 on desktop-2 from desktop-1
+		manager.focus( win2 );
+
+		expect( manager.getActiveDesktopId() ).toBe( second.id );
+		expect( win2.isFocused() ).toBe( true );
+		expect( win2.element.style.display ).toBe( '' );
+		expect( win1.element.style.display ).toBe( 'none' );
+		expect( win1.isFocused() ).toBe( false );
+	} );
+
+	test( 'minimizing the last window on the active desktop does NOT switch to another desktop', async () => {
+		const second = manager.createDesktop();
+		manager.switchDesktop( second.id );
+		const win2 = await manager.open( openConfig( 'win2' ) );
+
+		manager.switchDesktop( 'desktop-1' );
+		const win1 = await manager.open( openConfig( 'win1' ) );
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+
+		// Minimize the only window on desktop-1
+		win1.minimize();
+
+		// Should remain on desktop-1, NOT jump to desktop-2
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect( win1.state ).toBe( 'minimized' );
+		expect( win2.element.style.display ).toBe( 'none' );
+	} );
+
+	test( 'focusing a window on another desktop while overview is active updates active desktop in overview', async () => {
+		const second = manager.createDesktop();
+		manager.switchDesktop( second.id );
+		const win2 = await manager.open( openConfig( 'win2' ) );
+
+		manager.switchDesktop( 'desktop-1' );
+		await manager.open( openConfig( 'win1' ) );
+
+		manager.enterOverview();
+		expect( manager._overviewActive ).toBe( true );
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+
+		// Focus win2 while mid-overview
+		manager.focus( win2 );
+
+		expect( manager.getActiveDesktopId() ).toBe( second.id );
+		expect( manager._overviewActive ).toBe( true );
+		expect( win2.isFocused() ).toBe( true );
+	} );
+
+	test( 'session restore stays on the saved active desktop', async () => {
+		// The user left Desktop 1 empty and active, so the saved focus
+		// is the stack top on Desktop 2.
+		const session: Session = {
+			windows: [
+				{
+					id: 'pages',
+					baseId: 'pages',
+					desktopId: 'desktop-2',
+					url: 'http://example.test/wp-admin/edit.php?post_type=page',
+					title: 'Pages',
+					icon: 'dashicons-admin-page',
+					state: 'normal',
+					x: 100,
+					y: 80,
+					width: 900,
+					height: 600,
+				},
+			],
+			desktops: [
+				{ id: 'desktop-1', label: 'Desktop 1' },
+				{ id: 'desktop-2', label: 'Desktop 2' },
+			],
+			activeDesktop: 'desktop-1',
+			focused: 'pages',
+			updated: 123,
+		};
+		const switched = recordActions( hooks, [ HOOKS.DESKTOP_SWITCHED ] );
+
+		await restoreSession(
+			manager,
+			{ adminUrl: 'http://example.test/wp-admin/', dockItems: [], session } as unknown as DesktopConfig,
+			desktopArea,
+		);
+
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect( manager.getById( 'pages' )?.element.style.display ).toBe( 'none' );
+		expect( switched ).toHaveLength( 0 );
+	} );
+
+	test( 'a window opened onto another desktop does not take focus', async () => {
+		const second = manager.createDesktop();
+		const win1 = await manager.open( openConfig( 'win1' ) );
+
+		const far = await manager.open( { ...openConfig( 'far' ), desktopId: second.id } );
+
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect( manager.getFocused() ).toBe( win1 );
+		expect( win1.isFocused() ).toBe( true );
+		expect( far.isFocused() ).toBe( false );
 	} );
 } );

@@ -40,7 +40,17 @@ import app from './plugins.os';
 const AJAX_URL = 'http://example.test/wp-admin/admin-ajax.php';
 
 function extra( over: Partial< PluginsExtra > = {} ): PluginsExtra {
+	const caps = { activate: true, install: true, delete: true, upload: true, update: true, ...( over.caps ?? {} ) };
 	return {
+		// What `App::menu()` ships in the config extra and the strip
+		// renders from, caps already applied — see `plugins.os.php`.
+		menuTabs: caps.install
+			? [
+				{ id: 'installed', label: 'Installed' },
+				{ id: 'browse', label: 'Add Plugin' },
+				{ id: 'featured', label: 'OpenStation plugins' },
+			]
+			: [ { id: 'installed', label: 'Installed' } ],
 		ajaxUrl: AJAX_URL,
 		ajaxNonce: 'plugins-window-nonce',
 		updatesNonce: 'updates-nonce',

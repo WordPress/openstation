@@ -116,7 +116,10 @@ Three groups stay hand-drawn on purpose, and each says so at the code:
   64-grid family with heavier strokes, shipped as `data:` URIs because the dock
   API takes an `icon:` string. Two of them have no member in the set at all: the
   gear is deliberately *not* Core's `settings`, because the System tile beside
-  it already means settings.
+  it already means settings. A tile whose glyph *is* in the set borrows the
+  shape and redraws it at the family's weight rather than calling
+  `osIconDataUri()` — the Workspaces tile is `widgets` on the 64 grid — so the
+  rail never carries two stroke weights.
 - **Marks and motion**: the WordPress logo, the Mio face, spinners, stars, the
   eye in `os-text-field`. Not vocabulary.
 

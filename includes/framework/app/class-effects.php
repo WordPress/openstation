@@ -31,17 +31,24 @@ final class Effects {
 	/**
 	 * Show a toast.
 	 *
-	 * There is no tone: the shell renders every toast the same way
-	 * (`wp.os.showToast()` takes no severity), so a `$tone` argument
-	 * here would be a promise the platform cannot keep. Say what
-	 * happened in the message, and use `<os-notice tone="…">` in the
-	 * body when a state needs a colour.
+	 * `$type` is an id from the toast-type registry the shell ships
+	 * (`openstation_get_toast_types()`, filterable through
+	 * `openstation_toast_types`): `success`, `warning`, `error`,
+	 * `shell-error`, or one a plugin registered. The shell maps it to
+	 * the tone the toast wears; an empty or unknown id is the plain
+	 * toast, so say what happened in the message either way.
 	 *
 	 * @param string $message Text.
+	 * @param string $type    Toast-type id, or '' for the plain toast.
 	 * @return self
 	 */
-	public function toast( $message ) {
-		return $this->add( 'toast', array( 'message' => (string) $message ) );
+	public function toast( $message, $type = '' ) {
+		$effect = array( 'message' => (string) $message );
+		if ( '' !== (string) $type ) {
+			// `type` is the effect kind on the wire; the toast type rides as `toastType`.
+			$effect['toastType'] = (string) $type;
+		}
+		return $this->add( 'toast', $effect );
 	}
 
 	/**

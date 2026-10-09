@@ -377,7 +377,7 @@
 	top: 44px;
 	width: 18px;
 	height: 18px;
-	border-radius: 50%;
+	border-radius: var( --os-tile-shortcut-radius, 50% );
 	background: var( --os-tile-shortcut-bg, rgba( 0, 0, 0, 0.65 ) );
 	color: var( --os-tile-shortcut-fg, #fff );
 	font-size: 11px;
@@ -1007,7 +1007,7 @@ button.os-folder-status-bar__segment:hover {
  * WordPress, …) so all surfaces share one source of truth.
  */
 .os-file-tile__label {
-	font-size: 12px;
+	font-size: var( --os-tile-label-font-size, 12px );
 	line-height: 1.2;
 	/* Follows the tile rather than restating its width, so a section
 	 * that re-points `--os-tile-w` (image-led sections do) gets a
@@ -1024,6 +1024,20 @@ button.os-folder-status-bar__segment:hover {
 	text-shadow: var( --os-tile-label-shadow, 0 1px 2px rgba( 0, 0, 0, 0.5 ) );
 	-webkit-font-smoothing: var( --os-tile-label-smoothing, auto );
 	-moz-osx-font-smoothing: grayscale;
+	/* A plate behind the caption, for a desk that labels its icons on
+	 * a white box rather than with a halo. */
+	background: var( --os-tile-label-bg, transparent );
+	padding-inline: var( --os-tile-label-padding, 0 );
+}
+
+/* A selected tile can mark its caption instead of (or as well as)
+ * its plate: inverted text on a highlight, the way older desks did. */
+.os-file-tile--selected .os-file-tile__label {
+	background: var( --os-tile-label-selected-bg, var( --os-tile-label-bg, transparent ) );
+	color: var(
+		--os-tile-label-selected-color,
+		var( --os-tile-label-color, var( --os-tile-fg, #fff ) )
+	);
 }
 
 /*

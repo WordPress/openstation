@@ -44,10 +44,10 @@ function agoIso( secondsAgo: number ): string {
 		.replace( /\.\d+Z$/, '' );
 }
 
-function jsonResponse( body: unknown, ok = true ): Response {
+function jsonResponse( body: unknown, ok = true, status?: number ): Response {
 	return {
 		ok,
-		status: ok ? 200 : 500,
+		status: status ?? ( ok ? 200 : 500 ),
 		json: () => Promise.resolve( body ),
 	} as unknown as Response;
 }
@@ -81,7 +81,10 @@ function installShell( opts: {
 	ai?: boolean;
 	suggestions?: unknown;
 	suggestionsOk?: boolean;
+	/** HTTP status of a failed suggestions request (default 500). */
+	suggestionsStatus?: number;
 	applyOk?: boolean;
+	connectorsUrl?: string;
 } = {} ): DesktopStub {
 	const {
 		drafts = [],
@@ -92,7 +95,9 @@ function installShell( opts: {
 		ai = false,
 		suggestions = SUGGESTIONS,
 		suggestionsOk = true,
+		suggestionsStatus,
 		applyOk = true,
+		connectorsUrl = '',
 	} = opts;
 
 	desktop = {
@@ -103,7 +108,7 @@ function installShell( opts: {
 			}
 			if ( url.includes( 'draft-suggestions' ) ) {
 				return Promise.resolve(
-					jsonResponse( suggestions, suggestionsOk ),
+					jsonResponse( suggestions, suggestionsOk, suggestionsStatus ),
 				);
 			}
 			if ( url.includes( 'draft-apply' ) ) {
@@ -119,7 +124,7 @@ function installShell( opts: {
 	}
 	( window as unknown as { wp: unknown } ).wp = { os: desktop };
 	( window as unknown as { openStationConfig: unknown } ).openStationConfig = {
-		aiAssistant: { providerConfigured: ai },
+		aiAssistant: { providerConfigured: ai, connectorsUrl },
 	};
 	return desktop;
 }
@@ -168,7 +173,7 @@ describe( 'drafts widget — REST query', () => {
 		expect( listRequestUrl() ).not.toContain( 'author=' );
 	} );
 
-	test( 'polls without pulsing the activity bus', async () => {
+	test( 'polls silently, tagged with its source', async () => {
 		installShell();
 		teardown = await getMount()( container, makeCtx() );
 
@@ -259,8 +264,10 @@ describe( 'drafts widget — rendering', () => {
 		installShell( { ok: false } );
 		teardown = await getMount()( container, makeCtx() );
 
-		expect( container.querySelector( '.dm-drafts__empty' )?.textContent ).toBe(
-			'Could not load drafts.',
+		// The widget's own line, then what the server did: a 5xx has no
+		// message worth showing, so the status is named instead.
+		expect( container.querySelector( '.dm-drafts__empty' )?.textContent ).toMatch(
+			/^Could not load drafts\. The server answered with error \d+\.$/,
 		);
 	} );
 } );
@@ -554,7 +561,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 
 		await vi.waitFor( () => {
 			expect( desktop.showToast ).toHaveBeenCalledWith( {
-				message: 'Could not apply the suggestion.',
+				message: expect.stringMatching( /^Could not apply the suggestion\./ ),
 				type: 'error',
 			} );
 		} );
@@ -580,6 +587,64 @@ describe( 'drafts widget — AI writing assistant', () => {
 				'dm-drafts__notice',
 			),
 		).toBe( true );
+	} );
+
+	test( 'a provider failure is explained by its reason, never by the provider text', async () => {
+		installShell( {
+			drafts: oneDraft,
+			ai: true,
+			suggestionsOk: false,
+			suggestionsStatus: 502,
+			suggestions: {
+				code: 'openstation_ai_failed',
+				message: 'plain-words message from the server',
+				data: {
+					status: 502,
+					reason: 'quota',
+					provider_status: 429,
+					detail: 'Too Many Requests (429) - You have no credits remaining.',
+				},
+			},
+		} );
+		teardown = await getMount()( container, makeCtx() );
+
+		( container.querySelector( '.dm-drafts__spark' ) as HTMLElement ).click();
+		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
+
+		await vi.waitFor( () => {
+			expect( panel.querySelector( 'os-notice' ) ).not.toBeNull();
+		} );
+		expect( panel.textContent ).toContain( 'no credits left' );
+		expect( panel.textContent ).not.toContain( 'Too Many Requests' );
+		expect( panel.textContent ).not.toContain( 'Could not get suggestions.' );
+		expect( panel.querySelector( 'a' ) ).toBeNull();
+	} );
+
+	test( 'a missing provider links to the Connectors screen', async () => {
+		installShell( {
+			drafts: oneDraft,
+			ai: true,
+			suggestionsOk: false,
+			suggestionsStatus: 503,
+			suggestions: {
+				code: 'openstation_ai_unavailable',
+				message: 'No AI provider is configured.',
+				data: { status: 503 },
+			},
+			connectorsUrl: 'https://example.test/wp-admin/options-connectors.php',
+		} );
+		teardown = await getMount()( container, makeCtx() );
+
+		( container.querySelector( '.dm-drafts__spark' ) as HTMLElement ).click();
+		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
+
+		await vi.waitFor( () => {
+			expect( panel.querySelector( 'os-notice a' ) ).not.toBeNull();
+		} );
+		expect( panel.textContent ).toContain( 'No AI provider is set up.' );
+		expect( panel.querySelector( 'a' )?.getAttribute( 'href' ) ).toBe(
+			'https://example.test/wp-admin/options-connectors.php',
+		);
 	} );
 
 	test( 'clicking the button again closes the panel and collapses the disclosure', async () => {
@@ -708,6 +773,46 @@ describe( 'drafts widget — accessible names', () => {
 	} );
 } );
 
+describe( 'drafts widget — content-change refresh', () => {
+	function listFetches(): number {
+		return desktop.fetch.mock.calls.filter( ( c ) =>
+			String( c[ 0 ] ).includes( '/wp/v2/posts?' ),
+		).length;
+	}
+
+	function announce( topic: string ): void {
+		document.dispatchEvent(
+			new CustomEvent( 'os-broadcast', {
+				detail: { topic, payload: { source: 'editor', action: 'created', ids: [ 9 ] } },
+			} ),
+		);
+	}
+
+	// A draft saved in an editor window that keeps focus fires no window
+	// lifecycle event: the save broadcast is the only prompt there is.
+	test( 'a post change broadcast refreshes the list', async () => {
+		installShell();
+		teardown = await getMount()( container, makeCtx() );
+		const before = listFetches();
+
+		announce( 'os.post.changed' );
+		await new Promise( ( resolve ) => setTimeout( resolve, 700 ) );
+
+		expect( listFetches() ).toBe( before + 1 );
+	} );
+
+	test( 'other content types leave the list alone', async () => {
+		installShell();
+		teardown = await getMount()( container, makeCtx() );
+		const before = listFetches();
+
+		announce( 'os.page.changed' );
+		await new Promise( ( resolve ) => setTimeout( resolve, 700 ) );
+
+		expect( listFetches() ).toBe( before );
+	} );
+} );
+
 describe( 'drafts widget — teardown', () => {
 	test( 'detaches its window-lifecycle listeners', async () => {
 		installShell();
@@ -720,5 +825,6 @@ describe( 'drafts widget — teardown', () => {
 		const events = remove.mock.calls.map( ( c ) => c[ 0 ] );
 		expect( events ).toContain( 'os-window-closed' );
 		expect( events ).toContain( 'os-window-blurred' );
+		expect( events ).toContain( 'os-broadcast' );
 	} );
 } );

@@ -10,7 +10,7 @@
  * ## The escape hatch is the first thing on screen
  *
  * Most of the time a user pressing `+` wants a new desk and nothing
- * else. So the first step, **Start**, has a **Blank desktop** card
+ * else. So the first step, **Start**, has a **Blank workspace** card
  * preselected and the **Create** button focused: `+` then Enter is a
  * plain new desk, the same two gestures it was before the wizard
  * existed. Picking a template and pressing Create is a desk from that
@@ -359,7 +359,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 	modal.setAttribute( 'size', 'lg' );
 	modal.setAttribute(
 		'title',
-		isEdit ? __( 'Edit workspace' ) : __( 'New desktop' ),
+		isEdit ? __( 'Edit workspace' ) : __( 'New workspace' ),
 	);
 	modal.setAttribute( 'open', '' );
 
@@ -409,10 +409,11 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			if ( i === stepIndex ) {
 				step.setAttribute( 'current', '' );
 			}
-			// A way back, never a way forward: skipping ahead past
-			// Start would bypass the one decision the later steps
-			// depend on.
-			if ( i < stepIndex ) {
+			// Any step, any order. Skipping ahead past Start does not
+			// bypass the pick the later steps read: `go` takes the
+			// template into the draft on the way out of Start, whatever
+			// step it lands on.
+			if ( i !== stepIndex ) {
 				step.setAttribute( 'interactive', '' );
 				step.addEventListener( 'os-step-click', () => go( i ) );
 			}
@@ -428,7 +429,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		// subtitle under it explained what a template was and that a
 		// blank desk was one click away, both of which the cards
 		// already say in their own descriptions.
-		pane.appendChild( heading( __( 'What is this desktop for?' ) ) );
+		pane.appendChild( heading( __( 'What is this workspace for?' ) ) );
 		const grid = el( 'os-grid', `${ ROOT_CLASS }__cards` );
 		grid.setAttribute( 'columns', '2' );
 		grid.setAttribute( 'gap', '10' );
@@ -489,8 +490,8 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		addCard(
 			BLANK,
 			'dashicons-desktop',
-			__( 'Blank desktop' ),
-			__( 'Just a new, empty desk. Turn it into a workspace later if you like.' ),
+			__( 'Blank workspace' ),
+			__( 'Just a new, empty desk. You can customize it later if you want.' ),
 		);
 		for ( const preset of options.presets ) {
 			addCard( preset.id, preset.icon, preset.label, preset.description );
@@ -504,7 +505,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		pane.appendChild(
 			heading(
 				__( 'Name it' ),
-				__( 'The name goes on its overview tile. The glyph and colour are how you tell it apart from the others at a glance.' ),
+				__( 'The name goes on its tile in Workspaces. The glyph and colour are how you tell it apart from the others at a glance.' ),
 			),
 		);
 		const field = el( 'os-text-field' );
@@ -673,7 +674,7 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 			title: __( 'Which apps show here?' ),
 			sub: __( 'Narrow the dock to the apps this desk is about. Everything else is still there — on your other desks, and the moment you leave this one.' ),
 			switchLabel: __( 'Show only the apps I pick' ),
-			note: __( 'OpenStation’s own controls — Overview, System, Trash, Exit — always stay, so a desk can never be one you cannot leave.' ),
+			note: __( 'OpenStation’s own controls — Workspaces, System, Trash, Exit — always stay, so a desk can never be one you cannot leave.' ),
 			isOn: () => 'only' === draft.apps.mode,
 			setOn: ( on ) => {
 				draft.apps.mode = on ? 'only' : 'all';
@@ -1051,15 +1052,13 @@ export function openWorkspaceWizard( options: WorkspaceWizardOptions ): void {
 		// It is the escape hatch: the wizard can be left at any point
 		// with whatever has been set, so it is the one thing that must
 		// never move. Keeping it primary on the Start step is what
-		// makes `+` then Enter a plain new desktop: the focus call at
+		// makes `+` then Enter a plain new workspace: the focus call at
 		// the bottom of this module lands on it.
 		primary = el( 'os-button' );
 		primary.setAttribute( 'variant', 'primary' );
 		if ( isEdit ) {
 			primary.textContent = __( 'Save' );
-		} else if ( onStart && start === BLANK ) {
-			primary.textContent = __( 'Create desktop' );
-		} else if ( onStart ) {
+		} else if ( onStart && start !== BLANK ) {
 			primary.textContent = __( 'Create from template' );
 		} else {
 			primary.textContent = __( 'Create workspace' );

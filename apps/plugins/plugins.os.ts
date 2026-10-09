@@ -158,6 +158,19 @@ const flyout = ( ctx: Ctx ): HTMLElement | null =>
  */
 const EDITOR_TAB = 'plugin-editor';
 
+/**
+ * The window's tabs, as `App::menu()` declared them — the same list
+ * the dock builds the Plugins submenu from, capabilities already
+ * applied. The file editor is not among them: it is a tab this window
+ * opens on a file you picked, not a page you can ask for cold.
+ */
+function menuTabs( ctx: Ctx ): Array< { id: string; label: string } > {
+	return (
+		( ctx.extra as { menuTabs?: Array< { id: string; label: string } > } )
+			.menuTabs ?? []
+	);
+}
+
 function editorTab( ctx: Ctx, ui: UiState ): TemplateResult | string {
 	const url = ui.host.extra.editorUrl;
 	if ( ! url ) {
@@ -287,11 +300,9 @@ export default defineApp< AppState, AppData >( APP_ID, {
 					os-bind="tab"
 					@os-tab-change=${ ( ev: Event ) => keepEditorUnselected( ctx, ev ) }
 				>
-					<os-tab value="installed">${ __( 'Installed', 'desktop-mode' ) }</os-tab>
-					${ caps.install
-						? html`<os-tab value="browse">${ __( 'Add Plugin', 'desktop-mode' ) }</os-tab>
-							<os-tab value="featured">${ __( 'OpenStation plugins', 'desktop-mode' ) }</os-tab>`
-						: '' }
+					${ menuTabs( ctx ).map(
+						( row ) => html`<os-tab value=${ row.id }>${ row.label }</os-tab>`,
+					) }
 					${ editorTab( ctx, ui ) }
 				</os-tabs>
 				<os-tabpanel for="installed" class="os-app-list__panel os-plugins__panel" ?hidden=${ tab !== 'installed' }>

@@ -326,7 +326,7 @@ function openstation_my_wordpress_woo_product_band_defs() {
 		foreach ( ( is_wp_error( $terms ) ? array() : (array) $terms ) as $term ) {
 			$bands[] = array(
 				'id'       => 'cat:' . $term->slug,
-				'label'    => $term->name,
+				'label'    => openstation_plain_text_title( $term->name ),
 				'order'    => $order,
 				'category' => $term->slug,
 			);
@@ -1375,7 +1375,7 @@ function openstation_my_wordpress_woo_product_summary( $id ) {
 		'reviews'     => (int) $product->get_review_count(),
 		'productType' => $type_label,
 		'variations'  => $product->is_type( 'variable' ) ? count( $product->get_children() ) : 0,
-		'categories'  => is_wp_error( $categories ) ? array() : array_values( $categories ),
+		'categories'  => is_wp_error( $categories ) ? array() : array_map( 'openstation_plain_text_title', array_values( $categories ) ),
 		'permalink'   => (string) $product->get_permalink(),
 		'editUrl'     => (string) get_edit_post_link( $product->get_id(), 'raw' ),
 	);
@@ -1406,7 +1406,7 @@ function openstation_my_wordpress_woo_order_summary( $id ) {
 		// Variations edit through their parent product's screen.
 		$edit_id = $product_id;
 		$items[] = array(
-			'name'     => $item->get_name(),
+			'name'     => openstation_plain_text_title( $item->get_name() ),
 			'quantity' => (int) $item->get_quantity(),
 			'total'    => openstation_my_wordpress_woo_price( $item->get_total(), $order->get_currency() ),
 			'id'       => $product_id,
@@ -1556,7 +1556,7 @@ function openstation_my_wordpress_woo_coupon_summary( $id ) {
 			$term = get_term( (int) $id, $taxonomy );
 			if ( $term && ! is_wp_error( $term ) ) {
 				$out[] = array(
-					'label'   => $term->name,
+					'label'   => openstation_plain_text_title( $term->name ),
 					'editUrl' => (string) get_edit_term_link( $term->term_id, $taxonomy ),
 				);
 			}
@@ -1570,7 +1570,7 @@ function openstation_my_wordpress_woo_coupon_summary( $id ) {
 			$product = wc_get_product( (int) $id );
 			if ( $product ) {
 				$out[] = array(
-					'label'   => $product->get_name(),
+					'label'   => openstation_plain_text_title( $product->get_name() ),
 					'editUrl' => (string) get_edit_post_link( $product->get_id(), 'raw' ),
 				);
 			}
@@ -1979,6 +1979,8 @@ function openstation_my_wordpress_woo_enqueue() {
 					'canOrders'     => true === openstation_my_wordpress_woo_orders_permission(),
 					'canCustomers'  => true === openstation_my_wordpress_woo_customers_permission(),
 					'orderBands'    => openstation_my_wordpress_woo_order_bands(),
+					// `wc-` slug → label, for the Orders list view.
+					'orderStatuses' => wc_get_order_statuses(),
 					'productBands'  => openstation_my_wordpress_woo_product_bands(),
 					'couponBands'   => openstation_my_wordpress_woo_coupon_bands_with_counts(),
 					// Only built for a viewer who may see them — the

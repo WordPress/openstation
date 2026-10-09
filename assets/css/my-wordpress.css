@@ -869,7 +869,7 @@
 .os-my-wordpress__user-bio {
 	font-size: 14px;
 	line-height: 1.5;
-	color: var( --os-fg, #1d2327 );
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 	margin: 0 0 16px;
 	padding-left: 12px;
 	border-left: 3px solid var( --os-ui-border, #dcdcde );
@@ -1208,7 +1208,7 @@
 
 .os-my-wordpress__comment-quote p {
 	margin: 0;
-	color: var( --os-fg, #1d2327 );
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 }
 
 /* Comment body — same style as article-content but with a soft
@@ -1300,7 +1300,7 @@
 .os-my-wordpress__comment-reply-excerpt {
 	margin: 0;
 	font-size: 13px;
-	color: var( --os-fg, #1d2327 );
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 	line-height: 1.45;
 }
 
@@ -1507,12 +1507,15 @@
 	gap: 8px;
 }
 
+/* Window text reads the app's own foreground, never `--os-fg`: that token
+ * is the shell's text ON THE DESK, so a light theme (Legacy) leaves it
+ * white and the name vanished into the white hero. */
 .os-my-wordpress__footprint-title {
 	margin: 0;
 	font-size: 28px;
 	line-height: 1.15;
 	font-weight: 700;
-	color: var( --os-fg, #1d2327 );
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 }
 
 .os-my-wordpress__footprint-meta {
@@ -1745,7 +1748,7 @@
 	margin: 2px 0;
 	font-size: 24px;
 	font-weight: 700;
-	color: var( --os-fg, #1d2327 );
+	color: var( --os-my-wordpress-fg, var( --os-ui-fg, #1d2327 ) );
 }
 
 .os-my-wordpress__footprint-callout-detail {
@@ -2473,6 +2476,11 @@ summary.dm-agents__category:focus-visible {
    faces next to a detail form would leave neither enough room, and the
    whole point of the grid is that the faces are big enough to tell
    apart. */
+/* The pane scrolls, and a scroll container clips ink overflow: a field
+   flush with its edge loses the focus halo the kit paints outside the
+   border (1px ring + 4px bloom), so the brief's ring read as a top and
+   bottom line with nothing at the sides. Trade 5px of the section's
+   12px padding for a gutter inside the pane; the content does not move. */
 .dm-agents__view {
 	display: flex;
 	flex-direction: column;
@@ -2480,6 +2488,8 @@ summary.dm-agents__category:focus-visible {
 	min-height: 0;
 	overflow-y: auto;
 	gap: 12px;
+	margin-inline: -5px;
+	padding-inline: 5px;
 }
 
 .dm-agents__cast-head {

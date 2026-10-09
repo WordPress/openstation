@@ -82,6 +82,13 @@ export interface Desktop {
  * Configuration for a desktop window.
  */
 export interface WindowConfig {
+	/**
+	 * How this window lands, overriding the user's "Open windows as":
+	 * `'default'` (floating), `'maximized'`, or `'focused'` (maximized,
+	 * the desk's other windows minimized). Ignored when `initialState`
+	 * is given.
+	 */
+	openAs?: 'default' | 'maximized' | 'focused';
 	/** Unique window identifier, derived from the admin page slug. */
 	id: string;
 	/**
@@ -1117,6 +1124,14 @@ export interface NativeWindowServerEntry {
 	 * a window's tab list without re-parsing the template.
 	 */
 	tabs?: NativeWindowTabEntry[];
+	/**
+	 * Admin pages this window answers for while it is the one in
+	 * charge of its menu (`App::menu()`), each with the tab it opens.
+	 * The shell claims those URLs for the window wherever they are
+	 * clicked. Empty when the window declares no menu, or when the
+	 * opt-in that chooses it over the classic screen is off.
+	 */
+	menuPages?: Array< { id: string; page: string } >;
 }
 
 /**
@@ -1228,6 +1243,8 @@ export interface DesktopWallpaperServerEntry {
 	 * JS def when the def itself doesn't carry one.
 	 */
 	description?: string;
+	/** Empty when undeclared, which the shell reads as `'dark'`. */
+	tone?: '' | 'light' | 'dark';
 	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
@@ -2012,6 +2029,12 @@ export interface MultisiteConfig {
 /**
  * Desktop shell configuration passed from PHP via wp_localize_script.
  */
+/** What the usage feedback prompt needs; see `DesktopConfig.usageFeedback`. */
+export interface UsageFeedbackConfig {
+	/** `POST /desktop-mode/v1/feedback/usage`. */
+	restUrl: string;
+}
+
 export interface DesktopConfig {
 	/** The current admin page URL (to auto-open in the first window). */
 	currentPage: string;
@@ -2058,6 +2081,14 @@ export interface DesktopConfig {
 	 * one resolved copy per bundle, however many windows share it.
 	 */
 	nativeWindowScriptData?: NativeWindowScriptData;
+	/**
+	 * Each script dependency's payload once, keyed by handle. On the
+	 * wire every `scriptDeps` list is a list of these handles; the
+	 * shell resolves them back to {@link LazyScriptDependency} objects
+	 * at boot and on every menu refresh, so readers of `scriptDeps`
+	 * see full payloads. See `src/script-dep-payloads.ts` (GH#892).
+	 */
+	scriptDepPayloads?: Record< string, LazyScriptDependency >;
 	/**
 	 * Server-declared widgets (from `openstation_register_widget()`).
 	 * Same lifecycle story as native windows — shell syncs the
@@ -2538,12 +2569,42 @@ export interface DesktopConfig {
 	 */
 	rebrandNotice?: boolean;
 	/**
+	 * The one-time usage feedback prompt, or `null` when this user is
+	 * not owed it. The server decides: the feature is on, the user has
+	 * had OpenStation on for long enough by the `openstation_enabled_at`
+	 * stamp, and they have not answered or dismissed the
+	 * `usage-feedback` intro. See `includes/feedback/usage.php`.
+	 */
+	usageFeedback?: UsageFeedbackConfig | null;
+	/** URL of the lazy `usage-feedback` bundle, the form the prompt opens. */
+	usageFeedbackBundleUrl?: string;
+	/**
 	 * Slugs of one-time intro dialogs this user has dismissed. Shared
 	 * with the native windows' first-open intros.
 	 */
 	seenIntros?: string[];
 	/** REST base for the seen-intros surface (`…/v1/intros`). */
 	seenIntrosUrl?: string;
+	/**
+	 * Whether this site offers the first-boot shell tour (the
+	 * `openstation_show_shell_tour` filter). Whether THIS user already
+	 * had it is `seenIntros` containing `shell-tour`. See
+	 * `src/shell-tour/`.
+	 */
+	shellTour?: boolean;
+	/** Fully-qualified URL of the lazy shell-tour bundle. */
+	shellTourBundleUrl?: string;
+	/**
+	 * The first-run stamps, epoch seconds, `0` when unknown: when the
+	 * plugin was installed, when anyone on the site first enabled it,
+	 * and when this user did. Read-only; see
+	 * `includes/first-run/stamps.php`.
+	 */
+	firstRun?: {
+		installedAt?: number;
+		firstEnabledAt?: number;
+		enabledAt?: number;
+	};
 	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `openstation_default_wallpaper`. Optional — an

@@ -150,6 +150,61 @@
 	accent-color: #f252fc;
 }
 
+/*
+ * The field's label and the "too buggy" question share one grid cell,
+ * so the slot is always as tall as the taller of the two and swapping
+ * them never resizes the card. The card is centred: a height change
+ * would slide every checkbox under the pointer.
+ *
+ * The outgoing text hides its visibility only after its fade, and the
+ * incoming one shows at once, so assistive tech never meets both.
+ */
+.os-deactivation-feedback__field-head {
+	display: grid;
+	margin: 0 0 8px;
+}
+
+.os-deactivation-feedback__label,
+.os-deactivation-feedback__prompt {
+	grid-area: 1 / 1;
+	align-self: end;
+	margin: 0;
+	line-height: 1.45;
+	transition:
+		opacity 200ms ease,
+		transform 200ms ease,
+		visibility 0s linear 0s;
+}
+
+.os-deactivation-feedback__label {
+	font-size: 13px;
+	color: #6b6771;
+}
+
+.os-deactivation-feedback__prompt {
+	font-size: 13.5px;
+	font-weight: 600;
+	color: #1a1721;
+	opacity: 0;
+	transform: translateY(4px);
+	visibility: hidden;
+	transition-delay: 0s, 0s, 200ms;
+}
+
+.os-deactivation-feedback__field-head[data-asking] .os-deactivation-feedback__label {
+	opacity: 0;
+	transform: translateY(-4px);
+	visibility: hidden;
+	transition-delay: 0s, 0s, 200ms;
+}
+
+.os-deactivation-feedback__field-head[data-asking] .os-deactivation-feedback__prompt {
+	opacity: 1;
+	transform: none;
+	visibility: visible;
+	transition-delay: 0s;
+}
+
 .os-deactivation-feedback__details {
 	display: block;
 	width: 100%;
@@ -250,5 +305,12 @@
 	.os-deactivation-feedback__btn,
 	.os-deactivation-feedback__reason {
 		transition: none;
+	}
+
+	/* The label and the question still cross-fade; they just don't slide. */
+	.os-deactivation-feedback__label,
+	.os-deactivation-feedback__prompt,
+	.os-deactivation-feedback__field-head[data-asking] .os-deactivation-feedback__label {
+		transform: none;
 	}
 }

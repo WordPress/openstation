@@ -53,6 +53,7 @@ describe( 'createRestClient', () => {
 			status: 400,
 			code: 'rest_invalid',
 			message: 'Bad request',
+			serverMessage: 'Bad request',
 		} );
 	} );
 

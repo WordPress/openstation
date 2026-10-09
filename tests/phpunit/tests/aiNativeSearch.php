@@ -131,9 +131,12 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$post_id    = self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		$comment_id = self::factory()->comment->create(
 			array(
-				'comment_post_ID'  => $post_id,
-				'comment_approved' => '1',
-				'comment_content'  => 'Loved the Alcazaba at sunset, magical views.',
+				'comment_post_ID'      => $post_id,
+				'comment_approved'     => '1',
+				'comment_content'      => 'Loved the Alcazaba at sunset, magical views.',
+				'comment_author'       => 'Rocío',
+				'comment_author_email' => 'rocio@example.test',
+				'comment_author_IP'    => '192.0.2.7',
 			)
 		);
 
@@ -144,6 +147,14 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 
 		$ids = wp_list_pluck( $result['items'], 'id' );
 		$this->assertContains( $comment_id, $ids, 'Keyword search should find the unanalyzed comment.' );
+
+		// "Which readers asked about X?" needs the name the post shows; the
+		// email and IP stay with the moderation screens.
+		$match = $result['items'][ array_search( $comment_id, $ids, true ) ];
+		$this->assertSame( 'Rocío', $match['author_name'] );
+		$payload = wp_json_encode( $result );
+		$this->assertStringNotContainsString( 'rocio@example.test', $payload );
+		$this->assertStringNotContainsString( '192.0.2.7', $payload );
 	}
 
 	/**
@@ -160,6 +171,7 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 				'comment_post_ID'  => $post_a,
 				'comment_approved' => '1',
 				'comment_content'  => 'Question about the night tour please.',
+				'comment_author'   => 'Jaime',
 			)
 		);
 		self::factory()->comment->create(
@@ -178,6 +190,7 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 		$ids = wp_list_pluck( $result['items'], 'id' );
 		$this->assertContains( $on_a, $ids );
 		$this->assertCount( 1, $ids, 'Only the target post\'s comments should be returned.' );
+		$this->assertSame( 'Jaime', $result['items'][0]['author_name'] );
 	}
 
 	/**
@@ -922,5 +935,35 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 			openstation_ai_search_build_entity( 'comment', $pending ),
 			'A moderator still hydrates the pending comment.'
 		);
+	}
+
+	/**
+	 * The excerpt must show the keyword the item matched, even when it sits
+	 * past the first 300 characters — otherwise the model sees a hit that
+	 * looks irrelevant and keeps searching.
+	 *
+	 * @covers ::openstation_ai_search_excerpt
+	 */
+	public function test_excerpt_is_centred_on_the_matched_keyword() {
+		$content = str_repeat( 'Lorem ipsum dolor sit amet. ', 40 ) . 'GPU performance doubles. ' . str_repeat( 'Tail text. ', 40 );
+
+		$excerpt = openstation_ai_search_excerpt( $content, 'performance' );
+
+		$this->assertStringContainsString( 'performance', $excerpt );
+		$this->assertStringStartsWith( '…', $excerpt );
+		$this->assertLessThanOrEqual( 301, mb_strlen( $excerpt ) );
+	}
+
+	/**
+	 * Without a query, or when the keyword isn't in the text, the excerpt
+	 * still starts at the beginning.
+	 *
+	 * @covers ::openstation_ai_search_excerpt
+	 */
+	public function test_excerpt_starts_at_the_top_without_a_match() {
+		$content = 'Opening line. ' . str_repeat( 'More text. ', 60 );
+
+		$this->assertStringStartsWith( 'Opening line.', openstation_ai_search_excerpt( $content ) );
+		$this->assertStringStartsWith( 'Opening line.', openstation_ai_search_excerpt( $content, 'absent' ) );
 	}
 }

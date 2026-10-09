@@ -10,8 +10,9 @@
  * There used to be a dropdown here as well as the `+`. Two doors to
  * the same room: the dropdown created desks from templates, the `+`
  * created a blank one without asking, and a user had to know which
- * did what. Now there is the `+`, and it opens the wizard — whose
- * first step is a blank desktop, preselected, one Enter away.
+ * did what. Now there is the `+`: it makes a blank desk, lands the
+ * user on it, and runs the wizard over that — whose first step is a
+ * blank desktop, preselected, one Enter away.
  *
  * ## The install seam
  *
@@ -19,8 +20,8 @@
  * `WindowManager` and nothing else. So the shell installs them once at
  * boot, and every export below answers `false` until it has — which is
  * what lets every existing overview test build the bar it always did,
- * and lets the `+` fall back to a plain new desk in a shell that never
- * wired the wizard.
+ * and leaves the `+` at a plain new desk in a shell that never wired
+ * the wizard.
  */
 
 import type { Desktop } from '../types';
@@ -28,8 +29,8 @@ import type { WorkspaceDeps } from './manager';
 import { applyWorkspaceView, provisionWorkspace } from './manager';
 
 export interface WorkspaceOverviewDeps extends WorkspaceDeps {
-	/** Open the wizard to create a desk. */
-	openCreator: () => void;
+	/** Open the wizard to dress a freshly-created desk. */
+	openCreator: ( desktopId: string ) => void;
 	/** Open the wizard on an existing desk. */
 	openEditor: ( desktopId: string ) => void;
 }
@@ -56,14 +57,15 @@ export function isWorkspaceOverviewInstalled(): boolean {
 }
 
 /**
- * Open the wizard to create a desk. `false` when no shell has
- * installed it, which is the bar's cue to create a plain desk itself.
+ * Open the wizard over the desk the `+` just made. `false` when no
+ * shell has installed it, which leaves the user on the blank desk the
+ * bar created — the `+` on its own has always meant that.
  */
-export function createWorkspaceFromOverview(): boolean {
+export function createWorkspaceFromOverview( desktopId: string ): boolean {
 	if ( ! installed ) {
 		return false;
 	}
-	installed.openCreator();
+	installed.openCreator( desktopId );
 	return true;
 }
 

@@ -205,6 +205,34 @@ describe( 'Window — lifecycle hook firing', () => {
 		openSpy.mockRestore();
 	} );
 
+	test( 'detach opens the page an unreadable frame reported, not the one the window opened on', () => {
+		// Elementor's editor is isolated from the shell, and `src` still
+		// names the block editor "Edit with Elementor" navigated from.
+		const origin = window.location.origin;
+		handle.cleanup();
+		handle = mountWindow( baseConfig( { id: 'post-2', url: `${ origin }/wp-admin/post.php?post=2&action=edit` } ) );
+		const iframe = handle.win.iframe as HTMLIFrameElement;
+		const isolated = {
+			get location(): Location {
+				throw new DOMException( 'Blocked a frame', 'SecurityError' );
+			},
+		};
+		Object.defineProperty( iframe, 'contentWindow', { value: isolated, configurable: true } );
+		const elementor = `${ origin }/wp-admin/post.php?post=2&action=elementor`;
+		const landed = new MessageEvent( 'message', { data: { type: 'os-iframe-navigated', url: elementor }, origin } );
+		Object.defineProperty( landed, 'source', { value: isolated } );
+		window.dispatchEvent( landed );
+		const openSpy = vi.spyOn( window, 'open' ).mockImplementation( () => null );
+
+		handle.win.detach();
+
+		expect( openSpy ).toHaveBeenCalledWith( `${ elementor }&desktop_mode_classic=1`, '_blank', 'noopener' );
+		// Pointed elsewhere by the shell, the report no longer applies.
+		iframe.src = `${ origin }/wp-admin/edit.php`;
+		expect( handle.win.getCurrentUrl() ).toBe( iframe.src );
+		openSpy.mockRestore();
+	} );
+
 	test( 'detach refuses cross-origin URLs and fires nothing', () => {
 		handle.cleanup();
 		handle = mountWindow(

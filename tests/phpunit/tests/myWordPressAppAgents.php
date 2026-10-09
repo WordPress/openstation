@@ -358,6 +358,7 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertSame( 'Draft Rider', $cast['name'] );
 		$this->assertSame( 'swift', $cast['vibes'] );
 		$this->assertSame( 'Do the rounds.', $cast['instructions'] );
+		$this->assertSame( 'Do the rounds.', $cast['brief'], 'The rewrite lands in the brief, so Describe shows and edits the drafted prompt.' );
 		$this->assertSame( 'author', $cast['role'], 'A role the site does not allow is dropped, keeping the cast\'s.' );
 		$this->assertSame( array(), $cast['abilities'], 'Unknown abilities are filtered out.' );
 		$this->assertFalse( $cast['drafting'], 'The in-flight flag is lowered in the returned state.' );

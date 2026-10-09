@@ -4,10 +4,11 @@
  * Open / close lifecycle for the ⋯ menu in every window's title bar
  * (native and iframe). Built-in items: "Open on startup" (checkable),
  * optional "Open another <page>" for multi-capable pages, and — iframe
- * windows only — "Open in new window", "Reload", "Open in browser tab".
+ * windows only — "Open in new window", "Reload", "Open in classic wp-admin".
  * Plugin-registered rows (`wp.os.registerWindowAction`) are appended
  * after those on every open by {@link paintWindowActions}, as verbs
- * or as checkboxes of their own.
+ * or as checkboxes of their own. The ⋯ button's hover tooltip lists
+ * the same rows through {@link describeActionsMenu}.
  * Each free function here takes the `Window` instance as its first arg.
  */
 
@@ -22,6 +23,31 @@ import {
 	subscribeWindowActions,
 } from '../window-actions/registry';
 import type { Window } from './index';
+
+/**
+ * The labels of the rows this window's ⋯ menu offers, in menu order.
+ *
+ * Feeds the ⋯ button's tooltip, which is shown before the menu has
+ * ever opened. Built-in rows are read off the panel; plugin rows are
+ * only painted on open, so they come from the registry instead,
+ * through the same visibility and label rules `paintWindowActions()`
+ * applies.
+ */
+export function describeActionsMenu( win: Window ): string[] {
+	const panel = win.element.querySelector( '.os-window__menu-panel' );
+	if ( ! panel ) {
+		return [];
+	}
+	const labels = Array.from(
+		panel.querySelectorAll( 'os-menu-item:not(.os-window__menu-item--action)' ),
+	).map( ( row ) => row.textContent?.trim() ?? '' );
+	for ( const def of listWindowActions() ) {
+		if ( isActionVisible( def, win ) ) {
+			labels.push( resolveActionLabel( def, win ) );
+		}
+	}
+	return labels.filter( Boolean );
+}
 
 /** Toggle the title-bar actions menu open/closed. */
 export function toggleActionsMenu( win: Window ): void {

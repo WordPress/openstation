@@ -127,6 +127,7 @@ function openstation_users_window_activity_summary() {
 			unset( $person['_score'] );
 			$person = array_merge(
 				$person,
+				array( 'name' => openstation_plain_text_title( $person['name'] ) ),
 				$profiles[ $person['id'] ] ?? array(
 					'slug'  => '',
 					'roles' => array(),

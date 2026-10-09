@@ -129,8 +129,11 @@ return App::define( 'my-wordpress' )
 		)
 	)
 	// `refresh` is the framework's built-in: recompute data(), re-render.
-	// The remembered view mode lands before the first paint.
+	// The remembered view mode lands before the first paint, and so
+	// does the person a `footprint` open-time param names.
 	->mount( __NAMESPACE__ . '\mount' )
+	// The live window asked to open on someone's footprint.
+	->action( 'reopen', __NAMESPACE__ . '\reopen_action' )
 	// Navigation — parts/actions.php.
 	->action( 'go', __NAMESPACE__ . '\go_action' )
 	->action( 'back', __NAMESPACE__ . '\back_action' )

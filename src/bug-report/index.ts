@@ -9,11 +9,8 @@
  * GitHub before submitting, so we never POST on their behalf and
  * never need an OAuth token.
  *
- * Three entry points all converge here:
- *   1. The admin-bar "Report a bug" button (PHP node, dispatches
- *      `os-open-bug-report`).
- *   2. The dock system tile registered in `src/desktop.ts`.
- *   3. Future: a desktop widget. Same target, no special-casing.
+ * The System dock tile's "Report a bug" row is its front door,
+ * registered in `src/desktop.ts`.
  */
 
 import { __ } from '../i18n';

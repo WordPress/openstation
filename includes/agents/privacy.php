@@ -5,11 +5,13 @@
  * Agents carry user-attributable data on their synthetic `wp_users`
  * row (display name, login, role) and in the definition meta
  * (description, instructions, abilities, triggers, model, rate limit,
- * invocation log). One exporter + one eraser, both keyed off the
- * target email: if it matches an agent's synthetic address, the whole
- * agent is returned / removed. Human users who created agents are NOT
- * considered owners for export/erasure purposes — agents are
- * admin-managed assets that survive a human-user erasure.
+ * voice, face). One exporter + one eraser, both keyed off the target
+ * email: if it matches an agent's synthetic address, the exporter
+ * returns that definition and the eraser deletes the whole agent. The
+ * invocation log (`_desktop_mode_agent_runs`) is not exported; it goes
+ * with the agent's user row when the eraser deletes it. Human users who
+ * created agents are NOT considered owners for export/erasure purposes —
+ * agents are admin-managed assets that survive a human-user erasure.
  *
  * @package OpenStation
  */

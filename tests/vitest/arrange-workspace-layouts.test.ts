@@ -117,6 +117,38 @@ describe( 'Arrange — columns + focus', () => {
 		).toMatchObject( { windowCount: 3, cols: 3 } );
 	} );
 
+	test( 'columns and focus give a window its minimum width out of the others', async () => {
+		const wide = await manager.open( { ...openConfig( 'wide' ), minWidth: 800 } );
+		const b = await manager.open( openConfig( 'b' ) );
+		const c = await manager.open( openConfig( 'c' ) );
+
+		manager.columns();
+		// 1568 - 24 of gaps = 1544: the wide one takes 800, the other
+		// two split the 744 left.
+		expect( [ px( wide.element, 'left' ), px( wide.element, 'width' ) ] ).toEqual( [ 16, 800 ] );
+		expect( [ px( b.element, 'left' ), px( b.element, 'width' ) ] ).toEqual( [ 828, 372 ] );
+		expect( [ px( c.element, 'left' ), px( c.element, 'width' ) ] ).toEqual( [ 1212, 372 ] );
+
+		// Focus with the wide window in the stack: the lead gives up
+		// part of its 64% so the stack keeps 800.
+		manager.focus( b );
+		manager.focusLayout();
+		expect( px( b.element, 'width' ) ).toBe( 1568 - 12 - 800 );
+		expect( [ px( wide.element, 'left' ), px( wide.element, 'width' ) ] ).toEqual( [ 16 + 1568 - 800, 800 ] );
+
+		// Minimums that cannot all fit: each keeps its own, spread edge
+		// to edge inside the work area. Stack order: focusing `b` raised it.
+		for ( const w of [ wide, b, c ] ) {
+			w.config.minWidth = 600;
+		}
+		manager.columns();
+		expect( [ wide, c, b ].map( ( w ) => [ px( w.element, 'left' ), px( w.element, 'width' ) ] ) ).toEqual( [
+			[ 16, 600 ],
+			[ 16 + 484, 600 ],
+			[ 16 + 968, 600 ],
+		] );
+	} );
+
 	test( 'columns hands off to tile past four windows', async () => {
 		for ( const id of [ 'a', 'b', 'c', 'd', 'e' ] ) {
 			await manager.open( openConfig( id ) );

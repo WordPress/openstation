@@ -33,11 +33,16 @@ function mount( items: PostListItem[] ) {
 	document.body.appendChild( root );
 	const dispatch = vi.fn( async () => true );
 	const ctx = mockViewContext< ListState, ListData >( {
-		state: { page: 1, perPage: 20, search: '', status: '', orderby: 'menu_order', order: 'asc', author: [], tag: [] },
+		state: { tab: 'posts', page: 1, perPage: 20, search: '', status: '', orderby: 'menu_order', order: 'asc', author: [], tag: [] },
 		data: { list: { items, total: items.length, pages: items.length ? 1 : 0, page: 1, perPage: 20, error: '', code: '' } },
 		root,
 		extra: {
 			mode: 'pages',
+			menuTabs: [
+				{ id: 'posts', label: 'All pages' },
+				{ id: 'new', label: 'Add Page' },
+				{ id: 'atlas', label: 'Page atlas' },
+			],
 			newPostUrl: 'http://x.test/wp-admin/post-new.php?post_type=page',
 			defaultOrderby: 'menu_order',
 			defaultOrder: 'asc',
@@ -70,16 +75,17 @@ afterEach( () => {
 
 describe( 'the pages view', () => {
 	it( 'has the pages and atlas tabs, no taxonomy tabs, and reads as pages everywhere', () => {
-		const { root, ctx } = mount( [ row( 1 ), row( 2 ) ] );
-		expect( Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( tab ) => tab.textContent ) ).toEqual( [ 'All pages', 'Page atlas' ] );
+		const { root } = mount( [ row( 1 ), row( 2 ) ] );
+		expect( Array.from( root.querySelectorAll( 'os-tab' ) ).map( ( tab ) => tab.textContent ) ).toEqual( [ 'All pages', 'Add Page', 'Page atlas' ] );
 		expect( root.querySelector( '[data-os-pages-atlas]' )?.childElementCount ).toBe( 0 );
 		expect( root.querySelector( '[data-os-posts-root]' )!.classList.contains( 'desktop-mode-pages' ) ).toBe( true );
 		expect( root.querySelector( '[data-os-posts-search]' )!.getAttribute( 'placeholder' ) ).toBe( 'Search pages…' );
 		expect( root.querySelector( '.os-app-list__pager' ) ).toBeNull();
 		expect( root.querySelector( '[data-content-feed-end]' )?.textContent ).toContain( 'caught up' );
 		expect( root.querySelector( '.os-app-list__empty p' )!.textContent ).toBe( 'No pages found.' );
+		// The hero button goes where the Add Page tab goes.
 		( root.querySelector( '[data-os-posts-new]' ) as HTMLElement ).click();
-		expect( ctx.host.openUrl ).toHaveBeenCalledWith( 'http://x.test/wp-admin/post-new.php?post_type=page', 'Add New Page', 'dashicons-admin-page' );
+		expect( ( root.querySelector( 'os-tabs' ) as HTMLElement & { value: string } ).value ).toBe( 'new' );
 	} );
 
 	it( 'paints the hierarchical columns, sorted by menu order, and falls back to it when a sort is cleared', () => {

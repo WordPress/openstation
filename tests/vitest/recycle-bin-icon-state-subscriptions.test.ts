@@ -60,4 +60,32 @@ describe( 'Recycle Bin Badge Subscriptions', () => {
 		// Should subscribe to standard fixed extras
 		expect( bc.subscribe ).toHaveBeenCalledWith( 'os.comment.changed', expect.any( Function ) );
 	} );
+
+	test( 'the postMessage fast path refetches the count through the framework fetch, silently', async () => {
+		// The raw global must NOT be used: a cookie request without the
+		// REST nonce is logged out as far as WordPress is concerned, so
+		// the route answered 401 on every refresh.
+		const rawFetch = vi.fn();
+		vi.stubGlobal( 'fetch', rawFetch );
+		const osFetch = vi.fn().mockResolvedValue( {
+			ok: true,
+			json: async () => ( { count: 3 } ),
+		} );
+		( window as any ).wp.os = { fetch: osFetch };
+		( window as any ).openStationConfig = { recycleBinCount: 0 };
+
+		startRecycleBinIconState( 0, 'http://localhost/count' );
+
+		window.dispatchEvent(
+			new MessageEvent( 'message', {
+				data: { type: 'os-recycle-bin-changed', ts: Date.now() + 60_000 },
+				origin: window.location.origin,
+			} ),
+		);
+		await vi.waitFor( () => expect( osFetch ).toHaveBeenCalledTimes( 1 ) );
+
+		expect( osFetch.mock.calls[ 0 ][ 0 ] ).toBe( 'http://localhost/count' );
+		expect( osFetch.mock.calls[ 0 ][ 2 ] ).toMatchObject( { silent: true } );
+		expect( rawFetch ).not.toHaveBeenCalled();
+	} );
 } );

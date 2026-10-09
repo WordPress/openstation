@@ -336,9 +336,9 @@ describe( 'mountMobileLayer', () => {
 		layer.unmount();
 	} );
 
-	test( 'Overview on a phone is the switcher: no tile for it, and the manager lands there', () => {
+	test( 'Workspaces on a phone is the switcher: no tile for it, and the manager lands there', () => {
 		const { d, shell } = deps( [ fakeWin( 'w' ) ] );
-		const overview = navItem( 'os-overview', 'Overview' );
+		const overview = navItem( 'os-overview', 'Workspaces' );
 		overview.kind = 'control';
 		const nav = d.getNav() as NavResult;
 		nav.dock.controls.push( overview );

@@ -356,11 +356,15 @@ class Tests_OpenStation_AgentsSecurity extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The capability on one trigger kind must not gate another.
+	 * The source an invocation names is client-supplied, so a capability
+	 * configured on one trigger applies to every source: a caller lacking
+	 * the chat trigger's capability is refused when the request says
+	 * `drag` (or `send-to`) too, and never reaches the runner.
 	 *
-	 * @covers ::openstation_agent_trigger_for_source
+	 * @covers ::openstation_agent_user_can_invoke_agent
+	 * @covers ::openstation_agents_rest_invoke
 	 */
-	public function test_capability_is_scoped_to_its_trigger_kind() {
+	public function test_trigger_capability_applies_whatever_source_the_request_names() {
 		$agent = $this->create_agent();
 		openstation_agent_update(
 			$agent->ID,
@@ -370,12 +374,40 @@ class Tests_OpenStation_AgentsSecurity extends WP_UnitTestCase {
 						'kind'   => 'chat',
 						'config' => array( 'capability' => 'manage_options' ),
 					),
+					array(
+						'kind'   => 'drag',
+						'config' => array(),
+					),
 				),
 			)
 		);
 
+		$ran = false;
+		add_filter(
+			'openstation_agent_runner_generate',
+			static function () use ( &$ran ) {
+				$ran = true;
+				return array(
+					'text'           => 'ok',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
 		wp_set_current_user( self::$contributor_id );
-		$this->assertFalse( openstation_agent_user_can_invoke_agent( $agent->ID, 'chat' ) );
+		$request = new WP_REST_Request( 'POST', "/desktop-mode/v1/agents/{$agent->ID}/invoke" );
+		$request->set_param( 'id', $agent->ID );
+		$request->set_param( 'message', 'Summarise this.' );
+		$request->set_param( 'source', 'drag' );
+		$response = openstation_agents_rest_invoke( $request );
+
+		$this->assertWPError( $response );
+		$this->assertSame( 'openstation_agents_forbidden', $response->get_error_code() );
+		$this->assertFalse( $ran, 'The runner must not start for a refused invocation.' );
+		$this->assertFalse( openstation_agent_user_can_invoke_agent( $agent->ID, 'send-to' ) );
+
+		wp_set_current_user( self::$admin_id );
 		$this->assertTrue( openstation_agent_user_can_invoke_agent( $agent->ID, 'drag' ) );
 	}
 

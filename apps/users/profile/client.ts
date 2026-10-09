@@ -5,6 +5,7 @@
 
 import { copyText, formatDate } from '@openstation/app';
 import '../../../src/ui/components/os-relative-time/os-relative-time';
+import { decodeHTML } from '../../../src/utils';
 import type {
 	AppPasswordItem,
 	ProfileHost,
@@ -14,13 +15,30 @@ import type {
 	UserInsightsPayload,
 } from './types';
 
+/**
+ * Core stores these with `&` as `&amp;` and returns them as stored.
+ * Entities only, nothing stripped: the form sends the value back, so
+ * whatever a decode drops is saved as gone.
+ */
+const ENCODED_FIELDS = [ 'name', 'first_name', 'last_name', 'nickname', 'description' ] as const;
+
+function decodeRecord( user: UserEditRecord ): UserEditRecord {
+	for ( const field of ENCODED_FIELDS ) {
+		const value = user[ field ];
+		if ( typeof value === 'string' ) {
+			user[ field ] = decodeHTML( value );
+		}
+	}
+	return user;
+}
+
 /** `GET wp/v2/users/<id>?context=edit`. */
 export async function fetchUser( host: ProfileHost, id: number ): Promise< UserEditRecord > {
 	const res = await host.fetch( `wp/v2/users/${ id }?context=edit` );
 	if ( ! res.ok ) {
 		throw new Error( `[user-edit] load failed: ${ res.status }` );
 	}
-	return ( await res.json() ) as UserEditRecord;
+	return decodeRecord( ( await res.json() ) as UserEditRecord );
 }
 
 /** `PUT wp/v2/users/<id>` — core's validation and capability rules. */
@@ -42,7 +60,7 @@ export async function saveUser( host: ProfileHost, id: number, patch: UserEditPa
 		}
 		return { ok: false, error: data.code ?? `http_${ res.status }`, message: data.message, fieldErrors };
 	}
-	return { ok: true, user: ( await res.json() ) as UserEditRecord };
+	return { ok: true, user: decodeRecord( ( await res.json() ) as UserEditRecord ) };
 }
 
 /** `GET desktop-mode/v1/users/<id>/insights`. */

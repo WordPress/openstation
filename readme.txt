@@ -4,7 +4,7 @@ Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.10
+Stable tag: 1.1.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -68,7 +68,7 @@ Extend OpenStation through documented PHP and JavaScript APIs. Register windows,
 
 = External services =
 
-No external service is required for OpenStation's desktop interface. The optional AI Assistant, two user-initiated enrichment features and an optional feedback form on deactivation make the external requests described below.
+No external service is required for OpenStation's desktop interface. The optional AI Assistant, two user-initiated enrichment features, the journal on the About tab, an optional feedback form on deactivation and an optional one-time feedback form for active users make the external requests described below.
 
 **AI Assistant**
 
@@ -85,6 +85,15 @@ When the AI Assistant is enabled and a user invokes it (via Cmd+K or the slash-c
 
 When an authorized user creates a desktop shortcut to an external URL, OpenStation asks that URL for its page HTML and favicon so the shortcut can display the site's icon. The request is made from your WordPress server and sends the requested URL, the server's IP address, an OpenStation user-agent string, and normal HTTP request metadata to the operator of that site. This happens only when a user creates the shortcut. The destination site's terms and privacy policy apply.
 
+**OpenStation journal (About tab)**
+
+When a user opens the About page in OpenStation Preferences, OpenStation shows the latest posts from the OpenStation journal.
+
+* **What is sent:** a request for the public RSS feed at `https://openstation.blog/feed/`. It is made from your WordPress server with WordPress's default user-agent string, which includes your WordPress version and your site's URL, along with the server's IP address and normal HTTP request metadata. Nothing about the user who opened the page is sent.
+* **When it is sent:** only when someone opens the About page, and at most once every 30 minutes; in between, the cached copy is shown. Nothing is fetched when nobody visits About.
+* **Why it is sent:** to show the project's latest news next to the version you are running.
+* **Who provides the service:** [openstation.blog](https://openstation.blog/), the plugin's own site, operated by Automattic. Review the [WordPress.com Terms of Service](https://wordpress.com/tos/) and the [Automattic Privacy Policy](https://automattic.com/privacy/).
+
 **Deactivation feedback**
 
 When an administrator deactivates OpenStation, a dialog asks one optional question about why. Nothing is sent unless you click **Send and deactivate**; **Skip and deactivate** sends nothing, and both deactivate the plugin.
@@ -92,7 +101,16 @@ When an administrator deactivates OpenStation, a dialog asks one optional questi
 * **What is sent:** the reasons you ticked, the optional details you typed, the OpenStation, WordPress and PHP versions, your site language, whether the site is a network, how long OpenStation was installed, whether anyone on the site had turned it on (how many people, and how many days after install the first one did), whether the person deactivating had it on, the number of active plugins, and where the dialog was shown. Nothing that identifies you or your site: no URL, no site id, no email, no user name, no plugin names, and no IP address is stored. Each submission carries a random id used only to ignore an accidental retry.
 * **When it is sent:** only when you click Send in the dialog shown on deactivation. There is no background ping.
 * **Why it is sent:** to learn what did not work so it can be fixed.
-* **Who provides the service:** the request goes from your server to [openstation.blog](https://openstation.blog/), the plugin's own site, operated by Automattic. Review the [Automattic Privacy Policy](https://automattic.com/privacy/). Site owners can turn the dialog off with the `openstation_deactivation_feedback_enabled` filter.
+* **Who provides the service:** the request goes from your server to [openstation.blog](https://openstation.blog/), the plugin's own site, operated by Automattic. Review the [WordPress.com Terms of Service](https://wordpress.com/tos/) and the [Automattic Privacy Policy](https://automattic.com/privacy/). Site owners can turn the dialog off with the `openstation_deactivation_feedback_enabled` filter.
+
+**Usage feedback**
+
+After you have had OpenStation on for a week, a small card asks once whether you have two minutes to say how it is going. Answering **No thanks** sends nothing, and it never comes back. Saying yes opens a short form with three optional questions and an optional email field. Nothing is sent unless you click **Send**; **Cancel**, Escape and the close button send nothing.
+
+* **What is sent:** the answers you typed, the email address if you chose to type one (the field starts empty and is never filled in for you), your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on. Nothing that identifies your site: no URL, no site id, no user name, and no IP address is stored. Without an email the submission is anonymous. Each submission carries a random id used only to ignore an accidental retry.
+* **When it is sent:** only when you click Send in the form. There is no background ping.
+* **Why it is sent:** to learn what works and what gets in the way. An email address, when given, is used only to follow up on the feedback.
+* **Who provides the service:** the request goes from your server to [openstation.blog](https://openstation.blog/), the plugin's own site, operated by Automattic. Review the [WordPress.com Terms of Service](https://wordpress.com/tos/) and the [Automattic Privacy Policy](https://automattic.com/privacy/). Site owners can turn the prompt off with the `openstation_usage_feedback_enabled` filter.
 
 **WordPress.org plugin information**
 
@@ -133,7 +151,7 @@ Most plugin admin pages open as windows without special integration. Plugins tha
 
 = Does the plugin require an external service to function? =
 
-No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information, and offers an optional, one-click feedback form when you deactivate. See "External services" in the description.
+No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information, fetches the OpenStation journal when you open the About page, offers an optional, one-click feedback form when you deactivate, and once asks active users whether they want to share feedback. See "External services" in the description.
 
 = Does it patch WordPress core? =
 
@@ -178,6 +196,62 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.12 =
+* AI: repair the tl;dr and SEO Medic prompts, and drop dated prompting patterns
+* Agents: give Comment Concierge its thread tool back, clean up faces on a Core user delete, and fix AI docs drift
+* Agents: align get-post, get-media and the per-agent invoke gate with Core's read rules
+* WP Explorer: Drag photos and posts into an editor window again
+* Workspaces: Give each launch entry its own window back
+* Workspaces: Open the Publishing desk with the draft as the main window
+* Agents: show the copied prompt in Describe, and let the trail jump to any step
+* AI: default the output-token ceiling, fail truncated turns, and stop stuck tool loops
+* Site assistant: Open from the dock and always offer Ask AI
+* Agents: keep the brief's focus ring inside the wizard pane
+* Windows: Decode HTML entities in titles, names and user names across the shell, and fix the Orders list columns
+* Add WooCommerce order details to window titles
+* WP Explorer: List every attached image under Attached media
+* Windows: Rename 'Open in browser tab' to 'Open in classic wp-admin' and explain the ⋯ menu
+* Agents: Decode HTML entities in agent names
+* WP Explorer: Show who is editing a locked post
+* Windows: Keep a lone less-than sign in titles, names, Trash and comment excerpts
+* Feedback: Ask active users how OpenStation is going, once
+* First run: New users get a short guided tour of the desktop
+* First run: After installing, the Plugins screen and the Dashboard now show how to turn OpenStation on
+
+= 1.1.11 =
+* Overview: Replace the dock tile icon with the brand widgets glyph
+* Workspaces: Only offer a template when its plugin is active
+* Admin bar: Remove the OpenStation actions, keep only the way in
+* Workspaces: Rename Overview to Workspaces
+* Agents: Keep the chat on the latest message across status repaints
+* Workspaces: Land on the new blank desk before the wizard opens
+* Workspaces: Rename a desk by double-clicking its name
+* Chromeless: Fit the boot SPA screens edge to edge again
+* WP Explorer: Show revision titles as text, not an avatar tag
+* Fix: Let Jetpack route its own Stats and Blaze links
+* User Edit: Add a View activity footprint button to the profile sidebar
+* Fix: Jetpack Stats v2 not loading properly
+* Drafts widget: Say why suggestions failed instead of "Could not get suggestions."
+* Desktop: Make the desk readable on light wallpapers
+* Session: Restore window titles in the current admin language
+* Fix mixed-field forms for OpenStation Studio apps
+* Recycle Bin: Fix 404 error on requests
+* Prevent bottom dock scroll item clipping
+* Os-button: forward a host aria-label onto the inner button so an icon-only button has a name
+* Make corner close button visible on touch devices.
+* Workspaces: Let the wizard's step trail jump to any step
+* App runtime: open_url honours native-window URL remaps before opening an iframe
+* Os-table: a slot-shaped cell value renders a named slot the light DOM fills
+* Resolve toggle visibility and spacing on tablet screens.
+* Notes: Say why converting a note to a post failed and keep the draft reachable
+* Say why a request failed, everywhere: shared REST error, failure mapper, toast tone
+* Workspaces: Repaint the desk you land on after deleting a workspace
+* Menus: Open a window per pick, and make a window's tabs its menu
+* Agents: store an answerless run as an error row so it is never replayed as the agent's turn
+* Performance: Serialize each script dependency's payload once, not once per entry
+* Developers: Let plugins track the desktop's network requests
+* Kit: <os-facts> + <os-fact>, and the three apps that hand-rolled it
 
 = 1.1.10 =
 * Fix: drop a plugin zip into Core's upload box, not the Media Library dialog

@@ -150,7 +150,7 @@ wp.hooks.addFilter(
 );
 ```
 
-Users who don't want a desk companion hide the tile from OpenStation Preferences → **Navigation**; it opts into that list via `SystemDockItem.placeable`, like the System and Overview tiles do. There is nothing to filter out server-side — a shell whose user never switches Mio on downloads none of the simulation.
+Users who don't want a desk companion hide the tile from OpenStation Preferences → **Navigation**; it opts into that list via `SystemDockItem.placeable`, like the System and Workspaces tiles do. There is nothing to filter out server-side — a shell whose user never switches Mio on downloads none of the simulation.
 
 ---
 

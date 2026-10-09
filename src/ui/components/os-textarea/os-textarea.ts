@@ -94,9 +94,35 @@ export class OsTextarea extends Component {
 
 	private _textareaEl: HTMLTextAreaElement | null = null;
 
+	/** Value + width the box was last sized for, so re-renders that change neither skip the layout read. */
+	private _sizedFor = '';
+
+	private _resizeObserver: ResizeObserver | null = null;
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		ensureAutoId( this );
+		// Width changes rewrap the text, so the height must follow.
+		if ( typeof ResizeObserver !== 'undefined' ) {
+			this._resizeObserver ??= new ResizeObserver( () => this._syncAutosize() );
+			this._resizeObserver.observe( this );
+		}
+	}
+
+	disconnectedCallback(): void {
+		this._resizeObserver?.disconnect();
+	}
+
+	/**
+	 * A value set through the attribute (first paint, a remote sync)
+	 * never fires `input`, so size the box once that render has landed.
+	 * Without this, auto-grow's `overflow: hidden` clips preloaded text.
+	 */
+	protected requestUpdate(): void {
+		super.requestUpdate();
+		if ( this.isConnected && this._boolAttr( 'auto-grow' ) ) {
+			window.requestAnimationFrame( () => this._syncAutosize() );
+		}
 	}
 
 	protected render() {
@@ -135,6 +161,7 @@ export class OsTextarea extends Component {
 				@input=${ ( e: Event ) => this._onInput( e ) }
 				@change=${ ( e: Event ) => this._onChange( e ) }
 				@keydown=${ ( e: KeyboardEvent ) => this._onKeyDown( e ) }
+				@scroll=${ ( e: Event ) => this._syncMoreBelow( e.target as HTMLTextAreaElement ) }
 			></textarea>
 		`;
 	}
@@ -203,12 +230,48 @@ export class OsTextarea extends Component {
 		const next = Math.min( contentHeight, max );
 		ta.style.height = `${ Math.ceil( next ) }px`;
 		ta.style.overflowY = contentHeight > Math.ceil( max ) ? 'auto' : 'hidden';
+		this._sizedFor = `${ ta.clientWidth }:${ ta.value }`;
+		this._syncMoreBelow( ta );
+	}
+
+	/**
+	 * Reflect `data-more-below` on the host while capped content runs
+	 * past the bottom edge, so consumers can hint at it (a fade, a
+	 * shadow) without reaching into the shadow root.
+	 */
+	private _syncMoreBelow( ta: HTMLTextAreaElement ): void {
+		if ( ! this._boolAttr( 'auto-grow' ) ) {
+			return;
+		}
+		this.toggleAttribute(
+			'data-more-below',
+			ta.scrollTop + ta.clientHeight < ta.scrollHeight - 1,
+		);
+	}
+
+	/** Autosize after a render or a resize, skipping work when nothing that affects height changed. */
+	private _syncAutosize(): void {
+		const ta = this._textarea();
+		// Hidden (display: none, detached) boxes report zero width — size them when they show.
+		if ( ! ta || ! this._boolAttr( 'auto-grow' ) || ta.clientWidth === 0 ) {
+			return;
+		}
+		if ( this._sizedFor !== `${ ta.clientWidth }:${ ta.value }` ) {
+			this._autosize( ta );
+		}
+	}
+
+	private _textarea(): HTMLTextAreaElement | null {
+		const root = ( this.shadowRoot ?? this ) as ParentNode;
+		this._textareaEl = root.querySelector< HTMLTextAreaElement >( 'textarea' );
+		return this._textareaEl;
 	}
 
 	/** Public helper for callers that programmatically set `.value` and want autosize to re-run. */
 	public refreshAutosize(): void {
-		if ( this._textareaEl && this._boolAttr( 'auto-grow' ) ) {
-			this._autosize( this._textareaEl );
+		const ta = this._textarea();
+		if ( ta && this._boolAttr( 'auto-grow' ) ) {
+			this._autosize( ta );
 		}
 	}
 

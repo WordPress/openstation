@@ -2,6 +2,7 @@
  * Pinned-notes REST client: URL shapes, payload mapping, and the
  * typed 409 conflict error carrying the server's current copy.
  */
+import { isRestError } from '../../src/core/api-client';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	__resetNotesRestForTests,
@@ -155,8 +156,16 @@ describe( 'notes REST client', () => {
 				403,
 			),
 		);
-		await expect( updateNote( 12, { text: 'x' } ) ).rejects.toThrow(
-			/403.*openstation_notes_forbidden/,
+		const err: unknown = await updateNote( 12, { text: 'x' } ).catch(
+			( e: unknown ) => e,
 		);
+		expect( String( err ) ).toMatch( /403.*openstation_notes_forbidden/ );
+		// Typed so a caller can say why (the toast on a failed convert).
+		expect( isRestError( err ) ).toBe( true );
+		if ( isRestError( err ) ) {
+			expect( err.status ).toBe( 403 );
+			expect( err.code ).toBe( 'openstation_notes_forbidden' );
+			expect( err.serverMessage ).toBe( 'Only the note owner can change it.' );
+		}
 	} );
 } );

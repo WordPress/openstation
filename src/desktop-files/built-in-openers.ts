@@ -16,6 +16,7 @@
  */
 
 import { __ } from '../i18n';
+import { doAction, HOOKS } from '../hooks';
 import { registerOpener } from './openers';
 import { ensureDeferredStyle } from '../deferred-styles';
 import type { DesktopFile } from './file';
@@ -571,6 +572,19 @@ export function registerBuiltInFileOpeners(): void {
 					wp.getSystemTile( extras.shortcutSystemTile )?.onOpen();
 					return;
 				}
+				// The same click the legacy icon rail announces, so a
+				// listener sees it whichever renderer painted the desk.
+				// On a files-layer desk that rail is hidden and this is
+				// the only path a registered icon's click takes; the
+				// shell tour's relaunch icon, which has no window or URL
+				// to open, is answered on this action alone. Below the
+				// system-tile branch on purpose: a promoted tile is not
+				// a registered icon, the rail never announced one, and
+				// it has neither of the two targets this payload names.
+				doAction( HOOKS.DESKTOP_ICON_CLICKED, {
+					id: file.shape.ref,
+					target: extras.shortcutWindow ? 'window' : 'url',
+				} );
 				if ( extras.shortcutWindow && wp.openWindow ) {
 					wp.openWindow( extras.shortcutWindow );
 					return;
