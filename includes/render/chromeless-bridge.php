@@ -236,16 +236,16 @@ function openstation_chromeless_navigation_ping_script() {
 
 	wp_print_inline_script_tag(
 		'try{if(window.parent&&window.parent!==window){'
+		. "window.parent.postMessage({type:'os-iframe-navigated',url:window.location.href},window.location.origin);"
 		. 'var osParent=window.parent,osOrigin=window.location.origin,'
-		. 'osSend=function(type){try{osParent.postMessage({type:type,url:window.location.href},osOrigin);}catch(e){}};'
-		. "osSend('os-iframe-navigated');"
+		. "osMoved=function(){try{osParent.postMessage({type:'os-iframe-location',url:window.location.href},osOrigin);}catch(e){}};"
 		. "['pushState','replaceState'].forEach(function(name){"
 		. 'var original=window.history[name];'
 		. "if(typeof original!=='function'){return;}"
 		. 'window.history[name]=function(){var result=original.apply(this,arguments);'
-		. "osSend('os-iframe-location');return result;};"
+		. 'osMoved();return result;};'
 		. '});'
-		. "window.addEventListener('popstate',function(){osSend('os-iframe-location');});"
+		. "window.addEventListener('popstate',osMoved);"
 		. '}}catch(e){}'
 	);
 }

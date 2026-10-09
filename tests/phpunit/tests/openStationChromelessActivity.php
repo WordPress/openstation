@@ -166,6 +166,22 @@ class Tests_OpenStation_ChromelessActivity extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The block editor's first save rewrites `post-new.php` into
+	 * `post.php?post=N` with `history.replaceState()`, without a new
+	 * document. A frame the shell cannot read must still say so, or
+	 * "Copy link" shares an empty editor.
+	 *
+	 * @covers ::openstation_chromeless_navigation_ping_script
+	 */
+	public function test_an_address_change_without_navigating_is_reported() {
+		$markup = $this->navigation_ping_markup();
+
+		$this->assertStringContainsString( "type:'os-iframe-location'", $markup );
+		$this->assertStringContainsString( "['pushState','replaceState']", $markup );
+		$this->assertStringContainsString( "addEventListener('popstate'", $markup );
+	}
+
+	/**
 	 * Classic admin has no shell listening, and `window.parent` there
 	 * is the window itself.
 	 *
