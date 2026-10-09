@@ -38,6 +38,7 @@ import {
 	type DockRailMountDeps,
 	type DockRailRenderer,
 } from '../../src/dock-rail';
+import { doAction, HOOKS } from '../../src/hooks';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import type { WindowManager } from '../../src/window-manager';
 
@@ -336,6 +337,26 @@ describe( 'dock-rail taskbar renderer', () => {
 		controller.destroy();
 		expect( root.children ).toHaveLength( 0 );
 		expect( root.hasAttribute( 'data-os-dock-placement' ) ).toBe( false );
+	} );
+
+	test( 'keeps task buttons in the order the windows opened', () => {
+		const posts = makeWindow( 'edit-php', 'Posts' );
+		const media = makeWindow( 'upload-php', 'Media' );
+		let stack = [ posts, media ];
+		const deps = mountDeps( 'bottom', {
+			...makeManager(),
+			getAll: () => stack,
+		} as unknown as WindowManager );
+		const controller = taskbarDockRailRenderer.mount( deps );
+		const labels = () =>
+			[ ...deps.container.querySelectorAll( '.os-taskbar__task' ) ].map( ( t ) => t.textContent );
+
+		// Focusing Posts brings it to the top of the stack.
+		stack = [ media, posts ];
+		doAction( HOOKS.WINDOW_FOCUSED, { id: 'edit-php' } );
+		expect( labels() ).toEqual( [ 'Posts', 'Media' ] );
+
+		controller.destroy();
 	} );
 
 	test( 'hands a side rail to the icon strip', () => {

@@ -81,6 +81,7 @@ class Taskbar {
 	private menuEntries: DockEntry[] = [];
 	private trayEntries: SystemDockItem[] = [];
 	private stopClock: () => void = () => undefined;
+	private openOrder: string[] = [];
 	private readonly onDocPointer = ( event: PointerEvent ): void => {
 		const target = event.target as Node | null;
 		if (
@@ -173,12 +174,26 @@ class Taskbar {
 		this.paintTray();
 	}
 
+	/**
+	 * The windows on this desk, in the order they opened. The window
+	 * manager lists them in stacking order, which changes on every
+	 * focus, so a button would move out from under the pointer when
+	 * clicked.
+	 */
 	private windows(): DesktopWindow[] {
 		const wm = this.deps.windowManager;
 		const desk = wm.getActiveDesktopId();
-		return wm
-			.getAll()
-			.filter( ( w ) => ! w.config.desktopId || w.config.desktopId === desk );
+		const all = wm.getAll();
+		const open = new Set( all.map( ( w ) => w.id ) );
+		this.openOrder = this.openOrder.filter( ( id ) => open.has( id ) );
+		for ( const w of all ) {
+			if ( ! this.openOrder.includes( w.id ) ) {
+				this.openOrder.push( w.id );
+			}
+		}
+		return all
+			.filter( ( w ) => ! w.config.desktopId || w.config.desktopId === desk )
+			.sort( ( a, b ) => this.openOrder.indexOf( a.id ) - this.openOrder.indexOf( b.id ) );
 	}
 
 	private paintTasks(): void {
