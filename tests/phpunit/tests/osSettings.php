@@ -1053,6 +1053,21 @@ class Tests_OpenStation_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A desktop theme's wallpaper is registered as
+	 * `desktop-theme/<theme>/<id>`; folding the slashes away stored an
+	 * id no wallpaper answered to.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_theme_wallpaper_ids() {
+		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => 'desktop-theme/acme-neon/Dusk Sky' ) );
+		$this->assertSame( 'desktop-theme/acme-neon/dusksky', $clean['wallpaper'] );
+
+		$clean = openstation_sanitize_os_settings( array( 'wallpaper' => '///' ) );
+		$this->assertSame( openstation_default_os_settings()['wallpaper'], $clean['wallpaper'] );
+	}
+
+	/**
 	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_default_includes_empty_wallpaper_settings() {

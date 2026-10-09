@@ -183,6 +183,15 @@ function openstation_register_assets() {
 		array( 'os-variables', 'dashicons' ),
 		$built_version( 'assets/css/dock.css' )
 	);
+	// The Taskbar rail renderer. Scoped to the rail it stamps, so it is
+	// inert under the icon strip; loaded with the dock because the
+	// renderer can be picked live.
+	wp_register_style(
+		'os-dock-taskbar',
+		OPENSTATION_URL . 'assets/css/dock-taskbar.css',
+		array( 'os-dock' ),
+		$built_version( 'assets/css/dock-taskbar.css' )
+	);
 	wp_register_style(
 		'os-dock-peek',
 		OPENSTATION_URL . 'assets/css/dock-peek.css',

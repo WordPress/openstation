@@ -81,6 +81,18 @@ function jitterSeed( note: Note ): number {
 }
 
 /**
+ * Flag a read-only note body whose text runs past the paper, so
+ * notes.css can fade the last line into "keep scrolling". The
+ * editable side gets the same flag from `<os-textarea auto-grow>`.
+ */
+function syncMoreBelow( body: HTMLElement ): void {
+	body.toggleAttribute(
+		'data-more-below',
+		body.scrollTop + body.clientHeight < body.scrollHeight - 1,
+	);
+}
+
+/**
  * The `post` glyph from `@wordpress/icons`, inlined. Marks the
  * "Convert to post" affordance. `fill` inherits from the button's ink
  * color (see notes.css).
@@ -663,6 +675,8 @@ export class NoteController {
 		const body = document.createElement( 'div' );
 		body.className = 'os-pinned-note__body';
 		body.textContent = this.note.text;
+		body.addEventListener( 'scroll', () => syncMoreBelow( body ), { passive: true } );
+		window.requestAnimationFrame( () => syncMoreBelow( body ) );
 
 		const chip = document.createElement( 'div' );
 		chip.className = 'os-pinned-note__attribution';
@@ -768,9 +782,10 @@ export class NoteController {
 		} else {
 			const body = this.paperEl.querySelector(
 				'.os-pinned-note__body',
-			);
+			) as HTMLElement | null;
 			if ( body ) {
 				body.textContent = note.text;
+				syncMoreBelow( body );
 			}
 		}
 	}

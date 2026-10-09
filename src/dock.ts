@@ -25,6 +25,7 @@ import { tryOpenExternalUrl } from './external-url';
 import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import {
 	resolveNativeUrlRemap,
+	resolveNativeUrlRemapTarget,
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
@@ -2339,9 +2340,12 @@ export class Dock {
 		this.bindPrewarmDwell( tile, () => {
 			// A URL the native replacement is in charge of warms THAT
 			// window; the iframe page it stands for would never open.
-			const nativeId = resolveNativeUrlRemap( item.url );
-			if ( nativeId ) {
-				this.prewarmNativeWindow( nativeId );
+			// With the params the click will open it with: Comments opens
+			// `{ post: 0 }`, Plugins `{ tab: 'installed' }`, and a warm is
+			// only taken by an open with matching params.
+			const target = resolveNativeUrlRemapTarget( item.url );
+			if ( target ) {
+				this.prewarmNativeWindow( target.id, target.params );
 				return;
 			}
 			// Cross-origin URLs open in a browser tab — no iframe to warm.
@@ -2436,16 +2440,23 @@ export class Dock {
 	 * bundles and, for an app, sends its first `mount` ahead of the
 	 * open. An open window has nothing to warm; the click will focus it.
 	 */
-	private prewarmNativeWindow( id: string ): void {
+	private prewarmNativeWindow( id: string, params?: Record< string, string | number | boolean > ): void {
 		if ( this.windowManager.getById( id ) ) {
 			return;
 		}
 		const os = (
 			window as unknown as {
-				wp?: { os?: { prewarmWindow?: ( windowId: string ) => Promise< boolean > } };
+				wp?: {
+					os?: {
+						prewarmWindow?: (
+							windowId: string,
+							opts?: { params?: Record< string, string | number | boolean > },
+						) => Promise< boolean >;
+					};
+				};
 			}
 		).wp?.os;
-		void os?.prewarmWindow?.( id );
+		void ( params ? os?.prewarmWindow?.( id, { params } ) : os?.prewarmWindow?.( id ) );
 	}
 
 	private openPage( item: DockItem ): void {

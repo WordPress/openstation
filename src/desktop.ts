@@ -819,7 +819,10 @@ export interface OpenStationPublicApi {
 	 * not an app, or one warmed a moment ago (a warm stays good for
 	 * ~30 s, and is taken once).
 	 */
-	prewarmWindow: ( id: string ) => Promise< boolean >;
+	prewarmWindow: (
+		id: string,
+		opts?: { params?: Record< string, string | number | boolean > },
+	) => Promise< boolean >;
 	/**
 	 * Make `<os-*>` tags upgrade, fetching the component kit if the
 	 * page doesn't already have them.
@@ -2314,6 +2317,7 @@ function init(): void {
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
 	osSettings.apply();
+	osSettings.applyWidgets = ( ids ) => widgetLayer?.setEnabledIds( ids );
 
 	// Read the current preference whenever a user opens a window.
 	manager.openWindowsAs = () => osSettings.state.openWindowsAs;
@@ -5220,7 +5224,6 @@ function init(): void {
 	// ("Take the tour", "Reset what's-new dialogs"). Steps advance on
 	// the real events; the shell only lends the tour its own
 	// entry points so the lazy bundle never reads shell module state.
-	let tourMioSpot: { x: number; y: number } | null = null;
 	installShellTour( {
 		config,
 		windowManager: manager,
@@ -5256,28 +5259,10 @@ function init(): void {
 				notifyPaletteVisibility( palette.id, false );
 			}
 		},
-		// Mío walks the tour, summoned for it: on screen without touching
-		// the user's saved preference, and handed back to that preference
-		// when the tour ends. Not on a phone, where Mío never boots.
-		mio: {
-			size: () =>
-				modeController.api.isMobile() ? 0 : mioApi.getConfig().appearance.radius * 2,
-			summon: () => {
-				// The bundle loads on a first summon, so Mío arrives after
-				// the first card; send it to wherever the tour has asked
-				// for by then.
-				void mio.summon().then( () => mio.setAnchor( tourMioSpot ) );
-			},
-			follow: ( spot ) => {
-				tourMioSpot = spot;
-				mio.setAnchor( spot );
-			},
-			release: () => {
-				tourMioSpot = null;
-				mio.setAnchor( null );
-				mio.dismiss();
-			},
-		},
+		// A small drawing of Mío on every card; the companion itself is
+		// not touched. The tour never runs on a phone, where Mío never
+		// boots.
+		mio: true,
 		refreshDesktopIcons: spendMenuRefresh,
 		// The assistant is a modal with a full-screen backdrop, so its
 		// root element would be an anchor with no room beside it: the

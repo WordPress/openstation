@@ -11,6 +11,16 @@
  * stuck. There is no scrim: the snap card asks the user to drag a
  * window, so the desk has to be live underneath.
  *
+ * ## Quiet on purpose
+ *
+ * The cards point with their tails and leave what they point at alone
+ * (`highlight="none"`): most of it already uses the accent to say what
+ * is selected, and a ring of the same colour around it marked nothing.
+ * The only colour the tour brings is Mío, small, peeking over the top
+ * of each card and looking at the thing it is about. Mío on the card is
+ * a drawing, not the companion: the tour neither switches the
+ * companion on nor summons it, and leaves the user's choice alone.
+ *
  * ## It takes its entry points, not the shell
  *
  * This module ships in its own lazy bundle (`shell-tour[.min].js`),
@@ -42,6 +52,7 @@ import {
 import { __, sprintf } from '../i18n';
 import { addAction, HOOKS, removeAction } from '../hooks';
 import { trackedFetch } from '../tracked-fetch';
+import { MIO_PEEK_SVG } from '../mio/icon';
 
 import {
 	SHELL_TOUR_DONE_SLUG,
@@ -131,17 +142,12 @@ export interface ShellTourDeps {
 	/** Closes the assistant palette. */
 	closePalette: () => void;
 	/**
-	 * Mío, walking the tour alongside the cards, which become its speech
-	 * balloons. Optional: without it the cards are plain. `size` is Mío's
-	 * body diameter, known before it is on screen, so the first card
-	 * leaves room for it before it has arrived; 0 means no Mío here.
+	 * Whether Mío lives on this desk. True puts the small drawing of it
+	 * on every card; the companion itself is never touched. Absent or
+	 * false (the phone layer, a build without Mío) leaves the cards
+	 * plain.
 	 */
-	mio?: {
-		size: () => number;
-		summon: () => void;
-		follow: ( point: { x: number; y: number } | null ) => void;
-		release: () => void;
-	};
+	mio?: boolean;
 	/**
 	 * Rebuild the desktop icons from a fresh payload. The relaunch icon
 	 * is a server registration, so this is how it appears after a skip
@@ -181,14 +187,6 @@ interface StepDef {
 	primary: string | ( () => string );
 	/** Which side of the anchor the card takes; the coachmark decides when unset. */
 	placement?: OsCoachmarkPlacement;
-	/**
-	 * `false` for a card Mío cannot stand beside. The closing card sits
-	 * under the assistant, a body-level modal whose backdrop covers the
-	 * whole shell, and Mío lives inside the shell's stacking context:
-	 * no z-index puts it above that backdrop, so a balloon there would
-	 * point its tail at an empty gap.
-	 */
-	speaker?: boolean;
 	secondary: string;
 	anchor: () => Element | null;
 	/** "Do it for me". Returns true when it advanced the step itself. */
@@ -265,6 +263,23 @@ function paragraph( text: string ): HTMLParagraphElement {
 	return p;
 }
 
+/**
+ * Mío, small, for the card's `peek` slot. One node for the whole tour,
+ * re-slotted on every card, so it pops up again with each step rather
+ * than being rebuilt. The markup is a module constant, never user data.
+ */
+function mioPeek(): HTMLElement {
+	const el = document.createElement( 'span' );
+	el.slot = 'peek';
+	el.className = 'os-shell-tour__mio';
+	el.setAttribute( 'aria-hidden', 'true' );
+	el.style.display = 'block';
+	el.style.width = '36px';
+	el.style.height = '36px';
+	el.innerHTML = MIO_PEEK_SVG;
+	return el;
+}
+
 /** Is a tour on screen right now? */
 export function isShellTourRunning(): boolean {
 	return current !== null;
@@ -285,15 +300,9 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	const { signal } = controller;
 	const mark = document.createElement( 'os-coachmark' ) as OsCoachmark;
 	mark.className = 'os-shell-tour';
-	// Mío speaks the cards. The balloon picks a spot beside itself, across
-	// from the highlighted control so Mío never stands in front of it,
-	// and reports it; Mío walks there. Sized before Mío is on screen, so
-	// the first card already knows where Mío will stand when it lands.
-	const mio = deps.mio && deps.mio.size() > 0 ? deps.mio : null;
-	const speakerSize = mio ? String( mio.size() ) : '';
-	if ( speakerSize ) {
-		mark.setAttribute( 'speaker-size', speakerSize );
-	}
+	// The tail does the pointing; what it points at keeps its own look.
+	mark.setAttribute( 'highlight', 'none' );
+	const peek = deps.mio ? mioPeek() : null;
 	( deps.host ?? document.body ).appendChild( mark );
 
 	let index = 0;
@@ -368,7 +377,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			doIt: () => {
 				if ( layoutShown ) {
 					// Done with it: Preferences would otherwise stand in front
-					// of every card after this one, and of Mío beside them.
+					// of every card after this one.
 					// Closed even when the user had it open already, because
 					// that is the common case ("Take the tour" lives inside
 					// it); it applies settings as they change, so nothing is
@@ -499,7 +508,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			// in view; centred when the assistant is not up.
 			anchor: () => deps.findAssistant?.() ?? null,
 			placement: 'bottom',
-			speaker: false,
 			doIt: () => true,
 		},
 	];
@@ -531,12 +539,7 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 		} else {
 			mark.removeAttribute( 'placement' );
 		}
-		if ( speakerSize && false !== step.speaker ) {
-			mark.setAttribute( 'speaker-size', speakerSize );
-		} else {
-			mark.removeAttribute( 'speaker-size' );
-		}
-		mark.replaceChildren( ...step.body() );
+		mark.replaceChildren( ...( peek ? [ peek ] : [] ), ...step.body() );
 		mark.anchor = step.anchor();
 		mark.setAttribute( 'open', '' );
 	};
@@ -642,11 +645,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			if ( current === handle ) {
 				current = null;
 			}
-			// A restart hands Mío straight to the next run, so letting it
-			// go here would only flicker it off and on again.
-			if ( reason !== 'restart' ) {
-				mio?.release();
-			}
 			if ( reason === 'done' || reason === 'skip' || reason === 'escape' ) {
 				void recordOutcome( deps, reason === 'done' );
 				// The user is finished with the tour, however they said so.
@@ -725,19 +723,6 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	);
 	mark.addEventListener( 'os-coachmark-secondary', () => handle.end( 'skip' ), { signal } );
 	mark.addEventListener( 'os-coachmark-dismiss', () => handle.end( 'escape' ), { signal } );
-
-	// ---- Mío ---------------------------------------------------------
-	if ( mio ) {
-		// Every place the balloon puts its speaker, Mío goes. The card
-		// reports a spot only when it changes, so this is one call per
-		// step (plus any move of the anchor), not one per frame.
-		mark.addEventListener(
-			'os-coachmark-speaker',
-			( e ) => mio.follow( ( e as CustomEvent< { x: number; y: number } > ).detail ),
-			{ signal },
-		);
-		mio.summon();
-	}
 
 	paint();
 	return handle;

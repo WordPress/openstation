@@ -31,7 +31,9 @@ import { hasWindowReveal, WINDOW_REVEAL_NONE } from '../reveals/registry';
 // else. Duplicating the swatch ids here would defeat the point, since
 // the list is filterable and the whole check is "does the site still
 // offer this one?".
-import { getAccents } from '../settings/constants';
+import { CUSTOM_ACCENT_ID, getAccents } from '../settings/constants';
+import { get as getWallpaper } from '../wallpapers/registry';
+import { get as getWidget } from '../widgets/registry';
 import type { RecommendedOsSettings } from './types';
 
 /** Closed enums, keyed by the OS-settings field they belong to. */
@@ -44,7 +46,15 @@ const ENUMS: Record< string, readonly string[] > = {
 };
 
 /** Fields whose validity is a runtime registry lookup, not an enum. */
-const SLUG_FIELDS = [ 'dockRailRenderer', 'windowReveal', 'accent' ] as const;
+const SLUG_FIELDS = [
+	'dockRailRenderer',
+	'windowReveal',
+	'accent',
+	'wallpaper',
+] as const;
+
+/** Mirrors `OPENSTATION_DESKTOP_THEME_WALLPAPER_PREFIX`. */
+const THEME_WALLPAPER_PREFIX = 'desktop-theme/';
 
 /**
  * Numeric fields, with the range the sanitizer clamps into. Mirrors
@@ -62,6 +72,24 @@ const INT_FIELDS: Record< string, { min: number; max: number } > = {
 /** Slug charset — mirrors PHP's `sanitize_key()`. */
 const SLUG_PATTERN = /^[a-z0-9_-]+$/;
 
+/** Colour fields: six-digit hex, the shape the custom accent stores. */
+const HEX_FIELDS = [ 'accentColor' ] as const;
+const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Maps of ids to a closed set, merged into the user's own map at apply
+ * time. Mirrors the `map` grammar.
+ */
+const MAP_FIELDS: Record< string, readonly string[] > = {
+	navPlacement: [ 'rail', 'desktop', 'both', 'hidden' ],
+};
+
+/** Lists of registry ids. Mirrors the `ids` grammar. */
+const LIST_FIELDS = [ 'widgets' ] as const;
+
+/** Registry ids may be namespaced, so the slash is allowed. */
+const ID_PATTERN = /^[A-Za-z0-9_/-]{1,128}$/;
+
 /**
  * Every OS-settings key a theme may recommend, in a stable order.
  * Exported so a UI can describe what an "Apply recommended layout and
@@ -72,7 +100,10 @@ const SLUG_PATTERN = /^[a-z0-9_-]+$/;
 export const RECOMMENDED_OS_SETTINGS_KEYS: readonly string[] = [
 	...Object.keys( ENUMS ),
 	...SLUG_FIELDS,
+	...HEX_FIELDS,
 	...Object.keys( INT_FIELDS ),
+	...Object.keys( MAP_FIELDS ),
+	...LIST_FIELDS,
 ];
 
 /**
@@ -104,6 +135,12 @@ export function sanitizeRecommendedOsSettings(
 			out[ key ] = value;
 		}
 	}
+	for ( const key of HEX_FIELDS ) {
+		const value = source[ key ];
+		if ( typeof value === 'string' && HEX_PATTERN.test( value ) ) {
+			out[ key ] = value.toLowerCase();
+		}
+	}
 	for ( const [ key, range ] of Object.entries( INT_FIELDS ) ) {
 		const value = source[ key ];
 		if ( typeof value === 'number' && Number.isFinite( value ) ) {
@@ -114,7 +151,33 @@ export function sanitizeRecommendedOsSettings(
 		}
 	}
 
-	return { ...out, ...ints } as RecommendedOsSettings;
+	const maps: Record< string, Record< string, string > > = {};
+	for ( const [ key, allowed ] of Object.entries( MAP_FIELDS ) ) {
+		const value = source[ key ];
+		if ( ! value || typeof value !== 'object' || Array.isArray( value ) ) {
+			continue;
+		}
+		const map: Record< string, string > = {};
+		for ( const [ id, placement ] of Object.entries( value ) ) {
+			if ( SLUG_PATTERN.test( id ) && typeof placement === 'string' && allowed.includes( placement ) ) {
+				map[ id ] = placement;
+			}
+		}
+		if ( Object.keys( map ).length > 0 ) {
+			maps[ key ] = map;
+		}
+	}
+	const lists: Record< string, string[] > = {};
+	for ( const key of LIST_FIELDS ) {
+		const value = source[ key ];
+		if ( Array.isArray( value ) ) {
+			lists[ key ] = [ ...new Set( value.filter(
+				( id ): id is string => typeof id === 'string' && ID_PATTERN.test( id ),
+			) ) ];
+		}
+	}
+
+	return { ...out, ...ints, ...maps, ...lists } as RecommendedOsSettings;
 }
 
 /**
@@ -133,8 +196,22 @@ export function sanitizeRecommendedOsSettings(
  */
 export function resolveRecommendedOsSettings(
 	recommended: RecommendedOsSettings | undefined | null,
+	themeSlug?: string,
 ): RecommendedOsSettings {
 	const clean = sanitizeRecommendedOsSettings( recommended );
+	// A theme names its own wallpaper by the id in its manifest; the
+	// registry knows it under the theme's prefix.
+	if ( typeof clean.wallpaper === 'string' ) {
+		const candidates = themeSlug
+			? [ `${ THEME_WALLPAPER_PREFIX }${ themeSlug }/${ clean.wallpaper }`, clean.wallpaper ]
+			: [ clean.wallpaper ];
+		const id = candidates.find( ( c ) => getWallpaper( c ) !== undefined );
+		if ( id ) {
+			clean.wallpaper = id;
+		} else {
+			delete clean.wallpaper;
+		}
+	}
 	if (
 		typeof clean.dockRailRenderer === 'string' &&
 		getDockRailRenderer( clean.dockRailRenderer ) === undefined
@@ -158,6 +235,34 @@ export function resolveRecommendedOsSettings(
 		! getAccents().some( ( a ) => a.id === clean.accent )
 	) {
 		delete clean.accent;
+	}
+	// A widget only counts if something is registered under it. A list
+	// that named widgets and kept none is dropped rather than read as
+	// "an empty desk", which only `[]` itself means.
+	if ( clean.widgets && clean.widgets.length > 0 ) {
+		const widgets = clean.widgets.filter( ( id ) => getWidget( id ) !== undefined );
+		if ( widgets.length > 0 ) {
+			clean.widgets = widgets;
+		} else {
+			delete clean.widgets;
+		}
+	}
+	// A colour becomes the swatch that already wears it, or the custom
+	// accent. Either way it lands on the two settings the picker owns.
+	if ( typeof clean.accentColor === 'string' ) {
+		if ( typeof clean.accent !== 'string' ) {
+			const hex = clean.accentColor;
+			const swatch = getAccents().find(
+				( a ) => a.value.toLowerCase() === hex,
+			);
+			if ( swatch ) {
+				clean.accent = swatch.id;
+			} else {
+				clean.accent = CUSTOM_ACCENT_ID;
+				clean.customAccent = hex;
+			}
+		}
+		delete clean.accentColor;
 	}
 	return clean;
 }

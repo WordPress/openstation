@@ -386,6 +386,16 @@ the Posts table, the Trash, file tiles, every dialog — read the
 `--os-ui-*` palette. A theme that sets only the shell tokens produces a
 dark frame around a white page.
 
+One thing to know about `--os-ui-accent` before reading the table: in
+the OpenStation palette it marks **state** and nothing else — a checked
+control, the sidebar row you are on, the dock dividers, icons. Every
+other place a theme might expect the accent (a selected card's ring,
+the segmented control's key, a filter chip, the assistant's chrome, a
+coachmark) reads it through a literal "how much" token listed further
+down, which the OpenStation palette answers with `0%` or `0px` and
+Legacy with the old look. Turn those up to bring the accent back; the
+kit's own stylesheets never hard-wire it to a decorative surface.
+
 | Token | Role |
 |---|---|
 | `--os-ui-surface` | Cards, panels, table rows |
@@ -537,6 +547,18 @@ A dark theme's minimum viable body palette:
 }
 ```
 
+### Bevels, wells and selected rows
+
+Four parts of the kit carry a shape a theme may need to change with the
+palette:
+
+| Token | Role |
+|---|---|
+| `--os-ui-button-shadow`, `--os-ui-button-shadow-active` | An `<os-button>` at rest and held down. Two pairs of inset shadows are a raised bevel and the same bevel pressed. |
+| `--os-ui-button-press-transform`, `--os-ui-button-font-weight` | What a held button does (default `translateY( 1px )`), and its label weight (default `500`). |
+| `--os-ui-text-field-bg`, `--os-ui-text-field-border`, `--os-ui-text-field-shadow` | The surface of `<os-text-field>` and `<os-textarea>`: by default the window's own colour, a 1px border and no shadow. A sunken white well is `#fff`, `0` and an inset bevel. Set `--os-ui-focus-ring-field` to the same bevel to keep it while the field has focus. |
+| `--os-ui-tab-selected-fg` | The label on the selected row of a vertical `<os-tabs>`, for a `--os-ui-tab-fill` dark enough to need light text. |
+
 ### The holographic tokens
 
 The kit has one more family, and it is the one that decides how a
@@ -564,6 +586,7 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 | `--os-ui-cg-chip-accent`, `--os-ui-cg-chip-border-active`, `--os-ui-cg-chip-fill-active` | How much of the accent an on Content Graph filter chip takes (its edge, wash and label, each mixed towards a neutral), the edge it mixes towards, and a flat fill under the wash. The OpenStation palette answers `0%`, a Starlight edge and the darkest fill on the row, so an on chip reads like the selected theme card in Preferences; Legacy answers `100%`, `#8c8f94` and `transparent`. |
 | `--os-ui-cg-chip-border` | The edge of an off chip, the one a user has to find again to undo a filter. It has its own token because the palette's plain border is the toolbar's own colour, so a chip drawn with it has no outline. The OpenStation palette answers its strong border grey; Legacy `#dcdcde`. |
 | `--os-ui-cg-chip-count-bg`, `--os-ui-cg-chip-count-fg`, `--os-ui-cg-chip-count-bg-active`, `--os-ui-cg-chip-count-fg-active` | The count pill and its numerals, on an off chip and on an on chip. The OpenStation palette answers the strong border grey with Starlight numerals on both, because muted numerals on that grey land at 4.0:1, under what 12px text needs; Legacy answers `#fff` off and 70% white on, with numerals that inherit the chip's colour. |
+| `--os-ui-coachmark-ring`, `--os-ui-coachmark-action-bg`, `--os-ui-coachmark-action-fg` | The coachmark's ring around what it points at, and its primary button. Unset, they are neutral (the card's text colour at 45%; the card's text and surface swapped) in every theme, Legacy included: the coachmark arrived after Legacy was collected and has no pre-brand look to return to. `--os-ui-coachmark-peek-reveal` is how much of a `peek` figure shows above the card's top edge, `23px`. |
 | `--os-ui-tab-fill`, `--os-ui-tab-radius`, `--os-ui-tab-inset` | The selected row's own surface and shape: a flat fill under the wash, its corner radius, and how far it sits off the sidebar's edges. The OpenStation palette and Legacy answer `transparent`, 0 and 0, the full-bleed row an edge can sit on; a fill with a radius and an inset makes it a lifted pill. |
 | `--os-ui-swatch-ring-width`, `--os-ui-swatch-lift` | How a chosen `<os-swatch>` tile (and the theme and layout cards in Preferences) is marked: the width of its accent ring, and a lift (stroke plus shadow) drawn with it. The OpenStation palette answers `0px` and a lift; Legacy `2px` and none. |
 | `--os-ui-swatch-badge-bg` | The disc with a tick in the corner of a chosen tile. Starlight by default; `transparent` removes the badge. |
@@ -689,6 +712,30 @@ Read `assets/css/variables.css` for the full set.
 > [`recommendedOsSettings.windowRadius`](#recommended-os-settings) —
 > that sets their preference once, on first activation, and leaves it
 > theirs to change.
+
+#### Window frame and title bar
+
+The frame and the title bar have metrics as well as colours, and an
+era is mostly its metrics: a 3px bevel, an 18px bar, 16×14 controls.
+Each of these defaults to the value the shell always used.
+
+| Token | Role |
+|---|---|
+| `--os-window-border-width` | The frame's width. A [`WINDOW_FRAME`](#textures) border-image paints in the border area, so a 3px bevel needs a 3px border. Default `1px`. |
+| `--os-titlebar-padding`, `--os-titlebar-gap` | The bar's padding and the gap between its parts. Default `0 8px` and `8px`. |
+| `--os-titlebar-font-size`, `--os-titlebar-font-weight`, `--os-titlebar-letter-spacing` | The title's type. Default `14px`, `500`, `normal`. |
+| `--os-titlebar-title-align` | `start` or `center`, within the space the controls leave. |
+| `--os-titlebar-title-position`, `-left`, `-translate`, `-max-width` | A title centred on the whole bar: `absolute`, `50%`, `-50% 0`, and a width that clears the controls. |
+| `--os-titlebar-title-bg`, `--os-titlebar-title-padding` | A plate behind the title, for a bar whose artwork runs under it (stripes that stop either side of the title). |
+| `--os-titlebar-btn-width`, `-height`, `-icon-size` | The controls (and the screen-meta buttons). Default `30px`, `30px`, `14px`. |
+| `--os-titlebar-btn-press-transform` | What a held control does. Default `scale( 0.9 )`; `none` for a face that has its own [pressed texture](#textures). |
+| `--os-titlebar-controls-order` | `-1` puts the cluster at the leading edge. |
+| `--os-titlebar-{minimize,maximize,fullscreen,close}-order` | The order of the four controls inside the cluster. |
+| `--os-titlebar-{minimize,maximize,fullscreen}-display` | `none` takes a control off the bar. That removes one way to reach the action (double-clicking the title still maximizes), so it is a theme's deliberate choice and never a default. |
+| `--os-titlebar-close-gap` | Space before the close control. |
+| `--os-titlebar-activity-display` | `none` hides the [status ring](#the-window-controls-sit-on-nothing). |
+| `--os-titlebar-meta-btn-radius`, `--os-titlebar-meta-icon-size` | The screen-meta buttons' corner and glyph. |
+| `--os-resize-top-size` | The two top corner resize handles, which sit above the title bar. Defaults to `--os-resize-size` (20px). A title bar that puts a control in a corner shrinks them (to `0px`, or to clear the control) so the control stays clickable; the bottom corners keep their size. |
 
 ```json
 "tokens": {
@@ -902,6 +949,112 @@ All four are **declared by the palette**, so a theme that ignores them
 keeps the OpenStation dock; the pre-brand white literals survive only
 as the `var()` fallbacks in the consuming rules.
 
+#### Dock shape
+
+The bottom dock is a floating pill by default. Its geometry is
+tokenized so a theme can draw a different object along the same edge,
+a full-width bar flush with the floor for instance. The work area
+measures the rail's real box, so windows keep clear of whatever shape
+it takes.
+
+| Token | Role |
+|---|---|
+| `--os-dock-floating-offset`, `-width`, `-max-width`, `-radius`, `-padding`, `-gap` | The pill: its distance from the floor, width, cap, corner, padding and tile gap. A bar is `0`, `100%`, `100%`, `0`. |
+| `--os-dock-floating-backdrop` | Its `backdrop-filter`. `none` for an opaque bar. |
+| `--os-dock-floating-justify` | Where the tiles sit: `safe center` by default, `start` for a bar that reads from the left. |
+| `--os-dock-floating-track-padding`, `--os-dock-floating-pinned-padding` | Padding around the tiles and around the system tiles. |
+| `--os-dock-pinned-bg`, `--os-dock-pinned-shadow` | A well the system tiles sit in. |
+| `--os-dock-item-size`, `--os-dock-item-radius` | A tile's size and corner. Default `40px` and `10px`. |
+| `--os-dock-item-hover-transform`, `--os-dock-item-press-transform` | What a tile does under the pointer and when held. `none` for a key that does not move. |
+| `--os-dock-active-indicator` | The marks under a running tile. Defaults to `--os-dock-item-outline`; `transparent` when the [`DOCK_ITEM_FOCUSED`](#textures) face already says it. |
+| `--os-dock-separator-width`, `-height`, `-margin`, `-bg`, `-shadow` | The line between zones. An etched groove is a flat `-bg` and a highlight in `-shadow`. |
+| `--os-dock-exit-radius`, `--os-dock-exit-gap`, `--os-dock-exit-hover-transform` | The way-out tile's shape, its gap, and its hover lean. |
+| `--os-tooltip-padding`, `--os-tooltip-font-size`, `--os-tooltip-border`, `--os-tooltip-radius`, `--os-tooltip-shadow` | The dock tooltip's shape, next to its colours above. |
+
+For a different rail altogether (a Start menu and a button per window)
+recommend the [Taskbar renderer](dock-customization.md#the-built-in-renderers).
+
+#### The dock flyout
+
+The panel a dock tile opens reads its colours from the `--os-cn-*`
+tokens listed in the [JavaScript reference](javascript-reference.md).
+Its shape and type are tokens too, so a theme can turn the glass card
+into a plain menu:
+
+| Token | Role |
+|---|---|
+| `--os-cn-font`, `--os-cn-font-size` | The panel's family and its row size. Default `inherit` and `13px`. |
+| `--os-cn-title-size`, `--os-cn-title-weight` | The head's title. Default `14px` and `600`. |
+| `--os-cn-backdrop` | The panel's `backdrop-filter`. `none` for an opaque menu. |
+| `--os-cn-spotlight`, `--os-cn-sheen` | The glow that follows the pointer and the sweep on open. `none` turns each off. |
+| `--os-cn-row-radius` | A row's corner. Default `9px`. |
+| `--os-cn-head-icon-radius`, `--os-cn-head-icon-fill`, `--os-cn-head-icon-shadow` | The plate behind the head's icon. Fill and shadow default to `--os-cn-row-fill` and `--os-ui-holo-glow`; `none` drops the plate. |
+| `--os-cn-orbit`, `--os-cn-orbit-halo`, `--os-cn-orbit-halo-hover` | The dot before each submenu row and its ring. `currentColor` makes the dot follow the row's ink. |
+
+The head shows the theme's `APP:<menu>` icon when it declares one, the
+same art as the tile.
+
+#### Tabs drawn as keys
+
+By default a window's tabs share one plate that slides to the active
+tab and joins the page below. A theme that draws every tab as a key of
+its own, the way a property sheet does, gives each tab a face and an
+edge, turns the plate off, and lets the active tab grow over its
+neighbours and the floor under it.
+
+| Token | Role |
+|---|---|
+| `--os-tabs-padding`, `--os-tabs-gap` | The window tab strip's padding and the space between tabs. Default `8px 12px 0` and `2px`. |
+| `--os-tabs-tab-height`, `--os-tabs-tab-padding`, `--os-tabs-tab-margin`, `--os-tabs-font-size` | A tab's height, padding, margin and type size. Default `30px`, `0 14px`, `0` and `12px`. A bottom margin lifts the inactive tabs off the strip's floor. |
+| `--os-tabs-tab-bg`, `--os-tabs-tab-shadow` | A tab's face, and its edge as inset shadows. Default `transparent` and `none`. |
+| `--os-tabs-hover-color`, `--os-tabs-hover-bg` | A tab under the pointer. Default the admin theme colour and a faint shade. |
+| `--os-tabs-active-tab-bg`, `--os-tabs-active-shadow`, `--os-tabs-active-height`, `--os-tabs-active-margin`, `--os-tabs-active-weight` | The active tab's face, edge, height, margin and weight. Default `transparent`, `none`, the tab's height and margin, and `600`. A taller tab with negative side margins grows over its neighbours. |
+| `--os-tabs-plate-display` | `none` turns the sliding plate off. |
+| `--os-tabs-panel-padding`, `--os-tabs-panel-shadow`, `--os-tabs-page-shadow` | A window with tabs only: padding around its page, the panel's edges as inset shadows, and a frame around the page as outset shadows. Default `0`, `none` and `none`, the page flush under the strip. |
+| `--os-ui-tabs-gap`, `--os-ui-tabs-floor`, `--os-ui-tabs-bg`, `--os-ui-tabs-padding`, `--os-ui-tabs-margin` | A horizontal `<os-tabs>` strip: its gap, its bottom border, and what it sits on. Default `4px`, a 1px border line, `transparent`, `0` and `0 0 10px`. |
+| `--os-ui-tab-padding`, `--os-ui-tab-margin`, `--os-ui-tab-corners`, `--os-ui-tab-font-size`, `--os-ui-tab-bg`, `--os-ui-tab-shadow` | That strip's tabs, the same way. |
+| `--os-ui-tab-selected-bg`, `--os-ui-tab-selected-shadow`, `--os-ui-tab-selected-margin`, `--os-ui-tab-selected-padding`, `--os-ui-tab-selected-weight` | Its selected tab. Extra bottom padding with a negative bottom margin makes it reach over the floor. |
+| `--os-ui-tab-indicator-display` | `none` drops the accent underline under the selected tab. |
+
+The window strip's floor, the panel edge the keys stand on, is the
+strip's own background: draw it through `--os-tabs-image`, sized and
+placed with `--os-tabs-image-size` and `--os-tabs-image-position`, for
+example as two 1px lines along the bottom. The vertical `<os-tabs>` in
+Preferences keeps its own `--os-ui-tab-fill` family, and none of these
+touch it.
+
+#### The toolbar
+
+The WordPress toolbar's colours belong to the user's admin colour
+scheme. A theme takes them over by naming any `--os-toolbar-*` token:
+that puts `os-toolbar-themed` on the body, and only then do these
+apply, so every other theme leaves a scheme's toolbar alone.
+
+| Token | Role |
+|---|---|
+| `--os-toolbar-bg`, `--os-toolbar-fg`, `--os-toolbar-icon` | The bar, its labels and its glyphs. |
+| `--os-toolbar-hover-bg`, `--os-toolbar-hover-fg` | A top-level item under the pointer or open. |
+| `--os-toolbar-shadow` | A rule under the bar (`0 1px 0 #000`). |
+| `--os-toolbar-font`, `--os-toolbar-font-size` | Its type. |
+| `--os-toolbar-line-height` | The top-level items' line, `32px` (the bar's height) by default. A face whose caps sit higher or lower in the line than the system font's moves its labels onto the icons' centre with it. |
+| `--os-toolbar-menu-bg`, `-fg`, `-shadow`, `-hover-bg`, `-hover-fg` | The submenus, the WordPress menu's lower group included. |
+| `--os-toolbar-menu-fg-muted` | The username under the name in the account menu. |
+| `--os-toolbar-clock-display` | The time, left of the account menu, the way a menu bar keeps it. `none` by default, `block` to show it. |
+
+Recommend `adminBarMode: static` alongside them, or the bar a theme
+drew is hidden.
+
+#### Widget cards
+
+| Token | Role |
+|---|---|
+| `--os-widget-card-border`, `--os-widget-card-radius`, `--os-widget-card-backdrop` | The card's edge, corner and blur. |
+| `--os-widget-card-shadow`, `--os-widget-card-shadow-hover` | Its shadow at rest and under the pointer; inset shadows draw a bevel. |
+
+The card's text reads `--os-ui-color-text` and the clock's date
+`--os-ui-color-text-subtle`, the same widget contract described
+[above](#the---os-ui-color--widget-contract).
+
 #### Chrome that sits on the wallpaper
 
 The dock is not the only thing painting straight onto the desk, and the
@@ -962,6 +1115,18 @@ Artwork carrying its own colours keeps them.
 `drop-shadow( … )` or `none`. It is spelled `-glyph-` because names
 matching `-image` are reserved for the [texture slots](#textures).
 
+The captions have a shape of their own as well:
+
+| Token | Role |
+|---|---|
+| `--os-icon-label-font-size`, `--os-icon-label-radius`, `--os-icon-label-padding` | A desktop icon's caption. |
+| `--os-tile-label-font-size`, `--os-tile-label-bg`, `--os-tile-label-padding` | A file tile's caption, and a plate behind it (a white box on a grey desk). |
+| `--os-tile-label-selected-bg`, `--os-tile-label-selected-color` | The caption of a selected tile: inverted text on a highlight. |
+| `--os-tile-shortcut-bg`, `-fg`, `-shadow`, `-radius` | The arrow badge on a desktop shortcut. |
+
+A desktop shortcut wears the [`APP:<id>`](#slot-table) icon of the app it
+opens before the generic `FILE_SHORTCUT` one.
+
 ### A note on WordPress core's CSS
 
 Native windows render in the parent shell, not in an iframe, so
@@ -1019,6 +1184,11 @@ and dock, a comfortable text face inside windows.
   "--os-ui-font-mono":              "\"Neon Mono\", ui-monospace, monospace"
 }
 ```
+
+A bitmap face drawn on whole pixels wants plain greyscale smoothing:
+set `--os-font-smoothing: antialiased` (the `-webkit-font-smoothing`
+of the shell and of a toolbar the theme draws). Unset, the shell keeps
+what wp-admin gives it.
 
 Always end a stack with a generic family. If the bundled face fails
 to load — a slow network, a `unicodeRange` that doesn't cover the
@@ -1145,6 +1315,11 @@ theme, and wearing the theme never costs a user the wallpaper they
 chose. Every theme in the library contributes its wallpapers, not just
 the active one.
 
+A theme whose look *is* the desk (a flat era colour, a dither) can
+still ask for one of its own: [`recommendedOsSettings.wallpaper`](#recommended-os-settings)
+seeds it once, on first activation, on the same terms as the dock size
+and every other recommendation.
+
 > This is separate from the `DESKTOP` texture slot. That slot follows
 > the theme and layers *over* whatever wallpaper is active; a wallpaper
 > here is a picture the user selects.
@@ -1250,6 +1425,10 @@ still apply.
 | `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
 | `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
 | `accent` | A registered accent-swatch id (OpenStation Preferences → Appearance). Core ships `pulse`, `nebula`, `sirius`, `lagoon`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
+| `accentColor` | The accent as a six-digit hex colour, for a palette drawn against a hue no swatch offers. The shell picks the swatch with that value when there is one and the custom accent otherwise. Ignored when `accent` resolves. |
+| `wallpaper` | One of the theme's own [`wallpapers`](#wallpapers), by its id (or any registered wallpaper id). For a theme whose look is the desk itself: without it the first activation leaves that look under the user's wallpaper, which a [`DESKTOP`](#textures) texture cannot paint over when it is animated. |
+| `navPlacement` | Dock item ids to `rail`, `desktop`, `both` or `hidden`, as in Preferences → Navigation. Merged into the user's own placements, so only the items you name move: `{ "os-mio-toggle": "hidden" }` takes Mio off the dock and leaves the rest of their arrangement alone. |
+| `widgets` | The widget column, by widget id; `[]` is an empty desk. The column is stored per browser, so it is written there, and a browser's first visit starts from the active theme's list instead of the clock. Ids nothing is registered under are skipped. |
 
 **`accent` is the one recommendation a theme cannot express any other
 way, and most themes want it.** The accent is a user setting written as
@@ -1265,7 +1444,7 @@ The built-in **Desktop Mode (Legacy)** theme is the worked example —
 its whole recommendation block is `{ "accent": "wp-blue" }`, which is
 what makes the pre-brand chrome come back complete.
 
-`dockRailRenderer`, `windowReveal` and `accent` are the fields validated in
+`dockRailRenderer`, `windowReveal`, `accent` and `wallpaper` are the fields validated in
 two places: PHP checks the charset, and the shell checks — at apply
 time — that something is actually registered under that id. Recommend
 a renderer, reveal or swatch a site doesn't have and the key is
@@ -1283,7 +1462,9 @@ manifest cannot flip a feature toggle, a capability-adjacent
 preference, or another theme's activation. A site can widen the list
 through `openstation_desktop_theme_recommended_os_settings_schema`
 — `{ enum }` for a closed set, `{ slug }` for a registry id resolved
-at apply time, `{ int => { min, max } }` for a clamped number — and
+at apply time, `{ hex }` for a colour, `{ int => { min, max } }` for a
+clamped number, `{ map }` for ids mapped to a closed set, `{ ids }` for
+a list — and
 even then the shell only writes a key that already exists and whose
 current value has the same type as the one being recommended.
 
@@ -1429,6 +1610,7 @@ individually droppable; a surface you don't mention keeps its colour.
 | `TABBAR` | `image` | The in-window submenu tab strip |
 | `TITLEBAR_CONTROLS` | `image` | The plate behind the window-control cluster |
 | `TITLEBAR_BUTTON` | `image` | The face of each individual control button |
+| `TITLEBAR_BUTTON_PRESSED` | `image` | That face while the control is held or toggled on (falls back to `TITLEBAR_BUTTON`) |
 
 **Shell**
 
@@ -1437,6 +1619,7 @@ individually droppable; a surface you don't mention keeps its colour.
 | `DESKTOP` | `image` | The wallpaper layer |
 | `DOCK` | `image` | The dock strip, layered over its background colour |
 | `DOCK_ITEM` | `image` | The face of a single dock tile |
+| `DOCK_ITEM_FOCUSED` | `image` | The face of the tile whose window is in front, and of a held tile (falls back to `DOCK_ITEM`) |
 | `ICON_TILE` | `image` | The plate behind each desktop icon |
 | `WIDGET` | `image` | Desktop widget cards, over the frosted backdrop |
 
@@ -1824,8 +2007,17 @@ see. The screen-meta buttons (Screen Options, Help) and the `⋯` menu
 trigger sit in the same bar and read the same tokens, so one pass
 covers every button in the title bar.
 
-Close-button red is deliberately not in either set — it is semantic
-signal, not chrome, and both states resolve it through `--os-ui-danger`.
+Close-button red is not in either set: it is semantic signal, not
+chrome, and both states resolve it through `--os-ui-danger`. A title
+bar whose era drew its close button another way re-points just that
+button with `--os-titlebar-close-bg-hover` and
+`--os-titlebar-close-color-hover`, leaving every other danger surface
+red.
+
+A [`TITLEBAR_BUTTON`](#textures) face should leave its interior
+transparent. Hover, press and the close button's danger hover change
+the button's background *colour*, which shows through the face; an
+opaque face hides every one of those states.
 
 **Activate:** every user picks their own theme on the same tab —
 including users who cannot upload. The library is site-wide;
@@ -1954,9 +2146,12 @@ for a complete plugin.
   `--os-tile-*` tokens instead.
 - **Art-direction colour and type.** Note paper, game palettes, and graph
   node hues — see "What stays fixed" above.
-- **Layout.** A theme changes how things look, not where they are. No
-  spacing scale, no dock geometry, no window metrics beyond the radius
-  and title-bar height the tokens already expose.
+- **Layout.** A theme changes how things look, not where they are: no
+  spacing scale for window bodies, and no say over which edge the dock
+  is on or where windows open. The chrome's own metrics (the frame,
+  the title bar and its controls, the dock's shape) are tokens because
+  they are part of how an era looks, and each defaults to the shell's
+  own value.
   [`recommendedOsSettings`](#recommended-os-settings) is not an
   exception to this: it seeds the user's own layout preferences once,
   as a suggestion they own from that moment on, rather than giving the

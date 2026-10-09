@@ -28,6 +28,7 @@ import {
 	getDesktopTheme,
 	getStore,
 } from './registry';
+import { syncToolbarClock } from './toolbar-clock';
 import type { DesktopThemeEntry } from './types';
 
 /** `id` WordPress gives the `<link>` for the theme style handle. */
@@ -119,11 +120,15 @@ function injectThemeStylesheet( theme: DesktopThemeEntry ): void {
 	}
 }
 
-function applyBodyClass( slug: string | null ): void {
+function applyBodyClass( slug: string | null, drawsToolbar = false ): void {
 	const body = document.body;
 	if ( ! body ) {
 		return;
 	}
+	// The toolbar keeps the admin colour scheme's colours unless the
+	// theme names its own (see `os-toolbar-themed` in desktop.css).
+	body.classList.toggle( 'os-toolbar-themed', slug !== null && drawsToolbar );
+	syncToolbarClock( slug !== null && drawsToolbar );
 	const stale: string[] = [];
 	body.classList.forEach( ( name ) => {
 		if ( name.startsWith( 'os-desktop-theme-' ) ) {
@@ -246,7 +251,7 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 			}
 		}
 		shell?.setAttribute( 'data-os-desktop-theme', theme.slug );
-		applyBodyClass( theme.slug );
+		applyBodyClass( theme.slug, theme.drawsToolbar );
 		store.setState( {
 			activeId: theme.slug,
 			// A theme with no icon overrides still publishes `{}` —

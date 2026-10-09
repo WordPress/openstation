@@ -438,6 +438,14 @@
 	padding: 0 24px;
 }
 
+/* The mind map shows its hint while the default category's disc sits
+   at the centre, so the hint goes under the stage's bottom edge
+   rather than across the disc. */
+.os-mindmap .os-term-canvas__empty {
+	align-items: flex-end;
+	padding-bottom: 28px;
+}
+
 /*
  * The canvas keeps a 320px editor beside the stage on a desk. A phone
  * has no beside: the editor folds UNDER the stage as a sheet — at

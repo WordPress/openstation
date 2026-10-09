@@ -12,3 +12,26 @@ export const MIO_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 
 export const MIO_TILE_ICON = `data:image/svg+xml;base64,${ btoa(
 	MIO_ICON_SVG,
 ) }`;
+
+/**
+ * Mio peeking over the edge of a coachmark: the tile art with its body
+ * filled in, because only the top half shows and an empty ring would
+ * read as a letter "o" with eyes.
+ *
+ * Inline markup rather than a data URI, so the eyes can read
+ * `--os-coachmark-look-x` / `-y` (-1, 0 or 1, set by the coachmark) and
+ * glance at whatever the card is pointing at. A CSS length in an SVG
+ * transform is in user units, so 1.5px is 1.5 of the 24-unit grid.
+ * The gradient id is its own: this one sits in the document, where the
+ * tile's `mio` id could meet another inline SVG.
+ */
+export const MIO_PEEK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+<defs><linearGradient id="os-mio-peek-rim" x1="19" y1="19" x2="5" y2="5" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#3f6dff"/><stop offset=".5" stop-color="#a855f7"/><stop offset="1" stop-color="#ff4fd8"/>
+</linearGradient></defs>
+<circle cx="12" cy="12" r="8.2" fill="#020204" stroke="url(#os-mio-peek-rim)" stroke-width="2.2"/>
+<g style="transform: translate( calc( var( --os-coachmark-look-x, 0 ) * 1.5px ), calc( var( --os-coachmark-look-y, 0 ) * 1.2px ) )">
+<rect x="8" y="9.2" width="2.9" height="4.8" rx="1.45" fill="#fff"/>
+<rect x="13.1" y="9.2" width="2.9" height="4.8" rx="1.45" fill="#fff"/>
+</g>
+</svg>`;

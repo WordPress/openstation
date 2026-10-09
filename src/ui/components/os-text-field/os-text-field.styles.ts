@@ -87,8 +87,11 @@ export const textFieldStyles = css`
 		min-width: 0;
 		box-sizing: border-box;
 		padding: 7px 10px;
-		background: var( --os-window-bg, #fff );
-		border: 1px solid var( --os-ui-border, #dcdcde );
+		/* The field's own surface, so a theme can sink it into the window
+		 * (a white well with an inset bevel) without moving the window. */
+		background: var( --os-ui-text-field-bg, var( --os-window-bg, #fff ) );
+		border: var( --os-ui-text-field-border, 1px solid var( --os-ui-border, #dcdcde ) );
+		box-shadow: var( --os-ui-text-field-shadow, none );
 		border-radius: var( --_field-radius );
 		font: inherit;
 		font-size: var( --_field-size );

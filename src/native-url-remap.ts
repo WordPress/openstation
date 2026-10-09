@@ -284,6 +284,81 @@ export function resolveNativeUrlRemap( url: string ): string | null {
 }
 
 /**
+ * The params a remapped open carries: the entry's own `params` hook,
+ * then the dock's tab tag on top. Shared by the click
+ * ({@see tryNativeUrlRemap}) and the hover prewarm
+ * ({@see resolveNativeUrlRemapTarget}), which must warm the exact
+ * request the click will send.
+ */
+function remapParams(
+	entry: NativeUrlRemap,
+	url: string,
+	parsed: URL,
+): Record< string, string | number | boolean > | undefined {
+	let params:
+		| Record< string, string | number | boolean >
+		| undefined;
+	// A URL tagged with the tab it means — every row the dock
+	// builds for a window that declares a menu (`App::menu()`) —
+	// says so in one place, for every remap, rather than each
+	// entry re-reading the flag. It wins over the entry's own
+	// `params`: the tag is the more specific statement of the two.
+	const tagged = parsed.searchParams.get( OS_TAB_PARAM );
+	if ( entry.params ) {
+		try {
+			params = entry.params( url, parsed ) ?? undefined;
+		} catch ( err ) {
+			// Same tolerance as `onMatch`: a throwing hook must
+			// not block the open. The window still opens, just
+			// without whatever the hook meant to tell it.
+			// eslint-disable-next-line no-console
+			console.warn(
+				`[openstation] URL remap params hook threw for "${ entry.id }":`,
+				err,
+			);
+		}
+	}
+	if ( tagged && /^[a-z0-9_-]+$/.test( tagged ) ) {
+		params = { ...( params ?? {} ), tab: tagged };
+	}
+	return params;
+}
+
+/**
+ * Like {@see resolveNativeUrlRemap}, plus the params the open would
+ * carry. For the hover prewarm: an app's warm is held per params, so it
+ * has to warm with what the click will open with.
+ *
+ * @param url Raw admin URL the caller would have loaded.
+ * @return The native window id and its open params, or `null`.
+ */
+export function resolveNativeUrlRemapTarget(
+	url: string,
+): { id: string; params?: Record< string, string | number | boolean > } | null {
+	const { deps, remaps } = remapStore.state;
+	if ( ! deps || ! url ) {
+		return null;
+	}
+	let parsed: URL;
+	try {
+		parsed = new URL( url, deps.adminUrl );
+	} catch {
+		return null;
+	}
+	const snapshot = deps.getSnapshot();
+	for ( const entry of remaps ) {
+		if ( ! entry.matches( url, parsed ) ) {
+			continue;
+		}
+		if ( entry.enabled && ! entry.enabled( snapshot ) ) {
+			continue;
+		}
+		return { id: entry.nativeWindowId, params: remapParams( entry, url, parsed ) };
+	}
+	return null;
+}
+
+/**
  * Walk the registry and try to redirect a click. Returns `true` when a
  * remap claimed the URL and the native window opened successfully.
  *
@@ -340,32 +415,7 @@ export function tryNativeUrlRemap(
 				);
 			}
 		}
-		let params:
-			| Record< string, string | number | boolean >
-			| undefined;
-		// A URL tagged with the tab it means — every row the dock
-		// builds for a window that declares a menu (`App::menu()`) —
-		// says so in one place, for every remap, rather than each
-		// entry re-reading the flag. It wins over the entry's own
-		// `params`: the tag is the more specific statement of the two.
-		const tagged = parsed.searchParams.get( OS_TAB_PARAM );
-		if ( entry.params ) {
-			try {
-				params = entry.params( url, parsed ) ?? undefined;
-			} catch ( err ) {
-				// Same tolerance as `onMatch`: a throwing hook must
-				// not block the open. The window still opens, just
-				// without whatever the hook meant to tell it.
-				// eslint-disable-next-line no-console
-				console.warn(
-					`[openstation] URL remap params hook threw for "${ entry.id }":`,
-					err,
-				);
-			}
-		}
-		if ( tagged && /^[a-z0-9_-]+$/.test( tagged ) ) {
-			params = { ...( params ?? {} ), tab: tagged };
-		}
+		const params = remapParams( entry, url, parsed );
 		// Called with ONE argument when there are no params, rather
 		// than with an explicit `undefined`. The opener's signature is
 		// older than this hook and most remaps will never use it;

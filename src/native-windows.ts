@@ -34,6 +34,12 @@ import {
 	unregisterNativeUrlRemap,
 } from './native-url-remap';
 import { setPanelTabs } from './window/tab-strip';
+import { getWindowContent, setWindowContent } from './window-links/engine';
+import type { WindowContentRef } from './window-links/types';
+import {
+	LOADING_SPINNER_PRESET,
+	LOADING_SPINNER_SIZE,
+} from './window/constants';
 import {
 	loadNativeWindowGeometry,
 	saveNativeWindowGeometry,
@@ -424,6 +430,35 @@ function buildIframeContentRender(
 		const unregisterSynth = registerSyntheticIframe( windowId, iframe );
 		cleanups.push( unregisterSynth );
 
+		// The page's announced identity, and what claiming it for the
+		// window displaced. See the visibility observer below.
+		let pageIdentity: WindowContentRef | null = null;
+		let claimed: WindowContentRef | null = null;
+		let displaced: WindowContentRef | null = null;
+		const syncIdentity = (): void => {
+			const shown =
+				iframe.isConnected && iframe.getClientRects().length > 0;
+			if ( pageIdentity && shown ) {
+				if ( ! claimed ) {
+					displaced = getWindowContent( windowId ) ?? null;
+				}
+				setWindowContent( windowId, pageIdentity, { source: 'bridge' } );
+				claimed = getWindowContent( windowId ) ?? null;
+				return;
+			}
+			if ( ! claimed ) {
+				return;
+			}
+			// Hand back only what is still ours: a window that closed
+			// meanwhile was already cleared by the engine, and an
+			// identity someone else set since is not ours to undo.
+			if ( getWindowContent( windowId ) === claimed ) {
+				setWindowContent( windowId, displaced, { source: 'config' } );
+			}
+			claimed = null;
+			displaced = null;
+		};
+
 		// Resolve the iframe URL's origin once; the message handler
 		// uses it for the same-origin check on inbound messages.
 		// Falls back to the shell origin for relative / invalid
@@ -538,6 +573,21 @@ function buildIframeContentRender(
 					( data as { payload?: unknown } ).payload,
 				);
 			}
+			// Content identity of the page in this iframe — the same
+			// announcement `src/window/iframe-bridge.ts` forwards for an
+			// iframe window. Same-origin only: the identity carries
+			// URLs that end up as window iframes.
+			if (
+				data &&
+				typeof data === 'object' &&
+				( data as { type?: string } ).type === 'os-content-identity' &&
+				e.origin === window.location.origin
+			) {
+				pageIdentity =
+					( data as { identity?: WindowContentRef | null } )
+						.identity ?? null;
+				syncIdentity();
+			}
 			try {
 				cfg.onMessage?.( e.data );
 			} catch ( err ) {
@@ -551,9 +601,26 @@ function buildIframeContentRender(
 		};
 		window.addEventListener( 'message', onMessage );
 
+		// A native window can hold its page in a panel the user can
+		// switch away from (the Posts app's "Add Post" tab), so the
+		// page's identity is the WINDOW's only while the iframe is on
+		// screen: the Preview eye, Related menu and window ties then
+		// follow what the user is looking at. Hiding the panel takes
+		// the window back to the identity it had before; showing it
+		// again re-claims. A ResizeObserver sees both edges — a
+		// `display: none` ancestor collapses the iframe to 0×0.
+		const visibility =
+			typeof ResizeObserver === 'function'
+				? new ResizeObserver( () => syncIdentity() )
+				: null;
+		visibility?.observe( iframe );
+
 		cleanups.push( () => {
 			window.removeEventListener( 'message', onMessage );
 			iframe.removeEventListener( 'load', onLoad );
+			visibility?.disconnect();
+			pageIdentity = null;
+			syncIdentity();
 		} );
 
 		return readyPromise;
@@ -572,11 +639,15 @@ function buildIframeContentRender(
  * becomes the window's synthetic iframe, so `wp.os.connect()`,
  * `os-bridge-*` traffic and window-channel publishes all reach it.
  *
- * It is NOT an iframe window: title adoption, the preview and
- * revisions buttons, the submenu strip and the close-time
- * unsaved-changes query all key off `Window.iframe`. A host that
- * embeds an editor owns those questions itself. A cross-origin URL,
- * or the shell screen, mounts nothing and returns a no-op.
+ * The page's content identity becomes the window's while the iframe
+ * is on screen (see `buildIframeContentRender`), so the Preview eye,
+ * revisions row, Related menu and window ties work for an embedded
+ * editor and go away when its panel is switched out. It is still NOT
+ * an iframe window: title adoption, the submenu strip and the
+ * close-time unsaved-changes query key off `Window.iframe`, and a
+ * host that embeds an editor owns those questions itself. A
+ * cross-origin URL, or the shell screen, mounts nothing and returns
+ * a no-op.
  *
  * @param host          Element to mount into. Its contents are replaced.
  * @param url           Admin URL. The chromeless flag is added here.
@@ -620,7 +691,9 @@ export function embedAdminPage(
 	// `display: inline-block` and would stretch with the mark left in
 	// a corner. While the page loads the busy mark is the HOST's, not
 	// the window's: the window overlay would black out the tab strip
-	// the user got here from.
+	// the user got here from. Same mark and size as the window overlay,
+	// though — a smaller, different spinner here read as the loader
+	// shrinking mid-load.
 	if ( getComputedStyle( host ).position === 'static' ) {
 		host.style.position = 'relative';
 	}
@@ -631,7 +704,8 @@ export function embedAdminPage(
 	overlay.style.alignItems = 'center';
 	overlay.style.justifyContent = 'center';
 	const spinner = document.createElement( 'os-spinner' );
-	spinner.setAttribute( 'preset', 'comet' );
+	spinner.setAttribute( 'preset', LOADING_SPINNER_PRESET );
+	spinner.setAttribute( 'size', LOADING_SPINNER_SIZE );
 	overlay.appendChild( spinner );
 	host.appendChild( overlay );
 	void ready.then( () => overlay.remove() );
@@ -1093,7 +1167,7 @@ export interface NativeWindowSync {
 	 * unknown id, an open window, a window that is not an App Framework
 	 * app, or one already warm.
 	 */
-	prewarmById: ( id: string ) => Promise< boolean >;
+	prewarmById: ( id: string, opts?: { params?: Record< string, string | number | boolean > } ) => Promise< boolean >;
 }
 
 /** State owned by session restore rather than a native-window definition. */
@@ -2181,16 +2255,21 @@ export function createNativeWindowSync(
 	 * `prewarm` to call, or a config the runtime does not own) gets
 	 * its bundles into the tab and no more.
 	 */
-	const prewarmById = async ( id: string ): Promise< boolean > => {
+	const prewarmById = async (
+		id: string,
+		opts: { params?: Record< string, string | number | boolean > } = {},
+	): Promise< boolean > => {
 		const entry = entriesById.get( id );
 		if ( ! entry || manager.getById( id ) ) {
 			return false;
 		}
 		await ensureScript( entry );
 		const apps = (
-			window as unknown as { wp?: { os?: { apps?: { prewarm?: ( appId: string ) => boolean } } } }
+			window as unknown as {
+				wp?: { os?: { apps?: { prewarm?: ( appId: string, params?: Record< string, string | number | boolean > ) => boolean } } };
+			}
 		).wp?.os?.apps;
-		return apps?.prewarm?.( id ) === true;
+		return apps?.prewarm?.( id, opts.params ?? {} ) === true;
 	};
 
 	return {

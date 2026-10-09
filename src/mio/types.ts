@@ -446,11 +446,6 @@ export interface MioHandle {
 	setPosition: ( x: number, y: number ) => void;
 	/** Ease toward a viewport point. Persistent anchors survive dragging; null releases it. */
 	setAnchor?: ( position: { x: number; y: number } | null, persistent?: boolean ) => void;
-	/**
-	 * Float free of windows, widgets and plugin surfaces, colliding
-	 * with the shell's chrome only. What the shell tour holds Mio in.
-	 */
-	setFloating?: ( floating: boolean ) => void;
 	/** Pause / resume the simulation without unmounting. */
 	setAnimating: ( animating: boolean ) => void;
 	/** Live-apply a configuration change. */

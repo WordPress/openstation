@@ -307,41 +307,41 @@ function openstation_desktop_theme_texture_slots() {
 	$corner_size = '--os-window-corner-size';
 	$slots       = array(
 		// --- Window chrome. ---
-		'TITLEBAR'             => array(
+		'TITLEBAR'                => array(
 			'type' => 'image',
 			'prop' => '--os-titlebar-image',
 		),
-		'TITLEBAR_FOCUSED'     => array(
+		'TITLEBAR_FOCUSED'        => array(
 			'type'       => 'image',
 			'prop'       => '--os-titlebar-image-focused',
 			// Shares the base slot's repeat + size; only the image
 			// differs, so a theme shipping one strip gets both states.
 			'companions' => false,
 		),
-		'WINDOW_FRAME'         => array(
+		'WINDOW_FRAME'            => array(
 			'type' => 'border-image',
 			'prop' => '--os-window-border-image',
 		),
-		'WINDOW_FRAME_FOCUSED' => array(
+		'WINDOW_FRAME_FOCUSED'    => array(
 			'type' => 'border-image',
 			'prop' => '--os-window-border-image-focused',
 		),
-		'WINDOW_CORNER_NE'     => array(
+		'WINDOW_CORNER_NE'        => array(
 			'type'      => 'image',
 			'prop'      => '--os-window-corner-ne-image',
 			'sizeGroup' => $corner_size,
 		),
-		'WINDOW_CORNER_NW'     => array(
+		'WINDOW_CORNER_NW'        => array(
 			'type'      => 'image',
 			'prop'      => '--os-window-corner-nw-image',
 			'sizeGroup' => $corner_size,
 		),
-		'WINDOW_CORNER_SE'     => array(
+		'WINDOW_CORNER_SE'        => array(
 			'type'      => 'image',
 			'prop'      => '--os-window-corner-se-image',
 			'sizeGroup' => $corner_size,
 		),
-		'WINDOW_CORNER_SW'     => array(
+		'WINDOW_CORNER_SW'        => array(
 			'type'      => 'image',
 			'prop'      => '--os-window-corner-sw-image',
 			'sizeGroup' => $corner_size,
@@ -352,69 +352,83 @@ function openstation_desktop_theme_texture_slots() {
 		// the controls to sit on a plate paints one here (and usually
 		// sets `--os-titlebar-controls-radius` +
 		// `-padding` to give it a shape).
-		'TITLEBAR_CONTROLS'    => array(
+		'TITLEBAR_CONTROLS'       => array(
 			'type' => 'image',
 			'prop' => '--os-titlebar-controls-image',
 		),
-		'TITLEBAR_BUTTON'      => array(
+		'TITLEBAR_BUTTON'         => array(
 			'type' => 'image',
 			'prop' => '--os-ui-btn-bg-image',
 		),
-		'WINDOW_BODY'          => array(
+		// The same face held down (or toggled on). Shares the resting
+		// face's repeat + size, like TITLEBAR_FOCUSED.
+		'TITLEBAR_BUTTON_PRESSED' => array(
+			'type'       => 'image',
+			'prop'       => '--os-ui-btn-bg-image-pressed',
+			'companions' => false,
+		),
+		'WINDOW_BODY'             => array(
 			'type' => 'image',
 			'prop' => '--os-window-body-image',
 		),
-		'TABBAR'               => array(
+		'TABBAR'                  => array(
 			'type' => 'image',
 			'prop' => '--os-tabs-image',
 		),
 		// --- Shell surfaces. ---
-		'DOCK'                 => array(
+		'DOCK'                    => array(
 			'type' => 'image',
 			'prop' => '--os-dock-bg-image',
 		),
-		'DOCK_ITEM'            => array(
+		'DOCK_ITEM'               => array(
 			'type' => 'image',
 			'prop' => '--os-dock-item-image',
 		),
-		'DESKTOP'              => array(
+		// The face of the tile whose window is in front, and of a tile
+		// held down. Shares DOCK_ITEM's repeat + size.
+		'DOCK_ITEM_FOCUSED'       => array(
+			'type'       => 'image',
+			'prop'       => '--os-dock-item-image-focused',
+			'companions' => false,
+		),
+		'DESKTOP'                 => array(
 			'type' => 'image',
 			'prop' => '--os-desktop-image',
 		),
-		'ICON_TILE'            => array(
+		'ICON_TILE'               => array(
 			'type' => 'image',
 			'prop' => '--os-tile-image',
 		),
-		'WIDGET'               => array(
+		'WIDGET'                  => array(
 			'type' => 'image',
 			'prop' => '--os-widget-image',
 		),
 		// --- Component-kit surfaces (window bodies + popovers). ---
-		'MENU'                 => array(
+		'MENU'                    => array(
 			'type' => 'image',
 			'prop' => '--os-ui-menu-bg-image',
 		),
-		'DIALOG'               => array(
+		'DIALOG'                  => array(
 			'type' => 'image',
 			'prop' => '--os-ui-dialog-bg-image',
 		),
-		'SCRIM'                => array(
+		'SCRIM'                   => array(
 			'type' => 'image',
 			'prop' => '--os-ui-scrim-image',
 		),
-		'PANEL'                => array(
+		'PANEL'                   => array(
 			'type' => 'image',
 			'prop' => '--os-ui-panel-bg-image',
 		),
-		'TOAST'                => array(
+		'TOAST'                   => array(
 			'type' => 'image',
 			'prop' => '--os-ui-toast-bg-image',
 		),
-		'TABLE_HEADER'         => array(
+		'TABLE_HEADER'            => array(
 			'type' => 'image',
 			'prop' => '--os-ui-table-header-bg-image',
 		),
-		'BUTTON'               => array(
+		'BUTTON'                  => array(
 			'type' => 'image',
 			'prop' => '--os-ui-button-bg-image',
 		),
@@ -462,6 +476,11 @@ function openstation_desktop_theme_texture_slots() {
  *               slower than the shell will play is expressing "slow",
  *               and the honest reading of that is the slowest we do
  *               play.
+ *   - `map`   — an object of `sanitize_key()`-clean ids to one of a
+ *               closed list of values. The shell merges it into the
+ *               user's own map, so only the entries a theme names move.
+ *   - `ids`   — a list of registry ids, namespaced ones included. An
+ *               empty list is a value: "none of them".
  *
  * A key absent from this table is dropped from the manifest. That is
  * the point: a theme RECOMMENDS presentation, so it may only reach
@@ -469,7 +488,7 @@ function openstation_desktop_theme_texture_slots() {
  * theme to arrange for them — never a feature toggle, a capability
  * gate, or anything that changes what the shell can do.
  *
- * @return array<string,array{enum?:string[],slug?:bool,int?:array{min:int,max:int}}>
+ * @return array<string,array{enum?:string[],slug?:bool,hex?:bool,int?:array{min:int,max:int},map?:string[],ids?:bool}>
  */
 function openstation_desktop_theme_recommended_os_settings_schema() {
 	$schema = array(
@@ -496,6 +515,40 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 		 * pick afterwards is theirs.
 		 */
 		'accent'               => array( 'slug' => true ),
+
+		/*
+		 * The accent as a colour rather than a swatch id, for a palette
+		 * drawn against a hue no swatch offers. The shell uses the
+		 * swatch with that value when there is one and the custom
+		 * accent otherwise. `accent` wins when both are given and the
+		 * site offers that swatch.
+		 */
+		'accentColor'          => array( 'hex' => true ),
+
+		/*
+		 * One of the theme's own `wallpapers`, by its id. The shell
+		 * resolves it against the theme first and the wallpaper
+		 * registry second, and skips the key when neither answers. A
+		 * theme whose look is the desk itself (a flat era colour, a
+		 * dither) recommends it so the first activation does not leave
+		 * that look under an animated wallpaper it cannot paint over.
+		 */
+		'wallpaper'            => array( 'slug' => true ),
+
+		/*
+		 * Where dock items sit, by item id. Merged into the user's own
+		 * map, so a theme moves only what it names, such as hiding a
+		 * shell tile its look has no place for.
+		 */
+		'navPlacement'         => array( 'map' => array( 'both', 'rail', 'desktop', 'hidden' ) ),
+
+		/*
+		 * The widget column, by widget id. Not user meta: the column is
+		 * stored per browser, so the shell writes it there, and a
+		 * browser's first visit starts from the active theme's list
+		 * instead of the clock.
+		 */
+		'widgets'              => array( 'ids' => true ),
 		'windowRevealDuration' => array(
 			'int' => array(
 				'min' => OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN,
@@ -510,8 +563,10 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 	 * Settings can opt it into theme recommendations by adding an
 	 * entry here — `array( 'enum' => array( … ) )` for a closed set,
 	 * `array( 'slug' => true )` for a registry id resolved at apply
-	 * time, `array( 'int' => array( 'min' => …, 'max' => … ) )` for a
-	 * clamped whole number.
+	 * time, `array( 'hex' => true )` for a six-digit hex colour,
+	 * `array( 'int' => array( 'min' => …, 'max' => … ) )` for a
+	 * clamped whole number, `array( 'map' => array( … ) )` for ids
+	 * mapped to a closed set, `array( 'ids' => true )` for a list of ids.
 	 *
 	 * Anything added is written into user meta the first time a user
 	 * activates a theme that recommends it, so keep the list to
@@ -519,7 +574,8 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 	 * do not belong here.
 	 *
 	 * @param array<string,array> $schema Map of settings key =>
-	 *                                    `{ enum }`, `{ slug }`, or `{ int }`.
+	 *                                    `{ enum }`, `{ slug }`, `{ hex }`, `{ int }`,
+	 *                                    `{ map }`, or `{ ids }`.
 	 */
 	$schema = (array) apply_filters(
 		'openstation_desktop_theme_recommended_os_settings_schema',
@@ -545,6 +601,21 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 		}
 		if ( ! empty( $rule['slug'] ) ) {
 			$out[ $key ] = array( 'slug' => true );
+			continue;
+		}
+		if ( ! empty( $rule['hex'] ) ) {
+			$out[ $key ] = array( 'hex' => true );
+			continue;
+		}
+		if ( ! empty( $rule['ids'] ) ) {
+			$out[ $key ] = array( 'ids' => true );
+			continue;
+		}
+		if ( ! empty( $rule['map'] ) && is_array( $rule['map'] ) ) {
+			$values = array_values( array_filter( $rule['map'], 'is_string' ) );
+			if ( ! empty( $values ) ) {
+				$out[ $key ] = array( 'map' => $values );
+			}
 			continue;
 		}
 		if (

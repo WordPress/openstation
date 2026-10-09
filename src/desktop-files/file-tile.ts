@@ -22,7 +22,7 @@
  */
 
 import { resolveThemedIcon } from '../desktop-themes/icons';
-import { slotForFileType } from '../desktop-themes/slots';
+import { slotForFileType, slotForTileId } from '../desktop-themes/slots';
 import { getIconArt } from '../desktop-icons';
 import { applyFilters, doAction } from '../hooks';
 import { resolve as resolveFileType } from './registry';
@@ -85,6 +85,9 @@ function placementToSpec(
 		//                              because it is holding something)
 		//   → per-placement `meta.iconUrl`  (the user/plugin said so
 		//                                  about THIS tile)
+		//   → desktop-theme APP:<id> slot  (a shortcut wears the icon
+		//                                  the theme gave the app it
+		//                                  opens, as its dock tile does)
 		//   → desktop-theme FILE_* slot   (the theme said so about
 		//                                  this KIND of tile)
 		//   → the file type's own icon.
@@ -102,6 +105,8 @@ function placementToSpec(
 			? undefined
 			: ( getIconArt( placement.file.ref ) ||
 				metaIconUrl ||
+				( placement.file.type === 'shortcut' &&
+					resolveThemedIcon( slotForTileId( placement.file.ref ) ) ) ||
 				resolveThemedIcon( slotForFileType( placement.file.type ) ) ||
 				file.icon() ),
 		x: placement.x,

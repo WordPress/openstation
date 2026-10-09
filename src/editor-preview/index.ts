@@ -37,6 +37,7 @@
  */
 
 import { subscribe } from '../broadcast';
+import { getSyntheticIframe } from '../connection';
 import { addAction, applyFilters, doAction, HOOKS } from '../hooks';
 import { __, sprintf } from '../i18n';
 import { createSharedStore } from '../shared-store';
@@ -153,6 +154,18 @@ function isSmallScreen(): boolean {
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia( '(max-width: 767px)' ).matches
 	);
+}
+
+/**
+ * The frame holding the window's editor: an iframe window's own
+ * iframe, or — for a native window — the iframe `embedAdminPage()` /
+ * `iframeContent` mounted in its body (e.g. the Posts app's "Add Post"
+ * tab). Autosave requests and the live watch go here.
+ */
+function editorFrame(
+	win: EditorPreviewWindowLike,
+): HTMLIFrameElement | null {
+	return win.iframe ?? getSyntheticIframe( win.id );
 }
 
 /**
@@ -324,7 +337,7 @@ function stopLiveWatch(
 	}
 	const editorWin = manager.getById( pairing.editorWindowId );
 	try {
-		editorWin?.iframe?.contentWindow?.postMessage(
+		( editorWin ? editorFrame( editorWin ) : null )?.contentWindow?.postMessage(
 			{
 				type: 'os-editor-live-unwatch',
 				watchId: pairing.watchId,
@@ -366,7 +379,8 @@ function startLiveWatch(
 		return;
 	}
 
-	const target = manager.getById( pairing.editorWindowId )?.iframe
+	const editorWin = manager.getById( pairing.editorWindowId );
+	const target = ( editorWin ? editorFrame( editorWin ) : null )
 		?.contentWindow;
 	if ( ! target ) {
 		return;
@@ -400,7 +414,8 @@ function startLiveWatch(
  */
 let requestAutosave: (
 	win: EditorPreviewWindowLike,
-) => Promise< AutosaveResult > = requestEditorAutosave;
+) => Promise< AutosaveResult > = ( win ) =>
+	requestEditorAutosave( { iframe: editorFrame( win ) } );
 
 /**
  * Test-only override of the autosave transport. Pass `null` to
@@ -411,7 +426,8 @@ let requestAutosave: (
 export function _setAutosaveTransportForTests(
 	fn: typeof requestAutosave | null,
 ): void {
-	requestAutosave = fn ?? requestEditorAutosave;
+	requestAutosave =
+		fn ?? ( ( win ) => requestEditorAutosave( { iframe: editorFrame( win ) } ) );
 }
 
 /**
@@ -609,10 +625,14 @@ export function bootEditorPreview( {
 		icon: 'dashicons-visibility',
 		placement: 'right',
 		order: 55, // Just before Related (60).
+		// Any window with an editor frame — including a native window's
+		// embedded editor, whose identity is only announced while its
+		// panel is on screen. The disabled "save first" state needs the
+		// window's own URL, so it stays an iframe-window affordance.
 		match: ( win ) =>
-			! win.config.native &&
+			( ! win.config.native || !! editorFrame( win ) ) &&
 			( !! getWindowContent( win.id )?.previewUrl ||
-				isUnsavedEditorScreen( win ) ),
+				( ! win.config.native && isUnsavedEditorScreen( win ) ) ),
 		render: ( host, win ) => {
 			// "Add New" screen before the first save: the eye is
 			// visible but disabled — the affordance stays

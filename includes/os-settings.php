@@ -462,9 +462,15 @@ function openstation_sanitize_os_settings( $raw ) {
 
 	// Wallpaper — any non-empty string; registry membership is validated
 	// client-side at apply time.
-	$wallpaper = isset( $raw['wallpaper'] ) && is_string( $raw['wallpaper'] ) && '' !== $raw['wallpaper']
-		? sanitize_key( $raw['wallpaper'] )
-		: $defaults['wallpaper'];
+	// Key-clean per `/` segment: a desktop theme's wallpapers are
+	// registered as `desktop-theme/<theme>/<id>`, and a flat
+	// `sanitize_key()` would fold that into an id nothing answers to.
+	$wallpaper = isset( $raw['wallpaper'] ) && is_string( $raw['wallpaper'] )
+		? implode( '/', array_filter( array_map( 'sanitize_key', explode( '/', $raw['wallpaper'] ) ) ) )
+		: '';
+	if ( '' === $wallpaper ) {
+		$wallpaper = $defaults['wallpaper'];
+	}
 
 	// Accent — non-empty string; swatch validity is enforced in the picker.
 	$accent = isset( $raw['accent'] ) && is_string( $raw['accent'] ) && '' !== $raw['accent']

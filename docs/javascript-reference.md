@@ -22,7 +22,7 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
 | [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
 | [`wp.os.loadWindowScript( id )`](#wposloadwindowscript-id---stable) | Load a native window's bundle without opening it — for reaching an API the bundle publishes on `wp.os`. Window bundles load on first open. | **Stable** |
-| [`wp.os.prewarmWindow( id )`](#wposprewarmwindow-id---experimental) | Warm a closed native window ahead of its open: bundles into the tab, and an app window's first `mount` sent now and held for the click. What the dock does on hover intent. | **Experimental** |
+| [`wp.os.prewarmWindow( id, opts? )`](#wposprewarmwindow-id-opts---experimental) | Warm a closed native window ahead of its open: bundles into the tab, and an app window's first `mount` sent now and held for the click. What the dock does on hover intent. | **Experimental** |
 | [`wp.os.loadComponents( tags? )`](#wposloadcomponents-tags---stable) | Make `<os-*>` tags upgrade on demand. The runtime route to the component kit for plugin code that can't import the modules at build time. | **Stable** |
 | [`wp.os.getWindowParams( id )`](#wposgetwindowparams-id---stable) | What an open window is showing right now — for code with no render callback to read `ctx.params` from. | **Stable** |
 | [`wp.os.registerNativeUrlRemap( entry )`](#wposregisternativeurlremap-entry---stable) | Claim an admin URL for a native window, so every open path in the shell routes to it instead of an iframe. | **Stable** |
@@ -820,13 +820,13 @@ Fires after the user resets the one-time announcement flags in **OpenStation Pre
 
 ### `os-shell-tour-start` — Experimental
 
-Dispatch on `document` to start (or restart) the first-boot shell tour on demand: five `<os-coachmark>` cards. Two orient (the menu rail, and Desktop layout in OpenStation Preferences, which the tour opens and closes again when that card is done, even if it was already open) and step on click; three are gestures — open a window, snap it, press ⌘K — each of which completes when the user actually does the thing (`os.window.opened`, `os.snap.zone-committed`, `os-palette-opened`) and each of which carries a **Do it for me**. **Take the tour** in OpenStation Preferences → Features dispatches exactly this; `os-intros-reset` starts the tour too, and so does a click on the relaunch desktop icon below. No detail payload.
+Dispatch on `document` to start (or restart) the first-boot shell tour on demand: five `<os-coachmark>` cards. Two orient (the menu rail, and Desktop layout in OpenStation Preferences, which the tour opens and closes again when that card is done, even if it was already open) and step on click; the three that follow are things to do — open a window, snap it, press ⌘K — each of which completes when the user actually does the thing (`os.window.opened`, `os.snap.zone-committed`, `os-palette-opened`) and each of which carries a **Do it for me**. **Take the tour** in OpenStation Preferences → Features dispatches exactly this; `os-intros-reset` starts the tour too, and so does a click on the relaunch desktop icon below. No detail payload.
 
 Ending the tour puts the desk back: it closes the windows it opened itself (Preferences for the layout card, the one **Do it for me** opened) and the assistant. A window the user opened by clicking a tile, as the card asks, is theirs and stays, as does one that was already on the desk.
 
 **Not on the phone layer.** The tour is about the desk: a rail, windows side by side, a snap. None of the three routes starts it while the shell is in `mobile` mode, **Take the tour** is not offered in Preferences there, and a tour that is running when the shell flips to `mobile` (`os.mode.changed`) ends without being recorded, so it is still owed on the next desk boot.
 
-Mío walks the tour: the cards are its speech balloons (`speaker-size` on `<os-coachmark>`), and Mío stands beside each card, across from the highlighted control rather than in front of it: to the left or right of a card above or below its control, below a card beside one, on whichever side has more room. It is **summoned**, not switched on: the user's `mioEnabled` preference is never written, a settings save during the tour does not send it away, no window takes it in (Preferences, which hosts Mío, would otherwise have clamped it inside itself), it floats through windows instead of colliding with them (only the dock and the screen edges stay solid), and when the tour ends Mío goes back to whatever the user had chosen. The closing card is a plain card, not a balloon: it sits below the assistant "Find anything" opened, a modal whose backdrop covers the whole shell, Mío included. A user who switches Mío on or off themselves mid-tour has the last word. Not on the phone layer, where Mío never boots.
+The cards point with their tails and leave what they point at as it is (`highlight="none"` on `<os-coachmark>`). Mío peeks over the top of every card, a drawing in the coachmark's `peek` slot that looks towards whatever the card is pointing at; the companion itself is not on screen for the tour. The tour never switches the companion on or off, and never summons it: whatever the user chose from Mío's dock tile stays. Not on the phone layer, where Mío never boots.
 
 ```javascript
 document.dispatchEvent( new CustomEvent( 'os-shell-tour-start' ) );
@@ -1478,9 +1478,11 @@ An app's window is its own surface, not an iframe, so an app offering one of wp-
 
 The page is registered as that window's **synthetic iframe**, so [`wp.os.connect( windowId )`](#wposconnect-windowid-opts---stable) and `Window.send()` reach it, and `os-bridge-*` traffic and `os-window-publish` route as they do for any window. The chromeless flag is added for you.
 
-While the page loads, the busy mark is the **host's**, not the window's: an embed occupies one panel of a body the user is still looking at, and the window overlay would black out the tab strip that put them there — including the tab they would use to leave. The helper centres an `<os-spinner>` over the host and removes it on load, styling it inline so no selector of the shell's lands in your body.
+While the page loads, the busy mark is the **host's**, not the window's: an embed occupies one panel of a body the user is still looking at, and the window overlay would black out the tab strip that put them there — including the tab they would use to leave. The helper centres an `<os-spinner>` over the host — the same WordPress mark, at the same size, as a window's own loading overlay — and removes it on load, styling it inline so no selector of the shell's lands in your body.
 
-It is **not** an iframe window, and the difference is the point: title adoption, the preview and revisions title-bar buttons, the submenu tab strip and the close-time unsaved-changes query all key off `Window.iframe`, which an embedded page does not set. A host that embeds an editor owns those questions itself.
+**The page's content identity is the window's while the embed is on screen.** The `os-content-identity` the page announces (and the block editor's save-watcher re-announces after saves) is forwarded to the relations engine exactly as it is for an iframe window, so the **Preview (eye)** and revisions title-bar buttons, the Related menu and window ties all work for an embedded editor — the eye's autosave and live preview talk to the embedded iframe. When the host is hidden (another tab picked) or torn down, the window gets back the identity it had before; showing the host again re-claims it. The same applies to an `iframeContent` native window's iframe.
+
+It is still **not** an iframe window: title adoption, the submenu tab strip and the close-time unsaved-changes query key off `Window.iframe`, which an embedded page does not set. A host that embeds an editor owns those questions itself. The eye's disabled "save first" state on an unsaved `post-new.php` is also iframe-window only — an embedded editor shows the eye once its first save (or first autosave) lands.
 
 `host` is emptied first, so re-mounting is safe. `windowId` is a fallback for a host not yet inside a window root; normally the id is read off the host's own ancestry. A cross-origin URL, or the shell screen itself, mounts nothing and returns a no-op teardown — the same two refusals every other chromeless path makes.
 
@@ -1517,19 +1519,22 @@ Companion bundles declared via the window's `'scripts'` arg load first, in decla
 
 ---
 
-### `wp.os.prewarmWindow( id )` — Experimental
+### `wp.os.prewarmWindow( id, opts? )` — Experimental
 
 Warm a registered native window **ahead of its open**.
 
 ```typescript
-wp.os.prewarmWindow( id: string ): Promise< boolean >;
+wp.os.prewarmWindow(
+	id: string,
+	opts?: { params?: Record< string, string | number | boolean > },
+): Promise< boolean >;
 ```
 
-Two things happen. The window's bundles come into the tab exactly as `loadWindowScript()` brings them (a no-op once they are there — the shell also prefetches every deferred bundle in idle time after boot, so this is mostly a parse). Then, for an [App Framework](./app-framework.md) window, the runtime sends the window's **first `mount` request now** — the same body the opening window would send, the declared state and no params — and holds the answer for ~30 s. The open that follows takes it instead of fetching: the frame paints from the client `placeholder`, and the rows are on screen a frame later.
+Two things happen. The window's bundles come into the tab exactly as `loadWindowScript()` brings them (a no-op once they are there — the shell also prefetches every deferred bundle in idle time after boot, so this is mostly a parse). Then, for an [App Framework](./app-framework.md) window, the runtime sends the window's **first `mount` request now** — the same body the opening window would send: the declared state and `opts.params` — and holds the answer for ~30 s. The open that follows takes it instead of fetching: the frame paints from the client `placeholder`, and the rows are on screen a frame later.
 
 This is what the dock does on a sustained mouse hover over a native window's tile — a system tile, a launcher synthesised from a registered icon, or a menu URL a native remap captures (Posts, Users, Plugins, Comments with their native windows on) — when **Prewarm windows on hover** is enabled; iframe tiles get `windowManager.prewarm()` from the same gesture. A plugin with its own intent signal (a focused row, a pointer heading for a button) calls it directly.
 
-Resolves `true` when a mount was started; `false` when there was nothing to warm — an unknown id, a window that is already open, a native window that is not an app, or one warmed a moment ago. A warm is taken **once**, by the next default open; a window opened with params (a deep link) always fetches, since its state is the server's to derive; a warm that failed is dropped and the open fetches as it always did.
+Resolves `true` when a mount was started; `false` when there was nothing to warm — an unknown id, a window that is already open, a native window that is not an app, or one warmed a moment ago. A warm is taken **once**, by the next open **with the same params**. Pass the params the open will carry: a URL remap opens even a plain dock click with params (the native Comments window opens `{ post: 0 }`, Plugins `{ tab: 'installed' }`), and the dock warms remapped tiles with exactly those. An open whose params differ from every warm (a deep link) fetches, since its state is the server's to derive. A warm that failed is dropped and the open fetches as it always did.
 
 
 ---
@@ -2948,7 +2953,7 @@ wp.os.apps.dispatch( windowId: string, action: string, args?: Record< string, un
 wp.os.apps.local( windowId: string, action: string, args?: Record< string, unknown > ): void;   // client-view apps: no request
 wp.os.apps.session( windowId: string, view?: string ): Session | undefined;
 wp.os.apps.refresh(): string[];   // re-scan window configs for app definitions; returns newly registered ids
-wp.os.apps.prewarm( id: string ): boolean;   // send a closed app window's first `mount` now; the open takes the answer. Prefer wp.os.prewarmWindow( id ), which loads the bundles first.
+wp.os.apps.prewarm( id: string, params?: Record< string, string | number | boolean > ): boolean;   // send a closed app window's first `mount` now (with these open params); an open with the same params takes the answer. Prefer wp.os.prewarmWindow( id, { params } ), which loads the bundles first.
 ```
 
 An app with a client view (`<file>.os.ts`, see [`app-framework.md` → The client view](./app-framework.md#the-client-view--osts)) publishes `window.openStationApps[ id ]` from its bundle; `session.data` is what its `App::data()` returned on the last server response.
@@ -3588,7 +3593,7 @@ wp.os.relations.related( myWindowId ); // → sibling window ids
 
 ### The "Related" title-bar button — Experimental
 
-Any window whose content identity carries `related` items shows a **Related** button (network icon, right side of the title bar, registered through the public `registerTitleBarButton` surface as `desktop-mode/related-entities`). Clicking it opens a dropdown grouped by `item.group` — built-in groups render first (`comments`, then `terms/*`, then `media`, then `links`), vendor groups after in arrival order, each headed by its `groupLabel` — and picking an item opens it as its own desktop window: `item.windowId` when it names one (with `item.params`), otherwise `item.url` — consulted against the native-URL remap registry first, so a URL a native window has claimed opens that window and the remap's own `params` / `onMatch` thread the deep link's filter through. The button appears/disappears live as the identity changes: iframe navigation re-announces it, and inside the block editor the bridge's save-watcher refetches a server-recomputed identity after every real (non-autosave) save — adding a category, linking a post, or attaching media updates the menu without a reload. It hides whenever the resolved list is empty.
+Any window whose content identity carries `related` items shows a **Related** button (network icon, right side of the title bar, registered through the public `registerTitleBarButton` surface as `desktop-mode/related-entities`). Clicking it opens a dropdown grouped by `item.group` — built-in groups render first (`comments`, then `terms/*`, then `media`, then `links`), vendor groups after in arrival order, each headed by its `groupLabel` — and picking an item opens it as its own desktop window: `item.windowId` when it names one (with `item.params`), otherwise `item.url` — consulted against the native-URL remap registry first, so a URL a native window has claimed opens that window and the remap's own `params` / `onMatch` thread the deep link's filter through. The button appears/disappears live as the identity changes: iframe navigation re-announces it, and inside the block editor the bridge's save-watcher refetches a server-recomputed identity after every real (non-autosave) save (plus a new post's first autosave) — adding a category, linking a post, or attaching media updates the menu without a reload. It hides whenever the resolved list is empty.
 
 **`RelatedEntityItem`:**
 
@@ -3631,7 +3636,7 @@ Malformed entries are dropped item-wise; a non-array return falls back to the id
 
 ### The "Preview" (eye) title-bar button — Experimental
 
-Any window whose content identity carries a `previewUrl` shows a **Preview** button (eye icon, right side of the title bar, just before Related; registered through the public `registerTitleBarButton` surface as `desktop-mode/editor-preview`). The URL is built server-side by `openstation_window_preview_url()` for post/page/CPT edit screens — Gutenberg **and** classic — of viewable post types, so the eye appears exactly where the front end has something to show. On `post-new.php` (unsaved auto-draft, nothing to preview yet) the eye renders **disabled** — `aria-disabled="true"`, dimmed, tooltip "Save the post to enable its preview", a click explains via toast — and enables itself the moment the first save lands (the block editor's save-watcher refetches the identity live, no reload).
+Any window whose content identity carries a `previewUrl` shows a **Preview** button (eye icon, right side of the title bar, just before Related; registered through the public `registerTitleBarButton` surface as `desktop-mode/editor-preview`). The URL is built server-side by `openstation_window_preview_url()` for post/page/CPT edit screens — Gutenberg **and** classic — of viewable post types, so the eye appears exactly where the front end has something to show. Native windows count too when they embed an editor through [`wp.os.embedAdminPage()`](#wposembedadminpage-host-url-opts---stable) (the Posts app's Add Post tab) — the eye shows while that panel is on screen. On `post-new.php` in an iframe window (unsaved auto-draft, nothing to preview yet) the eye renders **disabled** — `aria-disabled="true"`, dimmed, tooltip "Save the post to enable its preview", a click explains via toast — and enables itself the moment the first save lands — including the autosave Gutenberg makes on its own (the block editor's save-watcher refetches the identity live, no reload).
 
 Clicking the eye:
 
@@ -6721,7 +6726,13 @@ top of the base `DesktopFileShape`.
 `desktop-mode/upload-start-post` / `desktop-mode/upload-start-page`
 (images, with `canStartPost` / `canStartPage`), and
 `desktop-mode/folder-zip-download` on folder tiles when
-`zipAvailable`. Plugins reorder/hide them like any other item.
+`zipAvailable`, and `desktop-mode/agent-send-to-<agentId>` ("Send to
+<agent>") on post, page, media and user tiles, one per agent whose
+`send-to` trigger accepts that entity kind. The agents come from
+`openStationConfig.agentsSendTo` (`openstation_agents_send_to_targets()`
+on the server: agents the viewer may invoke, empty while the framework
+is off) and refresh on `os.agents.roster-changed`. Plugins reorder/hide
+them like any other item.
 
 **Media Library routes** — `POST /uploads/<id>/media` copies the
 file into the Media Library and answers `{ attachmentId, created,
@@ -7641,6 +7652,7 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | `icons` | `Record<string,string>` | Slot => dashicon class or absolute image URL. |
 | `iconColors` | `Record<string,string>` | Slot => fill colour, for the slots the theme tints. A slot present here is painted as a tinted CSS mask (images) or with that `color` (dashicons); `currentColor` defers to the surface. Absent = default rendering. |
 | `recommendedOsSettings` | `RecommendedOsSettings` | Presentation preferences the theme suggests. Always an object; `{}` means it suggests nothing. |
+| `drawsToolbar` | `boolean` | Whether the theme names an `--os-toolbar-*` token, and so takes the WordPress toolbar's colours over from the admin colour scheme (the shell toggles `os-toolbar-themed` on the body). |
 | `installedAt` | `number` | Unix timestamp; `0` for code themes. |
 | `source` | `'upload' \| 'code'` | |
 
@@ -7654,6 +7666,12 @@ wp.os.desktopThemes.applyRecommendedOsSettings(
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
 | `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
 | `dockRailRenderer` | `string` | A registered dock rail renderer id. |
+| `windowReveal`, `windowRevealDuration` | `string`, `number` | A registered reveal id (or `none`), and its duration in ms. |
+| `accent` | `string` | A registered accent-swatch id. |
+| `accentColor` | `string` | A six-digit hex colour, applied as the swatch with that value or as the custom accent. |
+| `wallpaper` | `string` | One of the theme's own wallpaper ids, or any registered wallpaper id. |
+| `navPlacement` | `Record< string, string >` | Dock item id to `rail` \| `desktop` \| `both` \| `hidden`, merged into the user's own map. |
+| `widgets` | `string[]` | The widget column, by widget id; `[]` is an empty desk. Stored per browser, and what a browser's first visit starts from. |
 
 **`setActive()` is presentation only.** It swaps the stylesheet and
 repaints, but does not persist — use it for a preview (a hover, a

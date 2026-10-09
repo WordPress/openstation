@@ -10,9 +10,11 @@ import { holoTokens } from '../../holo';
 export const tabsStyles = css`
 	:host {
 		display: flex;
-		gap: 4px;
-		margin-bottom: 10px;
-		border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+		gap: var( --os-ui-tabs-gap, 4px );
+		margin: var( --os-ui-tabs-margin, 0 0 10px );
+		padding: var( --os-ui-tabs-padding, 0 );
+		border-bottom: var( --os-ui-tabs-floor, 1px solid var( --os-ui-border, #dcdcde ) );
+		background: var( --os-ui-tabs-bg, transparent );
 	}
 
 	/*
@@ -28,8 +30,10 @@ export const tabsStyles = css`
 		flex-direction: column;
 		align-items: stretch;
 		gap: 0;
-		margin-bottom: 0;
+		margin: 0;
+		padding: 0;
 		border-bottom: 0;
+		background: none;
 	}
 `;
 
@@ -124,6 +128,9 @@ export const tabStyles = css`
 		--_tab-edge-w: var( --os-ui-tab-edge-width, 2px );
 		--_tab-bloom-o: var( --os-ui-tab-bloom-opacity, 1 );
 		--_tab-fill: var( --os-ui-tab-fill, transparent );
+		/* The label on the selected row, for a fill dark enough to need
+		 * light text (an inverted highlight). */
+		--_tab-fg: var( --os-ui-tab-selected-fg, var( --os-ui-fg, #1d2327 ) );
 		--_tab-radius: var( --os-ui-tab-radius, 0px );
 		--_tab-inset: var( --os-ui-tab-inset, 0px );
 	}
@@ -229,6 +236,7 @@ export const tabStyles = css`
 	:host( [ data-orientation='vertical' ][ aria-selected='true' ] ) button {
 		background-color: var( --_tab-fill );
 		background-image: var( --_tab-wash );
+		color: var( --_tab-fg );
 		/*
 		 * No weight bump. Body Small is Regular, and the edge already
 		 * says which row this is. A second signal only makes the
@@ -309,6 +317,36 @@ export const tabStyles = css`
 	:host( [ aria-selected='true' ] ) button:hover::after {
 		inset-inline: 0;
 		opacity: 1;
+	}
+	/*
+	 * A horizontal tab drawn as a key, for a desktop theme that wants
+	 * one: a face, an edge, and a selected tab that rises over the
+	 * floor. Scoped away from the vertical sidebar, which has its own
+	 * tokens. Every default is the underline look above.
+	 */
+	:host( :not( [ data-orientation='vertical' ] ) ) button {
+		margin: var( --os-ui-tab-margin, 0 0 -1px );
+		padding: var( --os-ui-tab-padding, 6px 10px 8px );
+		border-radius: var( --os-ui-tab-corners, 0 );
+		background: var( --os-ui-tab-bg, transparent );
+		box-shadow: var( --os-ui-tab-shadow, none );
+		font-size: var( --os-ui-tab-font-size, 12px );
+	}
+	:host( :not( [ data-orientation='vertical' ] ) ) button::after {
+		display: var( --os-ui-tab-indicator-display, block );
+	}
+	:host( [ aria-selected='true' ]:not( [ data-orientation='vertical' ] ) ) button {
+		z-index: 1;
+		margin: var( --os-ui-tab-selected-margin, var( --os-ui-tab-margin, 0 0 -1px ) );
+		padding: var( --os-ui-tab-selected-padding, var( --os-ui-tab-padding, 6px 10px 8px ) );
+		background: var( --os-ui-tab-selected-bg, var( --os-ui-tab-bg, transparent ) );
+		box-shadow: var( --os-ui-tab-selected-shadow, var( --os-ui-tab-shadow, none ) );
+		font-weight: var( --os-ui-tab-selected-weight, 600 );
+	}
+	/* Restated after the key rules, which would otherwise outrank it. */
+	:host( :not( [ data-orientation='vertical' ] ) ) button:focus-visible {
+		box-shadow: var( --_holo-focus );
+		border-radius: 4px;
 	}
 	@media ( prefers-reduced-motion: reduce ) {
 		button::after {

@@ -46,12 +46,23 @@ import {
 	saveEnabledIds,
 	saveGeometry,
 } from './state';
+import { getActiveDesktopThemeId, getDesktopTheme } from '../desktop-themes/registry';
 import { showInlineLoader } from '../ui/inline-loader';
 import { createWidgetStorage } from './storage';
 import type { WidgetGeometry, WidgetTeardown } from './types';
 
 /** First-run default — the clock. Removable like any other. */
 const DEFAULT_ENABLED_IDS = [ 'clock' ];
+
+/**
+ * The column the active desktop theme recommends, or `null` when it
+ * names none. A first run starts from it instead of the clock.
+ */
+function themeWidgetIds(): readonly string[] | null {
+	const id = getActiveDesktopThemeId();
+	const widgets = id ? getDesktopTheme( id )?.recommendedOsSettings.widgets : undefined;
+	return widgets ?? null;
+}
 
 /**
  * How far outside the column the pointer still counts as "near" for
@@ -173,12 +184,12 @@ export class WidgetLayer {
 	}
 
 	public hydrate(): void {
-		// First-run: no saved list at all → seed with the default
-		// (currently just 'clock'). This writes through so the next
-		// boot sees an explicit empty [] if the user removed it,
+		// First-run: no saved list at all → seed with the active
+		// theme's column, or the clock. This writes through so the
+		// next boot sees an explicit empty [] if the user removed it,
 		// distinct from first-run.
 		if ( readRawEnabled() === null ) {
-			this.enabledIds = DEFAULT_ENABLED_IDS.filter(
+			this.enabledIds = ( themeWidgetIds() ?? DEFAULT_ENABLED_IDS ).filter(
 				( id ) => !! registry.get( id ),
 			);
 			saveEnabledIds( this.enabledIds );
@@ -259,21 +270,41 @@ export class WidgetLayer {
 			return;
 		}
 		saveEnabledIds( this.enabledIds );
-		// Drop any persisted geometry so a re-add starts docked.
-		if ( this.geometry[ id ] ) {
-			delete this.geometry[ id ];
-			saveGeometry( this.geometry );
-		}
-		// Same for the docked-height record — a re-add starts at the
-		// widget's natural (content-driven) height.
-		if ( this.dockedHeights[ id ] !== undefined ) {
-			delete this.dockedHeights[ id ];
-			saveDockedHeights( this.dockedHeights );
-		}
+		this.forgetLayout( id );
 		this.unmountById( id );
 		this.paintEmptyState();
 		doAction( HOOKS.WIDGET_REMOVED, { id } );
 		refreshWidgetPicker();
+	}
+
+	/**
+	 * Replace the user's own list, as applying a theme's recommended
+	 * column does. Ids nothing is registered under are skipped. A
+	 * workspace's column, while one is in force, stays on screen.
+	 */
+	public setEnabledIds( ids: readonly string[] ): void {
+		const next = [ ...new Set( ids ) ].filter( ( id ) => !! registry.get( id ) );
+		for ( const id of this.enabledIds ) {
+			if ( ! next.includes( id ) ) {
+				this.forgetLayout( id );
+			}
+		}
+		this.enabledIds = next;
+		saveEnabledIds( next );
+		this.setVisibleIds( this.override );
+		refreshWidgetPicker();
+	}
+
+	/** Drop a widget's stored placement, so a re-add starts docked at its natural height. */
+	private forgetLayout( id: string ): void {
+		if ( this.geometry[ id ] ) {
+			delete this.geometry[ id ];
+			saveGeometry( this.geometry );
+		}
+		if ( this.dockedHeights[ id ] !== undefined ) {
+			delete this.dockedHeights[ id ];
+			saveDockedHeights( this.dockedHeights );
+		}
 	}
 
 	/** Public read for the picker / external callers. */

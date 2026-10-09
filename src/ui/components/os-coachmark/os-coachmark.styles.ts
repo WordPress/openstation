@@ -9,16 +9,22 @@ import { css } from '../../core';
  * while step 2 of the shell tour is up); only the card takes events.
  *
  * Every colour is read through a private alias so the palette and a
- * desktop theme both reach it. The accent is the flat brand accent,
- * not the mesh: a coachmark is instruction, not a hero moment.
+ * desktop theme both reach it. None of them is the accent: a coachmark
+ * is instruction, not a hero moment, and it usually points at UI that
+ * already uses the accent to mark its own state. A pink ring around a
+ * pink selection marks nothing. The focus ring is the one exception,
+ * as it is everywhere: focus does not dim.
  */
 export const styles = css`
 	:host {
 		display: contents;
 		--_accent: var( --os-ui-accent, #f252fc );
-		--_glow: var( --os-ui-accent-dim, #d846e0 );
 		--_bg: var( --os-ui-surface-elevated, #ffffff );
 		--_fg: var( --os-ui-fg, #1d2327 );
+		--_ring: var( --os-ui-coachmark-ring, color-mix( in srgb, var( --_fg ) 45%, transparent ) );
+		--_action-bg: var( --os-ui-coachmark-action-bg, var( --_fg ) );
+		--_action-fg: var( --os-ui-coachmark-action-fg, var( --_bg ) );
+		--_peek-reveal: var( --os-ui-coachmark-peek-reveal, 23px );
 		--_muted: var( --os-ui-fg-muted, #646970 );
 		--_border: var( --os-ui-border-strong, rgba( 0, 0, 0, 0.12 ) );
 		--_shadow: var( --os-ui-flyout-shadow, 0 16px 48px rgba( 0, 25, 53, 0.4 ) );
@@ -48,26 +54,18 @@ export const styles = css`
 		display: none;
 	}
 
+	/* A hairline, and still. It used to pulse for as long as the card
+	   was up, which is a light blinking at the edge of the eye; the card
+	   arriving is movement enough. */
 	.outline {
 		position: fixed;
 		box-sizing: border-box;
-		border: 2px solid var( --_accent );
+		border: 1.5px solid var( --_ring );
 		border-radius: 12px;
-		box-shadow: 0 0 0 4px color-mix( in srgb, var( --_glow ) 28%, transparent );
 		pointer-events: none;
-		animation: os-coachmark-pulse 1.6s ease-in-out infinite;
 	}
 	.outline[hidden] {
 		display: none;
-	}
-	@keyframes os-coachmark-pulse {
-		0%,
-		100% {
-			box-shadow: 0 0 0 4px color-mix( in srgb, var( --_glow ) 28%, transparent );
-		}
-		50% {
-			box-shadow: 0 0 0 8px color-mix( in srgb, var( --_glow ) 12%, transparent );
-		}
 	}
 
 	.card {
@@ -203,11 +201,9 @@ export const styles = css`
 	}
 
 	.meta {
-		font-size: 11px;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var( --_accent );
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
+		color: var( --_muted );
 		margin: 0 0 4px;
 	}
 	.meta:empty {
@@ -235,11 +231,56 @@ export const styles = css`
 	.actions os-button[hidden] {
 		display: none;
 	}
+	/* The primary action is the card's ink turned inside out, not the
+	   accent: clear enough to find, and nothing that competes with what
+	   the card is pointing at. Its hover glow follows suit. */
+	.actions os-button.primary {
+		--os-ui-button-bg: var( --_action-bg );
+		--os-ui-button-fg: var( --_action-fg );
+		--os-ui-holo-glow: 0 0 0 1px color-mix( in srgb, var( --_action-bg ) 30%, transparent );
+	}
+
+	/* The peek slot: a figure standing behind the card's top edge, only
+	   its top showing. The clip is the slot box itself, which ends where
+	   the card begins. It pops up when the card arrives and again on
+	   each step (a different animation name restarts it), then stays. */
+	.peek {
+		position: absolute;
+		bottom: 100%;
+		inset-inline-end: 22px;
+		height: var( --_peek-reveal );
+		overflow: hidden;
+		pointer-events: none;
+	}
+	.peek ::slotted( * ) {
+		display: block;
+		animation: os-coachmark-peek 520ms cubic-bezier( 0.3, 1.5, 0.5, 1 ) 120ms both;
+	}
+	.card.swap .peek ::slotted( * ) {
+		animation-name: os-coachmark-peek-again;
+	}
+	@keyframes os-coachmark-peek {
+		from {
+			transform: translateY( 100% );
+		}
+		to {
+			transform: none;
+		}
+	}
+	@keyframes os-coachmark-peek-again {
+		from {
+			transform: translateY( 100% );
+		}
+		to {
+			transform: none;
+		}
+	}
 
 	/* A fade is not motion: the card still appears and leaves, but
 	   every slide, scale and glide goes. */
 	@media ( prefers-reduced-motion: reduce ) {
-		.outline {
+		.peek ::slotted( * ),
+		.card.swap .peek ::slotted( * ) {
 			animation: none;
 		}
 		.card,
