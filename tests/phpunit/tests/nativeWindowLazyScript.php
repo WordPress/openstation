@@ -581,7 +581,7 @@ class Tests_OpenStation_NativeWindowLazyScript extends WP_UnitTestCase {
 		$this->assertSame( array( 'demo-extra' ), $entry['companionScripts'] );
 		$this->assertSame(
 			array( 'window.demoProbeConfig={b:2};' ),
-			$payload['nativeWindowScriptData']['demo-extra']['before']
+			( (array) $payload['scriptDepPayloads'] )['demo-extra']['before']
 		);
 	}
 
