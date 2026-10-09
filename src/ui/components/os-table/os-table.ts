@@ -91,7 +91,9 @@
  */
 
 import { Component, defineComponent, html, render as renderTemplate, type TemplateResult } from '../../core';
+import { MODE_ATTRIBUTE } from '../../../mode/stamp';
 import { styles } from './os-table.styles';
+import { stackOnPhone } from './stack-on-phone';
 
 /**
  * Per-column descriptor. The bare minimum is `{ key }`; everything
@@ -261,6 +263,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		'loadingRows',
 		'selectable',
 		'stacked',
+		'stackOnPhone',
 	] as const;
 	static styles = [ styles ];
 
@@ -314,6 +317,12 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 				type: 'boolean',
 				description:
 					'Lay every row out as a card instead of a table row: the first column is the title, the others are labelled lines, a label-less column is the actions row (`column.stack` overrides the role per column). No header, no sticky columns, nothing scrolls sideways — the layout for a phone, or any width the columns cannot fit. Selection, sub-tables, row clicks and every event work unchanged.',
+			},
+			{
+				name: 'stack-on-phone',
+				type: 'boolean',
+				description:
+					'Automatically apply the stacked card layout on a phone (and lift sticky columns), restoring the table grid on desktop. Driven by the shell\'s mode stamp.',
 			},
 		],
 		events: [
@@ -380,6 +389,9 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 	private _paintScheduled = false;
 	/** `stacked` as read at the start of the current paint. */
 	private _stacked = false;
+	private _modeObserver: MutationObserver | null = null;
+	private _onModeChanged: ( ( e: Event ) => void ) | null = null;
+	private _stackedByPhone = false;
 	private _stickyHeaderWarned = false;
 	private _stickyRaceWarned = false;
 	private _resizeObserver: ResizeObserver | null = null;
@@ -755,16 +767,108 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 
 	connectedCallback(): void {
 		super.connectedCallback();
+		if ( this.hasAttribute( 'stack-on-phone' ) ) {
+			this._setupStackOnPhone();
+			this._syncStackOnPhone();
+		}
 		this._schedulePaint();
 	}
 
 	disconnectedCallback(): void {
+		this._teardownStackOnPhone();
 		this._resizeObserver?.disconnect();
 		this._resizeObserver = null;
 		if ( this._stickyRafHandle !== null && typeof cancelAnimationFrame !== 'undefined' ) {
 			cancelAnimationFrame( this._stickyRafHandle );
 			this._stickyRafHandle = null;
 		}
+	}
+
+	attributeChangedCallback(
+		name: string,
+		oldValue: string | null,
+		newValue: string | null,
+	): void {
+		super.attributeChangedCallback( name, oldValue, newValue );
+		if ( name === 'stack-on-phone' ) {
+			if ( this.hasAttribute( 'stack-on-phone' ) ) {
+				this._setupStackOnPhone();
+				this._syncStackOnPhone();
+			} else {
+				this._teardownStackOnPhone();
+				if ( this._stackedByPhone ) {
+					this.removeAttribute( 'stacked' );
+					const kept = this.getAttribute( 'data-os-sticky-columns' );
+					if ( kept !== null ) {
+						this.setAttribute( 'sticky-columns', kept );
+						this.removeAttribute( 'data-os-sticky-columns' );
+					}
+					this._stackedByPhone = false;
+				}
+			}
+		}
+	}
+
+	private _setupStackOnPhone(): void {
+		if ( this._modeObserver || ! this.isConnected ) {
+			return;
+		}
+		if ( typeof MutationObserver !== 'undefined' ) {
+			this._modeObserver = new MutationObserver( () => {
+				this._syncStackOnPhone();
+			} );
+			const stampRoot = this._findModeStampRoot();
+			if ( stampRoot ) {
+				this._modeObserver.observe( stampRoot, {
+					attributes: true,
+					attributeFilter: [ MODE_ATTRIBUTE ],
+				} );
+			}
+			const docRoot = typeof document !== 'undefined' ? document.documentElement : null;
+			if ( docRoot && docRoot !== stampRoot ) {
+				this._modeObserver.observe( docRoot, {
+					attributes: true,
+					attributeFilter: [ MODE_ATTRIBUTE ],
+				} );
+			}
+			if ( this.parentElement && this.parentElement !== stampRoot && this.parentElement !== docRoot ) {
+				this._modeObserver.observe( this.parentElement, {
+					attributes: true,
+					attributeFilter: [ MODE_ATTRIBUTE ],
+				} );
+			}
+		}
+		if ( typeof document !== 'undefined' ) {
+			this._onModeChanged = () => {
+				this._syncStackOnPhone();
+			};
+			document.addEventListener( 'os-mode-changed', this._onModeChanged );
+		}
+	}
+
+	private _teardownStackOnPhone(): void {
+		this._modeObserver?.disconnect();
+		this._modeObserver = null;
+		if ( this._onModeChanged && typeof document !== 'undefined' ) {
+			document.removeEventListener( 'os-mode-changed', this._onModeChanged );
+			this._onModeChanged = null;
+		}
+	}
+
+	private _findModeStampRoot(): Element | null {
+		return (
+			this.closest( `[${ MODE_ATTRIBUTE }]` ) ??
+			( typeof document !== 'undefined' ? document.documentElement : null )
+		);
+	}
+
+	private _syncStackOnPhone(): void {
+		if ( ! this.hasAttribute( 'stack-on-phone' ) ) {
+			return;
+		}
+		const stampRoot = this._findModeStampRoot();
+		const isPhone = stackOnPhone( this, stampRoot );
+		this._stackedByPhone = isPhone;
 	}
 
 	/**
