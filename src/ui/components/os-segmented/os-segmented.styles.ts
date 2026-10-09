@@ -180,7 +180,13 @@ export const segmentStyles = css`
 		background-color: var( --os-ui-segmented-hover-bg, transparent );
 	}
 
-	button:focus-visible {
+	/* The HOST is the focusable now (the group roves it and the shadow
+	   button is tabindex="-1"), so the ring is drawn from the host's
+	   focus state onto the button that shows it. */
+	:host( :focus-visible ) {
+		outline: none;
+	}
+	:host( :focus-visible ) button {
 		outline: none;
 		box-shadow: var( --_holo-focus );
 	}
