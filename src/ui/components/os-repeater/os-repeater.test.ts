@@ -24,8 +24,8 @@ describe( '<os-repeater>', () => {
 		host.remove();
 	} );
 
-	async function mount( attrs = '' ): Promise< OsRepeater > {
-		host.innerHTML = `<os-repeater ${ attrs }></os-repeater>`;
+	async function mount( attrs = '', innerHTML = '' ): Promise< OsRepeater > {
+		host.innerHTML = `<os-repeater ${ attrs }>${ innerHTML }</os-repeater>`;
 		const el = host.querySelector( 'os-repeater' ) as OsRepeater;
 		el.keys = [ 'a', 'b', 'c' ];
 		await tick();
@@ -180,15 +180,123 @@ describe( '<os-repeater>', () => {
 		expect( seen ).not.toHaveBeenCalled();
 	} );
 
-	test( 'add-label and row-label reach the DOM', async () => {
+	test( 'add-label and row-label reach the DOM with unique positional names', async () => {
 		const el = await mount( 'add-label="Add choice" row-label="choice"' );
 		expect( el.shadowRoot!.querySelector( 'os-button' )!.textContent ).toContain(
 			'Add choice',
 		);
 		expect(
+			rows( el ).map(
+				( r ) =>
+					r.querySelector( '.os-repeater__remove' )!.getAttribute( 'aria-label' ),
+			),
+		).toEqual( [
+			'Remove choice 1 of 3',
+			'Remove choice 2 of 3',
+			'Remove choice 3 of 3',
+		] );
+	} );
+
+	test( 'reorder handles carry unique positional accessible names', async () => {
+		const el = await mount( 'row-label="choice" reorderable' );
+		const handles = rows( el ).map( ( r ) =>
+			Array.from( r.querySelectorAll( '.os-repeater__handle' ) ).map( ( h ) =>
+				h.getAttribute( 'aria-label' ),
+			),
+		);
+		expect( handles ).toEqual( [
+			[ 'Move choice 1 up', 'Move choice 1 down' ],
+			[ 'Move choice 2 up', 'Move choice 2 down' ],
+			[ 'Move choice 3 up', 'Move choice 3 down' ],
+		] );
+	} );
+
+	test( 'positional labels update when keys change', async () => {
+		const el = await mount( 'row-label="choice"' );
+		el.keys = [ 'a', 'c' ];
+		await tick();
+		expect(
+			rows( el ).map(
+				( r ) =>
+					r.querySelector( '.os-repeater__remove' )!.getAttribute( 'aria-label' ),
+			),
+		).toEqual( [ 'Remove choice 1 of 2', 'Remove choice 2 of 2' ] );
+	} );
+
+	test( 'row-label-from labels row controls from a named child field', async () => {
+		const el = await mount(
+			'row-label="choice" row-label-from="title" reorderable',
+			`
+				<div slot="row-a"><input name="title" value="First Choice" /></div>
+				<div slot="row-b"><input name="title" value="Second Choice" /></div>
+				<div slot="row-c"><input name="title" value="" /></div>
+			`,
+		);
+
+		const removeLabels = rows( el ).map(
+			( r ) =>
+				r.querySelector( '.os-repeater__remove' )!.getAttribute( 'aria-label' ),
+		);
+		expect( removeLabels ).toEqual( [
+			'Remove First Choice',
+			'Remove Second Choice',
+			'Remove choice 3 of 3', // falls back to position when empty
+		] );
+
+		const moveLabels = rows( el ).map( ( r ) =>
+			Array.from( r.querySelectorAll( '.os-repeater__handle' ) ).map( ( h ) =>
+				h.getAttribute( 'aria-label' ),
+			),
+		);
+		expect( moveLabels[ 0 ] ).toEqual( [
+			'Move First Choice up',
+			'Move First Choice down',
+		] );
+	} );
+
+	test( 'data-label on row slot labels row controls', async () => {
+		const el = await mount(
+			'row-label="choice"',
+			`
+				<div slot="row-a" data-label="Drafting"></div>
+				<div slot="row-b"></div>
+				<div slot="row-c"></div>
+			`,
+		);
+
+		expect(
 			rows( el )[ 0 ]
 				.querySelector( '.os-repeater__remove' )!
 				.getAttribute( 'aria-label' ),
-		).toBe( 'Remove choice' );
+		).toBe( 'Remove Drafting' );
+		expect(
+			rows( el )[ 1 ]
+				.querySelector( '.os-repeater__remove' )!
+				.getAttribute( 'aria-label' ),
+		).toBe( 'Remove choice 2 of 3' );
+	} );
+
+	test( 'typing into a row-label-from input updates accessible labels live', async () => {
+		const el = await mount(
+			'row-label="choice" row-label-from="title"',
+			'<div slot="row-a"><input name="title" value="Draft" /></div>',
+		);
+
+		expect(
+			rows( el )[ 0 ]
+				.querySelector( '.os-repeater__remove' )!
+				.getAttribute( 'aria-label' ),
+		).toBe( 'Remove Draft' );
+
+		const input = el.querySelector( 'input' )!;
+		input.value = 'Published';
+		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+		await tick();
+
+		expect(
+			rows( el )[ 0 ]
+				.querySelector( '.os-repeater__remove' )!
+				.getAttribute( 'aria-label' ),
+		).toBe( 'Remove Published' );
 	} );
 } );
