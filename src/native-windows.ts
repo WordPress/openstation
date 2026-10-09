@@ -29,6 +29,7 @@ import { isMobileStamped } from './mode/stamp';
 import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader';
 import { registerSyntheticIframe } from './connection';
 import { isShellDocumentUrl } from './shell-url';
+import { recordFrameLocation, setWindowMenuPages } from './window/share-link';
 import {
 	registerNativeUrlRemap,
 	unregisterNativeUrlRemap,
@@ -554,6 +555,19 @@ function buildIframeContentRender(
 					}
 				).__openStationConnectionBridge;
 				bridgeRouter?.routeIncomingFromIframe( data, windowId );
+			}
+			// Where the page is, for "Copy link": an isolated frame (the
+			// block editor in Chromium) cannot be read, and its first
+			// save rewrites `post-new.php` in place.
+			if (
+				data &&
+				typeof data === 'object' &&
+				( ( data as { type?: string } ).type === 'os-iframe-navigated' ||
+					( data as { type?: string } ).type === 'os-iframe-location' ) &&
+				typeof ( data as { url?: unknown } ).url === 'string' &&
+				( data as { url: string } ).url !== ''
+			) {
+				recordFrameLocation( iframe, ( data as { url: string } ).url );
 			}
 			// Unified window-channel publish from the synthetic iframe.
 			// Mirror of the equivalent block in `src/window/iframe-bridge.ts`
@@ -1969,6 +1983,7 @@ export function createNativeWindowSync(
 	const syncMenuPages = ( entry: NativeWindowServerEntry ): void => {
 		const id = menuPagesRemapId( entry.id );
 		const pages = entry.menuPages ?? [];
+		setWindowMenuPages( entry.id, pages );
 		if ( pages.length === 0 ) {
 			unregisterNativeUrlRemap( id );
 			return;
@@ -2015,6 +2030,7 @@ export function createNativeWindowSync(
 			if ( ! incoming.has( id ) ) {
 				unregisterTile( id );
 				unregisterNativeUrlRemap( menuPagesRemapId( id ) );
+				setWindowMenuPages( id, [] );
 			}
 		}
 

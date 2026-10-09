@@ -22,7 +22,7 @@ import { workAreaRectOf } from '../work-area';
 import { snapHalfRect } from '../window-manager/geometry';
 import { __, _x, sprintf } from './../i18n';
 import { copyText } from '../app-runtime/clipboard';
-import { shareableUrl } from './share-link';
+import { nativeShareableUrl, shareableUrl } from './share-link';
 import { attachTooltip } from '../ui/components/os-tooltip/os-tooltip';
 import {
 	addParentSubscriber,
@@ -2869,6 +2869,18 @@ export class Window {
 	}
 
 	/**
+	 * The link "Copy link" would hand out right now, or `''` when this
+	 * window shows nothing anyone else could open. An iframe window
+	 * shares its page; a native one shares the admin page embedded in
+	 * it, or the screen its visible tab stands for (see `share-link.ts`).
+	 */
+	public shareableLink(): string {
+		return this.config.native
+			? nativeShareableUrl( this, INITIAL_ORIGIN )
+			: shareableUrl( this.getCurrentUrl(), INITIAL_ORIGIN );
+	}
+
+	/**
 	 * Put a shareable link to the page this window shows on the
 	 * clipboard. The URL is read now, so a window that navigated since
 	 * it opened shares where it is. The ⋯ menu's row confirms it (see
@@ -2877,7 +2889,7 @@ export class Window {
 	 * Resolves whether the link was copied.
 	 */
 	public async copyLink(): Promise< boolean > {
-		const link = shareableUrl( this.getCurrentUrl(), INITIAL_ORIGIN );
+		const link = this.shareableLink();
 		return link !== '' && copyText( link );
 	}
 

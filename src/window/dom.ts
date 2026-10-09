@@ -562,7 +562,8 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	//   - Open in new window       — opens the current iframe URL as a
 	//                                fresh sibling.
 	//   - Copy link                — copies a shareable URL of the page.
-	//                                Iframe-only.
+	//                                Hidden on a native window with no
+	//                                page to share.
 	//   - Reload                   — reloads the iframe, or re-runs the
 	//                                render callback of a native window.
 	//   - Open in classic wp-admin — detach to a classic admin tab.
@@ -630,19 +631,21 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		openInNew.classList.add( 'os-window__menu-item--open-in-new-window' );
 		openInNew.textContent = __( 'Open in new window' );
 		menuPanel.appendChild( openInNew );
-
-		// "Copy link" — the page's own wp-admin address, cleaned of the
-		// shell's flags (see `share-link.ts`), so whoever opens it lands
-		// on the same screen. Iframe-only: a native window has no page.
-		const copyLink = document.createElement( 'os-menu-item' );
-		copyLink.setAttribute( 'role', 'menuitem' );
-		copyLink.setAttribute( 'value', 'copy-link' );
-		copyLink.setAttribute( 'icon', 'dashicons-admin-links' );
-		copyLink.classList.add( 'os-window__menu-item' );
-		copyLink.classList.add( 'os-window__menu-item--copy-link' );
-		copyLink.textContent = __( 'Copy link' );
-		menuPanel.appendChild( copyLink );
 	}
+
+	// "Copy link" — the page's own wp-admin address, cleaned of the
+	// shell's flags (see `share-link.ts`), so whoever opens it lands on
+	// the same screen. Built for every window: a native one shares the
+	// admin page embedded in it or the screen its tab stands for, and
+	// the menu hides the row on open when there is neither.
+	const copyLink = document.createElement( 'os-menu-item' );
+	copyLink.setAttribute( 'role', 'menuitem' );
+	copyLink.setAttribute( 'value', 'copy-link' );
+	copyLink.setAttribute( 'icon', 'dashicons-admin-links' );
+	copyLink.classList.add( 'os-window__menu-item' );
+	copyLink.classList.add( 'os-window__menu-item--copy-link' );
+	copyLink.textContent = __( 'Copy link' );
+	menuPanel.appendChild( copyLink );
 
 	// "Reload" — was a built-in title-bar control. Moved here because
 	// it's an infrequent action that didn't earn the permanent real
