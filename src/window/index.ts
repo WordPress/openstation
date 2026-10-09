@@ -23,6 +23,7 @@ import { snapHalfRect } from '../window-manager/geometry';
 import { __, _x, sprintf } from './../i18n';
 import { copyText } from '../app-runtime/clipboard';
 import { nativeShareableUrl, shareableUrl } from './share-link';
+import { focusIsFromUser } from './focus-intent';
 import { attachTooltip } from '../ui/components/os-tooltip/os-tooltip';
 import {
 	addParentSubscriber,
@@ -1251,8 +1252,13 @@ export class Window {
 		// session). Does NOT cover mouse clicks inside the iframe —
 		// those are handled by the shell-level window.blur listener
 		// that inspects document.activeElement.
-		this.element.addEventListener( 'focusin', () => {
+		this.element.addEventListener( 'focusin', ( e: FocusEvent ) => {
 			if ( this.element.classList.contains( 'os-window--overview' ) ) {
+				return;
+			}
+			// A page that focused itself while loading did not pick
+			// this window; see `focus-intent.ts`.
+			if ( ( e.target as Element | null )?.tagName === 'IFRAME' && ! focusIsFromUser() ) {
 				return;
 			}
 			this.onFocusRequest?.( this );
