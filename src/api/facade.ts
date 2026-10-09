@@ -252,7 +252,10 @@ export interface BuildPublicApiDeps {
 		},
 	) => boolean;
 	loadWindowScriptById: ( id: string ) => Promise< boolean >;
-	prewarmWindowById: ( id: string ) => Promise< boolean >;
+	prewarmWindowById: (
+		id: string,
+		opts?: { params?: Record< string, string | number | boolean > },
+	) => Promise< boolean >;
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;

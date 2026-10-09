@@ -429,7 +429,10 @@ export interface OpenStationPublicApi {
 		opts?: { windowId?: string },
 	) => () => void;
 	loadWindowScript: ( id: string ) => Promise< boolean >;
-	prewarmWindow: ( id: string ) => Promise< boolean >;
+	prewarmWindow: (
+		id: string,
+		opts?: { params?: Record< string, string | number | boolean > },
+	) => Promise< boolean >;
 	loadComponents: ( tags?: readonly string[] ) => Promise< void >;
 	fetch: (
 		input: RequestInfo | URL,
@@ -727,6 +730,7 @@ function init(): void {
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
 	osSettings.apply();
+	osSettings.applyWidgets = ( ids ) => widgetLayer?.setEnabledIds( ids );
 
 	manager.openWindowsAs = () => osSettings.state.openWindowsAs;
 

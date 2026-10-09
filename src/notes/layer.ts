@@ -61,6 +61,13 @@ function jitterSeed( note: Note ): number {
 	return note.seed || Math.abs( note.id ) || 1;
 }
 
+function syncMoreBelow( body: HTMLElement ): void {
+	body.toggleAttribute(
+		'data-more-below',
+		body.scrollTop + body.clientHeight < body.scrollHeight - 1,
+	);
+}
+
 const ICON_POST = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="m7.3 9.7 1.4 1.4c.2-.2.3-.3.4-.5 0 0 0-.1.1-.1.3-.5.4-1.1.3-1.6L12 7 9 4 7.2 6.5c-.6-.1-1.1 0-1.6.3 0 0-.1 0-.1.1-.3.1-.4.2-.6.4l1.4 1.4L4 11v1h1l2.3-2.3zM4 20h9v-1.5H4V20zm0-5.5V16h16v-1.5H4z" /></svg>`;
 
 const ICON_TRASH = osIconSvg( 'trash', { size: 20 } );
@@ -556,6 +563,8 @@ export class NoteController {
 		const body = document.createElement( 'div' );
 		body.className = 'os-pinned-note__body';
 		body.textContent = this.note.text;
+		body.addEventListener( 'scroll', () => syncMoreBelow( body ), { passive: true } );
+		window.requestAnimationFrame( () => syncMoreBelow( body ) );
 
 		const chip = document.createElement( 'div' );
 		chip.className = 'os-pinned-note__attribution';
@@ -650,9 +659,10 @@ export class NoteController {
 		} else {
 			const body = this.paperEl.querySelector(
 				'.os-pinned-note__body',
-			);
+			) as HTMLElement | null;
 			if ( body ) {
 				body.textContent = note.text;
+				syncMoreBelow( body );
 			}
 		}
 	}

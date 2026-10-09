@@ -169,6 +169,39 @@ describe( 'widgets/layer', () => {
 		expect( host.querySelector( '.os-widgets__card' ) ).toBeNull();
 	} );
 
+	test( "a first run under a theme that recommends a column seeds that column, not the clock", async () => {
+		const { _resetAllSharedStoresForTests } = await import( '../../src/shared-store' );
+		_resetAllSharedStoresForTests();
+		const themes = await import( '../../src/desktop-themes/registry' );
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( { id: 'clock', label: 'Clock', description: '', icon: 'dashicons-clock', mount: () => () => undefined } );
+		themes.setDesktopThemes( [ { id: 'acme/bare', slug: 'bare', name: 'Bare', recommendedOsSettings: { widgets: [] } } ] );
+		themes.getStore().setState( { activeId: 'bare' } );
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+
+		expect( layer.getEnabledIds() ).toEqual( [] );
+		expect( window.localStorage.getItem( 'desktop-mode-widgets' ) ).toBe( '[]' );
+		_resetAllSharedStoresForTests();
+	} );
+
+	test( 'setEnabledIds replaces the column and skips unregistered ids', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( { id: 'clock', label: 'Clock', description: '', icon: 'dashicons-clock', mount: () => () => undefined } );
+		registry.register( { id: 'stats', label: 'Stats', description: '', icon: 'dashicons-chart-bar', mount: () => () => undefined } );
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+
+		layer.setEnabledIds( [ 'stats', 'gone' ] );
+
+		expect( layer.getEnabledIds() ).toEqual( [ 'stats' ] );
+		expect( layer.getMountedIds() ).toEqual( [ 'stats' ] );
+		expect( window.localStorage.getItem( 'desktop-mode-widgets' ) ).toBe( '["stats"]' );
+	} );
+
 	test( 'add mounts + fires added + persists', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );

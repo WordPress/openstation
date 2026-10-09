@@ -41,6 +41,7 @@ export interface TermCanvasHooks {
 	bounds: () => Bounds | null;
 	frame: ( dt: number ) => void;
 	countsChanged: () => void;
+	termsReloaded?: () => void;
 	dragging: () => boolean;
 	pointerMove: ( ev: PixiPointerEvent, cursorWorld: PixiPoint ) => boolean;
 	pointerUp: ( ev?: PixiPointerEvent ) => void | Promise< void >;
@@ -68,8 +69,29 @@ export interface TermCanvas {
 	recenter: () => void;
 	syncEmptyHint: ( show: boolean ) => void;
 	refreshCounts: () => Promise< void >;
+	reload: () => Promise< void >;
 	start: ( hooks: TermCanvasHooks ) => void;
 	teardown: () => void;
+}
+
+const RELOAD_DEBOUNCE_MS = 300;
+
+export function subscribeToContentChanges( taxonomy: 'category' | 'post_tag', onChange: () => void ): () => void {
+	const api = window.wp?.os;
+	if ( ! api || typeof api.subscribe !== 'function' ) {
+		return () => {};
+	}
+	const offPosts = api.subscribe( 'os.post.changed', () => onChange() );
+	const offTerms = api.subscribe( 'os.term.changed', ( payload: unknown ) => {
+		const changed = ( payload as { taxonomy?: string } | null )?.taxonomy;
+		if ( ! changed || changed === taxonomy ) {
+			onChange();
+		}
+	} );
+	return () => {
+		offPosts();
+		offTerms();
+	};
 }
 
 export async function createTermCanvas( host: HTMLElement, env: CanvasEnv, spec: TermCanvasSpec ): Promise< TermCanvas | null > {
@@ -109,6 +131,8 @@ export async function createTermCanvas( host: HTMLElement, env: CanvasEnv, spec:
 	let unwatch: ( () => void ) | null = null;
 	let undirectory: ( () => void ) | null = null;
 	let unsearch: ( () => void ) | null = null;
+	let unchanges: ( () => void ) | null = null;
+	let reloadTimer: ReturnType< typeof setTimeout > | null = null;
 	let disposed = false;
 
 	const fan = createPostFan( {
@@ -295,8 +319,57 @@ export async function createTermCanvas( host: HTMLElement, env: CanvasEnv, spec:
 			}
 		},
 
+		async reload() {
+			let fresh: TermRow[];
+			try {
+				fresh = await env.client.fetchAllTerms( spec.taxonomy );
+			} catch {
+				return;
+			}
+			try {
+				const map = fresh.length > 0
+					? await env.client.fetchTermCounts( spec.restTaxonomy, fresh.map( ( t ) => t.id ) )
+					: {};
+				fresh = fresh.map( ( t ) => {
+					const count = map[ String( t.id ) ];
+					return typeof count === 'number' ? { ...t, count } : t;
+				} );
+			} catch {
+			}
+			if ( disposed ) {
+				return;
+			}
+			canvas.terms = fresh;
+			( hooks?.termsReloaded ?? hooks?.countsChanged )?.();
+			fan.forget();
+			if ( fan.focusId !== null ) {
+				if ( fresh.some( ( t ) => t.id === fan.focusId ) ) {
+					await fan.load();
+				} else {
+					canvas.closeFocus();
+				}
+			}
+		},
+
 		start( next ) {
 			hooks = next;
+			const scheduleReload = (): void => {
+				if ( reloadTimer !== null ) {
+					clearTimeout( reloadTimer );
+				}
+				reloadTimer = setTimeout( () => {
+					reloadTimer = null;
+					if ( disposed ) {
+						return;
+					}
+					if ( hooks?.dragging() ) {
+						scheduleReload();
+						return;
+					}
+					void canvas.reload();
+				}, RELOAD_DEBOUNCE_MS );
+			};
+			unchanges = subscribeToContentChanges( spec.restTaxonomy, scheduleReload );
 			unwatch = watchStageSize( pixi, app, stage, {
 				onFirstFit: () => camera.fitToView( next.bounds() ),
 				onSettle: () => canvas.recenter(),
@@ -319,6 +392,11 @@ export async function createTermCanvas( host: HTMLElement, env: CanvasEnv, spec:
 				raf = null;
 			}
 			document.removeEventListener( 'visibilitychange', onVisibility );
+			if ( reloadTimer !== null ) {
+				clearTimeout( reloadTimer );
+				reloadTimer = null;
+			}
+			unchanges?.();
 			unwatch?.();
 			unsearch?.();
 			undirectory?.();

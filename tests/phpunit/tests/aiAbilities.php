@@ -68,6 +68,47 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::openstation_ai_unique_ability_tool_names
+	 */
+	public function test_colliding_tool_names_are_made_unique() {
+		$map = openstation_ai_unique_ability_tool_names(
+			array(
+				'acme/get-site-context',
+				'desktop-mode/get-site-context',
+				'desktop-mode/search-posts',
+				'other/get-site-context',
+			)
+		);
+
+		$this->assertSame(
+			array(
+				'get_site_context'       => 'desktop-mode/get-site-context',
+				'search_posts'           => 'desktop-mode/search-posts',
+				'acme_get_site_context'  => 'acme/get-site-context',
+				'other_get_site_context' => 'other/get-site-context',
+			),
+			$map
+		);
+	}
+
+	/**
+	 * @covers ::openstation_ai_unique_ability_tool_names
+	 */
+	public function test_unresolvable_tool_name_collision_is_dropped() {
+		$map = openstation_ai_unique_ability_tool_names(
+			array( 'acme/do-thing', 'acme/do_thing', 'acme/Do.Thing' )
+		);
+
+		$this->assertSame(
+			array(
+				'do_thing'      => 'acme/do-thing',
+				'acme_do_thing' => 'acme/do_thing',
+			),
+			$map
+		);
+	}
+
+	/**
 	 * @covers ::openstation_ai_register_abilities
 	 */
 	public function test_search_posts_executes_for_reader() {

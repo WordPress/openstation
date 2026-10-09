@@ -22,11 +22,18 @@ import {
 	saveEnabledIds,
 	saveGeometry,
 } from './state';
+import { getActiveDesktopThemeId, getDesktopTheme } from '../desktop-themes/registry';
 import { showInlineLoader } from '../ui/inline-loader';
 import { createWidgetStorage } from './storage';
 import type { WidgetGeometry, WidgetTeardown } from './types';
 
 const DEFAULT_ENABLED_IDS = [ 'clock' ];
+
+function themeWidgetIds(): readonly string[] | null {
+	const id = getActiveDesktopThemeId();
+	const widgets = id ? getDesktopTheme( id )?.recommendedOsSettings.widgets : undefined;
+	return widgets ?? null;
+}
 
 const HOVER_PADDING = 40;
 
@@ -95,7 +102,7 @@ export class WidgetLayer {
 
 	public hydrate(): void {
 		if ( readRawEnabled() === null ) {
-			this.enabledIds = DEFAULT_ENABLED_IDS.filter(
+			this.enabledIds = ( themeWidgetIds() ?? DEFAULT_ENABLED_IDS ).filter(
 				( id ) => !! registry.get( id ),
 			);
 			saveEnabledIds( this.enabledIds );
@@ -152,6 +159,27 @@ export class WidgetLayer {
 			return;
 		}
 		saveEnabledIds( this.enabledIds );
+		this.forgetLayout( id );
+		this.unmountById( id );
+		this.paintEmptyState();
+		doAction( HOOKS.WIDGET_REMOVED, { id } );
+		refreshWidgetPicker();
+	}
+
+	public setEnabledIds( ids: readonly string[] ): void {
+		const next = [ ...new Set( ids ) ].filter( ( id ) => !! registry.get( id ) );
+		for ( const id of this.enabledIds ) {
+			if ( ! next.includes( id ) ) {
+				this.forgetLayout( id );
+			}
+		}
+		this.enabledIds = next;
+		saveEnabledIds( next );
+		this.setVisibleIds( this.override );
+		refreshWidgetPicker();
+	}
+
+	private forgetLayout( id: string ): void {
 		if ( this.geometry[ id ] ) {
 			delete this.geometry[ id ];
 			saveGeometry( this.geometry );
@@ -160,10 +188,6 @@ export class WidgetLayer {
 			delete this.dockedHeights[ id ];
 			saveDockedHeights( this.dockedHeights );
 		}
-		this.unmountById( id );
-		this.paintEmptyState();
-		doAction( HOOKS.WIDGET_REMOVED, { id } );
-		refreshWidgetPicker();
 	}
 
 	public getEnabledIds(): string[] {

@@ -153,8 +153,11 @@ describe( 'bootEditorPreview', () => {
 		expect( def.match( win as never ) ).toBe( false );
 	} );
 
-	test( 'never matches native windows', async () => {
+	test( 'matches a native window only while it embeds an editor frame', async () => {
 		const { def, setWindowContent } = await boot();
+		const { registerSyntheticIframe } = await import(
+			'../../src/connection'
+		);
 		const win = fakeWin( 'w1' );
 		win.config.native = true;
 
@@ -164,6 +167,43 @@ describe( 'bootEditorPreview', () => {
 			previewUrl: PREVIEW_URL,
 		} );
 		expect( def.match( win as never ) ).toBe( false );
+
+		const unregister = registerSyntheticIframe( 'w1', fakeIframe().iframe );
+		expect( def.match( win as never ) ).toBe( true );
+
+		setWindowContent( 'w1', null );
+		win.getCurrentUrl = () => '/wp-admin/post-new.php';
+		expect( def.match( win as never ) ).toBe( false );
+
+		unregister();
+	} );
+
+	test( "autosaves through a native window's embedded editor frame", async () => {
+		const { def, manager, setWindowContent, _setAutosaveTransportForTests } =
+			await boot();
+		const { registerSyntheticIframe } = await import(
+			'../../src/connection'
+		);
+		_setAutosaveTransportForTests( null );
+
+		const editor = fakeWin( 'posts' );
+		editor.config.native = true;
+		manager.add( editor );
+		const frame = fakeIframe();
+		const unregister = registerSyntheticIframe( 'posts', frame.iframe );
+		setWindowContent( 'posts', {
+			type: 'post',
+			id: 7,
+			previewUrl: PREVIEW_URL,
+		} );
+
+		await clickEye( def, editor );
+
+		expect( frame.postMessage ).toHaveBeenCalledWith(
+			expect.objectContaining( { type: 'os-editor-autosave-request' } ),
+			window.location.origin,
+		);
+		unregister();
 	} );
 
 	test( 'matches the unsaved "Add New" screen via its URL', async () => {

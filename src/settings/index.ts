@@ -79,6 +79,8 @@ export class OsSettings {
 	public state: OsSettingsState;
 	public layer: WallpaperLayer;
 
+	public applyWidgets: ( ids: readonly string[] ) => void = () => undefined;
+
 	private listeners = new Set<( snapshot: OsSettingsSnapshot ) => void>();
 
 	constructor( layer: WallpaperLayer ) {
@@ -298,6 +300,9 @@ export class OsSettings {
 		if ( Object.keys( applied ).length > 0 ) {
 			this.save();
 			this.apply();
+		}
+		if ( applied.widgets ) {
+			this.applyWidgets( applied.widgets );
 		}
 		return applied;
 	}

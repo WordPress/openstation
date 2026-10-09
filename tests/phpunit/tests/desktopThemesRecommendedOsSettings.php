@@ -144,6 +144,54 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	/**
 	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
+	public function test_accent_color_is_a_six_digit_hex() {
+		$this->assertSame(
+			array( 'accentColor' => '#00008a' ),
+			openstation_sanitize_desktop_theme_recommended_os_settings( array( 'accentColor' => '#00008A' ) )
+		);
+		foreach ( array( 'navy', '#00f', 'url(x)', '#0000800' ) as $bad ) {
+			$this->assertSame(
+				array(),
+				openstation_sanitize_desktop_theme_recommended_os_settings( array( 'accentColor' => $bad ) ),
+				$bad
+			);
+		}
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
+	public function test_placements_and_widgets_keep_clean_entries() {
+		$this->assertSame(
+			array(
+				'navPlacement' => array( 'os-mio-toggle' => 'hidden' ),
+				'widgets'      => array( 'clock', 'acme/stocks' ),
+			),
+			openstation_sanitize_desktop_theme_recommended_os_settings(
+				array(
+					'navPlacement' => array(
+						'os-mio-toggle' => 'hidden',
+						'menu-posts'    => 'nowhere',
+						3               => 'hidden',
+					),
+					'widgets'      => array( 'clock', 'acme/stocks', 'clock', array( 'x' ) ),
+				)
+			)
+		);
+		$this->assertSame(
+			array( 'widgets' => array() ),
+			openstation_sanitize_desktop_theme_recommended_os_settings(
+				array(
+					'widgets'      => array(),
+					'navPlacement' => 'hidden',
+				)
+			)
+		);
+	}
+
+	/**
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
 	public function test_int_recommendations_clamp_rather_than_drop() {
 		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'windowRevealDuration' => 999999 )

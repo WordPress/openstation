@@ -1,4 +1,5 @@
 import { subscribe } from '../broadcast';
+import { getSyntheticIframe } from '../connection';
 import { addAction, applyFilters, doAction, HOOKS } from '../hooks';
 import { __, sprintf } from '../i18n';
 import { createSharedStore } from '../shared-store';
@@ -83,6 +84,12 @@ function isSmallScreen(): boolean {
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia( '(max-width: 767px)' ).matches
 	);
+}
+
+function editorFrame(
+	win: EditorPreviewWindowLike,
+): HTMLIFrameElement | null {
+	return win.iframe ?? getSyntheticIframe( win.id );
 }
 
 function isUnsavedEditorScreen( win: EditorPreviewWindowLike ): boolean {
@@ -212,7 +219,7 @@ function stopLiveWatch(
 	}
 	const editorWin = manager.getById( pairing.editorWindowId );
 	try {
-		editorWin?.iframe?.contentWindow?.postMessage(
+		( editorWin ? editorFrame( editorWin ) : null )?.contentWindow?.postMessage(
 			{
 				type: 'os-editor-live-unwatch',
 				watchId: pairing.watchId,
@@ -243,7 +250,8 @@ function startLiveWatch(
 		return;
 	}
 
-	const target = manager.getById( pairing.editorWindowId )?.iframe
+	const editorWin = manager.getById( pairing.editorWindowId );
+	const target = ( editorWin ? editorFrame( editorWin ) : null )
 		?.contentWindow;
 	if ( ! target ) {
 		return;
@@ -270,12 +278,14 @@ function startLiveWatch(
 
 let requestAutosave: (
 	win: EditorPreviewWindowLike,
-) => Promise< AutosaveResult > = requestEditorAutosave;
+) => Promise< AutosaveResult > = ( win ) =>
+	requestEditorAutosave( { iframe: editorFrame( win ) } );
 
 export function _setAutosaveTransportForTests(
 	fn: typeof requestAutosave | null,
 ): void {
-	requestAutosave = fn ?? requestEditorAutosave;
+	requestAutosave =
+		fn ?? ( ( win ) => requestEditorAutosave( { iframe: editorFrame( win ) } ) );
 }
 
 async function onEyeClick(
@@ -429,9 +439,9 @@ export function bootEditorPreview( {
 		placement: 'right',
 		order: 55,
 		match: ( win ) =>
-			! win.config.native &&
+			( ! win.config.native || !! editorFrame( win ) ) &&
 			( !! getWindowContent( win.id )?.previewUrl ||
-				isUnsavedEditorScreen( win ) ),
+				( ! win.config.native && isUnsavedEditorScreen( win ) ) ),
 		render: ( host, win ) => {
 			if ( ! getWindowContent( win.id )?.previewUrl ) {
 				const hint = __( 'Save the post to enable its preview' );

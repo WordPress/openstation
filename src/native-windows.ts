@@ -9,6 +9,12 @@ import {
 	unregisterNativeUrlRemap,
 } from './native-url-remap';
 import { setPanelTabs } from './window/tab-strip';
+import { getWindowContent, setWindowContent } from './window-links/engine';
+import type { WindowContentRef } from './window-links/types';
+import {
+	LOADING_SPINNER_PRESET,
+	LOADING_SPINNER_SIZE,
+} from './window/constants';
 import {
 	loadNativeWindowGeometry,
 	saveNativeWindowGeometry,
@@ -271,6 +277,30 @@ function buildIframeContentRender(
 		const unregisterSynth = registerSyntheticIframe( windowId, iframe );
 		cleanups.push( unregisterSynth );
 
+		let pageIdentity: WindowContentRef | null = null;
+		let claimed: WindowContentRef | null = null;
+		let displaced: WindowContentRef | null = null;
+		const syncIdentity = (): void => {
+			const shown =
+				iframe.isConnected && iframe.getClientRects().length > 0;
+			if ( pageIdentity && shown ) {
+				if ( ! claimed ) {
+					displaced = getWindowContent( windowId ) ?? null;
+				}
+				setWindowContent( windowId, pageIdentity, { source: 'bridge' } );
+				claimed = getWindowContent( windowId ) ?? null;
+				return;
+			}
+			if ( ! claimed ) {
+				return;
+			}
+			if ( getWindowContent( windowId ) === claimed ) {
+				setWindowContent( windowId, displaced, { source: 'config' } );
+			}
+			claimed = null;
+			displaced = null;
+		};
+
 		let targetOrigin: string;
 		try {
 			targetOrigin = new URL( cfg.url, window.location.origin ).origin;
@@ -347,6 +377,17 @@ function buildIframeContentRender(
 					( data as { payload?: unknown } ).payload,
 				);
 			}
+			if (
+				data &&
+				typeof data === 'object' &&
+				( data as { type?: string } ).type === 'os-content-identity' &&
+				e.origin === window.location.origin
+			) {
+				pageIdentity =
+					( data as { identity?: WindowContentRef | null } )
+						.identity ?? null;
+				syncIdentity();
+			}
 			try {
 				cfg.onMessage?.( e.data );
 			} catch ( err ) {
@@ -360,9 +401,18 @@ function buildIframeContentRender(
 		};
 		window.addEventListener( 'message', onMessage );
 
+		const visibility =
+			typeof ResizeObserver === 'function'
+				? new ResizeObserver( () => syncIdentity() )
+				: null;
+		visibility?.observe( iframe );
+
 		cleanups.push( () => {
 			window.removeEventListener( 'message', onMessage );
 			iframe.removeEventListener( 'load', onLoad );
+			visibility?.disconnect();
+			pageIdentity = null;
+			syncIdentity();
 		} );
 
 		return readyPromise;
@@ -406,7 +456,8 @@ export function embedAdminPage(
 	overlay.style.alignItems = 'center';
 	overlay.style.justifyContent = 'center';
 	const spinner = document.createElement( 'os-spinner' );
-	spinner.setAttribute( 'preset', 'comet' );
+	spinner.setAttribute( 'preset', LOADING_SPINNER_PRESET );
+	spinner.setAttribute( 'size', LOADING_SPINNER_SIZE );
 	overlay.appendChild( spinner );
 	host.appendChild( overlay );
 	void ready.then( () => overlay.remove() );
@@ -598,7 +649,7 @@ export interface NativeWindowSync {
 	) => boolean;
 
 	loadScriptById: ( id: string ) => Promise< boolean >;
-	prewarmById: ( id: string ) => Promise< boolean >;
+	prewarmById: ( id: string, opts?: { params?: Record< string, string | number | boolean > } ) => Promise< boolean >;
 }
 
 export type NativeWindowRestoreState = Partial<
@@ -1331,16 +1382,21 @@ export function createNativeWindowSync(
 		return true;
 	};
 
-	const prewarmById = async ( id: string ): Promise< boolean > => {
+	const prewarmById = async (
+		id: string,
+		opts: { params?: Record< string, string | number | boolean > } = {},
+	): Promise< boolean > => {
 		const entry = entriesById.get( id );
 		if ( ! entry || manager.getById( id ) ) {
 			return false;
 		}
 		await ensureScript( entry );
 		const apps = (
-			window as unknown as { wp?: { os?: { apps?: { prewarm?: ( appId: string ) => boolean } } } }
+			window as unknown as {
+				wp?: { os?: { apps?: { prewarm?: ( appId: string, params?: Record< string, string | number | boolean > ) => boolean } } };
+			}
 		).wp?.os?.apps;
-		return apps?.prewarm?.( id ) === true;
+		return apps?.prewarm?.( id, opts.params ?? {} ) === true;
 	};
 
 	return {

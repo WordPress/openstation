@@ -445,13 +445,13 @@ os()?.registerNamespace( 'apps', {
 		sessionOf( windowId )?.local( action, args ),
 	session: ( windowId: string, view = 'main' ) => sessionOf( windowId, view ),
 	refresh: () => registerApps(),
-	prewarm: ( id: string ) => {
+	prewarm: ( id: string, params: Record< string, string | number | boolean > = {} ) => {
 		const config = ( window as unknown as RuntimeGlobals ).openStationWindowConfig?.[ id ] as
 			| Partial< AppConfig >
 			| undefined;
 		if ( ! config || config.osApp !== true || sessions.has( id ) ) {
 			return false;
 		}
-		return startPrewarm( config as AppConfig, buildHost( id ).fetch );
+		return startPrewarm( config as AppConfig, buildHost( id ).fetch, params );
 	},
 } );

@@ -72,6 +72,7 @@ export interface PostFan {
 	load(): Promise< void >;
 	clear(): void;
 	invalidate(): void;
+	forget(): void;
 	ease(): void;
 	drawEdges(): void;
 	syncChips( counterScale: number ): void;
@@ -354,6 +355,9 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 		},
 		invalidate() {
 			loadSeq++;
+		},
+		forget() {
+			cache.clear();
 		},
 		ease() {
 			for ( const p of posts.values() ) {

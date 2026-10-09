@@ -2154,6 +2154,18 @@ apply_filters( 'openstation_command_palette_root_handles', string[] $handles );
 ```
 
 
+### `openstation_chromeless_keep_components_style` — Experimental
+
+Whether a window keeps the `wp-components` **stylesheet** after the palette is trimmed.
+
+Core's palette enqueues the `wp-commands` stylesheet, which depends on `wp-components`, on every admin page. Many plugins render with `@wordpress/components` and depend only on the `wp-components` *script*, never declaring the style, because the palette always supplied it. Without it, components render unstyled inside windows. The first visible symptom is floating UI: a window narrower than Core's 782px breakpoint puts Popovers into their full-screen `is-expanded` mode, which relies on that stylesheet, so a dropdown such as DataViews' "View options" renders below the page and looks dead.
+
+Defaults to `true` when the `wp-components` script is queued directly, or when a queued plugin or theme script reaches it through its own dependency chain. Core packages that only use it as a library (`wp-abilities`) don't count, so ordinary screens such as Settings stay lean.
+
+```php
+add_filter( 'openstation_chromeless_keep_components_style', '__return_true' ); // Always keep it.
+```
+
 ### `openstation_command_palette_trim_dependents` — Experimental
 
 Whether handles that merely *depend on* the palette are dropped alongside the roots. Default `true`.
@@ -2522,6 +2534,8 @@ apply_filters( 'openstation_ai_request', array $extra, array $core );
 
 Transforms the full tool list (built-in ability tools + client commands) once per run, just before it goes to the provider. Add tools, remove tools, rewrite descriptions. (To add a server-dispatched tool, register a read-only ability — see "Extending the Copilot's tools" below.)
 
+Tool names must be unique, because providers reject the whole request when one repeats. If the filtered list still contains a duplicate name, the first tool with that name is kept and the rest are dropped.
+
 ```php
 apply_filters( 'openstation_ai_tools', array $tools, array $context );
 ```
@@ -2585,9 +2599,30 @@ do_action( 'openstation_ai_search_started', array $context );
 
 `phase` is `'follow_up'` when the event fires for the second leg of the agentic command-dispatch flow (triggered by the client sending `ask( q, { followUp: true } )`). Omitted on the primary leg.
 
+### `openstation_ai_search_generate` — Experimental *(filter)*
+
+Pre-filter for one generation turn of the Copilot search loop
+(`POST /ai/search`). Return a non-null
+`{ text, function_calls, message, usage, model }` array (or a
+`WP_Error`) to short-circuit the Core AI Client — the seam PHPUnit and
+alternative runtimes plug into. Mirrors `openstation_agent_runner_generate`.
+
+A run that uses all of its tool rounds without answering ends with one
+**wrap-up turn**: a fresh conversation carrying the request and every
+tool result the run gathered, with no tools offered, so the model answers
+from what it found. That turn arrives with an empty `$tools` and
+`$context['source'] === 'ai-copilot/search-wrap-up'`. If it fails, the
+run falls back to the "couldn't find a clear match" answer.
+
+- **Param** `array|WP_Error|null $generated` — null to proceed with the AI Client.
+- **Param** `array $messages` — ordered conversation (SDK `Message` objects).
+- **Param** `array $tools` — tool definitions; empty on the wrap-up turn.
+- **Param** `array $context` — `{ source, request_id }`.
+- **Param** `int $user_id`
+
 ### `openstation_ai_tool_called` — Stable
 
-Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped.
+Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`).
 
 ```php
 do_action( 'openstation_ai_tool_called', array $payload );
@@ -3327,7 +3362,7 @@ See [`docs/examples/recycle-bin.md`](./examples/recycle-bin.md) for end-to-end r
 
 Native writing desk that replaces the chromeless `edit.php` iframe. Ruled note cards show titles, excerpts, publishing states, word counts, approved comment totals, tag counts and nearby Edit / Details actions; a companion inspector exposes the taxonomy pickers and extension fields. The Content view control opens the optional Details table. **Opt-in Beta** — fresh installs land on the classic iframe; users turn it on via **OpenStation Preferences → Features → Beta features → Use the native Posts window** (persisted as `OsSettingsState.nativePostsEnabled`, default `false`). The dock tile that points at `edit.php` is unchanged — every click path consults the URL → native-window remap registry first and falls back to the iframe on no-match. An [App Framework](./app-framework.md) app — `apps/posts/` — whose list is a `data()` over `openstation_app_rest_page( 'wp/v2/posts', … )` (so every REST field and the query-args filter below reach the rows exactly as they reached the old bundle), whose server paging / filtering / sorting are its state, and whose "Move to trash" is a server action; the Categories mind map and the Tags cloud are its two canvases. The registration (title, size, config extra) is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-posts'`. See [`examples/native-posts.md`](./examples/native-posts.md) for end-to-end recipes and [`migration-list-apps.md`](./migration-list-apps.md) for what the port removed.
 
-**Its tabs are the Posts menu, in both directions.** All posts, Add Post, Categories and Tags are the same rows the dock's Posts submenu lists, in the same order, because both come from the window's own [`App::menu()`](./app-framework.md) declaration. Each tab names the wp-admin page it replaces, so the shell claims `post-new.php` and the two taxonomy screens for the window **wherever** they are clicked — a link in another window, the admin bar's "+ New", a workspace's launch list — and opens it on the matching tab. A page the window has no tab for keeps its own row, so a plugin's screen registered under Posts stays reachable. Add Post shows the editor embedded in the panel through [`wp.os.embedAdminPage()`](./javascript-reference.md#wposembedadminpage-host-url-opts---stable); it mounts blank unless the page inside says it is holding unsaved changes, in which case the draft is handed back. An embedded editor is not an iframe window, so it has no close-time unsaved-changes prompt. Pages works the same minus the taxonomies, and adds the reverse case: **Page atlas** is a tab wp-admin has no screen for, and the dock offers it as a row anyway. All of it is gated on the opt-in, which is why flipping a Beta toggle spends a menu refresh.
+**Its tabs are the Posts menu, in both directions.** All posts, Add Post, Categories and Tags are the same rows the dock's Posts submenu lists, in the same order, because both come from the window's own [`App::menu()`](./app-framework.md) declaration. Each tab names the wp-admin page it replaces, so the shell claims `post-new.php` and the two taxonomy screens for the window **wherever** they are clicked — a link in another window, the admin bar's "+ New", a workspace's launch list — and opens it on the matching tab. A page the window has no tab for keeps its own row, so a plugin's screen registered under Posts stays reachable. Add Post shows the editor embedded in the panel through [`wp.os.embedAdminPage()`](./javascript-reference.md#wposembedadminpage-host-url-opts---stable); it mounts blank unless the page inside says it is holding unsaved changes, in which case the draft is handed back. While Add Post is the visible tab, the embedded editor's content identity is the window's, so the title bar's Preview (eye), revisions row and Related menu work there and leave when another tab is picked. An embedded editor is not an iframe window, so it has no close-time unsaved-changes prompt. Pages works the same minus the taxonomies, and adds the reverse case: **Page atlas** is a tab wp-admin has no screen for, and the dock offers it as a row anyway. All of it is gated on the opt-in, which is why flipping a Beta toggle spends a menu refresh.
 
 Cards use continuous scrolling: the next server batch appends as the bottom approaches, with a retryable Load more control for keyboard access or request failures. Search and sort start a fresh collection. Selection spans the loaded cards; the optional Details table shares those rows and offers the same continuation control. A refresh after scrolling restarts at the first batch so earlier cards cannot retain stale edits. The `data-loaded` event still describes each server batch, while `ctx.table` and the selected-row methods expose the loaded collection. On phones, compact cards keep the actions visible and the additional filters live behind Options.
 
@@ -4453,7 +4488,7 @@ The app consumes WP Explorer's **JS extension seams** too, unchanged: `os.my-wor
 
 Every section also has a **list view** — an Icons / List control in the search band switches the tile canvas for a sortable table: the ID (a chip that copies itself), title with status and lock, slug, author, status, date, modified, comment count, parent (hierarchical types), word count for posts and custom post types; file name, MIME type, size, dimensions and the attached post for media; username, email, role, published-post count and registration date for users; and a per-row action cluster (edit, copy link, copy the `?p=` shortlink, more). Column headers sort through the same server orders the icon view's "Sort by" menu offers — `sort_options()` grew ID, modified, slug and comment-count orders for posts, and ID, username, email and post-count orders for users — and the rows drag, select, marquee and infinite-scroll exactly like the tiles. Selection and the open item are one state for both views — what is picked among the icons is picked among the rows, scrolled into sight — and entering the list with no order chosen lists the highest id first. Both views' context menus carry **Copy ID** and **Copy shortlink** beside Copy link, all three over a selection. The view mode and each section's hidden columns are remembered **per user** through the app's own storage (`$os->stored( 'view' )` / `'hidden-columns'`, namespaced by app id — user meta on WordPress). Plugins add columns with the [`os.my-wordpress.list-columns`](./javascript-reference.md#filter--osmy-wordpresslist-columns) JS filter.
 
-The app also carries the **Agents section** (see [AI Agents](#ai-agents)) as a root tile, listed for every user who may read agents even while the framework is off — WP Explorer's design, 1:1, including the create wizard (Describe → Meet → Powers → Summon → Launch), the face picker, the off-state preview cast, drag & drop onto the cast cards and drag-out to the desktop. The mutations run as app actions (`agent-draft` / `agent-create` / `agent-update` / `agent-delete`) through the same `openstation_agent_*` store, draft and identity functions the `/desktop-mode/v1/agents` routes wrap, behind the same read/manage/invoke gates. After a roster change the client fires the `os.agents.roster-changed` JS action (on `wp.hooks`), which WP Explorer's "Send to" menu cache listens for — trigger edits made in the app reach WP Explorer's context menus without a reload.
+The app also carries the **Agents section** (see [AI Agents](#ai-agents)) as a root tile, listed for every user who may read agents even while the framework is off — WP Explorer's design, 1:1, including the create wizard (Describe → Meet → Powers → Summon → Launch), the face picker, the off-state preview cast, drag & drop onto the cast cards and drag-out to the desktop. The mutations run as app actions (`agent-draft` / `agent-create` / `agent-update` / `agent-delete`) through the same `openstation_agent_*` store, draft and identity functions the `/desktop-mode/v1/agents` routes wrap, behind the same read/manage/invoke gates. After a roster change the client fires the `os.agents.roster-changed` JS action (on `wp.hooks`), which the "Send to" menus listen for — WP Explorer's tile menus and the desktop and folder tile menus — so trigger edits made in the app reach them without a reload.
 
 ### `openstation_my_wordpress_app_sections` — Experimental (filter)
 
@@ -5351,27 +5386,37 @@ add_filter(
         $schema['acmeDensity'] = array( 'enum' => array( 'cosy', 'roomy' ) );
         // An id resolved against a JS registry at apply time.
         $schema['acmeRenderer'] = array( 'slug' => true );
+        // A six-digit hex colour.
+        $schema['acmeTint'] = array( 'hex' => true );
         // A whole number, clamped into range.
         $schema['acmeDelay'] = array( 'int' => array( 'min' => 0, 'max' => 500 ) );
+        // Ids mapped to a closed set, merged into the user's own map.
+        $schema['acmePanels'] = array( 'map' => array( 'open', 'closed' ) );
+        // A list of ids; an empty list is a value.
+        $schema['acmeCards'] = array( 'ids' => true );
         return $schema;
     }
 );
 ```
 
-Core ships eight entries: `dockSize`, `desktopLayout`, `dockPlacement`,
+Core ships thirteen entries: `dockSize`, `desktopLayout`, `dockPlacement`,
 `windowRadius` and `adminBarMode` as `enum` rules mirroring the matching
-`OPENSTATION_OS_SETTINGS_*` constants; `dockRailRenderer` and
-`windowReveal` as `slug` rules; and `windowRevealDuration` as an `int`
-rule bounded by `OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN` /
-`_MAX`.
+`OPENSTATION_OS_SETTINGS_*` constants; `dockRailRenderer`,
+`windowReveal`, `accent` and `wallpaper` as `slug` rules; `accentColor`
+as a `hex` rule; `windowRevealDuration` as an `int` rule bounded by
+`OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN` / `_MAX`; `navPlacement`
+as a `map` rule; and `widgets` as an `ids` rule.
 
-Three grammars:
+Six grammars:
 
 | Grammar | Shape | Validation |
 |---|---|---|
 | `enum` | `array( 'enum' => array( … ) )` | Value must be in the list, else the key drops. |
 | `slug` | `array( 'slug' => true )` | PHP checks the `sanitize_key()` charset; the shell drops the key at apply time when nothing is registered under that id. |
+| `hex` | `array( 'hex' => true )` | A six-digit hex colour, lowercased. |
 | `int` | `array( 'int' => array( 'min' => …, 'max' => … ) )` | Numeric values are **clamped** into range rather than dropped; non-numeric values drop. |
+| `map` | `array( 'map' => array( … ) )` | An object of `sanitize_key()` ids to a value in the list; bad entries drop, up to 64 kept. The shell merges it into the setting's existing map. |
+| `ids` | `array( 'ids' => true )` | A list of ids (`A-Za-z0-9_/-`, the slash for namespaced ids), de-duplicated, up to 32 kept. `[]` is kept: it means "none". |
 
 An entry with none of a non-empty `enum` array, `slug => true`, or a
 well-formed `int` range (`min` and `max` both numeric, `min <= max`) is

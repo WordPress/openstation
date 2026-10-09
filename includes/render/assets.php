@@ -32,6 +32,7 @@ function openstation_enqueue_assets() {
 	wp_enqueue_style( 'os-windows' );
 	wp_enqueue_style( 'os-window-overview' );
 	wp_enqueue_style( 'os-dock' );
+	wp_enqueue_style( 'os-dock-taskbar' );
 	wp_enqueue_style( 'os-dock-peek' );
 	wp_enqueue_style( 'os-workspaces' );
 	wp_enqueue_style( 'os-shortcuts' );
@@ -348,6 +349,7 @@ function openstation_enqueue_assets() {
 				: null,
 			'aiStatusUrl'                   => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
 			'extendedOptions'               => current_user_can( 'manage_options' ) ? openstation_get_extended_options() : null,
+			'agentsSendTo'                  => function_exists( 'openstation_agents_send_to_targets' ) ? openstation_agents_send_to_targets() : array(),
 			'extendedOptionsUrl'            => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
 			'gamesEnabled'                  => openstation_games_enabled(),
 			'currentUserIsAdmin'            => current_user_can( 'manage_options' ),

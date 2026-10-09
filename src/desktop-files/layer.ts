@@ -174,6 +174,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	host.appendChild( container );
 
 	let lastFingerprint = '';
+	let rebuildTiles = false;
 
 	const placementsForKeys = ( keys: readonly string[] ): RestPlacementShape[] => {
 		const bucket =
@@ -403,16 +404,18 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			return ap - bp;
 		} );
 		const fp = fingerprint( list );
-		if ( fp === lastFingerprint ) {
+		if ( fp === lastFingerprint && ! rebuildTiles ) {
 			return;
 		}
 		lastFingerprint = fp;
+		const rebuild = rebuildTiles;
+		rebuildTiles = false;
 
-		if ( tryPatchPositions( list, container, canvas, order ) ) {
+		if ( ! rebuild && tryPatchPositions( list, container, canvas, order ) ) {
 			return;
 		}
 
-		if ( tryPatchIncremental( list ) ) {
+		if ( ! rebuild && tryPatchIncremental( list ) ) {
 			return;
 		}
 
@@ -684,6 +687,11 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		repaint( state );
 		reflow();
 	} );
+	const onThemeChanged = (): void => {
+		rebuildTiles = true;
+		repaint( filesStoreApi.getState() );
+	};
+	document.addEventListener( 'os-desktop-theme-changed', onThemeChanged );
 
 	let resolveHydrated: () => void = () => undefined;
 	const hydrated = new Promise< void >( ( resolve ) => {
@@ -849,6 +857,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		hydrated,
 		dispose() {
 			off();
+			document.removeEventListener( 'os-desktop-theme-changed', onThemeChanged );
 			resizeObserver?.disconnect();
 			resizeObserver = null;
 			for ( const deregister of dropTargetDeregisters ) {

@@ -1,17 +1,3 @@
-.os-window {
-	--os-fx-transition-duration: 0.5s;
-
-	--os-fx-darken-brightness: 0.82;
-	--os-fx-darken-saturate: 0.92;
-
-	--os-fx-frost-blur: 3px;
-	--os-fx-frost-saturate: 0.7;
-	--os-fx-frost-brightness: 1.08;
-
-	--os-fx-grayscale-amount: 1;
-	--os-fx-grayscale-brightness: 0.95;
-}
-
 .os-window--fx-darken {
 	filter:
 		brightness( var( --os-fx-darken-brightness, 0.82 ) )

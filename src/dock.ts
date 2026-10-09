@@ -16,6 +16,7 @@ import { tryOpenExternalUrl } from './external-url';
 import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import {
 	resolveNativeUrlRemap,
+	resolveNativeUrlRemapTarget,
 	tryNativeUrlRemap,
 } from './native-url-remap';
 import { persistZoneOrder as persistNavZoneOrder } from './nav/config';
@@ -1298,9 +1299,9 @@ export class Dock {
 			return;
 		}
 		this.bindPrewarmDwell( tile, () => {
-			const nativeId = resolveNativeUrlRemap( item.url );
-			if ( nativeId ) {
-				this.prewarmNativeWindow( nativeId );
+			const target = resolveNativeUrlRemapTarget( item.url );
+			if ( target ) {
+				this.prewarmNativeWindow( target.id, target.params );
 				return;
 			}
 			try {
@@ -1371,16 +1372,23 @@ export class Dock {
 		tile.addEventListener( 'pointerdown', cancel );
 	}
 
-	private prewarmNativeWindow( id: string ): void {
+	private prewarmNativeWindow( id: string, params?: Record< string, string | number | boolean > ): void {
 		if ( this.windowManager.getById( id ) ) {
 			return;
 		}
 		const os = (
 			window as unknown as {
-				wp?: { os?: { prewarmWindow?: ( windowId: string ) => Promise< boolean > } };
+				wp?: {
+					os?: {
+						prewarmWindow?: (
+							windowId: string,
+							opts?: { params?: Record< string, string | number | boolean > },
+						) => Promise< boolean >;
+					};
+				};
 			}
 		).wp?.os;
-		void os?.prewarmWindow?.( id );
+		void ( params ? os?.prewarmWindow?.( id, { params } ) : os?.prewarmWindow?.( id ) );
 	}
 
 	private openPage( item: DockItem ): void {

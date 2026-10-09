@@ -28,7 +28,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		modifier: 'os-mindmap',
 		unavailable: __( 'Mindmap unavailable.' ),
 		loadFailed: __( 'Couldn’t load categories:' ),
-		emptyHint: __( 'No custom categories yet. Click "Add root category" to start branching.' ),
+		emptyHint: __( 'Only the default category so far. Click "Add root category" to start branching.' ),
 		chrome: {
 			buttons: [
 				{ variant: 'primary', icon: 'dashicons-plus', label: __( 'Add root category' ) },
@@ -107,6 +107,13 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		return node;
 	}
 
+	function ringTerms( terms: TermRow[] ): { ring: TermRow[]; uncategorized: TermRow | undefined } {
+		const roots = terms.filter( ( t ) => ! t.parent );
+		const uncategorized = roots.find( isUncategorized );
+		const centreKids = uncategorized ? terms.filter( ( t ) => t.parent === uncategorized.id ) : [];
+		return { ring: [ ...roots.filter( ( r ) => ! isUncategorized( r ) ), ...centreKids ], uncategorized };
+	}
+
 	function buildTree(): void {
 		const terms = canvas.terms;
 		const childMap = new Map< number, TermRow[] >();
@@ -115,9 +122,7 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			list.push( t );
 			childMap.set( t.parent, list );
 		}
-		const allRoots = childMap.get( 0 ) ?? [];
-		const roots = allRoots.filter( ( r ) => ! isUncategorized( r ) );
-		const uncategorized = allRoots.find( isUncategorized );
+		const { ring: roots, uncategorized } = ringTerms( terms );
 
 		const place = ( term: TermRow, depth: number, rootIdx: number, angle: number, angleSpan: number ): void => {
 			const rootRingByCount = roots.length > 1 ? 110 + roots.length * 28 : 0;
@@ -312,6 +317,10 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		},
 		clearPosts: () => fan.clear(),
 		loadPosts: () => fan.load(),
+		isDefault: ( id ) => {
+			const term = canvas.terms.find( ( t ) => t.id === id );
+			return !! term && isUncategorized( term );
+		},
 	};
 
 	function treeBounds(): Bounds | null {
@@ -344,11 +353,12 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			const nextHue = readAdminThemeHue( host );
 			if ( nextHue !== themeHue ) {
 				themeHue = nextHue;
-				const roots = canvas.terms.filter( ( term ) => ! term.parent && ! isUncategorized( term ) );
+				const roots = ringTerms( canvas.terms ).ring;
+				const ringIds = new Set( roots.map( ( term ) => term.id ) );
 				for ( const node of nodes.values() ) {
 					let root = node;
 					const seen = new Set< number >();
-					while ( root.parent && nodes.has( root.parent ) && ! seen.has( root.id ) ) {
+					while ( ! ringIds.has( root.id ) && root.parent && nodes.has( root.parent ) && ! seen.has( root.id ) ) {
 						seen.add( root.id ); root = nodes.get( root.parent )!;
 					}
 					const index = roots.findIndex( ( term ) => term.id === root.id );
@@ -430,6 +440,19 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			}
 			buildTree();
 			camera.fitToView( treeBounds(), { animate: true } );
+		},
+		termsReloaded: () => {
+			for ( const t of canvas.terms ) {
+				const node = nodes.get( t.id );
+				if ( node && node.count !== t.count ) {
+					node.count = t.count;
+					chips.relayout( node );
+				}
+			}
+			buildTree();
+			if ( draft === null && ! canvas.sidebar.contains( canvas.sidebar.ownerDocument.activeElement ) ) {
+				paintSidebar( sidebarHost );
+			}
 		},
 		dragging: () => dragNode !== null,
 		pointerMove: ( _ev, cursorWorld ) => {

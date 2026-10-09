@@ -223,7 +223,14 @@ class DbiMysqli implements DbiExtension {
 	private $last_error_number = 0;
 
     public function connect($user, $password, array $server) {
-		$path = defined('FQDB') ? FQDB : '';
+		if (defined('DB_PATH')) {
+			$path = DB_PATH;
+		} elseif (defined('FQDB')) {
+			$path = FQDB;
+		} else {
+			$path = '';
+		}
+
         $this->driver = new WP_SQLite_Driver(
 			new WP_SQLite_Connection(array('path' => $path)),
 			'wordpress'

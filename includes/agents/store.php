@@ -551,6 +551,30 @@ function openstation_agent_get_agents( $args = array() ) {
 	return get_users( array_merge( $defaults, is_array( $args ) ? $args : array() ) );
 }
 
+function openstation_agents_send_to_targets() {
+	if ( ! openstation_agents_enabled() || ! openstation_agents_user_can_invoke() ) {
+		return array();
+	}
+	$targets = array();
+	foreach ( openstation_agent_get_agents() as $user ) {
+		$trigger = openstation_agent_trigger_for_source( (int) $user->ID, 'send-to' );
+		if ( null === $trigger || ! openstation_agent_user_can_invoke_agent( (int) $user->ID, 'send-to' ) ) {
+			continue;
+		}
+		$kinds     = isset( $trigger['config']['entityKinds'] ) && is_array( $trigger['config']['entityKinds'] )
+			? array_values( array_map( 'strval', $trigger['config']['entityKinds'] ) )
+			: array();
+		$targets[] = array(
+			'id'          => (int) $user->ID,
+			'name'        => openstation_plain_text_title( $user->display_name ),
+			'description' => openstation_agent_get_description( (int) $user->ID ),
+			'avatarUrl'   => openstation_agent_avatar_url( (int) $user->ID ),
+			'entityKinds' => $kinds,
+		);
+	}
+	return $targets;
+}
+
 function openstation_agent_create( $args ) {
 	$role    = isset( $args['role'] ) ? sanitize_key( (string) $args['role'] ) : '';
 	$allowed = openstation_agent_allowed_roles();

@@ -9,8 +9,16 @@ interface Warmed {
 
 const warmed = new Map< string, Warmed >();
 
-export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch' ] ): boolean {
-	const held = warmed.get( config.id );
+export type PrewarmParams = Record< string, string | number | boolean >;
+
+function keyOf( id: string, params: PrewarmParams = {} ): string {
+	const sorted = Object.keys( params ).sort().map( ( k ) => [ k, params[ k ] ] );
+	return `${ id }\n${ JSON.stringify( sorted ) }`;
+}
+
+export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch' ], params: PrewarmParams = {} ): boolean {
+	const key = keyOf( config.id, params );
+	const held = warmed.get( key );
 	if ( held && Date.now() - held.at < PREWARM_TTL_MS ) {
 		return false;
 	}
@@ -31,7 +39,7 @@ export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch'
 				view: 'main',
 				state: { ...config.state },
 				args: {},
-				params: {},
+				params: { ...params },
 				client: { width: 0, height: 0 },
 			} ),
 		},
@@ -45,21 +53,22 @@ export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch'
 			return payload && payload.ok === true ? payload : null;
 		} )
 		.catch( () => null );
-	warmed.set( config.id, { promise, at: Date.now() } );
+	warmed.set( key, { promise, at: Date.now() } );
 	return true;
 }
 
-export function takePrewarm( id: string ): Promise< DispatchResponse | null > | undefined {
-	const held = warmed.get( id );
+export function takePrewarm( id: string, params: PrewarmParams = {} ): Promise< DispatchResponse | null > | undefined {
+	const key = keyOf( id, params );
+	const held = warmed.get( key );
 	if ( ! held ) {
 		return undefined;
 	}
-	warmed.delete( id );
+	warmed.delete( key );
 	return Date.now() - held.at < PREWARM_TTL_MS ? held.promise : undefined;
 }
 
-export function hasPrewarm( id: string ): boolean {
-	const held = warmed.get( id );
+export function hasPrewarm( id: string, params: PrewarmParams = {} ): boolean {
+	const held = warmed.get( keyOf( id, params ) );
 	return !! held && Date.now() - held.at < PREWARM_TTL_MS;
 }
 

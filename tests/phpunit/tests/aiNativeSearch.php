@@ -798,4 +798,27 @@ class Tests_OpenStation_AiNativeSearch extends WP_UnitTestCase {
 			'A moderator still hydrates the pending comment.'
 		);
 	}
+
+	/**
+	 * @covers ::openstation_ai_search_excerpt
+	 */
+	public function test_excerpt_is_centred_on_the_matched_keyword() {
+		$content = str_repeat( 'Lorem ipsum dolor sit amet. ', 40 ) . 'GPU performance doubles. ' . str_repeat( 'Tail text. ', 40 );
+
+		$excerpt = openstation_ai_search_excerpt( $content, 'performance' );
+
+		$this->assertStringContainsString( 'performance', $excerpt );
+		$this->assertStringStartsWith( '…', $excerpt );
+		$this->assertLessThanOrEqual( 301, mb_strlen( $excerpt ) );
+	}
+
+	/**
+	 * @covers ::openstation_ai_search_excerpt
+	 */
+	public function test_excerpt_starts_at_the_top_without_a_match() {
+		$content = 'Opening line. ' . str_repeat( 'More text. ', 60 );
+
+		$this->assertStringStartsWith( 'Opening line.', openstation_ai_search_excerpt( $content ) );
+		$this->assertStringStartsWith( 'Opening line.', openstation_ai_search_excerpt( $content, 'absent' ) );
+	}
 }

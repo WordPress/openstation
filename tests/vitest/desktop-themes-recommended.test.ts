@@ -17,6 +17,8 @@ import {
 	_resetForTests as resetDockRailRenderers,
 } from '../../src/dock-rail/registry';
 import type { DockRailRenderer } from '../../src/dock-rail/types';
+import { register as registerWallpaper } from '../../src/wallpapers/registry';
+import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
 function railRenderer( id: string ): DockRailRenderer {
 	return {
@@ -139,8 +141,22 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 			'dockRailRenderer',
 			'windowReveal',
 			'accent',
+			'wallpaper',
+			'accentColor',
 			'windowRevealDuration',
+			'navPlacement',
+			'widgets',
 		] );
+	} );
+
+	test( 'keeps placements from the closed set and widget ids on their charset', () => {
+		expect( sanitizeRecommendedOsSettings( {
+			navPlacement: { 'os-mio-toggle': 'hidden', 'Not An Id': 'hidden', 'menu-posts': 'nowhere' },
+			widgets: [ 'clock', 'acme/stocks', 'not an id!', 'clock', 3 ],
+		} ) ).toEqual( {
+			navPlacement: { 'os-mio-toggle': 'hidden' },
+			widgets: [ 'clock', 'acme/stocks' ],
+		} );
 	} );
 
 	test( 'keeps a window-reveal id on the slug charset', () => {
@@ -209,6 +225,47 @@ describe( 'resolveRecommendedOsSettings', () => {
 		expect(
 			resolveRecommendedOsSettings( { dockRailRenderer: 'orbit-rail' } ),
 		).toEqual( { dockRailRenderer: 'orbit-rail' } );
+	} );
+
+	test( "a theme's own wallpaper resolves to its registry id; a missing one drops", () => {
+		installHooksStub();
+		registerWallpaper( {
+			id: 'desktop-theme/acme-neon/dusk',
+			label: 'Dusk',
+			type: 'css',
+			preview: '#000',
+			value: '#000',
+		} );
+		expect(
+			resolveRecommendedOsSettings( { wallpaper: 'dusk' }, 'acme-neon' ),
+		).toEqual( { wallpaper: 'desktop-theme/acme-neon/dusk' } );
+		expect(
+			resolveRecommendedOsSettings( { wallpaper: 'dawn', dockSize: 'large' }, 'acme-neon' ),
+		).toEqual( { dockSize: 'large' } );
+		clearHooksStub();
+	} );
+
+	test( 'an accent colour becomes the swatch wearing it, or the custom accent', () => {
+		expect( resolveRecommendedOsSettings( { accentColor: '#2271B1' } ) ).toEqual( {
+			accent: 'wp-blue',
+		} );
+		expect( resolveRecommendedOsSettings( { accentColor: '#000080' } ) ).toEqual( {
+			accent: 'custom',
+			customAccent: '#000080',
+		} );
+	} );
+} );
+
+describe( 'resolveRecommendedOsSettings: widgets', () => {
+	test( 'keeps registered widgets and an empty list; drops a list that kept nothing', async () => {
+		installHooksStub();
+		const { register } = await import( '../../src/widgets/registry' );
+		register( { id: 'clock', label: 'Clock', description: '', icon: 'dashicons-clock', mount: () => () => undefined } );
+
+		expect( resolveRecommendedOsSettings( { widgets: [ 'clock', 'gone' ] } ) ).toEqual( { widgets: [ 'clock' ] } );
+		expect( resolveRecommendedOsSettings( { widgets: [] } ) ).toEqual( { widgets: [] } );
+		expect( resolveRecommendedOsSettings( { widgets: [ 'gone' ] } ) ).toEqual( {} );
+		clearHooksStub();
 	} );
 } );
 
@@ -331,6 +388,18 @@ describe( 'applyThemeRecommendations', () => {
 			dockSize: 'large',
 		} );
 		expect( state.dockRailRenderer ).toBe( 'default' );
+		expect( state.appliedThemeRecommendations ).toEqual( [ 'acme-neon' ] );
+	} );
+
+	test( "merges navPlacement into the user's own map and hands widgets back", () => {
+		seedLibrary( { navPlacement: { 'os-mio-toggle': 'hidden' }, widgets: [] } );
+		const state = structuredDefaults();
+		state.navPlacement = { 'menu-posts': 'desktop' };
+
+		const applied = applyThemeRecommendations( state, 'acme-neon' );
+
+		expect( state.navPlacement ).toEqual( { 'menu-posts': 'desktop', 'os-mio-toggle': 'hidden' } );
+		expect( applied ).toEqual( { navPlacement: { 'os-mio-toggle': 'hidden' }, widgets: [] } );
 		expect( state.appliedThemeRecommendations ).toEqual( [ 'acme-neon' ] );
 	} );
 

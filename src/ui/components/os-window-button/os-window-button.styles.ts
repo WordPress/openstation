@@ -8,8 +8,8 @@ export const styles = css`
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 30px;
-		height: 30px;
+		width: var( --os-ui-btn-width, 30px );
+		height: var( --os-ui-btn-height, 30px );
 		padding: 0;
 		border: none;
 		border-radius: var( --os-ui-btn-radius, 5px );
@@ -24,7 +24,14 @@ export const styles = css`
 			transform 80ms ease;
 	}
 	button:active:not(:disabled) {
-		transform: scale( 0.9 );
+		transform: var( --os-ui-btn-press-transform, scale( 0.9 ) );
+	}
+	button:active:not(:disabled),
+	:host( [ active ] ) button {
+		background-image: var(
+			--os-ui-btn-bg-image-pressed,
+			var( --os-ui-btn-bg-image, none )
+		);
 	}
 	@media ( prefers-reduced-motion: reduce ) {
 		button:active:not(:disabled) {
@@ -50,7 +57,7 @@ export const styles = css`
 		background-color: var( --os-ui-btn-bg-active, var( --os-ui-hover, rgba( 0, 0, 0, 0.08 ) ) );
 	}
 	:host( [ danger ] ) button:hover {
-		color: var( --os-ui-fg-on-accent, #fff );
+		color: var( --os-ui-btn-danger-color-hover, var( --os-ui-fg-on-accent, #fff ) );
 		background-color: var( --os-ui-btn-danger-hover, var( --os-ui-danger, #d63638 ) );
 	}
 	svg {
@@ -63,8 +70,8 @@ export const styles = css`
 	}
 	.themed-icon {
 		display: block;
-		width: 14px;
-		height: 14px;
+		width: var( --os-ui-btn-icon-size, 14px );
+		height: var( --os-ui-btn-icon-size, 14px );
 		flex-shrink: 0;
 		pointer-events: none;
 		background-color: var( --os-ui-btn-icon-color, currentColor );

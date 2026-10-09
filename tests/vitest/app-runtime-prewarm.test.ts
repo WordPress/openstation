@@ -137,6 +137,23 @@ describe( 'a session opening on a warm', () => {
 		expect( hasPrewarm( APP ) ).toBe( true );
 	} );
 
+	it( 'an open with params takes a warm made with the same params', async () => {
+		expect( startPrewarm( config(), host.fetch, { post: 0 } ) ).toBe( true );
+		expect( JSON.parse( String( ( fetchSpy.mock.calls[ 0 ] as [ string, RequestInit ] )[ 1 ].body ) ).params ).toEqual( { post: 0 } );
+		const session = createSession( { root, config: config(), windowId: APP, host, params: { post: 0 }, client: app } );
+		await expect( session.dispatch( 'mount' ) ).resolves.toBe( true );
+		expect( fetchSpy ).toHaveBeenCalledTimes( 1 );
+		expect( session.data ).toEqual( { rows: [ 'warm' ] } );
+		expect( hasPrewarm( APP, { post: 0 } ) ).toBe( false );
+	} );
+
+	it( 'warms are held per params, whatever their key order', () => {
+		startPrewarm( config(), host.fetch, { a: 1, b: 'x' } );
+		expect( hasPrewarm( APP, { b: 'x', a: 1 } ) ).toBe( true );
+		expect( hasPrewarm( APP ) ).toBe( false );
+		expect( takePrewarm( APP, { a: 2, b: 'x' } ) ).toBeUndefined();
+	} );
+
 	it( 'a warm that failed falls through to the request it stood in for', async () => {
 		fetchSpy.mockResolvedValueOnce( answer( [], false ) );
 		startPrewarm( config(), host.fetch );

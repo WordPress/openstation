@@ -121,6 +121,38 @@ hook bus until the next full page load.
 
 ---
 
+## The built-in renderers
+
+Two ship with the shell, and the user picks between them in OpenStation
+Preferences → Appearance (a desktop theme can recommend one through
+`recommendedOsSettings.dockRailRenderer`):
+
+| Id | What it paints |
+|---|---|
+| `default` | The icon strip: tiles with badges, tooltips, multi-instance chips, attention animations and the constellation flyouts. |
+| `taskbar` | One bar along the bottom edge: a **Start** button whose menu lists the `core` and `apps` zones (a menu with children cascades into them; the way out sits last), a button for every open window on the current desktop (pressed while that window is in front; a click brings it forward, or minimizes it if it already is), and a tray with the `controls` zone and a clock. On a side placement it hands the rail to `default`. |
+
+The taskbar is styled entirely through tokens, each falling back to the
+dock's own so a theme that already dressed the dock gets a matching bar:
+
+| Token | Role |
+|---|---|
+| `--os-taskbar-padding`, `--os-taskbar-height`, `--os-taskbar-gap`, `--os-taskbar-font-size`, `--os-taskbar-fg`, `--os-taskbar-icon-size` | The bar: its padding, the height of its row of buttons, the gap between them, type and icon size. |
+| `--os-taskbar-button-bg`, `-bg-hover`, `-bg-active`, `--os-taskbar-button-shadow`, `-shadow-active`, `--os-taskbar-button-radius`, `--os-taskbar-button-padding`, `--os-taskbar-button-gap` | Start and the window buttons, at rest and pressed. A bevel is a pair of inset shadows. |
+| `--os-taskbar-button-pattern-active`, `--os-taskbar-button-pattern-size` | A pattern over the pressed face of the window in front (a checkered fill is `repeating-conic-gradient( … )` at `2px 2px`). |
+| `--os-taskbar-start-weight`, `--os-taskbar-task-width`, `--os-taskbar-task-active-weight` | Start's label weight, a window button's width, and the front window's label weight. |
+| `--os-taskbar-tray-bg`, `-shadow`, `-radius`, `-padding`, `--os-taskbar-tray-item-size`, `--os-taskbar-tray-item-bg-hover` | The tray well and its icons. |
+| `--os-taskbar-focus-outline`, `--os-taskbar-focus-offset` | Keyboard focus on any of them. |
+| `--os-taskbar-menu-bg`, `-fg`, `-shadow`, `-radius`, `-padding`, `-offset`, `-inset`, `-font-size`, `-icon-size` | The Start menu and its cascades. |
+| `--os-taskbar-menu-item-padding`, `-item-radius`, `--os-taskbar-menu-hover-bg`, `-hover-fg`, `--os-taskbar-menu-separator`, `-separator-shadow` | Its rows, the highlighted row, and the rule above the way out. |
+| `--os-taskbar-banner-bg`, `-fg`, `-radius`, `-font-size` | The banner down the menu's leading edge; the hero mesh by default. |
+
+Start's own glyph is the icon slot `APP:os-taskbar-start`, and each
+window button wears the slot of its window id (`APP:edit-php`), so a
+desktop theme's iconset reaches the whole bar.
+
+---
+
 ## Zones
 
 A rail paints three zones, with a divider between each adjacent pair

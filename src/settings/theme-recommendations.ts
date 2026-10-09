@@ -41,6 +41,7 @@ export function applyThemeRecommendations(
 
 	const recommended = resolveRecommendedOsSettings(
 		isSystem ? SYSTEM_DEFAULT_RECOMMENDATIONS : theme!.recommendedOsSettings,
+		isSystem ? undefined : theme!.slug,
 	);
 	const keys = Object.keys( recommended );
 	if ( keys.length === 0 ) {
@@ -48,7 +49,17 @@ export function applyThemeRecommendations(
 	}
 
 	const target = state as unknown as Record< string, unknown >;
-	const applied: Record< string, string | number > = {};
+	const applied: Record< string, unknown > = {};
+	if ( recommended.navPlacement ) {
+		state.navPlacement = {
+			...state.navPlacement,
+			...( recommended.navPlacement as OsSettingsState[ 'navPlacement' ] ),
+		};
+		applied.navPlacement = recommended.navPlacement;
+	}
+	if ( recommended.widgets ) {
+		applied.widgets = recommended.widgets;
+	}
 	for ( const key of keys ) {
 		const value = ( recommended as Record< string, unknown > )[ key ];
 		if ( typeof value !== 'string' && typeof value !== 'number' ) {
@@ -88,7 +99,8 @@ export function hasApplicableThemeRecommendations( themeId: string ): boolean {
 		return false;
 	}
 	return (
-		Object.keys( resolveRecommendedOsSettings( theme.recommendedOsSettings ) )
-			.length > 0
+		Object.keys(
+			resolveRecommendedOsSettings( theme.recommendedOsSettings, theme.slug ),
+		).length > 0
 	);
 }

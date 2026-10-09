@@ -13,6 +13,7 @@ import {
 import type { ClientApp } from './client';
 import { morphChildren } from './morph';
 import { takePrewarm } from './prewarm';
+import { joinRestUrl } from '../rest-url';
 import {
 	appAnnounceSource,
 	type AppConfig,
@@ -147,8 +148,8 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 		const sentState = state;
 		try {
-			if ( action === 'mount' && view === 'main' && Object.keys( params ).length === 0 ) {
-				const warmed = await takePrewarm( config.id );
+			if ( action === 'mount' && view === 'main' ) {
+				const warmed = await takePrewarm( config.id, params as Record< string, string | number | boolean > );
 				if ( disposed ) {
 					return false;
 				}
@@ -331,7 +332,7 @@ export function createSession( deps: SessionDeps ): Session {
 	const restFetch = ( path: string, init: RequestInit = {}, options: { silent?: boolean } = {} ): Promise< Response > => {
 		const url = /^https?:\/\//i.test( path )
 			? path
-			: String( config.restRoot ?? '' ) + path.replace( /^\//, '' );
+			: joinRestUrl( String( config.restRoot ?? '' ), path );
 		const headers = new Headers( init.headers );
 		if ( ! headers.has( 'Accept' ) ) {
 			headers.set( 'Accept', 'application/json' );

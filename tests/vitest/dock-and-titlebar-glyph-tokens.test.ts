@@ -80,12 +80,12 @@ describe( 'dock glyph tokens', () => {
 
 		expect(
 			css.match(
-				/background: var\( --os-dock-item-outline, #fff \);/g
+				/background: var\( --os-dock-active-indicator, var\( --os-dock-item-outline, #fff \) \);/g
 			)
 		).toHaveLength( 3 );
 		expect(
 			css.match(
-				/border: 1px solid var\( --os-dock-item-outline, rgba\( 255, 255, 255, 0\.85 \) \);/g
+				/border: 1px solid var\( --os-dock-active-indicator, var\( --os-dock-item-outline, rgba\( 255, 255, 255, 0\.85 \) \) \);/g
 			)
 		).toHaveLength( 3 );
 	} );
@@ -148,7 +148,9 @@ describe( 'focused title-bar control tokens', () => {
 		const css = readCss( 'window-chrome.css' );
 
 		expect(
-			css.match( /--os-ui-btn-danger-hover: var\( --os-ui-danger, #d63638 \);/g )
+			css.match(
+				/--os-ui-btn-danger-hover: var\( --os-titlebar-close-bg-hover, var\( --os-ui-danger, #d63638 \) \);/g
+			)
 		).toHaveLength( 2 );
 	} );
 

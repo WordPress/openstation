@@ -107,7 +107,10 @@ describe( 'native-windows — prewarmById', () => {
 
 		await expect( prewarmById( 'posts' ) ).resolves.toBe( true );
 		expect( loaded ).toEqual( [ 'https://example.test/posts-client.js', 'https://example.test/posts.js' ] );
-		expect( runtimePrewarm ).toHaveBeenCalledWith( 'posts' );
+		expect( runtimePrewarm ).toHaveBeenCalledWith( 'posts', {} );
+
+		await prewarmById( 'posts', { params: { tab: 'drafts' } } );
+		expect( runtimePrewarm ).toHaveBeenLastCalledWith( 'posts', { tab: 'drafts' } );
 		expect( runtimePrewarm.mock.invocationCallOrder[ 0 ] ).toBeGreaterThan( 0 );
 	} );
 

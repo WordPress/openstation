@@ -16,6 +16,8 @@ import {
 	LOADING_OVERLAY_CLASS,
 	LOADING_OVERLAY_SHOW_DELAY_MS,
 	LOADING_OVERLAY_VISIBLE_CLASS,
+	LOADING_SPINNER_PRESET,
+	LOADING_SPINNER_SIZE,
 } from './constants';
 
 export const LOADING_BODY_CLASS = 'os-window__body--loading';
@@ -110,8 +112,8 @@ function buildDefaultLoadingOverlay(): HTMLElement {
 	overlay.setAttribute( 'aria-live', 'polite' );
 
 	const spinner = document.createElement( 'os-spinner' );
-	spinner.setAttribute( 'preset', 'classic' );
-	spinner.setAttribute( 'size', 'clamp(96px, 14vw, 192px)' );
+	spinner.setAttribute( 'preset', LOADING_SPINNER_PRESET );
+	spinner.setAttribute( 'size', LOADING_SPINNER_SIZE );
 	spinner.setAttribute( 'label', __( 'Loading window content' ) );
 	overlay.appendChild( spinner );
 	return overlay;

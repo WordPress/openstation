@@ -40,6 +40,7 @@ export interface MindmapSidebarHost {
 	relayoutNode: ( id: number ) => void;
 	clearPosts: () => void;
 	loadPosts: () => Promise< void >;
+	isDefault: ( id: number ) => boolean;
 }
 
 function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
@@ -124,6 +125,10 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 			node.count,
 		),
 	);
+	const isDefault = host.isDefault( id );
+	if ( isDefault ) {
+		sidebarMeta( sidebar, __( 'This is the default category: posts without a category land here, so it can’t be deleted. Rename it instead.' ) );
+	}
 
 	const addChildBtn = sidebarButton( 'secondary', __( '+ Child' ) );
 	addChildBtn.addEventListener( 'click', () => {
@@ -188,7 +193,12 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 	const delBtn = armedDeleteButton( async () => {
 		try {
 			await client.deleteTerm( 'categories', id );
-			host.setTerms( host.terms().filter( ( t ) => t.id !== id ) );
+			const parent = term?.parent ?? 0;
+			host.setTerms(
+				host.terms()
+					.filter( ( t ) => t.id !== id )
+					.map( ( t ) => ( t.parent === id ? { ...t, parent } : t ) ),
+			);
 			host.setFocus( null );
 			host.clearPosts();
 			host.buildTree();
@@ -198,7 +208,10 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 		}
 	} );
 
-	sidebarActions( sidebar, makeRootBtn ? [ addChildBtn, makeRootBtn, saveBtn, delBtn ] : [ addChildBtn, saveBtn, delBtn ] );
+	sidebarActions(
+		sidebar,
+		[ addChildBtn, makeRootBtn, saveBtn, isDefault ? null : delBtn ].filter( ( b ): b is HTMLButtonElement => b !== null ),
+	);
 }
 
 export function paintSidebar( host: MindmapSidebarHost ): void {

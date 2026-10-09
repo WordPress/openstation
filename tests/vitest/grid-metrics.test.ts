@@ -90,7 +90,7 @@ describe( 'icon grid metrics', () => {
 		const files = css( 'assets/css/desktop-files.css' );
 		const label = /\.os-file-tile__label \{([\s\S]*?)\n\}/.exec( files );
 		const fontSize = Number(
-			/font-size:\s*([0-9.]+)px/.exec( label![ 1 ] )![ 1 ],
+			/font-size:\s*(?:var\(\s*--[a-z-]+,\s*)?([0-9.]+)px/.exec( label![ 1 ] )![ 1 ],
 		);
 		const lineHeight = Number(
 			/line-height:\s*([0-9.]+)/.exec( label![ 1 ] )![ 1 ],

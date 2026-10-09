@@ -476,7 +476,7 @@ describe( 'createSession', () => {
 			unknown
 		>;
 
-		function clientHarness() {
+		function clientHarness( restRoot = 'https://example.test/wp-json/' ) {
 			const root = document.createElement( 'div' );
 			document.body.appendChild( root );
 			const fetches: Array< { input: string; init?: RequestInit; options?: { silent?: boolean; windowId?: string } } > = [];
@@ -495,7 +495,7 @@ describe( 'createSession', () => {
 			};
 			const session = createSession( {
 				root,
-				config: { ...config(), restRoot: 'https://example.test/wp-json/', client: true },
+				config: { ...config(), restRoot, client: true },
 				windowId: 'demo',
 				host,
 				client: {
@@ -550,6 +550,16 @@ describe( 'createSession', () => {
 			expect( headers.get( 'Accept' ) ).toBe( 'application/json' );
 			await h.ctx().fetch( 'https://elsewhere.test/x' );
 			expect( h.fetches.at( -1 )?.input ).toBe( 'https://elsewhere.test/x' );
+		} );
+
+		it( 'fetch() builds a valid URL under Plain permalinks', async () => {
+			const h = clientHarness( 'https://example.test/index.php?rest_route=/' );
+			await h.session.dispatch( 'mount' );
+			await h.ctx().fetch( 'wp/v2/categories?per_page=100&page=1' );
+			const url = new URL( h.fetches.at( -1 )?.input ?? '' );
+			expect( url.searchParams.get( 'rest_route' ) ).toBe( '/wp/v2/categories' );
+			expect( url.searchParams.get( 'per_page' ) ).toBe( '100' );
+			expect( url.searchParams.get( 'page' ) ).toBe( '1' );
 		} );
 
 		it( 'dispatch() asks the confirm dialog when the caller passes one', async () => {

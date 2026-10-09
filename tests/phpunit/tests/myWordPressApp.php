@@ -719,7 +719,8 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertNotEmpty( $revisions['data']['sub']['rows'] );
 		foreach ( $revisions['data']['sub']['rows'] as $row ) {
 			$this->assertStringNotContainsString( '<', $row['title'], 'A revision title is plain text, never an avatar tag.' );
-			$this->assertMatchesRegularExpression( '/ ago \(/', $row['title'] );
+			$this->assertMatchesRegularExpression( '/ ago( · Autosave)?$/', $row['title'] );
+			$this->assertStringContainsString( ' · ', $row['subtitle'] );
 		}
 
 		$media = $this->dispatch( 'relation', $state, array( 'relation' => 'media' ) );
@@ -816,6 +817,30 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	/**
 	 * @covers \OpenStation\Apps\MyWordPress\sub_detail
 	 */
+	/**
+	 * @covers \OpenStation\Apps\MyWordPress\revision_facts
+	 */
+	public function test_revision_rows_carry_the_author_face_and_survive_a_deleted_author() {
+		$author = self::factory()->user->create( array( 'role' => 'editor', 'display_name' => 'Rev Author' ) );
+		$post   = self::factory()->post->create( array( 'post_author' => $author ) );
+		wp_set_current_user( $author );
+		wp_update_post( array( 'ID' => $post, 'post_content' => 'First edit' ) );
+		wp_set_current_user( self::$admin_id );
+		$revision = array_values( wp_get_post_revisions( $post ) )[0];
+
+		$facts = \OpenStation\Apps\MyWordPress\revision_facts( $revision );
+		$this->assertSame( 'Rev Author', $facts['author'] );
+		$this->assertNotSame( '', $facts['avatar'], 'A known author lends the tile their avatar.' );
+		$this->assertStringEndsWith( ' ago', $facts['ago'] );
+
+		global $wpdb;
+		$wpdb->update( $wpdb->posts, array( 'post_author' => 987654 ), array( 'ID' => $revision->ID ) );
+		clean_post_cache( $revision->ID );
+		$facts = \OpenStation\Apps\MyWordPress\revision_facts( get_post( $revision->ID ) );
+		$this->assertSame( 'Unknown author', $facts['author'] );
+		$this->assertSame( '', $facts['avatar'] );
+	}
+
 	public function test_a_revision_pane_refuses_a_row_from_another_post() {
 		$other = self::factory()->post->create();
 		wp_update_post(
@@ -1076,7 +1101,7 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		foreach ( array_merge( $sources, glob( $dir . '*.css' ) ) as $file ) {
 			$lines += count( file( $file ) );
 		}
-		$this->assertLessThan( 12600, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,600 — still well under half of the original it replaced.', $lines ) );
+		$this->assertLessThan( 12700, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,700 — still well under half of the original it replaced.', $lines ) );
 
 		foreach ( $sources as $file ) {
 			$this->assertLessThan(

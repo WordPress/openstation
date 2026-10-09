@@ -7,7 +7,18 @@ vi.mock( '../../src/native-url-remap', async ( importOriginal ) => {
 	const actual = await importOriginal< typeof import('../../src/native-url-remap') >();
 	return {
 		...actual,
-		resolveNativeUrlRemap: ( url: string ) => ( url.includes( 'edit.php' ) ? 'desktop-mode-posts' : null ),
+		resolveNativeUrlRemap: ( url: string ) => {
+			if ( url.includes( 'edit-comments.php' ) ) {
+				return 'desktop-mode-comments';
+			}
+			return url.includes( 'edit.php' ) ? 'desktop-mode-posts' : null;
+		},
+		resolveNativeUrlRemapTarget: ( url: string ) => {
+			if ( url.includes( 'edit-comments.php' ) ) {
+				return { id: 'desktop-mode-comments', params: { post: 0 } };
+			}
+			return url.includes( 'edit.php' ) ? { id: 'desktop-mode-posts' } : null;
+		},
 	};
 } );
 
@@ -97,6 +108,13 @@ describe( 'dock — hover prewarm of native windows', () => {
 		vi.advanceTimersByTime( DWELL_MS );
 		expect( shell.prewarmWindow ).toHaveBeenCalledWith( 'desktop-mode-posts' );
 		expect( h.prewarm ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a remap that opens with params warms with the same params', () => {
+		const h = setup( [ menuItem( 'edit-comments.php', `${ window.location.origin }/wp-admin/edit-comments.php` ) ] );
+		pointer( h.tile( 'edit-comments.php' ), 'pointerenter' );
+		vi.advanceTimersByTime( DWELL_MS );
+		expect( shell.prewarmWindow ).toHaveBeenCalledWith( 'desktop-mode-comments', { params: { post: 0 } } );
 	} );
 
 	test( 'a system tile warms its own window', () => {

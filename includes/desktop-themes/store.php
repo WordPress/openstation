@@ -126,104 +126,114 @@ function openstation_desktop_theme_icon_slots() {
 function openstation_desktop_theme_texture_slots() {
 	$corner_size = '--os-window-corner-size';
 	$slots       = array(
-		'TITLEBAR'             => array(
+		'TITLEBAR'                => array(
 			'type' => 'image',
 			'prop' => '--os-titlebar-image',
 		),
-		'TITLEBAR_FOCUSED'     => array(
+		'TITLEBAR_FOCUSED'        => array(
 			'type'       => 'image',
 			'prop'       => '--os-titlebar-image-focused',
 			'companions' => false,
 		),
-		'WINDOW_FRAME'         => array(
+		'WINDOW_FRAME'            => array(
 			'type' => 'border-image',
 			'prop' => '--os-window-border-image',
 		),
-		'WINDOW_FRAME_FOCUSED' => array(
+		'WINDOW_FRAME_FOCUSED'    => array(
 			'type' => 'border-image',
 			'prop' => '--os-window-border-image-focused',
 		),
-		'WINDOW_CORNER_NE'     => array(
+		'WINDOW_CORNER_NE'        => array(
 			'type'      => 'image',
 			'prop'      => '--os-window-corner-ne-image',
 			'sizeGroup' => $corner_size,
 		),
-		'WINDOW_CORNER_NW'     => array(
+		'WINDOW_CORNER_NW'        => array(
 			'type'      => 'image',
 			'prop'      => '--os-window-corner-nw-image',
 			'sizeGroup' => $corner_size,
 		),
-		'WINDOW_CORNER_SE'     => array(
+		'WINDOW_CORNER_SE'        => array(
 			'type'      => 'image',
 			'prop'      => '--os-window-corner-se-image',
 			'sizeGroup' => $corner_size,
 		),
-		'WINDOW_CORNER_SW'     => array(
+		'WINDOW_CORNER_SW'        => array(
 			'type'      => 'image',
 			'prop'      => '--os-window-corner-sw-image',
 			'sizeGroup' => $corner_size,
 		),
-		'TITLEBAR_CONTROLS'    => array(
+		'TITLEBAR_CONTROLS'       => array(
 			'type' => 'image',
 			'prop' => '--os-titlebar-controls-image',
 		),
-		'TITLEBAR_BUTTON'      => array(
+		'TITLEBAR_BUTTON'         => array(
 			'type' => 'image',
 			'prop' => '--os-ui-btn-bg-image',
 		),
-		'WINDOW_BODY'          => array(
+		'TITLEBAR_BUTTON_PRESSED' => array(
+			'type'       => 'image',
+			'prop'       => '--os-ui-btn-bg-image-pressed',
+			'companions' => false,
+		),
+		'WINDOW_BODY'             => array(
 			'type' => 'image',
 			'prop' => '--os-window-body-image',
 		),
-		'TABBAR'               => array(
+		'TABBAR'                  => array(
 			'type' => 'image',
 			'prop' => '--os-tabs-image',
 		),
-		'DOCK'                 => array(
+		'DOCK'                    => array(
 			'type' => 'image',
 			'prop' => '--os-dock-bg-image',
 		),
-		'DOCK_ITEM'            => array(
+		'DOCK_ITEM'               => array(
 			'type' => 'image',
 			'prop' => '--os-dock-item-image',
 		),
-		'DESKTOP'              => array(
+		'DOCK_ITEM_FOCUSED'       => array(
+			'type'       => 'image',
+			'prop'       => '--os-dock-item-image-focused',
+			'companions' => false,
+		),
+		'DESKTOP'                 => array(
 			'type' => 'image',
 			'prop' => '--os-desktop-image',
 		),
-		'ICON_TILE'            => array(
+		'ICON_TILE'               => array(
 			'type' => 'image',
 			'prop' => '--os-tile-image',
 		),
-		'WIDGET'               => array(
+		'WIDGET'                  => array(
 			'type' => 'image',
 			'prop' => '--os-widget-image',
 		),
-		'MENU'                 => array(
+		'MENU'                    => array(
 			'type' => 'image',
 			'prop' => '--os-ui-menu-bg-image',
 		),
-		'DIALOG'               => array(
+		'DIALOG'                  => array(
 			'type' => 'image',
 			'prop' => '--os-ui-dialog-bg-image',
 		),
-		'SCRIM'                => array(
+		'SCRIM'                   => array(
 			'type' => 'image',
 			'prop' => '--os-ui-scrim-image',
 		),
-		'PANEL'                => array(
+		'PANEL'                   => array(
 			'type' => 'image',
 			'prop' => '--os-ui-panel-bg-image',
 		),
-		'TOAST'                => array(
+		'TOAST'                   => array(
 			'type' => 'image',
 			'prop' => '--os-ui-toast-bg-image',
 		),
-		'TABLE_HEADER'         => array(
+		'TABLE_HEADER'            => array(
 			'type' => 'image',
 			'prop' => '--os-ui-table-header-bg-image',
 		),
-		'BUTTON'               => array(
+		'BUTTON'                  => array(
 			'type' => 'image',
 			'prop' => '--os-ui-button-bg-image',
 		),
@@ -242,6 +252,14 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 		'windowReveal'         => array( 'slug' => true ),
 
 		'accent'               => array( 'slug' => true ),
+
+		'accentColor'          => array( 'hex' => true ),
+
+		'wallpaper'            => array( 'slug' => true ),
+
+		'navPlacement'         => array( 'map' => array( 'both', 'rail', 'desktop', 'hidden' ) ),
+
+		'widgets'              => array( 'ids' => true ),
 		'windowRevealDuration' => array(
 			'int' => array(
 				'min' => OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN,
@@ -273,6 +291,21 @@ function openstation_desktop_theme_recommended_os_settings_schema() {
 		}
 		if ( ! empty( $rule['slug'] ) ) {
 			$out[ $key ] = array( 'slug' => true );
+			continue;
+		}
+		if ( ! empty( $rule['hex'] ) ) {
+			$out[ $key ] = array( 'hex' => true );
+			continue;
+		}
+		if ( ! empty( $rule['ids'] ) ) {
+			$out[ $key ] = array( 'ids' => true );
+			continue;
+		}
+		if ( ! empty( $rule['map'] ) && is_array( $rule['map'] ) ) {
+			$values = array_values( array_filter( $rule['map'], 'is_string' ) );
+			if ( ! empty( $values ) ) {
+				$out[ $key ] = array( 'map' => $values );
+			}
 			continue;
 		}
 		if (

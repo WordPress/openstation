@@ -573,6 +573,19 @@ function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 		if ( ! isset( $raw[ $key ] ) ) {
 			continue;
 		}
+		if ( isset( $rule['map'] ) ) {
+			$map = openstation_sanitize_desktop_theme_recommended_map( $raw[ $key ], $rule['map'] );
+			if ( ! empty( $map ) ) {
+				$out[ $key ] = $map;
+			}
+			continue;
+		}
+		if ( isset( $rule['ids'] ) ) {
+			if ( is_array( $raw[ $key ] ) ) {
+				$out[ $key ] = openstation_sanitize_desktop_theme_recommended_ids( $raw[ $key ] );
+			}
+			continue;
+		}
 		if ( isset( $rule['int'] ) ) {
 			if ( ! is_numeric( $raw[ $key ] ) ) {
 				continue;
@@ -596,9 +609,49 @@ function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 			}
 			continue;
 		}
+		if ( ! empty( $rule['hex'] ) ) {
+			if ( preg_match( '/^#[0-9a-fA-F]{6}$/', $value ) ) {
+				$out[ $key ] = strtolower( $value );
+			}
+			continue;
+		}
 		$slug = sanitize_key( $value );
 		if ( '' !== $slug ) {
 			$out[ $key ] = $slug;
+		}
+	}
+	return $out;
+}
+
+function openstation_sanitize_desktop_theme_recommended_map( $raw, $allowed ) {
+	$out = array();
+	if ( ! is_array( $raw ) ) {
+		return $out;
+	}
+	foreach ( $raw as $id => $value ) {
+		if ( count( $out ) >= 64 ) {
+			break;
+		}
+		$id = is_string( $id ) ? sanitize_key( $id ) : '';
+		if ( '' !== $id && is_string( $value ) && in_array( $value, $allowed, true ) ) {
+			$out[ $id ] = $value;
+		}
+	}
+	return $out;
+}
+
+function openstation_sanitize_desktop_theme_recommended_ids( $raw ) {
+	$out = array();
+	foreach ( $raw as $id ) {
+		if ( count( $out ) >= 32 ) {
+			break;
+		}
+		if ( ! is_string( $id ) ) {
+			continue;
+		}
+		$id = substr( preg_replace( '#[^A-Za-z0-9_/-]#', '', $id ), 0, 128 );
+		if ( '' !== $id && ! in_array( $id, $out, true ) ) {
+			$out[] = $id;
 		}
 	}
 	return $out;

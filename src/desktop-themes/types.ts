@@ -7,7 +7,12 @@ export interface RecommendedOsSettings {
 	dockRailRenderer?: string;
 	windowReveal?: string;
 	windowRevealDuration?: number;
+	wallpaper?: string;
+	accentColor?: string;
+	customAccent?: string;
 	accent?: string;
+	navPlacement?: Record< string, string >;
+	widgets?: string[];
 }
 
 export interface DesktopThemeEntry {
@@ -26,6 +31,7 @@ export interface DesktopThemeEntry {
 	icons: Record< string, string >;
 	iconColors: Record< string, string >;
 	recommendedOsSettings: RecommendedOsSettings;
+	drawsToolbar: boolean;
 	installedAt: number;
 	source: 'upload' | 'code';
 }

@@ -41,19 +41,24 @@
 			}
 			var wasSaving = false;
 			var wasNew = false;
+			var wasAutosave = false;
 			var inFlight = false;
 			wpg.data.subscribe( function () {
-				var saving =
-					editor.isSavingPost() &&
-					! ( editor.isAutosavingPost && editor.isAutosavingPost() );
+				var saving = editor.isSavingPost();
 				if ( saving && ! wasSaving ) {
 					wasNew = !! (
 						editor.isEditedPostNew && editor.isEditedPostNew()
+					);
+					wasAutosave = !! (
+						editor.isAutosavingPost && editor.isAutosavingPost()
 					);
 				}
 				var finished = wasSaving && ! saving;
 				wasSaving = saving;
 				if ( ! finished || inFlight ) {
+					return;
+				}
+				if ( wasAutosave && ! wasNew ) {
 					return;
 				}
 				if (

@@ -157,9 +157,12 @@ function openstation_sanitize_os_settings( $raw ) {
 		$raw = array();
 	}
 
-	$wallpaper = isset( $raw['wallpaper'] ) && is_string( $raw['wallpaper'] ) && '' !== $raw['wallpaper']
-		? sanitize_key( $raw['wallpaper'] )
-		: $defaults['wallpaper'];
+	$wallpaper = isset( $raw['wallpaper'] ) && is_string( $raw['wallpaper'] )
+		? implode( '/', array_filter( array_map( 'sanitize_key', explode( '/', $raw['wallpaper'] ) ) ) )
+		: '';
+	if ( '' === $wallpaper ) {
+		$wallpaper = $defaults['wallpaper'];
+	}
 
 	$accent = isset( $raw['accent'] ) && is_string( $raw['accent'] ) && '' !== $raw['accent']
 		? sanitize_key( $raw['accent'] )

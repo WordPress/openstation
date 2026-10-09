@@ -84,6 +84,12 @@
 	cursor: nwse-resize;
 }
 
+.os-window__resize-handle--ne,
+.os-window__resize-handle--nw {
+	width: var(--os-resize-top-size, var(--os-resize-size));
+	height: var(--os-resize-top-size, var(--os-resize-size));
+}
+
 .os-window--dragging .os-window__body::after,
 .os-window--resizing .os-window__body::after {
 	content: "";

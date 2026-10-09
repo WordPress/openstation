@@ -403,6 +403,11 @@
 	padding: 0 24px;
 }
 
+.os-mindmap .os-term-canvas__empty {
+	align-items: flex-end;
+	padding-bottom: 28px;
+}
+
 html[data-os-mode="mobile"] .os-term-canvas__layout {
 	flex-direction: column;
 }

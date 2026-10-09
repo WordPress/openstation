@@ -16,6 +16,8 @@ export {
 	unwrapDefaultDock,
 } from './default-renderer';
 
+export { taskbarDockRailRenderer } from './taskbar-renderer';
+
 export type {
 	DockRailController,
 	DockRailMountDeps,
@@ -24,7 +26,9 @@ export type {
 
 import { register } from './registry';
 import { defaultDockRailRenderer } from './default-renderer';
+import { taskbarDockRailRenderer } from './taskbar-renderer';
 
 export function installDefaultDockRailRenderer(): void {
 	register( defaultDockRailRenderer );
+	register( taskbarDockRailRenderer );
 }

@@ -269,9 +269,33 @@ function openstation_chromeless_trim_command_palette() {
 		}
 	}
 
+	openstation_chromeless_keep_components_style( $scripts );
+
 	do_action( 'openstation_chromeless_trimmed_command_palette' );
 }
 add_action( 'admin_enqueue_scripts', 'openstation_chromeless_trim_command_palette', PHP_INT_MAX );
+
+function openstation_chromeless_keep_components_style( $scripts ) {
+	if ( ! wp_style_is( 'wp-components', 'registered' ) || wp_style_is( 'wp-components', 'enqueued' ) ) {
+		return;
+	}
+
+	$uses_components = in_array( 'wp-components', $scripts->queue, true );
+	$memo            = array();
+	foreach ( $scripts->queue as $handle ) {
+		if ( $uses_components ) {
+			break;
+		}
+		if ( openstation_is_core_package_handle( $scripts, $handle ) ) {
+			continue;
+		}
+		$uses_components = openstation_handle_depends_on( $scripts, $handle, array( 'wp-components' ), $memo );
+	}
+
+	if ( apply_filters( 'openstation_chromeless_keep_components_style', $uses_components ) ) {
+		wp_enqueue_style( 'wp-components' );
+	}
+}
 
 function openstation_chromeless_filter_palette_print_list( $handles ) {
 	if ( ! is_array( $handles ) || ! openstation_chromeless_should_trim_command_palette() ) {

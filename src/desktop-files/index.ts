@@ -31,6 +31,7 @@ import { installShareMenuItems } from './share-menu-items';
 import { installShareInviteBanner } from './share-invite-banner';
 import { installUploadMenuItems } from './upload-menu-items';
 import { installMediaMenuItems } from './media-menu-items';
+import { installAgentMenuItems } from './agent-menu-items';
 import { installMediaDrag } from './media-drag';
 import { installMediaDropTargets } from './media-drop-targets';
 import { ingestPendingInvites, type PendingInvite } from './shares-store';
@@ -58,6 +59,7 @@ seedBootFolders();
 installShareMenuItems();
 installUploadMenuItems();
 installMediaMenuItems();
+installAgentMenuItems();
 installMediaDrag();
 installMediaDropTargets();
 const seededPending = ( window as unknown as {

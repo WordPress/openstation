@@ -20,3 +20,6 @@ export const LOADING_CONTENT_FADE_IN_MS = 250;
 export const LOADING_OVERLAY_CLASS = 'os-window__loading';
 
 export const LOADING_OVERLAY_VISIBLE_CLASS = 'os-window__loading--visible';
+
+export const LOADING_SPINNER_PRESET = 'classic';
+export const LOADING_SPINNER_SIZE = 'clamp(96px, 14vw, 192px)';

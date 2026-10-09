@@ -75,7 +75,28 @@ function openstation_desktop_theme_body_class( $classes ) {
 	if ( '' === $slug ) {
 		return $classes;
 	}
-	return trim( $classes . ' os-desktop-theme-' . $slug );
+	$classes .= ' os-desktop-theme-' . $slug;
+
+	$entry = openstation_desktop_theme_get( $slug );
+	if ( null === $entry ) {
+		$entry = openstation_desktop_theme_registry( $slug );
+	}
+	if ( is_array( $entry ) && ! empty( $entry['manifest'] ) && openstation_desktop_theme_manifest_draws_toolbar( $entry['manifest'] ) ) {
+		$classes .= ' os-toolbar-themed';
+	}
+	return trim( $classes );
+}
+
+function openstation_desktop_theme_manifest_draws_toolbar( $manifest ) {
+	if ( empty( $manifest['tokens'] ) || ! is_array( $manifest['tokens'] ) ) {
+		return false;
+	}
+	foreach ( array_keys( $manifest['tokens'] ) as $name ) {
+		if ( 0 === strpos( (string) $name, '--os-toolbar-' ) ) {
+			return true;
+		}
+	}
+	return false;
 }
 add_filter( 'admin_body_class', 'openstation_desktop_theme_body_class', 20 );
 

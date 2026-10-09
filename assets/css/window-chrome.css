@@ -4,7 +4,7 @@
 	display: flex;
 	flex-direction: column;
 	background: var(--os-window-bg);
-	border: 1px solid var(--os-window-border);
+	border: var(--os-window-border-width, 1px) solid var(--os-window-border);
 	border-radius: var(--os-window-radius);
 	box-shadow: var(--os-window-shadow);
 	border-image-source: var(--os-window-border-image-source, none);
@@ -67,7 +67,7 @@
 	display: flex;
 	align-items: center;
 	height: var(--os-titlebar-height);
-	padding: 0 8px;
+	padding: var(--os-titlebar-padding, 0 8px);
 	background-color: var(--os-titlebar-bg);
 	background-image: var(--os-titlebar-image, none);
 	background-repeat: var(--os-titlebar-image-repeat, repeat);
@@ -81,7 +81,11 @@
 	cursor: default;
 	user-select: none;
 	flex-shrink: 0;
-	gap: 8px;
+	gap: var(--os-titlebar-gap, 8px);
+	--os-ui-btn-width: var(--os-titlebar-btn-width, 30px);
+	--os-ui-btn-height: var(--os-titlebar-btn-height, 30px);
+	--os-ui-btn-icon-size: var(--os-titlebar-btn-icon-size, 14px);
+	--os-ui-btn-press-transform: var(--os-titlebar-btn-press-transform, scale( 0.9 ));
 }
 
 .os-window--focused .os-window__titlebar {
@@ -110,7 +114,7 @@
 	--os-ui-save-status-ring-color: var(--os-titlebar-activity-color, #2271b1);
 	--os-ui-save-status-saved-bg: var(--os-titlebar-activity-saved-color, #2271b1);
 	--os-ui-save-status-failed-bg: var(--os-titlebar-activity-failed-color, #d63638);
-	display: inline-flex;
+	display: var(--os-titlebar-activity-display, inline-flex);
 	align-items: center;
 	flex-shrink: 0;
 }
@@ -144,13 +148,22 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--os-titlebar-font-size, 14px);
+	font-weight: var(--os-titlebar-font-weight, 500);
+	letter-spacing: var(--os-titlebar-letter-spacing, normal);
+	text-align: var(--os-titlebar-title-align, start);
 	line-height: var(--os-titlebar-height);
+	position: var(--os-titlebar-title-position, static);
+	left: var(--os-titlebar-title-left, auto);
+	translate: var(--os-titlebar-title-translate, none);
+	max-width: var(--os-titlebar-title-max-width, none);
+	padding-inline: var(--os-titlebar-title-padding, 0);
+	background: var(--os-titlebar-title-bg, transparent);
 }
 
 .os-window__controls {
 	display: flex;
+	order: var( --os-titlebar-controls-order, 0 );
 	gap: var( --os-titlebar-controls-gap, 4px );
 	align-items: center;
 	flex-shrink: 0;
@@ -161,6 +174,27 @@
 	background-repeat: var( --os-titlebar-controls-image-repeat, repeat );
 	background-size: var( --os-titlebar-controls-image-size, auto );
 	background-position: var( --os-titlebar-controls-image-position, center );
+}
+
+.os-window__controls--left {
+	order: -1;
+}
+
+.os-window__controls .os-window__btn--minimize {
+	order: var( --os-titlebar-minimize-order, 0 );
+	display: var( --os-titlebar-minimize-display, inline-flex );
+}
+.os-window__controls .os-window__btn--maximize {
+	order: var( --os-titlebar-maximize-order, 0 );
+	display: var( --os-titlebar-maximize-display, inline-flex );
+}
+.os-window__controls .os-window__btn--focus-tab {
+	order: var( --os-titlebar-fullscreen-order, 0 );
+	display: var( --os-titlebar-fullscreen-display, inline-flex );
+}
+.os-window__controls .os-window__btn--close {
+	order: var( --os-titlebar-close-order, 0 );
+	margin-inline-start: var( --os-titlebar-close-gap, 0 );
 }
 
 .os-window__screen-meta {
@@ -209,7 +243,8 @@
 	--os-ui-btn-bg-hover: var( --os-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );
 	--os-ui-btn-bg-active: var( --os-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );
 	--os-ui-btn-outline: var( --os-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );
-	--os-ui-btn-danger-hover: var( --os-ui-danger, #d63638 );
+	--os-ui-btn-danger-hover: var( --os-titlebar-close-bg-hover, var( --os-ui-danger, #d63638 ) );
+	--os-ui-btn-danger-color-hover: var( --os-titlebar-close-color-hover, var( --os-ui-fg-on-accent, #fff ) );
 }
 
 .os-window:not( .os-window--focused ) {
@@ -218,7 +253,8 @@
 	--os-ui-btn-bg-hover: var( --os-titlebar-btn-bg-hover, rgba( 0, 0, 0, 0.08 ) );
 	--os-ui-btn-bg-active: var( --os-titlebar-btn-bg-active, rgba( 0, 0, 0, 0.12 ) );
 	--os-ui-btn-outline: var( --wp-admin-theme-color, #2271b1 );
-	--os-ui-btn-danger-hover: var( --os-ui-danger, #d63638 );
+	--os-ui-btn-danger-hover: var( --os-titlebar-close-bg-hover, var( --os-ui-danger, #d63638 ) );
+	--os-ui-btn-danger-color-hover: var( --os-titlebar-close-color-hover, var( --os-ui-fg-on-accent, #fff ) );
 }
 
 .os-shell[ data-os-desktop-theme ]
@@ -309,20 +345,32 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
+	width: var( --os-titlebar-btn-width, 28px );
+	height: var( --os-titlebar-btn-height, 28px );
 	border: none;
-	border-radius: 6px;
+	border-radius: var( --os-titlebar-meta-btn-radius, 6px );
 	cursor: pointer;
 	padding: 0;
-	background: transparent;
+	background-color: var( --os-ui-btn-bg, transparent );
+	background-image: var( --os-ui-btn-bg-image, none );
+	background-repeat: var( --os-ui-btn-bg-image-repeat, no-repeat );
+	background-size: var( --os-ui-btn-bg-image-size, auto );
+	background-position: var( --os-ui-btn-bg-image-position, center );
 	transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+.os-window__meta-btn:active,
+.os-window__meta-btn--active {
+	background-image: var(
+		--os-ui-btn-bg-image-pressed,
+		var( --os-ui-btn-bg-image, none )
+	);
+}
+
 .os-window__meta-btn .dashicons {
-	font-size: 18px;
-	width: 18px;
-	height: 18px;
+	font-size: var( --os-titlebar-meta-icon-size, 18px );
+	width: var( --os-titlebar-meta-icon-size, 18px );
+	height: var( --os-titlebar-meta-icon-size, 18px );
 }
 
 .os-window--focused .os-window__meta-btn {
@@ -330,17 +378,17 @@
 }
 .os-window--focused .os-window__meta-btn:hover {
 	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
-	background: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+	background-color: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
 }
 .os-window--focused .os-window__meta-btn:focus-visible {
 	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
-	background: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+	background-color: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
 	outline: 2px solid var( --os-titlebar-btn-focused-outline, rgba(255, 255, 255, 0.6) );
 	outline-offset: 1px;
 }
 .os-window--focused .os-window__meta-btn--active {
 	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
-	background: var( --os-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
+	background-color: var( --os-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
 }
 
 .os-window:not(.os-window--focused) .os-window__screen-meta {
@@ -354,11 +402,11 @@
 }
 .os-window:not(.os-window--focused) .os-window__meta-btn:hover {
 	color: var( --os-titlebar-btn-color-hover, rgba(0, 0, 0, 0.6) );
-	background: var( --os-ui-hover, rgba(0, 0, 0, 0.08) );
+	background-color: var( --os-ui-hover, rgba(0, 0, 0, 0.08) );
 }
 .os-window:not(.os-window--focused) .os-window__meta-btn--active {
 	color: var( --os-titlebar-btn-color-hover, rgba(0, 0, 0, 0.6) );
-	background: rgba(0, 0, 0, 0.12);
+	background-color: rgba(0, 0, 0, 0.12);
 }
 
 .os-window__tabs {

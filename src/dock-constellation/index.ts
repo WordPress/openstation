@@ -5,6 +5,9 @@ import type { Window as OsWindow } from '../window';
 import { hashTitleToHue } from '../ui/util/hash-hue';
 import { deriveWindowId, sanitizeClassName } from '../utils';
 import { applyIconMask } from '../desktop-themes/paint-tinted-icon';
+import { resolveThemedIcon } from '../desktop-themes/icons';
+import { slotForTileId } from '../desktop-themes/slots';
+import { renderIcon } from '../icon';
 import { CONSTELLATION_FLAG } from './active';
 import { ITEM_MENU_OPENING_EVENT } from '../item-visibility-menu-events';
 import { resolveNativeUrlRemap } from '../native-url-remap';
@@ -536,7 +539,16 @@ function buildHead(
 	const iconHost = document.createElement( 'span' );
 	iconHost.className = 'os-constellation__head-icon';
 	iconHost.setAttribute( 'aria-hidden', 'true' );
-	iconHost.appendChild( glyph( item.icon ) );
+	const slot = slotForTileId( item.id );
+	iconHost.appendChild(
+		resolveThemedIcon( slot )
+			? renderIcon( item.icon, {
+				title: item.title,
+				className: 'os-constellation__head-art',
+				slot,
+			} )
+			: glyph( item.icon ),
+	);
 	head.appendChild( iconHost );
 
 	const text = document.createElement( 'span' );

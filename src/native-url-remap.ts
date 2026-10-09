@@ -110,6 +110,58 @@ export function resolveNativeUrlRemap( url: string ): string | null {
 	return null;
 }
 
+function remapParams(
+	entry: NativeUrlRemap,
+	url: string,
+	parsed: URL,
+): Record< string, string | number | boolean > | undefined {
+	let params:
+		| Record< string, string | number | boolean >
+		| undefined;
+	const tagged = parsed.searchParams.get( OS_TAB_PARAM );
+	if ( entry.params ) {
+		try {
+			params = entry.params( url, parsed ) ?? undefined;
+		} catch ( err ) {
+			// eslint-disable-next-line no-console
+			console.warn(
+				`[openstation] URL remap params hook threw for "${ entry.id }":`,
+				err,
+			);
+		}
+	}
+	if ( tagged && /^[a-z0-9_-]+$/.test( tagged ) ) {
+		params = { ...( params ?? {} ), tab: tagged };
+	}
+	return params;
+}
+
+export function resolveNativeUrlRemapTarget(
+	url: string,
+): { id: string; params?: Record< string, string | number | boolean > } | null {
+	const { deps, remaps } = remapStore.state;
+	if ( ! deps || ! url ) {
+		return null;
+	}
+	let parsed: URL;
+	try {
+		parsed = new URL( url, deps.adminUrl );
+	} catch {
+		return null;
+	}
+	const snapshot = deps.getSnapshot();
+	for ( const entry of remaps ) {
+		if ( ! entry.matches( url, parsed ) ) {
+			continue;
+		}
+		if ( entry.enabled && ! entry.enabled( snapshot ) ) {
+			continue;
+		}
+		return { id: entry.nativeWindowId, params: remapParams( entry, url, parsed ) };
+	}
+	return null;
+}
+
 export function tryNativeUrlRemap(
 	url: string,
 	opts: { newInstance?: boolean } = {},
@@ -144,24 +196,7 @@ export function tryNativeUrlRemap(
 				);
 			}
 		}
-		let params:
-			| Record< string, string | number | boolean >
-			| undefined;
-		const tagged = parsed.searchParams.get( OS_TAB_PARAM );
-		if ( entry.params ) {
-			try {
-				params = entry.params( url, parsed ) ?? undefined;
-			} catch ( err ) {
-				// eslint-disable-next-line no-console
-				console.warn(
-					`[openstation] URL remap params hook threw for "${ entry.id }":`,
-					err,
-				);
-			}
-		}
-		if ( tagged && /^[a-z0-9_-]+$/.test( tagged ) ) {
-			params = { ...( params ?? {} ), tab: tagged };
-		}
+		const params = remapParams( entry, url, parsed );
 		const open =
 			opts.newInstance && deps.openNewById
 				? deps.openNewById

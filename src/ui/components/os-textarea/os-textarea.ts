@@ -66,9 +66,28 @@ export class OsTextarea extends Component {
 
 	private _textareaEl: HTMLTextAreaElement | null = null;
 
+	private _sizedFor = '';
+
+	private _resizeObserver: ResizeObserver | null = null;
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		ensureAutoId( this );
+		if ( typeof ResizeObserver !== 'undefined' ) {
+			this._resizeObserver ??= new ResizeObserver( () => this._syncAutosize() );
+			this._resizeObserver.observe( this );
+		}
+	}
+
+	disconnectedCallback(): void {
+		this._resizeObserver?.disconnect();
+	}
+
+	protected requestUpdate(): void {
+		super.requestUpdate();
+		if ( this.isConnected && this._boolAttr( 'auto-grow' ) ) {
+			window.requestAnimationFrame( () => this._syncAutosize() );
+		}
 	}
 
 	protected render() {
@@ -107,6 +126,7 @@ export class OsTextarea extends Component {
 				@input=${ ( e: Event ) => this._onInput( e ) }
 				@change=${ ( e: Event ) => this._onChange( e ) }
 				@keydown=${ ( e: KeyboardEvent ) => this._onKeyDown( e ) }
+				@scroll=${ ( e: Event ) => this._syncMoreBelow( e.target as HTMLTextAreaElement ) }
 			></textarea>
 		`;
 	}
@@ -166,11 +186,40 @@ export class OsTextarea extends Component {
 		const next = Math.min( contentHeight, max );
 		ta.style.height = `${ Math.ceil( next ) }px`;
 		ta.style.overflowY = contentHeight > Math.ceil( max ) ? 'auto' : 'hidden';
+		this._sizedFor = `${ ta.clientWidth }:${ ta.value }`;
+		this._syncMoreBelow( ta );
+	}
+
+	private _syncMoreBelow( ta: HTMLTextAreaElement ): void {
+		if ( ! this._boolAttr( 'auto-grow' ) ) {
+			return;
+		}
+		this.toggleAttribute(
+			'data-more-below',
+			ta.scrollTop + ta.clientHeight < ta.scrollHeight - 1,
+		);
+	}
+
+	private _syncAutosize(): void {
+		const ta = this._textarea();
+		if ( ! ta || ! this._boolAttr( 'auto-grow' ) || ta.clientWidth === 0 ) {
+			return;
+		}
+		if ( this._sizedFor !== `${ ta.clientWidth }:${ ta.value }` ) {
+			this._autosize( ta );
+		}
+	}
+
+	private _textarea(): HTMLTextAreaElement | null {
+		const root = ( this.shadowRoot ?? this ) as ParentNode;
+		this._textareaEl = root.querySelector< HTMLTextAreaElement >( 'textarea' );
+		return this._textareaEl;
 	}
 
 	public refreshAutosize(): void {
-		if ( this._textareaEl && this._boolAttr( 'auto-grow' ) ) {
-			this._autosize( this._textareaEl );
+		const ta = this._textarea();
+		if ( ta && this._boolAttr( 'auto-grow' ) ) {
+			this._autosize( ta );
 		}
 	}
 

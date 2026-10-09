@@ -89,6 +89,7 @@ import {
 import { handleDragStart, handleResizeStart } from './pointer';
 import { navigateWithUnsavedGuard } from './unsaved-guard';
 import { speculateDocument } from '../pwa/speculate';
+import { resolveNativeUrlRemapTarget } from '../native-url-remap';
 
 function speculateTabDocument( rawUrl: string ): void {
 	const os = (
@@ -96,11 +97,22 @@ function speculateTabDocument( rawUrl: string ): void {
 			wp?: {
 				os?: {
 					getOsSettings?: () => { windowPrewarmEnabled?: boolean };
+					prewarmWindow?: (
+						id: string,
+						opts?: { params?: Record< string, string | number | boolean > },
+					) => Promise< boolean >;
 				};
 			};
 		}
 	).wp?.os;
 	if ( ! os?.getOsSettings?.().windowPrewarmEnabled ) {
+		return;
+	}
+	const native = resolveNativeUrlRemapTarget( rawUrl );
+	if ( native ) {
+		void ( native.params
+			? os.prewarmWindow?.( native.id, { params: native.params } )
+			: os.prewarmWindow?.( native.id ) );
 		return;
 	}
 	const target = withChromelessParam( rawUrl );
@@ -714,7 +726,7 @@ export class Window {
 				if ( ! href ) {
 					return;
 				}
-				if ( tab?.classList.contains( 'is-active' ) ) {
+				if ( tab?.classList.contains( 'os-window__tab--active' ) ) {
 					return;
 				}
 				if ( this._tabSpeculateTimer ) {

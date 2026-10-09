@@ -1,5 +1,5 @@
 import { resolveThemedIcon } from '../desktop-themes/icons';
-import { slotForFileType } from '../desktop-themes/slots';
+import { slotForFileType, slotForTileId } from '../desktop-themes/slots';
 import { getIconArt } from '../desktop-icons';
 import { applyFilters, doAction } from '../hooks';
 import { resolve as resolveFileType } from './registry';
@@ -46,6 +46,8 @@ function placementToSpec(
 			? undefined
 			: ( getIconArt( placement.file.ref ) ||
 				metaIconUrl ||
+				( placement.file.type === 'shortcut' &&
+					resolveThemedIcon( slotForTileId( placement.file.ref ) ) ) ||
 				resolveThemedIcon( slotForFileType( placement.file.type ) ) ||
 				file.icon() ),
 		x: placement.x,

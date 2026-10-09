@@ -93,6 +93,12 @@ function openstation_register_assets() {
 		$built_version( 'assets/css/dock.css' )
 	);
 	wp_register_style(
+		'os-dock-taskbar',
+		OPENSTATION_URL . 'assets/css/dock-taskbar.css',
+		array( 'os-dock' ),
+		$built_version( 'assets/css/dock-taskbar.css' )
+	);
+	wp_register_style(
 		'os-dock-peek',
 		OPENSTATION_URL . 'assets/css/dock-peek.css',
 		array( 'os-dock' ),
