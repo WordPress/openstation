@@ -31,7 +31,10 @@ import { registerSyntheticIframe } from './connection';
 import { isShellDocumentUrl } from './shell-url';
 import { recordFrameLocation, setWindowMenuPages } from './window/share-link';
 import {
+	OS_TAB_PARAM,
 	registerNativeUrlRemap,
+	resolveNativeUrlRemap,
+	tryNativeUrlRemap,
 	unregisterNativeUrlRemap,
 } from './native-url-remap';
 import { setPanelTabs } from './window/tab-strip';
@@ -602,6 +605,75 @@ function buildIframeContentRender(
 						.identity ?? null;
 				syncIdentity();
 			}
+			// In-iframe admin link navigation from the synthetic iframe.
+			// Synthetic iframes in native window tabs lack the outer
+			// `Window.iframe` binding that routes through `handleWindowMessage`,
+			// so in-frame navigation events are handled here.
+			if (
+				data &&
+				typeof data === 'object' &&
+				( data as { type?: string } ).type === 'os-iframe-admin-link' &&
+				typeof ( data as { url?: string } ).url === 'string' &&
+				( data as { url: string } ).url !== ''
+			) {
+				const linkUrl = ( data as { url: string } ).url;
+
+				// Switch tab in place when the link targets this same native window
+				// (e.g. Gutenberg's "View Posts" / "View Pages" button).
+				const targetNativeId = resolveNativeUrlRemap( linkUrl );
+				if ( targetNativeId === windowId ) {
+					let targetTab = 'posts';
+					try {
+						const parsed = new URL( linkUrl, window.location.origin );
+						const tagged = parsed.searchParams.get( OS_TAB_PARAM );
+						if ( tagged && /^[a-z0-9_-]+$/.test( tagged ) ) {
+							targetTab = tagged;
+						}
+					} catch {
+						/* Use fallback default 'posts' */
+					}
+
+					const root =
+						body.closest( '.os-app-list' ) ??
+						body.closest( '[data-window-id]' ) ??
+						body.parentElement;
+					const tabs = root?.querySelector< HTMLElement & { value: string } >( 'os-tabs' );
+					if ( tabs ) {
+						tabs.value = targetTab;
+						tabs.dispatchEvent(
+							new CustomEvent( 'os-tab-change', {
+								detail: { value: targetTab },
+								bubbles: true,
+								composed: true,
+							} ),
+						);
+						return;
+					}
+				}
+
+				// Delegate to another native window if registered.
+				if ( tryNativeUrlRemap( linkUrl ) ) {
+					return;
+				}
+
+				// Fall back to opening a standard iframe window.
+				const osApi = window.wp?.os;
+				if ( osApi?.deriveWindowId && osApi?.windowManager ) {
+					const id = osApi.deriveWindowId( linkUrl );
+					const linkLabel =
+						typeof ( data as { label?: string } ).label === 'string'
+							? ( data as { label: string } ).label
+							: '';
+					void osApi.windowManager.open( {
+						id,
+						baseId: id,
+						url: linkUrl,
+						title: linkLabel || linkUrl,
+						icon: 'dashicons-admin-generic',
+					} );
+				}
+			}
+
 			try {
 				cfg.onMessage?.( e.data );
 			} catch ( err ) {
