@@ -994,6 +994,35 @@ into a plain menu:
 The head shows the theme's `APP:<menu>` icon when it declares one, the
 same art as the tile.
 
+#### Tabs drawn as keys
+
+By default a window's tabs share one plate that slides to the active
+tab and joins the page below. A theme that draws every tab as a key of
+its own, the way a property sheet does, gives each tab a face and an
+edge, turns the plate off, and lets the active tab grow over its
+neighbours and the floor under it.
+
+| Token | Role |
+|---|---|
+| `--os-tabs-padding`, `--os-tabs-gap` | The window tab strip's padding and the space between tabs. Default `8px 12px 0` and `2px`. |
+| `--os-tabs-tab-height`, `--os-tabs-tab-padding`, `--os-tabs-tab-margin`, `--os-tabs-font-size` | A tab's height, padding, margin and type size. Default `30px`, `0 14px`, `0` and `12px`. A bottom margin lifts the inactive tabs off the strip's floor. |
+| `--os-tabs-tab-bg`, `--os-tabs-tab-shadow` | A tab's face, and its edge as inset shadows. Default `transparent` and `none`. |
+| `--os-tabs-hover-color`, `--os-tabs-hover-bg` | A tab under the pointer. Default the admin theme colour and a faint shade. |
+| `--os-tabs-active-tab-bg`, `--os-tabs-active-shadow`, `--os-tabs-active-height`, `--os-tabs-active-margin`, `--os-tabs-active-weight` | The active tab's face, edge, height, margin and weight. Default `transparent`, `none`, the tab's height and margin, and `600`. A taller tab with negative side margins grows over its neighbours. |
+| `--os-tabs-plate-display` | `none` turns the sliding plate off. |
+| `--os-tabs-panel-padding`, `--os-tabs-panel-shadow`, `--os-tabs-page-shadow` | A window with tabs only: padding around its page, the panel's edges as inset shadows, and a frame around the page as outset shadows. Default `0`, `none` and `none`, the page flush under the strip. |
+| `--os-ui-tabs-gap`, `--os-ui-tabs-floor`, `--os-ui-tabs-bg`, `--os-ui-tabs-padding`, `--os-ui-tabs-margin` | A horizontal `<os-tabs>` strip: its gap, its bottom border, and what it sits on. Default `4px`, a 1px border line, `transparent`, `0` and `0 0 10px`. |
+| `--os-ui-tab-padding`, `--os-ui-tab-margin`, `--os-ui-tab-corners`, `--os-ui-tab-font-size`, `--os-ui-tab-bg`, `--os-ui-tab-shadow` | That strip's tabs, the same way. |
+| `--os-ui-tab-selected-bg`, `--os-ui-tab-selected-shadow`, `--os-ui-tab-selected-margin`, `--os-ui-tab-selected-padding`, `--os-ui-tab-selected-weight` | Its selected tab. Extra bottom padding with a negative bottom margin makes it reach over the floor. |
+| `--os-ui-tab-indicator-display` | `none` drops the accent underline under the selected tab. |
+
+The window strip's floor, the panel edge the keys stand on, is the
+strip's own background: draw it through `--os-tabs-image`, sized and
+placed with `--os-tabs-image-size` and `--os-tabs-image-position`, for
+example as two 1px lines along the bottom. The vertical `<os-tabs>` in
+Preferences keeps its own `--os-ui-tab-fill` family, and none of these
+touch it.
+
 #### The toolbar
 
 The WordPress toolbar's colours belong to the user's admin colour

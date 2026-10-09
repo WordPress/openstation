@@ -823,7 +823,7 @@
 	 */
 	--_tab-radius: var( --os-tabs-radius, 8px );
 	/* Tab height, shared with the plate that has to sit exactly on it. */
-	--_tab-h: 30px;
+	--_tab-h: var( --os-tabs-tab-height, 30px );
 	/* Weight of the rail that traces the silhouette. */
 	--_tab-stroke: var( --os-tabs-rail-width, 2px );
 	/*
@@ -838,7 +838,7 @@
 	/* Tabs sit ON the floor of the track, not centred in it. */
 	align-items: flex-end;
 	flex-shrink: 0;
-	gap: 2px;
+	gap: var( --os-tabs-gap, 2px );
 	/*
 	 * Horizontal padding is a floor as well as a breathing space. The
 	 * ring reaches one radius plus one stroke (10px at the shipped
@@ -846,7 +846,7 @@
 	 * under a smaller padding would have its outer corner clipped by
 	 * the `overflow` rule below.
 	 */
-	padding: 8px 12px 0;
+	padding: var( --os-tabs-padding, 8px 12px 0 );
 	background-color: var( --os-tabs-bg, var( --os-ui-surface-elevated, #f6f7f7 ) );
 	/* TABBAR texture slot — layered over the strip's own colour. */
 	background-image: var( --os-tabs-image, none );
@@ -950,6 +950,8 @@
  * `--_tab-plate-w` on this element; everything else is CSS.
  * --------------------------------------------------------------- */
 .os-window__tab-plate {
+	/* `none` for a theme whose tabs draw their own faces. */
+	display: var( --os-tabs-plate-display, block );
 	position: absolute;
 	bottom: 0;
 	left: 0;
@@ -1379,14 +1381,21 @@
 	flex-shrink: 0;
 	display: inline-flex;
 	align-items: center;
-	height: 30px;
-	padding: 0 14px;
+	height: var( --_tab-h );
+	margin: var( --os-tabs-tab-margin, 0 );
+	padding: var( --os-tabs-tab-padding, 0 14px );
 	border: none;
 	border-radius: var( --_tab-radius ) var( --_tab-radius ) 0 0;
-	background: transparent;
+	/*
+	 * A tab paints no face of its own by default: the plate is the
+	 * surface. A theme that draws every tab as a key gives each one a
+	 * face and an edge here, and turns the plate off.
+	 */
+	background: var( --os-tabs-tab-bg, transparent );
+	box-shadow: var( --os-tabs-tab-shadow, none );
 	color: var( --os-tabs-color, var( --os-ui-fg-muted, #50575e ) );
 	font: inherit;
-	font-size: 12px;
+	font-size: var( --os-tabs-font-size, 12px );
 	line-height: 1;
 	cursor: pointer;
 	white-space: nowrap;
@@ -1394,8 +1403,8 @@
 }
 
 .os-window__tab:hover {
-	color: var(--wp-admin-theme-color, #2271b1);
-	background: var( --os-ui-hover, rgba(0, 0, 0, 0.03) );
+	color: var( --os-tabs-hover-color, var(--wp-admin-theme-color, #2271b1) );
+	background: var( --os-tabs-hover-bg, var( --os-ui-hover, rgba(0, 0, 0, 0.03) ) );
 }
 
 .os-window__tab:focus-visible {
@@ -1414,8 +1423,14 @@
  * the same thing twice.
  */
 .os-window__tab--active {
+	/* Above its neighbours, for a theme whose active tab grows over them. */
+	z-index: 1;
+	height: var( --os-tabs-active-height, var( --_tab-h ) );
+	margin: var( --os-tabs-active-margin, var( --os-tabs-tab-margin, 0 ) );
+	background: var( --os-tabs-active-tab-bg, transparent );
+	box-shadow: var( --os-tabs-active-shadow, none );
 	color: var( --os-tabs-active-color, #1d2327 );
-	font-weight: 600;
+	font-weight: var( --os-tabs-active-weight, 600 );
 	/*
 	 * Anything nested in an active tab (the external tab's detach and
 	 * close chips) is now sitting on a light fill inside dark chrome,
@@ -1434,7 +1449,7 @@
 /* An active tab has the plate under it; a hover wash on top of that
  * would double-paint the surface. */
 .os-window__tab--active:hover {
-	background: transparent;
+	background: var( --os-tabs-active-tab-bg, transparent );
 	color: var( --os-tabs-active-color, #1d2327 );
 }
 
@@ -1500,6 +1515,26 @@ os-tab-chip + os-tab-chip {
 	background: var(--os-window-bg);
 	opacity: 1;
 	transition: opacity 0.25s ease;
+}
+
+/*
+ * A window with tabs can sit its page in a panel the tabs stand on,
+ * for a theme that draws its tabs as keys: padding and edges on the
+ * body, and a frame around the page. The defaults leave the page
+ * flush under the strip. A buffer iframe is placed absolutely, so it
+ * keeps to the same padding.
+ */
+.os-window:has( .os-window__tab ) > .os-window__body {
+	padding: var( --os-tabs-panel-padding, 0 );
+	box-shadow: var( --os-tabs-panel-shadow, none );
+}
+
+.os-window:has( .os-window__tab ) > .os-window__body > .os-window__iframe {
+	box-shadow: var( --os-tabs-page-shadow, none );
+}
+
+.os-window:has( .os-window__tab ) > .os-window__body > .os-window__iframe--buffer {
+	inset: var( --os-tabs-panel-padding, 0 );
 }
 
 /*
