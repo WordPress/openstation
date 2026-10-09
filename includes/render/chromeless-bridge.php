@@ -217,6 +217,17 @@ add_action( 'admin_head', 'openstation_chromeless_offset_neutralizer_script', 1 
  *
  * The parent acts on it only for a window with a submit waiting, or
  * one whose frame it cannot read.
+ *
+ * A document can also change its address without navigating, and the
+ * block editor does on its first save: `post-new.php` becomes
+ * `post.php?post=N&action=edit` through `history.replaceState()`. For
+ * a frame the parent cannot read, nothing else tells it, so the window
+ * would go on calling the draft "a new post", and "Copy link" would
+ * hand out an empty editor. `os-iframe-location` reports every such
+ * change, and only updates where the parent thinks the frame is: it is
+ * not a navigation, so it settles no submit and resets no title. The
+ * wrap is installed here, ahead of every other script, so Core's own
+ * canonical-URL `replaceState()` in this same head is reported too.
  */
 function openstation_chromeless_navigation_ping_script() {
 	if ( ! openstation_is_chromeless_request() ) {
@@ -224,7 +235,18 @@ function openstation_chromeless_navigation_ping_script() {
 	}
 
 	wp_print_inline_script_tag(
-		"try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:'os-iframe-navigated',url:window.location.href},window.location.origin);}}catch(e){}"
+		'try{if(window.parent&&window.parent!==window){'
+		. 'var osParent=window.parent,osOrigin=window.location.origin,'
+		. 'osSend=function(type){try{osParent.postMessage({type:type,url:window.location.href},osOrigin);}catch(e){}};'
+		. "osSend('os-iframe-navigated');"
+		. "['pushState','replaceState'].forEach(function(name){"
+		. 'var original=window.history[name];'
+		. "if(typeof original!=='function'){return;}"
+		. 'window.history[name]=function(){var result=original.apply(this,arguments);'
+		. "osSend('os-iframe-location');return result;};"
+		. '});'
+		. "window.addEventListener('popstate',function(){osSend('os-iframe-location');});"
+		. '}}catch(e){}'
 	);
 }
 add_action( 'admin_head', 'openstation_chromeless_navigation_ping_script', 1 );

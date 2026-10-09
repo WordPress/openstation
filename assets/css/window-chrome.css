@@ -580,9 +580,14 @@
 
 /*
  * "Copy link" confirms in its own row: the label becomes "Link copied"
- * with a tick that pops in, then the row reverts and the menu closes unless it is still hovered. The tick sits in the
- * slotted label, so it is styled here rather than in the menu's shadow
- * root. Transform and opacity only.
+ * with a tick that pops in, then the row reverts and the menu closes
+ * unless it is still hovered. The tick sits in the slotted label, so it
+ * is styled here rather than in the menu's shadow root. Transform and
+ * opacity only.
+ *
+ * The tick wears the row's own ink, not the accent: it is feedback, not
+ * the thing you are on, and the words already say what happened (see
+ * "The accent marks state; it never decorates" in AGENTS.md).
  */
 .os-window__menu-copied-icon {
 	/* Hangs in the gutter so "Link copied" stays aligned with the
@@ -590,7 +595,6 @@
 	   box is not this icon's containing block, does not cut it off. */
 	position: absolute;
 	translate: -28px -1px;
-	color: var( --os-ui-accent, #2271b1 );
 	animation: os-menu-copied-pop 0.24s cubic-bezier( 0.34, 1.56, 0.64, 1 ) both;
 }
 

@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Window } from '../../src/window';
+import { confirmCopyInMenu } from '../../src/window/menus';
 import type { WindowConfig } from '../../src/types';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
 
@@ -126,6 +127,20 @@ describe( 'the title-bar status ring', () => {
 		win.markActivity( 'idle' );
 		expect( ring().getAttribute( 'phase' ) ).toBe( 'idle' );
 		expect( ring().hasAttribute( 'error' ) ).toBe( false );
+	} );
+
+	test( 'a "Link copied" confirmation speaks in its own region, not the ring', () => {
+		const row = win.element.querySelector< HTMLElement >(
+			'.os-window__menu-item--copy-link',
+		) as HTMLElement;
+		vi.useFakeTimers();
+		confirmCopyInMenu( win, row, true );
+		vi.useRealTimers();
+
+		expect( ring().textContent ).toBe( '' );
+		const region = win.element.querySelector( '.os-window__copy-status' );
+		expect( region?.getAttribute( 'role' ) ).toBe( 'status' );
+		expect( region?.textContent ).toBe( 'Link copied' );
 	} );
 
 	test( 'a second indicator is driven too, not just the first', () => {

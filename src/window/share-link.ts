@@ -16,7 +16,6 @@ const PRIVATE_ARGS = [
 	'openstation_solo',
 	'desktop_mode_portal',
 	'desktop_mode_portal_intent',
-	'desktop_mode_detach',
 	'desktop_mode_classic',
 	'_wpnonce',
 	'_ajax_nonce',

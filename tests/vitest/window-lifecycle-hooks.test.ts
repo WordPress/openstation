@@ -233,6 +233,27 @@ describe( 'Window — lifecycle hook firing', () => {
 		openSpy.mockRestore();
 	} );
 
+	test( 'an unreadable frame that rewrites its own address is followed', () => {
+		// The block editor's first save replaces `post-new.php` with the
+		// draft's own URL without navigating; "Copy link" must share that.
+		const origin = window.location.origin;
+		handle.cleanup();
+		handle = mountWindow( baseConfig( { id: 'post-new', url: `${ origin }/wp-admin/post-new.php` } ) );
+		const iframe = handle.win.iframe as HTMLIFrameElement;
+		const isolated = {
+			get location(): Location {
+				throw new DOMException( 'Blocked a frame', 'SecurityError' );
+			},
+		};
+		Object.defineProperty( iframe, 'contentWindow', { value: isolated, configurable: true } );
+		const draft = `${ origin }/wp-admin/post.php?post=9&action=edit`;
+		const moved = new MessageEvent( 'message', { data: { type: 'os-iframe-location', url: draft }, origin } );
+		Object.defineProperty( moved, 'source', { value: isolated } );
+		window.dispatchEvent( moved );
+
+		expect( handle.win.getCurrentUrl() ).toBe( draft );
+	} );
+
 	test( 'detach refuses cross-origin URLs and fires nothing', () => {
 		handle.cleanup();
 		handle = mountWindow(

@@ -4709,6 +4709,15 @@ It exists because `os-ready` is too late for one job. The bridge bundle is enque
 
 `url` is the document's own `location.href`, for the frames the parent cannot read: a document sent with `Document-Isolation-Policy` (WordPress sends it on the block editor in Chromium) is cross-origin to the shell, so a Revisions window that restores into the editor hands off from this URL instead (see [Screens that hand off when they're done](bridge-protocol.md#screens-that-hand-off-when-theyre-done)).
 
+#### `os-iframe-location` — Experimental
+Posted by the same head script whenever the document changes its own address without navigating: every `history.pushState()` / `history.replaceState()` call, and every `popstate`. The block editor's first save is the case that matters: it turns `post-new.php` into `post.php?post=N&action=edit` in place.
+
+```typescript
+{ type: 'os-iframe-location', url: string }
+```
+
+The parent only records `url` as where the frame now is, which is what `Window.getCurrentUrl()` returns for a frame it cannot read. Without it, "Copy link", "Open in new window", "Open in classic wp-admin" and the saved session would all go on naming the URL the document loaded on. It is not a navigation: it settles no submit and keeps the window's title.
+
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).
 

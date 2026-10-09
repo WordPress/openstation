@@ -229,6 +229,19 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		}
 	}
 
+	// The document changed its own address without navigating: the
+	// block editor's first save turns `post-new.php` into
+	// `post.php?post=N`. Only where the window thinks it is moves: no
+	// navigation landed, so nothing settles and the title stays.
+	if (
+		data.type === 'os-iframe-location' &&
+		typeof data.url === 'string' &&
+		data.url !== '' &&
+		win.iframe
+	) {
+		win._reportedLocation = { url: data.url, src: win.iframe.src };
+	}
+
 	// Iframe boot signal — the chromeless bridge script posts this
 	// once its message listeners are attached. Fires
 	// `HOOKS.IFRAME_READY` so plugin authors get a reliable

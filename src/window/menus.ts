@@ -229,12 +229,17 @@ export function confirmCopyInMenu( win: Window, row: HTMLElement, copied: boolea
 	}, COPY_CONFIRM_MS );
 }
 
-/** Speak `message` through the window's own polite live region. */
+/**
+ * Speak `message` through a polite live region of its own. Not
+ * `.os-window__status`: that class is the title bar's activity ring,
+ * whose shadow root renders no light DOM, so text written there is
+ * neither seen nor reliably announced and is never cleared.
+ */
 function announce( win: Window, message: string ): void {
-	let region = win.element.querySelector<HTMLElement>( '.os-window__status' );
+	let region = win.element.querySelector<HTMLElement>( '.os-window__copy-status' );
 	if ( ! region ) {
 		region = document.createElement( 'span' );
-		region.className = 'os-window__status screen-reader-text';
+		region.className = 'os-window__copy-status screen-reader-text';
 		region.setAttribute( 'role', 'status' );
 		win.element.appendChild( region );
 	}
