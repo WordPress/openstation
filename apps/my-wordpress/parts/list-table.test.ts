@@ -502,9 +502,38 @@ describe( 'the view switch', () => {
 		expect( local ).not.toHaveBeenCalled();
 	} );
 
-	it( 'set-view is a local reducer that only knows the two views', () => {
+	it( 'gallery is Media\'s: stage, strip and inspector there, icons everywhere else', async () => {
+		const media = section( { id: 'media', label: 'Media', kind: 'media', post_type: 'attachment' } );
+		const photos = page( [
+			item( { id: 7, title: 'DSC_5875', mime: 'image/jpeg', thumb: 'https://example.test/a.jpg' } ),
+			item( { id: 8, title: 'DSC_5864', mime: 'image/jpeg', thumb: 'https://example.test/b.jpg' } ),
+		] );
+		const local = vi.fn();
+		const { root, ctx } = mount(
+			state( { section: 'media', view: 'gallery' } ),
+			data( { sections: [ media ], list: photos } ),
+			{ local },
+		);
+		expect( root.querySelector( '.os-mywp__gallery .os-mywp__stage' ) ).not.toBeNull();
+		expect( root.querySelectorAll( '.os-mywp__strip [data-item-id]' ) ).toHaveLength( 2 );
+		expect( root.querySelector( 'os-segment[value="gallery"]' ) ).not.toBeNull();
+		// Nothing open yet: the stage takes the strip's first item.
+		afterRender( ctx );
+		await Promise.resolve();
+		expect( local ).toHaveBeenCalledWith( 'select-set', { ids: [ 7 ] } );
+		expect( local ).toHaveBeenCalledWith( 'preview', { item: 7 } );
+		// A post has no picture for a stage: the remembered gallery paints as icons.
+		const posts = mount( state( { view: 'gallery' } ), data() ).root;
+		expect( posts.querySelector( '.os-mywp__gallery' ) ).toBeNull();
+		expect( posts.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
+		expect( posts.querySelector( 'os-segment[value="gallery"]' ) ).toBeNull();
+		expect( posts.querySelector( 'os-segmented.os-mywp__view-switch' )?.getAttribute( 'value' ) ).toBe( 'icons' );
+	} );
+
+	it( 'set-view is a local reducer that only knows the three views', () => {
 		expect( app.hasLocal( 'set-view' ) ).toBe( true );
 		expect( app.runLocal( 'set-view', state( { view: 'icons' } ), { view: 'list' }, data() ).view ).toBe( 'list' );
+		expect( app.runLocal( 'set-view', state( { view: 'icons' } ), { view: 'gallery' }, data() ).view ).toBe( 'gallery' );
 		expect( app.runLocal( 'set-view', state( { view: 'list' } ), { view: 'nonsense' }, data() ).view ).toBe( 'icons' );
 	} );
 

@@ -24,6 +24,8 @@
  *                          double click, right click, the clipboard.
  *   parts/dossier-views.ts The detail pane, the navigate-into folder,
  *                          the sub-lists and the stats panes.
+ *   parts/gallery.ts       Media's gallery view: stage, filmstrip,
+ *                          and the detail pane as an inspector.
  *   parts/agents.ts        Agents: character system, openers, the
  *                          cast grid and the off-state preview.
  *   parts/agents-detail.ts Agents: the detail view and its panes.
@@ -59,6 +61,7 @@ import { hiddenStatus, renderColumnsMenu, sortStatus } from './parts/list-table'
 import { footprintStatus, renderFootprint } from './parts/footprint';
 import { agentDefaultRole, emptyCast, newSeed } from './parts/agents';
 import { renderAgents } from './parts/agents-wizard';
+import { galleryOn, renderGallery } from './parts/gallery';
 import { afterRender, wire } from './parts/wire';
 
 // The public surface, re-exported from the parts so the tests (and
@@ -137,6 +140,11 @@ function renderBody(
 	if ( ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) && isMobileStamped() ) {
 		return html`<div class="os-mywp__detail-page">${ renderDetail( ctx, section ) }</div>`;
 	}
+	// Media's gallery: the stage, the strip and an inspector that is
+	// always there, so selecting never reflows anything.
+	if ( galleryOn( ctx, section ) ) {
+		return renderGallery( ctx, section, items );
+	}
 	// The preview pane appears beside the list once an entry is open,
 	// in both views — the list's columns scroll sideways inside their
 	// own pane rather than push it out. Until then the list has the
@@ -147,12 +155,18 @@ function renderBody(
 	);
 }
 
-/** The icons / list switch — instant locally, remembered by the server. */
-function renderViewSwitch( ctx: Ctx ): TemplateResult {
+/**
+ * The icons / list / gallery switch — instant locally, remembered by
+ * the server. Gallery is offered where it paints (`galleryOn`); a
+ * section that cannot show it reads a remembered gallery as icons.
+ */
+function renderViewSwitch( ctx: Ctx, section: SectionDef ): TemplateResult {
 	const { state } = ctx;
+	const offersGallery = section.kind === 'media' && ! isMobileStamped();
+	const shown = state.view === 'gallery' && ! offersGallery ? 'icons' : state.view;
 	const pick = ( e: Event ): void => {
 		const view = String( ( e as CustomEvent< { value?: string } > ).detail?.value ?? '' );
-		if ( ( view !== 'icons' && view !== 'list' ) || view === state.view ) {
+		if ( ! [ 'icons', 'list', 'gallery' ].includes( view ) || view === shown ) {
 			return;
 		}
 		// Selection and the open item are shared state, so they survive
@@ -164,7 +178,7 @@ function renderViewSwitch( ctx: Ctx ): TemplateResult {
 	return html`
 		<os-segmented
 			class="os-mywp__view-switch"
-			value=${ state.view }
+			value=${ shown }
 			label=${ __( 'View as' ) }
 			@os-pick=${ pick }
 		>
@@ -176,6 +190,12 @@ function renderViewSwitch( ctx: Ctx ): TemplateResult {
 				<span class="dashicons dashicons-list-view" aria-hidden="true"></span>
 				<span class="os-mywp__view-label">${ __( 'List' ) }</span>
 			</os-segment>
+			${ offersGallery
+				? html`<os-segment value="gallery" title=${ __( 'Gallery' ) }>
+					<span class="dashicons dashicons-format-gallery" aria-hidden="true"></span>
+					<span class="os-mywp__view-label">${ __( 'Gallery' ) }</span>
+				</os-segment>`
+				: '' }
 		</os-segmented>
 	`;
 }
@@ -214,7 +234,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 		// The view switch flips here, instantly; the `view` server
 		// action that follows only remembers the choice.
 		'set-view': ( state, args ) => {
-			state.view = args.view === 'list' ? 'list' : 'icons';
+			state.view = args.view === 'list' || args.view === 'gallery' ? args.view : 'icons';
 			// The table reads top-down by id: entering it with no order
 			// picked lists the highest id first, and says so in the ID
 			// header. An order the user chose is theirs in both views.
@@ -479,7 +499,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 							@os-input-change=${ ( event: CustomEvent< { value: string } > ) => ctx.local( 'search-query', event.detail ) }
 							os-action="refresh"
 						></os-text-field>
-						${ renderViewSwitch( ctx ) }
+						${ renderViewSwitch( ctx, section ) }
 						${ section.kind === 'user' && section.canAdd
 							? html`<os-button
 									variant="secondary"
