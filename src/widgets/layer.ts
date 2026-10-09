@@ -48,6 +48,7 @@ import {
 } from './state';
 import { getActiveDesktopThemeId, getDesktopTheme } from '../desktop-themes/registry';
 import { showInlineLoader } from '../ui/inline-loader';
+import { contentBox, type Box } from './content-box';
 import { createWidgetStorage } from './storage';
 import type { WidgetGeometry, WidgetTeardown } from './types';
 
@@ -684,7 +685,7 @@ export class WidgetLayer {
 	 * leaves the reveal zone hovering over empty desktop.
 	 */
 	private watchPointerProximity(): void {
-		let rect: DOMRect | null = null;
+		let rect: Box | null = null;
 		let frame = 0;
 
 		const invalidate = (): void => {
@@ -706,7 +707,7 @@ export class WidgetLayer {
 		};
 		const onMove = ( e: PointerEvent ): void => {
 			if ( ! rect ) {
-				rect = this.root.getBoundingClientRect();
+				rect = contentBox( this.root );
 			}
 			const near =
 				e.clientX >= rect.left - HOVER_PADDING &&
@@ -887,6 +888,10 @@ export class WidgetLayer {
 		if ( ! colRect.height ) {
 			return;
 		}
+		// `top` is written against the column's border box, but the
+		// stack lives in its content box: the padding around it is
+		// room for the cards' shadow, not somewhere the pill goes.
+		const content = contentBox( this.root );
 		let bottom = this.listEl.offsetTop + this.listEl.offsetHeight;
 		for ( const record of this.mounted.values() ) {
 			if ( ! record.floating ) {
@@ -894,9 +899,9 @@ export class WidgetLayer {
 			}
 			const rect = record.frame.card.getBoundingClientRect();
 			const overlap =
-				Math.min( rect.right, colRect.right ) -
-				Math.max( rect.left, colRect.left );
-			if ( overlap < colRect.width / 2 ) {
+				Math.min( rect.right, content.right ) -
+				Math.max( rect.left, content.left );
+			if ( overlap < content.width / 2 ) {
 				continue;
 			}
 			bottom = Math.max(
@@ -907,8 +912,14 @@ export class WidgetLayer {
 		// Never past the column's visible foot — a tall stack pushes
 		// the pill onto the last card rather than off the screen.
 		const limit =
-			colRect.height + this.root.scrollTop - this.addTile.offsetHeight;
-		const top = Math.max( 0, Math.min( bottom + ADD_TILE_GAP, limit ) );
+			content.bottom -
+			colRect.top +
+			this.root.scrollTop -
+			this.addTile.offsetHeight;
+		const top = Math.max(
+			content.top - colRect.top,
+			Math.min( bottom + ADD_TILE_GAP, limit ),
+		);
 		if ( this.addTile.style.top === `${ top }px` ) {
 			return;
 		}

@@ -1079,19 +1079,36 @@ body.os-has-fullscreen-window .os-shell {
  * --------------------------------------------------------------- */
 
 .os-widgets {
-	border-radius: 14px;
 	position: absolute;
 	/*
 	 * Inside the work area vertically — see `.os-icons` for why the
-	 * insets are here. The inline edge stays a plain 16px: the column
-	 * hugs the trailing side, which is a logical choice, while the
-	 * side insets are physical; and a side rail never claims one
-	 * anyway (it is a flex sibling, the area is already narrower).
+	 * insets are here. The inline edge is logical: the column hugs
+	 * the trailing side, while the side insets are physical; and a
+	 * side rail never claims one anyway (it is a flex sibling, the
+	 * area is already narrower).
+	 *
+	 * The cards sit 16px in from the area's top and trailing edges
+	 * and 16px above the work area's foot, but the box reaches
+	 * further than that and pads back in. The column scrolls, and a
+	 * scroll container clips everything inside it to its padding
+	 * box, the cards' drop shadow included: with the box hugging the
+	 * cards, the shadow ended in a hard rectangle the size of the
+	 * column, easy to see on a light wallpaper. The padding is the
+	 * room the shadow needs (it reaches 28px out and 36px down, more
+	 * on hover). The trailing side only gets the 16px to the area's
+	 * edge, since the area clips there anyway. The column is
+	 * pointer-transparent, so the extra room catches nothing; the
+	 * add-widget pill measures the content box, not this one.
 	 */
-	top: calc( var( --os-work-area-inset-top, 0px ) + 16px );
-	bottom: calc( var( --os-work-area-inset-bottom, 80px ) + 16px );
-	inset-inline-end: 16px;
+	box-sizing: content-box;
+	top: var( --os-work-area-inset-top, 0px );
+	bottom: calc( var( --os-work-area-inset-bottom, 80px ) - 24px );
+	inset-inline-end: 0;
 	width: 320px;
+	--_os-widgets-room-start: 40px;
+	--_os-widgets-room-end: 16px;
+	padding-block: 16px 40px;
+	padding-inline: var( --_os-widgets-room-start ) var( --_os-widgets-room-end );
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -1483,8 +1500,12 @@ body.os-has-fullscreen-window .os-shell {
 .os-widgets__add {
 	position: absolute;
 	top: 0;
-	left: 50%;
-	transform: translateX( -50% );
+	/* Centred over the cards, not over the column's box: the column
+	 * pads out unevenly to give the card shadows room (see
+	 * `.os-widgets`), so the box's own middle is off to one side. */
+	inset-inline: var( --_os-widgets-room-start, 0px ) var( --_os-widgets-room-end, 0px );
+	width: fit-content;
+	margin-inline: auto;
 	padding: 8px 22px;
 	display: flex;
 	align-items: center;
