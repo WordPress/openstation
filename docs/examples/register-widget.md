@@ -330,6 +330,15 @@ All sizes are pixels, passed to `openstation_register_widget()`:
 `resizable: true` adds resize handles — `movable: true` gives all 8 corner
 and edge handles; column-docked widgets get a bottom-edge handle only.
 
+`fit_content: true` lets the card grow past the user's height when its
+content needs the room, for a widget that adds controls after mounting
+(a form that reveals a Save row, a list that loads more items). The card
+grows up to `max_height` and never past the work-area bottom, shrinks back
+as the content does, and never goes below the user's height. Only the
+user's height is saved, never the grown one; it applies to floating cards
+and to docked cards the user resized. A user who drags the card shorter
+than its content sees it grow back to fit on release.
+
 ---
 
 ## Theme tokens

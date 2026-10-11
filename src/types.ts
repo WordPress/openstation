@@ -1186,6 +1186,8 @@ export interface DesktopWidgetServerEntry {
 	maxHeight: number;
 	defaultWidth: number;
 	defaultHeight: number;
+	/** Let the card grow to fit its content. See `WidgetDef.fitContent`. */
+	fitContent?: boolean;
 	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
 	scriptUrl: string;
 	/** WordPress script handle (informational). */

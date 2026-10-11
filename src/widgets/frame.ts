@@ -20,6 +20,7 @@
 import { __, sprintf } from '../i18n';
 import { osIconSvg } from '../ui/icons';
 import { workAreaRectOf } from '../work-area';
+import { attachFitContent, type FitContent } from './fit-content';
 import type { WidgetDef, WidgetGeometry } from './types';
 
 const FLOATING_CLASS = 'os-widgets__card--floating';
@@ -170,7 +171,9 @@ export function buildFrame(
 	// current parent bounds so a stale entry (smaller screen, an old
 	// bug's leftovers) can never mount the card off-screen where the
 	// user has no way to grab it back.
+	let userHeight: number | null = null;
 	if ( ctx.geometry ) {
+		userHeight = ctx.geometry.height;
 		applyGeometry(
 			card,
 			clampGeometryToParent( ctx.geometry, ctx.floatingParent ),
@@ -180,7 +183,8 @@ export function buildFrame(
 		// Docked card with a persisted height resize — re-apply it,
 		// clamped to the def's current limits in case the widget's
 		// min/max changed between sessions.
-		card.style.height = `${ clampDockedHeight( ctx.dockedHeight, def ) }px`;
+		userHeight = clampDockedHeight( ctx.dockedHeight, def );
+		card.style.height = `${ userHeight }px`;
 	}
 
 	/**
@@ -193,6 +197,22 @@ export function buildFrame(
 	 */
 	const isFloating = (): boolean =>
 		card.classList.contains( FLOATING_CLASS );
+
+	const fit: FitContent | null =
+		def.fitContent === true
+			? attachFitContent( {
+				card,
+				body,
+				def,
+				parent: ctx.floatingParent,
+				floor: userHeight,
+				margin: VIEWPORT_MARGIN,
+				isFloating,
+				isBusy: () =>
+					card.classList.contains( DRAGGING_CLASS ) ||
+					card.classList.contains( RESIZING_CLASS ),
+			} )
+			: null;
 
 	// Resize handles — always built for resizable widgets, but only
 	// the ones that match the movable state are visible (CSS hides
@@ -207,7 +227,7 @@ export function buildFrame(
 			handle.dataset.dir = dir;
 			card.appendChild( handle );
 			resizeCleanups.push(
-				attachResize( card, handle, dir, def, ctx, handlers, isFloating ),
+				attachResize( card, handle, dir, def, ctx, handlers, isFloating, fit ),
 			);
 		}
 	}
@@ -222,7 +242,7 @@ export function buildFrame(
 			'.os-widgets__chrome',
 		);
 		if ( chrome ) {
-			dragCleanup = attachDrag( card, chrome, def, ctx, handlers );
+			dragCleanup = attachDrag( card, chrome, def, ctx, handlers, fit );
 		}
 	}
 
@@ -230,6 +250,7 @@ export function buildFrame(
 		card,
 		body,
 		dispose: () => {
+			fit?.dispose();
 			for ( const fn of resizeCleanups ) {
 				try {
 					fn();
@@ -361,6 +382,7 @@ function attachDrag(
 	def: WidgetDef,
 	ctx: FrameContext,
 	handlers: FrameHandlers,
+	fit: FitContent | null,
 ): () => void {
 	let pointerId: number | null = null;
 	let startX = 0;
@@ -429,12 +451,17 @@ function attachDrag(
 			// leaving an empty band where the heart used to be. What
 			// the user sees in the column is what they should keep
 			// when floating.
+			// A fit-content card that grew past its docked height
+			// takes the user's height with it, not the grown one.
 			const initial: WidgetGeometry = {
 				x: rect.left - parentRect.left,
 				y: rect.top - parentRect.top,
 				width: rect.width || def.defaultWidth || DEFAULT_WIDTH,
-				height: rect.height || def.defaultHeight || DEFAULT_HEIGHT,
+				height:
+					fit?.floor() ??
+					( rect.height || def.defaultHeight || DEFAULT_HEIGHT ),
 			};
+			fit?.setFloor( initial.height );
 			applyGeometry( card, initial );
 			card.classList.add( FLOATING_CLASS );
 			handlers.onLiberate( initial );
@@ -502,7 +529,7 @@ function attachDrag(
 		}
 		committed = false;
 		card.classList.remove( DRAGGING_CLASS );
-		handlers.onGeometryChanged( currentGeometry( card ) );
+		handlers.onGeometryChanged( currentGeometry( card, fit ) );
 	};
 
 	chrome.addEventListener( 'pointerdown', onDown );
@@ -530,8 +557,11 @@ function attachResize(
 	ctx: FrameContext,
 	handlers: FrameHandlers,
 	isFloating: () => boolean,
+	fit: FitContent | null,
 ): () => void {
 	let pointerId: number | null = null;
+	/** A press on a handle that never moved is not a resize. */
+	let resized = false;
 	let startX = 0;
 	let startY = 0;
 	let startLeft = 0;
@@ -563,6 +593,7 @@ function attachResize(
 		startTop = rect.top - parentRect.top;
 		startW = rect.width;
 		startH = rect.height;
+		resized = false;
 		handle.setPointerCapture( pointerId );
 		card.classList.add( RESIZING_CLASS );
 	};
@@ -595,6 +626,7 @@ function attachResize(
 			card.style.width = `${ next.width }px`;
 		}
 		card.style.height = `${ next.height }px`;
+		resized = true;
 	};
 
 	const onUp = ( e: PointerEvent ): void => {
@@ -608,14 +640,19 @@ function attachResize(
 		}
 		pointerId = null;
 		card.classList.remove( RESIZING_CLASS );
+		// The height the user just drew is their new floor; the fit
+		// grows from it, if the content needs more, after this.
+		if ( resized && fit ) {
+			fit.setFloor( parseFloat( card.style.height ) || card.offsetHeight );
+		}
 		// Floating and docked resizes persist through DIFFERENT
 		// channels: a geometry record's presence is what marks a
 		// widget as floating on the next boot, so a docked height
 		// resize must never write one — it persists height alone.
 		if ( isFloating() ) {
-			handlers.onGeometryChanged( currentGeometry( card ) );
+			handlers.onGeometryChanged( currentGeometry( card, fit ) );
 		} else {
-			handlers.onDockedHeightChanged( card.offsetHeight );
+			handlers.onDockedHeightChanged( fit?.floor() ?? card.offsetHeight );
 		}
 	};
 
@@ -654,12 +691,20 @@ export function applyGeometry(
 	card.style.height = `${ geometry.height }px`;
 }
 
-function currentGeometry( card: HTMLElement ): WidgetGeometry {
+/**
+ * The geometry to persist. A fit-content card reports the user's
+ * height (its floor), never the height it grew to for its content,
+ * so storage only ever holds a size the user chose.
+ */
+function currentGeometry(
+	card: HTMLElement,
+	fit: FitContent | null,
+): WidgetGeometry {
 	return {
 		x: parseFloat( card.style.left ) || 0,
 		y: parseFloat( card.style.top ) || 0,
 		width: card.offsetWidth,
-		height: card.offsetHeight,
+		height: fit?.floor() ?? card.offsetHeight,
 	};
 }
 

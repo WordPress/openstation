@@ -5178,6 +5178,7 @@ wp.os.registerWidget( {
 | `minWidth`, `minHeight` | `number` | Lower bounds enforced during user resize (px). |
 | `maxWidth`, `maxHeight` | `number` | Upper bounds enforced during user resize (px). |
 | `defaultWidth`, `defaultHeight` | `number` | Initial floating size — used the first time the widget is liberated. |
+| `fitContent` | `boolean` | Let the card grow taller than the user's height when its content needs the room, so controls a widget adds after the size was saved stay visible instead of scrolling inside the body. Applies to floating cards and to docked cards with a resized height. Grows up to `maxHeight` and never past the work-area bottom, shrinks back as the content does, never goes below the user's height, and never changes width or position. |
 
 ```js
 wp.os.registerWidget( {
@@ -5203,6 +5204,8 @@ wp.os.registerWidget( {
 ```
 
 User-placed geometry (position + size of liberated widgets) persists per-user in `localStorage` under `desktop-mode-widgets-geometry`. Height resizes made while a resizable widget is docked in the column persist separately under `desktop-mode-widgets-docked-heights` (height only — column widgets have no free position, and a full geometry record would mark the widget as floating at boot). Removing a widget clears both records so a re-add starts docked at its natural height.
+
+A `fitContent` card's grown height is never stored: both records keep the height the user chose, and the card grows from it on every load. A user resize sets that height anew, so a `fitContent` card dragged shorter than its content grows back to fit on release.
 
 ##### `wp.os.widgets.redock( id )` — Stable
 

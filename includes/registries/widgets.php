@@ -74,6 +74,14 @@ defined( 'ABSPATH' ) || exit;
  *     @type int      $max_height
  *     @type int      $default_width  First-mount floating width.
  *     @type int      $default_height First-mount floating height.
+ *     @type bool     $fit_content    Let the card grow taller than the
+ *                                    user's saved height when its
+ *                                    content needs the room, up to
+ *                                    `max_height` and the work-area
+ *                                    bottom. Applies to floating cards
+ *                                    and to docked cards with a resized
+ *                                    height. The grown height is never
+ *                                    saved. Default false.
  *     @type string[] $capabilities   Gate: ALL caps must match. Any
  *                                    missed cap returns
  *                                    `WP_Error openstation_capability_denied`.
@@ -102,6 +110,7 @@ function openstation_register_widget( $id, $args = array() ) {
 		'max_height'     => 0,
 		'default_width'  => 0,
 		'default_height' => 0,
+		'fit_content'    => false,
 		'capabilities'   => array(),
 	);
 	$args     = wp_parse_args( $args, $defaults );
@@ -148,6 +157,7 @@ function openstation_register_widget( $id, $args = array() ) {
 		'max_height'     => (int) $args['max_height'],
 		'default_width'  => (int) $args['default_width'],
 		'default_height' => (int) $args['default_height'],
+		'fit_content'    => (bool) $args['fit_content'],
 	);
 	openstation_desktop_widget_registry( $id, $entry );
 
@@ -216,6 +226,7 @@ function openstation_build_desktop_widgets_payload() {
 			'maxHeight'          => $entry['max_height'],
 			'defaultWidth'       => $entry['default_width'],
 			'defaultHeight'      => $entry['default_height'],
+			'fitContent'         => $entry['fit_content'],
 			'scriptUrl'          => $script_payload['url'],
 			// The packages this widget declares, in load order.
 			// WordPress resolves a script's dependencies when it
