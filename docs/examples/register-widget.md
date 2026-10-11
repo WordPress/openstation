@@ -325,6 +325,7 @@ All sizes are pixels, passed to `openstation_register_widget()`:
 | `max_height` | Optional ceiling on user-driven resize |
 | `default_width` | Starting width when first added as a floating widget |
 | `default_height` | Starting height when first added as a floating widget |
+| `fit_content` | Grow past the user's height when the content needs it (see below) |
 
 `movable: true` lets the user drag the widget off the column.
 `resizable: true` adds resize handles — `movable: true` gives all 8 corner

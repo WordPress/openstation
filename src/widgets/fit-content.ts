@@ -52,7 +52,7 @@ export function attachFitContent( opts: FitContentOptions ): FitContent {
 	let frame = 0;
 	let mutations: MutationObserver | null = null;
 
-	// Same far edge the floating `s` resize handle stops at.
+	// The work-area bottom, with the same air the drag clamp keeps.
 	const cap = (): number => {
 		const area = workAreaRectOf( parent );
 		const top =

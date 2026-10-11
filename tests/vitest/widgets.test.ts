@@ -1534,6 +1534,7 @@ describe( 'widgets/layer', () => {
 		} finally {
 			( await mounted ).layer.disposeAll();
 			vi.unstubAllGlobals();
+			delete ( document.body as { getBoundingClientRect?: unknown } ).getBoundingClientRect;
 		}
 	} );
 
@@ -1559,6 +1560,24 @@ describe( 'widgets/layer', () => {
 			expect( savedHeight( 'fit' ) ).toBe( 120 );
 			expect( fit.style.height ).toBe( '240px' );
 
+			// Widening a grown card leaves its height alone: the floor
+			// stays 120, saved and drawn once the content shrinks.
+			const east = fit.querySelector< HTMLElement >(
+				'.os-widgets__resize--e',
+			)!;
+			capture( east );
+			east.dispatchEvent( ptr( 'pointerdown', 337, 200 ) );
+			east.dispatchEvent( ptr( 'pointermove', 377, 200 ) );
+			east.dispatchEvent( ptr( 'pointerup', 377, 200 ) );
+			await settle();
+			expect( savedHeight( 'fit' ) ).toBe( 120 );
+			content.fit = 10;
+			await settle();
+			expect( fit.style.height ).toBe( '120px' );
+			content.fit = 200;
+			await settle();
+			expect( fit.style.height ).toBe( '240px' );
+
 			// A resize from the grown size: what the user drew is the
 			// new floor, saved as is, and the card stays at it when
 			// the content no longer needs the room.
@@ -1579,6 +1598,7 @@ describe( 'widgets/layer', () => {
 		} finally {
 			( await mounted ).layer.disposeAll();
 			vi.unstubAllGlobals();
+			delete ( document.body as { getBoundingClientRect?: unknown } ).getBoundingClientRect;
 		}
 	} );
 

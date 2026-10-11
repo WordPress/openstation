@@ -626,7 +626,11 @@ function attachResize(
 			card.style.width = `${ next.width }px`;
 		}
 		card.style.height = `${ next.height }px`;
-		resized = true;
+		// Only a vertical pull draws a new height; an `e` / `w` edge
+		// (or a corner moved sideways) carries the grown height along.
+		if ( /[ns]/.test( dir ) && dy !== 0 ) {
+			resized = true;
+		}
 	};
 
 	const onUp = ( e: PointerEvent ): void => {

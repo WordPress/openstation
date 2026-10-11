@@ -154,6 +154,8 @@ add_action( 'admin_enqueue_scripts', 'openstation_enqueue_starter_widget_styles'
  *   max_height     int      Optional ceiling on user-driven height resize (px).
  *   default_width  int      Starting width when first added as a floating widget.
  *   default_height int      Starting height when first added as a floating widget.
+ *   fit_content    bool     true  = the card grows to fit content that outgrows the
+ *                                   user's height, up to max_height. Default false.
  *   capabilities   array    Optional. ALL listed capabilities must be held by the
  *                           current user or the widget will not register for them.
  *                           e.g. array( 'edit_posts', 'publish_posts' )
