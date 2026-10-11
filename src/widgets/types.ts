@@ -125,6 +125,20 @@ export interface WidgetDef {
 	defaultWidth?: number;
 	defaultHeight?: number;
 	/**
+	 * Let the card grow taller than the user's saved height when its
+	 * content needs the room, so controls added after the size was
+	 * saved stay visible instead of scrolling inside the body. Applies
+	 * to floating cards and to docked cards with a resized height (a
+	 * docked card without one already sizes to its content). The card
+	 * grows up to `maxHeight` and never past the work-area bottom,
+	 * shrinks back as the content does, and never goes below the
+	 * user's height. Width and position never change, and the grown
+	 * height is never saved: a resize sets a new user height, so a
+	 * card dragged shorter than its content grows back on release.
+	 * Default `false`.
+	 */
+	fitContent?: boolean;
+	/**
 	 * Paint the widget into `container`. Return a teardown. May be
 	 * sync or async — async mounts are awaited and race-checked
 	 * against a generation counter so a rapid add/remove doesn't

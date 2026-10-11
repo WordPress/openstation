@@ -129,6 +129,7 @@ export function createWidgetRegistrySync(
 			maxHeight: entry.maxHeight || undefined,
 			defaultWidth: entry.defaultWidth || undefined,
 			defaultHeight: entry.defaultHeight || undefined,
+			fitContent: entry.fitContent === true,
 			mount: async ( container, mountCtx ) => {
 				await ensureScript( entry );
 				const mount = readMount( entry.id );

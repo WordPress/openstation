@@ -83,6 +83,14 @@ class Tests_OpenStation_RegistrationActions extends WP_UnitTestCase {
 		$this->assertCount( 1, $calls );
 		$this->assertSame( 'act-widget', $calls[0]['id'] );
 		$this->assertSame( 'Act Widget', $calls[0]['entry']['label'] );
+		// `fit_content` is opt-in and normalized to a real bool.
+		$this->assertFalse( $calls[0]['entry']['fit_content'] );
+
+		openstation_register_widget( 'fit-widget', array(
+			'label'       => 'Fit Widget',
+			'fit_content' => '1',
+		) );
+		$this->assertTrue( $calls[1]['entry']['fit_content'] );
 	}
 
 	/**

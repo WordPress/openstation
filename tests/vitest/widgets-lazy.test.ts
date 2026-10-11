@@ -98,7 +98,7 @@ describe( 'widgets — deferred bundle loading', () => {
 			.mockResolvedValue( undefined );
 
 		const sync = m.serverSync.createWidgetRegistrySync( { layer: null } );
-		await sync( [ serverEntry() ] );
+		await sync( [ serverEntry( { fitContent: true } ) ] );
 
 		expect( load ).not.toHaveBeenCalled();
 		const def = m.registry.all().find( ( d ) => d.id === 'os/drafts' );
@@ -106,6 +106,7 @@ describe( 'widgets — deferred bundle loading', () => {
 		expect( def?.label ).toBe( 'Drafts' );
 		expect( def?.description ).toBe( 'Your unfinished posts.' );
 		expect( def?.icon ).toBe( 'dashicons-edit' );
+		expect( def?.fitContent ).toBe( true );
 	} );
 
 	test( 'mounting loads the bundle and delegates to the plugin callback', async () => {
