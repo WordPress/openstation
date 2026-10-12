@@ -438,6 +438,49 @@ describe( 'widgets/layer', () => {
 		layer.disposeAll();
 	} );
 
+	test( 'a resize clamps floating cards on screen only, so widening again restores them', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'mov',
+			label: 'Mov',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["mov"]' );
+		window.localStorage.setItem(
+			'desktop-mode-widgets-geometry',
+			JSON.stringify( { mov: { x: 100, y: 100, width: 240, height: 120 } } ),
+		);
+		window.localStorage.setItem( 'openstation-widgets-geometry-frame', JSON.stringify( { width: 1000, height: 800 } ) );
+		const size = { width: 1000, height: 800 };
+		const body = document.body;
+		const widthSpy = vi.spyOn( body, 'clientWidth', 'get' ).mockImplementation( () => size.width );
+		const heightSpy = vi.spyOn( body, 'clientHeight', 'get' ).mockImplementation( () => size.height );
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		const reflow = () => ( layer as unknown as { reflowToHost(): void } ).reflowToHost();
+		const card = body.querySelector< HTMLElement >( '.os-widgets__card' )!;
+
+		// Too narrow for the card: it is pulled in on screen…
+		size.width = 300;
+		reflow();
+		expect( parseFloat( card.style.left ) ).toBeLessThan( 100 );
+		// …but the stored arrangement keeps where the user put it.
+		expect( JSON.parse( window.localStorage.getItem( 'desktop-mode-widgets-geometry' )! ).mov.x ).toBe( 100 );
+
+		size.width = 1000;
+		reflow();
+		expect( card.style.left ).toBe( '100px' );
+
+		layer.disposeAll();
+		widthSpy.mockRestore();
+		heightSpy.mockRestore();
+		window.localStorage.removeItem( 'openstation-widgets-geometry-frame' );
+	} );
+
 	test( 'liberating a docked widget preserves its CURRENT rendered size, not the registered default', async () => {
 		// Reproduces the user-reported "Heartbeat widget loses its
 		// 88 px compact height on drag-out" bug. The previous
