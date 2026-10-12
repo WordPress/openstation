@@ -245,8 +245,6 @@ Registering an ability agents can call:
       as in Core: the attachment's own fields are not the parent's
       body. An unattached file, or one whose parent row is gone, is
       judged on `upload_files` alone, as Core treats it as published.
-      `openstation_ai_can_read_media_parent()` is that check, shared
-      with the assistant's `search-media` and `find-unused-media`.
 - [ ] Do the **counts** cover the same set as the items? `found_posts`,
       `total` and a per-status breakdown answer "does the hidden thing
       match?" — an oracle for exactly what the item list withheld.
@@ -334,8 +332,7 @@ The read-path checklist above has its own guards, each pinning a
 Subscriber against a restricted object rather than pinning a return
 shape: `aiNativeSearch.php` (search tools and entity hydration),
 `agentsAbilities.php` (get-post's password and post-type gates,
-get-media's parent gate), `aiAbilities.php` (search-media's parent
-gate and place counts),
+get-media's parent gate),
 `myWordpressCommentStats.php` (route gate, parent-post readability,
 thread scoping, zero ids) and `myWordpressTermStats.php` (readable
 statuses, count oracle, hidden taxonomies). A new read path gets a test

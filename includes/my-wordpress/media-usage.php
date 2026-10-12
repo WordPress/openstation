@@ -142,20 +142,7 @@ function openstation_my_wordpress_media_usage_callback( $request ) {
 		);
 	}
 
-	return openstation_my_wordpress_media_usage_payload( $attachment );
-}
-
-/**
- * The "Used in" payload for the current viewer. Shared with the AI
- * assistant's `desktop-mode/search-media` ability, so both list the
- * same places.
- *
- * @param WP_Post $attachment Attachment post.
- * @return array
- */
-function openstation_my_wordpress_media_usage_payload( $attachment ) {
-	$attachment_id = (int) $attachment->ID;
-	$cache_key     = openstation_my_wordpress_media_usage_cache_key( $attachment_id );
+	$cache_key    = openstation_my_wordpress_media_usage_cache_key( $attachment_id );
 	$rows_by_post = get_transient( $cache_key );
 	if ( ! is_array( $rows_by_post ) ) {
 		$rows_by_post = openstation_my_wordpress_media_usage_collect( $attachment );
@@ -180,7 +167,7 @@ function openstation_my_wordpress_media_usage_payload( $attachment ) {
 	$payload = openstation_my_wordpress_media_usage_build( $attachment, $rows_by_post );
 
 	/**
-	 * Filter the media-usage payload before it reaches WP Explorer or the AI assistant.
+	 * Filter the media-usage payload before returning to the bundle.
 	 * Plugins (ACF, page builders, Yoast image meta) can append rows
 	 * to `usedIn` describing their own attachment references.
 	 *
