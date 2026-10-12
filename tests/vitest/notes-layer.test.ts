@@ -285,7 +285,7 @@ describe( 'NotesLayer', () => {
 		vi.stubGlobal(
 			'fetch',
 			vi.fn( async ( url: string, init?: RequestInit ) => {
-				const method = init?.method ?? 'GET';
+				const method = new Headers( init?.headers ).get( 'X-HTTP-Method-Override' ) ?? init?.method ?? 'GET';
 				calls.push( `${ method } ${ url }` );
 				const body = url.endsWith( '/convert' )
 					? { noteId: 5, postId: 9, editUrl: 'https://example.test/wp-admin/post.php?post=9&action=edit' }
@@ -376,7 +376,7 @@ describe( 'NotesLayer', () => {
 	test( 'a refused save says why once, then stays quiet until a save lands', async () => {
 		let status = 403;
 		const fetchSpy = vi.fn( async ( _url: string, init?: RequestInit ) => {
-			if ( init?.method === 'PATCH' ) {
+			if ( new Headers( init?.headers ).get( 'X-HTTP-Method-Override' ) === 'PATCH' ) {
 				return status === 403
 					? new Response(
 						JSON.stringify( {
