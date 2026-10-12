@@ -20,6 +20,7 @@
 import { __, sprintf } from '../i18n';
 import { osIconSvg } from '../ui/icons';
 import { workAreaRectOf } from '../work-area';
+import { contentBox } from './content-box';
 import { attachFitContent, type FitContent } from './fit-content';
 import type { WidgetDef, WidgetGeometry } from './types';
 
@@ -440,6 +441,7 @@ function attachDrag(
 		if ( ! card.classList.contains( FLOATING_CLASS ) ) {
 			const parentRect = ctx.floatingParent.getBoundingClientRect();
 			const rect = card.getBoundingClientRect();
+			const box = contentBox( card );
 			// Preserve the CURRENT on-screen size when liberating —
 			// fall back to the registered defaults only when the
 			// card hasn't been laid out yet (rect.width / height ===
@@ -456,10 +458,10 @@ function attachDrag(
 			const initial: WidgetGeometry = {
 				x: rect.left - parentRect.left,
 				y: rect.top - parentRect.top,
-				width: rect.width || def.defaultWidth || DEFAULT_WIDTH,
+				width: rect.width ? box.width : def.defaultWidth || DEFAULT_WIDTH,
 				height:
 					fit?.floor() ??
-					( rect.height || def.defaultHeight || DEFAULT_HEIGHT ),
+					( rect.height ? box.height : def.defaultHeight || DEFAULT_HEIGHT ),
 			};
 			fit?.setFloor( initial.height );
 			applyGeometry( card, initial );
@@ -591,8 +593,11 @@ function attachResize(
 		const parentRect = ctx.floatingParent.getBoundingClientRect();
 		startLeft = rect.left - parentRect.left;
 		startTop = rect.top - parentRect.top;
-		startW = rect.width;
-		startH = rect.height;
+		// The size the inline style takes, so a resize that ends where
+		// it started writes back what was there.
+		const box = contentBox( card );
+		startW = box.width;
+		startH = box.height;
 		resized = false;
 		handle.setPointerCapture( pointerId );
 		card.classList.add( RESIZING_CLASS );
@@ -656,7 +661,10 @@ function attachResize(
 		if ( isFloating() ) {
 			handlers.onGeometryChanged( currentGeometry( card, fit ) );
 		} else {
-			handlers.onDockedHeightChanged( fit?.floor() ?? card.offsetHeight );
+			handlers.onDockedHeightChanged(
+				fit?.floor() ??
+					( parseFloat( card.style.height ) || contentBox( card ).height ),
+			);
 		}
 	};
 
@@ -699,16 +707,22 @@ export function applyGeometry(
  * The geometry to persist. A fit-content card reports the user's
  * height (its floor), never the height it grew to for its content,
  * so storage only ever holds a size the user chose.
+ *
+ * Sizes are content-box, the box `applyGeometry` writes: the card is
+ * `box-sizing: content-box` with a border, so its border box is
+ * larger than its inline size, and saving that would grow the card
+ * by the border on every save and apply.
  */
 function currentGeometry(
 	card: HTMLElement,
 	fit: FitContent | null,
 ): WidgetGeometry {
+	const box = contentBox( card );
 	return {
 		x: parseFloat( card.style.left ) || 0,
 		y: parseFloat( card.style.top ) || 0,
-		width: card.offsetWidth,
-		height: fit?.floor() ?? card.offsetHeight,
+		width: box.width,
+		height: fit?.floor() ?? box.height,
 	};
 }
 

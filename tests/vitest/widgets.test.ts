@@ -1645,6 +1645,68 @@ describe( 'widgets/layer', () => {
 		}
 	} );
 
+	test( 'a drag or a resize saves the size it was given, not the size plus the card border', async () => {
+		// The card is content-box with a 1 px border, so the browser
+		// measures it 2 px larger than its inline width and height.
+		const css = document.createElement( 'style' );
+		css.textContent =
+			'.os-widgets__card { box-sizing: content-box; border: 1px solid; }';
+		document.head.appendChild( css );
+		const mounted = mountFitCards( [ { id: 'plain' } ] );
+		try {
+			const { cards, settle } = await mounted;
+			const card = cards.plain;
+			const w = (): number => ( parseFloat( card.style.width ) || 0 ) + 2;
+			const h = (): number => ( parseFloat( card.style.height ) || 0 ) + 2;
+			Object.defineProperty( card, 'offsetWidth', { configurable: true, get: w } );
+			Object.defineProperty( card, 'offsetHeight', { configurable: true, get: h } );
+			card.getBoundingClientRect = (): DOMRect => {
+				const top = parseFloat( card.style.top ) || 0;
+				const left = parseFloat( card.style.left ) || 0;
+				return {
+					x: left, y: top, width: w(), height: h(),
+					top, left, right: left + w(), bottom: top + h(),
+					toJSON: () => ( {} ),
+				};
+			};
+			const saved = (): { width: number; height: number } => {
+				const g = JSON.parse(
+					window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) ||
+						'{}',
+				).plain;
+				return { width: g.width, height: g.height };
+			};
+
+			// Save, apply, save: two drags in a row keep the stored size.
+			const chrome = card.querySelector< HTMLElement >( '.os-widgets__chrome' )!;
+			capture( chrome );
+			for ( const dx of [ 40, 80 ] ) {
+				chrome.dispatchEvent( ptr( 'pointerdown', 0, 0 ) );
+				chrome.dispatchEvent( ptr( 'pointermove', dx, 0 ) );
+				chrome.dispatchEvent( ptr( 'pointerup', dx, 0 ) );
+				await settle();
+				expect( saved() ).toEqual( { width: 240, height: 120 } );
+				expect( card.style.width ).toBe( '240px' );
+			}
+
+			// A resize that ends where it started changes nothing.
+			const corner = card.querySelector< HTMLElement >( '.os-widgets__resize--se' )!;
+			capture( corner );
+			corner.dispatchEvent( ptr( 'pointerdown', 300, 300 ) );
+			corner.dispatchEvent( ptr( 'pointermove', 300, 300 ) );
+			corner.dispatchEvent( ptr( 'pointerup', 300, 300 ) );
+			await settle();
+			expect( saved() ).toEqual( { width: 240, height: 120 } );
+			expect( card.style.width ).toBe( '240px' );
+			expect( card.style.height ).toBe( '120px' );
+		} finally {
+			css.remove();
+			( await mounted ).layer.disposeAll();
+			vi.unstubAllGlobals();
+			delete ( document.body as { getBoundingClientRect?: unknown } ).getBoundingClientRect;
+		}
+	} );
+
 	/*
 	 * `setVisibleIds` — the workspace primitive.
 	 *
