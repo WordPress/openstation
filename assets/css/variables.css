@@ -544,6 +544,11 @@ body.os-active {
 	 * the pair always agree.
 	 */
 	--os-ui-accent-ink: #fffbff;
+	/*
+	 * The accent as text, and its hover. Nebula is Pulse's pair; for any
+	 * other pick the accent picker writes this and `--os-link` inline,
+	 * lifted toward Starlight until it reads at 4.5:1 on Astro.
+	 */
 	--os-ui-accent-strong: #ec9bff;
 	--os-ui-accent-soft: color-mix(in srgb, var(--os-ui-accent-dim) 14%, transparent);
 	/*
@@ -1047,8 +1052,7 @@ body.os-active {
 	--os-ui-notice-neutral-bg: rgba(255, 251, 255, 0.06);
 	--os-ui-notice-neutral-border: rgba(255, 251, 255, 0.14);
 	/*
-	 * A link inside a notice reads Nebula, the same value `--os-link`
-	 * gives every other shell link — NOT the accent.
+	 * A link inside a notice reads Starlight, NOT the accent.
 	 *
 	 * Undeclared, the base fell through to `--wp-admin-theme-color`,
 	 * which OpenStation Preferences → Appearance writes inline on `<html>`

@@ -67,6 +67,24 @@ import {
 	registerCustomImageIfPresent,
 } from './wallpaper-defs';
 
+/** WCAG relative luminance of a six-digit hex, or `null` for anything else. */
+function relativeLuminance( hex: string ): number | null {
+	const match = /^#?([0-9a-f]{6})$/i.exec( hex.trim() );
+	if ( ! match ) {
+		return null;
+	}
+	const linear = ( pair: string ): number => {
+		const s = parseInt( pair, 16 ) / 255;
+		return s <= 0.03928 ? s / 12.92 : ( ( s + 0.055 ) / 1.055 ) ** 2.4;
+	};
+	const hexRgb = match[ 1 ];
+	return (
+		0.2126 * linear( hexRgb.slice( 0, 2 ) ) +
+		0.7152 * linear( hexRgb.slice( 2, 4 ) ) +
+		0.0722 * linear( hexRgb.slice( 4, 6 ) )
+	);
+}
+
 /**
  * Whether text on a fill of this colour should be dark.
  *
@@ -79,20 +97,50 @@ import {
  * palette's own Starlight ink.
  */
 export function accentWantsDarkInk( hex: string ): boolean {
-	const match = /^#?([0-9a-f]{6})$/i.exec( hex.trim() );
-	if ( ! match || match[ 1 ].toLowerCase() === 'f252fc' ) {
+	if ( /^#?f252fc$/i.test( hex.trim() ) ) {
 		return false;
 	}
-	const linear = ( pair: string ): number => {
-		const s = parseInt( pair, 16 ) / 255;
-		return s <= 0.03928 ? s / 12.92 : ( ( s + 0.055 ) / 1.055 ) ** 2.4;
-	};
-	const hexRgb = match[ 1 ];
-	const luminance =
-		0.2126 * linear( hexRgb.slice( 0, 2 ) ) +
-		0.7152 * linear( hexRgb.slice( 2, 4 ) ) +
-		0.0722 * linear( hexRgb.slice( 4, 6 ) );
-	return luminance > 0.184;
+	const luminance = relativeLuminance( hex );
+	return luminance !== null && luminance > 0.184;
+}
+
+/**
+ * The color link text takes for this accent on the shell's dark
+ * surfaces, or `null` to keep the palette's own.
+ *
+ * The accent itself when it already reads at WCAG AA (4.5:1) against
+ * Astro, the lightest surface the palette puts text on, so Nebula,
+ * Sirius, Lagoon and Starlight come back unchanged. A darker accent
+ * (WordPress Blue, Indigo, Rose, and slightly Teal, Emerald and Amber) is mixed toward Starlight, five
+ * percent at a time, until it does. Anything that is not a six-digit
+ * hex returns `null`.
+ */
+export function accentLinkColor( hex: string ): string | null {
+	const match = /^#?([0-9a-f]{6})$/i.exec( hex.trim() );
+	if ( ! match ) {
+		return null;
+	}
+	const astro = relativeLuminance( '#33303a' ) as number;
+	const starlight = [ 0xff, 0xfb, 0xff ];
+	const rgb = [ 0, 2, 4 ].map( ( i ) =>
+		parseInt( match[ 1 ].slice( i, i + 2 ), 16 ),
+	);
+	for ( let step = 0; step < 20; step++ ) {
+		const mixed =
+			'#' +
+			rgb
+				.map( ( c, i ) =>
+					Math.round( c + ( ( starlight[ i ] - c ) * step ) / 20 )
+						.toString( 16 )
+						.padStart( 2, '0' ),
+				)
+				.join( '' );
+		const luminance = relativeLuminance( mixed ) as number;
+		if ( ( luminance + 0.05 ) / ( astro + 0.05 ) >= 4.5 ) {
+			return mixed;
+		}
+	}
+	return '#fffbff';
 }
 
 /** Options for {@link OsSettings.update}. */
@@ -452,6 +500,35 @@ export class OsSettings {
 		// through `apply()`. `applyDesktopTheme` dedupes on the active
 		// id, so the repeated calls this makes cost two comparisons.
 		applyDesktopTheme( this.state.desktopTheme );
+
+		/*
+		 * Link text: `--os-link`, and `--os-ui-accent-strong`, which
+		 * the shell reads as the accent's text and hover color. The
+		 * palette declares both at Nebula, the brand's pair for Pulse,
+		 * so without this write every link in My WordPress, the
+		 * Preferences About card and the Content Graph stayed pink
+		 * whatever accent was picked.
+		 *
+		 * Unlike the accent, these are not written on the shell and
+		 * not written at all while a desktop theme is worn. A link is
+		 * text on a surface, and `accentLinkColor()` only knows the
+		 * palette's dark surfaces; a theme brings its own (Legacy is
+		 * white), so it keeps the link color it declares. Pulse keeps
+		 * the palette's Nebula, the same way it keeps its hand-mixed
+		 * dim.
+		 */
+		const linkColor =
+			shell.hasAttribute( 'data-os-desktop-theme' ) ||
+			accentValue.toLowerCase() === BRAND_ACCENT
+				? null
+				: accentLinkColor( accentValue );
+		for ( const token of [ '--os-link', '--os-ui-accent-strong' ] ) {
+			if ( linkColor === null ) {
+				root.style.removeProperty( token );
+			} else {
+				root.style.setProperty( token, linkColor );
+			}
+		}
 	}
 
 	/**
