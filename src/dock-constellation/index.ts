@@ -90,6 +90,9 @@ import type { Window as OsWindow } from '../window';
 import { hashTitleToHue } from '../ui/util/hash-hue';
 import { deriveWindowId, sanitizeClassName } from '../utils';
 import { applyIconMask } from '../desktop-themes/paint-tinted-icon';
+import { resolveThemedIcon } from '../desktop-themes/icons';
+import { slotForTileId } from '../desktop-themes/slots';
+import { renderIcon } from '../icon';
 import { CONSTELLATION_FLAG } from './active';
 // Leaf module, not `../item-visibility-menu` — that entry is a lazy
 // bundle and importing the string from it drags the whole menu into
@@ -781,7 +784,8 @@ function instancesFor(
 		// keyed on `post-new.php`, never on the Posts menu's own
 		// `edit.php`, so the base-id lookup alone reports "no open
 		// windows" while the editor the user just opened from this very
-		// flyout sits on screen. `parentUrl` is what ties it back.
+		// flyout sits on screen. `parentUrl` is what ties it back, or for
+		// a window opened elsewhere, the menu its page reported.
 		const parentKey = deriveWindowId( item.menuItem.url, deps.adminUrl );
 		if ( parentKey ) {
 			const activeDesktop = deps.windowManager.getActiveDesktopId();
@@ -792,9 +796,10 @@ function instancesFor(
 					continue;
 				}
 				if (
-					win.config.parentUrl &&
-					deriveWindowId( win.config.parentUrl, deps.adminUrl ) ===
-						parentKey
+					win._menuOwner === item.menuItem.id ||
+					( win.config.parentUrl &&
+						deriveWindowId( win.config.parentUrl, deps.adminUrl ) ===
+							parentKey )
 				) {
 					seen.add( win );
 				}
@@ -945,7 +950,17 @@ function buildHead(
 	const iconHost = document.createElement( 'span' );
 	iconHost.className = 'os-constellation__head-icon';
 	iconHost.setAttribute( 'aria-hidden', 'true' );
-	iconHost.appendChild( glyph( item.icon ) );
+	// A desktop theme's icon for this menu wins, as it does on the tile.
+	const slot = slotForTileId( item.id );
+	iconHost.appendChild(
+		resolveThemedIcon( slot )
+			? renderIcon( item.icon, {
+				title: item.title,
+				className: 'os-constellation__head-art',
+				slot,
+			} )
+			: glyph( item.icon ),
+	);
 	head.appendChild( iconHost );
 
 	const text = document.createElement( 'span' );

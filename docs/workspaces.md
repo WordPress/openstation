@@ -124,7 +124,9 @@ Three things this has to get right, and each has a test:
 
 - **Desk to desk.** Switching from an overridden workspace straight to another restores the user's base *first*, so the second desk's patch lands on their settings rather than on the first desk's.
 - **Saving while standing on one.** Opening Preferences on an overridden desk and saving writes the **user's** value back for every key they did not touch. Without that, one save would quietly adopt the workspace's wallpaper as their own.
-- **Editing while standing on one.** A key they *did* change is theirs, and it is saved. The rest go back.
+- **Editing while standing on one.** A key they *did* change is theirs, and it is saved. The rest go back. Every save also refreshes the copy kept aside, so leaving the desk hands back what they have now, not what they had on the way in; a stale copy put the old wallpaper back on exit and the next save wrote it to user meta.
+
+A profile write to the desk on screen repaints the look only when it changed `appearance`. Recording a widget, provisioning or saving the arrangement re-applies the widget column alone, so a wallpaper picked on the desk survives adding a widget to it.
 
 **Only allowlisted keys are honoured** — `wallpaper`, `wallpaperSettings`, `customGradient`, `customImage`, `accent`, `customAccent`, `desktopTheme`, `desktopLayout`, `dockPlacement`, `dockSize`, `dockBehavior`, `sideDockBehavior`, `windowRadius`, `windowReveal`, `unfocusEffect`, `adminBarMode`. That is not tidiness. A profile is user meta round-tripped through an untrusted client, and an unfiltered patch spread onto the settings state at boot would be a way to write any settings key from anywhere. The server enforces the same list, and bounds the nesting of the array-valued members.
 
@@ -178,6 +180,8 @@ wp.os.windowManager.focusLayout();  // one leading, the rest stacked in the marg
 **`columns`** hands off to `tile()` past four windows — a fifth column is narrower than an admin table's own minimum width, and every window would grow a horizontal scrollbar.
 
 **`focus`** leads with the **focused** window, not the first in the stack, so re-applying after clicking into the reference list does not demote the thing you just reached for. A workspace opening its launch list, Restore putting it back, or a reload reopening one of its windows leads with the list's first entry instead: the Publishing template's blank draft, with the Posts list in the margin. With one window it degrades to "maximize politely". Its split is `0.64`, filterable through `os.arrange.focus.split`; a return outside `[0.3, 0.9]` falls back rather than being clamped.
+
+**Every arrangement respects minimum widths**, and so does an edge snap. `columns`, each row of `tile()`, and the two halves of a snap split evenly only while every window's share covers its registered `minWidth`; a window that needs more takes it, and the others share what is left. `focus` moves its split the same way: the lead never goes below its own minimum, and leaves the stack the widest minimum among the windows in it. When the minimums cannot all fit, each window keeps its own anyway and stays inside the work area, the first against the left edge and the last against the right, overlapping its neighbours rather than going below its floor.
 
 ---
 

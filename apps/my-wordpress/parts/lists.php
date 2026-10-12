@@ -56,8 +56,8 @@ function lock_holder( $post_id ) {
 		return '';
 	}
 	$lock = openstation_my_wordpress_post_lock_payload( (int) $post_id );
-	if ( is_array( $lock ) && ! empty( $lock['locked'] ) && ! empty( $lock['name'] ) ) {
-		return (string) $lock['name'];
+	if ( is_array( $lock ) ) {
+		return (string) $lock['userName'];
 	}
 	return '';
 }
@@ -194,13 +194,13 @@ function fetch( Os $os, array $section, State $state ) {
 	foreach ( $posts->posts as $post ) {
 		$items[] = array(
 			'id'        => (int) $post->ID,
-			'title'     => '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' ),
+			'title'     => '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ),
 			'subtitle'  => $is_media
 				? (string) $post->post_mime_type
 				: sprintf(
 					/* translators: 1: author display name, 2: date. */
 					__( '%1$s — %2$s', 'desktop-mode' ),
-					(string) get_the_author_meta( 'display_name', (int) $post->post_author ),
+					openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $post->post_author ) ),
 					(string) get_the_date( '', $post )
 				),
 			'status'    => $is_media ? '' : (string) $post->post_status,
@@ -259,14 +259,14 @@ function post_facts( \WP_Post $post ) {
 	$shortlink = (string) wp_get_shortlink( $post->ID );
 	return array(
 		'slug'        => (string) $post->post_name,
-		'author'      => (string) get_the_author_meta( 'display_name', (int) $post->post_author ),
+		'author'      => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $post->post_author ) ),
 		'authorId'    => (int) $post->post_author,
 		'date'        => (string) get_the_date( 'c', $post ),
 		'modified'    => (string) get_the_modified_date( 'c', $post ),
 		'comments'    => (int) $post->comment_count,
 		'shortlink'   => '' !== $shortlink ? esc_url_raw( $shortlink ) : '',
 		'parent'      => $parent,
-		'parentTitle' => $parent > 0 ? (string) get_the_title( $parent ) : '',
+		'parentTitle' => $parent > 0 ? openstation_plain_text_title( get_the_title( $parent ) ) : '',
 		'words'       => str_word_count( wp_strip_all_tags( (string) $post->post_content ) ),
 	);
 }
@@ -290,12 +290,12 @@ function media_facts( \WP_Post $post ) {
 		'size'        => $bytes > 0 ? (string) size_format( $bytes ) : '',
 		'dimensions'  => isset( $meta['width'], $meta['height'] ) ? $meta['width'] . ' × ' . $meta['height'] : '',
 		'alt'         => (string) get_post_meta( $post->ID, '_wp_attachment_image_alt', true ),
-		'author'      => (string) get_the_author_meta( 'display_name', (int) $post->post_author ),
+		'author'      => openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $post->post_author ) ),
 		'authorId'    => (int) $post->post_author,
 		'date'        => (string) get_the_date( 'c', $post ),
 		'modified'    => (string) get_the_modified_date( 'c', $post ),
 		'parent'      => $parent,
-		'parentTitle' => $parent > 0 ? (string) get_the_title( $parent ) : '',
+		'parentTitle' => $parent > 0 ? openstation_plain_text_title( get_the_title( $parent ) ) : '',
 	);
 }
 
@@ -314,10 +314,10 @@ function media_facts( \WP_Post $post ) {
 function user_row( \WP_User $user, callable $can_edit, $post_count = null ) {
 	return array(
 		'id'         => (int) $user->ID,
-		'title'      => (string) $user->display_name,
+		'title'      => openstation_plain_text_title( $user->display_name ),
 		// The REST spelling too — the shared seam subscribers were
 		// written against `/wp/v2/users` rows.
-		'name'       => (string) $user->display_name,
+		'name'       => openstation_plain_text_title( $user->display_name ),
 		'subtitle'   => (string) $user->user_email,
 		'status'     => implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ),
 		'excerpt'    => '',
@@ -396,22 +396,30 @@ function edit_url( array $section, $id ) {
  * An iframe never reports its own title, so a window opened on a bare
  * URL keeps that URL as its name for as long as it lives — on a phone
  * the top bar then reads `…/wp-admin/post.php?post=…`. The item's own
- * title is what the user tapped; the window says the same.
+ * title is what the user tapped; the window says the same, decoded:
+ * stored titles and display names carry entities (`&amp;`).
  *
  * @param array<string,mixed> $section Section descriptor.
  * @param int                 $id      Item id.
  * @return string The title, or '' when the item is gone.
  */
 function edit_title( array $section, $id ) {
+	// An order's post is WooCommerce's `Order &ndash; <date>` stamp, or
+	// an untitled placeholder without sync: it wears its pane's title.
+	if ( woo_section_is( $section, 'wc-orders' ) ) {
+		$detail = woo_detail( $section, (int) $id );
+		return $detail ? (string) $detail['title'] : '';
+	}
 	if ( 'user' === $section['kind'] ) {
 		$user = get_userdata( (int) $id );
-		return $user ? (string) $user->display_name : '';
+		return $user ? openstation_plain_text_title( $user->display_name ) : '';
 	}
 	$post = get_post( (int) $id );
 	if ( ! $post ) {
 		return '';
 	}
-	return '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' );
+	$title = openstation_plain_text_title( $post->post_title );
+	return '' !== $title ? $title : __( '(no title)', 'desktop-mode' );
 }
 
 /**
@@ -444,7 +452,7 @@ function detail( Os $os, array $section, $id ) {
 		return array(
 			'kind'      => 'user',
 			'id'        => $id,
-			'title'     => (string) $user->display_name,
+			'title'     => openstation_plain_text_title( $user->display_name ),
 			'avatar'    => (string) get_avatar_url( $id, array( 'size' => 192 ) ),
 			'facts'     => Os::facts(
 				array(
@@ -463,7 +471,7 @@ function detail( Os $os, array $section, $id ) {
 	if ( ! $post || $post->post_type !== $section['post_type'] ) {
 		return null;
 	}
-	$title = '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'desktop-mode' );
+	$title = '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' );
 
 	if ( 'media' === $section['kind'] ) {
 		$file = get_attached_file( $id );
@@ -472,7 +480,7 @@ function detail( Os $os, array $section, $id ) {
 		if ( function_exists( 'openstation_my_wordpress_media_usage_build' ) ) {
 			foreach ( array_slice( (array) ( openstation_my_wordpress_media_usage_build( $post )['usedIn'] ?? array() ), 0, 12 ) as $row ) {
 				$used[] = array(
-					'title'  => (string) ( $row['title'] ?? '' ),
+					'title'  => openstation_plain_text_title( $row['title'] ?? '' ),
 					'usedAs' => (string) ( $row['usedAs'] ?? '' ),
 				);
 			}
@@ -516,7 +524,7 @@ function detail( Os $os, array $section, $id ) {
 		'facts'     => Os::facts(
 			array(
 				array( __( 'Status', 'desktop-mode' ), ucfirst( (string) $post->post_status ) ),
-				array( __( 'Author', 'desktop-mode' ), (string) get_the_author_meta( 'display_name', (int) $post->post_author ) ),
+				array( __( 'Author', 'desktop-mode' ), openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $post->post_author ) ) ),
 				array( __( 'Published', 'desktop-mode' ), (string) get_the_date( '', $post ) ),
 				array( __( 'Modified', 'desktop-mode' ), (string) get_the_modified_date( '', $post ) ),
 				array( __( 'Words', 'desktop-mode' ), number_format_i18n( str_word_count( wp_strip_all_tags( (string) $post->post_content ) ) ) ),

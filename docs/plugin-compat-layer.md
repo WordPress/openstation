@@ -222,6 +222,10 @@ Jetpack mounts its Stats (`admin.php?page=stats`) and Blaze (`?page=advertising`
 
 **Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
 
+### Elementor 4's legacy menus
+
+Elementor 4 keeps its old **Elementor** menu and the **Templates** menu registered for their URLs, under the new `elementor-home` menu, and hides both from the classic sidebar with CSS the dock can't see. **Fix**: `includes/compat/elementor.php` hides those two slugs through `openstation_dock_placement` once `elementor-home` exists. The same file prints the navigation ping in Elementor's editor head, which never fires `admin_head`. **Test**: `tests/phpunit/tests/openStationBuildDockItems.php`.
+
 ## The script side: dependency repairs
 
 Some plugins / themes register block-editor scripts with incomplete `wp_enqueue_script()` dep arrays. When script load order accidentally resolves in their favor in classic admin, nobody notices; when our chromeless render shifts timing, the underlying bug surfaces and the plugin's React integration crashes before it can mount any UI.

@@ -69,6 +69,23 @@ export interface RecommendedOsSettings {
 	 */
 	windowRevealDuration?: number;
 	/**
+	 * A wallpaper id: one of the theme's own `wallpapers` (resolved to
+	 * its registry id, `desktop-theme/<slug>/<id>`), or any registered
+	 * wallpaper. The apply pass drops the key when neither answers.
+	 */
+	wallpaper?: string;
+	/**
+	 * The accent as a six-digit hex colour. Resolved to the swatch with
+	 * that value when the site offers one, and to the custom accent
+	 * otherwise; ignored when {@link accent} resolves.
+	 */
+	accentColor?: string;
+	/**
+	 * Written by the resolver alongside `accent: 'custom'` when
+	 * {@link accentColor} matches no swatch. Not a manifest field.
+	 */
+	customAccent?: string;
+	/**
 	 * Accent swatch id (OS Settings → Appearance). Same runtime-
 	 * validity story as {@link dockRailRenderer}: the list is
 	 * filterable in PHP, so the apply pass drops the key when the site
@@ -82,6 +99,18 @@ export interface RecommendedOsSettings {
 	 * says "and this hue with it".
 	 */
 	accent?: string;
+	/**
+	 * Where dock items sit, by item id: `rail` | `desktop` | `both` |
+	 * `hidden`. Merged into the user's own `navPlacement`, so only the
+	 * items named here move.
+	 */
+	navPlacement?: Record< string, string >;
+	/**
+	 * The widget column, by widget id; `[]` is an empty desk. Written
+	 * to the column's per-browser list rather than to user meta, and
+	 * what a browser's first visit starts from instead of the clock.
+	 */
+	widgets?: string[];
 }
 
 /**
@@ -152,6 +181,11 @@ export interface DesktopThemeEntry {
 	 * every manifest that omits the block produces.
 	 */
 	recommendedOsSettings: RecommendedOsSettings;
+	/**
+	 * Whether the theme names an `--os-toolbar-*` token, and so takes
+	 * the WordPress toolbar's colours over from the admin colour scheme.
+	 */
+	drawsToolbar: boolean;
 	/** Unix timestamp of installation (uploads only; `0` for code). */
 	installedAt: number;
 	/** Where the theme came from. */

@@ -4,8 +4,9 @@
  *
  * Renders a one-time, self-contained modal inside the *classic*
  * WordPress admin (never inside the desktop shell or a chromeless
- * iframe) that introduces OpenStation and offers to switch it on.
- * Dismissal is persisted via the existing seen-intros registry
+ * iframe) that introduces OpenStation to the user who activated it and
+ * offers to switch it on. Dismissal is persisted via the existing
+ * seen-intros registry
  * (`desktop_mode_seen_intros` user meta, slug `activation-welcome`),
  * which means the "Reset what's-new dialogs" button in OpenStation
  * Preferences → Features brings it back exactly like every other intro
@@ -28,7 +29,7 @@ const OPENSTATION_WELCOME_INTRO_SLUG = 'activation-welcome';
 /**
  * Decides whether the welcome dialog should render on the current request.
  *
- * Six gates:
+ * Seven gates:
  *
  * 1. We're inside `/wp-admin` (`is_admin()`).
  * 2. The user is logged in and can `read` (sanity gate — the dialog has
@@ -44,8 +45,14 @@ const OPENSTATION_WELCOME_INTRO_SLUG = 'activation-welcome';
  *    OpenStation", which reads as a duplicate dialog because the
  *    fire-and-forget seen-intro POST races the redirect into the shell
  *    and often loses.
- * 5. The user has not already dismissed this intro.
- * 6. The `openstation_show_welcome_dialog` filter returns truthy, so
+ * 5. The user is the one who activated the plugin
+ *    ({@see openstation_record_activator()}). Dismissal is per user, so
+ *    without this every other account on the site would get the dialog
+ *    on its first wp-admin visit. Nobody gets it after an activation
+ *    without a user, or on an install activated before the activator
+ *    was recorded.
+ * 6. The user has not already dismissed this intro.
+ * 7. The `openstation_show_welcome_dialog` filter returns truthy, so
  *    sites can suppress the dialog entirely (e.g. managed-host onboarding
  *    flows that ship their own).
  *
@@ -65,6 +72,9 @@ function openstation_should_show_welcome_dialog() {
 		return false;
 	}
 	$user_id = get_current_user_id();
+	if ( (int) get_option( OPENSTATION_ACTIVATED_BY_OPTION, 0 ) !== $user_id ) {
+		return false;
+	}
 	if ( openstation_has_seen_intro( $user_id, OPENSTATION_WELCOME_INTRO_SLUG ) ) {
 		return false;
 	}
@@ -72,8 +82,8 @@ function openstation_should_show_welcome_dialog() {
 	/**
 	 * Filters whether the first-run welcome dialog should render for
 	 * the current user on the current request. All earlier gates
-	 * (admin context, capability, chromeless, seen-state) have
-	 * already passed by the time this filter fires.
+	 * (admin context, capability, chromeless, activator, seen-state)
+	 * have already passed by the time this filter fires.
 	 *
 	 * @param bool $show    Whether to render the dialog. Default true.
 	 * @param int  $user_id Current user ID.

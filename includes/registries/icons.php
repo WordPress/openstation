@@ -260,6 +260,46 @@ function openstation_unregister_icon( $id ) {
 }
 
 /**
+ * One desktop icon entry, as the shell sees it: after the `openstation_icons`
+ * filter, not from the raw registry.
+ *
+ * The payload and the orphan placement both run the filter, so an entry a
+ * plugin injects there gets a placement row minted for it; the shortcut that
+ * row points at has to resolve through the same filter or it serializes as
+ * a missing file and never paints. The same holds the other way: an entry
+ * the filter removes must not keep resolving from the raw store.
+ *
+ * Deliberately uncached here: registrations can change within a request
+ * (tests do it constantly). Each call runs the whole filter chain, so a
+ * caller that asks about one icon several times keeps the answer, as
+ * `OpenStation_Shortcut_File` does for the life of one placement.
+ *
+ * @param string $id Icon id.
+ * @return array|null The entry, or null when no icon has that id.
+ */
+function openstation_desktop_icon_entry( $id ) {
+	$id = (string) $id;
+	if ( '' === $id ) {
+		return null;
+	}
+	/** This filter is documented in openstation_build_desktop_icons_payload(). */
+	$registry = apply_filters( 'openstation_icons', openstation_desktop_icon_registry() );
+	if ( ! is_array( $registry ) ) {
+		return null;
+	}
+	if ( isset( $registry[ $id ] ) && is_array( $registry[ $id ] ) ) {
+		return $registry[ $id ];
+	}
+	// A filter may hand back a re-indexed list rather than an id map.
+	foreach ( $registry as $entry ) {
+		if ( is_array( $entry ) && isset( $entry['id'] ) && $id === (string) $entry['id'] ) {
+			return $entry;
+		}
+	}
+	return null;
+}
+
+/**
  * Build the desktop-icon list for the shell payload. Applies a
  * `openstation_icons` filter so plugins can hide / reorder / rename
  * entries registered by others — mirrors the wallpaper payload
@@ -269,8 +309,8 @@ function openstation_unregister_icon( $id ) {
  */
 function openstation_build_desktop_icons_payload() {
 	$registry = openstation_desktop_icon_registry();
-	if ( ! is_array( $registry ) || empty( $registry ) ) {
-		return array();
+	if ( ! is_array( $registry ) ) {
+		$registry = array();
 	}
 
 	/**
@@ -282,7 +322,10 @@ function openstation_build_desktop_icons_payload() {
 	 * @param array[] $registry The registered icon entries.
 	 */
 	$registry = apply_filters( 'openstation_icons', $registry );
-	if ( ! is_array( $registry ) ) {
+	// Checked after the filter, not before: an empty registry is exactly
+	// where a filter-injected entry is the only icon, and returning early
+	// dropped it.
+	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
 

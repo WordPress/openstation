@@ -208,6 +208,38 @@ describe( 'the profile form — role save flow', () => {
 		}
 	} );
 
+	test( 'names reach the form, and go back on save, as the text the person typed', async () => {
+		// Core returns them as stored. The form sends back what it shows,
+		// so the decode may drop nothing: the `<3` and the tags survive.
+		const stored = peter( {
+			name: 'Q&amp;A Helper',
+			first_name: 'Q&amp;A',
+			last_name: 'Helper &lt;3',
+			nickname: 'Q&amp;A Helper',
+			description: 'R&amp;D <em>lead</em>',
+		} );
+		const { host, fetch } = hostWith( ( path ) => json( path.includes( '/application-passwords' ) ? { items: [] } : stored ) );
+		await mountProfileFormAt( formHost, 2, host );
+		await tick();
+		await wait( 0 );
+		const header = (): string => formHost.querySelector( '[slot="header"]' )!.textContent ?? '';
+		expect( header() ).toContain( 'Q&A Helper' );
+
+		( formHost.querySelector( 'os-form' ) as HTMLElement & { submit: () => void } ).submit();
+		await wait( 30 );
+
+		const postCall = fetch.mock.calls.find( ( [ , init ] ) => ( init as RequestInit | undefined )?.method === 'POST' );
+		expect( JSON.parse( ( postCall![ 1 ] as RequestInit ).body as string ) ).toMatchObject( {
+			name: 'Q&A Helper',
+			first_name: 'Q&A',
+			last_name: 'Helper <3',
+			nickname: 'Q&A Helper',
+			description: 'R&D <em>lead</em>',
+		} );
+		// The saved record comes back encoded again.
+		expect( header() ).toContain( 'Q&A Helper' );
+	} );
+
 	test( 'a failed save reports through the host toast and keeps the form open', async () => {
 		const { host, toast } = hostWith( ( path, init ) => {
 			if ( init?.method === 'POST' ) {

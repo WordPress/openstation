@@ -145,7 +145,8 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 
 	/**
 	 * Decoding runs before the tag strip, so an encoded tag cannot be
-	 * decoded back into live markup on the way out.
+	 * decoded back into live markup on the way out. A `<` that opens no
+	 * tag is text and stays.
 	 *
 	 * @covers ::openstation_plain_text_title
 	 */
@@ -156,6 +157,29 @@ class Tests_OpenStation_Files extends WP_UnitTestCase {
 		);
 		$this->assertSame( 'Bold', openstation_plain_text_title( '<b>Bold</b>' ) );
 		$this->assertSame( 'Ben & Jerry', openstation_plain_text_title( 'Ben &#038; Jerry' ) );
+
+		$cases = array(
+			// No tag opens here, typed or stored as an entity.
+			'I <3 WordPress'         => 'I <3 WordPress',
+			'I &lt;3 WordPress'      => 'I <3 WordPress',
+			'<3 Bot'                 => '<3 Bot',
+			'a < b'                  => 'a < b',
+			// A letter after `<` opens one, closed or not.
+			'a<b'                    => 'a',
+			'x<y and y>z'            => 'xz',
+			// Decoded once: an entity that was itself encoded stays one.
+			'&amp;amp;'              => '&amp;',
+			'&amp;lt;script&amp;gt;' => '&lt;script&gt;',
+		);
+		foreach ( $cases as $rendered => $expected ) {
+			$this->assertSame( $expected, openstation_plain_text_title( $rendered ), $rendered );
+		}
+
+		// Stripping `<b>` must not leave the kept `<` opening a tag with `script>`.
+		$this->assertDoesNotMatchRegularExpression(
+			'/<[a-zA-Z\/!?]/',
+			openstation_plain_text_title( '<<b>script>alert(1)</script>' )
+		);
 	}
 
 	/**

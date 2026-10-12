@@ -205,6 +205,76 @@ describe( 'Window — lifecycle hook firing', () => {
 		openSpy.mockRestore();
 	} );
 
+	test( 'detach opens the page an unreadable frame reported, not the one the window opened on', () => {
+		// Elementor's editor is isolated from the shell, and `src` still
+		// names the block editor "Edit with Elementor" navigated from.
+		const origin = window.location.origin;
+		handle.cleanup();
+		handle = mountWindow( baseConfig( { id: 'post-2', url: `${ origin }/wp-admin/post.php?post=2&action=edit` } ) );
+		const iframe = handle.win.iframe as HTMLIFrameElement;
+		const isolated = {
+			get location(): Location {
+				throw new DOMException( 'Blocked a frame', 'SecurityError' );
+			},
+		};
+		Object.defineProperty( iframe, 'contentWindow', { value: isolated, configurable: true } );
+		const elementor = `${ origin }/wp-admin/post.php?post=2&action=elementor`;
+		const landed = new MessageEvent( 'message', { data: { type: 'os-iframe-navigated', url: elementor }, origin } );
+		Object.defineProperty( landed, 'source', { value: isolated } );
+		window.dispatchEvent( landed );
+		const openSpy = vi.spyOn( window, 'open' ).mockImplementation( () => null );
+
+		handle.win.detach();
+
+		expect( openSpy ).toHaveBeenCalledWith( `${ elementor }&desktop_mode_classic=1`, '_blank', 'noopener' );
+		// Pointed elsewhere by the shell, the report no longer applies.
+		iframe.src = `${ origin }/wp-admin/edit.php`;
+		expect( handle.win.getCurrentUrl() ).toBe( iframe.src );
+		openSpy.mockRestore();
+	} );
+
+	test( 'a page that focuses itself while loading does not raise its window', () => {
+		// The block editor focuses an empty title on `post-new.php`. On a
+		// boot that restored such a window, it rose over the page the
+		// user had just opened by URL.
+		const iframe = handle.win.iframe as HTMLIFrameElement;
+		const raise = vi.fn();
+		handle.win.onFocusRequest = raise;
+		const activation = { isActive: false };
+		Object.defineProperty( navigator, 'userActivation', { value: activation, configurable: true } );
+		try {
+			iframe.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
+			expect( raise ).not.toHaveBeenCalled();
+
+			activation.isActive = true;
+			iframe.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
+			expect( raise ).toHaveBeenCalledTimes( 1 );
+		} finally {
+			delete ( navigator as unknown as { userActivation?: unknown } ).userActivation;
+		}
+	} );
+
+	test( 'an unreadable frame that rewrites its own address is followed', () => {
+		// The block editor's first save replaces `post-new.php` with the
+		// draft's own URL without navigating; "Copy link" must share that.
+		const origin = window.location.origin;
+		handle.cleanup();
+		handle = mountWindow( baseConfig( { id: 'post-new', url: `${ origin }/wp-admin/post-new.php` } ) );
+		const iframe = handle.win.iframe as HTMLIFrameElement;
+		const isolated = {
+			get location(): Location {
+				throw new DOMException( 'Blocked a frame', 'SecurityError' );
+			},
+		};
+		Object.defineProperty( iframe, 'contentWindow', { value: isolated, configurable: true } );
+		const draft = `${ origin }/wp-admin/post.php?post=9&action=edit`;
+		const moved = new MessageEvent( 'message', { data: { type: 'os-iframe-location', url: draft }, origin } );
+		Object.defineProperty( moved, 'source', { value: isolated } );
+		window.dispatchEvent( moved );
+
+		expect( handle.win.getCurrentUrl() ).toBe( draft );
+	} );
+
 	test( 'detach refuses cross-origin URLs and fires nothing', () => {
 		handle.cleanup();
 		handle = mountWindow(

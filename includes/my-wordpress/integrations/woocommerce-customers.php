@@ -980,7 +980,7 @@ function openstation_my_wordpress_woo_customer_favourite( $user_id ) {
 	$can_edit = get_post( $product_id ) && current_user_can( 'edit_post', $product_id );
 
 	return array(
-		'label'    => (string) $top['label'],
+		'label'    => openstation_plain_text_title( $top['label'] ),
 		'quantity' => (int) $top['quantity'],
 		'editUrl'  => $can_edit ? (string) get_edit_post_link( $product_id, 'raw' ) : '',
 	);
@@ -1135,7 +1135,7 @@ function openstation_my_wordpress_woo_customer_summary( $id ) {
 	return array(
 		'type'           => 'customer',
 		'id'             => (int) $user->ID,
-		'name'           => $user->display_name,
+		'name'           => openstation_plain_text_title( $user->display_name ),
 		'username'       => $user->user_login,
 		'avatar'         => (string) get_avatar_url( $user->ID, array( 'size' => 96 ) ),
 		'email'          => $user->user_email,

@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { beginTrashChange, trashItem } from '../../src/desktop-files/trash-optimistic';
-import { openPreview, trashExplorerItems, watchExplorerTrash } from './parts/optimistic';
+import { closePreview, openPreview, trashExplorerItems, watchExplorerTrash } from './parts/optimistic';
 import { uiOf } from './parts/types';
 import app, {
 	buildMenuOptions,
@@ -288,14 +288,15 @@ describe( 'view', () => {
 		expect( root.querySelector( '.os-mywp__bulk' ) ).toBeNull();
 	} );
 
-	it( 'paints no preview pane until an entry is open — the list has the whole window', () => {
+	it( 'keeps the preview pane beside the list before anything is open, so a click never reflows the grid', () => {
 		const empty = mount(
 			state( { section: 'posts' } ),
 			data( { list: page( [ item( { id: 1 } ) ] ) } ),
 		);
-		expect( empty.querySelector( '.os-mywp__detail-pane' ) ).toBeNull();
-		expect( empty.querySelector( '.os-mywp__split' )?.classList.contains( 'os-mywp__split--solo' ) ).toBe( true );
-		expect( empty.textContent ).not.toContain( 'Select an entry to preview it here.' );
+		expect( empty.querySelector( '.os-mywp__detail-pane.os-mywp__detail-pane--empty' ) ).not.toBeNull();
+		expect( empty.querySelector( '.os-mywp__detail' ) ).toBeNull();
+		expect( empty.querySelector( '.os-mywp__split--solo' ) ).toBeNull();
+		expect( empty.textContent ).toContain( 'Select an item to see its details.' );
 
 		const open = mount(
 			state( { section: 'posts', item: 1 } ),
@@ -314,7 +315,7 @@ describe( 'view', () => {
 		);
 		expect( open.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__detail-pane' ) ).not.toBeNull();
-		expect( open.querySelector( '.os-mywp__split--solo' ) ).toBeNull();
+		expect( open.querySelector( '.os-mywp__detail-pane--empty' ) ).toBeNull();
 		// A fact's label is an attribute on <os-fact> rendered into its
 		// shadow root, like <os-stat>'s, so it is not in light-DOM text.
 		expect(
@@ -739,6 +740,37 @@ describe( 'view', () => {
 		}
 	} );
 
+	it( 'dragging a product tile files it as a post, the only file type a post type has', () => {
+		const start = vi.fn();
+		( window as { wp?: unknown } ).wp = { os: { dragManager: { start } } };
+		const root = document.createElement( 'div' );
+		document.body.appendChild( root );
+		try {
+			const products = section( { id: 'cpt-product', label: 'Products', post_type: 'product' } );
+			const ctx = mockViewContext( {
+				state: state( { section: 'cpt-product' } ),
+				data: data( { sections: [ products ], list: page( [ item( { id: 31, title: 'Demo Mug' } ) ] ) } ),
+				root,
+			} );
+			( globalThis as { IntersectionObserver?: unknown } ).IntersectionObserver ??= class {
+				observe(): void {}
+				disconnect(): void {}
+			};
+			app.render( ctx );
+			const teardown = app.mounted( ctx ) as () => void;
+			root.querySelector( '[data-mywp-drag][data-item-id="31"]' )?.dispatchEvent(
+				new MouseEvent( 'pointerdown', { bubbles: true, button: 0 } ),
+			);
+			const payload = start.mock.calls[ 0 ][ 0 ].payload.data;
+			expect( payload.kind ).toBe( 'post' );
+			expect( payload.bridgePayload.postType ).toBe( 'product' );
+			teardown();
+		} finally {
+			root.remove();
+			delete ( window as { wp?: unknown } ).wp;
+		}
+	} );
+
 	it( 'the Edit… modal carries the original controls: notice, category picker, tag tokens', () => {
 		const root = document.createElement( 'div' );
 		document.body.appendChild( root );
@@ -931,6 +963,16 @@ describe( 'optimistic Explorer interactions', () => {
 		return ctx;
 	}
 
+	it( 'closing the preview drops the selection, so the empty pane never sits beside a highlighted item', () => {
+		const ctx = setup();
+		ctx.state.item = 1;
+		ctx.state.selected = [ 1 ];
+		ctx.dispatch = vi.fn( async () => true );
+		closePreview( ctx );
+		expect( ctx.state ).toMatchObject( { item: 0, selected: [] } );
+		expect( ctx.root.querySelector( '.os-mywp__detail-pane--empty' ) ).not.toBeNull();
+	} );
+
 	it( 'resets search selection immediately so the debounced refresh cannot close a newer preview', async () => {
 		const ctx = setup();
 		ctx.state.item = 1;
@@ -956,6 +998,7 @@ describe( 'optimistic Explorer interactions', () => {
 		openPreview( ctx, 1 );
 		expect( ctx.root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Alpha' );
 		expect( ctx.root.querySelector( '.os-mywp__detail' )?.getAttribute( 'aria-busy' ) ).toBe( 'true' );
+		expect( ctx.root.querySelector( '.os-mywp__pane-status os-spinner' ) ).not.toBeNull();
 		openPreview( ctx, 2 );
 		// Simulate a queued search resetting item after the newer pick.
 		ctx.state.item = 0;
@@ -967,7 +1010,7 @@ describe( 'optimistic Explorer interactions', () => {
 		answer( true );
 		await vi.waitFor( () => expect( ctx.dispatch ).toHaveBeenCalledTimes( 2 ) );
 		openPreview( ctx, 0 );
-		expect( ctx.root.querySelector( '.os-mywp__detail-pane' ) ).toBeNull();
+		expect( ctx.root.querySelector( '.os-mywp__detail' ) ).toBeNull();
 		answer( true );
 		await Promise.resolve();
 		expect( ctx.state.item ).toBe( 0 );
@@ -981,7 +1024,7 @@ describe( 'optimistic Explorer interactions', () => {
 		const stop = watchExplorerTrash( ctx );
 		const operation = beginTrashChange( trashItem( { id: 1, type: 'post', title: 'Alpha' } ) )!;
 		expect( ctx.root.querySelector( '[data-item-id="1"]' ) ).toBeNull();
-		expect( ctx.root.querySelector( '.os-mywp__detail-pane' ) ).toBeNull();
+		expect( ctx.root.querySelector( '.os-mywp__detail' ) ).toBeNull();
 		await operation.finish( false );
 		expect( ctx.root.querySelector( '[data-item-id="1"]' ) ).not.toBeNull();
 		expect( ctx.root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Alpha' );
@@ -1054,7 +1097,7 @@ describe( 'optimistic Explorer interactions', () => {
 		expect( ctx.root.querySelector( '[data-item-id="2"]' ) ).not.toBeNull();
 		expect( ctx.root.querySelector( '[data-item-id="3"]' ) ).not.toBeNull();
 		expect( ctx.state.item ).toBe( 0 );
-		expect( ctx.root.querySelector( '.os-mywp__detail-pane' ) ).toBeNull();
+		expect( ctx.root.querySelector( '.os-mywp__detail' ) ).toBeNull();
 		stop();
 	} );
 } );

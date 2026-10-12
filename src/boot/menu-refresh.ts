@@ -97,9 +97,11 @@ export interface MenuRefreshDeps {
 	applyMultisite?: ( block: MultisiteConfig | null ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/** See `MenuRefreshDeps.refreshRootPlacements` in `../menu-refresh-apply`. */
-	refreshRootPlacements?: () => void;
+	refreshRootPlacements?: ( addedIconIds: string[] ) => void;
 	/** See `MenuRefreshDeps.syncShortcuts` in `../menu-refresh-apply`. */
 	syncShortcuts?: () => void;
+	/** See `MenuRefreshDeps.syncWindowSubmenus` in `../menu-refresh-apply`. */
+	syncWindowSubmenus?: () => void;
 }
 
 /**
@@ -128,6 +130,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		renderIcons,
 		refreshRootPlacements,
 		syncShortcuts,
+		syncWindowSubmenus,
 	} = deps;
 
 	const applyPayload = createApplyPayload( {
@@ -155,6 +158,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			layoutDispatcher?.applyDesktopIcons( icons ),
 		refreshRootPlacements,
 		syncShortcuts,
+		syncWindowSubmenus,
 	} );
 
 	// Fingerprint of the admin menu the dock currently reflects. Seeded

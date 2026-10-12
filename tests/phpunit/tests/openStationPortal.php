@@ -48,6 +48,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 			$_SERVER['REQUEST_METHOD'],
 			$_SERVER['HTTP_SEC_FETCH_MODE'],
 			$_SERVER['HTTP_SEC_FETCH_DEST'],
+			$_SERVER['HTTP_REFERER'],
 			$_GET[ OPENSTATION_PORTAL_FLAG ],
 			$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ],
 			$_GET[ OPENSTATION_CLASSIC_FLAG ],
@@ -648,6 +649,26 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
+	}
+
+	/**
+	 * A script navigation out of a classic tab ("Edit with Elementor")
+	 * carries no flag; the Referer does, so it stays classic.
+	 *
+	 * @covers ::openstation_redirect_plain_admin_to_portal
+	 * @covers ::openstation_is_classic_referer
+	 */
+	public function test_admin_redirect_keeps_a_navigation_from_a_classic_tab_classic() {
+		wp_set_current_user( self::$admin_id );
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_SERVER['REQUEST_METHOD'] = 'GET';
+		$_SERVER['REQUEST_URI']    = '/wp-admin/post.php?post=2&action=elementor';
+		$_SERVER['HTTP_REFERER']   = admin_url( 'post.php?post=2&action=edit&' . OPENSTATION_CLASSIC_FLAG . '=1' );
+		$GLOBALS['pagenow']        = 'post.php';
+
+		$redirect = $this->capture_admin_init_redirect();
+
+		$this->assertSame( '/wp-admin/post.php?post=2&action=elementor&' . OPENSTATION_CLASSIC_FLAG . '=1', $redirect );
 	}
 
 	/**

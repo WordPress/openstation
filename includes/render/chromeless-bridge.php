@@ -210,7 +210,24 @@ add_action( 'admin_head', 'openstation_chromeless_offset_neutralizer_script', 1 
  * browser painted the "Settings saved." notice the ring is
  * confirming. From the head it beats the body to the screen.
  *
- * The parent ignores it unless that window has a submit waiting.
+ * It also says where the frame landed, for documents the shell cannot
+ * read: one sent with `Document-Isolation-Policy`, as WordPress sends
+ * the block editor in Chromium, is cross-origin to the parent, and a
+ * Revisions window that restores into the editor still has to hand off.
+ *
+ * The parent acts on it only for a window with a submit waiting, or
+ * one whose frame it cannot read.
+ *
+ * A document can also change its address without navigating, and the
+ * block editor does on its first save: `post-new.php` becomes
+ * `post.php?post=N&action=edit` through `history.replaceState()`. For
+ * a frame the parent cannot read, nothing else tells it, so the window
+ * would go on calling the draft "a new post", and "Copy link" would
+ * hand out an empty editor. `os-iframe-location` reports every such
+ * change, and only updates where the parent thinks the frame is: it is
+ * not a navigation, so it settles no submit and resets no title. The
+ * wrap is installed here, ahead of every other script, so Core's own
+ * canonical-URL `replaceState()` in this same head is reported too.
  */
 function openstation_chromeless_navigation_ping_script() {
 	if ( ! openstation_is_chromeless_request() ) {
@@ -218,7 +235,18 @@ function openstation_chromeless_navigation_ping_script() {
 	}
 
 	wp_print_inline_script_tag(
-		"try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:'os-iframe-navigated'},window.location.origin);}}catch(e){}"
+		'try{if(window.parent&&window.parent!==window){'
+		. "window.parent.postMessage({type:'os-iframe-navigated',url:window.location.href},window.location.origin);"
+		. 'var osParent=window.parent,osOrigin=window.location.origin,'
+		. "osMoved=function(){try{osParent.postMessage({type:'os-iframe-location',url:window.location.href},osOrigin);}catch(e){}};"
+		. "['pushState','replaceState'].forEach(function(name){"
+		. 'var original=window.history[name];'
+		. "if(typeof original!=='function'){return;}"
+		. 'window.history[name]=function(){var result=original.apply(this,arguments);'
+		. 'osMoved();return result;};'
+		. '});'
+		. "window.addEventListener('popstate',osMoved);"
+		. '}}catch(e){}'
 	);
 }
 add_action( 'admin_head', 'openstation_chromeless_navigation_ping_script', 1 );
@@ -497,6 +525,11 @@ function openstation_chromeless_bridge_script() {
 		$soft_reload_json = '[]';
 	}
 
+	$menu_owner_json = wp_json_encode( openstation_chromeless_menu_owner() );
+	if ( false === $menu_owner_json ) {
+		$menu_owner_json = '""';
+	}
+
 	// Per-request data for the bridge bundle.
 	//
 	// This used to be a `str_replace()` pass over a nowdoc holding the
@@ -506,20 +539,21 @@ function openstation_chromeless_bridge_script() {
 	// was paid in full on every window open. The code now lives in
 	// `src/chromeless-bridge.js` and builds to a bundle that is
 	// fetched once and served from cache (browser, and the shared
-	// service-worker cache) for every later window; only these four
+	// service-worker cache) for every later window; only these five
 	// values still have to vary per request.
 	//
 	// `wp_json_encode` already guarantees safe JSON output, so the
 	// values are interpolated as-is — the same guarantee the
 	// `str_replace` pass relied on. Keys are underscore-prefixed to
 	// mark them as a private contract with the bundle rather than a
-	// public API; `src/chromeless-bridge.js` reads exactly these four.
+	// public API; `src/chromeless-bridge.js` reads exactly these five.
 	$data = sprintf(
-		'window.__osChromelessData = { _menuPayload: %s, _menuSig: %s, _identity: %s, _softReload: %s };',
+		'window.__osChromelessData = { _menuPayload: %s, _menuSig: %s, _identity: %s, _softReload: %s, _menuOwner: %s };',
 		$menu_payload_json,
 		$menu_sig_json,
 		$content_identity_json,
-		$soft_reload_json
+		$soft_reload_json,
+		$menu_owner_json
 	);
 
 	// `in_footer` + a `before` inline block reproduces exactly what the
@@ -544,3 +578,104 @@ function openstation_chromeless_bridge_script() {
 	wp_add_inline_script( 'os-chromeless-bridge', $data, 'before' );
 }
 add_action( 'admin_footer', 'openstation_chromeless_bridge_script' );
+
+/**
+ * The dock id of the admin menu WordPress files the current screen under.
+ *
+ * Picks the row the way `_wp_menu_output()` picks the sidebar's current
+ * menu, so a post editor answers to Posts, a page editor to Pages and a
+ * post's comments to Comments, however the window was opened. Read on
+ * `admin_footer`, after `menu-header.php` has applied the `parent_file`
+ * filter and resolved the parent of screens that set none.
+ *
+ * @return string Dock item id, or '' when no menu owns the screen.
+ */
+function openstation_chromeless_menu_owner() {
+	global $menu, $parent_file, $self, $typenow;
+
+	foreach ( (array) $menu as $item ) {
+		if ( empty( $item[2] ) ) {
+			continue;
+		}
+		if ( ( $parent_file && $item[2] === $parent_file ) || ( empty( $typenow ) && $self === $item[2] ) ) {
+			return openstation_dock_item_id( $item );
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Transient holding the screen a plugin redirected a plugins window to.
+ *
+ * @param int $user_id User ID.
+ * @return string Transient name.
+ */
+function openstation_plugins_handoff_key( $user_id ) {
+	return 'openstation_plugins_handoff_' . (int) $user_id;
+}
+
+/**
+ * Keeps a plugins window on the plugins screen when a plugin redirects
+ * away from it (Elementor sends a fresh install to its onboarding), and
+ * leaves the destination for that screen to open in a window of its
+ * own, the way a link to it would. One hop only, so a plugin that
+ * redirects on every load cannot loop.
+ *
+ * @param string $location Redirect URL.
+ * @return string The redirect URL, or the plugins screen to land on.
+ */
+function openstation_chromeless_hand_off_plugins_redirect( $location ) {
+	if ( empty( $location ) || 'plugins.php' !== ( $GLOBALS['pagenow'] ?? '' ) ) {
+		return $location;
+	}
+	if ( ! openstation_is_chromeless_request() || ! openstation_is_admin_redirect_target( $location ) ) {
+		return $location;
+	}
+	$destination = WP_Http::make_absolute_url( $location, self_admin_url() );
+	if ( 'plugins.php' === basename( (string) wp_parse_url( $destination, PHP_URL_PATH ) ) ) {
+		return $location;
+	}
+	$key = openstation_plugins_handoff_key( get_current_user_id() );
+	if ( false !== get_transient( $key ) ) {
+		delete_transient( $key );
+		return $location;
+	}
+	set_transient( $key, $destination, MINUTE_IN_SECONDS );
+
+	// A redirect from inside an action request (a plugin's own
+	// `activated_plugin` hook) must not run that action again.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only asks whether this is an action request.
+	if ( empty( $_REQUEST['action'] ) && isset( $_SERVER['REQUEST_URI'] ) ) {
+		return esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+	}
+	return self_admin_url( 'plugins.php' );
+}
+add_filter( 'wp_redirect', 'openstation_chromeless_hand_off_plugins_redirect', 998 );
+
+/**
+ * Opens the screen {@see openstation_chromeless_hand_off_plugins_redirect()}
+ * kept back, posted as the bridge posts a `target="_blank"` admin link.
+ */
+function openstation_chromeless_open_handed_off_redirect() {
+	if ( 'plugins.php' !== ( $GLOBALS['pagenow'] ?? '' ) || ! openstation_is_chromeless_request() ) {
+		return;
+	}
+	$key         = openstation_plugins_handoff_key( get_current_user_id() );
+	$destination = get_transient( $key );
+	if ( ! is_string( $destination ) || '' === $destination ) {
+		return;
+	}
+	delete_transient( $key );
+
+	$message = wp_json_encode(
+		array(
+			'type'       => 'os-iframe-admin-link',
+			'url'        => $destination,
+			'label'      => '',
+			'newContext' => true,
+		)
+	);
+	wp_print_inline_script_tag( 'try{window.parent.postMessage(' . $message . ',window.location.origin);}catch(e){}' );
+}
+add_action( 'admin_footer', 'openstation_chromeless_open_handed_off_redirect' );

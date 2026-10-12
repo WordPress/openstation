@@ -89,6 +89,8 @@ export interface PostFan {
 	clear(): void;
 	/** Invalidate any in-flight load — on close focus. */
 	invalidate(): void;
+	/** Drop every cached page: posts moved between terms elsewhere. */
+	forget(): void;
 	/** Per frame: ease the satellites toward their ring slots. */
 	ease(): void;
 	/** Radial lines from the centre to each satellite. */
@@ -389,6 +391,9 @@ export function createPostFan( deps: PostFanDeps ): PostFan {
 		},
 		invalidate() {
 			loadSeq++;
+		},
+		forget() {
+			cache.clear();
 		},
 		ease() {
 			for ( const p of posts.values() ) {

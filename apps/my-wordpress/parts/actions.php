@@ -77,8 +77,8 @@ function footprint_from_params( State $state, Os $os ) {
 
 /**
  * Put one person's footprint over the body. The id is validated (the
- * payload route re-checks the viewer); the name is only ever a
- * breadcrumb placeholder until the payload lands.
+ * payload route re-checks the viewer); the name is only ever breadcrumb
+ * text, so the entities the sanitiser writes for a `<` are decoded.
  *
  * @param State  $state State.
  * @param int    $user  User id; 0 or unknown opens nothing.
@@ -90,7 +90,7 @@ function open_footprint( State $state, $user, $name ) {
 		return;
 	}
 	$state->set( 'footprint', $user )
-		->set( 'fpName', sanitize_text_field( $name ) )
+		->set( 'fpName', openstation_plain_text_title( sanitize_text_field( $name ) ) )
 		->set( 'item', 0 )->set( 'into', 0 )->set( 'relation', '' );
 }
 

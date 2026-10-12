@@ -32,7 +32,7 @@ permissions:
 jobs:
   release:
     name: Build & publish release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     env:
       # The tag being released: the pushed ref, or the dispatch input.
       # Consumed as a shell variable rather than interpolated into `run:`

@@ -299,7 +299,7 @@ function calendar( payload: UserFootprint ): TemplateResult {
 				<div class="os-my-wordpress__footprint-grid">
 					${ weekdaySource.map( ( d, i ) => html`<span
 						class="os-my-wordpress__footprint-weekday"
-						style="grid-column:1;grid-row:${ weekdayRows[ i ] + 1 }"
+						style="grid-column:1;grid-row:${ weekdayRows[ i ] }"
 					>${ d.toLocaleDateString( undefined, { weekday: 'short' } ) }</span>` ) }
 					${ monthLabels }
 					${ Array.from( { length: firstDow }, ( _unused, i ) => html`<span

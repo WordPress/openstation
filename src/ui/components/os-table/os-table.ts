@@ -656,6 +656,22 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		this._syncSelectionDom( 'all' );
 	}
 
+	/**
+	 * Unselect the visible rows only — the header checkbox's "off".
+	 * Ids of rows a filter or an earlier query hid stay selected, the
+	 * mirror of `selectAll()` never reaching them.
+	 */
+	private _deselectVisible(): void {
+		let changed = false;
+		for ( const { row, index } of this._filteredRows() ) {
+			changed = this._selection.delete( this._getRowId( row, index ) ) || changed;
+		}
+		if ( changed ) {
+			this._emitSelectionChange();
+			this._syncSelectionDom( 'all' );
+		}
+	}
+
 	/** Empty the selection. */
 	clearSelection(): void {
 		if ( this._selection.size === 0 ) {
@@ -1097,7 +1113,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 					if ( cb.checked ) {
 						this.selectAll();
 					} else {
-						this.clearSelection();
+						this._deselectVisible();
 					}
 				} );
 				th.appendChild( cb );

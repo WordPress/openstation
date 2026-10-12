@@ -22,6 +22,9 @@
  *      so the href IS the navigation and it needs the referer hint
  *      the parent can no longer add on our behalf.
  *
+ * The page is a list screen (Media), so the same harness also checks
+ * that a content-change broadcast refreshes it.
+ *
  * @vitest-environment-options { "url": "http://localhost/wp-admin/upload.php?openstation_chromeless=1" }
  */
 import { describe, expect, test, beforeAll, beforeEach, vi } from 'vitest';
@@ -76,6 +79,12 @@ beforeAll( () => {
 		_identity: null,
 		_softReload: [],
 	};
+
+	// On a real page the standalone `iframe-bridge.js` prints ahead of
+	// this bundle and claims the screen-meta hoist first.
+	(
+		window as unknown as { __openStationScreenMetaInstalled: boolean }
+	).__openStationScreenMetaInstalled = true;
 
 	// eslint-disable-next-line no-eval -- the point is to exercise the
 	// emitted source rather than a re-implementation of it.
@@ -535,5 +544,33 @@ describe( 'chromeless bridge: which submits light the status ring', () => {
 		submitForm( html as string, onForm as ( ( f: HTMLFormElement ) => void ) | undefined );
 
 		expect( activityMessages() ).toHaveLength( 0 );
+	} );
+} );
+
+describe( 'chromeless bridge: a content-change broadcast', () => {
+	test( 'refreshes the list it matches in place', async () => {
+		const fetchMock = vi.fn(
+			async () => new Response( '<div id="wpbody-content">Published</div>' )
+		);
+		vi.stubGlobal( 'fetch', fetchMock );
+		document.body.innerHTML = '<div id="wpbody-content">Draft</div>';
+
+		try {
+			// What the shell posts to every window when a media item
+			// changes somewhere else.
+			window.dispatchEvent(
+				new MessageEvent( 'message', {
+					origin: window.location.origin,
+					data: { type: 'os-broadcast', topic: 'os.attachment.changed', payload: {} },
+				} )
+			);
+
+			await vi.waitFor( () =>
+				expect( document.getElementById( 'wpbody-content' )?.textContent ).toBe( 'Published' )
+			);
+			expect( fetchMock ).toHaveBeenCalledWith( window.location.href, expect.anything() );
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	} );
 } );

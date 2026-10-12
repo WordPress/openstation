@@ -209,7 +209,7 @@ export class OsSwitch extends Component {
 					role="switch"
 					aria-checked=${ checked ? 'true' : 'false' }
 					aria-label=${ label || 'Toggle' }
-					aria-describedby=${ description ? 'os-switch-desc' : '' }
+					aria-describedby=${ description ? 'os-switch-desc' : null }
 					?disabled=${ disabled }
 					@click=${ () => this._onClick() }
 					@keydown=${ ( e: KeyboardEvent ) => this._onKeyDown( e ) }

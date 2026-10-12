@@ -140,13 +140,13 @@ table.clearSelection();
 table.selection = new Set( savedIds );      // bulk replace
 ```
 
-`selectAll()` (and the header select-all checkbox) selects the rows passing the active client-side filters — never rows a filter is currently hiding. The header checkbox tri-state follows the same rule: "checked" means every *visible* row is selected. Tables without client-side filters are unaffected.
+`selectAll()` (and the header select-all checkbox) selects the rows passing the active client-side filters — never rows a filter is currently hiding. The header checkbox tri-state follows the same rule: "checked" means every *visible* row is selected, and unticking it unselects only the visible rows (call `clearSelection()` to empty everything). Tables without client-side filters are unaffected.
 
 **Why `getRowId` matters:** when the user reloads `data` from the server, selections survive the refresh because they're keyed by stable id, not array index. Fall back to the default (index) only when rows have no natural identifier.
 
 **Ids must be unique across the whole data set.** If the table mixes entity kinds whose id sequences are independent (e.g. posts and comments carry numeric ids from different tables), qualify the id with the kind — ``getRowId = ( row ) => `${ row.type }:${ row.id }` `` — or two different rows will share one selection key and select (and act) together.
 
-**Destructive consumers: clear the selection when the data set changes.** Selection deliberately survives `data` reassignment, so ids from a previous page / search / filter linger invisibly. If your bulk actions consume `table.selection` (trash, delete, role changes…), call `table.clearSelection()` whenever the query changes — otherwise a forgotten off-page selection rides silently into the next action. `createListTableSync()` from `@openstation/app` does this for a list app (a changed `listKey` clears, a changed data set prunes); see `apps/posts/parts/app.ts` for the pattern.
+**Destructive consumers: decide whether a selection outlives the query.** Selection deliberately survives `data` reassignment, so ids from a previous page / search / filter stay selected even though their rows are no longer loaded. If your bulk actions should only reach what is on screen, call `table.clearSelection()` whenever the query changes. If users should be able to gather rows across searches, which is what `createListTableSync()` from `@openstation/app` does for a list app, then show the full count in the bulk bar, send every selected id (not just the ids of loaded rows) and have the server skip ids that are gone, and clear the selection once the action has run. See `apps/posts/parts/app.ts` for the pattern.
 
 ## Sticky columns and sticky header
 

@@ -17,15 +17,25 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 	}
 
+	/**
+	 * `$pagenow` as the test bootstrap left it.
+	 *
+	 * @var string|null
+	 */
+	protected $pagenow;
+
 	public function set_up() {
 		parent::set_up();
 		set_current_screen( 'dashboard' );
 		wp_set_current_user( self::$admin_id );
+		$this->pagenow = $GLOBALS['pagenow'] ?? null;
 	}
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		unset( $_GET['openstation_chromeless'] );
+		delete_transient( openstation_plugins_handoff_key( self::$admin_id ) );
+		unset( $_GET['openstation_chromeless'], $_SERVER['REQUEST_URI'] );
+		$GLOBALS['pagenow'] = $this->pagenow;
 		parent::tear_down();
 	}
 
@@ -166,5 +176,50 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 
 		$location = 'https://accounts.example.com/oauth/authorize?client_id=foo';
 		$this->assertSame( $location, openstation_chromeless_preserve_redirect( $location ) );
+	}
+
+	/**
+	 * A plugin redirecting its activation landing to its own screen
+	 * (Elementor's onboarding) sends the window back to the plugins
+	 * screen, which opens that screen once, as a new-context admin link.
+	 * Core's own landing on the plugins screen passes through.
+	 *
+	 * @covers ::openstation_chromeless_hand_off_plugins_redirect
+	 * @covers ::openstation_chromeless_open_handed_off_redirect
+	 */
+	public function test_a_plugin_redirect_off_the_plugins_screen_opens_in_its_own_window() {
+		$this->enter_chromeless();
+		$GLOBALS['pagenow']     = 'plugins.php';
+		$_SERVER['REQUEST_URI'] = '/wp-admin/plugins.php?activate=true';
+		$core                   = self_admin_url( 'plugins.php?activate=true' );
+		$destination            = admin_url( 'admin.php?page=elementor-app#onboarding' );
+
+		$this->assertSame( $core, openstation_chromeless_hand_off_plugins_redirect( $core ) );
+		$this->assertSame( '/wp-admin/plugins.php?activate=true', openstation_chromeless_hand_off_plugins_redirect( $destination ) );
+
+		ob_start();
+		openstation_chromeless_open_handed_off_redirect();
+		openstation_chromeless_open_handed_off_redirect();
+		$markup = (string) ob_get_clean();
+		$this->assertSame( 1, substr_count( $markup, '"type":"os-iframe-admin-link"' ) );
+		$this->assertStringContainsString( '"url":' . wp_json_encode( $destination ), $markup );
+		$this->assertStringContainsString( '"newContext":true', $markup );
+	}
+
+	/**
+	 * One hop only: a plugin that redirects on every load gets through
+	 * the second time instead of looping the window.
+	 *
+	 * @covers ::openstation_chromeless_hand_off_plugins_redirect
+	 */
+	public function test_a_plugin_that_redirects_again_is_let_through() {
+		$this->enter_chromeless();
+		$GLOBALS['pagenow']     = 'plugins.php';
+		$_SERVER['REQUEST_URI'] = '/wp-admin/plugins.php?activate=true';
+		$destination            = admin_url( 'admin.php?page=welcome' );
+
+		openstation_chromeless_hand_off_plugins_redirect( $destination );
+
+		$this->assertSame( $destination, openstation_chromeless_hand_off_plugins_redirect( $destination ) );
 	}
 }

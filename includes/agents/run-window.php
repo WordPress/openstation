@@ -114,7 +114,7 @@ function openstation_agent_run_window_register() {
 				// their own messages, WhatsApp-style.
 				'currentUser' => array(
 					'id'        => (int) get_current_user_id(),
-					'name'      => (string) wp_get_current_user()->display_name,
+					'name'      => openstation_plain_text_title( wp_get_current_user()->display_name ),
 					'avatarUrl' => (string) get_avatar_url( get_current_user_id(), array( 'size' => 96 ) ),
 				),
 			),

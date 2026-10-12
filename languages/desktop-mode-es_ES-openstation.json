@@ -12,6 +12,9 @@
             "%1$d nodes · %2$d links": [
                 ""
             ],
+            "%1$d of %2$d": [
+                ""
+            ],
             "%1$dh %2$dm": [
                 ""
             ],
@@ -115,6 +118,9 @@
             "%s sub-pages": [
                 "Subpáginas de %s"
             ],
+            "%s to find content and ask questions about your site.": [
+                ""
+            ],
             "%s — double-click to rename": [
                 ""
             ],
@@ -181,6 +187,9 @@
             "A writing desk. A blank page takes two thirds of the screen, the library sits in the margin, and the rest of the admin is somewhere else.": [
                 ""
             ],
+            "AI features aren’t available on this site. You can still use Commands.": [
+                ""
+            ],
             "About": [
                 ""
             ],
@@ -211,6 +220,12 @@
             "Add one in Connectors.": [
                 ""
             ],
+            "Add to page": [
+                ""
+            ],
+            "Add to post": [
+                ""
+            ],
             "Add widget": [
                 "Añadir widget"
             ],
@@ -218,6 +233,9 @@
                 "Añadido"
             ],
             "Agent chat": [
+                ""
+            ],
+            "All your menu items are here": [
                 ""
             ],
             "Alphabet Soup": [
@@ -233,6 +251,12 @@
                 ""
             ],
             "Always visible": [
+                ""
+            ],
+            "Answer at least one question first.": [
+                ""
+            ],
+            "Answer whichever you like. Every question is optional, and short is fine.": [
                 ""
             ],
             "Any image from your media library or an upload, sized to cover the whole desk.": [
@@ -263,6 +287,9 @@
                 ""
             ],
             "Ask MIO": [
+                ""
+            ],
+            "Ask a site administrator to connect an AI provider to use the AI assistant.": [
                 ""
             ],
             "Ask about this window, or tell me what to change.": [
@@ -421,6 +448,9 @@
             "Circle": [
                 ""
             ],
+            "Click a dock tile. Every admin screen opens as a window you can move, resize and keep beside another.": [
+                ""
+            ],
             "Clock": [
                 "Reloj"
             ],
@@ -499,6 +529,9 @@
             "Commerce": [
                 ""
             ],
+            "Configure the layout as you wish": [
+                ""
+            ],
             "Connectors": [
                 ""
             ],
@@ -520,6 +553,9 @@
             "Convert to post": [
                 ""
             ],
+            "Copy link": [
+                "Mostrando %d"
+            ],
             "Corkboard container missing.": [
                 ""
             ],
@@ -536,6 +572,9 @@
                 ""
             ],
             "Could not convert the note to a post.": [
+                ""
+            ],
+            "Could not copy the link": [
                 ""
             ],
             "Could not deactivate %s": [
@@ -691,6 +730,9 @@
             "Do I have any spam comments?": [
                 ""
             ],
+            "Do it for me": [
+                ""
+            ],
             "Dock": [
                 ""
             ],
@@ -716,6 +758,9 @@
                 ""
             ],
             "Drafts": [
+                ""
+            ],
+            "Drag the window to the left edge until the preview appears, then let go. It takes half the screen; another window can take the other half.": [
                 ""
             ],
             "Drag to pin": [
@@ -754,6 +799,24 @@
             "Edit draft": [
                 ""
             ],
+            "Edit navigation menu": [
+                ""
+            ],
+            "Edit page": [
+                ""
+            ],
+            "Edit pattern": [
+                ""
+            ],
+            "Edit post": [
+                ""
+            ],
+            "Edit template": [
+                ""
+            ],
+            "Edit template part": [
+                ""
+            ],
             "Edit this workspace…": [
                 ""
             ],
@@ -761,6 +824,9 @@
                 ""
             ],
             "Eight vertical slats retract at once, letting the page through between them.": [
+                ""
+            ],
+            "Email (optional)": [
                 ""
             ],
             "Enable MIO in the dock first": [
@@ -773,6 +839,9 @@
                 "Entrar en pantalla completa"
             ],
             "Environment included with the report": [
+                ""
+            ],
+            "Every WordPress admin menu lives on this rail. Hover a tile for its name; the ones with submenus fan them out.": [
                 ""
             ],
             "Every post type is switched off": [
@@ -824,6 +893,9 @@
                 ""
             ],
             "Find a player…": [
+                ""
+            ],
+            "Find anything": [
                 ""
             ],
             "Find my post about…": [
@@ -901,6 +973,9 @@
             "Got it": [
                 ""
             ],
+            "Got two minutes?": [
+                ""
+            ],
             "Gradient": [
                 ""
             ],
@@ -962,6 +1037,9 @@
                 ""
             ],
             "How does it look?": [
+                ""
+            ],
+            "How is OpenStation going?": [
                 ""
             ],
             "Hue": [
@@ -1039,6 +1117,9 @@
             "Leave empty to number it": [
                 ""
             ],
+            "Leave your email if you are happy for us to follow up with a question or two. We like to thank people who help us.": [
+                ""
+            ],
             "Level": [
                 ""
             ],
@@ -1048,7 +1129,13 @@
             "Link accounts": [
                 ""
             ],
+            "Link copied": [
+                ""
+            ],
             "Linked to “%s”": [
+                ""
+            ],
+            "Loading WordPress commands…": [
                 ""
             ],
             "Loading details…": [
@@ -1255,6 +1342,9 @@
             "No suggestions — press %s to run with the text you typed.": [
                 ""
             ],
+            "No thanks": [
+                ""
+            ],
             "No threads yet": [
                 ""
             ],
@@ -1309,6 +1399,9 @@
             "Nothing is moved. Windows land where they land.": [
                 ""
             ],
+            "Nothing is sent until you click Send. Then your answers, your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on go to openstation.blog, the plugin’s own site, run by Automattic. Without an email, nothing identifies you or your site.": [
+                ""
+            ],
             "Nothing matches.": [
                 ""
             ],
@@ -1351,6 +1444,9 @@
             "Open Preferences": [
                 ""
             ],
+            "Open a window": [
+                ""
+            ],
             "Open an agent from the Agents section of WP Explorer, or pick a past conversation.": [
                 ""
             ],
@@ -1375,7 +1471,7 @@
             "Open in a new browser tab": [
                 "Abrir en una nueva pestaña del navegador"
             ],
-            "Open in browser tab": [
+            "Open in classic wp-admin": [
                 ""
             ],
             "Open in editor": [
@@ -1405,10 +1501,10 @@
             "Open the agent in WP Explorer": [
                 ""
             ],
-            "Open the site assistant": [
+            "Open windows": [
                 ""
             ],
-            "Open windows": [
+            "OpenStation Preferences → Appearance → Desktop layout.": [
                 ""
             ],
             "OpenStation is no longer active. Returning to the WordPress dashboard…": [
@@ -1421,6 +1517,9 @@
                 ""
             ],
             "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
+                ""
+            ],
+            "Opening the workspace wizard…": [
                 ""
             ],
             "Opens in a new tab:": [
@@ -1508,6 +1607,9 @@
                 ""
             ],
             "Press %s to run": [
+                ""
+            ],
+            "Press %s to search screens, commands and content, or ask the assistant.": [
                 ""
             ],
             "Press Challenge to throw down one of your scores, or pick a row from the scoreboard.": [
@@ -1702,6 +1804,9 @@
             "Send challenge": [
                 ""
             ],
+            "Send to %s": [
+                "Añadir %s"
+            ],
             "Send to agent": [
                 ""
             ],
@@ -1709,6 +1814,9 @@
                 ""
             ],
             "Server returned %d": [
+                ""
+            ],
+            "Set up the AI assistant": [
                 ""
             ],
             "Shake this window when done": [
@@ -1736,6 +1844,9 @@
                 ""
             ],
             "Show MIO on wallpaper": [
+                ""
+            ],
+            "Show me": [
                 ""
             ],
             "Show only the apps I pick": [
@@ -1771,10 +1882,16 @@
             "Skip and deactivate": [
                 ""
             ],
+            "Skip tour": [
+                ""
+            ],
             "Slats": [
                 ""
             ],
             "Small": [
+                ""
+            ],
+            "Snap it to the side": [
                 ""
             ],
             "Snow": [
@@ -1843,6 +1960,9 @@
             "Suggested commands": [
                 ""
             ],
+            "Sure": [
+                ""
+            ],
             "Surprise me": [
                 ""
             ],
@@ -1882,7 +2002,16 @@
             "Teardrop": [
                 ""
             ],
+            "Thank you! That really helps.": [
+                ""
+            ],
+            "That does not look like an email address. Fix it, or leave the field empty.": [
+                ""
+            ],
             "That drop could not be processed — please try again.": [
+                ""
+            ],
+            "The AI assistant isn’t set up yet": [
                 ""
             ],
             "The AI provider could not be reached. Try again in a moment.": [
@@ -1931,6 +2060,9 @@
                 ""
             ],
             "The preview opens once the post has been saved.": [
+                ""
+            ],
+            "The rail can move to another edge, split in two, or park itself out of the way.": [
                 ""
             ],
             "The server answered with error %d.": [
@@ -2098,6 +2230,12 @@
             "View": [
                 ""
             ],
+            "View page": [
+                ""
+            ],
+            "View post": [
+                "Acciones de ventana"
+            ],
             "View revisions": [
                 ""
             ],
@@ -2125,10 +2263,28 @@
             "Wave %s": [
                 ""
             ],
+            "We could not send that right now. Please try again in a moment.": [
+                ""
+            ],
+            "We want your feedback to improve OpenStation. Three short questions, all optional.": [
+                ""
+            ],
             "Website": [
                 ""
             ],
+            "What broke, and on which screen? One sentence is enough for us to find it.": [
+                ""
+            ],
+            "What can we do for you?": [
+                ""
+            ],
+            "What do you mainly use OpenStation for?": [
+                ""
+            ],
             "What does it open with?": [
+                ""
+            ],
+            "What gets in your way, or what is missing?": [
                 ""
             ],
             "What happened? What did you expect?": [
@@ -2171,6 +2327,9 @@
                 "Acciones de ventana"
             ],
             "Windows": [
+                ""
+            ],
+            "Windows, snapping and search: that is the station. Everything else is in OpenStation Preferences, and this tour is there too whenever you want it back.": [
                 ""
             ],
             "Wobble speed": [
@@ -2230,6 +2389,9 @@
             "You are here": [
                 ""
             ],
+            "You are set": [
+                ""
+            ],
             "You beat the %1$s challenge: %2$s vs %3$s.": [
                 ""
             ],
@@ -2240,6 +2402,9 @@
                 ""
             ],
             "You have unsaved changes. Are you sure you want to close this window?": [
+                ""
+            ],
+            "You have unsent answers. Close again to discard them.": [
                 ""
             ],
             "You missed the %1$s challenge: %2$s vs %3$s.": [
@@ -2270,6 +2435,9 @@
                 ""
             ],
             "just now": [
+                ""
+            ],
+            "list of menu item names\u0004%1$s, %2$s": [
                 ""
             ],
             "points": [

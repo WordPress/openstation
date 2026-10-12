@@ -106,6 +106,17 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		expect( payload.rows ).toBe( 2 );
 	} );
 
+	test( 'tile() gives a window its minimum width out of its row', async () => {
+		const wide = await manager.open( { ...openConfig( 'wide' ), minWidth: 1000 } );
+		const other = await manager.open( openConfig( 'other' ) );
+
+		manager.tile();
+
+		// One row of two: 1568 - 12 of gap = 1556, not two cells of 778.
+		expect( [ wide.element.style.left, wide.element.style.width ] ).toEqual( [ '16px', '1000px' ] );
+		expect( [ other.element.style.left, other.element.style.width ] ).toEqual( [ '1028px', '556px' ] );
+	} );
+
 	test( 'tile() emits starting before applied', async () => {
 		await manager.open( openConfig( 'a' ) );
 		await manager.open( openConfig( 'b' ) );

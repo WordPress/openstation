@@ -58,7 +58,10 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		modifier: 'os-mindmap',
 		unavailable: __( 'Mindmap unavailable.' ),
 		loadFailed: __( 'Couldn’t load categories:' ),
-		emptyHint: __( 'No custom categories yet. Click "Add root category" to start branching.' ),
+		// Accurate whatever the default is called: a renamed default
+		// ("OpenStation") is still the only category, and still the one
+		// untagged posts fall into.
+		emptyHint: __( 'Only the default category so far. Click "Add root category" to start branching.' ),
 		chrome: {
 			buttons: [
 				{ variant: 'primary', icon: 'dashicons-plus', label: __( 'Add root category' ) },
@@ -146,6 +149,21 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		return node;
 	}
 
+	/**
+	 * The terms on the first ring, in ring order: every top-level
+	 * category except the default, then the default category's own
+	 * children. The default sits at the centre, outside the walk, so its
+	 * children were never placed: a reparented one stayed pinned wherever
+	 * it was dropped (on top of the centre), and after a reload one was
+	 * never drawn at all. They belong on the ring around it, like roots.
+	 */
+	function ringTerms( terms: TermRow[] ): { ring: TermRow[]; uncategorized: TermRow | undefined } {
+		const roots = terms.filter( ( t ) => ! t.parent );
+		const uncategorized = roots.find( isUncategorized );
+		const centreKids = uncategorized ? terms.filter( ( t ) => t.parent === uncategorized.id ) : [];
+		return { ring: [ ...roots.filter( ( r ) => ! isUncategorized( r ) ), ...centreKids ], uncategorized };
+	}
+
 	/** Radial layout: targets per node; the frame eases nodes into them. */
 	function buildTree(): void {
 		const terms = canvas.terms;
@@ -156,10 +174,9 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			childMap.set( t.parent, list );
 		}
 		// Uncategorized is the centrepiece — every untagged post drains
-		// into it — so it sits at 0,0 outside the radial walk.
-		const allRoots = childMap.get( 0 ) ?? [];
-		const roots = allRoots.filter( ( r ) => ! isUncategorized( r ) );
-		const uncategorized = allRoots.find( isUncategorized );
+		// into it — so it sits at 0,0 outside the radial walk, and its
+		// children share the first ring with the other roots.
+		const { ring: roots, uncategorized } = ringTerms( terms );
 
 		const place = ( term: TermRow, depth: number, rootIdx: number, angle: number, angleSpan: number ): void => {
 			// More roots → a bigger ring; a centred Uncategorized forces a
@@ -374,6 +391,10 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 		},
 		clearPosts: () => fan.clear(),
 		loadPosts: () => fan.load(),
+		isDefault: ( id ) => {
+			const term = canvas.terms.find( ( t ) => t.id === id );
+			return !! term && isUncategorized( term );
+		},
 	};
 
 	function treeBounds(): Bounds | null {
@@ -408,11 +429,14 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			const nextHue = readAdminThemeHue( host );
 			if ( nextHue !== themeHue ) {
 				themeHue = nextHue;
-				const roots = canvas.terms.filter( ( term ) => ! term.parent && ! isUncategorized( term ) );
+				const roots = ringTerms( canvas.terms ).ring;
+				const ringIds = new Set( roots.map( ( term ) => term.id ) );
 				for ( const node of nodes.values() ) {
+					// Climb to the node's ring ancestor (a root, or a child
+					// of the centre), whose index picks the cluster colour.
 					let root = node;
 					const seen = new Set< number >();
-					while ( root.parent && nodes.has( root.parent ) && ! seen.has( root.id ) ) {
+					while ( ! ringIds.has( root.id ) && root.parent && nodes.has( root.parent ) && ! seen.has( root.id ) ) {
 						seen.add( root.id ); root = nodes.get( root.parent )!;
 					}
 					const index = roots.findIndex( ( term ) => term.id === root.id );
@@ -496,6 +520,24 @@ export async function mountCategoriesMindmap( host: HTMLElement, env: CanvasEnv 
 			}
 			buildTree();
 			camera.fitToView( treeBounds(), { animate: true } );
+		},
+		termsReloaded: () => {
+			// Another window recategorised a post or edited a term. Same
+			// rebuild as `countsChanged`, but the camera stays put: the
+			// user is looking at this window while the other one saves.
+			for ( const t of canvas.terms ) {
+				const node = nodes.get( t.id );
+				if ( node && node.count !== t.count ) {
+					node.count = t.count;
+					chips.relayout( node );
+				}
+			}
+			buildTree();
+			// The editor shows the focused term's count; repainting it
+			// would wipe a half-typed name or an open new-category draft.
+			if ( draft === null && ! canvas.sidebar.contains( canvas.sidebar.ownerDocument.activeElement ) ) {
+				paintSidebar( sidebarHost );
+			}
 		},
 		dragging: () => dragNode !== null,
 		pointerMove: ( _ev, cursorWorld ) => {

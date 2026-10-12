@@ -32,7 +32,11 @@ describe( 'statusControl', () => {
 		expect( control?.getAttribute( 'value' ) ).toBe( 'draft' );
 		expect( control?.classList.contains( 'os-app-list__status' ) ).toBe( true );
 		const pills = Array.from( host.querySelectorAll( 'os-segment' ) );
-		expect( pills.map( ( p ) => p.getAttribute( 'value' ) ) ).toEqual( [ null, 'publish', 'draft' ] );
+		// The "All" pill's value is the empty string and it survives as
+		// an attribute (#764). It read `null` here while the renderer
+		// dropped empty attributes, which is the same cause that lost
+		// the option entirely from the phone's <os-select>.
+		expect( pills.map( ( p ) => p.getAttribute( 'value' ) ) ).toEqual( [ '', 'publish', 'draft' ] );
 		expect( pills.map( ( p ) => p.textContent ) ).toEqual( [ 'All', 'Published', 'Drafts' ] );
 	} );
 

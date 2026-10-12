@@ -81,6 +81,18 @@ function jitterSeed( note: Note ): number {
 }
 
 /**
+ * Flag a read-only note body whose text runs past the paper, so
+ * notes.css can fade the last line into "keep scrolling". The
+ * editable side gets the same flag from `<os-textarea auto-grow>`.
+ */
+function syncMoreBelow( body: HTMLElement ): void {
+	body.toggleAttribute(
+		'data-more-below',
+		body.scrollTop + body.clientHeight < body.scrollHeight - 1,
+	);
+}
+
+/**
  * The `post` glyph from `@wordpress/icons`, inlined. Marks the
  * "Convert to post" affordance. `fill` inherits from the button's ink
  * color (see notes.css).
@@ -178,9 +190,21 @@ export class NotesLayer {
 		controller.element.remove();
 	}
 
-	/** Rebind a controller after a temp (optimistic) id resolves. */
+	/**
+	 * Rebind a controller after a temp (optimistic) id resolves.
+	 *
+	 * The boot list or a Heartbeat delta can deliver the new note while
+	 * its create POST is still in flight, and pin a second paper for the
+	 * server id. Drop that copy: once out of the map nothing can remove
+	 * it, so it outlives a trash or a convert.
+	 */
 	rekeyNote( oldId: number, controller: NoteController ): void {
 		this.controllers.delete( oldId );
+		const copy = this.controllers.get( controller.note.id );
+		if ( copy && copy !== controller ) {
+			copy.dispose();
+			copy.element.remove();
+		}
 		this.controllers.set( controller.note.id, controller );
 	}
 
@@ -346,12 +370,21 @@ export class NotesLayer {
 		if ( ! this.canCreatePosts || ! note.canEdit ) {
 			return;
 		}
-		void convertNoteToPost( note, {
-			onEvict: ( noteId ) => this.removeNote( noteId ),
-			onRestore: ( restored ) => {
-				this.bumpHighWater( restored.updatedAtMs );
-				this.upsertNote( restored, { animate: 'move' } );
-			},
+		// The server builds the draft from the text it has saved, and the
+		// last edit can still be on its debounce or in flight. Let it land
+		// first; a second activation meanwhile finds the note gone and stops.
+		const controller = this.controllers.get( note.id );
+		void ( controller?.settleEdits() ?? Promise.resolve() ).then( () => {
+			if ( controller && this.controllers.get( note.id ) !== controller ) {
+				return;
+			}
+			void convertNoteToPost( controller?.note ?? note, {
+				onEvict: ( noteId ) => this.removeNote( noteId ),
+				onRestore: ( restored ) => {
+					this.bumpHighWater( restored.updatedAtMs );
+					this.upsertNote( restored, { animate: 'move' } );
+				},
+			} );
 		} );
 	}
 
@@ -663,6 +696,8 @@ export class NoteController {
 		const body = document.createElement( 'div' );
 		body.className = 'os-pinned-note__body';
 		body.textContent = this.note.text;
+		body.addEventListener( 'scroll', () => syncMoreBelow( body ), { passive: true } );
+		window.requestAnimationFrame( () => syncMoreBelow( body ) );
 
 		const chip = document.createElement( 'div' );
 		chip.className = 'os-pinned-note__attribution';
@@ -768,9 +803,10 @@ export class NoteController {
 		} else {
 			const body = this.paperEl.querySelector(
 				'.os-pinned-note__body',
-			);
+			) as HTMLElement | null;
 			if ( body ) {
 				body.textContent = note.text;
+				syncMoreBelow( body );
 			}
 		}
 	}
@@ -876,6 +912,12 @@ export class NoteController {
 	 */
 	flushPendingEdits(): void {
 		this.flushSave();
+	}
+
+	/** Save typed text now; resolves once every queued save has answered. */
+	settleEdits(): Promise< void > {
+		this.flushSave();
+		return this.patchChain;
 	}
 
 	private flushSave(): void {

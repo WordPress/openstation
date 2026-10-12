@@ -203,19 +203,22 @@ export function createSessionSaver(
 				 * so a connectivity regression doesn't go silent under
 				 * the session-beacon path. */
 				doAction( HOOKS.SHELL_ERROR, { scope: 'session-save', error: err } );
-			} finally {
-				inFlight = false;
-				activeSave = null;
-				if ( dirty ) {
-					dirty = false;
-					// Back through `schedule()`, not straight into another
-					// `doSave()`. Handing over directly would let a slow
-					// request chain into an immediate second write and
-					// sidestep both the debounce and the rate limit.
-					schedule();
-				}
 			}
-		} )();
+		} )().finally( () => {
+			// Run cleanup after activeSave has been assigned, even if
+			// request setup throws synchronously. An inline finally would
+			// clear it first, then the assignment would retain a settled
+			// promise and flush() would await it forever without yielding
+			// to the browser's event loop.
+			inFlight = false;
+			activeSave = null;
+			if ( dirty ) {
+				dirty = false;
+				// Back through schedule() so the queued write observes
+				// both the debounce and the rate limit.
+				schedule();
+			}
+		} );
 		return activeSave;
 	};
 

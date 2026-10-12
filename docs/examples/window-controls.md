@@ -117,7 +117,7 @@ wp.os.applyWindowControls( 'my-plugin/dashboard', {
 } );
 ```
 
-Sets the `os-window__controls--left` class on the cluster — your CSS theme can react to that for the actual layout flip.
+Sets the `os-window__controls--left` class on the cluster, which moves it to the start of the title bar. A theme that draws the title bar differently can restyle that class.
 
 ## Recipe 7 — Mutate the resolved list with a filter
 

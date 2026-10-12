@@ -5,20 +5,20 @@
  * A list window renders its `<os-table>` once, marked `os-preserve`,
  * and drives it from `updated()`: the component owns its own DOM and
  * a re-render must not rebuild the cells, the pickers or the scroll
- * position. Every list window then does the same four things on every
+ * position. Every list window then does the same things on every
  * paint — a card list on a phone (and the columns built for it), the
- * one-time wiring, a selection cleared when the QUERY changes (an id
- * picked under the previous page must not ride into the next bulk
- * action), and the rows assigned only when they actually changed with
- * the selection pruned to what is still visible. Four windows wrote
- * that by hand; this owns it.
+ * one-time wiring, and the rows assigned only when they actually changed.
+ * The selection is left alone: `<os-table>` keys it by row id, so rows
+ * picked under one search or filter stay picked under the next and a
+ * bulk action acts on all of them. Whoever runs a bulk action clears
+ * the selection afterwards.
  *
  * Usage, in a client view:
  *
  *   // in the ui bag:   table: createListTableSync< Row >(),
  *   // in updated():    ui.table.sync( {
  *   //     table: ctx.root.querySelector( '[data-my-table]' ),
- *   //     rows, listKey: `${ state.page }|${ state.search }`,
+ *   //     rows,
  *   //     fingerprint: rows.map( ( r ) => `${ r.id }:${ r.modified }` ).join( '|' ),
  *   //     columns: ( phone ) => buildColumns( phone ),
  *   //     wire: ( table ) => { table.sort = …; table.addEventListener( … ); },
@@ -43,17 +43,17 @@ export interface ListTableSyncOptions< Row > {
 	table: ListTableLike< Row > | null;
 	/** The rows to show. */
 	rows: Row[];
-	/** The query's identity (page, search, filters, sort): a change clears the selection. */
-	listKey: string;
+	/** @deprecated No longer read: the selection survives query changes. Kept for compatibility. */
+	listKey?: string;
 	/** Change detection for `rows`: an unchanged key skips the `data` assignment. */
 	fingerprint: string;
 	/** The columns for a desk (`false`) or a phone (`true`); rebuilt when the answer changes or after `invalidateColumns()`. */
 	columns: ( phone: boolean ) => unknown;
 	/** One-time wiring: `getRowId`, the default sort, listeners. */
 	wire?: ( table: ListTableLike< Row > ) => void;
-	/** Row identity, matching the table's `getRowId`. Default `row.id`. */
+	/** @deprecated No longer read. Kept for compatibility. */
 	rowId?: ( row: Row ) => string | number;
-	/** The selection was pruned to the visible rows (or cleared); `kept` is what survived. */
+	/** Called after the rows are reassigned, with the current selection (including rows no longer loaded). */
 	onSelection?: ( kept: string[] ) => void;
 }
 
@@ -61,11 +61,12 @@ export interface ListTableSyncResult {
 	phone: boolean;
 	columnsChanged: boolean;
 	dataChanged: boolean;
+	/** @deprecated Always `false`: the sync no longer touches the selection. Kept for compatibility. */
 	selectionChanged: boolean;
 }
 
 export interface ListTableSync< Row > {
-	/** Run the four steps against the current paint. */
+	/** Bring the table in step with the current paint. */
 	sync( opts: ListTableSyncOptions< Row > ): ListTableSyncResult;
 	/** Rebuild the columns on the next `sync()` (a hidden-columns change, fresh filter options). */
 	invalidateColumns(): void;
@@ -80,7 +81,6 @@ function selectionKeys( table: ListTableLike< unknown > ): string[] {
 export function createListTableSync< Row >(): ListTableSync< Row > {
 	let phoneColumns: boolean | null = null;
 	let wired = false;
-	let listKey: string | null = null;
 	let fingerprint: string | null = null;
 
 	return {
@@ -101,7 +101,6 @@ export function createListTableSync< Row >(): ListTableSync< Row > {
 			if ( ! table ) {
 				return result;
 			}
-			const rowId = opts.rowId ?? ( ( row: Row ) => ( row as { id: string | number } ).id );
 
 			// A card per row on a phone, and the columns built for it —
 			// rebuilt only when the answer changes.
@@ -118,33 +117,13 @@ export function createListTableSync< Row >(): ListTableSync< Row > {
 				opts.wire?.( table );
 			}
 
-			// A query change replaces the result set wholesale — ids picked
-			// under the previous view must not linger invisibly.
-			if ( opts.listKey !== listKey ) {
-				listKey = opts.listKey;
-				if ( selectionKeys( table ).length > 0 ) {
-					table.clearSelection();
-					result.selectionChanged = true;
-					opts.onSelection?.( [] );
-				}
-			}
-
 			// Assign the rows only when they changed, so a selection or
-			// expand repaint never rebuilds the cells; then prune the
-			// selection to the rows still on screen so a bulk bar's count
-			// stays truthful.
+			// expand repaint never rebuilds the cells.
 			if ( opts.fingerprint !== fingerprint ) {
 				fingerprint = opts.fingerprint;
 				table.data = opts.rows;
 				result.dataChanged = true;
-				const visible = new Set( opts.rows.map( ( row ) => String( rowId( row ) ) ) );
-				const before = selectionKeys( table );
-				const kept = before.filter( ( key ) => visible.has( key ) );
-				if ( kept.length !== before.length ) {
-					( table as { selection: unknown } ).selection = kept;
-					result.selectionChanged = true;
-					opts.onSelection?.( kept );
-				}
+				opts.onSelection?.( selectionKeys( table ) );
 			}
 			return result;
 		},

@@ -334,7 +334,7 @@ export const wallpaperSection: Section = ( s, ctx ) => {
 			<div
 				class="os-settings__wallpaper-config-slot"
 				data-expanded=${ hasConfig ? 'true' : 'false' }
-				style=${ hasConfig ? 'margin-top:12px' : '' }
+				style=${ hasConfig ? 'margin-top:12px' : null }
 			>
 				<div class="os-settings__wallpaper-config-slot-inner">
 					${ hasConfig

@@ -41,6 +41,20 @@ Three rules follow from that, and all have tests:
 
 **The failure mode to watch for after a palette change** is a chain that now means something else: a fill resolving to a 10%-alpha wash, or a base and its hover state — declared in two different rules, distinguished only by their fallback literals — collapsing onto the same value once the shared token is declared. `<os-button>`'s ghost/secondary hover did exactly that. When a surface stops reacting to the pointer, check whether both states resolve through the same palette token, and declare the second one.
 
+### The accent marks state; it never decorates
+
+`--os-ui-accent` is Pulse, and the default theme once wore it on almost every surface, so it stopped standing out. It now stays where it marks **the thing you are on**: a checked control, the selected sidebar row's edge, the dock dividers, icons and illustrations. Everywhere else, selection shows through contrast and depth — a lifted fill, a stronger border, inverted ink — and instruction UI (a coachmark, a notice, an empty state) is neutral. So a new surface does not read `--os-ui-accent` for a border, a counter, a ring or a button because "that is the brand colour"; the shell tour shipped a pulsing pink ring, a pink counter and a pink button on top of a dock that already uses the accent to say which window is in front, and the ring marked nothing.
+
+When a surface genuinely needs the accent, it reads it through a literal "how much" token declared in `variables.css` — the pattern of `--os-ui-segmented-selected-accent`, `--os-ui-swatch-ring-width`, `--os-ai-accent`: the OpenStation palette answers `0%` or `0px`, Legacy answers the old look, and a theme can turn it back up. Document the token in the tables in `docs/desktop-themes.md`. Focus rings are the one exception on every surface: focus does not dim and does not go neutral.
+
+`tests/vitest/accent-reach.test.ts` holds the component kit to this. A style file that reads `--os-ui-accent*` must be listed there with the state it marks; a new component that reaches for the accent fails until someone writes that line down. Feature stylesheets under `assets/css/` are not swept and follow the rule by review.
+
+**Long-lived branches re-read this file.** The rule above landed the morning after the shell tour was branched, and the tour merged two weeks later, through three trunk merges, still wearing the look the rule had retired: a merge brings the code in, not the rules. Before asking for review on a branch older than a day, diff the rulebook and the docs against trunk and re-check the branch against anything new:
+
+```bash
+git diff $( git merge-base HEAD origin/trunk )..origin/trunk -- AGENTS.md docs/
+```
+
 ### The holographic layer lives in `src/ui/holo.ts`
 
 **"Holographic" is a moment, not a skin, and there is exactly one module that decides what it means.**
@@ -284,7 +298,7 @@ When the user installs or activates a plugin, the **chromeless bridge** inside t
 Payload shape (`openstation_build_menu_payload()` in `includes/core/payload.php` builds it, `includes/render/chromeless-bridge.php` emits it, `src/menu-refresh-apply.ts` owns the consumer contract — `createApplyPayload()` there returns the `applyPayload` function that `src/boot/menu-refresh.ts` wires up):
 
 ```
-{ dockItems, nativeWindows, nativeWindowScriptData,
+{ dockItems, nativeWindows,
   serverWidgets, serverWallpapers,
   serverCommandScripts, serverCommands,
   serverSettingsTabScripts, serverSettingsTabs,
@@ -300,7 +314,7 @@ Payload shape (`openstation_build_menu_payload()` in `includes/core/payload.php`
   scriptDepPayloads }
 ```
 
-On the wire every entry's `scriptDeps` is a list of **handles**, and each handle's payload (URL, l10n, before/after) rides once in `scriptDepPayloads` (GH#892). `openstation_compact_script_deps()` builds it on the server, at entry depth only; `hydrateScriptDeps()` in `src/script-dep-payloads.ts` puts the payloads back before any sync module reads them, and the applier merges the refresh's map into `config.scriptDepPayloads`. A new `server*` list gets this for free; a new sync module must run after hydration, never read `scriptDeps` straight off the wire.
+On the wire every entry's `scriptDeps` is a list of **handles**, and each handle's payload (URL, l10n, before/after) rides once in `scriptDepPayloads` (GH#892). Native windows resolve their bundles, companions and tabs through the same map, so there is one handle-keyed map, not two (GH#898); `windowScriptData()` in `src/native-windows.ts` still accepts an older server's `nativeWindowScriptData`. `openstation_compact_script_deps()` builds it on the server, at entry depth only; `hydrateScriptDeps()` in `src/script-dep-payloads.ts` puts the payloads back before any sync module reads them, and the applier merges the refresh's map into `config.scriptDepPayloads`. A new `server*` list gets this for free; a new sync module must run after hydration, never read `scriptDeps` straight off the wire.
 
 - **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
 - For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.openStationWallpapers[id]` / `window.openStationWidgets[id]`). The sync reads the def and registers it.
@@ -405,7 +419,7 @@ Three things to know:
 - **`workAreaRectOf( parent )` is the drop-in for `parent.clientWidth` / `clientHeight` wherever something is placed by DEFAULT.** It reads the element's live size and only adds the insets, so a consumer running synchronously after a layout change is still right, and a test document with no layout gets exactly the numbers it used to. Window open (a registered size is fitted to it), session restore, cascade, tile, child placement, widgets, sticky notes, embed-window restore and the icon grid all go through it; the Corkboard, the categories mind map and the tags cloud, which frame content inside their OWN box, use `workAreaInsetsOf( host )` instead. **Maximize and snap also use the work area** and reflow on `subscribeWorkArea` changes, so a Static dock never covers their bottom actions. Fullscreen and the manual drag clamp still use the whole desktop area.
 - **A dynamic rail claims nothing.** Preferences → Appearance → Desktop layout → Dock behavior (and, in Split, Sidebar behavior) is stamped per rail as `data-os-dock-behavior` — an attribute per rail, not a body class, because Split's two rails answer independently (PHP stamps `#os-dock` for the first paint; the apply pass and `src/dock-behavior.ts` re-stamp live, the latter because the Split sidebar is a fresh element on every rebuild). A parked rail is the same element folded into a thin indicator line at its edge (`dock.css`, the `os-dock-indicator-*` tokens); `src/dock-behavior.ts` alone decides parked vs. `os-dock--revealed` (edge zone, the rail's own box, its flyouts, keyboard focus — no `:hover` in CSS, because the flip runs through the View Transitions API and a CSS-flipped state would jump instead of morphing), and `measureWorkArea` skips every rail carrying `dynamic`. The apply pass calls `refreshWorkArea()` right after re-stamping. The rail is never transformed: its tooltip is `position: fixed`, and a transformed ancestor would pin it to the rail.
 - **The admin bar and the side docks need no special case**, and adding one is the mistake. `.os-shell` already starts below the admin bar when the user keeps it — below its *measured* bottom edge: `src/admin-bar-height.ts` publishes `--os-admin-bar-height` on `<html>`, and every consumer reads it with Core's `--wp-admin--admin-bar--height` as the fallback, because Core's token is a promise about Core's bar and a host (WordPress.com's staff debug chrome) can make the bar taller or push it down. Anything new that hangs below the bar reads that same chain, never the Core token alone. A left or right dock is a flex sibling of the area. Measuring the area's viewport rect is what makes the snapshot aware of both. Only chrome that floats over the area claims an inset.
-- **The notch does not claim, by contract**, and neither should a new floating affordance without a conversation: a work area is only useful while few things carve it. `assets/css/notch.css` and the notch section of `docs/javascript-reference.md` say why.
+- **A new floating affordance does not claim without a conversation**: a work area is only useful while few things carve it.
 
 `tests/vitest/work-area.test.ts` pins the rules; the `.os-area` padding, the `.os-icons` grid and the `.os-widgets` column read the same tokens in `assets/css/desktop.css`.
 

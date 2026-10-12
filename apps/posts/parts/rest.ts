@@ -13,6 +13,7 @@
  * @public
  */
 
+import { decodeHTML } from '../../../src/utils';
 import type {
 	AuthorOption,
 	CategoryTerm,
@@ -253,7 +254,7 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 					`wp/v2/users${ qs( { per_page: 100, who: 'authors', _fields: 'id,name', orderby: 'name', order: 'asc' } ) }`,
 					{ method: 'GET', signal },
 				);
-				return Array.isArray( data ) ? data : [];
+				return Array.isArray( data ) ? data.map( ( author ) => ( { ...author, name: decodeHTML( author.name ) } ) ) : [];
 			} catch {
 				// A capability-gated 401/403 means "no filter dropdown",
 				// never a dead table.

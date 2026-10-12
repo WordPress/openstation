@@ -45,8 +45,6 @@
 	// in), the MutationObserver picks up the freshly-rendered grid
 	// tiles and runs `enhance()` on them — at which point the
 	// grid-side `wp.media.attachment()` lookup is safe.
-	start();
-
 	// Flag set during our own attachment drags so the capture-phase
 	// blocker below can distinguish between "user is dragging a file
 	// from the OS" (which the WP uploader should handle) and "user is
@@ -71,6 +69,12 @@
 	// the `.media` table class so we don't enhance unrelated WP list
 	// tables (Posts, Pages, …) that share the same row-id convention.
 	var LIST_SELECTOR = 'table.media tbody tr[id^="post-"]';
+	var LIST_DELEGATION_INSTALLED = false;
+
+	// Initialize selectors and the delegation latch before the first
+	// scan. Resetting the latch after start() installs a second pair of
+	// delegated listeners when the observer sees a new list row.
+	start();
 
 	function start() {
 		// Enhance whatever's already on the page.
@@ -300,7 +304,6 @@
 	 * Mounted ONCE per page (sentinel-guarded) from `start()`. No
 	 * per-row work, no MutationObserver bookkeeping for list rows.
 	 */
-	var LIST_DELEGATION_INSTALLED = false;
 	function installListDelegation() {
 		if ( LIST_DELEGATION_INSTALLED ) {
 			return;

@@ -14,6 +14,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { isShellDocumentUrl, SHELL_PAGE_SLUG } from '../../src/shell-url';
 import { isSpeculatableDocument } from '../../src/pwa/sw-policy';
 import { withChromelessParam } from '../../src/window/dom';
+import { menuPageFor, shareableUrl } from '../../src/window/share-link';
 import { openCurrentPage } from '../../src/boot/session';
 import type { DesktopConfig } from '../../src/types';
 import type { WindowManager } from '../../src/window-manager';
@@ -122,5 +123,39 @@ describe( 'consumers refuse the shell screen', () => {
 			url: `${ ADMIN }edit.php`,
 			title: 'Posts',
 		} );
+	} );
+} );
+
+describe( 'shareableUrl', () => {
+	const origin = 'https://example.test';
+
+	it( 'drops the shell flags and nonces and keeps the page args as written', () => {
+		expect( shareableUrl(
+			`${ origin }/wp-admin/post.php?post=12&action=edit&openstation_chromeless=1&_wpnonce=abc`,
+			origin,
+		) ).toBe( `${ origin }/wp-admin/post.php?post=12&action=edit` );
+		expect( shareableUrl( `${ origin }/wp-admin/edit.php?s=a%20b`, origin ) )
+			.toBe( `${ origin }/wp-admin/edit.php?s=a%20b` );
+	} );
+
+	it( 'refuses another origin and the shell screen itself', () => {
+		expect( shareableUrl( 'https://elsewhere.test/wp-admin/', origin ) ).toBe( '' );
+		expect( shareableUrl( `${ origin }/wp-admin/admin.php?page=${ SHELL_PAGE_SLUG }`, origin ) ).toBe( '' );
+	} );
+} );
+
+describe( 'menuPageFor', () => {
+	const pages = [
+		{ id: 'posts', page: 'edit.php' },
+		{ id: 'categories', page: 'edit-tags.php?taxonomy=category' },
+	];
+
+	it( 'shares the screen the visible tab stands for, ignoring strips that name no tab', () => {
+		expect( menuPageFor( pages, [ 'grid', 'categories' ] ) ).toBe( 'edit-tags.php?taxonomy=category' );
+	} );
+
+	it( 'falls back only when the window has a single page', () => {
+		expect( menuPageFor( pages, [] ) ).toBe( '' );
+		expect( menuPageFor( [ pages[ 0 ] ], [] ) ).toBe( 'edit.php' );
 	} );
 } );

@@ -138,6 +138,12 @@ export class OsSettings {
 	public layer: WallpaperLayer;
 
 	/**
+	 * Takes a theme's recommended widget column. The column is stored
+	 * per browser by the widget layer, which the shell wires in here.
+	 */
+	public applyWidgets: ( ids: readonly string[] ) => void = () => undefined;
+
+	/**
 	 * Subscribers to Preferences changes — the Preferences app, the
 	 * engines that read a key at use time (unfocus effects, window
 	 * links, the navigation model), and third-party tabs. Fired from
@@ -523,7 +529,16 @@ export class OsSettings {
 	 * for every write.
 	 */
 	public save( opts: OsSettingsUpdateOptions = {} ): void {
-		saveState( this._persistableState(), opts );
+		const persistable = this._persistableState();
+		// What was just saved IS the user's own settings now, so it is
+		// also what the workspace hands back. Keeping the copy taken on
+		// entry instead put the wallpaper they had on the way in back on
+		// screen the moment the desk was left, or its look re-applied,
+		// although the one they picked on the desk was already saved.
+		if ( this.baseState ) {
+			this.baseState = cloneState( persistable );
+		}
+		saveState( persistable, opts );
 		this.notify();
 	}
 
@@ -615,6 +630,9 @@ export class OsSettings {
 		if ( Object.keys( applied ).length > 0 ) {
 			this.save();
 			this.apply();
+		}
+		if ( applied.widgets ) {
+			this.applyWidgets( applied.widgets );
 		}
 		return applied;
 	}

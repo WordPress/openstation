@@ -14,9 +14,9 @@
  *     We load via `wp-content/db.php` (the standard SQLite drop-in
  *     that sqlite-database-integration installs).
  *   - Studio reads `$wp_env['db']['path']` for the SQLite file path.
- *     We read the `FQDB` constant the integration plugin defines.
+ *     We read `DB_PATH`, falling back to `FQDB` for older integrations.
  *
- * The class body is unchanged from Studio's original.
+ * The remaining class body is unchanged from Studio's original.
  *
  * @see https://github.com/phpmyadmin/phpmyadmin/blob/962857e4f63d42e38f11ff4d63f5e722018add76/libraries/classes/Dbal/DbiMysqli.php
  * @see https://github.com/phpmyadmin/phpmyadmin/blob/142c0cf3be84c346174b730b6aa3ebcf44029256/src/Dbal/MysqliResult.php
@@ -36,7 +36,7 @@ use WP_SQLite_Driver;
 // Load the SQLite driver via the standard WP drop-in. The drop-in at
 // wp-content/db.php (installed by sqlite-database-integration) chains
 // into the plugin's own bootstrap which loads WP_SQLite_Driver,
-// WP_SQLite_Connection, and defines the FQDB constant we use below.
+// WP_SQLite_Connection, and resolves the database path constants used below.
 if (!class_exists('WP_SQLite_Driver') && defined('WP_CONTENT_DIR')) {
 	$osc_pma_dropin = WP_CONTENT_DIR . '/db.php';
 	if (is_readable($osc_pma_dropin)) {
@@ -277,7 +277,14 @@ class DbiMysqli implements DbiExtension {
 	private $last_error_number = 0;
 
     public function connect($user, $password, array $server) {
-		$path = defined('FQDB') ? FQDB : '';
+		if (defined('DB_PATH')) {
+			$path = DB_PATH;
+		} elseif (defined('FQDB')) {
+			$path = FQDB;
+		} else {
+			$path = '';
+		}
+
         $this->driver = new WP_SQLite_Driver(
 			new WP_SQLite_Connection(array('path' => $path)),
 			'wordpress'

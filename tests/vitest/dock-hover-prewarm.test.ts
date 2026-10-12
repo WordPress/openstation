@@ -23,8 +23,20 @@ vi.mock( '../../src/native-url-remap', async ( importOriginal ) => {
 	const actual = await importOriginal< typeof import('../../src/native-url-remap') >();
 	return {
 		...actual,
-		// The native Posts window is in charge of edit.php; nothing else remaps.
-		resolveNativeUrlRemap: ( url: string ) => ( url.includes( 'edit.php' ) ? 'desktop-mode-posts' : null ),
+		// The native Posts window is in charge of edit.php, and the native
+		// Comments window of edit-comments.php, opened with its `post` param.
+		resolveNativeUrlRemap: ( url: string ) => {
+			if ( url.includes( 'edit-comments.php' ) ) {
+				return 'desktop-mode-comments';
+			}
+			return url.includes( 'edit.php' ) ? 'desktop-mode-posts' : null;
+		},
+		resolveNativeUrlRemapTarget: ( url: string ) => {
+			if ( url.includes( 'edit-comments.php' ) ) {
+				return { id: 'desktop-mode-comments', params: { post: 0 } };
+			}
+			return url.includes( 'edit.php' ) ? { id: 'desktop-mode-posts' } : null;
+		},
 	};
 } );
 
@@ -115,6 +127,14 @@ describe( 'dock — hover prewarm of native windows', () => {
 		vi.advanceTimersByTime( DWELL_MS );
 		expect( shell.prewarmWindow ).toHaveBeenCalledWith( 'desktop-mode-posts' );
 		expect( h.prewarm ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a remap that opens with params warms with the same params', () => {
+		// Otherwise the open, which carries them, never takes the warm.
+		const h = setup( [ menuItem( 'edit-comments.php', `${ window.location.origin }/wp-admin/edit-comments.php` ) ] );
+		pointer( h.tile( 'edit-comments.php' ), 'pointerenter' );
+		vi.advanceTimersByTime( DWELL_MS );
+		expect( shell.prewarmWindow ).toHaveBeenCalledWith( 'desktop-mode-comments', { params: { post: 0 } } );
 	} );
 
 	test( 'a system tile warms its own window', () => {

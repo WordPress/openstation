@@ -1169,6 +1169,41 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The picker lists eligible people only, and ineligible accounts
+	 * sorting first must not use up its page: with the eligibility
+	 * applied after the LIMIT, 20 Subscribers named "Aaron …" left
+	 * the picker empty.
+	 *
+	 * @covers ::openstation_files_rest_search_users
+	 */
+	public function test_user_search_skips_agents_and_fills_page_past_ineligible_users() {
+		for ( $i = 0; $i < 22; $i++ ) {
+			self::factory()->user->create(
+				array(
+					'role'         => 'subscriber',
+					'display_name' => sprintf( 'Aaron Customer %02d', $i ),
+				)
+			);
+		}
+		$agent_id = self::factory()->user->create(
+			array(
+				'role'         => 'editor',
+				'display_name' => 'Aaa Agent',
+			)
+		);
+		update_user_meta( $agent_id, OPENSTATION_AGENT_USER_MARKER_META, '1' );
+
+		wp_set_current_user( self::$owner_id );
+		$req = new WP_REST_Request( 'GET', '/desktop-mode/v1/files/users/search' );
+		$req->set_param( 'q', '' );
+		$data = openstation_files_rest_search_users( $req )->get_data();
+		$ids  = wp_list_pluck( $data['users'], 'id' );
+
+		$this->assertContains( self::$editor_id, $ids );
+		$this->assertNotContains( $agent_id, $ids );
+	}
+
+	/**
 	 * A malicious or misconfigured filter on
 	 * `openstation_files_sharing_tables_for_purge` must not be able
 	 * to drop arbitrary tables. The purge endpoint validates every
@@ -1479,6 +1514,39 @@ class Tests_OpenStation_FilesSharing extends WP_UnitTestCase {
 			(int) $link_id,
 			$delta_ids,
 			'Heartbeat delta must surface the newly-placed link so the open folder window repaints WITHOUT F5.'
+		);
+	}
+
+	/**
+	 * The other direction: the owner lists what a writer put in
+	 * their shared folder. The placements belong to the folder, not
+	 * to whoever placed them, for the owner as for every recipient.
+	 *
+	 * @covers ::openstation_files_get_for_user_folder
+	 */
+	public function test_owner_lists_what_a_writer_added_to_their_shared_folder() {
+		$folder_id = openstation_files_create_folder( self::$owner_id, array(
+			'name' => 'Marketing',
+		) );
+		$share_id  = openstation_folder_share_invite(
+			$folder_id, self::$owner_id, 'user', (string) self::$editor_id, 'write'
+		);
+		openstation_folder_share_accept( $share_id, self::$editor_id );
+
+		$link_id = openstation_files_place(
+			self::$editor_id,
+			$folder_id,
+			'link',
+			'https://example.org/',
+			array( 'meta' => array( 'name' => 'Example' ) )
+		);
+		$this->assertNotInstanceOf( WP_Error::class, $link_id );
+
+		$rows = openstation_files_get_for_user_folder( self::$owner_id, $folder_id );
+		$this->assertContains(
+			(int) $link_id,
+			array_map( static fn( $r ) => (int) $r['id'], $rows ),
+			'The owner must see what a writer added to their shared folder.'
 		);
 	}
 

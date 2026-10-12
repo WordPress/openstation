@@ -170,6 +170,11 @@ describe( 'the activity footprint', () => {
 			root.querySelectorAll( '.os-my-wordpress__footprint-cell--l4' ).length,
 		).toBeGreaterThan( 0 );
 		expect( text ).toContain( 'Less' );
+		// The "Mon" label sits on the Mondays' row (2026-08-31 is one).
+		const row = ( el: Element | null ) => el?.getAttribute( 'style' )?.match( /grid-row:(\d+)/ )?.[ 1 ];
+		expect( row( root.querySelector( '.os-my-wordpress__footprint-weekday' ) ) ).toBe(
+			row( root.querySelector( '[data-date="2026-08-31"]' ) ),
+		);
 		// Rhythm, callout, timeline, footer.
 		expect( text ).toContain( 'Publishing rhythm' );
 		expect( text ).toContain( 'Most prolific month' );

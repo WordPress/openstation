@@ -152,6 +152,22 @@ describe( 'workspace appearance — a view, never a write', () => {
 		expect( saved?.wallpaper ).toBe( 'galaxy' );
 	} );
 
+	test( 'an edit saved on an overridden desk is still there after leaving it', () => {
+		settings.state.wallpaper = 'galaxy';
+		settings.state.accent = 'pulse';
+		settings.setWorkspaceAppearance( { accent: 'rose' } );
+
+		// The user picks a wallpaper on this desk. It is saved as theirs,
+		// so the copy kept aside to hand back on exit has to carry it too, or
+		// leaving the desk paints the wallpaper they had on the way in.
+		settings.update( { wallpaper: 'aurora' } );
+		expect( saved?.wallpaper ).toBe( 'aurora' );
+
+		settings.setWorkspaceAppearance( null );
+		expect( settings.state.wallpaper ).toBe( 'aurora' );
+		expect( settings.state.accent ).toBe( 'pulse' );
+	} );
+
 	test( 'an edit made IN PLACE on an overridden object key is still the user’s', () => {
 		// The wallpaper settings editor merges into
 		// `wallpaperSettings[ id ]` rather than replacing the record,

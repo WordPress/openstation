@@ -490,13 +490,23 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	public function test_sanitizer_drops_malformed_items_and_whitelists_fields() {
 		$sanitized = openstation_window_related_entities_sanitize(
 			array(
+				// Labels are painted as text: entities are decoded.
 				array(
-					'id'    => 'good',
+					'id'         => 'good',
+					'group'      => 'acme/things',
+					'groupLabel' => 'Q&amp;A',
+					'label'      => 'Tom &amp; Jerry&#8217;s',
+					'url'        => 'https://example.test/wp-admin/admin.php',
+					'count'      => '5',
+					'extra'      => 'dropped',
+				),
+				// Only markup: empty once decoded, so dropped here
+				// rather than failing the whole ref client-side.
+				array(
+					'id'    => 'markup',
 					'group' => 'acme/things',
-					'label' => 'Good',
-					'url'   => 'https://example.test/wp-admin/admin.php',
-					'count' => '5',
-					'extra' => 'dropped',
+					'label' => '<span class="dashicons dashicons-star-filled"></span>',
+					'url'   => 'https://example.test/',
 				),
 				array(
 					'id'    => '',
@@ -529,11 +539,12 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->assertSame(
 			array(
 				array(
-					'id'    => 'good',
-					'group' => 'acme/things',
-					'label' => 'Good',
-					'url'   => 'https://example.test/wp-admin/admin.php',
-					'count' => 5,
+					'id'         => 'good',
+					'group'      => 'acme/things',
+					'label'      => 'Tom & Jerry’s',
+					'url'        => 'https://example.test/wp-admin/admin.php',
+					'groupLabel' => 'Q&A',
+					'count'      => 5,
 				),
 				array(
 					'id'    => 'zero',
@@ -565,7 +576,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 */
 	public function test_rest_content_identity_returns_fresh_identity_with_related() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$post_id = self::factory()->post->create( array( 'post_title' => 'Fresh' ) );
+		$post_id = self::factory()->post->create( array( 'post_title' => "It's fresh" ) );
 		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
 
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
@@ -577,7 +588,8 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$identity = $response->get_data()['identity'];
 		$this->assertSame( 'post', $identity['type'] );
 		$this->assertSame( $post_id, $identity['id'] );
-		$this->assertSame( 'Fresh', $identity['label'] );
+		// `get_the_title()` says `It&#8217;s`; the label names windows as text.
+		$this->assertSame( 'It’s fresh', $identity['label'] );
 		$this->assertNotEmpty( $this->items_in_group( $identity['related'], 'comments' ) );
 	}
 

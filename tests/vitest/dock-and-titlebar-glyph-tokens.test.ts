@@ -126,14 +126,16 @@ describe( 'dock glyph tokens', () => {
 		// and a theme's ring colour paints them everywhere else.
 		const css = readCss( 'dock.css' );
 
+		// `--os-dock-active-indicator` lets a theme recolour the marks
+		// without moving the focus ring; unset, they read the outline.
 		expect(
 			css.match(
-				/background: var\( --os-dock-item-outline, #fff \);/g
+				/background: var\( --os-dock-active-indicator, var\( --os-dock-item-outline, #fff \) \);/g
 			)
 		).toHaveLength( 3 );
 		expect(
 			css.match(
-				/border: 1px solid var\( --os-dock-item-outline, rgba\( 255, 255, 255, 0\.85 \) \);/g
+				/border: 1px solid var\( --os-dock-active-indicator, var\( --os-dock-item-outline, rgba\( 255, 255, 255, 0\.85 \) \) \);/g
 			)
 		).toHaveLength( 3 );
 	} );
@@ -204,9 +206,12 @@ describe( 'focused title-bar control tokens', () => {
 		const css = readCss( 'window-chrome.css' );
 
 		// Deliberately NOT a `-focused-` token: destructive red is
-		// signal, not chrome. Both halves resolve it the same way.
+		// signal, not chrome. Both halves resolve it the same way, and a
+		// theme re-points only the close button.
 		expect(
-			css.match( /--os-ui-btn-danger-hover: var\( --os-ui-danger, #d63638 \);/g )
+			css.match(
+				/--os-ui-btn-danger-hover: var\( --os-titlebar-close-bg-hover, var\( --os-ui-danger, #d63638 \) \);/g
+			)
 		).toHaveLength( 2 );
 	} );
 

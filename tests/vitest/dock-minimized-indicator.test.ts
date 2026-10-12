@@ -23,6 +23,7 @@ interface WinStub {
 	id: string;
 	state: 'normal' | 'minimized' | 'maximized';
 	config: { title?: string; icon?: string; baseId: string; desktopId?: string };
+	_menuOwner?: string;
 }
 
 function makeWin( id: string, baseId: string, state: WinStub[ 'state' ] = 'normal' ): WinStub {
@@ -322,5 +323,19 @@ describe( 'Dock — minimized window indicator', () => {
 
 		const tile = tileFor( container, 'os-settings' );
 		expect( tile.classList.contains( 'os-dock__item--active' ) ).toBe( true );
+	} );
+
+	test( 'a window whose page reported the menu lights the tile beside the menu\'s own window', () => {
+		// A post editor opened from the Posts list is keyed on its own
+		// page, so only the menu its page reported ties it to Posts.
+		const list = makeWin( 'edit-php', 'edit-php' );
+		const editor = makeWin( 'post-php-post-5', 'post-php-post-5' );
+		editor._menuOwner = 'menu-posts';
+		const manager = makeManager( [ list, editor ], editor );
+		const { container } = mount( manager );
+		document.dispatchEvent( new CustomEvent( 'os-window-focused' ) );
+
+		const tile = tileFor( container, 'menu-posts' );
+		expect( tile.classList.contains( 'os-dock__item--focused' ) ).toBe( true );
 	} );
 } );

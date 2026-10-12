@@ -414,6 +414,20 @@ Two rules follow, both tested:
   early costs a column the canvas had room for, wrapping one cell
   late loses a tile.
 
+**A registered icon that arrives with a live refresh is seated by the
+client.** The server mints the placement for a newly registered icon
+(`openstation_files_auto_place_orphans()`) on the fallback canvas, and
+it counts every row it holds as taken, including rows the user cannot
+see: an app the navigation keeps on the dock, a plugin that has since
+been deactivated. Left there, a plugin activated from the Plugins
+window lands at the top of a new column with empty cells above and
+beside it. So when the menu refresh brings icon ids the shell did not
+have, the refetch that follows hands them to `settleArrivedShortcuts()`
+(`src/desktop-files/layer.ts`), which moves each one to the first free
+cell of the desktop as it is painted, in its reading order, measured
+against the work area, and persists the move. Icons minted on a page
+load, with no shell open to measure anything, keep the server's cell.
+
 Two consequences worth knowing, both learned the hard way:
 
 - The tile is `box-sizing: border-box`, so its declared width **is**

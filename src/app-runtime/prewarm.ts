@@ -11,11 +11,14 @@
  * answer instead of fetching, and the rows are on screen a frame
  * after the frame is.
  *
- * Only a window's DEFAULT first mount is warmable: a deep link (a
- * window opened with params) derives its state on the server and
- * always fetches. A warmed answer that failed is dropped, so the open
- * falls back to a normal request; a stale one (older than the TTL)
- * is dropped too — the rows it holds may have moved on.
+ * A warm is held per app AND open params: a URL remap opens even a
+ * plain dock click with params (Comments `{ post: 0 }`, Plugins
+ * `{ tab: 'installed' }`), so the hover warms with the params the click
+ * will open with, and an open takes only a warm whose params match. A
+ * deep link with params nobody warmed fetches as before. A warmed
+ * answer that failed is dropped, so the open falls back to a normal
+ * request; a stale one (older than the TTL) is dropped too — the rows
+ * it holds may have moved on.
  *
  * @internal
  */
@@ -32,13 +35,23 @@ interface Warmed {
 
 const warmed = new Map< string, Warmed >();
 
+/** Open params, as the session sends them. */
+export type PrewarmParams = Record< string, string | number | boolean >;
+
+/** One key per app and params, independent of the params' key order. */
+function keyOf( id: string, params: PrewarmParams = {} ): string {
+	const sorted = Object.keys( params ).sort().map( ( k ) => [ k, params[ k ] ] );
+	return `${ id }\n${ JSON.stringify( sorted ) }`;
+}
+
 /**
  * Send an app's default first `mount` ahead of its open. `false` when a
  * fresh one is already held (in flight or answered) — a hover that
  * lingers never costs a second request.
  */
-export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch' ] ): boolean {
-	const held = warmed.get( config.id );
+export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch' ], params: PrewarmParams = {} ): boolean {
+	const key = keyOf( config.id, params );
+	const held = warmed.get( key );
 	if ( held && Date.now() - held.at < PREWARM_TTL_MS ) {
 		return false;
 	}
@@ -61,7 +74,7 @@ export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch'
 				view: 'main',
 				state: { ...config.state },
 				args: {},
-				params: {},
+				params: { ...params },
 				client: { width: 0, height: 0 },
 			} ),
 		},
@@ -75,7 +88,7 @@ export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch'
 			return payload && payload.ok === true ? payload : null;
 		} )
 		.catch( () => null );
-	warmed.set( config.id, { promise, at: Date.now() } );
+	warmed.set( key, { promise, at: Date.now() } );
 	return true;
 }
 
@@ -84,18 +97,19 @@ export function startPrewarm( config: AppConfig, hostFetch: RuntimeHost[ 'fetch'
  * One-shot: the answer is the opening window's, and the next open
  * warms anew.
  */
-export function takePrewarm( id: string ): Promise< DispatchResponse | null > | undefined {
-	const held = warmed.get( id );
+export function takePrewarm( id: string, params: PrewarmParams = {} ): Promise< DispatchResponse | null > | undefined {
+	const key = keyOf( id, params );
+	const held = warmed.get( key );
 	if ( ! held ) {
 		return undefined;
 	}
-	warmed.delete( id );
+	warmed.delete( key );
 	return Date.now() - held.at < PREWARM_TTL_MS ? held.promise : undefined;
 }
 
 /** Whether a fresh warmed answer is held for an app (in flight or answered). */
-export function hasPrewarm( id: string ): boolean {
-	const held = warmed.get( id );
+export function hasPrewarm( id: string, params: PrewarmParams = {} ): boolean {
+	const held = warmed.get( keyOf( id, params ) );
 	return !! held && Date.now() - held.at < PREWARM_TTL_MS;
 }
 

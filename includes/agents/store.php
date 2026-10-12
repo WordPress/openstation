@@ -1000,6 +1000,41 @@ function openstation_agent_get_agents( $args = array() ) {
 	return get_users( array_merge( $defaults, is_array( $args ) ? $args : array() ) );
 }
 
+/**
+ * The agents the current user can hand an entity to with "Send to".
+ *
+ * Every agent declaring a `send-to` trigger that this user may invoke,
+ * with the entity kinds the trigger accepts (empty = every kind). The
+ * shell inlines it so desktop and folder tile menus can offer
+ * "Send to <agent>" synchronously, the way WP Explorer's menu does.
+ * Empty while the framework is off or the user may not invoke agents.
+ *
+ * @return array<int, array{id: int, name: string, description: string, avatarUrl: string, entityKinds: string[]}>
+ */
+function openstation_agents_send_to_targets() {
+	if ( ! openstation_agents_enabled() || ! openstation_agents_user_can_invoke() ) {
+		return array();
+	}
+	$targets = array();
+	foreach ( openstation_agent_get_agents() as $user ) {
+		$trigger = openstation_agent_trigger_for_source( (int) $user->ID, 'send-to' );
+		if ( null === $trigger || ! openstation_agent_user_can_invoke_agent( (int) $user->ID, 'send-to' ) ) {
+			continue;
+		}
+		$kinds     = isset( $trigger['config']['entityKinds'] ) && is_array( $trigger['config']['entityKinds'] )
+			? array_values( array_map( 'strval', $trigger['config']['entityKinds'] ) )
+			: array();
+		$targets[] = array(
+			'id'          => (int) $user->ID,
+			'name'        => openstation_plain_text_title( $user->display_name ),
+			'description' => openstation_agent_get_description( (int) $user->ID ),
+			'avatarUrl'   => openstation_agent_avatar_url( (int) $user->ID ),
+			'entityKinds' => $kinds,
+		);
+	}
+	return $targets;
+}
+
 // ---------------------------------------------------------------------------
 // Orchestrators — the only write paths, each firing one audit action
 // ---------------------------------------------------------------------------
@@ -1120,7 +1155,10 @@ function openstation_agent_update( $user_id, array $fields ) {
 				__( 'Agent name cannot be empty.', 'desktop-mode' )
 			);
 		}
-		if ( $name !== (string) $user->display_name ) {
+		// Compared as plain text: the stored name carries entities
+		// (`&amp;`), and the client sends back the decoded one it was
+		// given on every save. Raw, that reads as a rename.
+		if ( openstation_plain_text_title( $name ) !== openstation_plain_text_title( $user->display_name ) ) {
 			$changed['name'] = array(
 				'from' => (string) $user->display_name,
 				'to'   => $name,

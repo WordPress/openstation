@@ -60,8 +60,13 @@ defined( 'ABSPATH' ) || exit;
  * - 8: retires automatic AI comment scoring.
  * - 9: repairs the Comment Concierge's misspelled ability slug in every
  *   agent's stored allowlist.
+ * - 10: the first-run stamps and the shell tour. On a site with prior
+ *   desktop use, records that the site was enabled before the stamps
+ *   existed (`openstation_first_enabled_at` with `at: 0, via: backfill`)
+ *   and marks the `shell-tour` intro seen for every prior user, so an
+ *   update never greets a veteran with a first-boot tour.
  */
-const OPENSTATION_MIGRATION_VERSION = 9;
+const OPENSTATION_MIGRATION_VERSION = 10;
 
 /**
  * Option storing the highest migration version that has run. autoload=no.
@@ -173,6 +178,10 @@ function openstation_run_pending_migrations( $from ) {
 	if ( $from < 9 ) {
 		openstation_migrate_agent_ability_slugs();
 	}
+
+	if ( $from < 10 ) {
+		openstation_migrate_first_run_stamps();
+	}
 }
 
 /**
@@ -233,6 +242,55 @@ function openstation_migrate_agent_ability_slugs() {
 			$meta_key,
 			wp_slash( (string) wp_json_encode( array_values( array_unique( $slugs ) ) ) )
 		);
+	}
+}
+
+/**
+ * Migration 10 — the first-run stamps meet an install with a past.
+ *
+ * Two facts about a site that already had people in the shell, neither
+ * of which the stamps can learn on their own:
+ *
+ * 1. The site HAS activated. `openstation_first_enabled_at` is written
+ *    the first time a user enables from here on, so without this an
+ *    old, busy install would look like one nobody ever turned on: the
+ *    activation nudge would show to its admins, and the deactivation
+ *    funnel would read "never enabled". The stamp is recorded as
+ *    `at: 0, via: backfill` — a real moment is not known and is not
+ *    invented, and every age computation treats it as unknown.
+ * 2. Its users have already learned the shell. The tour is for a first
+ *    boot, and the slug it records lives in the seen-intros registry,
+ *    so marking it seen for every prior user is the whole opt-out.
+ *    "Reset what's-new dialogs" brings it back for anyone curious.
+ *
+ * On a site with no history both loops are empty, and the runner fires
+ * at activation, where the activation hook that stamps the real install
+ * moment runs right after it. The install stamp is deliberately not
+ * written here: for the in-place update it belongs to the lazy
+ * `admin_init` backfill, which is honest about being a backfill.
+ *
+ * @return void
+ */
+function openstation_migrate_first_run_stamps() {
+	$prior_users = openstation_users_with_prior_desktop_use();
+	if ( empty( $prior_users ) ) {
+		return;
+	}
+
+	if ( null === openstation_get_first_enabled_stamp() ) {
+		add_option(
+			OPENSTATION_FIRST_ENABLED_AT_OPTION,
+			array(
+				'at'  => 0,
+				'via' => 'backfill',
+			),
+			'',
+			false
+		);
+	}
+
+	foreach ( $prior_users as $user_id ) {
+		openstation_mark_intro_seen( $user_id, OPENSTATION_SHELL_TOUR_INTRO_SLUG );
 	}
 }
 

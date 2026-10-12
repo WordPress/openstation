@@ -52,6 +52,7 @@ import { startOAuth } from '../oauth-relay';
 import {
 	cloneTemplate,
 	onWindow,
+	windowScriptData,
 } from '../native-windows';
 import { repaintLoadingOverlays } from '../window/loading';
 import { loadModules, registerModule } from '../modules/registry';
@@ -287,7 +288,10 @@ export interface BuildPublicApiDeps {
 		},
 	) => boolean;
 	loadWindowScriptById: ( id: string ) => Promise< boolean >;
-	prewarmWindowById: ( id: string ) => Promise< boolean >;
+	prewarmWindowById: (
+		id: string,
+		opts?: { params?: Record< string, string | number | boolean > },
+	) => Promise< boolean >;
 	placeSystemTile: ( item: SystemDockItem ) => void;
 	setDefaultWindow: ( url: string | null ) => Promise< void >;
 	refreshMenu: () => Promise< void >;
@@ -684,7 +688,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				const url =
 					entry.scriptUrl ||
 					( entry.scriptHandle
-						? config.nativeWindowScriptData?.[ entry.scriptHandle ]
+						? windowScriptData( config )?.[ entry.scriptHandle ]
 							?.url ?? ''
 						: '' );
 				let loadPath: 'eager' | 'lazy' | 'unknown' = 'unknown';

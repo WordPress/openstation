@@ -802,6 +802,27 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Elementor 4 hides its legacy menus from the sidebar with CSS once
+	 * `elementor-home` exists; before that they are its only menus.
+	 *
+	 * @covers ::openstation_compat_elementor_dock_placement
+	 */
+	public function test_elementor_4_legacy_menus_stay_out_of_the_dock() {
+		global $admin_page_hooks;
+
+		$this->assertSame( 'dock', openstation_dock_placement( 'elementor' ) );
+
+		$admin_page_hooks['elementor-home'] = 'elementor';
+		try {
+			$this->assertSame( 'hidden', openstation_dock_placement( 'elementor' ) );
+			$this->assertSame( 'hidden', openstation_dock_placement( 'edit.php?post_type=elementor_library' ) );
+			$this->assertSame( 'dock', openstation_dock_placement( 'elementor-home' ) );
+		} finally {
+			unset( $admin_page_hooks['elementor-home'] );
+		}
+	}
+
+	/**
 	 * A filter that returns garbage is ignored — items default to
 	 * `'dock'` to keep the shell rendering predictably.
 	 *

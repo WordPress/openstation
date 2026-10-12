@@ -10,7 +10,7 @@
  * the hash stability is a public contract (same plugin, same colour
  * across reloads), so it gets its own tests.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type DockItem } from '../../src/dock';
 import { hashTitleToHue } from '../../src/ui/util/hash-hue';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
@@ -55,6 +55,7 @@ describe( 'dock icon resolution', () => {
 	beforeEach( () => installHooksStub() );
 	afterEach( () => {
 		clearHooksStub();
+		vi.restoreAllMocks();
 		document.body.innerHTML = '';
 	} );
 
@@ -140,6 +141,31 @@ describe( 'dock icon resolution', () => {
 		expect( icon ).not.toBeNull();
 		expect( icon?.style.backgroundImage ).toContain( 'data:image/svg+xml,' );
 		expect( container.querySelector( '.os-dock__item-mask' ) ).toBeNull();
+	} );
+
+	test( 'a gear item takes the ::before mask the hidden admin menu paints', () => {
+		// Elementor 4 draws its logo as a mask over WordPress's gear.
+		const url = 'http://localhost/wp-admin/admin.php?page=elementor-home';
+		const menu = document.createElement( 'ul' );
+		menu.id = 'adminmenu';
+		menu.innerHTML = `<li class="menu-top"><a href="${ url }"><div class="wp-menu-image dashicons-before dashicons-admin-generic"></div></a></li>`;
+		document.body.appendChild( menu );
+		const wrap = menu.querySelector( '.wp-menu-image' );
+		const real = window.getComputedStyle.bind( window );
+		vi.spyOn( window, 'getComputedStyle' ).mockImplementation( ( el, pseudo ) =>
+			el === wrap && pseudo === '::before'
+				? ( {
+					backgroundImage: 'none',
+					maskImage: 'url("data:image/svg+xml;base64,PHN2Zy8+")',
+				} as CSSStyleDeclaration )
+				: real( el, pseudo ),
+		);
+
+		const { container } = mountDock( [ makeItem( { icon: 'dashicons-admin-generic', url } ) ] );
+
+		const icon = container.querySelector< HTMLElement >( '.os-dock__item-mask' );
+		expect( icon?.style.getPropertyValue( 'mask' ) ).toContain( 'data:image/svg+xml;base64,PHN2Zy8+' );
+		expect( container.querySelector( '.dashicons-admin-generic' ) ).toBeNull();
 	} );
 
 	test( 'http URL renders an <img>', () => {

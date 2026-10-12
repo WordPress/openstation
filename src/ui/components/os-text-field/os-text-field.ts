@@ -298,7 +298,7 @@ export class OsTextField extends Component {
 					pattern=${ pattern }
 					name=${ name }
 					aria-invalid=${ invalid ? 'true' : 'false' }
-					aria-label=${ label || '' }
+					aria-label=${ label || null }
 					@input=${ ( e: Event ) => this._onInput( e ) }
 					@change=${ ( e: Event ) => this._onChange( e ) }
 					@keydown=${ ( e: KeyboardEvent ) => this._onKeyDown( e ) }

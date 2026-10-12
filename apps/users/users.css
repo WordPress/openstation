@@ -17,8 +17,7 @@
    collapses to zero height — the "no table" regression. */
 .os-users__tabs {
 	flex: 0 0 auto;
-	padding: 0 18px;
-	border-bottom: 1px solid var( --os-ui-border, #dcdcde );
+	padding: var( --os-ui-tabs-padding, 0 18px );
 }
 
 /* The Add User tab. Padding lives on the host so the form's own

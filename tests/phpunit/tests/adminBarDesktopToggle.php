@@ -42,7 +42,7 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 		// `os-dock`: adding a stylesheet that hangs off one of the
 		// handles asserted below means adding it here too.
 		// `os-mobile` hangs off both `os-dock` and `os-windows`.
-		foreach ( array( 'openstation', 'os-windows', 'os-window-overview', 'os-settings', 'os-dock', 'os-dock-peek', 'os-openstation-layout', 'os-chromeless', 'os-mobile' ) as $handle ) {
+		foreach ( array( 'openstation', 'os-windows', 'os-window-overview', 'os-settings', 'os-dock', 'os-dock-peek', 'os-dock-taskbar', 'os-openstation-layout', 'os-chromeless', 'os-mobile' ) as $handle ) {
 			wp_dequeue_style( $handle );
 			wp_dequeue_script( $handle );
 		}

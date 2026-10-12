@@ -425,6 +425,26 @@ function openstation_is_classic_request() {
 }
 
 /**
+ * Whether the request came from a classic-override page. A navigation
+ * a page starts from script (`location.href = …`, as "Edit with
+ * Elementor" does) carries no flag, but its Referer still does.
+ *
+ * @return bool
+ */
+function openstation_is_classic_referer() {
+	if ( empty( $_SERVER['HTTP_REFERER'] ) ) {
+		return false;
+	}
+	$referer = esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
+	$query   = wp_parse_url( $referer, PHP_URL_QUERY );
+	if ( ! openstation_url_is_same_admin( $referer ) || ! is_string( $query ) ) {
+		return false;
+	}
+	parse_str( $query, $args );
+	return isset( $args[ OPENSTATION_CLASSIC_FLAG ] ) && '1' === $args[ OPENSTATION_CLASSIC_FLAG ];
+}
+
+/**
  * Checks whether the browser is fetching this request as a
  * sub-resource of some page rather than navigating to it.
  *

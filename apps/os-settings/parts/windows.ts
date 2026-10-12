@@ -7,7 +7,7 @@
  */
 
 import { __, html } from '@openstation/app';
-import { WINDOW_RADII } from '../../../src/settings/constants';
+import { OPEN_WINDOWS_AS, WINDOW_RADII } from '../../../src/settings/constants';
 import {
 	listUnfocusEffects,
 	UNFOCUS_EFFECT_NONE as NONE,
@@ -21,7 +21,7 @@ import {
 	REVEAL_DURATION_AUTO,
 	WINDOW_REVEAL_NONE as REVEAL_NONE,
 } from '../../../src/reveals/registry';
-import type { WindowRadiusId } from '../../../src/settings/types';
+import type { OpenWindowsAsId, WindowRadiusId } from '../../../src/settings/types';
 import { translateWindowRadiusLabel } from './labels';
 import { update } from './store';
 import { pickedChecked, pickedValue, type Section } from './types';
@@ -45,6 +45,43 @@ export const windowRadiusSection: Section = ( s ) => html`
 		>
 			${ WINDOW_RADII.map(
 				( r ) => html`<os-segment value=${ r.id }>${ translateWindowRadiusLabel( r.id, r.label ) }</os-segment>`,
+			) }
+		</os-segmented>
+	</os-section>
+`;
+
+/** The labels, translated where they are painted. */
+function openWindowsAsLabel( id: OpenWindowsAsId ): string {
+	switch ( id ) {
+		case 'maximized':
+			return __( 'Maximized' );
+		case 'focused':
+			return __( 'Focused' );
+		default:
+			return __( 'Default' );
+	}
+}
+
+/**
+ * Default / Maximized / Focused — how a newly opened window lands.
+ */
+export const openWindowsAsSection: Section = ( s ) => html`
+	<os-section
+		heading=${ __( 'Open windows as' ) }
+		description=${ __( 'How a window lands when you open it. Focused fills the desk and minimizes the other windows, so there is one task in front of you at a time.' ) }
+	>
+		<os-segmented
+			value=${ s.openWindowsAs }
+			label=${ __( 'Open windows as' ) }
+			@os-pick=${ ( e: Event ) => {
+				const id = pickedValue( e );
+				if ( OPEN_WINDOWS_AS.some( ( o ) => o.id === id ) ) {
+					update( { openWindowsAs: id as OpenWindowsAsId } );
+				}
+			} }
+		>
+			${ OPEN_WINDOWS_AS.map(
+				( o ) => html`<os-segment value=${ o.id }>${ openWindowsAsLabel( o.id ) }</os-segment>`,
 			) }
 		</os-segmented>
 	</os-section>
@@ -216,6 +253,7 @@ export const closeAllSection: Section = ( s ) => html`
 
 /** The Windows page, top to bottom. */
 export const renderWindows: Section = ( s, ctx ) => html`
+	${ openWindowsAsSection( s, ctx ) }
 	${ windowRadiusSection( s, ctx ) }
 	${ effectsSection( s, ctx ) }
 	${ closeAllSection( s, ctx ) }

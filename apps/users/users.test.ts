@@ -298,7 +298,7 @@ describe( 'updated() keeps the preserved table in step', () => {
 		expect( ctx.dispatch ).toHaveBeenLastCalledWith( 'sort', { orderby: 'name', order: 'asc' } );
 	} );
 
-	it( 'a query change clears the selection; a row leaving the page prunes it', async () => {
+	it( 'preserves selection across data updates and search query changes', async () => {
 		const { table, ctx } = mount( {}, { list: { items: [ user( { id: 2 } ), user( { id: 3 } ) ], total: 2, pages: 1, page: 1, perPage: 20 } } );
 		table!.selection = [ '2', '3' ];
 		table!.dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
@@ -306,11 +306,11 @@ describe( 'updated() keeps the preserved table in step', () => {
 		Object.assign( ctx, { data: { list: { items: [ user( { id: 2 } ) ], total: 1, pages: 1, page: 1, perPage: 20 } } } );
 		ctx.repaint();
 		await Promise.resolve();
-		expect( Array.from( table!.selection, String ) ).toEqual( [ '2' ] );
+		expect( Array.from( table!.selection, String ) ).toEqual( [ '2', '3' ] );
 
 		ctx.state.search = 'ada';
 		ctx.repaint();
-		expect( table!.selection.size ).toBe( 0 );
+		expect( Array.from( table!.selection, String ) ).toEqual( [ '2', '3' ] );
 	} );
 
 	it( 'only a changed row rebuilds its cells', () => {

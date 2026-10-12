@@ -37,6 +37,16 @@ export function previewMessage( ctx: Ctx ): string {
 	return ui.previewLoading ? __( 'Loading details…' ) : __( 'Details are not available for this item.' );
 }
 
+/**
+ * Close the preview and drop the selection with it. The pane is always
+ * on screen, so a highlighted item beside "Select an item to see its
+ * details." would contradict itself.
+ */
+export function closePreview( ctx: Ctx ): void {
+	openPreview( ctx, 0 );
+	ctx.local( 'clear-select' );
+}
+
 /** Select locally, then enrich from the server. Rapid picks coalesce. */
 export function openPreview( ctx: Ctx, item: number ): void {
 	const ui = uiOf( ctx );

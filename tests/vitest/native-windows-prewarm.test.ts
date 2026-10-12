@@ -117,7 +117,11 @@ describe( 'native-windows — prewarmById', () => {
 
 		await expect( prewarmById( 'posts' ) ).resolves.toBe( true );
 		expect( loaded ).toEqual( [ 'https://example.test/posts-client.js', 'https://example.test/posts.js' ] );
-		expect( runtimePrewarm ).toHaveBeenCalledWith( 'posts' );
+		expect( runtimePrewarm ).toHaveBeenCalledWith( 'posts', {} );
+
+		// Open params ride through to the runtime, which keys the warm by them.
+		await prewarmById( 'posts', { params: { tab: 'drafts' } } );
+		expect( runtimePrewarm ).toHaveBeenLastCalledWith( 'posts', { tab: 'drafts' } );
 		// The runtime is asked after the load — the call order is the contract.
 		expect( runtimePrewarm.mock.invocationCallOrder[ 0 ] ).toBeGreaterThan( 0 );
 	} );

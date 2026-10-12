@@ -413,7 +413,7 @@ function openstation_network_linked_accounts( $user_id ) {
 		$label       = isset( $labels[ $key ] ) && is_array( $labels[ $key ] ) ? $labels[ $key ] : array();
 		$out[ $key ] = array(
 			'site'  => isset( $label['site'] ) ? (string) $label['site'] : '',
-			'name'  => isset( $label['name'] ) ? (string) $label['name'] : '',
+			'name'  => isset( $label['name'] ) ? openstation_plain_text_title( $label['name'] ) : '',
 			'email' => isset( $label['email'] ) ? (string) $label['email'] : '',
 		);
 	}
@@ -483,7 +483,7 @@ function openstation_network_link_offer() {
 	}
 	return array(
 		'site'  => (string) $offer['site'],
-		'name'  => (string) $offer['name'],
+		'name'  => openstation_plain_text_title( $offer['name'] ),
 		'email' => (string) $offer['email'],
 		'url'   => esc_url_raw( rest_url( 'desktop-mode/v1/network/link' ) ),
 	);

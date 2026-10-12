@@ -889,6 +889,42 @@ describe( 'workspace operations', () => {
 		expect( setVisibleWidgets ).not.toHaveBeenCalled();
 	} );
 
+	test( 'a profile write that keeps the look repaints the widgets, not the look', () => {
+		const woo = createWorkspace( deps, {
+			profile: {
+				preset: '',
+				icon: 'dashicons-desktop',
+				color: '',
+				apps: { mode: 'all', ids: [] },
+				widgets: { mode: 'only', ids: [ 'clock' ] },
+				appearance: { wallpaper: 'mono' },
+				windows: [],
+				layout: 'free',
+				provisioned: true,
+			},
+		} );
+		const profile = getWorkspaceProfile( manager, woo.id )!;
+		setAppearance.mockClear();
+		setVisibleWidgets.mockClear();
+
+		// Adding a widget on the desk records it on the profile. Painting
+		// the look again from that write put the workspace's wallpaper
+		// back over the one the user had just picked on this desk.
+		setWorkspaceProfile( deps, woo.id, {
+			...profile,
+			widgets: { mode: 'only', ids: [ 'clock', 'notes' ] },
+		} );
+		expect( setAppearance ).not.toHaveBeenCalled();
+		expect( setVisibleWidgets ).toHaveBeenCalledWith( [ 'clock', 'notes' ] );
+
+		// An edit that does change the look still paints it.
+		setWorkspaceProfile( deps, woo.id, {
+			...profile,
+			appearance: { wallpaper: 'aurora' },
+		} );
+		expect( setAppearance ).toHaveBeenCalledWith( { wallpaper: 'aurora' } );
+	} );
+
 	test( 'a relative launch url resolves against wp-admin', () => {
 		expect( absoluteAdminUrl( 'edit.php?post_type=product', ADMIN_URL ) ).toBe(
 			`${ ADMIN_URL }edit.php?post_type=product`,

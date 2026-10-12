@@ -46,6 +46,10 @@ export type BridgeEventFromIframe =
 		type: 'os-content-identity';
 		identity: WindowContentRef | null;
 	}
+	// The dock tile id of the admin menu WordPress files the page
+	// under (`$parent_file`). Posted on every page load, `''` when no
+	// menu owns the screen.
+	| { type: 'os-menu-owner'; menu: string }
 	// Activity-footprint launcher — a "View activity footprint" row
 	// action inside the chromeless `users.php` iframe escalates a
 	// click to the parent shell, which opens the My WordPress window
@@ -192,6 +196,7 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'os-screen-meta-state',
 	'os-commands-list',
 	'os-content-identity',
+	'os-menu-owner',
 	'os-open-user-footprint',
 	'os-editor-autosave-response',
 	'os-editor-live-saved',

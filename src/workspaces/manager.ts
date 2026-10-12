@@ -99,6 +99,7 @@ export function setWorkspaceProfile(
 	if ( ! desktop ) {
 		return false;
 	}
+	const previousLook = JSON.stringify( workspaceAppearance( desktop.profile ) );
 	if ( profile ) {
 		desktop.profile = profile;
 	} else {
@@ -112,8 +113,18 @@ export function setWorkspaceProfile(
 	// is the one on screen. Editing a workspace from another desk (the
 	// editor can be opened on any of them) must not repaint the column
 	// in front of the user with the widgets of a desk they are not on.
+	//
+	// The look is painted again only when the write changed it. Most
+	// writes do not (a widget recorded on the desk, provisioning, a
+	// saved arrangement), and re-applying the patch from one of them
+	// threw away what the user had picked in Preferences on this desk:
+	// adding a widget put the workspace's wallpaper back over theirs.
 	if ( desktopId === deps.manager.getActiveDesktopId() ) {
-		applyWorkspaceView( deps, desktopId );
+		if ( JSON.stringify( workspaceAppearance( profile ) ) === previousLook ) {
+			applyWorkspaceWidgets( deps, desktopId );
+		} else {
+			applyWorkspaceView( deps, desktopId );
+		}
 	}
 	doAction( HOOKS.WORKSPACE_UPDATED, { desktopId, profile } );
 	return true;

@@ -564,7 +564,7 @@ function openstation_games_rest_search_users( WP_REST_Request $req ) {
 		}
 		$out[] = array(
 			'id'        => (int) $user->ID,
-			'name'      => (string) $user->display_name,
+			'name'      => openstation_plain_text_title( $user->display_name ),
 			'slug'      => (string) $user->user_nicename,
 			'avatarUrl' => get_avatar_url( $user->ID, array( 'size' => 48 ) ),
 		);

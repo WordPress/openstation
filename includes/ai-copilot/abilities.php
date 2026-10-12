@@ -105,6 +105,51 @@ function openstation_ai_ability_tool_name( $ability_name ) {
 }
 
 /**
+ * Maps abilities to model-facing tool names that are unique within one
+ * request.
+ *
+ * Stripping the namespace means two plugins can land on the same name
+ * (`desktop-mode/get-site-context` and `acme/get-site-context`), and
+ * providers reject the whole request when tool names repeat ("Tool names
+ * must be unique"). OpenStation's own abilities claim their bare names
+ * first, because the system prompt and progress labels refer to those.
+ * Any later ability whose bare name is taken keeps its namespace
+ * (`acme_get_site_context`) so it stays callable; one that still
+ * collides is dropped.
+ *
+ * @param string[] $ability_names Fully-namespaced ability names.
+ * @return array<string,string> Tool name => ability name, own abilities first.
+ */
+function openstation_ai_unique_ability_tool_names( array $ability_names ) {
+	$own    = array();
+	$others = array();
+	foreach ( $ability_names as $ability_name ) {
+		$ability_name = (string) $ability_name;
+		if ( 0 === strpos( $ability_name, 'desktop-mode/' ) ) {
+			$own[] = $ability_name;
+		} else {
+			$others[] = $ability_name;
+		}
+	}
+
+	$map = array();
+	foreach ( array_merge( $own, $others ) as $ability_name ) {
+		$candidates = array(
+			openstation_ai_ability_tool_name( $ability_name ),
+			openstation_ai_ability_tool_name( str_replace( '/', '_', $ability_name ) ),
+		);
+		foreach ( $candidates as $tool_name ) {
+			if ( '' !== $tool_name && ! isset( $map[ $tool_name ] ) ) {
+				$map[ $tool_name ] = $ability_name;
+				break;
+			}
+		}
+	}
+
+	return $map;
+}
+
+/**
  * Permission callback: any logged-in user who can read the site.
  *
  * Mirrors the read-only search/navigation tools, which were ungated beyond the
@@ -153,7 +198,7 @@ function openstation_ai_register_abilities() {
 		'properties'           => array(
 			'query'  => array(
 				'type'        => 'string',
-				'description' => 'Keyword search terms matched against the title and content (WordPress native search). Distil the user\'s request to the essential nouns — e.g. for "that post I wrote about making paella" pass "paella". Avoid stop-words and full sentences.',
+				'description' => 'Keyword search terms matched against the title and content (WordPress native search). Distil the user\'s request to the essential nouns — e.g. for "that post I wrote about making paella" pass "paella". Avoid stop-words and full sentences. An empty string lists everything, newest first — only for questions about who, how many or the latest, never to look for a topic.',
 			),
 			'offset' => array(
 				'type'        => 'integer',
@@ -209,7 +254,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/search-posts',
 		array(
 			'label'               => __( 'Search posts', 'desktop-mode' ),
-			'description'         => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article. Pass the key search terms as `query`. Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
+			'description'         => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article: pass the key search terms as `query`. Only for listing or counting questions ("how many posts do I have?") pass an empty `query`, which lists the newest posts (`total` is the full count). Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => $query_offset_input,
 			'output_schema'       => $search_output,
@@ -241,7 +286,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/search-comments',
 		array(
 			'label'               => __( 'Search comments', 'desktop-mode' ),
-			'description'         => 'Keyword-searches approved WordPress comments by their text (WordPress native search), across all posts the requesting user is allowed to read — comments on private, draft, or password-protected posts the user cannot access are excluded. Use this when the user remembers something a reader said but does not know which post it was on. Pass the distinctive words from the comment as `query`. Returns up to 10 matching comments with an excerpt, parent post title, and URLs. If has_more is true, call again with the next offset.',
+			'description'         => 'Keyword-searches approved WordPress comments by their text (WordPress native search), across all posts the requesting user is allowed to read — comments on private, draft, or password-protected posts the user cannot access are excluded. Use this when the user remembers something a reader said but does not know which post it was on: pass the distinctive words from the comment as `query`. Also use it, with an empty `query`, for questions about the comments themselves — who has commented, the latest comments, how many there are (`total` is the full count). Returns up to 10 matching comments with the commenter\'s name (`author_name`), an excerpt, parent post title, and URLs. If has_more is true, call again with the next offset.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => $query_offset_input,
 			'output_schema'       => $search_output,
@@ -257,7 +302,7 @@ function openstation_ai_register_abilities() {
 		'desktop-mode/search-comments-by-post',
 		array(
 			'label'               => __( 'Search comments on a post', 'desktop-mode' ),
-			'description'         => 'Keyword-searches approved comments on a SPECIFIC post by its WordPress ID (the post must be readable by the requesting user; an unreadable or nonexistent post returns an empty result). Use this when the user describes both a post and something a reader said on it: identify the post with search-posts, then pass its ID and the distinctive words of the comment as `query`. More precise than search-comments whenever the parent post is known. If has_more is true, call again with the next offset.',
+			'description'         => 'Keyword-searches approved comments on a SPECIFIC post by its WordPress ID (the post must be readable by the requesting user; an unreadable or nonexistent post returns an empty result). Use this when the user describes both a post and something a reader said on it: identify the post with search-posts, then pass its ID and the distinctive words of the comment as `query`. More precise than search-comments whenever the parent post is known. Each match carries the commenter\'s name (`author_name`) and an excerpt. If has_more is true, call again with the next offset.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',

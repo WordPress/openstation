@@ -572,6 +572,14 @@ describe( '<os-table>', () => {
 		) as HTMLInputElement;
 		expect( headerCb.checked ).toBe( false );
 		expect( headerCb.indeterminate ).toBe( false );
+
+		// Ticking then unticking the header touches only the visible
+		// admins: hidden Bob stays selected.
+		headerCb.checked = true;
+		headerCb.dispatchEvent( new Event( 'change' ) );
+		headerCb.checked = false;
+		headerCb.dispatchEvent( new Event( 'change' ) );
+		expect( Array.from( table.selection ) ).toEqual( [ 'bob@b.com' ] );
 	} );
 
 	test( 'selectable=single: enforces at-most-one selected', async () => {

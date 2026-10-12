@@ -164,7 +164,7 @@ Windows declared in PHP as `.os.php` files — [`app-framework.md`](./app-framew
 | `ViewContext` | `state`, `data`, `loading`, `root`, `windowId`, `extra`, `dispatch( action, args?, { confirm }? )`, `local`, `ui( factory )`, `repaint()`, `fetch( path, init? )`, `host` — see [`app-framework.md`](./app-framework.md#the-client-view--osts) | Experimental |
 | `openUserEditWindow` | `( userId: number, { source?, fallback? }? ) => boolean` — `src/open-targets/user-edit-window.ts`: open (or retarget) the User Edit app on one person through its `userId` param | Experimental |
 | `apps.refresh` | `() => string[]` | Experimental |
-| `apps.prewarm` | `( id: string ) => boolean` — send a closed app window's first `mount` ahead of its open; `wp.os.prewarmWindow( id )` is the door that loads the bundles first | Experimental |
+| `apps.prewarm` | `( id: string, params?: Record<string, string \| number \| boolean> ) => boolean` — send a closed app window's first `mount` ahead of its open, with the params the open will carry; `wp.os.prewarmWindow( id, { params } )` is the door that loads the bundles first | Experimental |
 | `apps.debug` | `( windowId?: string, on?: boolean ) => void` — per-window dispatch trace in the console (`'*'` = every app window) | Experimental |
 | `apps.defineApp` / `apps.html` / i18n + list/format helpers | The client-view API mirrored at runtime for third-party client views; before the runtime loads, queue via `( window.openStationAppsPending ??= [] ).push( ( api ) => … )` — see [`app-framework.md`](./app-framework.md) | Experimental |
 
@@ -307,6 +307,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-default-window-changed` | Stable |
 | `os-open-ai` *(plugin-dispatched; the shell listens)* | Experimental |
 | `os-intros-reset` | Experimental |
+| `os-shell-tour-start` *(plugin-dispatched; the shell listens)* | Experimental |
 | `os-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
 | `os-auth-lost` / `os-auth-restored` *(session expiry / recovery)* | Stable |
 | `os-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |

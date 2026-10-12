@@ -65,6 +65,8 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
 
 Near a window, Mio is attracted to it: it slides over from whatever direction it was in, sticks to the nearest edge — top, side, underneath — and squashes against it. Out in open space nothing pulls on it, so it floats, bobbing and slowly changing shape.
 
+The shell tour does not put Mio on screen: the cards carry a small drawing of Mio instead, and the tour neither switches the companion on nor off; the user's choice from the dock tile stands.
+
 Open a window on top of it and it hops clear rather than being buried.
 
 ---

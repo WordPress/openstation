@@ -174,9 +174,18 @@ function openstation_files_rest_download_folder_zip( WP_REST_Request $req ) {
 			}
 		}
 	}
+	// libzip deletes an archive with no entries on close instead of
+	// writing it, and a folder holding only references (posts,
+	// products) has none.
+	$is_empty = 0 === $zip->numFiles;
 	if ( ! $zip->close() ) {
 		wp_delete_file( $tmp );
 		return new WP_Error( 'openstation_stored_files_zip_failed', __( 'Could not finish the archive (disk full?).', 'desktop-mode' ), array( 'status' => 500 ) );
+	}
+	if ( $is_empty ) {
+		// An empty zip is its end-of-central-directory record alone.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+		file_put_contents( $tmp, "PK\x05\x06" . str_repeat( "\0", 18 ) );
 	}
 
 	/**

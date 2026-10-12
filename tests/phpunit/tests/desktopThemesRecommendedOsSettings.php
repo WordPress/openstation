@@ -174,6 +174,60 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	}
 
 	/**
+	 * The accent as a colour: six-digit hex, lowercased, and nothing
+	 * else. The shell turns it into a swatch or the custom accent.
+	 *
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
+	public function test_accent_color_is_a_six_digit_hex() {
+		$this->assertSame(
+			array( 'accentColor' => '#00008a' ),
+			openstation_sanitize_desktop_theme_recommended_os_settings( array( 'accentColor' => '#00008A' ) )
+		);
+		foreach ( array( 'navy', '#00f', 'url(x)', '#0000800' ) as $bad ) {
+			$this->assertSame(
+				array(),
+				openstation_sanitize_desktop_theme_recommended_os_settings( array( 'accentColor' => $bad ) ),
+				$bad
+			);
+		}
+	}
+
+	/**
+	 * Placements keep clean ids with a value from the closed set; the
+	 * widget list keeps namespaced ids, once each, and may be empty.
+	 *
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
+	 */
+	public function test_placements_and_widgets_keep_clean_entries() {
+		$this->assertSame(
+			array(
+				'navPlacement' => array( 'os-mio-toggle' => 'hidden' ),
+				'widgets'      => array( 'clock', 'acme/stocks' ),
+			),
+			openstation_sanitize_desktop_theme_recommended_os_settings(
+				array(
+					'navPlacement' => array(
+						'os-mio-toggle' => 'hidden',
+						'menu-posts'    => 'nowhere',
+						3               => 'hidden',
+					),
+					'widgets'      => array( 'clock', 'acme/stocks', 'clock', array( 'x' ) ),
+				)
+			)
+		);
+		$this->assertSame(
+			array( 'widgets' => array() ),
+			openstation_sanitize_desktop_theme_recommended_os_settings(
+				array(
+					'widgets'      => array(),
+					'navPlacement' => 'hidden',
+				)
+			)
+		);
+	}
+
+	/**
 	 * A numeric recommendation is CLAMPED rather than dropped: a theme
 	 * asking for something outside the playable range is still
 	 * expressing a direction, and the nearest playable value is the

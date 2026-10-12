@@ -332,10 +332,16 @@ export async function restoreSession(
 	// that id is no longer around (e.g., the saved focus pointed at
 	// a window we failed to reconstruct), `getById` returns
 	// undefined and we leave the default — topmost-of-stack — focus
-	// in place.
+	// in place. The same goes for a saved focus on another desktop
+	// (the user left an empty desk active): focusing it would switch
+	// desktops and override the restored active one.
 	if ( config.session.focused ) {
 		const focused = manager.getById( config.session.focused );
-		if ( focused ) {
+		const activeDesktopId = manager.getActiveDesktopId();
+		if (
+			focused &&
+			( focused.config.desktopId || activeDesktopId ) === activeDesktopId
+		) {
 			manager.focus( focused );
 		}
 	}
