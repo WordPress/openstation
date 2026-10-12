@@ -241,6 +241,46 @@ describe( 'native-windows — deferred bundle loading', () => {
 		expect( render ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'a restored multi-tab window loads the tags its tab wrap is made of', async () => {
+		// PHP wraps a multi-tab window's panes in `<os-stack>` and
+		// `<os-tabpanel>`, two tags only the component kit registers.
+		// On a reload nothing has loaded the kit yet, so the shell's
+		// own markup must ask for it.
+		expect( customElements.get( 'os-stack' ) ).toBeUndefined();
+		expect( customElements.get( 'os-tabpanel' ) ).toBeUndefined();
+		( window as unknown as { openStationConfig?: unknown } ).openStationConfig = {
+			componentsBundleUrl: 'https://example.test/os-components.js',
+		};
+		const h = setupHarness();
+		const e = entry( 'tabbed', {
+			templateHtml:
+				'<os-stack gap="12" padding="16">' +
+				'<os-tabpanel for="main"><p>main</p></os-tabpanel>' +
+				'<os-tabpanel for="extra" hidden><p>extra</p></os-tabpanel>' +
+				'</os-stack>',
+			tabs: [
+				{ value: 'main', label: 'Main', isMain: true },
+				{ value: 'extra', label: 'Extra', isMain: false },
+			] as NativeWindowServerEntry[ 'tabs' ],
+		} );
+		installTemplate( e );
+		const { sync, restoreById } = createNativeWindowSync(
+			depsFromHarness( h ),
+		);
+		await sync( [ e ] );
+
+		restoreById( 'tabbed', 'tabbed', {} );
+		await runRender( h.managerOpen );
+
+		const kit = document.head.querySelector< HTMLScriptElement >(
+			'script[data-os-components="1"]',
+		);
+		const src = kit?.src;
+		kit?.remove();
+		delete ( window as unknown as { openStationConfig?: unknown } ).openStationConfig;
+		expect( src ).toBe( 'https://example.test/os-components.js' );
+	} );
+
 	test( 'the second open reuses the loaded bundle', async () => {
 		const h = setupHarness();
 		const e = entry( 'calculator' );

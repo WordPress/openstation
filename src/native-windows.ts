@@ -35,6 +35,7 @@ import {
 	unregisterNativeUrlRemap,
 } from './native-url-remap';
 import { setPanelTabs } from './window/tab-strip';
+import { loadComponents } from './ui/components/loader';
 import { getWindowContent, setWindowContent } from './window-links/engine';
 import type { WindowContentRef } from './window-links/types';
 import {
@@ -1221,6 +1222,12 @@ function declareServerTabs(
 	if ( ! Array.isArray( tabs ) || tabs.length < 2 ) {
 		return;
 	}
+	// The wrap PHP puts around the panes is the shell's markup, made
+	// of two tags only the component kit registers. Nothing else is
+	// guaranteed to have loaded the kit, a session restore after a
+	// reload least of all, so ask for it here. A failed fetch is left
+	// to the missing-import warner, which names both tags.
+	loadComponents( [ 'os-stack', 'os-tabpanel' ] ).catch( () => {} );
 	const winEl = body.closest< HTMLElement >( '.os-window' );
 	if ( ! winEl ) {
 		return;
