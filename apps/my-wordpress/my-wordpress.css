@@ -953,6 +953,26 @@
 	font-size: 17px;
 }
 
+/* The pane's loading line: an inline spinner beside the message. It
+ * fades in late so a fast answer never flashes it. */
+.os-mywp__pane-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-mywp__pane-status os-spinner {
+	flex: none;
+	animation: os-mywp-pane-status-in 0.2s ease-out 150ms both;
+}
+
+@keyframes os-mywp-pane-status-in {
+	from {
+		opacity: 0;
+	}
+}
+
 /* The identity line under a person's name: role badge + archive link. */
 .os-mywp__user-meta {
 	display: flex;

@@ -45,7 +45,7 @@ import {
 	type ListItem,
 	type SectionDef,
 } from './parts/types';
-import { explorerItemTrashing, openPreview, previewContext, visibleExplorerItems, watchExplorerTrash } from './parts/optimistic';
+import { closePreview, explorerItemTrashing, previewContext, visibleExplorerItems, watchExplorerTrash } from './parts/optimistic';
 import { listKey, sectionOf } from './parts/helpers';
 import {
 	renderList,
@@ -458,7 +458,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 							class="os-mywp__back"
 							aria-label=${ __( 'Back' ) }
 							@click=${ () =>
-								onItemPage ? openPreview( ctx, 0 ) : void ctx.dispatch( 'back' ) }
+								onItemPage ? closePreview( ctx ) : void ctx.dispatch( 'back' ) }
 						>‹</button>`
 						: '' }
 					<nav class="os-mywp__crumbs">${ crumbs }</nav>

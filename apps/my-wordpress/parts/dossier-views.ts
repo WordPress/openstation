@@ -238,13 +238,19 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 	const { data } = ctx;
 	const detail = previewDetail( ctx );
 	if ( ! detail ) {
-		const row = uiOf( ctx ).list.items().find( ( item ) => item.id === ctx.state.item );
-		return html`<article class="os-mywp__detail" aria-busy=${ uiOf( ctx ).previewLoading ? 'true' : 'false' }>
+		const ui = uiOf( ctx );
+		const row = ui.list.items().find( ( item ) => item.id === ctx.state.item );
+		// The status sits above the excerpt so a long one never pushes
+		// the spinner out of sight.
+		return html`<article class="os-mywp__detail" aria-busy=${ ui.previewLoading ? 'true' : 'false' }>
 			${ row?.thumb ? html`<img class="os-mywp__hero" src=${ row.thumb } alt=${ row.title }/>` : '' }
 			<h2 class="os-mywp__detail-title">${ row?.title ?? '' }</h2>
 			<p>${ row?.subtitle ?? '' }</p>
+			<p class="os-mywp__pane-status" role="status">
+				${ ui.previewLoading && ! ui.previewError ? html`<os-spinner preset="inline" aria-hidden="true"></os-spinner>` : '' }
+				${ previewMessage( ctx ) }
+			</p>
 			<p>${ row?.excerpt ?? '' }</p>
-			<p role="status">${ previewMessage( ctx ) }</p>
 		</article>`;
 	}
 	const item = uiOf( ctx ).list.items().find( ( i ) => i.id === detail.id ) ?? ( data.list?.items ?? [] ).find( ( i ) => i.id === detail.id );

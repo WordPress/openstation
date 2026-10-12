@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
 import { _resetAllSharedStoresForTests } from '../../src/shared-store';
 import { beginTrashChange, trashItem } from '../../src/desktop-files/trash-optimistic';
-import { openPreview, trashExplorerItems, watchExplorerTrash } from './parts/optimistic';
+import { closePreview, openPreview, trashExplorerItems, watchExplorerTrash } from './parts/optimistic';
 import { uiOf } from './parts/types';
 import app, {
 	buildMenuOptions,
@@ -963,6 +963,16 @@ describe( 'optimistic Explorer interactions', () => {
 		return ctx;
 	}
 
+	it( 'closing the preview drops the selection, so the empty pane never sits beside a highlighted item', () => {
+		const ctx = setup();
+		ctx.state.item = 1;
+		ctx.state.selected = [ 1 ];
+		ctx.dispatch = vi.fn( async () => true );
+		closePreview( ctx );
+		expect( ctx.state ).toMatchObject( { item: 0, selected: [] } );
+		expect( ctx.root.querySelector( '.os-mywp__detail-pane--empty' ) ).not.toBeNull();
+	} );
+
 	it( 'resets search selection immediately so the debounced refresh cannot close a newer preview', async () => {
 		const ctx = setup();
 		ctx.state.item = 1;
@@ -988,6 +998,7 @@ describe( 'optimistic Explorer interactions', () => {
 		openPreview( ctx, 1 );
 		expect( ctx.root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Alpha' );
 		expect( ctx.root.querySelector( '.os-mywp__detail' )?.getAttribute( 'aria-busy' ) ).toBe( 'true' );
+		expect( ctx.root.querySelector( '.os-mywp__pane-status os-spinner' ) ).not.toBeNull();
 		openPreview( ctx, 2 );
 		// Simulate a queued search resetting item after the newer pick.
 		ctx.state.item = 0;
