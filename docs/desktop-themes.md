@@ -416,7 +416,7 @@ kit's own stylesheets never hard-wire it to a decorative surface.
 | `--os-ui-scrim` | Modal + overlay backdrop |
 | `--os-ui-accent` | Primary action |
 | `--os-ui-accent-strong` | Its hover / active state |
-| `--os-ui-accent-ink` | Ink on the accent fill: the tick in a checked box, the dot in a radio, a primary button's label. **Not `--os-ui-fg-on-accent`**, which the shell reads as light text on any dark surface (toasts, dock labels, tile captions); accent fills read this first and fall back to that. The palette declares Starlight and Legacy `#fff`, but the accent picker writes it inline next to `--os-ui-accent` (Void for a light accent, Starlight otherwise), so inside the shell the user's pick decides it. |
+| `--os-ui-accent-ink` | Ink on the accent fill: the tick in a checked box, the dot in a radio, a primary button's label. **Not `--os-ui-fg-on-accent`**, which the shell reads as light text on any dark surface (toasts, dock labels, tile captions); accent fills read this first and fall back to that. The palette declares Starlight and Legacy `#fff`, but the accent picker writes it inline next to `--os-ui-accent` (Void when it has more contrast on the accent than Starlight, Starlight otherwise; Pulse keeps Starlight), so inside the shell the user's pick decides it. |
 | `--os-ui-danger`, `--os-ui-danger-hover` | Destructive actions |
 | `--os-ui-warning-fg`, `--os-ui-warning-bg`, `--os-ui-warning-border` | Warning notices |
 | `--os-ui-info-fg`, `--os-ui-info-bg` | Info notices |

@@ -70,16 +70,17 @@ import {
 /**
  * Whether text on a fill of this colour should be dark.
  *
- * WCAG relative luminance, with the threshold set between the two
- * brand accents that sit closest to it: Pulse (0.32) keeps the
- * Starlight ink the brand pairs it with, Lagoon (0.37), Nebula (0.49),
- * Sirius (0.78) and Starlight itself take Void. Anything that is not
- * a six-digit hex reads as dark, which keeps the palette's own
- * Starlight ink.
+ * WCAG relative luminance against the crossover where Void (#0c0b0f)
+ * and Starlight (#fffbff) have equal contrast on the fill:
+ * sqrt( ( 0.9747 + 0.05 ) * ( 0.0035 + 0.05 ) ) - 0.05, about 0.184.
+ * Above it Void reads better, below it Starlight does. Pulse is the
+ * one exception and keeps the Starlight ink the brand pairs it with.
+ * Anything that is not a six-digit hex reads as dark, which keeps the
+ * palette's own Starlight ink.
  */
 export function accentWantsDarkInk( hex: string ): boolean {
 	const match = /^#?([0-9a-f]{6})$/i.exec( hex.trim() );
-	if ( ! match ) {
+	if ( ! match || match[ 1 ].toLowerCase() === 'f252fc' ) {
 		return false;
 	}
 	const linear = ( pair: string ): number => {
@@ -91,7 +92,7 @@ export function accentWantsDarkInk( hex: string ): boolean {
 		0.2126 * linear( hexRgb.slice( 0, 2 ) ) +
 		0.7152 * linear( hexRgb.slice( 2, 4 ) ) +
 		0.0722 * linear( hexRgb.slice( 4, 6 ) );
-	return luminance > 0.35;
+	return luminance > 0.184;
 }
 
 /** Options for {@link OsSettings.update}. */

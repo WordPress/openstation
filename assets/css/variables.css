@@ -539,8 +539,9 @@ body.os-active {
 	 * `--os-ui-fg-on-accent`, which the shell reads as "light text on
 	 * a dark surface" in seventy-odd places that are not the accent.
 	 * Starlight here for Pulse; the accent picker rewrites it inline
-	 * to Void whenever the chosen accent is light (Starlight, Sirius,
-	 * Nebula, Lagoon), so the pair always agree.
+	 * to Void whenever Void has more contrast on the chosen accent
+	 * (Nebula, Sirius, Lagoon, Starlight, Teal, Emerald, Amber), so
+	 * the pair always agree.
 	 */
 	--os-ui-accent-ink: #fffbff;
 	--os-ui-accent-strong: #ec9bff;
