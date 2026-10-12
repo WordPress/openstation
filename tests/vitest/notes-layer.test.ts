@@ -254,6 +254,32 @@ describe( 'NotesLayer', () => {
 		expect( layer.has( 77 ) ).toBe( true );
 	} );
 
+	test( 'a copy listed before the create answers is not left on the wall', async () => {
+		let answer: () => void = () => undefined;
+		const answered = new Promise< void >( ( resolve ) => {
+			answer = resolve;
+		} );
+		vi.stubGlobal(
+			'fetch',
+			vi.fn( async () => {
+				await answered;
+				return new Response( JSON.stringify( makeNote( { id: 77 } ) ), { status: 200 } );
+			} ),
+		);
+
+		const layer = makeLayer();
+		layer.createNoteAt( { x: 0.1, y: 0.2 } );
+		// The boot list (or a Heartbeat delta) sees the note first.
+		layer.upsertNote( makeNote( { id: 77 } ) );
+		answer();
+		await new Promise( ( r ) => setTimeout( r, 10 ) );
+
+		expect( document.querySelectorAll( '.os-pinned-note' ) ).toHaveLength( 1 );
+		// Convert and trash evict by id; nothing may stay behind.
+		layer.removeNote( 77 );
+		expect( document.querySelectorAll( '.os-pinned-note' ) ).toHaveLength( 0 );
+	} );
+
 	test( 'empty notes still get distinct tilts', () => {
 		// `hashNoteSeed('')` is a constant and the wallpaper-menu path
 		// always starts empty, so every note from it would be parallel.
