@@ -370,12 +370,21 @@ export class NotesLayer {
 		if ( ! this.canCreatePosts || ! note.canEdit ) {
 			return;
 		}
-		void convertNoteToPost( note, {
-			onEvict: ( noteId ) => this.removeNote( noteId ),
-			onRestore: ( restored ) => {
-				this.bumpHighWater( restored.updatedAtMs );
-				this.upsertNote( restored, { animate: 'move' } );
-			},
+		// The server builds the draft from the text it has saved, and the
+		// last edit can still be on its debounce or in flight. Let it land
+		// first; a second activation meanwhile finds the note gone and stops.
+		const controller = this.controllers.get( note.id );
+		void ( controller?.settleEdits() ?? Promise.resolve() ).then( () => {
+			if ( controller && this.controllers.get( note.id ) !== controller ) {
+				return;
+			}
+			void convertNoteToPost( controller?.note ?? note, {
+				onEvict: ( noteId ) => this.removeNote( noteId ),
+				onRestore: ( restored ) => {
+					this.bumpHighWater( restored.updatedAtMs );
+					this.upsertNote( restored, { animate: 'move' } );
+				},
+			} );
 		} );
 	}
 
@@ -903,6 +912,12 @@ export class NoteController {
 	 */
 	flushPendingEdits(): void {
 		this.flushSave();
+	}
+
+	/** Save typed text now; resolves once every queued save has answered. */
+	settleEdits(): Promise< void > {
+		this.flushSave();
+		return this.patchChain;
 	}
 
 	private flushSave(): void {

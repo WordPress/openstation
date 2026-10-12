@@ -280,6 +280,43 @@ describe( 'NotesLayer', () => {
 		expect( document.querySelectorAll( '.os-pinned-note' ) ).toHaveLength( 0 );
 	} );
 
+	test( 'convert saves the last typed text before the server builds the draft', async () => {
+		const calls: string[] = [];
+		vi.stubGlobal(
+			'fetch',
+			vi.fn( async ( url: string, init?: RequestInit ) => {
+				const method = init?.method ?? 'GET';
+				calls.push( `${ method } ${ url }` );
+				const body = url.endsWith( '/convert' )
+					? { noteId: 5, postId: 9, editUrl: 'https://example.test/wp-admin/post.php?post=9&action=edit' }
+					: makeNote( { id: 5, text: 'Cinco cafés', updatedAtMs: 2000 } );
+				return new Response( JSON.stringify( body ), { status: 200 } );
+			} ),
+		);
+		const w = window as unknown as { wp?: Record< string, unknown > };
+		w.wp = {
+			...( w.wp ?? {} ),
+			os: { showToast: vi.fn(), deriveWindowId: ( url: string ) => url, windowManager: { open: vi.fn() } },
+		};
+
+		const layer = makeLayer( true );
+		const controller = layer.upsertNote( makeNote( { id: 5, text: '' } ) );
+		controller.element
+			.querySelector( '.os-pinned-note__editor' )!
+			.dispatchEvent( new CustomEvent( 'os-input-change', { detail: { value: 'Cinco cafés' } } ) );
+		// Inside the save debounce, and twice, like a double click.
+		layer.convertNote( controller.note );
+		layer.convertNote( controller.note );
+		await new Promise( ( r ) => setTimeout( r, 20 ) );
+		delete ( w.wp as Record< string, unknown > ).os;
+
+		const patch = calls.findIndex( ( call ) => call.startsWith( 'PATCH' ) );
+		const converts = calls.filter( ( call ) => call.endsWith( '/convert' ) );
+		expect( patch ).toBeGreaterThanOrEqual( 0 );
+		expect( converts ).toHaveLength( 1 );
+		expect( calls.indexOf( converts[ 0 ] ) ).toBeGreaterThan( patch );
+	} );
+
 	test( 'empty notes still get distinct tilts', () => {
 		// `hashNoteSeed('')` is a constant and the wallpaper-menu path
 		// always starts empty, so every note from it would be parallel.
