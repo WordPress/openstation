@@ -546,10 +546,9 @@ export function createSession( deps: SessionDeps ): Session {
 		}
 		if ( missing.size > 0 ) {
 			await host.loadComponents( Array.from( missing ) );
-			// Property-driven components upgraded after the assignment
-			// pass keep the values (they live on the element), but a
-			// component that reads them only at connect time gets a
-			// second chance now that it exists.
+			// The kit's base class hands values assigned before the
+			// upgrade to its accessors; this pass is for a component
+			// that reads them only at connect time.
 			applyProps( root, new WeakMap() );
 		}
 	};

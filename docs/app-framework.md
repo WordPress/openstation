@@ -202,7 +202,7 @@ use function OpenStation\App\Html\{ esc, attr, json, tag, classes };
 
 ---
 
-The Trash app re-queries its items when a mounted window is shown or reopened, even if a change notification was missed. Its client also refreshes on mount because a hover-prewarmed response can predate a deletion. Filters and search remain in place when returning to the window. Its table component is registered by a side-effect import before the first render: assigning imperative properties such as `data` and `columns` to an unupgraded custom element creates own properties that shadow the component's setters when it loads later. Client views that own an `os-preserve` component must load it before assigning these properties.
+The Trash app re-queries its items when a mounted window is shown or reopened, even if a change notification was missed. Its client also refreshes on mount because a hover-prewarmed response can predate a deletion. Filters and search remain in place when returning to the window. A property such as `data` or `columns` assigned to an `os-*` element before its tag is defined is kept and handed to the component's setter when it upgrades, so a client view does not have to load a component before assigning to it.
 
 ## `$os` — the host, as a value
 
