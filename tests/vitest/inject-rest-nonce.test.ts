@@ -16,6 +16,7 @@ import {
 	test,
 } from 'vitest';
 import { injectRestNonce } from '../../src/inject-rest-nonce';
+import { overrideRestMethod } from '../../src/rest-method-override';
 
 function getNonceHeader( init: RequestInit | undefined ): string | null {
 	if ( ! init?.headers ) {
@@ -132,5 +133,43 @@ describe( 'injectRestNonce', () => {
 		// No init supplied and Request already has the header → no
 		// new init needs to be synthesized.
 		expect( result ).toBeUndefined();
+	} );
+} );
+
+describe( 'overrideRestMethod', () => {
+	test( 'sends a same-origin REST PATCH as POST with the override header', () => {
+		const init = overrideRestMethod( '/wp-json/desktop-mode/v1/notes/7', {
+			method: 'patch',
+			headers: { 'Content-Type': 'application/json' },
+			body: '{"text":"hi"}',
+		} );
+		expect( init?.method ).toBe( 'POST' );
+		expect( init?.body ).toBe( '{"text":"hi"}' );
+		const headers = new Headers( init?.headers );
+		expect( headers.get( 'X-HTTP-Method-Override' ) ).toBe( 'PATCH' );
+		expect( headers.get( 'Content-Type' ) ).toBe( 'application/json' );
+	} );
+
+	test( 'leaves other methods and cross-origin requests alone', () => {
+		const post: RequestInit = { method: 'POST' };
+		expect( overrideRestMethod( '/wp-json/wp/v2/posts', post ) ).toBe( post );
+		expect( overrideRestMethod( '/wp-json/wp/v2/posts' ) ).toBeUndefined();
+		// Core's CORS reply does not allow the override header.
+		const remote: RequestInit = { method: 'DELETE' };
+		expect(
+			overrideRestMethod( 'https://elsewhere.example/wp-json/wp/v2/posts/1', remote ),
+		).toBe( remote );
+	} );
+
+	test( 'reads the method and headers off a Request input', () => {
+		const request = new Request(
+			new URL( '/?rest_route=/wp/v2/posts/1', window.location.href ),
+			{ method: 'DELETE', headers: { 'X-WP-Nonce': 'n' } },
+		);
+		const init = overrideRestMethod( request );
+		expect( init?.method ).toBe( 'POST' );
+		const headers = new Headers( init?.headers );
+		expect( headers.get( 'X-HTTP-Method-Override' ) ).toBe( 'DELETE' );
+		expect( headers.get( 'X-WP-Nonce' ) ).toBe( 'n' );
 	} );
 } );

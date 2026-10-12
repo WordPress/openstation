@@ -128,10 +128,7 @@ export interface UpdateNoteBody {
 
 export function updateNote( id: number, body: UpdateNoteBody ): Promise< Note > {
 	return call< Note >( `/${ id }`, {
-		// POST with an override, as core's api-fetch sends PATCH: WordPress
-		// Playground drops a PATCH body, and some hosts refuse the method.
-		method: 'POST',
-		headers: { 'X-HTTP-Method-Override': 'PATCH' },
+		method: 'PATCH',
 		body: JSON.stringify( body ),
 	} );
 }

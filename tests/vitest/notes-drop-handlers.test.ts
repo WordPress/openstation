@@ -195,9 +195,7 @@ describe( 'note drop handlers', () => {
 
 		await new Promise( ( r ) => setTimeout( r, 10 ) );
 		const patch = fetchSpy.mock.calls.find(
-			( call ) =>
-				new Headers( ( call[ 1 ] as RequestInit | undefined )?.headers ).get( 'X-HTTP-Method-Override' ) ===
-				'PATCH',
+			( call ) => ( call[ 1 ] as RequestInit | undefined )?.method === 'PATCH',
 		);
 		expect( patch ).toBeDefined();
 		const body = JSON.parse( String( ( patch?.[ 1 ] as RequestInit ).body ) );

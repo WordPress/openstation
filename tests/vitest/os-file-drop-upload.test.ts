@@ -100,6 +100,10 @@ class FakeXhr {
 	}
 	setRequestHeader( key: string, value: string ): void {
 		this.headers[ key ] = value;
+		// Record the method the server dispatches on.
+		if ( key === 'X-HTTP-Method-Override' ) {
+			this.method = value;
+		}
 	}
 	addEventListener( name: string, handler: ( e: Event ) => void ): void {
 		const arr = this.listeners.get( name ) ?? [];

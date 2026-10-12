@@ -84,7 +84,7 @@ function readRestNonce(): string | undefined {
 	return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-function resolveUrl( input: RequestInfo | URL ): URL | null {
+export function resolveUrl( input: RequestInfo | URL ): URL | null {
 	try {
 		const base =
 			typeof window !== 'undefined' && window.location
@@ -105,7 +105,7 @@ function resolveUrl( input: RequestInfo | URL ): URL | null {
 	}
 }
 
-function isSameOriginRestUrl( url: URL ): boolean {
+export function isSameOriginRestUrl( url: URL ): boolean {
 	if (
 		typeof window === 'undefined' ||
 		! window.location ||

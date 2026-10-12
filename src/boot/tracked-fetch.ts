@@ -27,6 +27,7 @@
 import type { WindowManager } from '../window-manager';
 import type { Window as DesktopWindow } from '../window';
 import { injectRestNonce } from '../inject-rest-nonce';
+import { overrideRestMethod } from '../rest-method-override';
 import { noteAuthFailure } from '../auth-recovery';
 import { activity } from '../activity';
 import type { ActivityChannelMap } from '../activity';
@@ -50,7 +51,7 @@ export function trackedFetch(
 	requestInit?: RequestInit,
 	opts?: TrackedFetchImplOpts,
 ): Promise< Response > {
-	const finalInit = injectRestNonce( input, requestInit );
+	const finalInit = overrideRestMethod( input, injectRestNonce( input, requestInit ) );
 	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.os.fetch`; it's the one legitimate place to call the raw global.
 	const promise = window.fetch( input, finalInit );
 	// Session-expiry fast path: a 401/403 through the framework
@@ -97,10 +98,12 @@ export function trackedFetch(
 	// a window the caller named: the focused one is just where the
 	// user last clicked, and would claim every background poll.
 	const attributed = named ?? ( opts?.silent ? null : target );
+	// The caller's init, so the bus reports the method they asked for
+	// rather than the POST a method override sent.
 	void promise.then(
-		( res ) => publishSettled( input, finalInit, opts, attributed, { res } ),
+		( res ) => publishSettled( input, requestInit, opts, attributed, { res } ),
 		( err: unknown ) =>
-			publishSettled( input, finalInit, opts, attributed, { err } ),
+			publishSettled( input, requestInit, opts, attributed, { err } ),
 	);
 	if ( opts?.silent ) {
 		return promise;

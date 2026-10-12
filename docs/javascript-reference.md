@@ -1698,6 +1698,10 @@ Rules:
 - **Caller wins.** If you pass `headers: { 'X-WP-Nonce': '...' }` (or the input `Request` already carries the header), the framework does not overwrite it.
 - **REST endpoints only.** `admin-ajax.php` and other non-REST URLs are left alone — admin-ajax uses per-action `_wpnonce` parameters, not the `wp_rest` nonce.
 
+#### PUT, PATCH and DELETE go out as POST
+
+For those same-origin REST URLs, `wp.os.fetch` also sends a `PUT`, `PATCH` or `DELETE` as `POST` with an `X-HTTP-Method-Override` header naming the method you asked for, as Core's `wp.apiFetch` does. Some hosts block those methods, and WordPress Playground drops the body of a `PATCH` or `PUT` while still answering `200`. WordPress's REST server dispatches on the header, so your route sees the method you passed, and so does `os/request-settled`. Cross-origin requests keep their method: Core's CORS reply does not allow the override header.
+
 #### Arguments
 
 | Arg | Type | Description |

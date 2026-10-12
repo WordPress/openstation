@@ -18,6 +18,7 @@
  */
 
 import { injectRestNonce } from './inject-rest-nonce';
+import { overrideRestMethod } from './rest-method-override';
 
 export interface TrackedFetchOpts {
 	windowId?: string;
@@ -46,10 +47,10 @@ export function trackedFetch(
 	}
 	// Boot fallback: `wp.os` hasn't been wired up yet (tests,
 	// very-early-bundle calls, headless paths). Inject the REST
-	// nonce here so behavior stays consistent with the in-shell
-	// path — otherwise an early caller silently loses authentication
-	// on REST endpoints.
-	const finalInit = injectRestNonce( input, init );
+	// nonce and the method override here so behavior stays consistent
+	// with the in-shell path — otherwise an early caller silently loses
+	// authentication on REST endpoints.
+	const finalInit = overrideRestMethod( input, injectRestNonce( input, init ) );
 	// eslint-disable-next-line no-restricted-syntax -- this IS the framework-fetch wrapper; the boot fallback before `wp.os` exists is the one legitimate use of raw fetch in the codebase.
 	return fetch( input, finalInit );
 }

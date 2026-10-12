@@ -198,6 +198,29 @@ describe( 'os/request-settled', () => {
 		} );
 	} );
 
+	test( 'a REST PATCH goes out as POST and the bus reports PATCH', async () => {
+		const { manager } = makeTarget();
+		const spy = vi
+			.spyOn( window, 'fetch' )
+			.mockResolvedValue( response( 200, 'OK' ) );
+		const seen: Array< { method?: string } > = [];
+		const off = activity.subscribe( 'os/request-settled', ( p ) =>
+			seen.push( p ),
+		);
+		await trackedFetch( manager, '/wp-json/x/v1/y', {
+			method: 'PATCH',
+			body: '{}',
+		} );
+		await flush();
+		off();
+		const sent = spy.mock.calls[ 0 ][ 1 ];
+		expect( sent?.method ).toBe( 'POST' );
+		expect( new Headers( sent?.headers ).get( 'X-HTTP-Method-Override' ) ).toBe(
+			'PATCH',
+		);
+		expect( seen[ 0 ]?.method ).toBe( 'PATCH' );
+	} );
+
 	test( 'an untagged request publishes with no source key at all', async () => {
 		const { manager } = makeTarget();
 		vi.spyOn( window, 'fetch' ).mockResolvedValue( response( 200, 'OK' ) );

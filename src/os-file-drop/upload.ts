@@ -304,9 +304,11 @@ function deleteAttachment(
 ): Promise< void > {
 	const url = `${ mediaUrl.replace( /\/$/, '' ) }/${ id }?force=true`;
 	const cleanup = new XMLHttpRequest();
-	cleanup.open( 'DELETE', url, true );
+	// POST + override, as `wp.os.fetch` sends it: see `rest-method-override.ts`.
+	cleanup.open( 'POST', url, true );
 	cleanup.withCredentials = true;
 	cleanup.setRequestHeader( 'X-WP-Nonce', restNonce );
+	cleanup.setRequestHeader( 'X-HTTP-Method-Override', 'DELETE' );
 	return new Promise( ( resolve ) => {
 		cleanup.addEventListener( 'loadend', () => {
 			// Cleanup failures are recoverable from the user's

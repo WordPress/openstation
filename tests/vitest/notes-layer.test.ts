@@ -376,7 +376,7 @@ describe( 'NotesLayer', () => {
 	test( 'a refused save says why once, then stays quiet until a save lands', async () => {
 		let status = 403;
 		const fetchSpy = vi.fn( async ( _url: string, init?: RequestInit ) => {
-			if ( new Headers( init?.headers ).get( 'X-HTTP-Method-Override' ) === 'PATCH' ) {
+			if ( init?.method === 'PATCH' ) {
 				return status === 403
 					? new Response(
 						JSON.stringify( {
