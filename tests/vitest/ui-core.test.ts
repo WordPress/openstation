@@ -35,11 +35,46 @@ describe( 'os-ui html renderer', () => {
 		);
 	} );
 
-	test( 'empty attribute interpolation removes the attribute', () => {
-		render( html`<div class=${ '' }>X</div>`, host );
-		expect( host.querySelector( 'div' )?.hasAttribute( 'class' ) ).toBe(
-			false,
+	test( 'a null / undefined / false attribute value removes the attribute', () => {
+		// The conditional-attribute idiom the whole codebase uses to
+		// omit something.
+		render( html`<div class=${ null } id=${ undefined } lang=${ false }>X</div>`, host );
+		const div = host.querySelector( 'div' )!;
+		expect( div.hasAttribute( 'class' ) ).toBe( false );
+		expect( div.hasAttribute( 'id' ) ).toBe( false );
+		expect( div.hasAttribute( 'lang' ) ).toBe( false );
+	} );
+
+	test( 'an empty-string attribute value is set, not removed (#764)', () => {
+		// An author writing '' means an attribute that exists and is
+		// empty: <os-option value=""> is the "All" row of every list
+		// filter, and alt="" is how a decorative image says so. Both
+		// were unrenderable while this was decided on the composed
+		// text, which flattens null / undefined / false to '' too.
+		render( html`<img alt=${ '' }><os-option value=${ '' }></os-option>`, host );
+		expect( host.querySelector( 'img' )!.getAttribute( 'alt' ) ).toBe( '' );
+		expect( host.querySelector( 'os-option' )!.getAttribute( 'value' ) ).toBe(
+			'',
 		);
+	} );
+
+	test( 'an interpolated attribute that composes to empty still exists', () => {
+		// Only a LONE binding can be an omission. This one has literal
+		// text of its own, so it is an attribute that is empty rather
+		// than an attribute that is absent.
+		render( html`<div data-x="${ '' }${ '' }">X</div>`, host );
+		expect( host.querySelector( 'div' )!.getAttribute( 'data-x' ) ).toBe( '' );
+	} );
+
+	test( 'a value that becomes null on re-render removes the attribute again', () => {
+		const paint = ( v: string | null ) =>
+			render( html`<div class=${ v }>X</div>`, host );
+		paint( 'a' );
+		expect( host.querySelector( 'div' )!.getAttribute( 'class' ) ).toBe( 'a' );
+		paint( '' );
+		expect( host.querySelector( 'div' )!.getAttribute( 'class' ) ).toBe( '' );
+		paint( null );
+		expect( host.querySelector( 'div' )!.hasAttribute( 'class' ) ).toBe( false );
 	} );
 
 	test( '@event binding fires handler on dispatch', () => {

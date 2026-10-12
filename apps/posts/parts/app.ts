@@ -801,7 +801,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			const ui = ctx.ui( freshUi );
 			ui.stats?.sync();
 			ui.feed.observe( ctx.root );
-			const { state, data } = ctx;
+			const { data } = ctx;
 			const env = cellEnv( ctx, ui, cells );
 			// The columns rebuild when the hidden set or the filter options
 			// change (the phone crossing is the sync's own concern).
@@ -817,7 +817,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				// its setter, which is the one the component declares.
 				table: table as unknown as ListTableLike< PostListItem >,
 				rows: items,
-				listKey: [ state.perPage, state.search, state.status, state.orderby, state.order, state.author.join( ',' ), state.tag.join( ',' ) ].join( '|' ),
 				fingerprint: fingerprint( items ),
 				columns: ( phone ) => {
 					ui.cellCache.clear();

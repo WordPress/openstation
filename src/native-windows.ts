@@ -1234,6 +1234,31 @@ function declareServerTabs(
 }
 
 /**
+ * The map a native window's handles resolve through.
+ *
+ * Since GH#898 that is the one `scriptDepPayloads` map every entry
+ * list shares. A payload from an older server (a menu refresh through
+ * a bridge page that predates it) carries `nativeWindowScriptData`.
+ * Servers from #893 to GH#898 (v1.1.11 to v1.1.13) send both, and their
+ * shared map holds only entry dependencies, so the two are merged with
+ * the windows' data winning a handle, the same order the server uses.
+ *
+ * @param source A boot config or menu-refresh payload.
+ */
+export function windowScriptData( source: {
+	scriptDepPayloads?: unknown;
+	nativeWindowScriptData?: unknown;
+} | null | undefined ): NativeWindowScriptData | undefined {
+	const shared = source?.scriptDepPayloads && typeof source.scriptDepPayloads === 'object'
+		? ( source.scriptDepPayloads as NativeWindowScriptData )
+		: undefined;
+	const legacy = source?.nativeWindowScriptData && typeof source.nativeWindowScriptData === 'object'
+		? ( source.nativeWindowScriptData as NativeWindowScriptData )
+		: undefined;
+	return shared && legacy ? { ...shared, ...legacy } : shared ?? legacy;
+}
+
+/**
  * Join wire-format native-window entries with the handle-keyed
  * script-data map into the full entries the sync consumes.
  *

@@ -350,7 +350,9 @@ export function resolveStatusSegments(): StatusSegment[] {
  * window's server action over the ids not already in the trash (a second
  * delete would remove them for good); `restore` runs over the ids in the
  * trash. Both return `false` — the action's own dispatch already refreshed
- * the list.
+ * the list. A selection survives search and filter changes, so an id picked
+ * under an earlier query may have no row loaded: it is sent anyway, and the
+ * server skips it if it is gone or in the wrong state.
  */
 export function defaultBulkActions(
 	mode: 'posts' | 'pages',
@@ -377,10 +379,7 @@ export function defaultBulkActions(
 					),
 			run: async ( ids, ctx ): Promise< false > => {
 				const data = ctx.table.data ?? [];
-				const trashable = ids.filter( ( id ) => {
-					const row = data.find( ( r ) => r.id === id );
-					return row && row.status !== 'trash';
-				} );
+				const trashable = ids.filter( ( id ) => data.find( ( r ) => r.id === id )?.status !== 'trash' );
 				if ( trashable.length > 0 ) {
 					await trash( trashable );
 				}
@@ -395,10 +394,7 @@ export function defaultBulkActions(
 			variant: 'secondary',
 			run: async ( ids, ctx ): Promise< false > => {
 				const data = ctx.table.data ?? [];
-				const restorable = ids.filter( ( id ) => {
-					const row = data.find( ( r ) => r.id === id );
-					return row && row.status === 'trash';
-				} );
+				const restorable = ids.filter( ( id ) => ( data.find( ( r ) => r.id === id )?.status ?? 'trash' ) === 'trash' );
 				if ( restorable.length > 0 && restore ) {
 					await restore( restorable );
 				}

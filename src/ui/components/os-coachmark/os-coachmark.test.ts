@@ -140,7 +140,7 @@ describe( '<os-coachmark>', () => {
 		expect( outline.hidden ).toBe( true );
 	} );
 
-	test( 'an anchor that is hidden or removed lets go of the ring, and takes it back when it returns', async () => {
+	test( 'an anchor that is hidden or removed lets go of the ring, and takes it back when it returns or is replaced', async () => {
 		// A hidden anchor is still connected and reports a rect of zeros,
 		// which put the card and an 8px ring in the top-left corner; a
 		// removed one stopped the tracking and left the ring behind.
@@ -174,6 +174,21 @@ describe( '<os-coachmark>', () => {
 		target.remove();
 		await frames();
 		expect( outline.hidden ).toBe( true );
+
+		// A host whose UI rebuilds the target hands over its lookup: the
+		// card points at the replacement, without the step animation.
+		const replacement = document.createElement( 'div' );
+		replacement.getBoundingClientRect = () =>
+			( { left: 300, top: 200, width: 50, height: 40, right: 350, bottom: 240 } ) as DOMRect;
+		host.appendChild( replacement );
+		const layer = mark.shadowRoot!.querySelector< HTMLElement >( '.layer' )!;
+		layer.classList.remove( 'stepping' );
+		mark.resolveAnchor = () => replacement;
+		await frames();
+		expect( mark.anchor ).toBe( replacement );
+		expect( outline.hidden ).toBe( false );
+		expect( outline.style.left ).toBe( '296px' );
+		expect( layer.classList.contains( 'stepping' ) ).toBe( false );
 	} );
 
 	test( 'a new anchor animates the move; the anchor moving on its own does not', async () => {

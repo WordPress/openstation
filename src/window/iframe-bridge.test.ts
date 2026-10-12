@@ -186,6 +186,25 @@ describe( 'iframe-bridge: os-ready', () => {
 	} );
 } );
 
+describe( 'iframe-bridge: os-menu-owner', () => {
+	let hooks: FakeWpHooks;
+	beforeEach( () => {
+		hooks = installHooksStub();
+	} );
+	afterEach( () => clearHooksStub() );
+
+	test( 'records the menu and repaints the dock, which painted before it arrived', () => {
+		const win = mockWindow();
+		const refresh = vi.fn();
+		hooks.addAction( HOOKS.DOCK_REFRESH_ACTIVE, 'test', refresh );
+
+		postToWindow( win, { type: 'os-menu-owner', menu: 'menu-posts' } );
+
+		expect( win._menuOwner ).toBe( 'menu-posts' );
+		expect( refresh ).toHaveBeenCalledTimes( 1 );
+	} );
+} );
+
 describe( 'iframe-bridge: os-iframe-unloading', () => {
 	beforeEach( () => installHooksStub() );
 	afterEach( () => clearHooksStub() );

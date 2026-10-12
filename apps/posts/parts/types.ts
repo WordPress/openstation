@@ -239,7 +239,7 @@ export interface PostsWindowContext {
 	refresh(): Promise< void >;
 	/** Currently selected row ids. */
 	getSelectedIds(): number[];
-	/** Currently selected rows (resolved against the live `table.data`). */
+	/** Currently selected rows (resolved against the live `table.data`; rows selected under an earlier search are only in `getSelectedIds()`). */
 	getSelectedRows(): PostListItem[];
 	/** Snapshot of the outbound REST params on the next fetch. */
 	getCurrentParams(): PostsListParams;

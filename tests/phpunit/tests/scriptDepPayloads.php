@@ -38,11 +38,26 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 		wp_scripts()->add_data( 'openstation', 'data', '' );
 	}
 
+	/**
+	 * Script handles a test registered behind a native window. The
+	 * native-window registry is a static store with no remove (see
+	 * openstation_native_window_registry()), so the window outlives the
+	 * test; deregistering its scripts is what stops it carrying this
+	 * test's shared config into the next one's payload.
+	 *
+	 * @var string[]
+	 */
+	private $window_script_handles = array();
+
 	public function tear_down() {
 		// The command-script registry is process-global too: without this,
 		// the next test counts this one's commands (and their config
 		// handle) alongside its own.
 		openstation_flush_desktop_command_script_registry();
+		foreach ( $this->window_script_handles as $handle ) {
+			wp_deregister_script( $handle );
+		}
+		$this->window_script_handles = array();
 		parent::tear_down();
 	}
 
@@ -89,6 +104,46 @@ class Tests_OpenStation_ScriptDepPayloads extends WP_UnitTestCase {
 			}
 		}
 		$this->assertSame( self::ENTRIES, $seen );
+	}
+
+	/**
+	 * GH#898: a package that a native window AND a command both depend
+	 * on used to ship once in `nativeWindowScriptData` and once in
+	 * `scriptDepPayloads`. One map now, so it ships once.
+	 *
+	 * @covers ::openstation_build_menu_payload
+	 */
+	public function test_a_dependency_shared_by_a_window_and_a_command_ships_once() {
+		list( $config ) = $this->register_shared_dependency();
+		$window_handle  = 'sdp-window-' . uniqid();
+		wp_register_script( $window_handle, 'https://example.test/' . $window_handle . '.js', array( $config ), '1.0.0', true );
+		$this->window_script_handles = array( $window_handle, $config );
+		$window_id                   = 'sdp-window-' . uniqid();
+		$this->assertTrue(
+			openstation_register_window(
+				$window_id,
+				array(
+					'title'    => 'Shared',
+					'script'   => $window_handle,
+					'template' => static function () {
+						echo '<p>shared</p>';
+					},
+				)
+			)
+		);
+
+		$payload = openstation_build_menu_payload();
+		$json    = wp_json_encode( $payload );
+
+		$this->assertArrayNotHasKey( 'nativeWindowScriptData', $payload );
+		$this->assertSame( 1, substr_count( $json, 'sdpsharedmarker' ), 'The shared config ships once across windows and commands.' );
+		$map = (array) $payload['scriptDepPayloads'];
+		// The window's own bundle is in the same map, with its closure
+		// and its handle, like every other value there.
+		$this->assertArrayHasKey( $window_handle, $map );
+		$this->assertSame( $window_handle, $map[ $window_handle ]['handle'] );
+		$this->assertContains( $config, $map[ $window_handle ]['deps'] );
+		$this->assertSame( $config, $map[ $config ]['handle'] );
 	}
 
 	/**

@@ -16,6 +16,7 @@
  * @covers ::openstation_chromeless_submenu_tab_urls
  * @covers ::openstation_chromeless_title_action_css
  * @covers ::openstation_chromeless_css_attr_value
+ * @covers ::openstation_chromeless_menu_owner
  */
 class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 
@@ -43,6 +44,7 @@ class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 	public function tear_down() {
 		unset( $GLOBALS['parent_file'] );
 		unset( $GLOBALS['submenu'] );
+		unset( $GLOBALS['menu'] );
 		parent::tear_down();
 	}
 
@@ -363,6 +365,24 @@ class Tests_OpenStation_ChromelessTitleActions extends WP_UnitTestCase {
 		foreach ( explode( ',', trim( strtok( $this->css(), '{' ) ) ) as $selector ) {
 			$this->assertStringStartsWith( '.os-chromeless ', trim( $selector ) );
 		}
+	}
+
+	/**
+	 * The menu owner is the dock id of the menu `$parent_file` names,
+	 * matched exactly: a page editor's `edit.php?post_type=page` is not
+	 * Posts' `edit.php`, and a parent no menu lists owns nothing.
+	 */
+	public function test_menu_owner_is_the_dock_id_of_the_parent_menu() {
+		$GLOBALS['menu'] = array(
+			5  => array( 'Posts', 'edit_posts', 'edit.php', '', 'menu-top', 'menu-posts', 'dashicons-admin-post' ),
+			20 => array( 'Pages', 'edit_pages', 'edit.php?post_type=page', '', 'menu-top', 'menu-pages', 'dashicons-admin-page' ),
+		);
+
+		$GLOBALS['parent_file'] = 'edit.php?post_type=page';
+		$this->assertSame( 'menu-pages', openstation_chromeless_menu_owner() );
+
+		$GLOBALS['parent_file'] = 'my-hidden-screen';
+		$this->assertSame( '', openstation_chromeless_menu_owner() );
 	}
 
 	/**

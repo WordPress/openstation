@@ -594,7 +594,7 @@ describe( 'the registries', () => {
 		expect( resolveStatusSegments() ).toHaveLength( 6 );
 	} );
 
-	it( 'the trash bulk action pluralises per mode, skips trashed rows and opts out of the auto-refresh', async () => {
+	it( 'the trash bulk action pluralises per mode, skips trashed rows, keeps rows selected under another query and opts out of the auto-refresh', async () => {
 		const trash = vi.fn( async () => true );
 		const [ action ] = defaultBulkActions( 'posts', trash );
 		expect( typeof action.confirm === 'function' && action.confirm( 1 ) ).toBe( 'Move 1 post to the trash?' );
@@ -602,13 +602,26 @@ describe( 'the registries', () => {
 		const [ pages ] = defaultBulkActions( 'pages', trash );
 		expect( typeof pages.confirm === 'function' && pages.confirm( 2 ) ).toBe( 'Move 2 pages to the trash?' );
 		const clearSelection = vi.fn();
-		const result = await action.run( [ 1, 2 ], {
+		// Row 3 was selected under an earlier search: not loaded, still sent.
+		const result = await action.run( [ 1, 2, 3 ], {
 			table: { data: [ row( 1 ), row( 2, { status: 'trash' } ) ], clearSelection } as never,
 		} as never );
-		expect( trash ).toHaveBeenCalledWith( [ 1 ] );
+		expect( trash ).toHaveBeenCalledWith( [ 1, 3 ] );
 		expect( clearSelection ).toHaveBeenCalled();
 		expect( result ).toBe( false );
 		expect( resolveBulkActions( [ action ], 'posts' ) ).toEqual( [ action ] );
+	} );
+
+	it( 'the restore bulk action skips loaded rows outside the trash and keeps rows selected under another query', async () => {
+		const restore = vi.fn( async () => true );
+		const [ , action ] = defaultBulkActions( 'posts', vi.fn(), restore );
+		const clearSelection = vi.fn();
+		const result = await action.run( [ 1, 2, 3 ], {
+			table: { data: [ row( 1 ), row( 2, { status: 'trash' } ) ], clearSelection } as never,
+		} as never );
+		expect( restore ).toHaveBeenCalledWith( [ 2, 3 ] );
+		expect( clearSelection ).toHaveBeenCalled();
+		expect( result ).toBe( false );
 	} );
 
 	it( 'hands the bulk-actions and columns filters the window mode, and a one-arg callback still works (#854)', () => {
@@ -902,16 +915,15 @@ describe( 'the writing desk', () => {
 		expect( root.ownerDocument.activeElement ).toBe( root.querySelector( '[data-inspect-id="2"]' ) );
 	} );
 
-	it( 'drops hidden selections when the server query changes and keeps details current', async () => {
+	it( 'preserves selections when the server query changes and keeps details current', async () => {
 		const { root, ctx, table } = mount();
 		root.querySelector( '[data-story-id="2"] os-checkbox' )!.dispatchEvent( new CustomEvent( 'os-checkbox-change', { detail: { checked: true } } ) );
 		ctx.state.search = 'Row 1';
 		( ctx as { data: ListData } ).data = data( [ row( 1 ) ] );
 		ctx.repaint();
 		await flush();
-		expect( Array.from( table().selection ?? [] ) ).toEqual( [] );
+		expect( Array.from( table().selection ?? [] ) ).toEqual( [ 2 ] );
 		expect( root.querySelectorAll( '[data-story-id]' ) ).toHaveLength( 1 );
-		expect( root.querySelector( '[data-os-posts-bulk]' )?.hasAttribute( 'hidden' ) ).toBe( true );
 	} );
 
 	it( 'sorts through the existing server action', () => {

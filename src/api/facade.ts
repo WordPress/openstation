@@ -52,6 +52,7 @@ import { startOAuth } from '../oauth-relay';
 import {
 	cloneTemplate,
 	onWindow,
+	windowScriptData,
 } from '../native-windows';
 import { repaintLoadingOverlays } from '../window/loading';
 import { loadModules, registerModule } from '../modules/registry';
@@ -687,7 +688,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): OpenStationPublicApi
 				const url =
 					entry.scriptUrl ||
 					( entry.scriptHandle
-						? config.nativeWindowScriptData?.[ entry.scriptHandle ]
+						? windowScriptData( config )?.[ entry.scriptHandle ]
 							?.url ?? ''
 						: '' );
 				let loadPath: 'eager' | 'lazy' | 'unknown' = 'unknown';

@@ -4723,6 +4723,15 @@ Posted by the same head script whenever the document changes its own address wit
 
 The parent only records `url` as where the frame now is, which is what `Window.getCurrentUrl()` returns for a frame it cannot read. Without it, "Copy link", "Open in new window", "Open in classic wp-admin" and the saved session would all go on naming the URL the document loaded on. It is not a navigation: it settles no submit and keeps the window's title.
 
+#### `os-menu-owner` — Experimental
+Posted by the chromeless bridge on every page load. `menu` is the id of the dock tile whose admin menu WordPress files the page under (the menu the classic sidebar would highlight, from `$parent_file`), or `''` when no menu owns it.
+
+```typescript
+{ type: 'os-menu-owner', menu: string }
+```
+
+The dock counts the window as one of that tile's windows: the tile shows it as open, lights as focused while it is in front, and its flyout lists it. That ties a window to its menu when nothing in its URL does: a post editor (`post.php?post=<id>`) to Posts, Pages or its post type's menu, and a post's comments (`edit-comments.php?p=<id>`) to Comments. To change it for your own screen, use Core's `parent_file` filter, which moves the sidebar highlight too.
+
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).
 
@@ -4870,6 +4879,8 @@ A payload-less nudge emitted by the chromeless bridge when Core's shiny updater 
 #### `os-menu-signature` — Stable
 
 A lightweight structural fingerprint of the admin menu, emitted by the chromeless bridge on **every** chromeless admin page that does *not* already carry a full `os-plugins-changed` payload. The shell compares `sig` against its last-known value (seeded from `openStationConfig.menuSig` at boot, updated on every applied payload) and — only when it differs — spends one [`wp.os.refreshMenu()`](#refreshmenu) probe to reconcile the dock.
+
+The hash covers the slug and title of every menu and submenu item the viewer can see. The `return=` value on Customize links is left out: it is the page being viewed, and would give every page its own signature for the same menu.
 
 This closes the gap where a custom post type registered through a settings tool (CPT UI, Pods, ACF, …) saves on its own `admin.php?page=…` / `options.php` screen — none of which is on the full-payload allowlist — so the new menu item never reached the live dock until a full browser reload (GH#325). An unchanged menu costs nothing beyond the tiny message; a full harvest happens only on a real change.
 
@@ -5204,6 +5215,8 @@ wp.os.registerWidget( {
 ```
 
 User-placed geometry (position + size of liberated widgets) persists per-user in `localStorage` under `desktop-mode-widgets-geometry`. Height resizes made while a resizable widget is docked in the column persist separately under `desktop-mode-widgets-docked-heights` (height only — column widgets have no free position, and a full geometry record would mark the widget as floating at boot). Removing a widget clears both records so a re-add starts docked at its natural height.
+
+Floating widgets follow the desktop when it changes size (a resized browser or PWA window, the dock moved to a side). Cards that touch (within 32 px) form one arrangement, and each arrangement keeps its distance to the edge it sits nearest to on each axis: a group beside the right-hand column follows the right edge, a group on the left stays, a roughly centred group stays centred. Cards never move relative to their own group. The area size the geometry was saved against lives under `openstation-widgets-geometry-frame`, so a session opened at a different size reflows on boot too.
 
 A `fitContent` card's grown height is never stored: both records keep the height the user chose, and the card grows from it on every load. A user resize sets that height anew, so a `fitContent` card dragged shorter than its content grows back to fit on release.
 
@@ -7860,7 +7873,10 @@ interface Agent {
 ```
 
 `POST /agents/{id}/invoke` with `{ message, source?, history? }`
-returns `{ text, callToActions, toolCalls, turns }` where each tool call is
+returns `{ text, callToActions, toolCalls, turns, usage, model }` where
+`usage` is `{ prompt, completion, total }` summed across the run and
+`model` is `{ id, name }` for the last model resolved (both `null` when
+the provider reported neither), and where each tool call is
 `{ callId, name, args, output, error }`.
 
 `history` is the prior conversation (`[ { role: 'user'|'agent', text },

@@ -252,6 +252,15 @@ export class Window {
 	 */
 	public _reportedLocation: { url: string; src: string } | null = null;
 
+	/**
+	 * Id of the dock tile whose menu WordPress files the framed page
+	 * under, as the page reported it (`os-menu-owner`). Empty when it
+	 * reported none.
+	 *
+	 * @internal
+	 */
+	public _menuOwner = '';
+
 	/** @internal */
 	public _titleBar: HTMLElement;
 	/** @internal */

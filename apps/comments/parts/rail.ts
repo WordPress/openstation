@@ -152,7 +152,7 @@ function threadItem( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResult {
 			type="button"
 			class="${ NS }__thread${ selected ? ' is-selected' : '' }${ ui.busy.startsWith( `${ row.id }:` ) ? ' is-busy' : '' }"
 			data-id=${ row.id }
-			aria-current=${ selected ? 'true' : '' }
+			aria-current=${ selected ? 'true' : null }
 			@click=${ pick }
 		>
 			${ avatar( row, 36 ) }

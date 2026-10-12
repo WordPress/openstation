@@ -784,7 +784,8 @@ function instancesFor(
 		// keyed on `post-new.php`, never on the Posts menu's own
 		// `edit.php`, so the base-id lookup alone reports "no open
 		// windows" while the editor the user just opened from this very
-		// flyout sits on screen. `parentUrl` is what ties it back.
+		// flyout sits on screen. `parentUrl` is what ties it back, or for
+		// a window opened elsewhere, the menu its page reported.
 		const parentKey = deriveWindowId( item.menuItem.url, deps.adminUrl );
 		if ( parentKey ) {
 			const activeDesktop = deps.windowManager.getActiveDesktopId();
@@ -795,9 +796,10 @@ function instancesFor(
 					continue;
 				}
 				if (
-					win.config.parentUrl &&
-					deriveWindowId( win.config.parentUrl, deps.adminUrl ) ===
-						parentKey
+					win._menuOwner === item.menuItem.id ||
+					( win.config.parentUrl &&
+						deriveWindowId( win.config.parentUrl, deps.adminUrl ) ===
+							parentKey )
 				) {
 					seen.add( win );
 				}

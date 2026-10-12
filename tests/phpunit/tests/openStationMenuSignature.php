@@ -163,6 +163,31 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Core's Customize links carry the page being viewed as `return=`, so
+	 * two pages of the same menu must still report the same signature, or
+	 * every window load spends a refresh probe.
+	 */
+	public function test_ignores_the_customize_return_url() {
+		global $menu, $submenu;
+		$menu    = array( $this->make_menu_row( 'Appearance', 'edit_theme_options', 'themes.php' ) );
+		$on_page = static function ( $request_uri ) {
+			$customize = add_query_arg( 'return', urlencode( $request_uri ), 'customize.php' );
+			$header    = add_query_arg( array( 'autofocus' => array( 'control' => 'header_image' ) ), $customize );
+			return array(
+				array( 'Customize', 'edit_theme_options', esc_url( $customize ) ),
+				array( 'Header', 'edit_theme_options', esc_url( $header ) ),
+			);
+		};
+
+		$submenu['themes.php'] = $on_page( '/wp-admin/index.php?openstation_chromeless=1' );
+		$dashboard             = openstation_menu_signature();
+		$submenu['themes.php'] = $on_page( '/wp-admin/users.php?openstation_chromeless=1' );
+		$users                 = openstation_menu_signature();
+
+		$this->assertSame( $dashboard, $users );
+	}
+
+	/**
 	 * The signature is computed against the *current user's*
 	 * capability-passing view — the same gate the dock uses. A menu the
 	 * viewer can't see must neither appear in nor churn the signature,

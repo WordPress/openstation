@@ -49,7 +49,7 @@ import {
 import { isMobileStamped } from '../../../src/mode/stamp';
 import type { DragBridgePayload } from '../../../src/drag-bridge';
 import { shell, uiOf, type Ctx, type ListItem, type SectionDef } from './types';
-import { openPreview, previewDetail } from './optimistic';
+import { closePreview, previewDetail } from './optimistic';
 import { sectionOf } from './helpers';
 import { agentsMountIdOf, agentsRosterStamp, openChatWindow } from './agents';
 
@@ -361,7 +361,7 @@ export function wire( ctx: Ctx ): () => void {
 		} else if ( ctx.state.footprint > 0 ) {
 			void ctx.dispatch( 'back' );
 		} else if ( ctx.state.item > 0 ) {
-			openPreview( ctx, 0 );
+			closePreview( ctx );
 		}
 	};
 	root.addEventListener( 'keydown', onKey );

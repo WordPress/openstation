@@ -443,7 +443,7 @@ function openstation_build_dock_items() {
 		}
 
 		$dock_item = array(
-			'id'         => sanitize_key( $item[5] ?? $item[2] ),
+			'id'         => openstation_dock_item_id( $item ),
 			'title'      => $title,
 			'icon'       => $icon,
 			'url'        => $url,
@@ -483,6 +483,19 @@ function openstation_build_dock_items() {
 	 * @param array[] $items Array of dock item arrays.
 	 */
 	return apply_filters( 'openstation_dock_items', $items );
+}
+
+/**
+ * The dock id of a top-level `$menu` row.
+ *
+ * Shared with {@see openstation_chromeless_menu_owner()}, which has to
+ * name the same tile from inside a window.
+ *
+ * @param array $item A `$menu` row.
+ * @return string Dock item id.
+ */
+function openstation_dock_item_id( $item ) {
+	return sanitize_key( $item[5] ?? $item[2] );
 }
 
 /**
@@ -1673,10 +1686,11 @@ function openstation_build_menu_payload() {
 	// the handle-keyed script data the shell joins them with.
 	$native_windows = openstation_collect_native_windows_payload();
 
+	// The windows' script data is not a payload key of its own: it
+	// seeds the one handle-keyed map below (GH#898).
 	$payload = array(
-		'dockItems'              => $dock,
-		'nativeWindows'          => $native_windows['windows'],
-		'nativeWindowScriptData' => $native_windows['scriptData'],
+		'dockItems'     => $dock,
+		'nativeWindows' => $native_windows['windows'],
 	);
 
 	// Optional per-surface payload builders — each module ships a
@@ -1751,8 +1765,21 @@ function openstation_build_menu_payload() {
 	// openstation_menu_signature().
 	$payload['menuSig'] = openstation_menu_signature();
 
-	// Each script dependency's payload once, entries carry handles.
-	$script_dep_payloads          = array();
+	// Each script's payload once, keyed by handle; entries carry
+	// handles. ONE map for native windows and every other entry list
+	// (GH#898): a package that a window and a command both depend on
+	// used to ship once in each of two maps. The windows' data goes in
+	// first, so a handle that is a window's own bundle keeps its
+	// synthesized `openStationWindowConfig` assignments and `deps`
+	// closure even when another entry names it as a dependency: the
+	// docblock on openstation_collect_native_windows_payload() explains
+	// why whichever entry loads a bundle must deliver its whole config.
+	// Every value carries its `handle`, on both sides of the join.
+	$script_dep_payloads = array();
+	foreach ( $native_windows['scriptData'] as $handle => $data ) {
+		$data['handle']                 = (string) $handle;
+		$script_dep_payloads[ $handle ] = $data;
+	}
 	$payload                      = openstation_compact_script_deps( $payload, $script_dep_payloads );
 	$payload['scriptDepPayloads'] = (object) $script_dep_payloads;
 
@@ -1823,8 +1850,11 @@ function openstation_menu_signature() {
 			if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
 				continue;
 			}
-			$parts[] = "\t" . ( isset( $sub_item[2] ) ? (string) $sub_item[2] : '' )
-				. '|' . $clean_title( $sub_item[0] ?? '' );
+			// Core's Customize links carry the page being viewed as `return=`,
+			// which would give every page its own signature and make the shell
+			// spend a refresh probe on each one.
+			$sub_slug = (string) preg_replace( '/([?&;])return=[^&]*/', '$1', isset( $sub_item[2] ) ? (string) $sub_item[2] : '' );
+			$parts[]  = "\t" . $sub_slug . '|' . $clean_title( $sub_item[0] ?? '' );
 		}
 	}
 
