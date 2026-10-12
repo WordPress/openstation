@@ -242,6 +242,26 @@ describe( 'shell tour', () => {
 		expect( deps.openFallbackWindow ).toHaveBeenCalledTimes( 1 );
 	} );
 
+	test( 'the open-window card follows the Posts tile when the dock rebuilds it', async () => {
+		// The dock replaces every tile on each render (a menu refresh, a
+		// settings save), so the card has to find the new one.
+		const dock = document.createElement( 'div' );
+		dock.className = 'os-dock';
+		const tile = '<div class="os-dock__item" data-nav-id="menu-posts"><button class="os-dock__item-primary">Posts</button></div>';
+		dock.innerHTML = tile;
+		document.body.appendChild( dock );
+
+		startShellTour( deps );
+		await settle();
+		skipIntroCards();
+		const before = mark().anchor;
+		dock.innerHTML = tile;
+		await new Promise( ( resolve ) => requestAnimationFrame( () => resolve( null ) ) );
+		await new Promise( ( resolve ) => requestAnimationFrame( () => resolve( null ) ) );
+		expect( before?.isConnected ).toBe( false );
+		expect( mark().anchor ).toBe( dock.querySelector( '.os-dock__item' ) );
+	} );
+
 	test( 'the orienting cards point at the rail, and the layout card opens Preferences', async () => {
 		const dock = document.createElement( 'div' );
 		dock.className = 'os-dock';

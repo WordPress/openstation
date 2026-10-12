@@ -147,7 +147,13 @@ export class OsCoachmark extends Component {
 				name: 'anchor',
 				type: 'Element | null (property)',
 				description:
-					'The element the card points at. Set it from script — an element reference, never an id. `null` centres the card in the viewport with no tail and no ring. The card, its tail and the ring follow the anchor while the coachmark is open, so a dragged window keeps its highlight. An anchor that leaves the document or stops being rendered (a closed panel, a hidden tab pane) is treated as `null` until it is back.',
+					'The element the card points at. Set it from script — an element reference, never an id. `null` centres the card in the viewport with no tail and no ring. The card, its tail and the ring follow the anchor while the coachmark is open, so a dragged window keeps its highlight. An anchor that leaves the document or stops being rendered (a closed panel, a hidden tab pane) is treated as `null` until it is back, or until `resolveAnchor` finds its replacement.',
+			},
+			{
+				name: 'resolveAnchor',
+				type: '( () => Element | null ) | null (property)',
+				description:
+					'Finds the anchor again after it leaves the document, for a target the UI rebuilds rather than moves (a dock tile after a menu refresh). Called while the anchor is detached; an element it returns that is in the document becomes the anchor, with no step animation. Usually the same lookup that found the anchor.',
 			},
 			{
 				name: 'placement',
@@ -267,6 +273,9 @@ export class OsCoachmark extends Component {
 	private _speakerKey = '';
 	/** Last gaze direction written, so an unchanged one is not re-set. */
 	private _lookKey = '';
+
+	/** Finds a detached anchor's replacement. See `help`. */
+	public resolveAnchor: ( () => Element | null ) | null = null;
 
 	/** The element the card points at and outlines. */
 	get anchor(): Element | null {
@@ -509,6 +518,14 @@ export class OsCoachmark extends Component {
 			if ( ! this._shown ) {
 				this._raf = 0;
 				return;
+			}
+			if ( this._anchor && ! this._anchor.isConnected && this.resolveAnchor ) {
+				// Rebuilt rather than moved: point at the replacement. It is
+				// not a new step, so it does not go through the setter.
+				const next = this.resolveAnchor();
+				if ( next?.isConnected ) {
+					this._anchor = next;
+				}
 			}
 			if ( this._anchor ) {
 				let key = ANCHOR_GONE;

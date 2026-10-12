@@ -4871,6 +4871,8 @@ A payload-less nudge emitted by the chromeless bridge when Core's shiny updater 
 
 A lightweight structural fingerprint of the admin menu, emitted by the chromeless bridge on **every** chromeless admin page that does *not* already carry a full `os-plugins-changed` payload. The shell compares `sig` against its last-known value (seeded from `openStationConfig.menuSig` at boot, updated on every applied payload) and — only when it differs — spends one [`wp.os.refreshMenu()`](#refreshmenu) probe to reconcile the dock.
 
+The hash covers the slug and title of every menu and submenu item the viewer can see. The `return=` value on Customize links is left out: it is the page being viewed, and would give every page its own signature for the same menu.
+
 This closes the gap where a custom post type registered through a settings tool (CPT UI, Pods, ACF, …) saves on its own `admin.php?page=…` / `options.php` screen — none of which is on the full-payload allowlist — so the new menu item never reached the live dock until a full browser reload (GH#325). An unchanged menu costs nothing beyond the tiny message; a full harvest happens only on a real change.
 
 ```typescript

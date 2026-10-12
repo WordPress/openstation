@@ -540,6 +540,9 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 			mark.removeAttribute( 'placement' );
 		}
 		mark.replaceChildren( ...( peek ? [ peek ] : [] ), ...step.body() );
+		// The dock rebuilds its tiles on every render (a menu refresh, a
+		// settings save), so a card on a tile has to find it again.
+		mark.resolveAnchor = step.anchor;
 		mark.anchor = step.anchor();
 		mark.setAttribute( 'open', '' );
 	};

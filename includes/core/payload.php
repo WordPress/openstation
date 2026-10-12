@@ -1823,8 +1823,11 @@ function openstation_menu_signature() {
 			if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
 				continue;
 			}
-			$parts[] = "\t" . ( isset( $sub_item[2] ) ? (string) $sub_item[2] : '' )
-				. '|' . $clean_title( $sub_item[0] ?? '' );
+			// Core's Customize links carry the page being viewed as `return=`,
+			// which would give every page its own signature and make the shell
+			// spend a refresh probe on each one.
+			$sub_slug = (string) preg_replace( '/([?&;])return=[^&]*/', '$1', isset( $sub_item[2] ) ? (string) $sub_item[2] : '' );
+			$parts[]  = "\t" . $sub_slug . '|' . $clean_title( $sub_item[0] ?? '' );
 		}
 	}
 
