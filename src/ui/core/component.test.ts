@@ -82,3 +82,42 @@ describe( 'Component prop reflection', () => {
 		} );
 	} );
 } );
+
+/**
+ * A property assigned while the tag is still undefined lands as an own
+ * data property on the plain element, and would shadow the class's
+ * accessor after the upgrade. The app runtime assigns `os-prop-*`
+ * values before it lazy-loads the component, so this is the cold-open
+ * path for every property-driven component.
+ */
+class OsUpgradeTest extends Component {
+	static props = [ 'variant' ] as const;
+	static shadow = false;
+	received: unknown = 'unset';
+	get data(): unknown {
+		return this.received;
+	}
+	set data( next: unknown ) {
+		this.received = next;
+	}
+	render() {
+		return html``;
+	}
+}
+
+describe( 'Component upgrade', () => {
+	it( 'routes properties assigned before define() through the class', () => {
+		const el = document.createElement( 'os-upgrade-test' ) as unknown as Record< string, unknown >;
+		el.data = [ 1, 2 ];
+		el.variant = 'primary';
+		document.body.appendChild( el as unknown as Element );
+		try {
+			defineComponent( 'os-upgrade-test', OsUpgradeTest );
+			expect( ( el as unknown as OsUpgradeTest ).received ).toEqual( [ 1, 2 ] );
+			expect( Object.prototype.hasOwnProperty.call( el, 'data' ) ).toBe( false );
+			expect( ( el as unknown as Element ).getAttribute( 'variant' ) ).toBe( 'primary' );
+		} finally {
+			( el as unknown as Element ).remove();
+		}
+	} );
+} );

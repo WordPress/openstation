@@ -81,6 +81,14 @@ export abstract class Component extends HTMLElement {
 	/** Backing store so attr + prop share state without infinite loops. */
 	private _propValues: Record<string, string | null> = {};
 
+	/**
+	 * Values assigned to the element before its tag was defined. They
+	 * land as own data properties on the plain element and would shadow
+	 * the class's accessors, so the constructor lifts them off and
+	 * `connectedCallback` assigns them again through the accessors.
+	 */
+	private _earlyProps: [ string, unknown ][] = [];
+
 	constructor() {
 		super();
 		const ctor = this.constructor as typeof Component;
@@ -90,10 +98,17 @@ export abstract class Component extends HTMLElement {
 		} else {
 			this._renderRoot = this;
 		}
+		this._takeEarlyProps();
 		this._installPropAccessors();
 	}
 
 	connectedCallback(): void {
+		// Replayed here rather than in the constructor: a subclass's own
+		// fields are not initialized until `super()` returns, and would
+		// overwrite whatever its setter stored.
+		for ( const [ prop, value ] of this._earlyProps.splice( 0 ) ) {
+			( this as unknown as Record< string, unknown > )[ prop ] = value;
+		}
 		this._adoptStyles();
 		this.requestUpdate();
 	}
@@ -189,6 +204,23 @@ export abstract class Component extends HTMLElement {
 	// ------------------------------------------------------------------
 	// Internals
 	// ------------------------------------------------------------------
+
+	/**
+	 * Lift off every own property that the class means to handle: a
+	 * `static props` entry, or a name with a setter on the prototype
+	 * chain (`OsTable.data`, `OsRepeater.keys`). See `_earlyProps`.
+	 */
+	private _takeEarlyProps(): void {
+		const ctor = this.constructor as typeof Component;
+		const self = this as unknown as Record< string, unknown >;
+		for ( const prop of Object.keys( this ) ) {
+			if ( ! ( ctor.props as readonly string[] ).includes( prop ) && ! hasSetter( Object.getPrototypeOf( this ), prop ) ) {
+				continue;
+			}
+			this._earlyProps.push( [ prop, self[ prop ] ] );
+			delete self[ prop ];
+		}
+	}
 
 	/**
 	 * Wire every `static props` entry to a matched property getter +
@@ -345,6 +377,16 @@ export function defineComponent(
 // ------------------------------------------------------------------
 // Helpers
 // ------------------------------------------------------------------
+
+function hasSetter( proto: object | null, prop: string ): boolean {
+	for ( let p = proto; p; p = Object.getPrototypeOf( p ) ) {
+		const desc = Object.getOwnPropertyDescriptor( p, prop );
+		if ( desc ) {
+			return typeof desc.set === 'function';
+		}
+	}
+	return false;
+}
 
 function kebab( s: string ): string {
 	return s.replace( /[A-Z]/g, ( c ) => '-' + c.toLowerCase() );
