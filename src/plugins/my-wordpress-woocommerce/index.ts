@@ -68,6 +68,8 @@ interface WooConfig {
 	/** Whether the viewer may see customer money at all. */
 	canCustomers?: boolean;
 	orderBands?: OrderBand[];
+	/** WooCommerce's label per status, keyed by the `wc-` slug. */
+	orderStatuses?: Record< string, string >;
 	productBands?: WooBand[];
 	couponBands?: WooBand[];
 	customerBands?: WooBand[];
@@ -103,6 +105,13 @@ interface ListTilePayload {
 interface ListBanding {
 	bands: Array< { id: string; label: string; order?: number } >;
 	assign: ( item: Record< string, unknown > ) => string | null;
+}
+
+/** One `os.my-wordpress.list-columns` column, as far as this bundle reads it. */
+interface ListColumn {
+	id: string;
+	label: string;
+	render: ( item: Record< string, unknown > ) => unknown;
 }
 
 /** One button in the user preview pane's action row. */
@@ -1208,6 +1217,47 @@ addFilter(
 		}
 
 		return banding;
+	},
+);
+
+/** Post columns an order row has nothing to fill with. */
+const NOT_ORDER_COLUMNS = new Set( [ 'slug', 'comments', 'words' ] );
+
+/**
+ * The Orders list view reads like an order list: the customer where a
+ * post has its author, and the status in WooCommerce's own words. The
+ * row's `status` is `publish` on purpose (see `woo_order_item()`), so
+ * the column reads `wcStatus` instead.
+ */
+addFilter(
+	'os.my-wordpress.list-columns',
+	'desktop-mode/woocommerce',
+	( columns: ListColumn[], entity: { id: string } ): ListColumn[] => {
+		if ( entity.id !== SECTION_ORDERS || ! Array.isArray( columns ) ) {
+			return columns;
+		}
+		const labels = getConfig()?.orderStatuses ?? {};
+		return columns
+			.filter( ( column ) => ! NOT_ORDER_COLUMNS.has( column.id ) )
+			.map( ( column ) => {
+				if ( column.id === 'author' ) {
+					return {
+						id: 'customer',
+						label: __( 'Customer', 'desktop-mode' ),
+						render: ( item ) => String( item.customer ?? '' ),
+					};
+				}
+				if ( column.id === 'status' ) {
+					return {
+						...column,
+						render: ( item ) => {
+							const status = String( item.wcStatus ?? '' );
+							return labels[ `wc-${ status }` ] ?? status;
+						},
+					};
+				}
+				return column;
+			} );
 	},
 );
 

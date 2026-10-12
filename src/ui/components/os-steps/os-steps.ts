@@ -146,7 +146,7 @@ export class OsStep extends Component {
 				name: 'interactive',
 				type: 'boolean',
 				description:
-					'Makes the step a jump target: focusable, activated by click or Enter/Space, and emits os-step-click.',
+					'Makes the step a jump target: focusable, activated by click or Enter/Space, and emits os-step-click. Lifts the title to full contrast on hover.',
 			},
 		],
 		events: [
@@ -173,6 +173,12 @@ export class OsStep extends Component {
 				default: 'var(--os-ui-fg-muted)',
 			},
 			{ name: '--os-ui-step-chip-font-size', default: '13px' },
+			{
+				name: '--os-ui-step-title-hover-color',
+				default: 'var(--os-ui-fg)',
+				description:
+					'Ink an interactive step takes on hover, on its title and on an outlined chip.',
+			},
 		],
 		example: html`
 			<os-steps>

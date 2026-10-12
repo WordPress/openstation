@@ -248,7 +248,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// ---- Profile (minimal — the dossier already returned the full one) ----
 	$profile = array(
 		'id'        => (int) $user->ID,
-		'name'      => (string) $user->display_name,
+		'name'      => openstation_plain_text_title( $user->display_name ),
 		'avatarUrl' => get_avatar_url( $user->ID, array( 'size' => 128 ) ),
 		'link'      => get_author_posts_url( $user->ID ),
 	);
@@ -590,7 +590,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		$timeline[] = array(
 			'kind'   => 'post',
 			'date'   => mysql2date( 'c', $p['post_date_gmt'], false ),
-			'title'  => (string) $p['post_title'],
+			'title'  => openstation_plain_text_title( $p['post_title'] ),
 			'status' => (string) $p['post_status'],
 			'postId' => $pid,
 			'link'   => (string) get_permalink( $pid ),
@@ -605,7 +605,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		$timeline[] = array(
 			'kind'   => 'comment',
 			'date'   => mysql2date( 'c', $c['comment_date_gmt'], false ),
-			'title'  => (string) ( $c['post_title'] ?? '' ),
+			'title'  => openstation_plain_text_title( $c['post_title'] ?? '' ),
 			'status' => 'approved',
 			'postId' => $pid,
 			'link'   => $pid ? (string) get_permalink( $pid ) : '',
@@ -619,7 +619,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		$timeline[] = array(
 			'kind'   => 'post-update',
 			'date'   => mysql2date( 'c', $u['last_save'], false ),
-			'title'  => (string) $u['post_title'],
+			'title'  => openstation_plain_text_title( $u['post_title'] ),
 			'status' => (string) $u['post_status'],
 			'postId' => $pid,
 			'link'   => $pid ? (string) get_permalink( $pid ) : '',

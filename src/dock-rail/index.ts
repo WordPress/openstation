@@ -22,6 +22,8 @@ export {
 	unwrapDefaultDock,
 } from './default-renderer';
 
+export { taskbarDockRailRenderer } from './taskbar-renderer';
+
 export type {
 	DockRailController,
 	DockRailMountDeps,
@@ -30,14 +32,16 @@ export type {
 
 import { register } from './registry';
 import { defaultDockRailRenderer } from './default-renderer';
+import { taskbarDockRailRenderer } from './taskbar-renderer';
 
 /**
- * Bootstrap the registry with the built-in `'default'` icon-strip
- * renderer. Idempotent — calling twice replaces the entry but
- * doesn't double up. Called from the shell boot path before any
+ * Bootstrap the registry with the built-in renderers: the `'default'`
+ * icon strip and the `'taskbar'`. Idempotent — calling twice replaces
+ * the entries but doesn't double up. Called from the shell boot path before any
  * plugin script runs, so plugins that want to *replace* the
  * default can register their own `id: 'default'` and override.
  */
 export function installDefaultDockRailRenderer(): void {
 	register( defaultDockRailRenderer );
+	register( taskbarDockRailRenderer );
 }

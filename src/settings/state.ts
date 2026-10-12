@@ -28,6 +28,7 @@
  */
 
 import type { DesktopConfig } from '../types';
+import { restErrorFromResponse } from '../core/api-client';
 import {
 	ADMIN_BAR_MODES,
 	CUSTOM_ACCENT_ID,
@@ -39,6 +40,7 @@ import {
 	OS_SETTINGS_WINDOW_ID,
 	STORAGE_KEY,
 	WINDOW_RADII,
+	OPEN_WINDOWS_AS,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
@@ -186,6 +188,7 @@ const SANITIZERS: Sanitizers = {
 	customAccent: matching( /^#[0-9a-fA-F]{6}$/ ),
 	dockSize: oneOf( DOCK_SIZES ),
 	windowRadius: oneOf( WINDOW_RADII ),
+	openWindowsAs: oneOf( OPEN_WINDOWS_AS ),
 	adminBarMode: oneOf( ADMIN_BAR_MODES ),
 	desktopLayout: oneOf( DESKTOP_LAYOUTS ),
 	dockPlacement: oneOf( DOCK_PLACEMENTS ),
@@ -758,9 +761,9 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 		},
 		{ windowId: attributedWindowId },
 	)
-		.then( ( res ) => {
+		.then( async ( res ) => {
 			if ( ! res.ok ) {
-				throw new Error( `${ res.status } ${ res.statusText }` );
+				throw await restErrorFromResponse( res );
 			}
 			// Server accepted — promote this state to the rollback
 			// baseline. Any subsequent save that fails will revert

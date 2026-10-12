@@ -210,7 +210,24 @@ add_action( 'admin_head', 'openstation_chromeless_offset_neutralizer_script', 1 
  * browser painted the "Settings saved." notice the ring is
  * confirming. From the head it beats the body to the screen.
  *
- * The parent ignores it unless that window has a submit waiting.
+ * It also says where the frame landed, for documents the shell cannot
+ * read: one sent with `Document-Isolation-Policy`, as WordPress sends
+ * the block editor in Chromium, is cross-origin to the parent, and a
+ * Revisions window that restores into the editor still has to hand off.
+ *
+ * The parent acts on it only for a window with a submit waiting, or
+ * one whose frame it cannot read.
+ *
+ * A document can also change its address without navigating, and the
+ * block editor does on its first save: `post-new.php` becomes
+ * `post.php?post=N&action=edit` through `history.replaceState()`. For
+ * a frame the parent cannot read, nothing else tells it, so the window
+ * would go on calling the draft "a new post", and "Copy link" would
+ * hand out an empty editor. `os-iframe-location` reports every such
+ * change, and only updates where the parent thinks the frame is: it is
+ * not a navigation, so it settles no submit and resets no title. The
+ * wrap is installed here, ahead of every other script, so Core's own
+ * canonical-URL `replaceState()` in this same head is reported too.
  */
 function openstation_chromeless_navigation_ping_script() {
 	if ( ! openstation_is_chromeless_request() ) {
@@ -218,7 +235,18 @@ function openstation_chromeless_navigation_ping_script() {
 	}
 
 	wp_print_inline_script_tag(
-		"try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:'os-iframe-navigated'},window.location.origin);}}catch(e){}"
+		'try{if(window.parent&&window.parent!==window){'
+		. "window.parent.postMessage({type:'os-iframe-navigated',url:window.location.href},window.location.origin);"
+		. 'var osParent=window.parent,osOrigin=window.location.origin,'
+		. "osMoved=function(){try{osParent.postMessage({type:'os-iframe-location',url:window.location.href},osOrigin);}catch(e){}};"
+		. "['pushState','replaceState'].forEach(function(name){"
+		. 'var original=window.history[name];'
+		. "if(typeof original!=='function'){return;}"
+		. 'window.history[name]=function(){var result=original.apply(this,arguments);'
+		. 'osMoved();return result;};'
+		. '});'
+		. "window.addEventListener('popstate',osMoved);"
+		. '}}catch(e){}'
 	);
 }
 add_action( 'admin_head', 'openstation_chromeless_navigation_ping_script', 1 );
@@ -544,3 +572,78 @@ function openstation_chromeless_bridge_script() {
 	wp_add_inline_script( 'os-chromeless-bridge', $data, 'before' );
 }
 add_action( 'admin_footer', 'openstation_chromeless_bridge_script' );
+
+/**
+ * Transient holding the screen a plugin redirected a plugins window to.
+ *
+ * @param int $user_id User ID.
+ * @return string Transient name.
+ */
+function openstation_plugins_handoff_key( $user_id ) {
+	return 'openstation_plugins_handoff_' . (int) $user_id;
+}
+
+/**
+ * Keeps a plugins window on the plugins screen when a plugin redirects
+ * away from it (Elementor sends a fresh install to its onboarding), and
+ * leaves the destination for that screen to open in a window of its
+ * own, the way a link to it would. One hop only, so a plugin that
+ * redirects on every load cannot loop.
+ *
+ * @param string $location Redirect URL.
+ * @return string The redirect URL, or the plugins screen to land on.
+ */
+function openstation_chromeless_hand_off_plugins_redirect( $location ) {
+	if ( empty( $location ) || 'plugins.php' !== ( $GLOBALS['pagenow'] ?? '' ) ) {
+		return $location;
+	}
+	if ( ! openstation_is_chromeless_request() || ! openstation_is_admin_redirect_target( $location ) ) {
+		return $location;
+	}
+	$destination = WP_Http::make_absolute_url( $location, self_admin_url() );
+	if ( 'plugins.php' === basename( (string) wp_parse_url( $destination, PHP_URL_PATH ) ) ) {
+		return $location;
+	}
+	$key = openstation_plugins_handoff_key( get_current_user_id() );
+	if ( false !== get_transient( $key ) ) {
+		delete_transient( $key );
+		return $location;
+	}
+	set_transient( $key, $destination, MINUTE_IN_SECONDS );
+
+	// A redirect from inside an action request (a plugin's own
+	// `activated_plugin` hook) must not run that action again.
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only asks whether this is an action request.
+	if ( empty( $_REQUEST['action'] ) && isset( $_SERVER['REQUEST_URI'] ) ) {
+		return esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+	}
+	return self_admin_url( 'plugins.php' );
+}
+add_filter( 'wp_redirect', 'openstation_chromeless_hand_off_plugins_redirect', 998 );
+
+/**
+ * Opens the screen {@see openstation_chromeless_hand_off_plugins_redirect()}
+ * kept back, posted as the bridge posts a `target="_blank"` admin link.
+ */
+function openstation_chromeless_open_handed_off_redirect() {
+	if ( 'plugins.php' !== ( $GLOBALS['pagenow'] ?? '' ) || ! openstation_is_chromeless_request() ) {
+		return;
+	}
+	$key         = openstation_plugins_handoff_key( get_current_user_id() );
+	$destination = get_transient( $key );
+	if ( ! is_string( $destination ) || '' === $destination ) {
+		return;
+	}
+	delete_transient( $key );
+
+	$message = wp_json_encode(
+		array(
+			'type'       => 'os-iframe-admin-link',
+			'url'        => $destination,
+			'label'      => '',
+			'newContext' => true,
+		)
+	);
+	wp_print_inline_script_tag( 'try{window.parent.postMessage(' . $message . ',window.location.origin);}catch(e){}' );
+}
+add_action( 'admin_footer', 'openstation_chromeless_open_handed_off_redirect' );

@@ -891,7 +891,10 @@ function openstation_agent_get_rate_limit( $user_id ) {
  * The agent's trigger row for a given invocation source, if any.
  *
  * Source slugs on the invoke route map 1:1 onto trigger kinds
- * (`chat`, `drag`, `send-to`).
+ * (`chat`, `drag`, `send-to`). The row is context for the invocation
+ * filter; it does not decide which capabilities the invocation gate
+ * requires, which is every capability on every trigger (see
+ * `openstation_agent_user_can_invoke_agent()`).
  *
  * @param int    $agent_user_id Agent user id.
  * @param string $source        Invocation source slug.
@@ -909,48 +912,70 @@ function openstation_agent_trigger_for_source( $agent_user_id, $source ) {
 }
 
 /**
- * Whether the current user may invoke THIS agent through THIS source.
+ * Whether the current user may invoke THIS agent.
  *
  * The route-level `openstation_agents_user_can_invoke()` check is
  * site-wide — it answers "may this user invoke agents at all". This is
  * the per-agent half: a trigger may declare a `capability` in its
- * config, and until it is enforced here the field is decorative. The
- * Triggers pane collects it and the store persists it, so an
- * administrator restricting an agent to `manage_options` has every
- * reason to believe it took effect.
+ * config, and the Triggers pane collects it and the store persists it,
+ * so an administrator restricting an agent to `manage_options` has
+ * every reason to believe it took effect.
  *
- * An agent with no trigger for the source, or a trigger that declares
- * no capability, is left to the route-level check — requiring a
+ * The caller must hold EVERY capability declared on ANY of the agent's
+ * triggers, whichever source the request names. The source is supplied
+ * by the client (the invoke route takes it as a request parameter), so
+ * it describes how the request says it arrived, not what it is allowed
+ * to reach: a capability scoped to one trigger kind would be satisfied
+ * by naming another. A capability configured on an agent is therefore
+ * a property of the agent.
+ *
+ * An agent whose triggers declare no capability (including one with no
+ * triggers at all) is left to the route-level check — requiring a
  * configured trigger would lock out every agent created before triggers
  * were set up, which is all of them by default.
  *
  * @param int    $agent_user_id Agent user id.
- * @param string $source        Invocation source slug.
+ * @param string $source        Invocation source slug the request names
+ *                              (`chat`, `drag`, `send-to`). Context for
+ *                              the filter only; it does not select which
+ *                              capabilities apply.
  * @return bool
  */
 function openstation_agent_user_can_invoke_agent( $agent_user_id, $source = 'chat' ) {
-	$trigger    = openstation_agent_trigger_for_source( $agent_user_id, $source );
-	$capability = '';
-	if ( is_array( $trigger ) && isset( $trigger['config']['capability'] ) ) {
-		$capability = trim( (string) $trigger['config']['capability'] );
+	$can = true;
+	foreach ( openstation_agent_get_triggers( (int) $agent_user_id ) as $row ) {
+		if ( ! isset( $row['config']['capability'] ) || ! is_scalar( $row['config']['capability'] ) ) {
+			continue;
+		}
+		$capability = trim( (string) $row['config']['capability'] );
+		if ( '' !== $capability && ! current_user_can( $capability ) ) {
+			$can = false;
+			break;
+		}
 	}
-
-	$can = '' === $capability || current_user_can( $capability );
 
 	/**
 	 * Filter whether the current user may invoke a specific agent.
 	 *
-	 * @param bool       $can           Whether invocation is allowed.
+	 * @param bool       $can           Whether invocation is allowed: the
+	 *                                  caller holds every capability
+	 *                                  declared on any of the agent's
+	 *                                  triggers.
 	 * @param int        $agent_user_id Agent user id.
-	 * @param string     $source        Invocation source slug.
-	 * @param array|null $trigger       The matching trigger row, if any.
+	 * @param string     $source        Invocation source slug the request
+	 *                                  names. Client-supplied on the invoke
+	 *                                  route, so context rather than proof
+	 *                                  of how the request arrived.
+	 * @param array|null $trigger       The trigger row whose kind matches
+	 *                                  `$source`, if any. Context only: it
+	 *                                  is not what decided `$can`.
 	 */
 	return (bool) apply_filters(
 		'openstation_agent_user_can_invoke_agent',
 		$can,
 		(int) $agent_user_id,
 		(string) $source,
-		$trigger
+		openstation_agent_trigger_for_source( $agent_user_id, $source )
 	);
 }
 
@@ -973,6 +998,41 @@ function openstation_agent_get_agents( $args = array() ) {
 		'number'     => 200,
 	);
 	return get_users( array_merge( $defaults, is_array( $args ) ? $args : array() ) );
+}
+
+/**
+ * The agents the current user can hand an entity to with "Send to".
+ *
+ * Every agent declaring a `send-to` trigger that this user may invoke,
+ * with the entity kinds the trigger accepts (empty = every kind). The
+ * shell inlines it so desktop and folder tile menus can offer
+ * "Send to <agent>" synchronously, the way WP Explorer's menu does.
+ * Empty while the framework is off or the user may not invoke agents.
+ *
+ * @return array<int, array{id: int, name: string, description: string, avatarUrl: string, entityKinds: string[]}>
+ */
+function openstation_agents_send_to_targets() {
+	if ( ! openstation_agents_enabled() || ! openstation_agents_user_can_invoke() ) {
+		return array();
+	}
+	$targets = array();
+	foreach ( openstation_agent_get_agents() as $user ) {
+		$trigger = openstation_agent_trigger_for_source( (int) $user->ID, 'send-to' );
+		if ( null === $trigger || ! openstation_agent_user_can_invoke_agent( (int) $user->ID, 'send-to' ) ) {
+			continue;
+		}
+		$kinds     = isset( $trigger['config']['entityKinds'] ) && is_array( $trigger['config']['entityKinds'] )
+			? array_values( array_map( 'strval', $trigger['config']['entityKinds'] ) )
+			: array();
+		$targets[] = array(
+			'id'          => (int) $user->ID,
+			'name'        => openstation_plain_text_title( $user->display_name ),
+			'description' => openstation_agent_get_description( (int) $user->ID ),
+			'avatarUrl'   => openstation_agent_avatar_url( (int) $user->ID ),
+			'entityKinds' => $kinds,
+		);
+	}
+	return $targets;
 }
 
 // ---------------------------------------------------------------------------
@@ -1095,7 +1155,10 @@ function openstation_agent_update( $user_id, array $fields ) {
 				__( 'Agent name cannot be empty.', 'desktop-mode' )
 			);
 		}
-		if ( $name !== (string) $user->display_name ) {
+		// Compared as plain text: the stored name carries entities
+		// (`&amp;`), and the client sends back the decoded one it was
+		// given on every save. Raw, that reads as a rename.
+		if ( openstation_plain_text_title( $name ) !== openstation_plain_text_title( $user->display_name ) ) {
 			$changed['name'] = array(
 				'from' => (string) $user->display_name,
 				'to'   => $name,

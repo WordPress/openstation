@@ -30,6 +30,7 @@ import {
 	registerDockRailRenderer,
 	resolveActiveDockRailRenderer,
 	setActiveDockRailRenderer,
+	taskbarDockRailRenderer,
 	unregisterDockRailRenderer,
 	unregisterDockRailRenderersByOwner,
 	unwrapDefaultDock,
@@ -37,6 +38,7 @@ import {
 	type DockRailMountDeps,
 	type DockRailRenderer,
 } from '../../src/dock-rail';
+import { doAction, HOOKS } from '../../src/hooks';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import type { WindowManager } from '../../src/window-manager';
 
@@ -101,7 +103,8 @@ describe( 'dock-rail registry', () => {
 	} );
 
 	test( 'register / unregister / list round-trips', () => {
-		expect( listDockRailRenderers() ).toHaveLength( 1 );
+		// The built-ins: the icon strip and the taskbar.
+		expect( listDockRailRenderers() ).toHaveLength( 2 );
 		registerDockRailRenderer( {
 			id: 'ring',
 			label: 'Ring',
@@ -112,9 +115,9 @@ describe( 'dock-rail registry', () => {
 				destroy: () => {},
 			} ),
 		} );
-		expect( listDockRailRenderers() ).toHaveLength( 2 );
+		expect( listDockRailRenderers() ).toHaveLength( 3 );
 		unregisterDockRailRenderer( 'ring' );
-		expect( listDockRailRenderers() ).toHaveLength( 1 );
+		expect( listDockRailRenderers() ).toHaveLength( 2 );
 	} );
 
 	test( 'register validates the contract aggressively', () => {
@@ -197,6 +200,7 @@ describe( 'dock-rail registry', () => {
 		expect( unregisterDockRailRenderersByOwner( 'my-plugin' ) ).toBe( 2 );
 		expect( listDockRailRenderers().map( ( r ) => r.id ) ).toEqual( [
 			'default',
+			'taskbar',
 		] );
 	} );
 } );
@@ -244,6 +248,121 @@ describe( 'dock-rail default renderer adapter', () => {
 		};
 		expect( unwrapDefaultDock( customController ) ).toBeNull();
 		expect( unwrapDefaultDock( null ) ).toBeNull();
+	} );
+} );
+
+describe( 'dock-rail taskbar renderer', () => {
+	beforeEach( () => {
+		installHooksStub();
+		_resetDockRailRenderersForTests();
+		installDefaultDockRailRenderer();
+	} );
+	afterEach( () => {
+		clearHooksStub();
+		_resetDockRailRenderersForTests();
+		document.body.innerHTML = '';
+	} );
+
+	const makeWindow = ( id: string, title: string, focused = false ) => ( {
+		id,
+		config: { title, icon: 'dashicons-admin-post', baseId: id },
+		isFocused: () => focused,
+		isMinimized: () => false,
+		minimize: vi.fn(),
+		restore: vi.fn(),
+	} );
+
+	const mountDeps = (
+		orientation: DockRailMountDeps[ 'orientation' ],
+		windowManager: WindowManager = makeManager(),
+	): DockRailMountDeps => {
+		const container = document.createElement( 'nav' );
+		document.body.appendChild( container );
+		return {
+			container,
+			items: [],
+			fullMenu: [],
+			fullSystemTiles: [],
+			orientation,
+			openItem: vi.fn(),
+			openSubmenuPick: vi.fn(),
+			openSystemItem: vi.fn(),
+			windowManager,
+			adminUrl: '/wp-admin/',
+		};
+	};
+
+	test( 'paints Start, a button per window and a tray, and routes clicks', () => {
+		const posts = makeWindow( 'edit-php', 'Posts', true );
+		const media = makeWindow( 'upload-php', 'Media' );
+		const focus = vi.fn();
+		const deps = mountDeps( 'bottom', {
+			...makeManager(),
+			getAll: () => [ posts, media ],
+			focus,
+		} as unknown as WindowManager );
+		const controller = taskbarDockRailRenderer.mount( deps );
+		controller.setZones?.( {
+			core: [ { type: 'menu', item: makeItem() } ],
+			apps: [],
+			controls: [
+				{
+					type: 'system',
+					item: { id: 'os-exit', title: 'Exit', icon: 'dashicons-exit', onOpen: vi.fn() },
+				},
+			],
+		} );
+		const root = deps.container;
+		expect( root.getAttribute( 'data-os-dock-placement' ) ).toBe( 'bottom' );
+
+		const tasks = [ ...root.querySelectorAll< HTMLElement >( '.os-taskbar__task' ) ];
+		expect( tasks.map( ( t ) => t.textContent ) ).toEqual( [ 'Posts', 'Media' ] );
+		expect( tasks[ 0 ].getAttribute( 'aria-pressed' ) ).toBe( 'true' );
+		// The window in front goes away; any other comes forward.
+		tasks[ 0 ].click();
+		expect( posts.minimize ).toHaveBeenCalled();
+		tasks[ 1 ].click();
+		expect( focus ).toHaveBeenCalledWith( media );
+
+		// Start lists the menus, then the way out.
+		root.querySelector< HTMLElement >( '.os-taskbar__start' )!.click();
+		const menu = root.querySelector< HTMLElement >( '.os-taskbar__menu' )!;
+		expect(
+			[ ...menu.querySelectorAll( '.os-taskbar__menu-label' ) ].map( ( l ) => l.textContent ),
+		).toEqual( [ 'Posts', 'Exit' ] );
+		menu.querySelector< HTMLElement >( '[role="menuitem"]' )!.click();
+		expect( deps.openItem ).toHaveBeenCalled();
+		expect( menu.hidden ).toBe( true );
+
+		controller.destroy();
+		expect( root.children ).toHaveLength( 0 );
+		expect( root.hasAttribute( 'data-os-dock-placement' ) ).toBe( false );
+	} );
+
+	test( 'keeps task buttons in the order the windows opened', () => {
+		const posts = makeWindow( 'edit-php', 'Posts' );
+		const media = makeWindow( 'upload-php', 'Media' );
+		let stack = [ posts, media ];
+		const deps = mountDeps( 'bottom', {
+			...makeManager(),
+			getAll: () => stack,
+		} as unknown as WindowManager );
+		const controller = taskbarDockRailRenderer.mount( deps );
+		const labels = () =>
+			[ ...deps.container.querySelectorAll( '.os-taskbar__task' ) ].map( ( t ) => t.textContent );
+
+		// Focusing Posts brings it to the top of the stack.
+		stack = [ media, posts ];
+		doAction( HOOKS.WINDOW_FOCUSED, { id: 'edit-php' } );
+		expect( labels() ).toEqual( [ 'Posts', 'Media' ] );
+
+		controller.destroy();
+	} );
+
+	test( 'hands a side rail to the icon strip', () => {
+		const controller = taskbarDockRailRenderer.mount( mountDeps( 'left' ) );
+		expect( unwrapDefaultDock( controller ) ).toBeInstanceOf( Dock );
+		controller.destroy();
 	} );
 } );
 

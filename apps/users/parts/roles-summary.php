@@ -89,7 +89,7 @@ function openstation_users_window_roles_summary() {
 		} else {
 			$groups[ $row['role'] ]['members'][] = array(
 				'id'          => (int) $row['id'],
-				'name'        => $row['name'],
+				'name'        => openstation_plain_text_title( $row['name'] ),
 				'slug'        => $row['slug'],
 				'roles'       => $row['role'] ? array( $row['role'] ) : array(),
 				'avatar_urls' => array( '48' => get_avatar_url( $row['email'], array( 'size' => 48 ) ) ),

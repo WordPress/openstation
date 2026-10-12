@@ -46,12 +46,24 @@ import {
 	saveEnabledIds,
 	saveGeometry,
 } from './state';
+import { getActiveDesktopThemeId, getDesktopTheme } from '../desktop-themes/registry';
 import { showInlineLoader } from '../ui/inline-loader';
+import { contentBox, type Box } from './content-box';
 import { createWidgetStorage } from './storage';
 import type { WidgetGeometry, WidgetTeardown } from './types';
 
 /** First-run default — the clock. Removable like any other. */
 const DEFAULT_ENABLED_IDS = [ 'clock' ];
+
+/**
+ * The column the active desktop theme recommends, or `null` when it
+ * names none. A first run starts from it instead of the clock.
+ */
+function themeWidgetIds(): readonly string[] | null {
+	const id = getActiveDesktopThemeId();
+	const widgets = id ? getDesktopTheme( id )?.recommendedOsSettings.widgets : undefined;
+	return widgets ?? null;
+}
 
 /**
  * How far outside the column the pointer still counts as "near" for
@@ -173,12 +185,12 @@ export class WidgetLayer {
 	}
 
 	public hydrate(): void {
-		// First-run: no saved list at all → seed with the default
-		// (currently just 'clock'). This writes through so the next
-		// boot sees an explicit empty [] if the user removed it,
+		// First-run: no saved list at all → seed with the active
+		// theme's column, or the clock. This writes through so the
+		// next boot sees an explicit empty [] if the user removed it,
 		// distinct from first-run.
 		if ( readRawEnabled() === null ) {
-			this.enabledIds = DEFAULT_ENABLED_IDS.filter(
+			this.enabledIds = ( themeWidgetIds() ?? DEFAULT_ENABLED_IDS ).filter(
 				( id ) => !! registry.get( id ),
 			);
 			saveEnabledIds( this.enabledIds );
@@ -259,21 +271,41 @@ export class WidgetLayer {
 			return;
 		}
 		saveEnabledIds( this.enabledIds );
-		// Drop any persisted geometry so a re-add starts docked.
-		if ( this.geometry[ id ] ) {
-			delete this.geometry[ id ];
-			saveGeometry( this.geometry );
-		}
-		// Same for the docked-height record — a re-add starts at the
-		// widget's natural (content-driven) height.
-		if ( this.dockedHeights[ id ] !== undefined ) {
-			delete this.dockedHeights[ id ];
-			saveDockedHeights( this.dockedHeights );
-		}
+		this.forgetLayout( id );
 		this.unmountById( id );
 		this.paintEmptyState();
 		doAction( HOOKS.WIDGET_REMOVED, { id } );
 		refreshWidgetPicker();
+	}
+
+	/**
+	 * Replace the user's own list, as applying a theme's recommended
+	 * column does. Ids nothing is registered under are skipped. A
+	 * workspace's column, while one is in force, stays on screen.
+	 */
+	public setEnabledIds( ids: readonly string[] ): void {
+		const next = [ ...new Set( ids ) ].filter( ( id ) => !! registry.get( id ) );
+		for ( const id of this.enabledIds ) {
+			if ( ! next.includes( id ) ) {
+				this.forgetLayout( id );
+			}
+		}
+		this.enabledIds = next;
+		saveEnabledIds( next );
+		this.setVisibleIds( this.override );
+		refreshWidgetPicker();
+	}
+
+	/** Drop a widget's stored placement, so a re-add starts docked at its natural height. */
+	private forgetLayout( id: string ): void {
+		if ( this.geometry[ id ] ) {
+			delete this.geometry[ id ];
+			saveGeometry( this.geometry );
+		}
+		if ( this.dockedHeights[ id ] !== undefined ) {
+			delete this.dockedHeights[ id ];
+			saveDockedHeights( this.dockedHeights );
+		}
 	}
 
 	/** Public read for the picker / external callers. */
@@ -311,7 +343,11 @@ export class WidgetLayer {
 		openWidgetPicker( {
 			anchor: this.addTile,
 			registry: () => registry.all(),
-			enabledIds: () => [ ...this.enabledIds ],
+			// "Added" means on this desk. Under a workspace column that
+			// is the workspace's list, not the user's, and `add` routes
+			// the same way, so an entry is never marked added while the
+			// column lacks it, nor offered when the column has it.
+			enabledIds: () => [ ...this.visibleIds() ],
 			onAdd: ( id ) => {
 				this.add( id );
 				// One pick per visit. Adding a second widget means
@@ -649,7 +685,7 @@ export class WidgetLayer {
 	 * leaves the reveal zone hovering over empty desktop.
 	 */
 	private watchPointerProximity(): void {
-		let rect: DOMRect | null = null;
+		let rect: Box | null = null;
 		let frame = 0;
 
 		const invalidate = (): void => {
@@ -671,7 +707,7 @@ export class WidgetLayer {
 		};
 		const onMove = ( e: PointerEvent ): void => {
 			if ( ! rect ) {
-				rect = this.root.getBoundingClientRect();
+				rect = contentBox( this.root );
 			}
 			const near =
 				e.clientX >= rect.left - HOVER_PADDING &&
@@ -852,6 +888,10 @@ export class WidgetLayer {
 		if ( ! colRect.height ) {
 			return;
 		}
+		// `top` is written against the column's border box, but the
+		// stack lives in its content box: the padding around it is
+		// room for the cards' shadow, not somewhere the pill goes.
+		const content = contentBox( this.root );
 		let bottom = this.listEl.offsetTop + this.listEl.offsetHeight;
 		for ( const record of this.mounted.values() ) {
 			if ( ! record.floating ) {
@@ -859,9 +899,9 @@ export class WidgetLayer {
 			}
 			const rect = record.frame.card.getBoundingClientRect();
 			const overlap =
-				Math.min( rect.right, colRect.right ) -
-				Math.max( rect.left, colRect.left );
-			if ( overlap < colRect.width / 2 ) {
+				Math.min( rect.right, content.right ) -
+				Math.max( rect.left, content.left );
+			if ( overlap < content.width / 2 ) {
 				continue;
 			}
 			bottom = Math.max(
@@ -872,8 +912,14 @@ export class WidgetLayer {
 		// Never past the column's visible foot — a tall stack pushes
 		// the pill onto the last card rather than off the screen.
 		const limit =
-			colRect.height + this.root.scrollTop - this.addTile.offsetHeight;
-		const top = Math.max( 0, Math.min( bottom + ADD_TILE_GAP, limit ) );
+			content.bottom -
+			colRect.top +
+			this.root.scrollTop -
+			this.addTile.offsetHeight;
+		const top = Math.max(
+			content.top - colRect.top,
+			Math.min( bottom + ADD_TILE_GAP, limit ),
+		);
 		if ( this.addTile.style.top === `${ top }px` ) {
 			return;
 		}

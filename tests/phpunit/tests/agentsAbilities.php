@@ -1,7 +1,8 @@
 <?php
 /**
- * Tests for the agent-oriented abilities — registration annotations
- * and the `desktop-mode/get-media` execute/permission lifecycle.
+ * Tests for the agent-oriented abilities — registration annotations,
+ * the `desktop-mode/get-post` read gates and the `desktop-mode/get-media`
+ * execute/permission lifecycle.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -37,6 +38,11 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		if ( ! function_exists( 'wp_get_ability' ) ) {
 			$this->markTestSkipped( 'Abilities API not available (requires WordPress 7.0+).' );
 		}
+	}
+
+	public function tear_down() {
+		unregister_post_type( 'os_test_ledger' );
+		parent::tear_down();
 	}
 
 	/**
@@ -129,6 +135,68 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	}
 
 	/**
+	 * get-post follows Core's single-read rule for post types without a
+	 * public front end: a published row of such a type is read only by a
+	 * caller who can edit it, because `read_post` on a published row
+	 * resolves to plain `read`. Refused for a Subscriber, and the body
+	 * does not come back.
+	 *
+	 * @covers ::openstation_agents_ability_get_post_can
+	 */
+	public function test_get_post_denies_subscriber_on_non_viewable_post_type() {
+		$ledger_id = $this->create_non_viewable_post();
+		wp_set_current_user( self::$subscriber_id );
+
+		$out = wp_get_ability( 'desktop-mode/get-post' )->execute(
+			array( 'post_id' => $ledger_id )
+		);
+
+		$this->assertWPError( $out );
+		$this->assertSame( 'ability_invalid_permissions', $out->get_error_code() );
+		$this->assertStringNotContainsString( 'Ledger body.', (string) wp_json_encode( $out->get_all_error_data() ) );
+	}
+
+	/**
+	 * The same row reads normally for a caller holding `edit_post` on it.
+	 *
+	 * @covers ::openstation_agents_ability_get_post_can
+	 */
+	public function test_get_post_allows_editor_on_non_viewable_post_type() {
+		$ledger_id = $this->create_non_viewable_post();
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+
+		$out = wp_get_ability( 'desktop-mode/get-post' )->execute(
+			array( 'post_id' => $ledger_id )
+		);
+
+		$this->assertNotWPError( $out );
+		$this->assertSame( 'Ledger body.', $out['content'] );
+	}
+
+	/**
+	 * A published row of a registered post type with no public front end.
+	 *
+	 * @return int Post id.
+	 */
+	private function create_non_viewable_post() {
+		register_post_type(
+			'os_test_ledger',
+			array(
+				'public'       => false,
+				'map_meta_cap' => true,
+			)
+		);
+		$this->assertFalse( is_post_type_viewable( 'os_test_ledger' ) );
+		return self::factory()->post->create(
+			array(
+				'post_type'    => 'os_test_ledger',
+				'post_status'  => 'publish',
+				'post_content' => 'Ledger body.',
+			)
+		);
+	}
+
+	/**
 	 * @covers ::openstation_agents_ability_get_media
 	 */
 	public function test_get_media_returns_details_for_author() {
@@ -162,6 +230,41 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $out );
+	}
+
+	/**
+	 * get-media applies Core's rule for attached media: a file attached
+	 * to a post defers to that post's readability. An Author holding
+	 * `upload_files` is refused a file attached to someone else's private
+	 * post, and neither the caption nor the parent id comes back.
+	 *
+	 * @covers ::openstation_agents_ability_get_media_can
+	 */
+	public function test_get_media_denied_when_parent_post_is_unreadable() {
+		$private_parent = self::factory()->post->create(
+			array(
+				'post_status' => 'private',
+				'post_author' => self::factory()->user->create( array( 'role' => 'editor' ) ),
+			)
+		);
+		$attachment_id  = self::factory()->attachment->create_object(
+			'board-minutes.pdf',
+			$private_parent,
+			array(
+				'post_mime_type' => 'application/pdf',
+				'post_title'     => 'Board minutes',
+				'post_excerpt'   => 'Private caption.',
+			)
+		);
+		wp_set_current_user( self::$author_id );
+
+		$out = wp_get_ability( 'desktop-mode/get-media' )->execute(
+			array( 'attachment_id' => $attachment_id )
+		);
+
+		$this->assertWPError( $out );
+		$this->assertSame( 'ability_invalid_permissions', $out->get_error_code() );
+		$this->assertStringNotContainsString( 'Private caption.', (string) wp_json_encode( $out->get_all_error_data() ) );
 	}
 
 	/**

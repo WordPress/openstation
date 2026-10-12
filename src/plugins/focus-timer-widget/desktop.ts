@@ -25,7 +25,6 @@ interface WindowManager {
 
 interface DesktopApi {
 	windowManager?: WindowManager;
-	showToast?( opts: { message: string; type?: string } ): unknown;
 }
 
 function desktopApi(): DesktopApi | undefined {

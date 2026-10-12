@@ -227,15 +227,7 @@ body.os-active.os-admin-bar-dynamic #wpadminbar {
 
 body.os-active.os-admin-bar-dynamic #wpadminbar:hover,
 body.os-active.os-admin-bar-dynamic #wpadminbar:focus-within,
-body.os-active.os-admin-bar-dynamic #wpadminbar:active,
-/*
- * …and while the notch is being used. The notch hangs from the same
- * edge and steps down to sit under the bar when it appears (see
- * notch.css), so letting the bar retract out from over it mid-reach
- * would drop the notch back up under the pointer.
- */
-body.os-active.os-admin-bar-dynamic:has( .os-notch:hover ) #wpadminbar,
-body.os-active.os-admin-bar-dynamic:has( .os-notch:focus-visible ) #wpadminbar {
+body.os-active.os-admin-bar-dynamic #wpadminbar:active {
 	inset-block-start: 0 !important;
 }
 
@@ -347,6 +339,130 @@ html.wp-toolbar:has(body.os-admin-bar-hidden) {
 }
 
 /*
+ * A desktop theme that draws the toolbar.
+ *
+ * The toolbar's colours normally belong to the user's admin colour
+ * scheme, whose own stylesheet paints it. A theme takes them over only
+ * when it declares an `--os-toolbar-*` token, which is what puts
+ * `os-toolbar-themed` on the body (PHP on first paint, the theme apply
+ * pass on a live switch). Without that class none of this matches, so
+ * a scheme's toolbar stays the scheme's under every other theme.
+ *
+ * The fallbacks are Core's own values for the default scheme.
+ */
+body.os-active.os-toolbar-themed #wpadminbar {
+	background: var(--os-toolbar-bg, #1d2327);
+	box-shadow: var(--os-toolbar-shadow, none);
+	-webkit-font-smoothing: var(--os-font-smoothing, subpixel-antialiased);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar :not(.ab-icon):not([class*="dashicons"]) {
+	font-family: var(--os-toolbar-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif);
+	font-size: var(--os-toolbar-font-size, 13px);
+}
+
+/*
+ * Core sets the bar's line heights in ems against its 13px type. A
+ * face at another size keeps Core's pixel lines (the bar's height for a
+ * top-level item, 26px for a menu row), or its labels ride high or low
+ * against the icons. A face whose metrics sit differently from the
+ * system font's nudges its labels with `--os-toolbar-line-height`.
+ */
+body.os-active.os-toolbar-themed #wpadminbar .ab-top-menu > li > .ab-item,
+body.os-active.os-toolbar-themed #wpadminbar .ab-top-menu > li > .ab-item :not(.ab-icon):not(img) {
+	line-height: var(--os-toolbar-line-height, var(--wp-admin--admin-bar--height, 32px));
+}
+
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop ul li .ab-item {
+	line-height: 26px;
+}
+
+body.os-active.os-toolbar-themed #wpadminbar .ab-empty-item,
+body.os-active.os-toolbar-themed #wpadminbar a.ab-item,
+body.os-active.os-toolbar-themed #wpadminbar > #wp-toolbar span.ab-label,
+body.os-active.os-toolbar-themed #wpadminbar > #wp-toolbar span.noticon {
+	color: var(--os-toolbar-fg, #f0f0f1);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar .ab-icon::before,
+body.os-active.os-toolbar-themed #wpadminbar .ab-item::before,
+body.os-active.os-toolbar-themed #wpadminbar #adminbarsearch::before {
+	color: var(--os-toolbar-icon, rgba(240, 246, 252, 0.6));
+}
+
+body.os-active.os-toolbar-themed #wpadminbar:not(.mobile) .ab-top-menu > li > .ab-item:focus,
+body.os-active.os-toolbar-themed #wpadminbar:not(.mobile) .ab-top-menu > li:hover > .ab-item,
+body.os-active.os-toolbar-themed #wpadminbar .ab-top-menu > li.hover > .ab-item {
+	background: var(--os-toolbar-hover-bg, #2c3338);
+	color: var(--os-toolbar-hover-fg, #72aee6);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar:not(.mobile) > #wp-toolbar li:hover span.ab-label,
+body.os-active.os-toolbar-themed #wpadminbar > #wp-toolbar li.hover span.ab-label,
+body.os-active.os-toolbar-themed #wpadminbar li:hover .ab-icon::before,
+body.os-active.os-toolbar-themed #wpadminbar li:hover .ab-item::before,
+body.os-active.os-toolbar-themed #wpadminbar li.hover .ab-icon::before,
+body.os-active.os-toolbar-themed #wpadminbar li.hover .ab-item::before {
+	color: var(--os-toolbar-hover-fg, #72aee6);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar .menupop .ab-sub-wrapper {
+	background: var(--os-toolbar-menu-bg, #2c3338);
+	box-shadow: var(--os-toolbar-menu-shadow, 0 3px 5px rgba(0, 0, 0, 0.2));
+}
+
+/* The WordPress menu's lower group sits on a darker panel of its own. */
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop ul.ab-sub-secondary,
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop ul.ab-sub-secondary .ab-submenu {
+	background: var(--os-toolbar-menu-bg, #3c434a);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar .ab-submenu .ab-item,
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop ul li a,
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop ul li a strong {
+	color: var(--os-toolbar-menu-fg, rgba(240, 246, 252, 0.7));
+}
+
+/*
+ * The account menu's name lines. Core colours them by ID, which
+ * out-ranks the rows above, so they are restated here, hover included.
+ */
+body.os-active.os-toolbar-themed #wpadminbar #wp-admin-bar-user-info .display-name {
+	color: var(--os-toolbar-menu-fg, #fff);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar #wp-admin-bar-user-info .username {
+	color: var(--os-toolbar-menu-fg-muted, #a7aaad);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar #wp-admin-bar-user-info a:hover span,
+body.os-active.os-toolbar-themed #wpadminbar #wp-admin-bar-user-info a:focus span {
+	color: var(--os-toolbar-menu-hover-fg, #72aee6);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop ul li a:hover,
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop ul li a:focus,
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop.hover ul li a:hover,
+body.os-active.os-toolbar-themed #wpadminbar .quicklinks .menupop.hover ul li a:focus {
+	background: var(--os-toolbar-menu-hover-bg, transparent);
+	color: var(--os-toolbar-menu-hover-fg, #72aee6);
+}
+
+/*
+ * The time, for a theme that draws the toolbar as a menu bar
+ * (`src/desktop-themes/toolbar-clock.ts`). It is not a control, so it
+ * does not light up under the pointer.
+ */
+body.os-active.os-toolbar-themed #wpadminbar #wp-admin-bar-os-clock {
+	display: var(--os-toolbar-clock-display, none);
+}
+
+body.os-active.os-toolbar-themed #wpadminbar #wp-admin-bar-os-clock > .ab-item {
+	background: none;
+	color: var(--os-toolbar-fg, #f0f0f1);
+}
+
+/*
  * Align the admin-bar W logo with the dock below it.
  *
  * Without this rule the admin bar's leftmost item (the WordPress W)
@@ -382,6 +498,14 @@ body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item {
  */
 body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon {
 	margin: 0;
+}
+
+/*
+ * Core nudges the W down 2px to centre it from the top of its cell.
+ * The flex cell above already centres it, so the nudge would sit it low.
+ */
+body.os-active #wpadminbar #wp-admin-bar-wp-logo > .ab-item > .ab-icon::before {
+	top: 0;
 }
 
 /*
@@ -433,6 +557,12 @@ body.os-active #wpcontent {
 	 * See `--os-backstop`.
 	 */
 	background: var(--os-backstop, #1d2327);
+	/*
+	 * A bitmap face drawn on whole pixels wants plain greyscale
+	 * smoothing; the fallback is what the shell inherits from Core's
+	 * `#wpwrap` anyway.
+	 */
+	-webkit-font-smoothing: var(--os-font-smoothing, subpixel-antialiased);
 	/*
 	 * Shell typeface. Every piece of chrome that doesn't set its own
 	 * face inherits from here — dock labels, desktop icon labels,
@@ -929,12 +1059,12 @@ body.os-has-fullscreen-window .os-shell {
 }
 
 .os-icon__label {
-	font-size: 12px;
+	font-size: var(--os-icon-label-font-size, 12px);
 	text-align: center;
 	background: var(--os-icon-label-bg, transparent);
-	border-radius: 6px;
+	border-radius: var(--os-icon-label-radius, 6px);
 	/* Inline only: a two-line caption already fills the 96px grid row. */
-	padding: 0 6px;
+	padding: var(--os-icon-label-padding, 0 6px);
 	text-shadow: var(--os-icon-label-shadow, 0 1px 2px rgba(0, 0, 0, 0.45));
 	line-height: 1.2;
 	word-break: break-word;
@@ -949,19 +1079,36 @@ body.os-has-fullscreen-window .os-shell {
  * --------------------------------------------------------------- */
 
 .os-widgets {
-	border-radius: 14px;
 	position: absolute;
 	/*
 	 * Inside the work area vertically — see `.os-icons` for why the
-	 * insets are here. The inline edge stays a plain 16px: the column
-	 * hugs the trailing side, which is a logical choice, while the
-	 * side insets are physical; and a side rail never claims one
-	 * anyway (it is a flex sibling, the area is already narrower).
+	 * insets are here. The inline edge is logical: the column hugs
+	 * the trailing side, while the side insets are physical; and a
+	 * side rail never claims one anyway (it is a flex sibling, the
+	 * area is already narrower).
+	 *
+	 * The cards sit 16px in from the area's top and trailing edges
+	 * and 16px above the work area's foot, but the box reaches
+	 * further than that and pads back in. The column scrolls, and a
+	 * scroll container clips everything inside it to its padding
+	 * box, the cards' drop shadow included: with the box hugging the
+	 * cards, the shadow ended in a hard rectangle the size of the
+	 * column, easy to see on a light wallpaper. The padding is the
+	 * room the shadow needs (it reaches 28px out and 36px down, more
+	 * on hover). The trailing side only gets the 16px to the area's
+	 * edge, since the area clips there anyway. The column is
+	 * pointer-transparent, so the extra room catches nothing; the
+	 * add-widget pill measures the content box, not this one.
 	 */
-	top: calc( var( --os-work-area-inset-top, 0px ) + 16px );
-	bottom: calc( var( --os-work-area-inset-bottom, 80px ) + 16px );
-	inset-inline-end: 16px;
+	box-sizing: content-box;
+	top: var( --os-work-area-inset-top, 0px );
+	bottom: calc( var( --os-work-area-inset-bottom, 80px ) - 24px );
+	inset-inline-end: 0;
 	width: 320px;
+	--_os-widgets-room-start: 40px;
+	--_os-widgets-room-end: 16px;
+	padding-block: 16px 40px;
+	padding-inline: var( --_os-widgets-room-start ) var( --_os-widgets-room-end );
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
@@ -1028,14 +1175,18 @@ body.os-has-fullscreen-window .os-shell {
 	background-repeat: var( --os-widget-image-repeat, repeat );
 	background-size: var( --os-widget-image-size, auto );
 	background-position: var( --os-widget-image-position, center );
-	backdrop-filter: blur( 18px ) saturate( 140% );
-	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
-	border: 1px solid rgba( 255, 255, 255, 0.08 );
-	border-radius: 14px;
-	color: var( --os-ui-fg-on-accent, #fff );
-	box-shadow:
+	backdrop-filter: var( --os-widget-card-backdrop, blur( 18px ) saturate( 140% ) );
+	-webkit-backdrop-filter: var( --os-widget-card-backdrop, blur( 18px ) saturate( 140% ) );
+	border: var( --os-widget-card-border, 1px solid rgba( 255, 255, 255, 0.08 ) );
+	border-radius: var( --os-widget-card-radius, 14px );
+	/* The widget contract's text colour, which is what a widget's own
+	 * stylesheet is told to read. */
+	color: var( --os-ui-color-text, var( --os-ui-fg-on-accent, #fff ) );
+	box-shadow: var(
+		--os-widget-card-shadow,
 		0 8px 28px rgba( 0, 0, 0, 0.35 ),
-		inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
+		inset 0 0 0 1px rgba( 255, 255, 255, 0.04 )
+	);
 	transition:
 		box-shadow 0.18s ease,
 		opacity 0.18s ease;
@@ -1045,9 +1196,11 @@ body.os-has-fullscreen-window .os-shell {
  * anchored; a hover nudge reads as the widget drifting under the
  * pointer (and fought the user's chosen position on floating cards). */
 .os-widgets__card:hover {
-	box-shadow:
+	box-shadow: var(
+		--os-widget-card-shadow-hover,
 		0 12px 36px rgba( 0, 0, 0, 0.45 ),
-		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
+		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 )
+	);
 }
 
 .os-widgets__card-body {
@@ -1347,8 +1500,12 @@ body.os-has-fullscreen-window .os-shell {
 .os-widgets__add {
 	position: absolute;
 	top: 0;
-	left: 50%;
-	transform: translateX( -50% );
+	/* Centred over the cards, not over the column's box: the column
+	 * pads out unevenly to give the card shadows room (see
+	 * `.os-widgets`), so the box's own middle is off to one side. */
+	inset-inline: var( --_os-widgets-room-start, 0px ) var( --_os-widgets-room-end, 0px );
+	width: fit-content;
+	margin-inline: auto;
 	padding: 8px 22px;
 	display: flex;
 	align-items: center;
@@ -1444,7 +1601,7 @@ body.os-has-fullscreen-window .os-shell {
 .os-widget-clock__date {
 	margin-top: 4px;
 	font-size: 13px;
-	color: rgba( 255, 255, 255, 0.75 );
+	color: var( --os-ui-color-text-subtle, rgba( 255, 255, 255, 0.75 ) );
 	letter-spacing: 0.02em;
 }
 
@@ -1456,7 +1613,11 @@ body.os-has-fullscreen-window .os-shell {
 
 .os-widget-picker {
 	position: fixed;
-	width: 320px;
+	/* Border-box so the picker script can cap max-height to the
+	 * room it measured, frame included. 342 = the 320px list plus
+	 * the padding and border it always carried. */
+	box-sizing: border-box;
+	width: 342px;
 	max-height: 60vh;
 	overflow-y: auto;
 	padding: 10px;

@@ -10,7 +10,8 @@
  * context, scoped to the viewer with `author` — without it an editor
  * or admin would see every draft on the site, not their own).
  * Refresh: every 60 seconds while the tab is visible, plus an
- * immediate refresh when a window closes or blurs.
+ * immediate refresh on every `os.post.changed` broadcast (a block-editor
+ * save, a relayed content change) and when a window closes or blurs.
  * Requires: OpenStation 0.18.0+ (openstation_register_widget).
  *
  * @package OpenStation
@@ -170,9 +171,9 @@ function openstation_rest_draft_suggestions_permission( WP_REST_Request $request
  * @return string
  */
 function openstation_drafts_ai_instructions( WP_Post $post ) {
-	$instructions = 'You are a writing assistant for a WordPress author. Given a draft post\'s current title and content, help them finish and file it. Provide: exactly 3 concise, compelling title options (about 70 characters max each); one 1-2 sentence excerpt suitable as the post summary; 3 to 6 lowercase topical tags; 1 to 2 categories (strongly prefer the site\'s existing categories listed above — only propose a new concise name if none fit); and a readiness check.
+	$instructions = 'You are a writing assistant for a WordPress author. Given a draft post\'s current title and content, help them finish and file it. Provide: exactly 3 concise, compelling title options (about 70 characters max each); one 1-2 sentence excerpt suitable as the post summary; 3 to 6 lowercase topical tags; 1 to 2 categories (prefer the site\'s existing categories, listed in the message; propose a new concise name only if none fit); and a readiness check.
 
-The readiness check MUST be strict and evidence-based. Judge only STRUCTURE and COMPLETENESS: does the draft have a clear introduction, enough substance/depth, at least one concrete example or detail, and a conclusion? The "missing" array lists only what is GENUINELY ABSENT from the text you were given. CRITICAL: never invent, guess, or hallucinate problems. Do NOT claim there are typos, misspellings, or cut-off/incomplete sentences unless you can quote the exact offending text verbatim from the draft — if you are not quoting real text, do not mention it. If the draft already has an intro, body with a concrete detail, and a conclusion and reads as complete, return an EMPTY "missing" array and say it looks ready in the summary.
+The readiness check judges structure and completeness only: does the draft have a clear introduction, enough substance, at least one concrete example or detail, and a conclusion? The "missing" array lists only what is absent from the text you were given. Mention a typo, misspelling or cut-off sentence only together with the exact text, quoted from the draft. When the draft has an introduction, a body with a concrete detail and a conclusion, return an empty "missing" array and say in the summary that it looks ready.
 
 Write everything in the same language as the draft. Do not invent facts that are not supported by the content.';
 

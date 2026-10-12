@@ -222,7 +222,11 @@ describe( 'workspaces — overview top bar', () => {
 
 	test( 'restore switches to the desk and rebuilds it', () => {
 		install();
-		const open = vi.spyOn( manager, 'open' ).mockResolvedValue( {} as never );
+		// Restore is a forced provision, and provisioning opens one
+		// window per declared entry — `openNew`, never a focus.
+		const open = vi
+			.spyOn( manager, 'openNew' )
+			.mockResolvedValue( {} as never );
 		const shop = createWorkspace( deps, {
 			activate: false,
 			profile: {

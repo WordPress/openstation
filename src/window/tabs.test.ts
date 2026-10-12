@@ -7,12 +7,26 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+	addExternalTab,
 	handleTabStripClick,
 	observeTabOverflow,
 	syncActiveTab,
 	updateTabOverflow,
 } from './tabs';
+import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
+import {
+	_resetNativeUrlRemap,
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+} from '../native-url-remap';
 import type { Window } from './index';
+import {
+	clearHooksStub,
+	installHooksStub,
+} from '../../tests/vitest/helpers/hooks-stub';
+
+/** Native windows the remap registry was asked to open, per test. */
+const opened: string[] = [];
 
 const ADMIN = window.location.origin + '/wp-admin/';
 
@@ -47,6 +61,11 @@ function activeLabels( win: Window ): string[] {
 }
 
 describe( 'syncActiveTab', () => {
+	afterEach( () => {
+		opened.length = 0;
+		_resetNativeUrlRemap();
+	} );
+
 	test( 'exact URL match lights that tab', () => {
 		const win = mockTabbedWindow( [
 			[ 'Appearance', ADMIN + 'themes.php' ],
@@ -285,6 +304,47 @@ describe( 'syncActiveTab', () => {
 		} as unknown as Event );
 
 		expect( activeLabels( win ) ).toEqual( [ 'Editor' ] );
+	} );
+
+	test( 'a tab a native window has claimed opens that window instead', () => {
+		const win = mockTabbedWindow( [
+			[ 'All Posts', ADMIN + 'edit.php' ],
+			[ 'Add New Post', ADMIN + 'post-new.php' ],
+		] );
+		const iframe = document.createElement( 'iframe' );
+		iframe.src = ADMIN + 'post-new.php';
+		Object.assign( win as unknown as Record< string, unknown >, {
+			iframe,
+			_externalTabs: new Map(),
+			markContentLoading: () => {},
+		} );
+		syncActiveTab( win, ADMIN + 'post-new.php' );
+
+		bindNativeUrlRemap( {
+			getSnapshot: () => ( {} ) as never,
+			openById: () => {
+				opened.push( 'desktop-mode-posts' );
+				return true;
+			},
+			adminUrl: ADMIN,
+		} );
+		registerNativeUrlRemap( {
+			id: 'desktop-mode-posts',
+			nativeWindowId: 'desktop-mode-posts',
+			matches: ( _url, parsed ) => parsed.pathname.endsWith( '/edit.php' ),
+		} );
+
+		const allPosts = win.element.querySelectorAll( '.os-window__tab' )[ 0 ];
+		handleTabStripClick( win, {
+			target: allPosts,
+			stopPropagation: () => {},
+		} as unknown as Event );
+
+		expect( opened ).toEqual( [ 'desktop-mode-posts' ] );
+		// The draft this window is holding stays put, and so does the
+		// highlight on the page it is still showing.
+		expect( iframe.src ).toBe( ADMIN + 'post-new.php' );
+		expect( activeLabels( win ) ).toEqual( [ 'Add New Post' ] );
 	} );
 
 	test( 'a page holding unsaved changes keeps its highlight and its spinner off', async () => {
@@ -662,5 +722,75 @@ describe( 'observeTabOverflow', () => {
 			globalThis.ResizeObserver = realRO;
 			globalThis.MutationObserver = realMO;
 		}
+	} );
+} );
+
+/**
+ * The readiness probe: a sub-tab whose frame has nothing to show by
+ * the deadline is handed to a real browser tab instead.
+ */
+describe( 'addExternalTab', () => {
+	const PERMALINK = window.location.origin + '/2026/10/02/hello-world/';
+	let open: ReturnType< typeof vi.spyOn >;
+
+	beforeEach( () => {
+		vi.useFakeTimers();
+		// The fallback's toast runs through the hook bus.
+		installHooksStub();
+		open = vi.spyOn( window, 'open' ).mockReturnValue( null );
+		// jsdom has no scrollIntoView.
+		Element.prototype.scrollIntoView = vi.fn();
+	} );
+
+	afterEach( () => {
+		vi.useRealTimers();
+		clearHooksStub();
+		open.mockRestore();
+		Reflect.deleteProperty( Element.prototype, 'scrollIntoView' );
+	} );
+
+	/**
+	 * Open a sub-tab on an iframe window whose frame, when the probe
+	 * runs, is showing `href` and has not fired `load`.
+	 */
+	function openSubTab( href: string ): Window {
+		const element = document.createElement( 'div' );
+		element.innerHTML =
+			'<nav class="os-window__tabs"></nav><div class="os-window__body"></div>';
+		const win = {
+			element,
+			iframe: document.createElement( 'iframe' ),
+			config: { title: 'Posts' },
+			_activeTabId: 'primary',
+			_externalTabSeq: 0,
+			_externalTabs: new Map(),
+			_emitChange: vi.fn(),
+		} as unknown as Window;
+
+		addExternalTab( win, PERMALINK, 'View' );
+		Object.defineProperty(
+			element.querySelector( '.os-window__iframe--external' ),
+			'contentWindow',
+			{ value: { location: { href } } },
+		);
+		return win;
+	}
+
+	test( 'a page that is still loading its images keeps its sub-tab', () => {
+		const win = openSubTab( PERMALINK );
+
+		vi.advanceTimersByTime( EXTERNAL_IFRAME_READY_TIMEOUT_MS );
+
+		expect( open ).not.toHaveBeenCalled();
+		expect( win._externalTabs.size ).toBe( 1 );
+	} );
+
+	test( 'a frame the server has not answered falls back to a browser tab', () => {
+		const win = openSubTab( 'about:blank' );
+
+		vi.advanceTimersByTime( EXTERNAL_IFRAME_READY_TIMEOUT_MS );
+
+		expect( open ).toHaveBeenCalledWith( PERMALINK, '_blank', 'noopener' );
+		expect( win._externalTabs.size ).toBe( 0 );
 	} );
 } );

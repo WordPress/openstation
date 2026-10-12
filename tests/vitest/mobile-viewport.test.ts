@@ -163,13 +163,13 @@ describe( 'the apps fold under a narrow container', () => {
 		const css = read( 'apps/my-wordpress/my-wordpress.css' );
 		expect( css ).toMatch( /@container\s*\(\s*max-width:\s*640px\s*\)/ );
 		const narrow = css.slice( css.indexOf( '@container ( max-width: 640px )' ) );
-		expect( narrow ).toMatch( /\.os-mywp__split \{[^}]*grid-template-rows:\s*minmax\(\s*0,\s*1fr\s*\)\s*auto/ );
-		expect( narrow ).toMatch( /\.os-mywp__detail-pane \{[^}]*max-block-size:\s*45%/ );
-		// With nothing selected the pane is not rendered at all (the
-		// split carries `--solo` and one column), so no `:has()` rule
-		// has to hide an empty sheet.
-		expect( css ).toMatch( /\.os-mywp__split--solo \{[^}]*grid-template-columns:\s*minmax\(\s*0,\s*1fr\s*\)/ );
-		expect( css ).not.toMatch( /os-mywp__pane-empty/ );
+		// The row itself is capped: an 'auto' row grew to the pane's
+		// whole content and squeezed the list to one line.
+		expect( narrow ).toMatch( /\.os-mywp__split \{[^}]*grid-template-rows:\s*minmax\(\s*0,\s*1fr\s*\)\s*fit-content\(\s*45%\s*\)/ );
+		// The pane is always rendered on the desk; under the breakpoint
+		// its empty state is hidden, so the sheet only shows while
+		// something is selected.
+		expect( narrow ).toMatch( /\.os-mywp__detail-pane--empty \{[^}]*display:\s*none/ );
 	} );
 } );
 

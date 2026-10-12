@@ -97,7 +97,7 @@ export function snippet( row: CommentRow ): string {
 }
 
 export function authorName( row: CommentRow | undefined ): string {
-	return row?.author_name || __( 'Anonymous' );
+	return decodeHTML( row?.author_name ?? '' ) || __( 'Anonymous' );
 }
 
 /**
@@ -111,7 +111,7 @@ export function avatar( row: CommentRow, size: number ): TemplateResult {
 	const url = pickAvatarUrl( row.author_avatar_urls );
 	return html`<os-avatar
 		class="${ NS }__disc"
-		name=${ row.author_name || '?' }
+		name=${ decodeHTML( row.author_name ?? '' ) || '?' }
 		size=${ size }
 		alt=""
 		data-avatar-src=${ url }

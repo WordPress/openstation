@@ -41,6 +41,15 @@ const facts: ProfileConfig = {
 	colorSchemes: {},
 };
 
+/** The declaration's tab list, as the PHP side builds it. */
+const usersTabs = ( cfg: ProfileConfig ) => [
+	{ id: 'all', label: 'People' },
+	{ id: 'roles', label: 'Roles' },
+	{ id: 'activity', label: 'Activity' },
+	...( cfg.canCreate === false ? [] : [ { id: 'add-new', label: 'Add new' } ] ),
+	{ id: 'edit', label: 'Profile' },
+];
+
 const actions: RowActions = { onSendReset: () => undefined, onResendWelcome: () => undefined, toast: () => undefined };
 
 function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = {}, extra: Partial< ProfileConfig > = {}, loading = false ) {
@@ -64,7 +73,10 @@ function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = 
 		},
 		data: { list: { items: [ user() ], total: 1, pages: 1, page: 1, perPage: 20 }, ...data },
 		root,
-		extra: { ...facts, ...extra } as Record< string, unknown >,
+		// `menuTabs` is what `App::menu()` ships in the config extra and
+		// what the strip renders from, caps already applied — see
+		// `apps/users/users.os.php`.
+		extra: { menuTabs: usersTabs( { ...facts, ...extra } ), ...facts, ...extra } as Record< string, unknown >,
 	} );
 	ctx.repaint = () => app.render( ctx );
 	ctx.dispatch = vi.fn( async () => true );
@@ -286,7 +298,7 @@ describe( 'updated() keeps the preserved table in step', () => {
 		expect( ctx.dispatch ).toHaveBeenLastCalledWith( 'sort', { orderby: 'name', order: 'asc' } );
 	} );
 
-	it( 'a query change clears the selection; a row leaving the page prunes it', async () => {
+	it( 'preserves selection across data updates and search query changes', async () => {
 		const { table, ctx } = mount( {}, { list: { items: [ user( { id: 2 } ), user( { id: 3 } ) ], total: 2, pages: 1, page: 1, perPage: 20 } } );
 		table!.selection = [ '2', '3' ];
 		table!.dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
@@ -294,11 +306,11 @@ describe( 'updated() keeps the preserved table in step', () => {
 		Object.assign( ctx, { data: { list: { items: [ user( { id: 2 } ) ], total: 1, pages: 1, page: 1, perPage: 20 } } } );
 		ctx.repaint();
 		await Promise.resolve();
-		expect( Array.from( table!.selection, String ) ).toEqual( [ '2' ] );
+		expect( Array.from( table!.selection, String ) ).toEqual( [ '2', '3' ] );
 
 		ctx.state.search = 'ada';
 		ctx.repaint();
-		expect( table!.selection.size ).toBe( 0 );
+		expect( Array.from( table!.selection, String ) ).toEqual( [ '2', '3' ] );
 	} );
 
 	it( 'only a changed row rebuilds its cells', () => {

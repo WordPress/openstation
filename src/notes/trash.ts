@@ -8,7 +8,7 @@
  */
 
 import { beginTrashChange, trashItem } from '../desktop-files/trash-optimistic';
-import { describeRestFailure } from '../core/rest-failure';
+import { toastRestFailure } from '../core/rest-failure';
 import { shellToast } from '../core/shell-toast';
 import { __ } from '../i18n';
 import { broadcastNotesChange } from './broadcast';
@@ -62,10 +62,8 @@ export async function trashNoteWithUndo(
 							);
 							// The Undo toast is gone by now; say why the
 							// note did not come back rather than nothing.
-							shellToast( {
-								...describeRestFailure( err, {
-									fallback: __( 'Could not restore the note.', 'desktop-mode' ),
-								} ),
+							toastRestFailure( shellToast, err, {
+								fallback: __( 'Could not restore the note.', 'desktop-mode' ),
 								duration: 5000,
 							} );
 						} );
@@ -77,10 +75,8 @@ export async function trashNoteWithUndo(
 		console.error( '[openstation] notes: trash failed:', err );
 		void optimistic.finish( false );
 		callbacks.onRestore( note );
-		shellToast( {
-			...describeRestFailure( err, {
-				fallback: __( 'Could not move the note to the Trash.', 'desktop-mode' ),
-			} ),
+		toastRestFailure( shellToast, err, {
+			fallback: __( 'Could not move the note to the Trash.', 'desktop-mode' ),
 			duration: 5000,
 		} );
 	}

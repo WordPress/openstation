@@ -241,7 +241,11 @@ export class MioResidency {
 	private syncVisibility(): void {
 		const layer = this.options.layer();
 		if ( layer ) {
-			layer.dataset.mioVisible = String( this.owner ? !! this.chat || this.owner.calloutVisible : ( this.options.wallpaperVisible?.() ?? true ) );
+			layer.dataset.mioVisible = String(
+				this.owner
+					? !! this.chat || this.owner.calloutVisible
+					: ( this.options.wallpaperVisible?.() ?? true ),
+			);
 		}
 	}
 

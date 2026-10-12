@@ -50,7 +50,10 @@ describe( 'the shortcut opener, on a promoted system tile', () => {
 
 		const onOpen = vi.fn();
 		const openWindow = vi.fn();
+		// Beside the hooks stub, not instead of it: the shell always
+		// has `wp.hooks`, and the opener announces every click on it.
 		( window as unknown as { wp: { os: unknown } } ).wp = {
+			...( window as unknown as { wp: object } ).wp,
 			os: {
 				getSystemTile: ( id: string ) =>
 					id === 'os-mio-toggle' ? { onOpen } : null,
@@ -76,6 +79,40 @@ describe( 'the shortcut opener, on a promoted system tile', () => {
 
 		expect( onOpen ).toHaveBeenCalledTimes( 1 );
 		// Mio has no window; deriving one would have opened nothing.
+		expect( openWindow ).not.toHaveBeenCalled();
+	} );
+
+	test( 'announces the click, so an icon with nothing to open still answers', async () => {
+		// On a files-layer desk the legacy icon rail is hidden, and it
+		// was the only thing firing this action: the shell tour's
+		// relaunch icon, which has no window or URL, did nothing.
+		const hooks = installHooksStub();
+		const { openers, builtins, file } = await loadOpeners();
+		builtins.registerBuiltInFileOpeners();
+		const openWindow = vi.fn();
+		( window as unknown as { wp: { os: unknown } } ).wp = {
+			...( window as unknown as { wp: object } ).wp,
+			os: { openWindow, getSystemTile: () => null },
+		};
+		const clicked = vi.fn();
+		hooks.addAction( 'os.os-icon.clicked', 'test', clicked );
+
+		const opener = openers.getOpener( 'desktop-mode-shortcut-opener' );
+		const shape = {
+			type: 'shortcut',
+			ref: 'openstation-shell-tour',
+			title: 'Take the tour',
+			icon: 'dashicons-welcome-learn-more',
+			previewUrl: '',
+			exists: true,
+			shortcutWindow: '',
+			shortcutUrl: '',
+		};
+		( opener!.handler as { open: ( f: unknown ) => void } ).open(
+			new file.DefaultDesktopFile( shape as never, 'shortcut' ),
+		);
+
+		expect( clicked ).toHaveBeenCalledWith( expect.objectContaining( { id: 'openstation-shell-tour' } ) );
 		expect( openWindow ).not.toHaveBeenCalled();
 	} );
 } );

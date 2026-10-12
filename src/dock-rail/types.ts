@@ -34,9 +34,10 @@ import type { WindowManager } from '../window-manager';
  *     element after `mount()` returns.
  *   - `items` — the menu-derived tile list at boot. Live updates
  *     come through the controller's `replaceItems()`.
- *   - `orientation` — `'left' | 'right' | 'bottom'`. Reflected on
- *     the container's `data-os-dock-placement` attribute
- *     by the shell before `mount()` runs.
+ *   - `orientation` — `'left' | 'right' | 'bottom'`. The renderer
+ *     stamps it on the container as `data-os-dock-placement`, which
+ *     the dock stylesheet positions the rail from, and removes it in
+ *     `destroy()`; the icon strip and the taskbar both do.
  *
  * **Routing callbacks** (renderers MUST call these instead of
  * reaching for the window manager directly):

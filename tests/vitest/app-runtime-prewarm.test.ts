@@ -4,9 +4,10 @@
  * `wp.os.apps.prewarm( id )` sends a closed app window's first `mount`
  * ahead of the open; the session that opens takes the answer instead
  * of fetching. What these tests pin: the request is the one the
- * session would have sent (silent, declared state, no params), a warm
- * is held once and taken once, it goes stale, a deep link never takes
- * it, and a warm that failed falls through to a real request.
+ * session would have sent (silent, declared state, the open's params),
+ * a warm is held once and taken once, it goes stale, an open takes only
+ * a warm with its own params, and a warm that failed falls through to a
+ * real request.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PREWARM_TTL_MS, __resetPrewarmForTests, hasPrewarm, startPrewarm, takePrewarm } from '../../src/app-runtime/prewarm';
@@ -148,6 +149,25 @@ describe( 'a session opening on a warm', () => {
 		expect( fetchSpy ).toHaveBeenCalledTimes( 2 );
 		expect( session.data ).toEqual( { rows: [ 'deep' ] } );
 		expect( hasPrewarm( APP ) ).toBe( true );
+	} );
+
+	it( 'an open with params takes a warm made with the same params', async () => {
+		// A URL remap opens a plain dock click with params (Comments
+		// `{ post: 0 }`); requiring NO params threw these warms away.
+		expect( startPrewarm( config(), host.fetch, { post: 0 } ) ).toBe( true );
+		expect( JSON.parse( String( ( fetchSpy.mock.calls[ 0 ] as [ string, RequestInit ] )[ 1 ].body ) ).params ).toEqual( { post: 0 } );
+		const session = createSession( { root, config: config(), windowId: APP, host, params: { post: 0 }, client: app } );
+		await expect( session.dispatch( 'mount' ) ).resolves.toBe( true );
+		expect( fetchSpy ).toHaveBeenCalledTimes( 1 );
+		expect( session.data ).toEqual( { rows: [ 'warm' ] } );
+		expect( hasPrewarm( APP, { post: 0 } ) ).toBe( false );
+	} );
+
+	it( 'warms are held per params, whatever their key order', () => {
+		startPrewarm( config(), host.fetch, { a: 1, b: 'x' } );
+		expect( hasPrewarm( APP, { b: 'x', a: 1 } ) ).toBe( true );
+		expect( hasPrewarm( APP ) ).toBe( false );
+		expect( takePrewarm( APP, { a: 2, b: 'x' } ) ).toBeUndefined();
 	} );
 
 	it( 'a warm that failed falls through to the request it stood in for', async () => {

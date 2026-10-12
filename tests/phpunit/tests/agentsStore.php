@@ -256,6 +256,59 @@ class Tests_OpenStation_AgentsStore extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The roster the shell inlines for "Send to" on desktop and folder
+	 * tiles: agents with a `send-to` trigger this user may invoke, with
+	 * the kinds the trigger accepts — and nothing while the framework
+	 * is off.
+	 *
+	 * @covers ::openstation_agents_send_to_targets
+	 */
+	public function test_send_to_targets_list_invokable_send_to_agents() {
+		$send_to = $this->create_agent( array( 'name' => 'Sender' ) );
+		openstation_agent_update(
+			$send_to->ID,
+			array(
+				'triggers' => array(
+					array(
+						'kind'   => 'send-to',
+						'config' => array( 'entityKinds' => array( 'post', 'page' ) ),
+					),
+				),
+			)
+		);
+		$chat_only = $this->create_agent( array( 'name' => 'Chatter' ) );
+		openstation_agent_update(
+			$chat_only->ID,
+			array( 'triggers' => array( array( 'kind' => 'chat', 'config' => array() ) ) )
+		);
+		$gated = $this->create_agent( array( 'name' => 'Gated' ) );
+		openstation_agent_update(
+			$gated->ID,
+			array(
+				'triggers' => array(
+					array(
+						'kind'   => 'send-to',
+						'config' => array( 'capability' => 'openstation_test_capability_nobody_has' ),
+					),
+				),
+			)
+		);
+
+		$targets = openstation_agents_send_to_targets();
+		$by_id   = array_column( $targets, null, 'id' );
+
+		$this->assertArrayHasKey( $send_to->ID, $by_id );
+		$this->assertSame( array( 'post', 'page' ), $by_id[ $send_to->ID ]['entityKinds'] );
+		$this->assertSame( 'Sender', $by_id[ $send_to->ID ]['name'] );
+		$this->assertArrayNotHasKey( $chat_only->ID, $by_id, 'No send-to trigger, no menu entry.' );
+		$this->assertArrayNotHasKey( $gated->ID, $by_id, 'An agent the user may not invoke is not offered.' );
+
+		remove_filter( 'openstation_agents_enabled', '__return_true' );
+		$this->assertSame( array(), openstation_agents_send_to_targets() );
+		add_filter( 'openstation_agents_enabled', '__return_true' );
+	}
+
+	/**
 	 * @covers ::openstation_agents_enabled
 	 */
 	public function test_enabled_reads_extended_option() {

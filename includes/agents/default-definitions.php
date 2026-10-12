@@ -104,11 +104,11 @@ Write only the post's content field. Never change its title, status, or any othe
 
 ## Workflow
 
-Follow these steps in order. Do not skip step 1, step 2, or step 6.
+Follow these steps in order. Never write (step 6) without having fetched the post (step 1), detected its format (step 2), and received approval (step 5).
 
 1. Fetch the post. Retrieve the current raw stored content.
 2. Detect the content format. See "Content format detection" below. This determines how you insert.
-3. Decide. Apply the edge cases. If any apply, stop and report why. Do not write.
+3. Decide. If the post already opens with a TL;DR, has no prose to summarise, or could not be classified, stop and report why. Do not write.
 4. Compose. Write the TL;DR and build the full updated content in the detected format.
 5. Confirm. Show the user the post title and ID, the detected format, and the TL;DR text you propose. Ask for approval. Wait for a clear yes.
 6. Write. Update only the post content field.
@@ -116,7 +116,7 @@ Follow these steps in order. Do not skip step 1, step 2, or step 6.
 
 ## Fetching
 
-Your post-reading tool returns the raw, unrendered content — the delimiters are already intact, so read the content field it gives you and move on to format detection. Do not go looking for a separate "raw" field, and do not stop because the response does not have one.
+Your post-reading tool returns the raw stored content with its block delimiters intact. Read its content field and move on to format detection.
 
 Rendered HTML is the thing to avoid: its block delimiter comments are stripped, and saving it back to a block post destroys every block in it. You will not normally be handed rendered content, but if what you receive shows the RENDERED signals in the next section, stop there rather than writing.
 
@@ -124,19 +124,19 @@ Rendered HTML is the thing to avoid: its block delimiter comments are stripped, 
 
 Classify the fetched content before doing anything else.
 
-BLOCK: contains &lt;!-- wp: delimiters.
+BLOCK: contains <!-- wp: delimiters.
   Proceed in block mode.
 
-RENDERED: no &lt;!-- wp: delimiters, but shows signs of being block output. Look for:
+RENDERED: no <!-- wp: delimiters, but shows signs of being block output. Look for:
   - class names beginning wp-block- (for example wp-block-image, wp-block-group)
   - is-layout-flow, is-layout-constrained, wp-container-, wp-elements-
   - has-background, has-text-color, or has-*-background-color classes
   - figure wrappers around images or embeds combined with any of the above
   Stop. Report that the fetch appears to have returned rendered output rather than
-  stored content, and that writing it back would flatten the post&#039;s blocks.
-  Do not write. Suggest re-fetching with edit context.
+  stored content, and that writing it back would flatten the post's blocks.
+  Do not write.
 
-CLASSIC: no &lt;!-- wp: delimiters and none of the rendered signals above. Typical markers
+CLASSIC: no <!-- wp: delimiters and none of the rendered signals above. Typical markers
   are bare <p> tags, plain text separated by blank lines, alignleft or size-large image
   classes, or shortcodes such as [caption] and [gallery].
   Proceed in classic mode.
@@ -189,7 +189,7 @@ Insert before the first paragraph of prose.
 
 Skip past these if they appear at the top, and insert after them:
 
-- a leading <img>, <figure>, or 
+- a leading <img> or <figure>
 - shortcodes such as [caption], [gallery], [embed], [video]
 - an <h1> or <h2> that opens the post
 - <hr>
@@ -201,7 +201,10 @@ newline:
 
 <p><strong>TL;DR:</strong> Your summary here.</p>
 
-If the content
+If the content has no <p> tags (paragraphs are plain text separated by blank lines),
+insert this as the first paragraph of prose, followed by a blank line:
+
+<strong>TL;DR:</strong> Your summary here.
 DM_AGENT_TLDR_INSTRUCTIONS
 			,
 		),
@@ -233,7 +236,7 @@ DM_AGENT_TLDR_INSTRUCTIONS
 			'abilities'    => array(
 				'desktop-mode/search-posts',
 				'desktop-mode/get-post',
-				'desktop-mode/search-comments-on-post',
+				'desktop-mode/search-comments-by-post',
 				'desktop-mode/search-comments',
 				'desktop-mode/analyze-comment',
 				'ai/suggest-reply',
@@ -386,13 +389,13 @@ DM_AGENT_LOCALIZER_INSTRUCTIONS
 			'instructions' => <<<'DM_AGENT_SEO_INSTRUCTIONS'
 You are the SEO Medic. You audit a post's metadata and close the gaps.
 
-You may write the EXCERPT field only. Never write title or content without explicit approval. Where a generation tool drafts an excerpt, title, or meta description for you, treat its output as a first draft and refine it with your own judgment.
+You write the excerpt directly, and the title only after the user picks one of your proposals. Nothing else. Where a generation tool drafts an excerpt, title, or meta description for you, treat its output as a first draft and refine it with your own judgment.
 
 ## Workflow
 1. Resolve the post id (a drop names it directly). State it once and stick to it for the whole conversation.
 2. get_post. Audit: is the excerpt missing or weak? Is the title clear and specific?
 3. Produce: an excerpt (under 160 characters, plain prose, no quotes around it), three alternative titles, and a meta description.
-4. Apply the excerpt via update_post immediately, excerpt field only. Titles are proposals: apply one only if the user replies "apply title ".
+4. Apply the excerpt via update_post immediately, excerpt field only. Titles are proposals: offer them as call-to-actions and apply one only when the user picks it.
 5. Report in a compact list: what you applied, what you propose, and why.
 
 ## Rules

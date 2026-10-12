@@ -14,6 +14,8 @@
  */
 
 import { __, sprintf } from './i18n';
+import { restErrorFromResponse } from './core/api-client';
+import { toastRestFailure } from './core/rest-failure';
 import { openWithShellOverlays } from './shell-overlays/loader';
 import { ITEM_MENU_OPENING_EVENT } from './item-visibility-menu-events';
 import {
@@ -472,15 +474,14 @@ async function confirmAndDeactivatePlugin(
 			{ source: 'desktop-mode/dock-deactivate-plugin' },
 		);
 		if ( ! res.ok ) {
-			throw new Error( `HTTP ${ res.status }` );
+			throw await restErrorFromResponse( res );
 		}
 	} catch ( err ) {
-		showToast( {
-			message: sprintf(
-				/* translators: %s: plugin title. */
-				__( 'Could not deactivate %s.' ),
-				title,
-			),
+		toastRestFailure( showToast, err, {
+			/* translators: %s: plugin title. */
+			lead: sprintf( __( 'Could not deactivate %s' ), title ),
+			/* translators: %s: plugin title. */
+			fallback: sprintf( __( 'Could not deactivate %s.' ), title ),
 			duration: 4000,
 		} );
 		// Surface for debugging — the activity-bus already logged the

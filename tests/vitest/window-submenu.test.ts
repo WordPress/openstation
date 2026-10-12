@@ -7,6 +7,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import { WindowManager } from '../../src/window-manager';
+import { syncOpenWindowSubmenus } from '../../src/window/submenu-sync';
+import type { DesktopConfig } from '../../src/types';
 
 describe( 'WindowManager — opening a window with a submenu', async () => {
 	let desktop: HTMLElement;
@@ -396,5 +398,48 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		expect( sibling.config.baseId ).toBe( 'edit.php' );
 		expect( sibling.config.url ).toBe( navigatedUrl );
 		expect( sibling.id ).not.toBe( win.id );
+	} );
+
+	test( 'a menu refresh re-seeds an open window whose dock entry lost rows', async () => {
+		// Switching to a block theme from the Appearance window drops
+		// Customize, Widgets and Menus from the menu. The dock follows
+		// the refresh; the open window's strip must follow too, or its
+		// Menus tab loads a screen WordPress refuses for that theme.
+		const admin = 'http://example.test/wp-admin/';
+		const themes = { title: 'Themes', url: `${ admin }themes.php` };
+		const editor = { title: 'Editor', url: `${ admin }site-editor.php` };
+		const menus = { title: 'Menus', url: `${ admin }nav-menus.php` };
+		const win = await manager.open( {
+			id: 'themes-php',
+			baseId: 'themes-php',
+			url: themes.url,
+			parentUrl: themes.url,
+			title: 'Appearance',
+			selfLabel: 'Themes',
+			icon: 'dashicons-admin-appearance',
+			submenu: [ editor, menus ],
+		} );
+		const labels = (): string[] =>
+			Array.from(
+				win.element.querySelectorAll( '.os-window__tab[data-kind="submenu"]' ),
+				( t ) => t.textContent ?? '',
+			);
+		const config = ( submenu: { title: string; url: string }[] ) =>
+			( {
+				adminUrl: admin,
+				dockItems: [ { id: 'menu-appearance', title: 'Appearance', url: themes.url, selfLabel: 'Themes', submenu } ],
+			} ) as unknown as DesktopConfig;
+
+		// A refresh that changed some other menu leaves the strip's
+		// nodes alone, so the plate and keyboard focus don't reset.
+		const before = win.element.querySelector( '.os-window__tab[data-kind="submenu"]' );
+		syncOpenWindowSubmenus( manager.getAll(), config( [ editor, menus ] ) );
+		expect( win.element.querySelector( '.os-window__tab[data-kind="submenu"]' ) ).toBe( before );
+
+		syncOpenWindowSubmenus( manager.getAll(), config( [ editor ] ) );
+		expect( labels() ).toEqual( [ 'Themes', 'Editor' ] );
+		expect( win.config.submenu ).toEqual( [ editor ] );
+		const active = win.element.querySelector( '.os-window__tab--active' ) as HTMLElement;
+		expect( active.dataset.url ).toBe( themes.url );
 	} );
 } );

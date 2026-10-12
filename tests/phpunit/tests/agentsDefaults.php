@@ -44,6 +44,54 @@ class Tests_OpenStation_AgentsDefaults extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Every `desktop-mode/*` slug a default agent lists is an ability this
+	 * plugin registers. The runner drops an unknown slug silently, so a
+	 * typo or a renamed ability costs the agent a tool with no error
+	 * anywhere (the Concierge shipped without `search-comments-by-post`).
+	 * `ai/*` and `core/*` slugs belong to other plugins and are skipped.
+	 *
+	 * @covers ::openstation_agents_default_definitions
+	 */
+	public function test_default_allowlists_name_registered_abilities() {
+		if ( ! function_exists( 'wp_get_ability' ) ) {
+			$this->markTestSkipped( 'Abilities API not available.' );
+		}
+		foreach ( openstation_agents_default_definitions() as $def ) {
+			foreach ( $def['abilities'] as $slug ) {
+				if ( 0 !== strpos( $slug, 'desktop-mode/' ) ) {
+					continue;
+				}
+				$this->assertNotNull( wp_get_ability( $slug ), "{$def['name']} lists {$slug}, which is not registered" );
+			}
+		}
+	}
+
+	/**
+	 * Migration 9 rewrites the misspelled slug in a stored allowlist and
+	 * leaves every other slug where it was.
+	 *
+	 * @covers ::openstation_migrate_agent_ability_slugs
+	 */
+	public function test_migration_repairs_the_concierge_slug() {
+		$agent = openstation_agent_create(
+			array(
+				'name'         => 'Old Concierge',
+				'role'         => 'editor',
+				'instructions' => 'Triage.',
+				'abilities'    => array( 'desktop-mode/search-posts', 'desktop-mode/search-comments-on-post', 'ai/suggest-reply' ),
+			)
+		);
+		$this->assertNotWPError( $agent );
+
+		openstation_migrate_agent_ability_slugs();
+
+		$this->assertSame(
+			array( 'desktop-mode/search-posts', 'desktop-mode/search-comments-by-post', 'ai/suggest-reply' ),
+			openstation_agent_get_abilities( $agent->ID )
+		);
+	}
+
+	/**
 	 * @covers ::openstation_agents_seed_defaults
 	 */
 	public function test_seeds_on_an_agentless_site_once() {

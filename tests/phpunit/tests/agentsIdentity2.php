@@ -201,6 +201,28 @@ class Tests_OpenStation_AgentsIdentity2 extends WP_UnitTestCase {
 		$this->assertSame( array(), glob( openstation_agent_faces_dir() . '/' . $id . '-*.svg' ) );
 	}
 
+	/**
+	 * Deleting the agent from wp-admin → Users goes through Core, not
+	 * `openstation_agent_delete()`, and by `deleted_user` the agent
+	 * marker is already gone. The files still have to go.
+	 */
+	public function test_a_core_user_delete_takes_the_face_with_it() {
+		$user = $this->make_agent(
+			array( 'face' => array( 'physics' => array( 'shapePreset' => 'flower' ) ) )
+		);
+		$id = $user->ID;
+		$this->assertNotSame( '', openstation_agent_face_url( $id ) );
+
+		require_once ABSPATH . 'wp-admin/includes/user.php';
+		if ( is_multisite() ) {
+			require_once ABSPATH . 'wp-admin/includes/ms.php';
+			wpmu_delete_user( $id );
+		} else {
+			wp_delete_user( $id );
+		}
+		$this->assertSame( array(), glob( openstation_agent_faces_dir() . '/' . $id . '-*.svg' ) );
+	}
+
 	public function test_the_face_directory_is_exec_off_not_deny_all() {
 		// The portraits have to stay servable; what must not run is PHP.
 		openstation_agent_faces_ensure_dir();

@@ -22,6 +22,8 @@ import {
 } from '../../../src/desktop-themes/registry';
 import type { DesktopThemeEntry } from '../../../src/desktop-themes/types';
 import type { DesktopThemeServerEntry, DesktopWallpaperServerEntry } from '../../../src/types';
+import { restErrorFromResponse } from '../../../src/core/api-client';
+import { describeRestFailure } from '../../../src/core/rest-failure';
 import { doAction, HOOKS } from '../../../src/hooks';
 import { hasApplicableThemeRecommendations } from '../../../src/settings/theme-recommendations';
 import { applyThemeRecommendations, settings, update } from './store';
@@ -57,25 +59,6 @@ function initialsFor( name: string ): string {
 // -------------------------------------------------------------- REST
 
 /**
- * The install pipeline returns specific, actionable `WP_Error`
- * messages ("that archive contains an unsafe file path", "theme.json
- * is not valid JSON"). Collapsing all of that into "Upload failed"
- * would throw away the only thing that tells a theme author what to
- * fix.
- */
-async function errorMessage( response: Response, fallback: string ): Promise< string > {
-	try {
-		const data = ( await response.json() ) as { message?: unknown };
-		if ( data && typeof data.message === 'string' && data.message !== '' ) {
-			return data.message;
-		}
-	} catch {
-		/* Not JSON — fall through to the generic message. */
-	}
-	return `${ fallback } (HTTP ${ response.status }).`;
-}
-
-/**
  * Installing or deleting a theme changes which wallpapers exist, and
  * the registry that owns them lives in the shell bundle. Both REST
  * responses carry the rebuilt list; this hands it over. Silent when
@@ -99,7 +82,7 @@ async function uploadTheme( ctx: Ctx, file: File ): Promise< DesktopThemeServerE
 	form.append( 'file', file, file.name );
 	const response = await ctx.fetch( extraOf( ctx ).desktopThemesUrl, { method: 'POST', body: form } );
 	if ( ! response.ok ) {
-		throw new Error( await errorMessage( response, 'Theme upload failed' ) );
+		throw await restErrorFromResponse( response );
 	}
 	const installed = await response.json();
 	announceWallpapers( installed );
@@ -112,7 +95,7 @@ async function deleteTheme( ctx: Ctx, slug: string ): Promise< void > {
 		{ method: 'DELETE' },
 	);
 	if ( ! response.ok ) {
-		throw new Error( await errorMessage( response, 'Theme delete failed' ) );
+		throw await restErrorFromResponse( response );
 	}
 	try {
 		announceWallpapers( await response.json() );
@@ -137,7 +120,10 @@ async function doUpload( ctx: Ctx, file: File ): Promise< void > {
 		// pickable the moment the spinner stops.
 		upsertDesktopTheme( await uploadTheme( ctx, file ) );
 	} catch ( err ) {
-		ui.error = err instanceof Error ? err.message : __( 'That theme could not be installed.' );
+		// The install pipeline's WP_Error messages are specific ("that
+		// archive contains an unsafe file path"): the mapper shows them
+		// first, and its own line only for what the server could not say.
+		ui.error = describeRestFailure( err, { fallback: __( 'That theme could not be installed.' ) } ).message;
 	} finally {
 		ui.busy = false;
 		ctx.repaint();
@@ -171,7 +157,7 @@ async function doDelete( ctx: Ctx, theme: DesktopThemeEntry ): Promise< void > {
 			update( { desktopTheme: SYSTEM_DEFAULT } );
 		}
 	} catch ( err ) {
-		ui.error = err instanceof Error ? err.message : __( 'That theme could not be deleted.' );
+		ui.error = describeRestFailure( err, { fallback: __( 'That theme could not be deleted.' ) } ).message;
 	}
 	ctx.repaint();
 }

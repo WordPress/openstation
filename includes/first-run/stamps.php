@@ -46,6 +46,9 @@ const OPENSTATION_FIRST_ENABLED_AT_OPTION = 'openstation_first_enabled_at';
 /** User meta: when this user first turned OpenStation on (epoch seconds). */
 const OPENSTATION_ENABLED_AT_META_KEY = 'openstation_enabled_at';
 
+/** Option: the user who last activated the plugin, 0 when nobody was logged in. */
+const OPENSTATION_ACTIVATED_BY_OPTION = 'openstation_activated_by';
+
 /**
  * Normalises a stored stamp to `{ at: int, via: string }`, or null.
  *
@@ -163,6 +166,21 @@ function openstation_stamp_install_on_activation() {
 	openstation_record_installed( 'activation' );
 }
 register_activation_hook( OPENSTATION_FILE, 'openstation_stamp_install_on_activation' );
+
+/**
+ * Activation: remember who activated the plugin, so the welcome dialog
+ * greets that user and nobody else.
+ *
+ * Written on every activation, because the dialog is for whoever just
+ * activated. A programmatic activation (WP-CLI, a Playground Blueprint)
+ * has no user and writes 0, which shows the dialog to nobody.
+ *
+ * @return void
+ */
+function openstation_record_activator() {
+	update_option( OPENSTATION_ACTIVATED_BY_OPTION, get_current_user_id() );
+}
+register_activation_hook( OPENSTATION_FILE, 'openstation_record_activator' );
 
 /**
  * Lazy backfill for installs that predate the stamp.

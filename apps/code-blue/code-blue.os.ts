@@ -342,13 +342,13 @@ export default defineApp< State, Data >( 'openstation-code-blue', {
 						? html`
 							<div class="os-cb-issue__detail">
 								<os-code block copy wrap class="os-cb-issue__full">${ g.message }</os-code>
-								<dl class="os-cb-issue__facts">
-									${ g.file !== '' ? html`<dt>${ __( 'File' ) }</dt><dd><os-code copy wrap>${ g.line > 0 ? `${ g.file }:${ g.line }` : g.file }</os-code></dd>` : '' }
-									${ 'unknown' !== origin.kind ? html`<dt>${ __( 'Source' ) }</dt><dd>${ originLabel( origin ) }</dd>` : '' }
-									${ g.firstTs !== null ? html`<dt>${ __( 'First seen' ) }</dt><dd>${ fullTime( g.firstTs ) }</dd>` : '' }
-									${ g.lastTs !== null ? html`<dt>${ __( 'Last seen' ) }</dt><dd>${ fullTime( g.lastTs ) }</dd>` : '' }
-									<dt>${ __( 'Occurrences' ) }</dt><dd>${ g.count.toLocaleString() }</dd>
-								</dl>
+								<os-facts class="os-cb-issue__facts">
+									${ g.file !== '' ? html`<os-fact label=${ __( 'File' ) }><os-code copy wrap>${ g.line > 0 ? `${ g.file }:${ g.line }` : g.file }</os-code></os-fact>` : '' }
+									${ 'unknown' !== origin.kind ? html`<os-fact label=${ __( 'Source' ) }>${ originLabel( origin ) }</os-fact>` : '' }
+									${ g.firstTs !== null ? html`<os-fact label=${ __( 'First seen' ) }>${ fullTime( g.firstTs ) }</os-fact>` : '' }
+									${ g.lastTs !== null ? html`<os-fact label=${ __( 'Last seen' ) }>${ fullTime( g.lastTs ) }</os-fact>` : '' }
+									<os-fact label=${ __( 'Occurrences' ) }>${ g.count.toLocaleString() }</os-fact>
+								</os-facts>
 								${ g.occurrences.length > 1
 									? html`<os-cluster gap="8" align="baseline" class="os-cb-issue__times">
 										<span class="os-cb-issue__times-label">${ __( 'Latest occurrences' ) }</span>

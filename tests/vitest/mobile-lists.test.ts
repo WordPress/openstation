@@ -183,8 +183,8 @@ describe( 'WP Explorer', () => {
 		expect( page ).toMatch( /overflow-y:\s*auto/ );
 	} );
 
-	test( 'its close control yields to Back, and its actions stack full width', () => {
-		expect( block( explorer, '.os-mywp__detail-page .os-mywp__pane-close {' ) ).toMatch( /display:\s*none/ );
+	test( 'its actions stack full width (the pane has no close control; Back leaves)', () => {
+		expect( explorer ).not.toMatch( /os-mywp__pane-close/ );
 		expect( block( explorer, '.os-mywp__detail-page .os-mywp__actions {' ) ).toMatch( /flex-direction:\s*column/ );
 		expect( block( explorer, '.os-mywp__detail-page .os-mywp__actions os-button {' ) ).toMatch( /inline-size:\s*100%/ );
 	} );

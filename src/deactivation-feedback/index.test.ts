@@ -71,6 +71,18 @@ describe( 'interceptPluginsScreen', () => {
 		// Send is inert until a reason is ticked.
 		expect( button( 'primary' ).disabled ).toBe( true );
 
+		// The "too buggy" question comes and goes with its box.
+		const head = document.querySelector< HTMLElement >( '.os-deactivation-feedback__field-head' )!;
+		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
+		expect( head.hasAttribute( 'data-asking' ) ).toBe( false );
+		const buggy = document.querySelector< HTMLInputElement >( 'input[value="too_buggy"]' )!;
+		buggy.checked = true;
+		buggy.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		buggy.checked = false;
+		buggy.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		expect( head.hasAttribute( 'data-asking' ) ).toBe( false );
+		expect( details.hasAttribute( 'aria-describedby' ) ).toBe( false );
+
 		button( 'ghost' ).click();
 		await settle();
 
@@ -93,6 +105,12 @@ describe( 'interceptPluginsScreen', () => {
 		}
 		const details = document.querySelector< HTMLTextAreaElement >( '.os-deactivation-feedback__details' )!;
 		expect( details.placeholder ).toMatch( /page or plugin/ );
+		// "Too buggy" swaps the field's label for the question, which the
+		// field then points at.
+		const head = document.querySelector< HTMLElement >( '.os-deactivation-feedback__field-head' )!;
+		const prompt = document.querySelector< HTMLElement >( '.os-deactivation-feedback__prompt' )!;
+		expect( head.hasAttribute( 'data-asking' ) ).toBe( true );
+		expect( details.getAttribute( 'aria-describedby' ) ).toBe( prompt.id );
 		details.value = 'Elementor editor went blank';
 		expect( button( 'primary' ).disabled ).toBe( false );
 

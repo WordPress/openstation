@@ -28,7 +28,7 @@
 import './styles.css';
 import '../../ui/components/os-textarea/os-textarea';
 import { __ } from '../../i18n';
-import { describeRestFailure } from '../../core/rest-failure';
+import { toastRestFailure } from '../../core/rest-failure';
 import { shellToast } from '../../core/shell-toast';
 import type { DragManagerApi } from '../../drag';
 import { NOTE_COLORS, nextNoteColor, normalizeNoteColor } from '../../notes/colors';
@@ -418,10 +418,8 @@ const mount = (
 			// Same user-visible feedback the drag path gets — a silent
 			// failure reads as "the feature is broken".
 			shakeSheet();
-			shellToast( {
-				...describeRestFailure( err, {
-					fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
-				} ),
+			toastRestFailure( shellToast, err, {
+				fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
 				duration: 5000,
 			} );
 		} finally {

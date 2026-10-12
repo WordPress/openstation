@@ -292,6 +292,37 @@ describe( 'AiAssistant — entity search', () => {
 		);
 	} );
 
+	test( 'a post the user cannot edit reads View post and opens its permalink', async () => {
+		stubFetch( [
+			{
+				...SEARCH_FIXTURE[ 1 ],
+				_embedded: { self: [ { _links: { self: [ { targetHints: { allow: [ 'GET' ] } } ] } } ] },
+			},
+		] );
+		assistant = new AiAssistant( BASE_CONFIG );
+		assistant.open();
+
+		const input = document.querySelector< HTMLInputElement >(
+			'#desktop-mode-ai-assistant .os-ai__input',
+		)!;
+		input.value = 'hello';
+		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+
+		let item: HTMLButtonElement | null = null;
+		await vi.waitFor( () => {
+			item = document.querySelector< HTMLButtonElement >(
+				'#desktop-mode-ai-assistant .os-ai__cmd-item.is-entity-result',
+			);
+			expect( item ).toBeTruthy();
+		}, { timeout: 500, interval: 50 } );
+
+		expect( item!.querySelector( '.os-ai__cmd-desc' )?.textContent ).toBe( 'View post' );
+		item!.click();
+		expect( WINDOW_MANAGER.open ).toHaveBeenCalledWith(
+			expect.objectContaining( { url: 'https://example.test/hello-world/' } ),
+		);
+	} );
+
 	/**
 	 * Network errors silently swallowed.
 	 */

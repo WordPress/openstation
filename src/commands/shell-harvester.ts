@@ -71,6 +71,21 @@ const SITE_EDITOR_INTENT_RE = /getSiteEditorPage\s*\(|site-editor\.php/;
 const SITE_EDITOR_NAME_RE = /^(wp_template_part|wp_template|wp_navigation|wp_block)-(.+)$/;
 
 /**
+ * What picking a site-editor entity command does, shown as the row's
+ * description. Core labels these with the entity's bare title ("Page:
+ * 404", "Footer"), which says what the row is but not what it opens.
+ */
+function siteEditorDescription( name: string ): string | undefined {
+	const type = name.match( SITE_EDITOR_NAME_RE )?.[ 1 ];
+	return {
+		wp_template: __( 'Edit template' ),
+		wp_template_part: __( 'Edit template part' ),
+		wp_navigation: __( 'Edit navigation menu' ),
+		wp_block: __( 'Edit pattern' ),
+	}[ type ?? '' ];
+}
+
+/**
  * Look up a command name in the stashed `menu_commands` array (set by
  * `includes/render/assets.php` as an inline script before our bundle).
  * Each entry has shape `{ label, url, name }`. Returns the full entry
@@ -136,17 +151,24 @@ interface Classified {
 export interface ShellCommandHarvesterOptions {
 	manager: WindowManager;
 	adminUrl: string;
+	/**
+	 * The menu's name for an admin URL, when the menu lists it: the dock
+	 * tile's for the page a tile opens, the submenu row's otherwise.
+	 * Session restore titles the window with it on the next boot.
+	 */
+	titleForUrl?: ( url: string ) => string | undefined;
 }
 
 export class ShellCommandHarvester {
 	private readonly manager: WindowManager;
 	private readonly adminUrl: string;
+	private readonly titleForUrl?: ( url: string ) => string | undefined;
 
 	private mounted = false;
 	private host: HTMLDivElement | null = null;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private root: any = null;
-	private kindCache: Record< string, { kind: 'navigate' | 'action' | 'skip'; url?: string; iconSvg?: string } > =
+	private kindCache: Record< string, { kind: 'navigate' | 'action' | 'skip'; url?: string; iconSvg?: string; windowTitle?: string } > =
 		Object.create( null );
 	private callbackCache: Record< string, ( ...args: unknown[] ) => void > =
 		Object.create( null );
@@ -155,6 +177,7 @@ export class ShellCommandHarvester {
 	constructor( opts: ShellCommandHarvesterOptions ) {
 		this.manager = opts.manager;
 		this.adminUrl = opts.adminUrl;
+		this.titleForUrl = opts.titleForUrl;
 	}
 
 	/** Mount the harvester. Idempotent. Safe to call before `wp.data` loads. */
@@ -419,6 +442,7 @@ export class ShellCommandHarvester {
 			const def: DesktopCommand = {
 				slug,
 				label: c.label,
+				description: c.kind === 'navigate' ? siteEditorDescription( c.name ) : undefined,
 				icon,
 				iconSvg: c.iconSvg && c.iconSvg !== '' ? sanitizeIconSvg( c.iconSvg ) : undefined,
 				owner: OWNER,
@@ -465,6 +489,7 @@ export class ShellCommandHarvester {
 			out.kind = cached.kind;
 			out.url = cached.url;
 			out.iconSvg = cached.iconSvg;
+			out.windowTitle = cached.windowTitle;
 			return out;
 		}
 
@@ -505,6 +530,7 @@ export class ShellCommandHarvester {
 				kind: out.kind,
 				url: out.url,
 				iconSvg: out.iconSvg,
+				windowTitle: out.windowTitle,
 			};
 			return out;
 		}
@@ -636,7 +662,7 @@ export class ShellCommandHarvester {
 				return;
 			}
 			const id = deriveWindowId( url, this.adminUrl );
-			this.manager.open( { id, baseId: id, url, title, icon } );
+			this.manager.open( { id, baseId: id, url, title: this.titleForUrl?.( url ) || title, icon } );
 		};
 	}
 

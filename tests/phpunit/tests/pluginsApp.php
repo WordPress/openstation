@@ -119,7 +119,10 @@ class Tests_OpenStation_PluginsApp extends WP_UnitTestCase {
 		// per-viewer half (caps, nonces, the auto-updates gate).
 		$config = $manifest['config'];
 		$this->assertSame(
-			array( 'ajaxUrl', 'selfPluginFile', 'adminUrl', 'ajaxNonce', 'updatesNonce', 'caps', 'autoUpdatesEnabled', 'deactivationFeedback', 'editorUrl' ),
+			// `menuTabs` is the framework's: the tabs this window
+			// declared with `App::menu()`, which its strip and the
+			// dock's Plugins submenu both read.
+			array( 'ajaxUrl', 'selfPluginFile', 'adminUrl', 'ajaxNonce', 'updatesNonce', 'caps', 'autoUpdatesEnabled', 'deactivationFeedback', 'editorUrl', 'menuTabs' ),
 			array_keys( $config )
 		);
 		// The deactivation dialog's lazy bundle and route, so a

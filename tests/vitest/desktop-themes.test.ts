@@ -428,6 +428,26 @@ describe( 'applyDesktopTheme', () => {
 		expect( getActiveDesktopThemeId() ).toBe( 'acme-neon' );
 	} );
 
+	test( 'a theme that draws the toolbar gets the toolbar clock, and takes it away again', () => {
+		mountShell();
+		document.body.insertAdjacentHTML(
+			'beforeend',
+			'<ul id="wp-admin-bar-top-secondary"><li id="wp-admin-bar-my-account"></li></ul>',
+		);
+		setDesktopThemes( [ rawTheme(), rawTheme( { id: 'acme/bar', slug: 'acme-bar', drawsToolbar: true } ) ] );
+
+		applyDesktopTheme( 'acme-neon' );
+		expect( document.getElementById( 'wp-admin-bar-os-clock' ) ).toBeNull();
+
+		applyDesktopTheme( 'acme-bar' );
+		const clock = document.getElementById( 'wp-admin-bar-os-clock' );
+		expect( clock?.nextElementSibling?.id ).toBe( 'wp-admin-bar-my-account' );
+		expect( clock?.querySelector( 'time' )?.textContent ).not.toBe( '' );
+
+		applyDesktopTheme( '' );
+		expect( document.getElementById( 'wp-admin-bar-os-clock' ) ).toBeNull();
+	} );
+
 	test( 'a code theme injects a <style> instead of a <link>', () => {
 		mountShell();
 		setDesktopThemes( [

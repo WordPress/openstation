@@ -13,6 +13,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { getWorkArea, WORK_AREA_GAP } from '../work-area';
 import type { WidgetDef } from './types';
 
 /** Options handed to `openWidgetPicker` by the layer on each open. */
@@ -225,10 +226,94 @@ function paintList(
 	}
 }
 
+/** A box in viewport coordinates. */
+interface ViewportBox {
+	top: number;
+	right: number;
+	bottom: number;
+	left: number;
+}
+
+/** Where {@link placeWidgetPicker} put the panel. */
+export interface WidgetPickerPlacement {
+	left: number;
+	top: number;
+	/** Border-box height cap when neither side fits, else `null`. */
+	maxHeight: number | null;
+}
+
+/** Gap between the anchor and the panel, in px. */
+const ANCHOR_GAP = 6;
+
 /**
- * Position the panel so its bottom-right corner sits just above
- * the anchor's top edge with a 6 px gap. Absolute-positioned in
- * viewport coords because the desktop area clips overflow.
+ * Place a `width` x `height` panel against `anchor`, inside `bounds`.
+ *
+ * Above the anchor, right-aligned, is the preferred spot: it hugs the
+ * widget column. When the room above is too short the panel flips
+ * below; when neither side is tall enough it takes the taller side and
+ * caps its height to that room, so the list scrolls inside the panel
+ * instead of running off the screen or under the dock. Horizontally
+ * it is clamped into `bounds`.
+ *
+ * Pure: the caller measures, this decides.
+ */
+export function placeWidgetPicker(
+	anchor: ViewportBox,
+	size: { width: number; height: number },
+	bounds: ViewportBox,
+): WidgetPickerPlacement {
+	const { width, height } = size;
+	const roomAbove = anchor.top - ANCHOR_GAP - bounds.top;
+	const roomBelow = bounds.bottom - ( anchor.bottom + ANCHOR_GAP );
+
+	let top: number;
+	let maxHeight: number | null = null;
+	if ( height <= roomAbove ) {
+		top = anchor.top - ANCHOR_GAP - height;
+	} else if ( height <= roomBelow ) {
+		top = anchor.bottom + ANCHOR_GAP;
+	} else if ( roomAbove >= roomBelow ) {
+		maxHeight = Math.max( 0, roomAbove );
+		top = bounds.top;
+	} else {
+		maxHeight = Math.max( 0, roomBelow );
+		top = anchor.bottom + ANCHOR_GAP;
+	}
+
+	// Right-aligned to the anchor, then kept inside the bounds. The
+	// left edge wins when the panel is wider than the room.
+	let left = anchor.right - width;
+	left = Math.min( left, bounds.right - width );
+	left = Math.max( left, bounds.left );
+
+	return { left, top, maxHeight };
+}
+
+/**
+ * The box the picker may occupy: the work area in viewport
+ * coordinates, so the panel never lands under the dock, less a small
+ * margin on every edge. Falls back to the viewport before the work
+ * area has been measured.
+ */
+function pickerBounds(): ViewportBox {
+	const margin = WORK_AREA_GAP;
+	const { viewport } = getWorkArea();
+	const area =
+		viewport.width > 0 && viewport.height > 0
+			? viewport
+			: { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
+	return {
+		top: area.y + margin,
+		right: area.x + area.width - margin,
+		bottom: area.y + area.height - margin,
+		left: area.x + margin,
+	};
+}
+
+/**
+ * Position the panel against the anchor (see {@link placeWidgetPicker}).
+ * Fixed-positioned in viewport coords because the desktop area clips
+ * overflow.
  */
 function positionPanel(
 	panel: HTMLElement,
@@ -236,33 +321,26 @@ function positionPanel(
 ): void {
 	const rect = anchor.getBoundingClientRect();
 	panel.style.position = 'fixed';
-	// Paint once to measure — panel has `visibility: hidden` first
-	// via CSS until we commit position, avoiding a flash at (0,0).
-	// But jsdom doesn't implement layout so we fall back to the
-	// computed rect; either way this resolves before paint.
+	// Park it hidden at the origin to measure, so the panel never
+	// flashes at (0,0). jsdom has no layout, hence the fallbacks.
 	panel.style.left = '0px';
 	panel.style.top = '0px';
+	panel.style.maxHeight = '';
 	panel.style.visibility = 'hidden';
-	// Force a layout pass so offsetWidth / offsetHeight reflect.
 	const panelRect = panel.getBoundingClientRect();
-	const width = panelRect.width || 320;
-	const height = panelRect.height || 200;
-	const gap = 6;
+	const placement = placeWidgetPicker(
+		rect,
+		{
+			width: panelRect.width || 342,
+			height: panelRect.height || 200,
+		},
+		pickerBounds(),
+	);
 
-	let left = rect.right - width;
-	let top = rect.top - height - gap;
-
-	// Clamp to viewport so a small-window placement doesn't push
-	// the panel off screen.
-	if ( left < 8 ) {
-		left = 8;
+	panel.style.left = `${ Math.round( placement.left ) }px`;
+	panel.style.top = `${ Math.round( placement.top ) }px`;
+	if ( placement.maxHeight !== null ) {
+		panel.style.maxHeight = `${ Math.floor( placement.maxHeight ) }px`;
 	}
-	if ( top < 8 ) {
-		// Not enough headroom — flip below the anchor instead.
-		top = rect.bottom + gap;
-	}
-
-	panel.style.left = `${ Math.round( left ) }px`;
-	panel.style.top = `${ Math.round( top ) }px`;
 	panel.style.visibility = '';
 }

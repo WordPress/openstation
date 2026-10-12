@@ -193,6 +193,9 @@ class Tests_OpenStation_LivingTreeSnapshot extends WP_UnitTestCase {
 			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
 			\Automattic\Jetpack\Stats\WPCOM_Stats::$last_args       = null;
 		}
+		if ( property_exists( '\Automattic\Jetpack\Modules', 'stats_active' ) ) {
+			\Automattic\Jetpack\Modules::$stats_active = true;
+		}
 	}
 
 	/**
@@ -296,7 +299,82 @@ class Tests_OpenStation_LivingTreeSnapshot extends WP_UnitTestCase {
 		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array( 'unexpected' => true );
 		try {
 			$this->assertSame( 8, openstation_living_tree_traffic() );
+
+			// Stats module off → the zeros of a site that is not
+			// counting must not hide the meta, as in the widget.
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
+				'fields' => array( 'period', 'views' ),
+				'data'   => array( array( '2026-07-11', 0 ) ),
+			);
+			\Automattic\Jetpack\Modules::$stats_active = false;
+			$this->assertSame( 8, openstation_living_tree_traffic() );
 		} finally {
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
+			\Automattic\Jetpack\Modules::$stats_active              = true;
+		}
+	}
+
+	/**
+	 * The Jetpack total is a sum over rows the site-views widget serves
+	 * only behind Jetpack's stats gate, so the snapshot withholds it from
+	 * the same callers, without the cache taking sides. Both values are
+	 * worked out when the cache is built, through the snapshot filter,
+	 * so serving either caller reads nothing again.
+	 *
+	 * @covers ::openstation_living_tree_rest_snapshot
+	 * @covers ::openstation_living_tree_snapshot_for_caller
+	 * @covers ::openstation_living_tree_build_cache_entry
+	 */
+	public function test_snapshot_withholds_jetpack_traffic_from_a_caller_outside_the_stats_gate() {
+		$this->load_wpcom_stats_stub();
+		if ( ! property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' ) ) {
+			$this->markTestSkipped( 'Real Jetpack is loaded; the scriptable stub is unavailable.' );
+		}
+
+		$post_id = self::factory()->post->create();
+		add_post_meta( $post_id, '_post_views_' . current_time( 'Y-m-d' ), 8 );
+		delete_transient( 'desktop_mode_living_tree_snapshot' );
+
+		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
+			'fields' => array( 'period', 'views' ),
+			'data'   => array( array( '2026-07-11', 900 ) ),
+		);
+		$traffic_reads   = 0;
+		$count_reads     = static function ( $views ) use ( &$traffic_reads ) {
+			++$traffic_reads;
+			return $views;
+		};
+		$bump_traffic    = static function ( $snapshot ) {
+			$snapshot['traffic'] += 1;
+			return $snapshot;
+		};
+		add_filter( 'openstation_living_tree_traffic', $count_reads );
+		add_filter( 'openstation_living_tree_snapshot', $bump_traffic );
+		try {
+			// The Subscriber primes the cache and still reads the meta,
+			// through the snapshot filter like the Jetpack total.
+			wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+			$data = openstation_living_tree_rest_snapshot()->get_data();
+			$this->assertSame( 9, $data['traffic'] );
+			$this->assertArrayNotHasKey( OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY, $data );
+
+			$reads_after_build = $traffic_reads;
+			$this->assertSame( 9, openstation_living_tree_rest_snapshot()->get_data()['traffic'] );
+			$this->assertSame( $reads_after_build, $traffic_reads, 'A cached snapshot is served without reading traffic again' );
+
+			wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+			$data = openstation_living_tree_rest_snapshot()->get_data();
+			$this->assertSame( 901, $data['traffic'] );
+			$this->assertArrayNotHasKey( OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY, $data );
+
+			// A cache entry from before the gated value existed is rebuilt
+			// rather than served with its Jetpack total.
+			set_transient( 'desktop_mode_living_tree_snapshot', array( 'traffic' => 900 ), HOUR_IN_SECONDS );
+			wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+			$this->assertSame( 9, openstation_living_tree_rest_snapshot()->get_data()['traffic'] );
+		} finally {
+			remove_filter( 'openstation_living_tree_traffic', $count_reads );
+			remove_filter( 'openstation_living_tree_snapshot', $bump_traffic );
 			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
 		}
 	}

@@ -88,7 +88,7 @@ function openstation_notes_recycle_bin_item( $item, $post ) {
 	}
 	$item['type_label'] = __( 'Note', 'desktop-mode' );
 	$item['icon']       = 'dashicons-sticky';
-	$item['subtitle']   = wp_trim_words( openstation_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
+	$item['subtitle']   = openstation_recycle_bin_excerpt( (string) $post->post_content );
 	// Notes have no admin edit screen — a chromeless post.php iframe
 	// would 403 on the headless CPT.
 	$item['edit_link'] = '';

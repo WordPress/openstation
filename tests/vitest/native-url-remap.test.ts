@@ -193,6 +193,57 @@ describe( 'tryNativeUrlRemap — Posts case', () => {
 	} );
 } );
 
+describe( 'tryNativeUrlRemap — the tab a click means', () => {
+	function bind() {
+		const openById = vi.fn().mockReturnValue( true );
+		const openNewById = vi.fn().mockReturnValue( true );
+		bindNativeUrlRemap( {
+			getSnapshot: () => snapshot(),
+			openById,
+			openNewById,
+			adminUrl: ADMIN_URL,
+		} );
+		registerNativeUrlRemap( {
+			id: 'desktop-mode-posts',
+			nativeWindowId: 'desktop-mode-posts',
+			matches: () => true,
+			params: () => ( { view: 'all' } ),
+		} );
+		return { openById, openNewById };
+	}
+
+	test( 'a submenu pick spawns an instance; every other door focuses', () => {
+		const { openById, openNewById } = bind();
+		expect(
+			tryNativeUrlRemap( ADMIN_URL + 'edit.php', { newInstance: true } ),
+		).toBe( true );
+		expect( openNewById ).toHaveBeenCalledWith( 'desktop-mode-posts', {
+			params: { view: 'all' },
+		} );
+		expect( openById ).not.toHaveBeenCalled();
+
+		expect( tryNativeUrlRemap( ADMIN_URL + 'edit.php' ) ).toBe( true );
+		expect( openById ).toHaveBeenCalledWith( 'desktop-mode-posts', {
+			params: { view: 'all' },
+		} );
+	} );
+
+	test( 'os_tab names the tab, over whatever the entry asked for', () => {
+		// Every row the dock builds for a window that declared a menu
+		// carries it, so the walker reads it for EVERY remap rather
+		// than each entry re-reading the flag. Junk is not a tab name.
+		const { openById } = bind();
+		expect( tryNativeUrlRemap( ADMIN_URL + 'edit.php?os_tab=categories' ) ).toBe( true );
+		expect( openById ).toHaveBeenLastCalledWith( 'desktop-mode-posts', {
+			params: { view: 'all', tab: 'categories' },
+		} );
+		expect( tryNativeUrlRemap( ADMIN_URL + 'users.php?os_tab=../x' ) ).toBe( true );
+		expect( openById ).toHaveBeenLastCalledWith( 'desktop-mode-posts', {
+			params: { view: 'all' },
+		} );
+	} );
+} );
+
 describe( 'tryNativeUrlRemap — multiple entries', () => {
 	test( 'walks in registration order and stops at the first opener that succeeds', () => {
 		const openById = vi.fn().mockImplementation( ( id: string ) => id === 'b' );

@@ -170,6 +170,35 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 	} );
 
+	describe( 'orders list view', () => {
+		test( 'shows the customer and the WooCommerce status instead of post columns', () => {
+			setConfig( { orderStatuses: { 'wc-processing': 'Processing' } } );
+			const postColumns = [ 'id', 'title', 'slug', 'author', 'status', 'date', 'modified', 'comments', 'words', 'actions' ]
+				.map( ( id ) => ( { id, label: id, render: () => id } ) );
+			const columns = applyFilters(
+				'os.my-wordpress.list-columns',
+				postColumns,
+				{ id: 'wc-orders' },
+			) as Array< { id: string; render: ( item: Record< string, unknown > ) => unknown } >;
+			const cell = ( id: string ) =>
+				columns.find( ( c ) => c.id === id )?.render( {
+					// `status` is always `publish` on an order row.
+					status: 'publish',
+					wcStatus: 'processing',
+					customer: 'Ada',
+				} );
+
+			expect( columns.map( ( c ) => c.id ) ).toEqual( [
+				'id', 'title', 'customer', 'status', 'date', 'modified', 'actions',
+			] );
+			expect( cell( 'status' ) ).toBe( 'Processing' );
+			expect( cell( 'customer' ) ).toBe( 'Ada' );
+			expect(
+				applyFilters( 'os.my-wordpress.list-columns', postColumns, { id: 'posts' } ),
+			).toBe( postColumns );
+		} );
+	} );
+
 	describe( 'stock ribbon', () => {
 		test.each( [
 			[ { band: '', stockStatus: 'outofstock', stockLevel: 0 }, 'danger' ],

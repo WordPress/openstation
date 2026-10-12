@@ -35,7 +35,12 @@
 	display: flex;
 	flex-direction: column;
 	background: var(--os-window-bg);
-	border: 1px solid var(--os-window-border);
+	/*
+	 * The border width is a token so a WINDOW_FRAME texture can be
+	 * thicker than a hairline: border-image paints in the border area,
+	 * and content starts inside it, so a 4px bevel needs a 4px border.
+	 */
+	border: var(--os-window-border-width, 1px) solid var(--os-window-border);
 	border-radius: var(--os-window-radius);
 	box-shadow: var(--os-window-shadow);
 	/*
@@ -147,7 +152,7 @@
 	display: flex;
 	align-items: center;
 	height: var(--os-titlebar-height);
-	padding: 0 8px;
+	padding: var(--os-titlebar-padding, 0 8px);
 	background-color: var(--os-titlebar-bg);
 	/*
 	 * Desktop-theme title-bar texture (TITLEBAR slot). `none` when
@@ -176,7 +181,16 @@
 	cursor: default;
 	user-select: none;
 	flex-shrink: 0;
-	gap: 8px;
+	gap: var(--os-titlebar-gap, 8px);
+	/*
+	 * Title-bar controls are sized here rather than in
+	 * `<os-window-button>`, because the same component also draws
+	 * buttons outside the title bar that a theme does not mean to resize.
+	 */
+	--os-ui-btn-width: var(--os-titlebar-btn-width, 30px);
+	--os-ui-btn-height: var(--os-titlebar-btn-height, 30px);
+	--os-ui-btn-icon-size: var(--os-titlebar-btn-icon-size, 14px);
+	--os-ui-btn-press-transform: var(--os-titlebar-btn-press-transform, scale( 0.9 ));
 }
 
 .os-window--focused .os-window__titlebar {
@@ -256,7 +270,8 @@
 	--os-ui-save-status-ring-color: var(--os-titlebar-activity-color, #2271b1);
 	--os-ui-save-status-saved-bg: var(--os-titlebar-activity-saved-color, #2271b1);
 	--os-ui-save-status-failed-bg: var(--os-titlebar-activity-failed-color, #d63638);
-	display: inline-flex;
+	/* `none` for an era whose title bar had no such mark. */
+	display: var(--os-titlebar-activity-display, inline-flex);
 	align-items: center;
 	flex-shrink: 0;
 }
@@ -307,15 +322,33 @@
 	color: var(--wp-admin-theme-color, #2271b1);
 }
 
-/* Window title text. */
+/*
+ * Window title text.
+ *
+ * Every knob a classic title bar needs: size, weight and alignment of
+ * the text, and a plate behind it for a bar whose artwork runs under
+ * the title (stripes that stop either side of it). A title centred on
+ * the whole bar rather than on the space the controls leave it is
+ * `position: absolute` with `left: 50%` and a `-50%` translate, all
+ * from tokens; the bar is the positioned ancestor. Unset, every
+ * property resolves to what this rule always said.
+ */
 .os-window__title {
 	flex: 1;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	font-size: 14px;
-	font-weight: 500;
+	font-size: var(--os-titlebar-font-size, 14px);
+	font-weight: var(--os-titlebar-font-weight, 500);
+	letter-spacing: var(--os-titlebar-letter-spacing, normal);
+	text-align: var(--os-titlebar-title-align, start);
 	line-height: var(--os-titlebar-height);
+	position: var(--os-titlebar-title-position, static);
+	left: var(--os-titlebar-title-left, auto);
+	translate: var(--os-titlebar-title-translate, none);
+	max-width: var(--os-titlebar-title-max-width, none);
+	padding-inline: var(--os-titlebar-title-padding, 0);
+	background: var(--os-titlebar-title-bg, transparent);
 }
 
 /*
@@ -339,6 +372,8 @@
  */
 .os-window__controls {
 	display: flex;
+	/* `-1` puts the cluster at the leading edge of the bar. */
+	order: var( --os-titlebar-controls-order, 0 );
 	gap: var( --os-titlebar-controls-gap, 4px );
 	align-items: center;
 	flex-shrink: 0;
@@ -349,6 +384,35 @@
 	background-repeat: var( --os-titlebar-controls-image-repeat, repeat );
 	background-size: var( --os-titlebar-controls-image-size, auto );
 	background-position: var( --os-titlebar-controls-image-position, center );
+}
+
+/* A window that asked for `appearance.controls.placement: 'left'`. */
+.os-window__controls--left {
+	order: -1;
+}
+
+/*
+ * Per-control order and visibility, for a theme drawing an era whose
+ * title bar had a different set: a close box first and nothing else,
+ * or three buttons with a gap before the last. Hiding a control takes
+ * a way to reach that action off the bar, so it is the theme's
+ * explicit choice and never a default.
+ */
+.os-window__controls .os-window__btn--minimize {
+	order: var( --os-titlebar-minimize-order, 0 );
+	display: var( --os-titlebar-minimize-display, inline-flex );
+}
+.os-window__controls .os-window__btn--maximize {
+	order: var( --os-titlebar-maximize-order, 0 );
+	display: var( --os-titlebar-maximize-display, inline-flex );
+}
+.os-window__controls .os-window__btn--focus-tab {
+	order: var( --os-titlebar-fullscreen-order, 0 );
+	display: var( --os-titlebar-fullscreen-display, inline-flex );
+}
+.os-window__controls .os-window__btn--close {
+	order: var( --os-titlebar-close-order, 0 );
+	margin-inline-start: var( --os-titlebar-close-gap, 0 );
 }
 
 /*
@@ -461,8 +525,10 @@
  * the literal it replaced, so an unthemed shell paints exactly what
  * it painted before.
  *
- * There is no `-danger-hover` twin: destructive red is semantic, not
- * chrome, and both halves already resolve it through `--os-ui-danger`.
+ * The close button's hover is the danger red in both halves, through
+ * `--os-ui-danger`. `--os-titlebar-close-bg-hover` and
+ * `-color-hover` re-point it for a title bar whose era drew its close
+ * button another way, without moving every other danger surface.
  */
 .os-window--focused {
 	--os-ui-btn-color: var( --os-titlebar-btn-focused-color, rgba( 255, 255, 255, 0.7 ) );
@@ -470,7 +536,8 @@
 	--os-ui-btn-bg-hover: var( --os-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );
 	--os-ui-btn-bg-active: var( --os-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );
 	--os-ui-btn-outline: var( --os-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );
-	--os-ui-btn-danger-hover: var( --os-ui-danger, #d63638 );
+	--os-ui-btn-danger-hover: var( --os-titlebar-close-bg-hover, var( --os-ui-danger, #d63638 ) );
+	--os-ui-btn-danger-color-hover: var( --os-titlebar-close-color-hover, var( --os-ui-fg-on-accent, #fff ) );
 }
 
 .os-window:not( .os-window--focused ) {
@@ -479,7 +546,8 @@
 	--os-ui-btn-bg-hover: var( --os-titlebar-btn-bg-hover, rgba( 0, 0, 0, 0.08 ) );
 	--os-ui-btn-bg-active: var( --os-titlebar-btn-bg-active, rgba( 0, 0, 0, 0.12 ) );
 	--os-ui-btn-outline: var( --wp-admin-theme-color, #2271b1 );
-	--os-ui-btn-danger-hover: var( --os-ui-danger, #d63638 );
+	--os-ui-btn-danger-hover: var( --os-titlebar-close-bg-hover, var( --os-ui-danger, #d63638 ) );
+	--os-ui-btn-danger-color-hover: var( --os-titlebar-close-color-hover, var( --os-ui-fg-on-accent, #fff ) );
 }
 
 /*
@@ -579,6 +647,47 @@
 }
 
 /*
+ * "Copy link" confirms in its own row: the label becomes "Link copied"
+ * with a tick that pops in, then the row reverts and the menu closes
+ * unless it is still hovered. The tick sits in the slotted label, so it
+ * is styled here rather than in the menu's shadow root. Transform and
+ * opacity only.
+ *
+ * The tick wears the row's own ink, not the accent: it is feedback, not
+ * the thing you are on, and the words already say what happened (see
+ * "The accent marks state; it never decorates" in AGENTS.md).
+ */
+.os-window__menu-copied-icon {
+	/* Hangs in the gutter so "Link copied" stays aligned with the
+	   other labels. Out of flow, so the label's overflow clip, whose
+	   box is not this icon's containing block, does not cut it off. */
+	position: absolute;
+	translate: -28px -1px;
+	animation: os-menu-copied-pop 0.24s cubic-bezier( 0.34, 1.56, 0.64, 1 ) both;
+}
+
+.os-window__menu-copied-icon:dir( rtl ) {
+	translate: 28px -1px;
+}
+
+@keyframes os-menu-copied-pop {
+	from {
+		opacity: 0;
+		transform: scale( 0.4 );
+	}
+	to {
+		opacity: 1;
+		transform: scale( 1 );
+	}
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.os-window__menu-copied-icon {
+		animation: none;
+	}
+}
+
+/*
  * "Related" dropdown — opened by the related-entities title-bar
  * button (`src/related-entities/`). The panel ALSO carries
  * `.os-window__menu-panel` (positioning + the drag-tracker
@@ -635,20 +744,35 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
+	width: var( --os-titlebar-btn-width, 28px );
+	height: var( --os-titlebar-btn-height, 28px );
 	border: none;
-	border-radius: 6px;
+	border-radius: var( --os-titlebar-meta-btn-radius, 6px );
 	cursor: pointer;
 	padding: 0;
-	background: transparent;
+	/* The same face as the window controls beside them, when a theme
+	 * gives those one (TITLEBAR_BUTTON). Every state below changes the
+	 * colour only, so the face survives hover and press. */
+	background-color: var( --os-ui-btn-bg, transparent );
+	background-image: var( --os-ui-btn-bg-image, none );
+	background-repeat: var( --os-ui-btn-bg-image-repeat, no-repeat );
+	background-size: var( --os-ui-btn-bg-image-size, auto );
+	background-position: var( --os-ui-btn-bg-image-position, center );
 	transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+.os-window__meta-btn:active,
+.os-window__meta-btn--active {
+	background-image: var(
+		--os-ui-btn-bg-image-pressed,
+		var( --os-ui-btn-bg-image, none )
+	);
+}
+
 .os-window__meta-btn .dashicons {
-	font-size: 18px;
-	width: 18px;
-	height: 18px;
+	font-size: var( --os-titlebar-meta-icon-size, 18px );
+	width: var( --os-titlebar-meta-icon-size, 18px );
+	height: var( --os-titlebar-meta-icon-size, 18px );
 }
 /* The flex-centring override for the dashicon glyph currently lives
  * in `windows.css`. That placement was a cache workaround from when
@@ -672,17 +796,17 @@
 }
 .os-window--focused .os-window__meta-btn:hover {
 	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
-	background: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+	background-color: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
 }
 .os-window--focused .os-window__meta-btn:focus-visible {
 	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
-	background: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+	background-color: var( --os-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
 	outline: 2px solid var( --os-titlebar-btn-focused-outline, rgba(255, 255, 255, 0.6) );
 	outline-offset: 1px;
 }
 .os-window--focused .os-window__meta-btn--active {
 	color: var( --os-titlebar-btn-focused-color-hover, var( --os-ui-fg-on-accent, #fff ) );
-	background: var( --os-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
+	background-color: var( --os-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
 }
 
 /* Unfocused window: divider and buttons adapt to light title bar. */
@@ -704,11 +828,11 @@
 }
 .os-window:not(.os-window--focused) .os-window__meta-btn:hover {
 	color: var( --os-titlebar-btn-color-hover, rgba(0, 0, 0, 0.6) );
-	background: var( --os-ui-hover, rgba(0, 0, 0, 0.08) );
+	background-color: var( --os-ui-hover, rgba(0, 0, 0, 0.08) );
 }
 .os-window:not(.os-window--focused) .os-window__meta-btn--active {
 	color: var( --os-titlebar-btn-color-hover, rgba(0, 0, 0, 0.6) );
-	background: rgba(0, 0, 0, 0.12);
+	background-color: rgba(0, 0, 0, 0.12);
 }
 
 /* ---------------------------------------------------------------
@@ -740,7 +864,7 @@
 	 */
 	--_tab-radius: var( --os-tabs-radius, 8px );
 	/* Tab height, shared with the plate that has to sit exactly on it. */
-	--_tab-h: 30px;
+	--_tab-h: var( --os-tabs-tab-height, 30px );
 	/* Weight of the rail that traces the silhouette. */
 	--_tab-stroke: var( --os-tabs-rail-width, 2px );
 	/*
@@ -755,7 +879,7 @@
 	/* Tabs sit ON the floor of the track, not centred in it. */
 	align-items: flex-end;
 	flex-shrink: 0;
-	gap: 2px;
+	gap: var( --os-tabs-gap, 2px );
 	/*
 	 * Horizontal padding is a floor as well as a breathing space. The
 	 * ring reaches one radius plus one stroke (10px at the shipped
@@ -763,7 +887,7 @@
 	 * under a smaller padding would have its outer corner clipped by
 	 * the `overflow` rule below.
 	 */
-	padding: 8px 12px 0;
+	padding: var( --os-tabs-padding, 8px 12px 0 );
 	background-color: var( --os-tabs-bg, var( --os-ui-surface-elevated, #f6f7f7 ) );
 	/* TABBAR texture slot — layered over the strip's own colour. */
 	background-image: var( --os-tabs-image, none );
@@ -867,6 +991,8 @@
  * `--_tab-plate-w` on this element; everything else is CSS.
  * --------------------------------------------------------------- */
 .os-window__tab-plate {
+	/* `none` for a theme whose tabs draw their own faces. */
+	display: var( --os-tabs-plate-display, block );
 	position: absolute;
 	bottom: 0;
 	left: 0;
@@ -1296,14 +1422,21 @@
 	flex-shrink: 0;
 	display: inline-flex;
 	align-items: center;
-	height: 30px;
-	padding: 0 14px;
+	height: var( --_tab-h );
+	margin: var( --os-tabs-tab-margin, 0 );
+	padding: var( --os-tabs-tab-padding, 0 14px );
 	border: none;
 	border-radius: var( --_tab-radius ) var( --_tab-radius ) 0 0;
-	background: transparent;
+	/*
+	 * A tab paints no face of its own by default: the plate is the
+	 * surface. A theme that draws every tab as a key gives each one a
+	 * face and an edge here, and turns the plate off.
+	 */
+	background: var( --os-tabs-tab-bg, transparent );
+	box-shadow: var( --os-tabs-tab-shadow, none );
 	color: var( --os-tabs-color, var( --os-ui-fg-muted, #50575e ) );
 	font: inherit;
-	font-size: 12px;
+	font-size: var( --os-tabs-font-size, 12px );
 	line-height: 1;
 	cursor: pointer;
 	white-space: nowrap;
@@ -1311,8 +1444,8 @@
 }
 
 .os-window__tab:hover {
-	color: var(--wp-admin-theme-color, #2271b1);
-	background: var( --os-ui-hover, rgba(0, 0, 0, 0.03) );
+	color: var( --os-tabs-hover-color, var(--wp-admin-theme-color, #2271b1) );
+	background: var( --os-tabs-hover-bg, var( --os-ui-hover, rgba(0, 0, 0, 0.03) ) );
 }
 
 .os-window__tab:focus-visible {
@@ -1331,8 +1464,14 @@
  * the same thing twice.
  */
 .os-window__tab--active {
+	/* Above its neighbours, for a theme whose active tab grows over them. */
+	z-index: 1;
+	height: var( --os-tabs-active-height, var( --_tab-h ) );
+	margin: var( --os-tabs-active-margin, var( --os-tabs-tab-margin, 0 ) );
+	background: var( --os-tabs-active-tab-bg, transparent );
+	box-shadow: var( --os-tabs-active-shadow, none );
 	color: var( --os-tabs-active-color, #1d2327 );
-	font-weight: 600;
+	font-weight: var( --os-tabs-active-weight, 600 );
 	/*
 	 * Anything nested in an active tab (the external tab's detach and
 	 * close chips) is now sitting on a light fill inside dark chrome,
@@ -1351,7 +1490,7 @@
 /* An active tab has the plate under it; a hover wash on top of that
  * would double-paint the surface. */
 .os-window__tab--active:hover {
-	background: transparent;
+	background: var( --os-tabs-active-tab-bg, transparent );
 	color: var( --os-tabs-active-color, #1d2327 );
 }
 
@@ -1417,6 +1556,26 @@ os-tab-chip + os-tab-chip {
 	background: var(--os-window-bg);
 	opacity: 1;
 	transition: opacity 0.25s ease;
+}
+
+/*
+ * A window with tabs can sit its page in a panel the tabs stand on,
+ * for a theme that draws its tabs as keys: padding and edges on the
+ * body, and a frame around the page. The defaults leave the page
+ * flush under the strip. A buffer iframe is placed absolutely, so it
+ * keeps to the same padding.
+ */
+.os-window:has( .os-window__tab ) > .os-window__body {
+	padding: var( --os-tabs-panel-padding, 0 );
+	box-shadow: var( --os-tabs-panel-shadow, none );
+}
+
+.os-window:has( .os-window__tab ) > .os-window__body > .os-window__iframe {
+	box-shadow: var( --os-tabs-page-shadow, none );
+}
+
+.os-window:has( .os-window__tab ) > .os-window__body > .os-window__iframe--buffer {
+	inset: var( --os-tabs-panel-padding, 0 );
 }
 
 /*

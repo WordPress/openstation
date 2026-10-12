@@ -45,7 +45,7 @@ import {
 	type ListItem,
 	type SectionDef,
 } from './parts/types';
-import { explorerItemTrashing, openPreview, previewContext, visibleExplorerItems, watchExplorerTrash } from './parts/optimistic';
+import { closePreview, explorerItemTrashing, previewContext, visibleExplorerItems, watchExplorerTrash } from './parts/optimistic';
 import { listKey, sectionOf } from './parts/helpers';
 import {
 	renderList,
@@ -54,7 +54,7 @@ import {
 	renderRoot,
 	renderZoom,
 } from './parts/list-views';
-import { renderDetail, renderFolder, renderSub, splitView } from './parts/dossier-views';
+import { renderDetail, renderFolder, renderPanePlaceholder, renderSub, splitView } from './parts/dossier-views';
 import { hiddenStatus, renderColumnsMenu, sortStatus } from './parts/list-table';
 import { footprintStatus, renderFootprint } from './parts/footprint';
 import { agentDefaultRole, emptyCast, newSeed } from './parts/agents';
@@ -137,13 +137,12 @@ function renderBody(
 	if ( ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) && isMobileStamped() ) {
 		return html`<div class="os-mywp__detail-page">${ renderDetail( ctx, section ) }</div>`;
 	}
-	// The preview pane appears beside the list once an entry is open,
-	// in both views — the list's columns scroll sideways inside their
-	// own pane rather than push it out. Until then the list has the
-	// whole window.
+	// The preview pane sits beside the list in both views, open or not,
+	// so a click never reflows the grid.
 	return splitView(
 		renderList( ctx, section, items ),
 		ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) ? renderDetail( ctx, section ) : null,
+		renderPanePlaceholder( section ),
 	);
 }
 
@@ -247,6 +246,11 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 				cast.description = from.description;
 				cast.vibes = from.vibes;
 				cast.instructions = from.instructions;
+				// The brief IS the system prompt field, so the copied
+				// instructions land there too: Describe shows what was
+				// copied and lets it be edited, instead of an empty box
+				// over a prompt that only the summary card admits to.
+				cast.brief = from.instructions;
 				cast.role = from.role;
 				cast.abilities = [ ...from.abilities ];
 				cast.triggers = from.triggers.map( ( t ) => ( {
@@ -270,7 +274,19 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 			state.briefError = '';
 		},
 		'agent-step': ( state, args ) => {
-			state.wstep = Math.max( 0, Math.min( 4, Number( args.step ) ) ) as AppState[ 'wstep' ];
+			const next = Math.max( 0, Math.min( 4, Number( args.step ) ) ) as AppState[ 'wstep' ];
+			// Leaving Describe by any door — Continue, or a jump from
+			// the trail — takes the brief with it: what the textarea
+			// labelled "system prompt" says is what the agent gets.
+			// Drafting writes its rewrite back into the brief, so this
+			// never undoes a draft; it only carries the words along.
+			if ( state.wstep === 0 && next !== 0 && state.cast ) {
+				state.cast = {
+					...state.cast,
+					instructions: String( state.cast.brief ?? '' ).trim(),
+				};
+			}
+			state.wstep = next;
 			state.agentNotice = '';
 		},
 		'agent-pane': ( state, args ) => {
@@ -442,7 +458,7 @@ export default defineApp< AppState, AppData >( 'my-wordpress', {
 							class="os-mywp__back"
 							aria-label=${ __( 'Back' ) }
 							@click=${ () =>
-								onItemPage ? openPreview( ctx, 0 ) : void ctx.dispatch( 'back' ) }
+								onItemPage ? closePreview( ctx ) : void ctx.dispatch( 'back' ) }
 						>‹</button>`
 						: '' }
 					<nav class="os-mywp__crumbs">${ crumbs }</nav>

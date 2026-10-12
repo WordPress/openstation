@@ -191,6 +191,13 @@ export interface SwitchDesktopOptions {
 	 * no left/right metaphor to honour.
 	 */
 	direction?: 'next' | 'prev';
+	/**
+	 * Skip auto-focusing the topmost window on the target desktop.
+	 * Used when `switchDesktop` was triggered by `focus(win)` so the
+	 * caller can focus the exact target window without an extra
+	 * blur/focus cycle on an arbitrary window first.
+	 */
+	skipFocus?: boolean;
 }
 
 export function switchDesktop(
@@ -231,14 +238,18 @@ export function switchDesktop(
 		// focus / z-state would still point at the prior desktop's window
 		// — invisible and confusing if the user then triggers a dock
 		// action that reuses the focused window's context.
-		const topOnNew = [ ...mgr._stack ]
-			.reverse()
-			.find(
-				( w ) =>
-					w.config.desktopId === id && w.state !== 'minimized',
-			);
-		if ( topOnNew ) {
-			mgr.focus( topOnNew );
+		// Skipped when `opts.skipFocus` is true (e.g. when called from
+		// `WindowManager.focus()` which immediately focuses its own target window).
+		if ( ! opts?.skipFocus ) {
+			const topOnNew = [ ...mgr._stack ]
+				.reverse()
+				.find(
+					( w ) =>
+						w.config.desktopId === id && w.state !== 'minimized',
+				);
+			if ( topOnNew ) {
+				mgr.focus( topOnNew );
+			}
 		}
 
 		const landed = mgr._desktops.find( ( d ) => d.id === id );
@@ -298,7 +309,9 @@ function animateDesktopSwitch(
  * shell needs at least one. Windows on the closed desktop migrate to
  * the surviving desktop the user lands on (the one to the left in
  * the bar, falling back to the first), so the user never silently
- * loses work to a misclick.
+ * loses work to a misclick. Closing the active desktop fires
+ * `os.os.switched` after `os.os.closed`, since the user lands on the
+ * survivor.
  */
 export function closeDesktop( mgr: WindowManager, id: string ): void {
 	if ( mgr._desktops.length <= 1 ) {
@@ -352,6 +365,16 @@ export function closeDesktop( mgr: WindowManager, id: string ): void {
 		desktopId: id,
 		migratedTo: survivor.id,
 	} );
+	// The user landed on another desk, so everything that follows
+	// switches (the workspace look and widget column among them) has
+	// to hear about it. Otherwise the closed desk's look stays painted
+	// over the survivor.
+	if ( wasActive ) {
+		doAction( HOOKS.DESKTOP_SWITCHED, {
+			from: id,
+			to: survivor.id,
+		} );
+	}
 }
 
 /**

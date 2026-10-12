@@ -612,7 +612,7 @@ function openstation_content_graph_format_author_catalog( array $author_ids ) {
 	$out   = array();
 	foreach ( (array) $query->get_results() as $user ) {
 		$out[ (int) $user->ID ] = array(
-			'name' => (string) $user->display_name,
+			'name' => openstation_plain_text_title( $user->display_name ),
 		);
 	}
 	return $out;
@@ -646,7 +646,7 @@ function openstation_content_graph_format_term_catalog( array $term_ids, $taxono
 	}
 	foreach ( $terms as $term ) {
 		$out[ (int) $term->term_id ] = array(
-			'name' => (string) $term->name,
+			'name' => openstation_plain_text_title( $term->name ),
 		);
 	}
 	return $out;

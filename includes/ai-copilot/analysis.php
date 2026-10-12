@@ -112,7 +112,7 @@ function openstation_ai_messages_for_comment( WP_Comment $comment ) {
 	$user_text .= "- `harmful = true`: the comment is hostile, insulting, or demeaning — e.g. attacks on the author's competence, aggressive rhetoric, threats, hate speech. Tone matters: an angry rant calling the article \"garbage\" is harmful even without explicit language.\n";
 	$user_text .= "- `spam = true`: the comment is promotional or off-topic — e.g. commercial links, ALL CAPS sales copy, \"CLICK HERE\" / \"BOOK NOW\", generic praise unrelated to the post.\n";
 	$user_text .= "- These are INDEPENDENT flags. A hostile but on-topic comment is harmful=true, spam=false. A promotional but politely worded comment is spam=true, harmful=false. Both can be true simultaneously.\n";
-	$user_text .= '- The `topic` and `ai_summary` fields MUST capture the tone and sentiment so that search queries like "negative comment", "angry reader", or "spam" return the correct results.';
+	$user_text .= '- The `topic` and `ai_summary` fields capture the tone and sentiment so that search queries like "negative comment", "angry reader", or "spam" return the correct results.';
 
 	/**
 	 * Filters the user message sent to the provider for comment analysis.
@@ -125,7 +125,7 @@ function openstation_ai_messages_for_comment( WP_Comment $comment ) {
 	return array(
 		array(
 			'role'    => 'system',
-			'content' => 'You are a content moderation assistant for a WordPress site. Your analysis is used by a semantic search engine, so the topic label and summary must reflect the comment\'s TONE and SENTIMENT — not just its subject matter. An angry, insulting comment must be described as angry and insulting. A promotional spam comment must be described as promotional spam. A warm congratulatory message must be described as warm and positive. Accurate tone labelling is critical for search to work.',
+			'content' => 'You are a content moderation assistant for a WordPress site. A semantic search engine matches site owners\' queries against your topic label and summary, so describe the comment\'s tone and sentiment as well as its subject: an insulting comment reads as insulting, promotional spam as promotional spam, a congratulatory note as warm and positive.',
 		),
 		array(
 			'role'    => 'user',

@@ -2,7 +2,7 @@
  * Built-in window controls — minimize, maximize, fullscreen,
  * close.
  *
- * `core/detach` (Open in browser tab) and `core/reload` used to live
+ * `core/detach` (Open in classic wp-admin) and `core/reload` used to live
  * here but moved into the title-bar three-dots menu — those
  * actions are infrequent enough that they didn't earn permanent real
  * estate alongside minimize / maximize / close. The wiring lives in

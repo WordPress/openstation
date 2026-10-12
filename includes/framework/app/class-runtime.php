@@ -35,6 +35,12 @@ final class Runtime {
 	/** First render of a window. Runs the app's `mount` hook, if any. */
 	const ACTION_MOUNT = 'mount';
 
+	/**
+	 * The reopen lifecycle action — an open window asked to open
+	 * again, from a URL naming another of its tabs.
+	 */
+	const ACTION_REOPEN = 'reopen';
+
 	/** Built-in: the client changed a bound key; nothing to run, just re-render. */
 	const ACTION_SET = 'set';
 
@@ -102,9 +108,21 @@ final class Runtime {
 			$view
 		);
 
+		// A window that declares a menu lands on the tab the opener
+		// asked for — the dock row that was picked — on the first
+		// render and again whenever it is reopened from another row.
+		// Generic, so no app has to remember to wire it.
+		if ( self::ACTION_MOUNT === $action || self::ACTION_REOPEN === $action ) {
+			self::apply_menu_tab( $app, $state, $os );
+		}
+
 		try {
 			if ( self::ACTION_MOUNT === $action ) {
 				$app->run_mount( $state, $os );
+			} elseif ( self::ACTION_REOPEN === $action && ! $app->has_action( $action ) ) {
+				// The tab above WAS the reopen. An app that wants more
+				// declares the action and gets it as well.
+				$state->get( 'tab' );
 			} elseif ( self::ACTION_SET === $action ) {
 				// State already carries the bound value.
 				$app->run_action( self::ACTION_SET, $state, $os, $args, false );
@@ -187,6 +205,38 @@ final class Runtime {
 			'tabs'     => $tabs,
 			'effects'  => $os->effects->all(),
 		);
+	}
+
+	/**
+	 * Land on the tab the opener named.
+	 *
+	 * The dock's rows for a window that declares a menu carry
+	 * `os_tab=<id>`, which the shell passes as the window's `tab`
+	 * open-time param. An id the window does not have is ignored
+	 * rather than corrected: the value comes from a URL, and a
+	 * window landing somewhere unexpected is worse than one landing
+	 * where it always does.
+	 *
+	 * @param App   $app   The app.
+	 * @param State $state State to write to.
+	 * @param Os    $os    Host handle, carrying the params.
+	 * @return void
+	 */
+	private static function apply_menu_tab( App $app, State $state, Os $os ) {
+		$tabs = $app->menu_tabs();
+		if ( ! $tabs ) {
+			return;
+		}
+		$wanted = (string) $os->param( 'tab', '' );
+		if ( '' === $wanted ) {
+			return;
+		}
+		foreach ( $tabs as $tab ) {
+			if ( $tab['id'] === $wanted ) {
+				$state->set( 'tab', $wanted );
+				return;
+			}
+		}
 	}
 
 	/**

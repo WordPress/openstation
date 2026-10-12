@@ -116,6 +116,19 @@ describe( 'OpenStation Preferences — the frame', () => {
 		expect( stub.updateOsSettings ).toHaveBeenLastCalledWith( { mioShowOnWallpaper: false }, { windowId: 'desktop-mode-os-settings' } );
 	} );
 
+	test( 'Windows offers opening modes and persists only a valid pick', () => {
+		paint();
+		const picker = root.querySelector< HTMLElement >( 'os-segmented[label="Open windows as"]' )!;
+		expect( picker.getAttribute( 'value' ) ).toBe( 'default' );
+		expect( Array.from( picker.querySelectorAll( 'os-segment' ) ).map( ( item ) => item.getAttribute( 'value' ) ) )
+			.toEqual( [ 'default', 'maximized', 'focused' ] );
+		picker.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'focused' } } ) );
+		expect( stub.updateOsSettings ).toHaveBeenLastCalledWith( { openWindowsAs: 'focused' }, { windowId: 'desktop-mode-os-settings' } );
+		stub.updateOsSettings.mockClear();
+		picker.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'fullscreen' } } ) );
+		expect( stub.updateOsSettings ).not.toHaveBeenCalled();
+	} );
+
 	test( 'the first row of each band opens a group', () => {
 		paint();
 		const starts = Array.from( root.querySelectorAll( '#os-settings-nav > os-tab[data-group-start="true"]' ) ).map(

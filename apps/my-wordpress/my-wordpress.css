@@ -243,22 +243,13 @@
 
 .os-mywp__split {
 	display: grid;
-	/*
-	 * WP Explorer's two-pane ratio: the list leads, the preview takes
-	 * roughly the remaining 40% and grows with the window — but never
-	 * below 430px while the window can afford it, because under that
-	 * the pane's fact tables and the Woo merchant panels wrap every
-	 * row. When the window truly can't (both floors exceed it), the
-	 * list keeps its 240px and the pane takes what is left.
-	 */
-	grid-template-columns: minmax( 240px, 1fr ) minmax( min( 430px, calc( 100% - 240px ) ), 40% );
+	/* The list leads; the preview pane is a fixed 280px column, there
+	 * whether or not anything is open (`splitView()`). */
+	grid-template-columns: minmax( 240px, 1fr ) 280px;
 	flex: 1 1 auto;
 	min-block-size: 0;
 }
 
-/* Nothing open, no pane: the list has the whole window until a
- * click needs the preview beside it (`splitView()` in
- * `parts/dossier-views.ts` leaves the aside out entirely). */
 .os-mywp__split--solo {
 	grid-template-columns: minmax( 0, 1fr );
 }
@@ -276,7 +267,14 @@
 	min-inline-size: 0;
 	min-block-size: 0;
 	border-inline-start: 1px solid var( --os-ui-border, #dcdcde );
+	background: var( --os-ui-surface-raised, #f6f7f7 );
 	overflow-y: auto;
+}
+
+.os-mywp__detail-pane--empty {
+	display: grid;
+	place-items: center;
+	padding: 16px;
 }
 
 /*
@@ -289,15 +287,19 @@
  * (`.os-app`, `app-runtime.css`).
  */
 @container ( max-width: 640px ) {
+	/* Cap the row, not the pane: an 'auto' row squeezed the list. */
 	.os-mywp__split {
 		grid-template-columns: minmax( 0, 1fr );
-		grid-template-rows: minmax( 0, 1fr ) auto;
+		grid-template-rows: minmax( 0, 1fr ) fit-content( 45% );
 	}
 
 	.os-mywp__detail-pane {
 		border-inline-start: 0;
 		border-block-start: 1px solid var( --os-ui-border, #dcdcde );
-		max-block-size: 45%;
+	}
+
+	.os-mywp__detail-pane--empty {
+		display: none;
 	}
 }
 
@@ -313,10 +315,6 @@
 	min-block-size: 0;
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
-}
-
-.os-mywp__detail-page .os-mywp__pane-close {
-	display: none;
 }
 
 .os-mywp__detail-page .os-mywp__detail {
@@ -877,17 +875,11 @@
 
 .os-mywp__detail {
 	position: relative;
-	padding: 16px;
+	padding: 12px 14px 16px;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 8px;
 	align-items: flex-start;
-}
-
-.os-mywp__pane-close {
-	position: absolute;
-	inset-block-start: 8px;
-	inset-inline-end: 8px;
 }
 
 /* Plugin slots on the article (`os.my-wordpress.preview-extras`).
@@ -909,10 +901,76 @@
 	object-fit: contain;
 }
 
+/* Finder's preview pane: a small centred preview, the name, then the
+ * facts as hairline-split rows, label left and value right. */
+.os-mywp__detail-pane .os-mywp__hero {
+	align-self: center;
+	max-inline-size: 176px;
+	max-block-size: 144px;
+	margin-block: 8px 4px;
+	border-radius: 4px;
+	box-shadow: 0 6px 18px -8px rgba( 0, 0, 0, 0.45 );
+}
+
+.os-mywp__detail-pane .os-mywp__detail > p {
+	margin: 0;
+	font-size: 12px;
+}
+
+.os-mywp__detail-pane .os-mywp__detail-title {
+	font-size: 15px;
+	overflow-wrap: anywhere;
+}
+
+.os-mywp__detail-pane os-facts {
+	align-self: stretch;
+	--os-ui-facts-row-gap: 0;
+	--os-ui-facts-font-size: 12px;
+}
+
+/* The row needs its own box to carry the hairline: inside the shadow
+ * tree the row's display: contents beats the list's 'between'. */
+.os-mywp__detail-pane os-fact {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 12px;
+	padding-block: 4px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-mywp__detail-pane os-fact:last-child {
+	border-block-end: 0;
+}
+
+.os-mywp__detail-pane os-fact::part( value ) {
+	font-weight: 600;
+	text-align: end;
+}
+
 .os-mywp__detail-title {
 	margin: 0;
 	font-size: 17px;
-	padding-inline-end: 32px;
+}
+
+/* The pane's loading line: an inline spinner beside the message. It
+ * fades in late so a fast answer never flashes it. */
+.os-mywp__pane-status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var( --os-ui-fg-muted, #646970 );
+}
+
+.os-mywp__pane-status os-spinner {
+	flex: none;
+	animation: os-mywp-pane-status-in 0.2s ease-out 150ms both;
+}
+
+@keyframes os-mywp-pane-status-in {
+	from {
+		opacity: 0;
+	}
 }
 
 /* The identity line under a person's name: role badge + archive link. */
@@ -923,38 +981,17 @@
 	margin: 0;
 }
 
-.os-mywp__facts {
-	display: grid;
-	grid-template-columns: max-content 1fr;
-	gap: 6px 14px;
-	margin: 0;
-	font-size: 13px;
-}
-
-.os-mywp__fact {
-	display: contents;
-}
-
-.os-mywp__fact dt {
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
-.os-mywp__fact dd {
-	margin: 0;
-}
-
 .os-mywp__pane-h {
-	margin: 4px 0 0;
-	font-size: 12px;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: var( --os-ui-fg-muted, #646970 );
+	margin: 8px 0 -4px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1e1e1e );
 }
 
 .os-mywp__used-in {
 	margin: 0;
 	padding-inline-start: 18px;
-	font-size: 13px;
+	font-size: 12px;
 }
 
 .os-mywp__actions {

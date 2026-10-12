@@ -51,6 +51,8 @@ export interface MindmapSidebarHost {
 	relayoutNode: ( id: number ) => void;
 	clearPosts: () => void;
 	loadPosts: () => Promise< void >;
+	/** Whether a term is the site's default category, which WordPress never deletes. */
+	isDefault: ( id: number ) => boolean;
 }
 
 function paintDraft( host: MindmapSidebarHost, d: { parent: number } ): void {
@@ -142,6 +144,12 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 			node.count,
 		),
 	);
+	// WordPress refuses to delete the default category, so offering the
+	// button only ever ended in an error toast. Say why it is missing.
+	const isDefault = host.isDefault( id );
+	if ( isDefault ) {
+		sidebarMeta( sidebar, __( 'This is the default category: posts without a category land here, so it can’t be deleted. Rename it instead.' ) );
+	}
 
 	const addChildBtn = sidebarButton( 'secondary', __( '+ Child' ) );
 	addChildBtn.addEventListener( 'click', () => {
@@ -211,7 +219,15 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 	const delBtn = armedDeleteButton( async () => {
 		try {
 			await client.deleteTerm( 'categories', id );
-			host.setTerms( host.terms().filter( ( t ) => t.id !== id ) );
+			// WordPress moves the deleted category's children up to its
+			// parent. Mirror that, or they point at a node that is gone
+			// and drop off the map until the next reload.
+			const parent = term?.parent ?? 0;
+			host.setTerms(
+				host.terms()
+					.filter( ( t ) => t.id !== id )
+					.map( ( t ) => ( t.parent === id ? { ...t, parent } : t ) ),
+			);
 			host.setFocus( null );
 			host.clearPosts();
 			host.buildTree();
@@ -221,7 +237,10 @@ function paintEditor( host: MindmapSidebarHost, node: MindNodeInfo ): void {
 		}
 	} );
 
-	sidebarActions( sidebar, makeRootBtn ? [ addChildBtn, makeRootBtn, saveBtn, delBtn ] : [ addChildBtn, saveBtn, delBtn ] );
+	sidebarActions(
+		sidebar,
+		[ addChildBtn, makeRootBtn, saveBtn, isDefault ? null : delBtn ].filter( ( b ): b is HTMLButtonElement => b !== null ),
+	);
 }
 
 /**

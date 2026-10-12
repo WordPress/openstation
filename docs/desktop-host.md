@@ -214,7 +214,8 @@ Games hub gives you the game as its own OS window; the hub keeps
 showing the hub. The same routing applies to `window.open()` from any
 page in the app, with two deliberate exceptions: off-site URLs and
 anything carrying `desktop_mode_classic=1` (the ⋯ menu's "Open in
-browser tab", which asked for the browser by name) go to the browser.
+classic wp-admin", which asks for wp-admin without the shell, and only a
+browser tab has that) go to the browser.
 
 Freed windows are **peers, not a tree**. Closing one says nothing about
 the others.

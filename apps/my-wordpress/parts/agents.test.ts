@@ -213,14 +213,37 @@ describe( 'agents helpers', () => {
 			data( { agents: agentsPayload() } ),
 		) as AppState;
 		expect( copied.wstep ).toBe( 1 );
-		const cast = copied.cast as { name: string; copiedFrom: string; faceSeed: number };
+		const cast = copied.cast as {
+			name: string;
+			copiedFrom: string;
+			faceSeed: number;
+			brief: string;
+			instructions: string;
+		};
 		expect( cast.name ).toContain( 'Indexer' );
 		expect( cast.copiedFrom ).toBe( 'Indexer' );
 		// A copy takes the work but not the face.
 		expect( cast.faceSeed ).not.toBe( 9 );
+		// The copied prompt is in the Describe textarea, not only in
+		// the summary card.
+		expect( cast.brief ).toBe( 'Index things.' );
 
 		const stepped = app.runLocal( 'agent-step', copied, { step: 3 }, data() ) as AppState;
 		expect( stepped.wstep ).toBe( 3 );
+
+		// Leaving Describe — by Continue or a trail jump — makes the
+		// brief the instructions; moving between later steps does not
+		// touch them.
+		const typed = { ...started, cast: { ...( started.cast as object ), brief: '  Watch my drafts. ' } };
+		const left = app.runLocal( 'agent-step', typed as AppState, { step: 3 }, data() ) as AppState;
+		expect( ( left.cast as { instructions: string } ).instructions ).toBe( 'Watch my drafts.' );
+		const later = app.runLocal(
+			'agent-step',
+			{ ...left, cast: { ...( left.cast as object ), brief: 'changed later' } } as AppState,
+			{ step: 4 },
+			data(),
+		) as AppState;
+		expect( ( later.cast as { instructions: string } ).instructions ).toBe( 'Watch my drafts.' );
 		const cancelled = app.runLocal( 'agent-cancel', stepped, {}, data() ) as AppState;
 		expect( cancelled.casting ).toBe( false );
 		expect( cancelled.cast ).toBeNull();
@@ -308,7 +331,14 @@ describe( 'agents view', () => {
 			agentsPayload(),
 		);
 		expect( root.textContent ).toContain( 'New agent' );
-		expect( root.querySelectorAll( 'os-step' ) ).toHaveLength( 5 );
+		const steps = root.querySelectorAll( 'os-step' );
+		expect( steps ).toHaveLength( 5 );
+		// Every step but the current one is a jump target, forward too.
+		expect( steps[ 0 ].hasAttribute( 'interactive' ) ).toBe( false );
+		expect( steps[ 0 ].hasAttribute( 'current' ) ).toBe( true );
+		expect( Array.from( steps ).slice( 1 ).every( ( s ) => s.hasAttribute( 'interactive' ) ) ).toBe(
+			true,
+		);
 		expect( root.textContent ).toContain( 'Start from someone' );
 		expect( root.textContent ).toContain( 'Draft it for me' );
 		expect( root.textContent ).toContain( 'I will fill it in myself' );

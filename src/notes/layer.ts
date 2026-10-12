@@ -12,7 +12,7 @@
  * visible author chip.
  */
 
-import { describeRestFailure } from '../core/rest-failure';
+import { toastRestFailure } from '../core/rest-failure';
 import type { ToastOptions } from '../toast';
 import { __, sprintf } from '../i18n';
 import '../ui/components/os-avatar/os-avatar';
@@ -78,6 +78,18 @@ function getDragManager(): DragManagerApi | null {
  */
 function jitterSeed( note: Note ): number {
 	return note.seed || Math.abs( note.id ) || 1;
+}
+
+/**
+ * Flag a read-only note body whose text runs past the paper, so
+ * notes.css can fade the last line into "keep scrolling". The
+ * editable side gets the same flag from `<os-textarea auto-grow>`.
+ */
+function syncMoreBelow( body: HTMLElement ): void {
+	body.toggleAttribute(
+		'data-more-below',
+		body.scrollTop + body.clientHeight < body.scrollHeight - 1,
+	);
 }
 
 /**
@@ -307,10 +319,9 @@ export class NotesLayer {
 			} )
 			.catch( ( err: unknown ) => {
 				this.removeNote( tempId );
-				const failure = describeRestFailure( err, {
+				toastRestFailure( ( toast ) => this.notifyError( toast ), err, {
 					fallback: __( 'Could not pin the note. Please try again.', 'desktop-mode' ),
 				} );
-				this.notifyError( failure );
 				// eslint-disable-next-line no-console
 				console.error( '[openstation] notes: create failed:', err );
 			} );
@@ -664,6 +675,8 @@ export class NoteController {
 		const body = document.createElement( 'div' );
 		body.className = 'os-pinned-note__body';
 		body.textContent = this.note.text;
+		body.addEventListener( 'scroll', () => syncMoreBelow( body ), { passive: true } );
+		window.requestAnimationFrame( () => syncMoreBelow( body ) );
 
 		const chip = document.createElement( 'div' );
 		chip.className = 'os-pinned-note__attribution';
@@ -769,9 +782,10 @@ export class NoteController {
 		} else {
 			const body = this.paperEl.querySelector(
 				'.os-pinned-note__body',
-			);
+			) as HTMLElement | null;
 			if ( body ) {
 				body.textContent = note.text;
+				syncMoreBelow( body );
 			}
 		}
 	}
@@ -996,10 +1010,9 @@ export class NoteController {
 				console.error( '[openstation] notes: save failed:', err );
 				if ( ! this.saveFailureShown ) {
 					this.saveFailureShown = true;
-					const failure = describeRestFailure( err, {
+					toastRestFailure( ( toast ) => this.layer.notifyError( toast ), err, {
 						fallback: __( 'Could not save the note.', 'desktop-mode' ),
 					} );
-					this.layer.notifyError( failure );
 				}
 			}
 		} );

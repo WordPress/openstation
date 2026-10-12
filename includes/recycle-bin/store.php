@@ -475,7 +475,7 @@ function openstation_recycle_bin_shape_comment_item( $comment ) {
 		)
 		: $author;
 
-	$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( (string) $comment->comment_content ), 18, '…' );
+	$subtitle = openstation_recycle_bin_excerpt( (string) $comment->comment_content );
 
 	$user      = $user_id ? get_userdata( $user_id ) : false;
 	$user_name = $user ? $user->display_name : '';
@@ -521,10 +521,27 @@ function openstation_recycle_bin_shape_comment_item( $comment ) {
  */
 function openstation_recycle_bin_plain_text( $text ) {
 	return html_entity_decode(
-		wp_strip_all_tags( (string) $text ),
+		openstation_strip_all_tags( $text ),
 		ENT_QUOTES,
 		get_bloginfo( 'charset' )
 	);
+}
+
+/**
+ * The first words of a body, as the plain text of a row's subtitle.
+ *
+ * @param string $text Raw excerpt or content.
+ * @return string
+ */
+function openstation_recycle_bin_excerpt( $text ) {
+	// `wp_trim_words()` strips tags itself, and in plain text that cuts
+	// at a `<`. Trimming before the decode would avoid it, but where
+	// WordPress counts characters instead of words an `&amp;` would
+	// count as five and could be cut in half. So each `<` sits out the
+	// trim as a control character, one for one.
+	$text = str_replace( '<', "\x1A", openstation_recycle_bin_plain_text( $text ) );
+
+	return str_replace( "\x1A", '<', wp_trim_words( $text, 18, '…' ) );
 }
 
 /**
@@ -563,10 +580,10 @@ function openstation_recycle_bin_shape_item( $post ) {
 	} elseif ( 'post' === $type ) {
 		$icon     = 'dashicons-admin-post';
 		$excerpt  = (string) $post->post_excerpt;
-		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( $excerpt ? $excerpt : (string) $post->post_content ), 18, '…' );
+		$subtitle = openstation_recycle_bin_excerpt( $excerpt ? $excerpt : (string) $post->post_content );
 	} elseif ( 'page' === $type ) {
 		$icon     = 'dashicons-admin-page';
-		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
+		$subtitle = openstation_recycle_bin_excerpt( (string) $post->post_content );
 	} else {
 		// Custom post types: reuse the type's own menu Dashicon when it
 		// registered one, so a trashed product row reads as a product
@@ -582,7 +599,7 @@ function openstation_recycle_bin_shape_item( $post ) {
 			$icon = $post_type_obj->menu_icon;
 		}
 		$excerpt  = (string) $post->post_excerpt;
-		$subtitle = wp_trim_words( openstation_recycle_bin_plain_text( $excerpt ? $excerpt : (string) $post->post_content ), 18, '…' );
+		$subtitle = openstation_recycle_bin_excerpt( $excerpt ? $excerpt : (string) $post->post_content );
 	}
 
 	$user      = $user_id ? get_userdata( $user_id ) : false;

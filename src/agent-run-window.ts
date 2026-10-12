@@ -17,7 +17,7 @@
  */
 
 import { __, sprintf } from './i18n';
-import { describeRestFailure } from './core/rest-failure';
+import { toastRestFailure } from './core/rest-failure';
 import { shellToast } from './core/shell-toast';
 import { renderMarkdown } from './markdown';
 import './ui/components/os-avatar/os-avatar';
@@ -328,11 +328,9 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		} catch ( err ) {
 			// eslint-disable-next-line no-console
 			console.error( '[openstation] agents: conversation delete failed:', err );
-			shellToast(
-				describeRestFailure( err, {
-					fallback: __( 'Could not delete the conversation.', 'desktop-mode' ),
-				} ),
-			);
+			toastRestFailure( shellToast, err, {
+				fallback: __( 'Could not delete the conversation.', 'desktop-mode' ),
+			} );
 			return;
 		}
 		const state = agentsChatStore.state;

@@ -18,7 +18,7 @@
  * Extracted from `layer.ts` (drag-and-drop rework).
  */
 
-import { describeRestFailure } from '../core/rest-failure';
+import { toastRestFailure } from '../core/rest-failure';
 import { shellToast } from '../core/shell-toast';
 import { beginTrashChange, placementTrashItem } from './trash-optimistic';
 import { announceContentChange } from '../broadcast';
@@ -56,10 +56,8 @@ function broadcastFilesChange(
  * tile that didn't move with only a `console.error` for explanation.
  */
 function showTrashErrorToast( err: unknown ): void {
-	shellToast( {
-		...describeRestFailure( err, {
-			fallback: 'Could not move this item to the recycle bin.',
-		} ),
+	toastRestFailure( shellToast, err, {
+		fallback: 'Could not move this item to the recycle bin.',
 		duration: 5000,
 	} );
 }

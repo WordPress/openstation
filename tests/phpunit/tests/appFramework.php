@@ -273,6 +273,78 @@ class Tests_OpenStation_AppFramework extends WP_UnitTestCase {
 	// ----------------------------------------------------------- Runtime
 
 	/**
+	 * A window that declares a menu owns that menu's rows: the dock
+	 * builds them from this list, the client view paints its strip
+	 * from it, and the runtime lands the window on the tab a row asked
+	 * for. One declaration, so the two lists cannot drift.
+	 *
+	 * @covers \OpenStation\App::menu
+	 * @covers \OpenStation\App::menu_owns_dock
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 */
+	public function test_a_declared_menu_drives_the_tabs_the_state_and_the_config() {
+		$app = $this->demo_app()->menu(
+			'demo.php',
+			array(
+				'list'  => array(
+					'label' => 'The list',
+					'page'  => 'demo.php',
+				),
+				'add'   => array(
+					'label' => 'Add one',
+					'page'  => 'demo-new.php',
+				),
+				'extra' => 'Something wp-admin has no page for',
+			)
+		);
+
+		$this->assertSame( 'demo.php', $app->menu_slug() );
+		$this->assertSame( array( 'list', 'add', 'extra' ), wp_list_pluck( $app->menu_tabs(), 'id' ) );
+		// The wp-admin page each tab stands in for, '' for one it has
+		// no page for. The dock keeps its own rows for every page NOT
+		// named here, and the shell claims the ones that are.
+		$this->assertSame( array( 'demo.php', 'demo-new.php', '' ), wp_list_pluck( $app->menu_tabs(), 'page' ) );
+		// A lifecycle action the client only dispatches when the app
+		// declares one, which `menu()` does on its behalf.
+		$this->assertContains( 'reopen', $app->manifest()['lifecycle'] );
+		// The tab is state, and reaches the client view, without every
+		// app that declares a menu having to say so.
+		$this->assertSame( 'list', $app->defaults()['tab'] );
+		$this->assertSame( $app->menu_tabs(), $app->resolved_config()['menuTabs'] );
+
+		$registry = new Registry();
+		$registry->add( $app );
+		$runtime = new Runtime( $registry );
+		$land    = function ( $action, $params, $state = array() ) use ( $runtime ) {
+			return $runtime->dispatch(
+				'demo',
+				array(
+					'action' => $action,
+					'state'  => $state,
+					'params' => $params,
+				),
+				Os::standalone()
+			);
+		};
+
+		$this->assertSame( 'extra', $land( 'mount', array( 'tab' => 'extra' ) )['state']['tab'] );
+		// An open window asked to open again retargets, though this app
+		// declares no `reopen` handler of its own.
+		$reopened = $land( 'reopen', array( 'tab' => 'add' ), array( 'tab' => 'extra' ) );
+		$this->assertTrue( $reopened['ok'] );
+		$this->assertSame( 'add', $reopened['state']['tab'] );
+		// A tab this window does not have is ignored, not corrected:
+		// the value came off a URL.
+		$this->assertSame( 'list', $land( 'mount', array( 'tab' => 'nope' ) )['state']['tab'] );
+
+		// The gate decides the DOCK only: with the opt-in off the menu
+		// keeps wp-admin's submenu, while the window keeps its tabs.
+		$gated = $this->demo_app( 'demo-gated' )->menu( 'demo.php', array( 'list' => 'The list' ), '__return_false' );
+		$this->assertFalse( $gated->menu_owns_dock() );
+		$this->assertSame( array( 'list' ), wp_list_pluck( $gated->menu_tabs(), 'id' ) );
+	}
+
+	/**
 	 * @covers \OpenStation\App\Runtime::dispatch
 	 */
 	public function test_runtime_mount_renders_the_view_with_defaults() {

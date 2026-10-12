@@ -17,6 +17,11 @@ import {
 	registerDestructiveAdminAction,
 } from '../destructive-admin-actions';
 import { HOOKS } from '../hooks';
+import {
+	_resetNativeUrlRemap,
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+} from '../native-url-remap';
 import { deriveWindowId } from '../utils';
 import type { Window } from './index';
 import {
@@ -47,6 +52,8 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		_isDestroyed: false,
 		_closePending: false,
 		_iframeCloseTimeout: null,
+		_hasExplicitTitle: false,
+		config: { titleFromPage: false, title: '' } as Window[ 'config' ],
 		// Activity surface — the bridge brackets iframe requests onto
 		// the title-bar status ring, and resets on every new document.
 		_markActivityStart: vi.fn(),
@@ -146,6 +153,36 @@ describe( 'iframe-bridge: os-ready', () => {
 		expect( win._settleNavigationActivity ).toHaveBeenCalledWith();
 		expect( win._resetActivity ).not.toHaveBeenCalled();
 		expect( win._markActivityStart ).not.toHaveBeenCalled();
+	} );
+
+	test( 'clears the explicit-title flag so adoptPageTitle may run on the next page', () => {
+		const iframe = document.createElement( 'iframe' );
+		// Simulate a document title so adoptPageTitle has something to read.
+		Object.defineProperty( iframe, 'contentDocument', {
+			get: () => ( { title: 'My Page ‹ Site — WordPress' } ),
+		} );
+		const win = mockWindow( {
+			iframe,
+			config: { titleFromPage: true, title: 'Order #1 · John Smith' } as Window[ 'config' ],
+		} );
+
+		// The window explicitly changes its title.
+		postToWindow( win, { type: 'os-title-change', title: 'Order #1 · John Smith' } );
+		expect( win._hasExplicitTitle ).toBe( true );
+		expect( win.setTitle ).toHaveBeenCalledWith( 'Order #1 · John Smith' );
+		vi.mocked( win.setTitle ).mockClear();
+
+		// Flag is set — adoptPageTitle must be a no-op.
+		adoptPageTitle( win );
+		expect( win.setTitle ).not.toHaveBeenCalled();
+
+		// Navigation lands — flag must clear.
+		postToWindow( win, { type: 'os-iframe-navigated' } );
+		expect( win._hasExplicitTitle ).toBe( false );
+
+		// Now adoptPageTitle should adopt the page's own title.
+		adoptPageTitle( win );
+		expect( win.setTitle ).toHaveBeenCalledWith( 'My Page' );
 	} );
 } );
 
@@ -461,6 +498,38 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( assignSpy ).toHaveBeenCalledWith( target );
 		expect( openWindow ).not.toHaveBeenCalled();
 		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a new-context link to a native screen leaves the source open', () => {
+		bindFakeDispatcher();
+		const opened: string[] = [];
+		bindNativeUrlRemap( {
+			getSnapshot: () => ( {} ) as never,
+			openById: ( id ) => {
+				opened.push( id );
+				return true;
+			},
+			adminUrl,
+		} );
+		registerNativeUrlRemap( {
+			id: 'test-posts',
+			nativeWindowId: 'test-posts',
+			matches: ( _url, parsed ) => parsed.pathname.endsWith( '/edit.php' ),
+		} );
+		const { win } = mockAdminWindow( { id: 'plugins-php' } );
+
+		try {
+			postToWindow( win, {
+				type: 'os-iframe-admin-link',
+				url: adminUrl + 'edit.php',
+				newContext: true,
+			} );
+
+			expect( opened ).toEqual( [ 'test-posts' ] );
+			expect( win.close ).not.toHaveBeenCalled();
+		} finally {
+			_resetNativeUrlRemap();
+		}
 	} );
 
 	test( 'different-slug click opens a fresh window and leaves the source intact', () => {
@@ -1187,6 +1256,43 @@ describe( 'iframe-bridge: finished-screen handoff', () => {
 		// `message=5` is what renders "Post restored to revision from …"
 		// in the editor — the only confirmation the restore happened.
 		expect( arg.url ).toContain( 'message=5' );
+		expect( win.close ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'an editor the shell cannot read hands off from its head report', () => {
+		// WordPress sends the block editor with `Document-Isolation-Policy`
+		// in Chromium, so reading the frame's location throws and the
+		// `load` listener has no URL to hand off with. Left open, the
+		// Revisions window stays a second editor, and its own "View
+		// revisions" row then navigates it instead of opening a window.
+		const { openWindow } = bindFakeDispatcher();
+		const win = mockScreenWindow(
+			window.location.origin + '/wp-admin/revision.php?revision=31',
+		);
+		const isolated = {
+			get location(): Location {
+				throw new DOMException( 'Blocked a frame', 'SecurityError' );
+			},
+		};
+		Object.defineProperty( win.iframe as HTMLIFrameElement, 'contentWindow', {
+			value: isolated,
+			configurable: true,
+		} );
+
+		const event = new MessageEvent( 'message', {
+			data: {
+				type: 'os-iframe-navigated',
+				url:
+					window.location.origin +
+					'/wp-admin/post.php?post=4&action=edit&message=5&revision=31',
+			},
+			origin: window.location.origin,
+		} );
+		Object.defineProperty( event, 'source', { value: isolated } );
+		handleWindowMessage( win, event );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( openWindow.mock.calls[ 0 ][ 0 ].id ).toBe( 'post-php-post-4' );
 		expect( win.close ).toHaveBeenCalledTimes( 1 );
 	} );
 

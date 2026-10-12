@@ -13,7 +13,9 @@
  * their trees must still be individuals.
  *
  * The response is cached in a transient (TTL 6h) and invalidated whenever
- * content changes (`save_post` / `deleted_post` / `comment_post`).
+ * content changes (`save_post` / `deleted_post` / `comment_post`). One
+ * field is settled per caller after the cache: `traffic`, when it comes
+ * from Jetpack Stats, see {@see openstation_living_tree_snapshot_for_caller()}.
  *
  * @package OpenStation
  */
@@ -34,6 +36,14 @@ const OPENSTATION_LIVING_TREE_CACHE_KEY = 'desktop_mode_living_tree_snapshot';
 
 /** Cache lifetime for the snapshot. */
 const OPENSTATION_LIVING_TREE_CACHE_TTL = 6 * HOUR_IN_SECONDS;
+
+/**
+ * Key the cached snapshot keeps its second `traffic` value under: the
+ * one resolved without Jetpack Stats, for a caller outside Jetpack's
+ * stats gate. Never served, see
+ * {@see openstation_living_tree_snapshot_for_caller()}.
+ */
+const OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY = 'trafficWithoutJetpack';
 
 /**
  * Whether the current user may read the Living Tree snapshot.
@@ -76,19 +86,76 @@ add_action( 'rest_api_init', 'openstation_living_tree_register_routes' );
  * @return WP_REST_Response
  */
 function openstation_living_tree_rest_snapshot() {
-	$cached = get_transient( OPENSTATION_LIVING_TREE_CACHE_KEY );
-	if ( is_array( $cached ) ) {
-		return rest_ensure_response( $cached );
+	$snapshot = get_transient( OPENSTATION_LIVING_TREE_CACHE_KEY );
+	// A cache entry without the gated value was built before it existed,
+	// and could hand a Jetpack total to the wrong caller: build it again.
+	if ( ! is_array( $snapshot ) || ! array_key_exists( OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY, $snapshot ) ) {
+		$snapshot = openstation_living_tree_build_cache_entry();
+		set_transient(
+			OPENSTATION_LIVING_TREE_CACHE_KEY,
+			$snapshot,
+			OPENSTATION_LIVING_TREE_CACHE_TTL
+		);
 	}
 
-	$snapshot = openstation_living_tree_build_snapshot();
-	set_transient(
-		OPENSTATION_LIVING_TREE_CACHE_KEY,
-		$snapshot,
-		OPENSTATION_LIVING_TREE_CACHE_TTL
-	);
+	return rest_ensure_response( openstation_living_tree_snapshot_for_caller( $snapshot ) );
+}
 
-	return rest_ensure_response( $snapshot );
+/**
+ * The snapshot as the current caller may read it.
+ *
+ * On a site where Jetpack Stats is counting, `traffic` is the sum of
+ * the daily rows the site-views widget serves only behind Jetpack's
+ * stats gate, and a total over withheld rows gives away what the rows
+ * hide. A caller outside that gate gets the value the cache entry
+ * keeps for them instead, resolved without Jetpack, see
+ * {@see openstation_living_tree_build_cache_entry()}.
+ *
+ * Runs on the way out, after the cache, so the transient stays the
+ * same for every caller and nothing is read again per request.
+ *
+ * @param array $snapshot The cache entry.
+ * @return array The snapshot as served, without the gated value's key.
+ */
+function openstation_living_tree_snapshot_for_caller( $snapshot ) {
+	$gated = isset( $snapshot[ OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY ] )
+		? (int) $snapshot[ OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY ]
+		: 0;
+	unset( $snapshot[ OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY ] );
+
+	if ( ! openstation_site_views_user_can_read_jetpack() ) {
+		$snapshot['traffic'] = $gated;
+	}
+	return $snapshot;
+}
+
+/**
+ * Build the snapshot as it is cached: the served snapshot plus the
+ * `traffic` a caller outside Jetpack's stats gate gets.
+ *
+ * Where Jetpack Stats is on, that value comes from the traffic ladder
+ * without Jetpack (the post-views meta, then the
+ * `openstation_living_tree_traffic` filter) and goes through the
+ * `openstation_living_tree_snapshot` filter like the served one, so the
+ * filter runs twice per build. Elsewhere the two are the same value.
+ *
+ * Both are worked out here, once per cache build, so serving a caller
+ * outside the gate costs no reads.
+ *
+ * @return array
+ */
+function openstation_living_tree_build_cache_entry() {
+	$fields   = openstation_living_tree_snapshot_fields();
+	$snapshot = openstation_living_tree_filter_snapshot( $fields );
+	$gated    = $snapshot['traffic'] ?? 0;
+
+	if ( openstation_site_views_jetpack_stats_active() ) {
+		$fields['traffic'] = openstation_living_tree_traffic( false );
+		$gated             = openstation_living_tree_filter_snapshot( $fields )['traffic'] ?? 0;
+	}
+
+	$snapshot[ OPENSTATION_LIVING_TREE_GATED_TRAFFIC_KEY ] = max( 0, (int) $gated );
+	return $snapshot;
 }
 
 /**
@@ -113,6 +180,16 @@ add_action( 'comment_post', 'openstation_living_tree_flush_cache' );
  * @return array The snapshot, matching the JS `TreeSnapshot` shape.
  */
 function openstation_living_tree_build_snapshot() {
+	return openstation_living_tree_filter_snapshot( openstation_living_tree_snapshot_fields() );
+}
+
+/**
+ * The snapshot's fields as read from the site, before the
+ * `openstation_living_tree_snapshot` filter.
+ *
+ * @return array
+ */
+function openstation_living_tree_snapshot_fields() {
 	$posts    = wp_count_posts( 'post' );
 	$pages    = wp_count_posts( 'page' );
 	$comments = wp_count_comments();
@@ -120,7 +197,7 @@ function openstation_living_tree_build_snapshot() {
 	$categories = wp_count_terms( array( 'taxonomy' => 'category' ) );
 	$tags       = wp_count_terms( array( 'taxonomy' => 'post_tag' ) );
 
-	$snapshot = array(
+	return array(
 		'siteUrl'         => (string) home_url(),
 		'siteName'        => (string) get_bloginfo( 'name' ),
 		'installEpoch'    => openstation_living_tree_install_epoch(),
@@ -136,7 +213,15 @@ function openstation_living_tree_build_snapshot() {
 		'performance'     => openstation_living_tree_performance(),
 		'branches'        => openstation_living_tree_branch_dna(),
 	);
+}
 
+/**
+ * Run the snapshot filter over a set of fields.
+ *
+ * @param array $snapshot The fields from {@see openstation_living_tree_snapshot_fields()}.
+ * @return array
+ */
+function openstation_living_tree_filter_snapshot( $snapshot ) {
 	/**
 	 * Filter the Living Tree snapshot before it is cached and served.
 	 * Keep the shape intact — the JS client validates nothing; it trusts

@@ -222,6 +222,45 @@ export interface ActivityChannelMap {
 		filename: string;
 		attachmentId: number;
 	};
+	/**
+	 * Framework: a request made through `wp.os.fetch` settled.
+	 * Fire-and-forget broadcast for debug, audit and aggregation
+	 * widgets; filtering it is a no-op, since by the time it fires
+	 * the response is already in the caller's hands.
+	 *
+	 * `source` is the caller's own free-form attribution tag, which
+	 * is what lets a plugin group its traffic apart from the
+	 * shell's. It is absent when the caller passed none.
+	 *
+	 * Published regardless of `silent`: `silent` suppresses the
+	 * title-bar ring, which is a question about the window's
+	 * chrome, not about whether the request happened.
+	 *
+	 * `ok` and `status` are absent when the request never got a
+	 * response at all (a network-level rejection); `error` carries
+	 * the reason in that case, and `aborted` is `true` when the
+	 * caller cancelled it rather than the network failing.
+	 *
+	 * `windowId` is the window the request is attributed to: the one
+	 * the caller named, or, for a request with no named window, the
+	 * focused window whose title-bar ring it moves. A silent request
+	 * that named no window has no ring to move, so it is `null`.
+	 *
+	 * A subscriber must not answer this with a `wp.os.fetch` of its
+	 * own (shipping an audit log, say) without guarding against its
+	 * own traffic: that request settles too, and publishes again.
+	 */
+	'os/request-settled': {
+		url: string;
+		method: string;
+		status?: number;
+		ok?: boolean;
+		error?: string;
+		aborted?: true;
+		windowId: string | null;
+		source?: string;
+		silent: boolean;
+	};
 	// Plugin channels go here. The catch-all index signature lets
 	// third-party plugins fall through without explicit type
 	// augmentation; declare specific channels in your own .d.ts

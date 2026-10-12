@@ -158,6 +158,18 @@
 }
 
 /*
+ * The top corners sit over the title bar, above its controls. A theme
+ * whose title bar puts a control in a corner (a close button flush
+ * with the frame) shrinks them so that control stays clickable; the
+ * bottom corners keep their size.
+ */
+.os-window__resize-handle--ne,
+.os-window__resize-handle--nw {
+	width: var(--os-resize-top-size, var(--os-resize-size));
+	height: var(--os-resize-top-size, var(--os-resize-size));
+}
+
+/*
  * During drag/resize, overlay the iframe to prevent it from
  * capturing pointer events and breaking the drag.
  */

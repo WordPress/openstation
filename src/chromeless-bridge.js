@@ -119,6 +119,17 @@
 	 * reloads the page on save, which re-runs the announcement
 	 * naturally — this block never engages there (no `core/editor`
 	 * store on the page).
+	 *
+	 * Autosaves are skipped — they can't change terms or links, the
+	 * live preview watch fires one after every typing pause, and on a
+	 * published post they only write an autosave revision — with one
+	 * exception: an autosave of a NEW post. That is the save that turns
+	 * the auto-draft into a real draft, and Gutenberg often makes it on
+	 * its own before the user clicks "Save draft" (after which the
+	 * button reads "Saved" and there is nothing left to click). The
+	 * page-render identity is null on `post-new.php`, so without this
+	 * refetch the window never learns its post exists — the Preview eye
+	 * stayed disabled until the window was reopened.
 	 */
 	window.addEventListener( 'load', function () {
 		try {
@@ -136,22 +147,27 @@
 			}
 			var wasSaving = false;
 			var wasNew = false;
+			var wasAutosave = false;
 			var inFlight = false;
 			wpg.data.subscribe( function () {
-				var saving =
-					editor.isSavingPost() &&
-					! ( editor.isAutosavingPost && editor.isAutosavingPost() );
+				var saving = editor.isSavingPost();
 				if ( saving && ! wasSaving ) {
-					// Capture "is this the first real save?" on the tick
-					// where saving STARTS — after the save completes the
-					// post is no longer new and the flag reads false.
+					// Capture "is this the first save?" and "is it an
+					// autosave?" on the tick where saving STARTS — once
+					// the save completes neither flag reads true.
 					wasNew = !! (
 						editor.isEditedPostNew && editor.isEditedPostNew()
+					);
+					wasAutosave = !! (
+						editor.isAutosavingPost && editor.isAutosavingPost()
 					);
 				}
 				var finished = wasSaving && ! saving;
 				wasSaving = saving;
 				if ( ! finished || inFlight ) {
+					return;
+				}
+				if ( wasAutosave && ! wasNew ) {
 					return;
 				}
 				if (
@@ -404,10 +420,10 @@
 			// this reason. The action rides in the POST body, not the
 			// URL, so both are checked.
 			try {
-				if ( String( url || '' ).indexOf( 'action=heartbeat' ) !== -1 ) {
+				if ( /[?&]action=heartbeat(?:&|$)/.test( String( url || '' ) ) ) {
 					return true;
 				}
-				if ( typeof body === 'string' && body.indexOf( 'action=heartbeat' ) !== -1 ) {
+				if ( typeof body === 'string' && /(?:^|&)action=heartbeat(?:&|$)/.test( body ) ) {
 					return true;
 				}
 				if ( body && typeof body.get === 'function' && body.get( 'action' ) === 'heartbeat' ) {
@@ -417,8 +433,8 @@
 			return false;
 		};
 
-		var osActivityBegin = function ( method, url, body ) {
-			if ( osIsReadRequest( method ) || osIsBackgroundRequest( url, body ) ) {
+		var osActivityBegin = function ( method, background ) {
+			if ( osIsReadRequest( method ) || background ) {
 				return false;
 			}
 			try {
@@ -457,12 +473,12 @@
 		// force an immediate tick. `wp.heartbeat.connectNow()` is
 		// safe to call repeatedly; we still debounce to avoid storms
 		// when many requests fail at once. Same-origin gate keeps us
-		// out of third-party 403s. The URL gate avoids looping on
-		// heartbeat itself (heartbeat shouldn't 403 — but if it does
-		// the recursive connectNow would not help anyway).
+		// out of third-party 403s. Recognize Heartbeat before sending:
+		// Core puts its action in the POST body, not the URL. A failed
+		// Heartbeat must not accelerate itself or consume the cooldown.
 		var osAuthCheckCooldownUntil = 0;
-		var osMaybeForceAuthCheck = function ( status, url ) {
-			if ( status !== 401 && status !== 403 ) {
+		var osMaybeForceAuthCheck = function ( status, url, background ) {
+			if ( background || ( status !== 401 && status !== 403 ) ) {
 				return;
 			}
 			var urlStr = String( url || '' );
@@ -626,7 +642,10 @@
 					}
 				}
 
-				var tracked = osActivityBegin( method, url, ( init && init.body ) || ( input && input.body ) );
+				// Retain only the classification, not an upload body, in
+				// the completion callbacks shared by activity/auth checks.
+				var background = osIsBackgroundRequest( url, ( init && init.body ) || ( input && input.body ) );
+				var tracked = osActivityBegin( method, background );
 
 				var promise;
 				try {
@@ -656,7 +675,7 @@
 						// `fetch` resolves for 4xx / 5xx, so the ring
 						// settles on `res.ok` and not on the promise.
 						osActivityEnd( tracked, ! res.ok, res.status );
-						osMaybeForceAuthCheck( res.status, url );
+						osMaybeForceAuthCheck( res.status, url, background );
 						return res;
 					},
 					function ( err ) {
@@ -708,7 +727,8 @@
 					: Date.now();
 				// The body is where an admin-ajax action name lives,
 				// and the action name is how Heartbeat is recognised.
-				var tracked = osActivityBegin( xhr.__wpdMethod, xhr.__wpdUrl, body );
+				var background = osIsBackgroundRequest( xhr.__wpdUrl, body );
+				var tracked = osActivityBegin( xhr.__wpdMethod, background );
 
 				// Apply contributed headers right before send. Doing it
 				// here rather than in open() means contributions added
@@ -729,6 +749,9 @@
 				}
 
 				var fire = function () {
+					// An uploader may open/send the same XHR again. Keep
+					// this request's closure out of later completions.
+					xhr.removeEventListener( 'loadend', fire );
 					var dur = ( ( typeof performance !== 'undefined' && performance.now )
 						? performance.now()
 						: Date.now() ) - start;
@@ -762,12 +785,21 @@
 						extra
 					);
 					osActivityEnd( tracked, failed, xhr.status );
-					osMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl );
+					osMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl, background );
 				};
 				try {
 					xhr.addEventListener( 'loadend', fire );
 				} catch ( _err ) { /* swallow */ }
-				return osOrigSend.apply( this, arguments );
+				try {
+					return osOrigSend.apply( this, arguments );
+				} catch ( sync ) {
+					// A synchronous send failure has no loadend to remove
+					// the listener or balance the activity-start message.
+					xhr.removeEventListener( 'loadend', fire );
+					osReportNetwork( xhr.__wpdMethod, xhr.__wpdUrl, 0, 0, true, null );
+					osActivityEnd( tracked, true, 0 );
+					throw sync;
+				}
 			};
 		}
 
@@ -933,6 +965,12 @@
 						var __wpdBg = __wpdBefore && __wpdBefore.backgroundImage;
 						if ( __wpdBg && __wpdBg !== 'none' && __wpdBg.indexOf( 'url("")' ) === -1 ) {
 							__wpdHarvest[ __wpdKey ] = __wpdBg;
+							continue;
+						}
+						/* (c2) ::before mask-image (Elementor 4's logo) */
+						var __wpdMask = __wpdBefore && ( __wpdBefore.maskImage || __wpdBefore.webkitMaskImage );
+						if ( __wpdMask && __wpdMask !== 'none' && __wpdMask.indexOf( 'url("")' ) === -1 ) {
+							__wpdHarvest[ __wpdKey ] = __wpdMask;
 							continue;
 						}
 						/* (d) background on the wrap itself */
@@ -2813,124 +2851,7 @@
 		} catch ( err ) { /* cross-origin parent; swallow */ }
 	}, true );
 
-	// Skip if the standalone iframe-bridge bundle already wired
-	// screen-meta hoisting on this page. Two bridges racing to read
-	// `aria-expanded` and reflect state would double-fire the
-	// `os-screen-meta-state` message and flicker the
-	// title-bar buttons.
-	if ( window.__openStationScreenMetaInstalled ) {
-		return;
-	}
-	window.__openStationScreenMetaInstalled = true;
-
-	// Real screen options render form controls (column toggles, a
-	// per-page input, custom settings). An empty wrap should not
-	// surface a dead gear button.
-	function hasScreenOptionsContent() {
-		var wrap = document.getElementById( 'screen-options-wrap' );
-		// WP always renders a nonce hidden input and an "Apply" submit
-		// inside the wrap, so match only interactive option controls
-		// (toggles, per-page, radios, selects) — never that always-
-		// present scaffolding — or an empty panel reads as non-empty.
-		return !! wrap && !! wrap.querySelector( 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea' );
-	}
-	// A help tab registered with empty content + no callback still
-	// produces #contextual-help-link but an empty panel. Require some
-	// non-whitespace tab/sidebar text before announcing the button.
-	function hasHelpContent() {
-		var wrap = document.getElementById( 'contextual-help-wrap' );
-		if ( ! wrap ) {
-			return false;
-		}
-		var panelEls = wrap.querySelectorAll( '.help-tab-content, .contextual-help-sidebar' );
-		for ( var i = 0; i < panelEls.length; i++ ) {
-			if ( ( panelEls[ i ].textContent || '' ).trim() !== '' ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	var links = document.getElementById( 'screen-meta-links' );
-	var screenOptionsBtn = links ? document.getElementById( 'show-settings-link' ) : null;
-	var helpBtn = links ? document.getElementById( 'contextual-help-link' ) : null;
-	var panels = [];
-	if ( screenOptionsBtn && hasScreenOptionsContent() ) {
-		panels.push( 'screen-options' );
-	}
-	if ( helpBtn && hasHelpContent() ) {
-		panels.push( 'help' );
-	}
-
 	var origin = window.location.origin;
-
-	// ALWAYS announce — including an empty array — so the parent removes
-	// stale gear/Help buttons when this page (e.g. after an in-place
-	// same-slug navigation) has no screen meta. addScreenMetaButtons()
-	// clears then repopulates, so an empty array removes everything.
-	window.parent.postMessage( {
-		type: 'os-screen-meta',
-		panels: panels
-	}, origin );
-
-	if ( panels.length === 0 ) {
-		return;
-	}
-
-	function getOpenPanel() {
-		if ( screenOptionsBtn && screenOptionsBtn.getAttribute( 'aria-expanded' ) === 'true' ) {
-			return 'screen-options';
-		}
-		if ( helpBtn && helpBtn.getAttribute( 'aria-expanded' ) === 'true' ) {
-			return 'help';
-		}
-		return null;
-	}
-
-	function reportState() {
-		window.parent.postMessage( {
-			type: 'os-screen-meta-state',
-			open: getOpenPanel()
-		}, origin );
-	}
-
-	reportState();
-
-	var observer = new MutationObserver( reportState );
-	if ( screenOptionsBtn ) {
-		observer.observe( screenOptionsBtn, { attributes: true, attributeFilter: [ 'aria-expanded' ] } );
-	}
-	if ( helpBtn ) {
-		observer.observe( helpBtn, { attributes: true, attributeFilter: [ 'aria-expanded' ] } );
-	}
-
-	// WP's close() animates and shares #screen-meta between both panels,
-	// so racing two animated clicks hides the panel that just opened.
-	// Jump the other panel to its closed end state synchronously instead.
-	function forceClose( button ) {
-		if ( ! button || button.getAttribute( 'aria-expanded' ) !== 'true' ) {
-			return;
-		}
-		var panelId = button.getAttribute( 'aria-controls' );
-		var panel = panelId ? document.getElementById( panelId ) : null;
-		if ( ! panel ) {
-			return;
-		}
-		if ( window.jQuery ) {
-			window.jQuery( panel ).stop( true, false );
-		}
-		panel.style.display = 'none';
-		panel.classList.add( 'hidden' );
-		if ( panel.parentNode instanceof HTMLElement ) {
-			panel.parentNode.style.display = 'none';
-		}
-		button.classList.remove( 'screen-meta-active' );
-		button.setAttribute( 'aria-expanded', 'false' );
-		var toggles = document.querySelectorAll( '.screen-meta-toggle' );
-		for ( var i = 0; i < toggles.length; i++ ) {
-			toggles[ i ].style.visibility = '';
-		}
-	}
 
 	/* -----------------------------------------------------------------
 	 * Broadcast receiver — iframe side.
@@ -3232,6 +3153,127 @@
 			_openstationSoftReload();
 		}
 	} );
+
+	// Skip if the standalone iframe-bridge bundle already wired
+	// screen-meta hoisting on this page. Two bridges racing to read
+	// `aria-expanded` and reflect state would double-fire the
+	// `os-screen-meta-state` message and flicker the
+	// title-bar buttons.
+	//
+	// The returns below end the whole bridge, not only the hoist, and
+	// the standalone bundle normally loads first. Code that every
+	// chromeless page needs belongs above this block.
+	if ( window.__openStationScreenMetaInstalled ) {
+		return;
+	}
+	window.__openStationScreenMetaInstalled = true;
+
+	// Real screen options render form controls (column toggles, a
+	// per-page input, custom settings). An empty wrap should not
+	// surface a dead gear button.
+	function hasScreenOptionsContent() {
+		var wrap = document.getElementById( 'screen-options-wrap' );
+		// WP always renders a nonce hidden input and an "Apply" submit
+		// inside the wrap, so match only interactive option controls
+		// (toggles, per-page, radios, selects) — never that always-
+		// present scaffolding — or an empty panel reads as non-empty.
+		return !! wrap && !! wrap.querySelector( 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea' );
+	}
+	// A help tab registered with empty content + no callback still
+	// produces #contextual-help-link but an empty panel. Require some
+	// non-whitespace tab/sidebar text before announcing the button.
+	function hasHelpContent() {
+		var wrap = document.getElementById( 'contextual-help-wrap' );
+		if ( ! wrap ) {
+			return false;
+		}
+		var panelEls = wrap.querySelectorAll( '.help-tab-content, .contextual-help-sidebar' );
+		for ( var i = 0; i < panelEls.length; i++ ) {
+			if ( ( panelEls[ i ].textContent || '' ).trim() !== '' ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	var links = document.getElementById( 'screen-meta-links' );
+	var screenOptionsBtn = links ? document.getElementById( 'show-settings-link' ) : null;
+	var helpBtn = links ? document.getElementById( 'contextual-help-link' ) : null;
+	var panels = [];
+	if ( screenOptionsBtn && hasScreenOptionsContent() ) {
+		panels.push( 'screen-options' );
+	}
+	if ( helpBtn && hasHelpContent() ) {
+		panels.push( 'help' );
+	}
+
+	// ALWAYS announce — including an empty array — so the parent removes
+	// stale gear/Help buttons when this page (e.g. after an in-place
+	// same-slug navigation) has no screen meta. addScreenMetaButtons()
+	// clears then repopulates, so an empty array removes everything.
+	window.parent.postMessage( {
+		type: 'os-screen-meta',
+		panels: panels
+	}, origin );
+
+	if ( panels.length === 0 ) {
+		return;
+	}
+
+	function getOpenPanel() {
+		if ( screenOptionsBtn && screenOptionsBtn.getAttribute( 'aria-expanded' ) === 'true' ) {
+			return 'screen-options';
+		}
+		if ( helpBtn && helpBtn.getAttribute( 'aria-expanded' ) === 'true' ) {
+			return 'help';
+		}
+		return null;
+	}
+
+	function reportState() {
+		window.parent.postMessage( {
+			type: 'os-screen-meta-state',
+			open: getOpenPanel()
+		}, origin );
+	}
+
+	reportState();
+
+	var observer = new MutationObserver( reportState );
+	if ( screenOptionsBtn ) {
+		observer.observe( screenOptionsBtn, { attributes: true, attributeFilter: [ 'aria-expanded' ] } );
+	}
+	if ( helpBtn ) {
+		observer.observe( helpBtn, { attributes: true, attributeFilter: [ 'aria-expanded' ] } );
+	}
+
+	// WP's close() animates and shares #screen-meta between both panels,
+	// so racing two animated clicks hides the panel that just opened.
+	// Jump the other panel to its closed end state synchronously instead.
+	function forceClose( button ) {
+		if ( ! button || button.getAttribute( 'aria-expanded' ) !== 'true' ) {
+			return;
+		}
+		var panelId = button.getAttribute( 'aria-controls' );
+		var panel = panelId ? document.getElementById( panelId ) : null;
+		if ( ! panel ) {
+			return;
+		}
+		if ( window.jQuery ) {
+			window.jQuery( panel ).stop( true, false );
+		}
+		panel.style.display = 'none';
+		panel.classList.add( 'hidden' );
+		if ( panel.parentNode instanceof HTMLElement ) {
+			panel.parentNode.style.display = 'none';
+		}
+		button.classList.remove( 'screen-meta-active' );
+		button.setAttribute( 'aria-expanded', 'false' );
+		var toggles = document.querySelectorAll( '.screen-meta-toggle' );
+		for ( var i = 0; i < toggles.length; i++ ) {
+			toggles[ i ].style.visibility = '';
+		}
+	}
 
 	window.addEventListener( 'message', function( e ) {
 		if ( e.origin !== origin ) {

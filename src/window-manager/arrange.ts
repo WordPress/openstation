@@ -17,7 +17,12 @@
 import { applyFilters, doAction, HOOKS } from '../hooks';
 import { workAreaRectOf } from '../work-area';
 import type { Window } from '../window';
-import { isValidGrid, pickGridDimensions } from './geometry';
+import {
+	isValidGrid,
+	pickGridDimensions,
+	shareRowByMinWidth,
+	splitRowByMinWidth,
+} from './geometry';
 import type { WindowManager } from './index';
 
 /**
@@ -192,23 +197,29 @@ export function tile( mgr: WindowManager ): void {
 
 	const padding = 16;
 	const gap = 12;
-	const cellWidth = Math.floor(
-		( rect.width - padding * 2 - gap * ( cols - 1 ) ) / cols,
-	);
 	const cellHeight = Math.floor(
 		( rect.height - padding * 2 - gap * ( rows - 1 ) ) / rows,
 	);
 
-	eligible.forEach( ( w, i ) => {
-		const col = i % cols;
-		const row = Math.floor( i / cols );
-		// See cascade: the tile is the placement now.
-		w._gridSpan = null;
-		w.element.style.left = `${ rect.x + padding + col * ( cellWidth + gap ) }px`;
-		w.element.style.top = `${ rect.y + padding + row * ( cellHeight + gap ) }px`;
-		w.element.style.width = `${ cellWidth }px`;
-		w.element.style.height = `${ cellHeight }px`;
-	} );
+	// Each row shares its width by minimum widths: even cells unless a
+	// window needs more, in which case its row-mates (and the empty
+	// cells of a short last row) make room. See `shareRowByMinWidth`.
+	for ( let row = 0; row * cols < eligible.length; row++ ) {
+		const members = eligible.slice( row * cols, row * cols + cols );
+		const mins = Array.from(
+			{ length: cols },
+			( _, col ) => members[ col ]?.config.minWidth || 0,
+		);
+		const spans = shareRowByMinWidth( rect.width - padding * 2, gap, mins );
+		members.forEach( ( w, col ) => {
+			// See cascade: the tile is the placement now.
+			w._gridSpan = null;
+			w.element.style.left = `${ rect.x + padding + spans[ col ].x }px`;
+			w.element.style.top = `${ rect.y + padding + row * ( cellHeight + gap ) }px`;
+			w.element.style.width = `${ spans[ col ].width }px`;
+			w.element.style.height = `${ cellHeight }px`;
+		} );
+	}
 
 	const focused = mgr.getFocused();
 	if ( focused ) {
@@ -317,15 +328,19 @@ export function columns( mgr: WindowManager ): void {
 	const rect = workAreaRectOf( mgr._desktop );
 	const padding = 16;
 	const gap = 12;
-	const colWidth = Math.floor(
-		( rect.width - padding * 2 - gap * ( cols - 1 ) ) / cols,
-	);
 	const colHeight = Math.floor( rect.height - padding * 2 );
+	// Even columns unless a window needs more than its share; the
+	// others then split what is left. See `shareRowByMinWidth`.
+	const spans = shareRowByMinWidth(
+		rect.width - padding * 2,
+		gap,
+		eligible.map( ( w ) => w.config.minWidth || 0 ),
+	);
 
 	eligible.forEach( ( w, i ) => {
-		w.element.style.left = `${ rect.x + padding + i * ( colWidth + gap ) }px`;
+		w.element.style.left = `${ rect.x + padding + spans[ i ].x }px`;
 		w.element.style.top = `${ rect.y + padding }px`;
-		w.element.style.width = `${ colWidth }px`;
+		w.element.style.width = `${ spans[ i ].width }px`;
 		w.element.style.height = `${ colHeight }px`;
 	} );
 
@@ -393,17 +408,26 @@ export function focus( mgr: WindowManager ): void {
 	const rest = eligible.filter( ( _, i ) => i !== leadIndex );
 
 	// Alone on the desk, the lead takes the whole work area — there is
-	// no margin to reserve for a stack that does not exist.
-	const leadWidth =
-		rest.length === 0 ? areaWidth : Math.floor( areaWidth * split );
+	// no margin to reserve for a stack that does not exist. Otherwise
+	// the split moves for minimum widths: the lead never goes below
+	// its own, and leaves the stack the widest minimum among the
+	// windows in it. See `splitRowByMinWidth`.
+	const row = splitRowByMinWidth(
+		areaWidth,
+		gap,
+		Math.floor( areaWidth * split ),
+		lead.config.minWidth || 0,
+		rest.reduce( ( max, w ) => Math.max( max, w.config.minWidth || 0 ), 0 ),
+	);
+	const leadWidth = rest.length === 0 ? areaWidth : row.first.width;
 	lead.element.style.left = `${ rect.x + padding }px`;
 	lead.element.style.top = `${ rect.y + padding }px`;
 	lead.element.style.width = `${ leadWidth }px`;
 	lead.element.style.height = `${ areaHeight }px`;
 
 	if ( rest.length > 0 ) {
-		const stackX = rect.x + padding + leadWidth + gap;
-		const stackWidth = areaWidth - leadWidth - gap;
+		const stackX = rect.x + padding + row.second.x;
+		const stackWidth = row.second.width;
 		const stackHeight = Math.floor(
 			( areaHeight - gap * ( rest.length - 1 ) ) / rest.length,
 		);

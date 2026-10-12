@@ -25,6 +25,8 @@ export type PostsMode = 'posts' | 'pages';
 
 /** The declared state — what `parts/query.php` declares. */
 export interface ListState extends Record< string, unknown > {
+	/** The tab the window was opened on; the client owns it after that. */
+	tab: string;
 	page: number;
 	perPage: number;
 	search: string;
@@ -237,7 +239,7 @@ export interface PostsWindowContext {
 	refresh(): Promise< void >;
 	/** Currently selected row ids. */
 	getSelectedIds(): number[];
-	/** Currently selected rows (resolved against the live `table.data`). */
+	/** Currently selected rows (resolved against the live `table.data`; rows selected under an earlier search are only in `getSelectedIds()`). */
 	getSelectedRows(): PostListItem[];
 	/** Snapshot of the outbound REST params on the next fetch. */
 	getCurrentParams(): PostsListParams;
@@ -245,9 +247,10 @@ export interface PostsWindowContext {
 
 /**
  * A bulk action that appears in the toolbar when one or more rows
- * are selected. The shipped default is "Move to trash"; plugins
- * append/replace via the `openstation.postsWindow.bulkActions`
- * filter.
+ * are selected. The shipped defaults are "Move to trash" and "Restore"
+ * (swapped dynamically depending on view status); plugins append/replace
+ * via the `openstation.postsWindow.bulkActions` filter, whose second
+ * argument is `{ mode: PostsMode }`.
  */
 export interface BulkAction {
 	/** Stable id — used as a key, also the `data-os-posts-bulk-action` on the button. */

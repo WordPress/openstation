@@ -67,7 +67,7 @@ Restore is the counterpart to the wizard's "Use the … I have now" captures. On
 
 Three decisions worth naming:
 
-- **It force-provisions.** The once-per-workspace guard exists to stop the *shell* reopening windows on its own, not to stop the user asking. A desk they have since tidied is exactly the case this button is for. Windows still open reuse their instance rather than doubling, so restoring an intact desk just brings it to order.
+- **It force-provisions.** The once-per-workspace guard exists to stop the *shell* reopening windows on its own, not to stop the user asking. A desk they have since tidied is exactly the case this button is for, and it re-tiles as well as reopens.
 - **It only appears where it has work to do.** A plain Space has nothing stored, and neither does a workspace whose profile says nothing beyond its name and colour. A button that visibly does nothing is worse than no button, so its absence is information.
 - **The word is short, the accessible name is not.** "Restore" alone could be read as the session restore the shell does at boot, so the `aria-label` and tooltip carry the whole sentence: *"Restore Commerce — reopen its windows, widgets and look"*.
 
@@ -124,7 +124,9 @@ Three things this has to get right, and each has a test:
 
 - **Desk to desk.** Switching from an overridden workspace straight to another restores the user's base *first*, so the second desk's patch lands on their settings rather than on the first desk's.
 - **Saving while standing on one.** Opening Preferences on an overridden desk and saving writes the **user's** value back for every key they did not touch. Without that, one save would quietly adopt the workspace's wallpaper as their own.
-- **Editing while standing on one.** A key they *did* change is theirs, and it is saved. The rest go back.
+- **Editing while standing on one.** A key they *did* change is theirs, and it is saved. The rest go back. Every save also refreshes the copy kept aside, so leaving the desk hands back what they have now, not what they had on the way in; a stale copy put the old wallpaper back on exit and the next save wrote it to user meta.
+
+A profile write to the desk on screen repaints the look only when it changed `appearance`. Recording a widget, provisioning or saving the arrangement re-applies the widget column alone, so a wallpaper picked on the desk survives adding a widget to it.
 
 **Only allowlisted keys are honoured** — `wallpaper`, `wallpaperSettings`, `customGradient`, `customImage`, `accent`, `customAccent`, `desktopTheme`, `desktopLayout`, `dockPlacement`, `dockSize`, `dockBehavior`, `sideDockBehavior`, `windowRadius`, `windowReveal`, `unfocusEffect`, `adminBarMode`. That is not tidiness. A profile is user meta round-tripped through an untrusted client, and an unfiltered patch spread onto the settings state at boot would be a way to write any settings key from anywhere. The server enforces the same list, and bounds the nesting of the array-valued members.
 
@@ -138,15 +140,17 @@ The wizard's **Look** step is a real picker — wallpaper swatches (the same pre
 
 The launch list is **arranged once per workspace**, guarded by `profile.provisioned`. Provisioning is the first-entry act: it opens the windows and runs the layout, then leaves your arrangement alone. Switch away and back within a session and the desk stays as you left it — a workspace has to be tidyable while you work.
 
-A **reload is different**. A workspace's launch-list windows and its widget column are part of what the desk *is*, not a one-time suggestion, so a reload restores that definition: any launch window you had closed reopens, and any widget you had closed remounts. On boot, `reopenWorkspaceWindows()` runs after session restore and opens only the launch entries whose window the restore did not already bring back — it never touches a window that is open, never re-runs the layout (a hand-moved window would jump), and never re-stamps `provisioned`. The widget column is re-asserted in the same beat by `applyWorkspaceView()`.
+A **reload is different**. A workspace's launch-list windows and its widget column are part of what the desk *is*, not a one-time suggestion, so a reload restores that definition: any launch window you had closed reopens, and any widget you had closed remounts. On boot, `reopenWorkspaceWindows()` runs after session restore and opens only the launch entries whose window the restore did not already bring back — it never opens a second copy of a window that is open, and never re-stamps `provisioned`. It re-runs the layout only when it reopened something: a window it brings back has no place of its own and would land on top of the others. A desk that came back whole is left exactly as it was, so a window you moved by hand stays where you put it. The widget column is re-asserted in the same beat by `applyWorkspaceView()`.
 
 So the rule a launch window and a column widget both follow: **closing one hides it for the rest of this visit; arriving at the desk again restores it.** To take a window or widget off a desk for good, drop it in the wizard's **Edit** step, which writes the profile directly — the same way you added it. This mirrors apps: you do not remove an app from a desk by closing its window.
+
+**A launch entry opens the way a menu pick opens.** Its URL goes through the native-window remap first, so a page the viewer opted a native window into gets that window rather than a classic iframe of the URL, and an entry nothing claims is built with the menu's own metadata — `submenu`, `parentUrl`, `selfLabel` — so it comes up with its tab strip. Each entry gets a window **of its own**: a desk's list declares N windows, and two entries that resolve to the same one (the native Posts window on its Add Post tab beside the same window on its list, the Publishing template exactly) are two windows rather than one focused twice. No two entries take the same window, on a desk that already has them or on one being built. An entry takes a window the desk already has before it opens another, so pressing Restore on an intact desk re-tiles what is there instead of doubling it. It takes the closest one: the window opened under its own id, which survives in-window navigation and a reload; then one opened on its page, because a second desk's windows carry suffixed ids; then any window of its menu. Every entry gets its closer match before any entry falls back, so a Publishing desk missing its draft gets the draft back rather than a second Posts list. The reload pass follows the same rule: it fills the gaps a restore left, and re-arranges the desk only when it filled one.
 
 The `provisioned` flag is claimed *before* the windows open: opening a window is asynchronous, and a second switch landing mid-pass would otherwise run the whole list again and leave the desk with two of everything.
 
 The layout is applied on the next frame, not inline — every arrangement reads the work area and the windows' own boxes, and a window created in this tick has neither until the browser has laid it out.
 
-`provision( id, { force: true } )` runs the whole list and the layout again. That is the user asking on purpose — Restore under a tile — which re-tiles as well as reopens, unlike the reload pass; so every automatic caller leaves the flag off.
+`provision( id, { force: true } )` runs the whole list and the layout again. That is the user asking on purpose — Restore under a tile — which re-tiles even a desk that is whole, unlike the reload pass; so every automatic caller leaves the flag off.
 
 A **closed widget is no longer recorded as an edit** to the desk. Under an `only` column, adding a widget still records it on the profile (the desk keeps what you gave it), but closing one does not remove it — otherwise the reload promise above could not hold. Permanent removal is the wizard's job.
 
@@ -175,7 +179,9 @@ wp.os.windowManager.focusLayout();  // one leading, the rest stacked in the marg
 
 **`columns`** hands off to `tile()` past four windows — a fifth column is narrower than an admin table's own minimum width, and every window would grow a horizontal scrollbar.
 
-**`focus`** leads with the **focused** window, not the first in the stack, so re-applying after clicking into the reference list does not demote the thing you just reached for. With one window it degrades to "maximize politely". Its split is `0.64`, filterable through `os.arrange.focus.split`; a return outside `[0.3, 0.9]` falls back rather than being clamped.
+**`focus`** leads with the **focused** window, not the first in the stack, so re-applying after clicking into the reference list does not demote the thing you just reached for. A workspace opening its launch list, Restore putting it back, or a reload reopening one of its windows leads with the list's first entry instead: the Publishing template's blank draft, with the Posts list in the margin. With one window it degrades to "maximize politely". Its split is `0.64`, filterable through `os.arrange.focus.split`; a return outside `[0.3, 0.9]` falls back rather than being clamped.
+
+**Every arrangement respects minimum widths**, and so does an edge snap. `columns`, each row of `tile()`, and the two halves of a snap split evenly only while every window's share covers its registered `minWidth`; a window that needs more takes it, and the others share what is left. `focus` moves its split the same way: the lead never goes below its own minimum, and leaves the stack the widest minimum among the windows in it. When the minimums cannot all fit, each window keeps its own anyway and stays inside the work area, the first against the left edge and the last against the right, overlapping its neighbours rather than going below its floor.
 
 ---
 

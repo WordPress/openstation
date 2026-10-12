@@ -113,6 +113,8 @@ export interface ListItem extends Record< string, unknown > {
 	bytes?: number;
 	size?: string;
 	dimensions?: string;
+	/** Kept on the image block when the row is dropped into a post. */
+	alt?: string;
 	// ---- user kind ----------------------------------------------------
 	login?: string;
 	email?: string;

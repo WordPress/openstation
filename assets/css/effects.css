@@ -25,31 +25,22 @@
 /*
  * Built-in effect tuning knobs. Every shipped effect is driven by
  * custom properties so a theme or plugin can re-tune the intensity
- * without overriding the whole rule (and so the values read as a set).
+ * without overriding the whole rule. Their defaults live in the `var()`
+ * fallbacks at each use site rather than in a declaration on
+ * `.os-window`: a declaration on the window would outrank anything
+ * the window inherits, and a theme declares them on the body.
+ *
+ *   --os-fx-transition-duration   0.5s   how long an effect ramps in and
+ *                                        out as focus moves (the filter
+ *                                        entry of the window transition)
+ *   --os-fx-darken-brightness     0.82   darken: dim
+ *   --os-fx-darken-saturate       0.92   darken: slight desaturate
+ *   --os-fx-frost-blur            3px    frost: blur
+ *   --os-fx-frost-saturate        0.7    frost: cool
+ *   --os-fx-frost-brightness      1.08   frost: lift
+ *   --os-fx-grayscale-amount      1      grayscale: drain colour
+ *   --os-fx-grayscale-brightness  0.95   grayscale: settle brightness
  */
-.os-window {
-	/* How long an effect takes to ramp in/out as focus moves between
-	 * windows. Drives the `filter` entry of the shared window
-	 * transition (see `window-chrome.css`); applies to every
-	 * filter-based effect (darken, frost, grayscale) in BOTH
-	 * directions — losing focus and regaining it. Bump it up for a
-	 * slower, dreamier blur; drop it for a snappier feel. Collapses to
-	 * instant under `prefers-reduced-motion`. */
-	--os-fx-transition-duration: 0.5s;
-
-	/* darken — dim + slight desaturate */
-	--os-fx-darken-brightness: 0.82;
-	--os-fx-darken-saturate: 0.92;
-
-	/* frost — frosted-glass blur, lifted + cooled */
-	--os-fx-frost-blur: 3px;
-	--os-fx-frost-saturate: 0.7;
-	--os-fx-frost-brightness: 1.08;
-
-	/* grayscale — drain colour, settle brightness */
-	--os-fx-grayscale-amount: 1;
-	--os-fx-grayscale-brightness: 0.95;
-}
 
 /*
  * `darken` — dims unfocused windows (title bar and body alike) so the

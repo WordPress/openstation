@@ -39,6 +39,16 @@ function installHooks(): void {
 	};
 }
 
+/**
+ * A fact's label is an attribute on <os-fact> rendered into its own
+ * shadow root, like <os-stat>'s — so it is not in light-DOM text.
+ */
+function factLabels( root: ParentNode ): Array< string | null > {
+	return Array.from( root.querySelectorAll( 'os-fact' ) ).map( ( f ) =>
+		f.getAttribute( 'label' ),
+	);
+}
+
 function onFilter( hook: string, cb: Cb ): void {
 	filters.set( hook, [ ...( filters.get( hook ) ?? [] ), cb ] );
 }
@@ -310,7 +320,7 @@ describe( 'user preview pane', () => {
 
 		const ctx = mount( state( { section: 'wc-customers', item: 8 } ), userDetailData() );
 
-		expect( ctx.root.textContent ).toContain( 'Email' );
+		expect( factLabels( ctx.root ) ).toContain( 'Email' );
 		expect( ctx.root.textContent ).not.toContain( 'Posts' );
 		expect( ctx.root.textContent ).not.toContain( 'Comments' );
 	} );
@@ -346,8 +356,8 @@ describe( 'user preview pane', () => {
 		expect( statText ).toContain( 'Comments received' );
 		expect( statText ).toContain( 'Comments left' );
 		expect( text ).toContain( 'Activity (last 12 months)' );
-		expect( text ).toContain( 'Member since' );
-		expect( text ).toContain( 'First published' );
+		expect( factLabels( ctx.root ) ).toContain( 'Member since' );
+		expect( factLabels( ctx.root ) ).toContain( 'First published' );
 		expect( text ).toContain( 'Recent posts' );
 		expect( text ).toContain( 'Top categories & tags' );
 		expect( text ).toContain( 'News · 12' );
@@ -359,7 +369,7 @@ describe( 'user preview pane', () => {
 		onFilter( 'os.my-wordpress.user-dossier-sections', () => [ 'bio' ] );
 		const gated = mount( state( { section: 'wc-customers', item: 8 } ), withStats() );
 		const gatedText = gated.root.textContent ?? '';
-		expect( gatedText ).toContain( 'Email' );
+		expect( factLabels( gated.root ) ).toContain( 'Email' );
 		expect( gatedText ).toContain( 'AUTHOR' );
 		// The whole stat strip goes with the publishing blocks.
 		expect( gated.root.querySelector( 'os-stat' ) ).toBeNull();

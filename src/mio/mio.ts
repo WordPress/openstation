@@ -717,6 +717,7 @@ export async function mountMio(
 		);
 
 		const bounds = size();
+		const solid = obstacles;
 
 		// Trapped? A window opened, moved, or maximised over the
 		// Mio. The contact solver can't dig its way out of that —
@@ -736,7 +737,7 @@ export async function mountMio(
 				body.core.x,
 				body.core.y,
 				body.radius,
-				obstacles,
+				solid,
 				bounds,
 			);
 			if ( escape ) {
@@ -766,7 +767,7 @@ export async function mountMio(
 				body.core.x,
 				body.core.y,
 				body.radius,
-				obstacles,
+				solid,
 				config.physics.magnetRange,
 			);
 
@@ -780,7 +781,7 @@ export async function mountMio(
 			// instead, by `physics.dragMaxAccel` bounding how hard
 			// the drag spring can press the body into something it
 			// cannot pass through.
-			obstacles,
+			obstacles: solid,
 			bounds,
 			dragTarget,
 			anchor: dragging ? null : anchor,

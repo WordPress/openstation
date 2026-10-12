@@ -463,7 +463,7 @@ function openstation_ai_register_debug_abilities() {
 		'desktop-mode/read-source-excerpt',
 		array(
 			'label'               => __( 'Read source around a logged line', 'desktop-mode' ),
-			'description'         => 'Reads the PHP (or JS/CSS) source around a line the error log named, so you can see the code that failed instead of guessing at it. Pass a `file` path and `line` taken from an issue or from its stack trace. Returns numbered lines so you can quote them precisely. IMPORTANT LIMITS, and they are refusals rather than empty results: only files the CURRENT log actually mentions can be read, only inside this WordPress install, only source extensions, and never wp-config.php or a .env — if you need a value from configuration, ask the user for it. You are reading this file to EXPLAIN and to PROPOSE a change; you have no ability to write it, so give the user the edit to make.',
+			'description'         => 'Reads the PHP (or JS/CSS) source around a line the error log named, so you can see the code that failed instead of guessing at it. Pass a `file` path and `line` taken from an issue or from its stack trace. Returns numbered lines so you can quote them precisely. Limits, each returned as a refusal rather than an empty result: only files the current log mentions, only inside this WordPress install, only source extensions, and never wp-config.php or a .env (ask the user for any configuration value you need). Read-only: the file cannot be changed through any tool.',
 			'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',

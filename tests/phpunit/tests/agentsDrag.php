@@ -138,7 +138,8 @@ class Tests_OpenStation_AgentsDrag extends WP_UnitTestCase {
 		$response = openstation_agents_rest_invoke( $request );
 		$this->assertNotWPError( $response );
 		$this->assertSame( 'drag', $captured['source'] );
-		// A drop starts a fresh conversation — no replayed turns.
+		// The request sent no history, so none is replayed. (The chat UI
+		// sends the open transcript as `history` on a drop, like any turn.)
 		$this->assertSame( array(), $captured['history'] );
 	}
 }

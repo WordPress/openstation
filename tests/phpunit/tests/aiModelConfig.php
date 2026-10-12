@@ -53,17 +53,41 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The default is nothing: a site that adds no filter sends exactly what it
-	 * sent before. This is what keeps the plugin provider-agnostic.
+	 * The default pins nothing but the output ceiling: no provider, no
+	 * model, no temperature. The ceiling is there because the Anthropic
+	 * provider otherwise falls back to 4096, which truncates any tool
+	 * call carrying a whole post.
 	 *
 	 * @covers ::openstation_ai_apply_model_config
 	 */
-	public function test_default_config_is_empty() {
+	public function test_default_config_is_only_the_output_ceiling() {
 		$builder = $this->builder();
 
 		openstation_ai_apply_model_config( $builder, array() );
 
-		$this->assertSame( array(), $builder->model_config->toArray() );
+		$this->assertSame( OPENSTATION_AI_DEFAULT_MAX_TOKENS, $builder->model_config->getMaxTokens() );
+		$this->assertNull( $builder->model_config->getTemperature() );
+		$this->assertNull( $builder->preference );
+		$this->assertSame(
+			array( 'maxTokens' => OPENSTATION_AI_DEFAULT_MAX_TOKENS ),
+			$builder->model_config->toArray()
+		);
+	}
+
+	/**
+	 * The default ceiling only fills a gap: a filter that sets one wins
+	 * (the coercion test above), and a filter that returns garbage still
+	 * gets the default rather than the provider's own fallback.
+	 *
+	 * @covers ::openstation_ai_apply_model_config
+	 */
+	public function test_non_array_filter_result_still_gets_the_ceiling() {
+		$this->filter_returns( false );
+		$builder = $this->builder();
+
+		$this->assertSame( $builder, openstation_ai_apply_model_config( $builder, array() ) );
+		$this->assertSame( OPENSTATION_AI_DEFAULT_MAX_TOKENS, $builder->model_config->getMaxTokens() );
+		$this->assertNull( $builder->preference );
 	}
 
 	/**
@@ -110,7 +134,11 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 
 		openstation_ai_apply_model_config( $builder, array() );
 
-		$this->assertSame( array(), $builder->model_config->toArray() );
+		$this->assertSame(
+			array( 'maxTokens' => OPENSTATION_AI_DEFAULT_MAX_TOKENS ),
+			$builder->model_config->toArray(),
+			'An unusable value falls back to the default, never to the provider\'s own.'
+		);
 	}
 
 	/**
@@ -130,19 +158,6 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 			// key is a typo that would otherwise fail silently at the provider.
 			'top-level provider key'  => array( array( 'thinking' => array( 'type' => 'adaptive' ) ) ),
 		);
-	}
-
-	/**
-	 * A filter returning the wrong type leaves the builder alone entirely.
-	 *
-	 * @covers ::openstation_ai_apply_model_config
-	 */
-	public function test_non_array_filter_return_is_ignored() {
-		$this->filter_returns( false );
-		$builder = $this->builder();
-
-		$this->assertSame( $builder, openstation_ai_apply_model_config( $builder, array() ) );
-		$this->assertNull( $builder->model_config );
 	}
 
 	/**
@@ -378,5 +393,60 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		openstation_rest_draft_suggestions( $request );
 
 		$this->assertSame( 'widgets/drafts-suggestions', $capture->source );
+	}
+
+	/**
+	 * Builds a generation result whose single candidate ended for `$reason`.
+	 */
+	private function result_with_finish_reason( $reason ) {
+		$message = new \WordPress\AiClient\Messages\DTO\Message(
+			\WordPress\AiClient\Messages\Enums\MessageRoleEnum::model(),
+			array( new \WordPress\AiClient\Messages\DTO\MessagePart( '{"title":"[ES]' ) )
+		);
+		return new \WordPress\AiClient\Results\DTO\GenerativeAiResult(
+			'result-1',
+			array( new \WordPress\AiClient\Results\DTO\Candidate( $message, $reason ) ),
+			new \WordPress\AiClient\Results\DTO\TokenUsage( 10, 4096, 4106 ),
+			new \WordPress\AiClient\Providers\DTO\ProviderMetadata(
+				'test',
+				'Test',
+				\WordPress\AiClient\Providers\Enums\ProviderTypeEnum::cloud()
+			),
+			new \WordPress\AiClient\Providers\Models\DTO\ModelMetadata( 'model-1', 'Model', array(), array() )
+		);
+	}
+
+	/**
+	 * The LENGTH finish reason is what the Anthropic and Google providers
+	 * report when the ceiling cuts a reply; a truncated function call
+	 * arrives with its longest argument missing, and this is the only
+	 * signal that it did.
+	 *
+	 * @covers ::openstation_ai_result_is_truncated
+	 */
+	public function test_length_finish_reason_is_truncation() {
+		$this->assertTrue(
+			openstation_ai_result_is_truncated(
+				$this->result_with_finish_reason( \WordPress\AiClient\Results\Enums\FinishReasonEnum::length() )
+			)
+		);
+		$this->assertFalse(
+			openstation_ai_result_is_truncated(
+				$this->result_with_finish_reason( \WordPress\AiClient\Results\Enums\FinishReasonEnum::toolCalls() )
+			)
+		);
+		$this->assertFalse( openstation_ai_result_is_truncated( new stdClass() ), 'No candidates is not truncation.' );
+	}
+
+	/**
+	 * @covers ::openstation_ai_output_truncated_error
+	 */
+	public function test_truncated_error_carries_the_usage() {
+		$error = openstation_ai_output_truncated_error( 'finish reason: length', array( 'completion' => 4096 ) );
+
+		$this->assertSame( 'openstation_ai_output_truncated', $error->get_error_code() );
+		$this->assertSame( 502, $error->get_error_data()['status'] );
+		$this->assertSame( 4096, $error->get_error_data()['completion_tokens'] );
+		$this->assertNull( openstation_ai_output_truncated_error( 'x' )->get_error_data()['completion_tokens'] );
 	}
 }

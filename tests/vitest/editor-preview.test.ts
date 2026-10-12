@@ -186,8 +186,11 @@ describe( 'bootEditorPreview', () => {
 		expect( def.match( win as never ) ).toBe( false );
 	} );
 
-	test( 'never matches native windows', async () => {
+	test( 'matches a native window only while it embeds an editor frame', async () => {
 		const { def, setWindowContent } = await boot();
+		const { registerSyntheticIframe } = await import(
+			'../../src/connection'
+		);
 		const win = fakeWin( 'w1' );
 		win.config.native = true;
 
@@ -196,7 +199,50 @@ describe( 'bootEditorPreview', () => {
 			id: 1,
 			previewUrl: PREVIEW_URL,
 		} );
+		// A plain native window has nothing to autosave or preview.
 		expect( def.match( win as never ) ).toBe( false );
+
+		// The Posts app's Add Post tab: `embedAdminPage()` registers
+		// the editor as the window's synthetic iframe.
+		const unregister = registerSyntheticIframe( 'w1', fakeIframe().iframe );
+		expect( def.match( win as never ) ).toBe( true );
+
+		// No disabled "save first" state for natives — their URL is
+		// not the editor's.
+		setWindowContent( 'w1', null );
+		win.getCurrentUrl = () => '/wp-admin/post-new.php';
+		expect( def.match( win as never ) ).toBe( false );
+
+		unregister();
+	} );
+
+	test( "autosaves through a native window's embedded editor frame", async () => {
+		const { def, manager, setWindowContent, _setAutosaveTransportForTests } =
+			await boot();
+		const { registerSyntheticIframe } = await import(
+			'../../src/connection'
+		);
+		// The real transport: the point is WHICH frame it asks.
+		_setAutosaveTransportForTests( null );
+
+		const editor = fakeWin( 'posts' );
+		editor.config.native = true;
+		manager.add( editor );
+		const frame = fakeIframe();
+		const unregister = registerSyntheticIframe( 'posts', frame.iframe );
+		setWindowContent( 'posts', {
+			type: 'post',
+			id: 7,
+			previewUrl: PREVIEW_URL,
+		} );
+
+		await clickEye( def, editor );
+
+		expect( frame.postMessage ).toHaveBeenCalledWith(
+			expect.objectContaining( { type: 'os-editor-autosave-request' } ),
+			window.location.origin,
+		);
+		unregister();
 	} );
 
 	test( 'matches the unsaved "Add New" screen via its URL', async () => {

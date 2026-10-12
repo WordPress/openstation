@@ -8,8 +8,13 @@ REST contract may change in minor releases — track this doc.
 The owner of a desktop folder can grant **read** or **read + write**
 access to:
 
-- specific WordPress users (anyone with `edit_posts`), or
+- specific WordPress users (anyone with `edit_posts`, except
+  [agents](agents-security.md): their accounts never log in, so they could
+  never accept), or
 - WordPress roles (default: roles carrying `edit_posts`).
+
+The folder and file invite routes refuse any other user, and the
+share picker's `/users/search` lists only users they would accept.
 
 Recipients see a pending invite on their desktop, accept or deny,
 and on accept the folder appears at their desktop root as an
@@ -49,6 +54,9 @@ immutable.
 | Delete the folder for everyone (cascade)     |  ✓    |   -    |   -    |    -    |   -    |
 | Move folder to Trash (root placement)        |  ✓    |   -    |   -    |    -    |   -    |
 | Leave shared folder (recipient-side)         |  -    |   ✓    |   ✓    |    -    |   -    |
+
+The icons inside belong to the folder, not to whoever placed them:
+the owner sees what a writer added, the same as every recipient does.
 
 Non-owners — read OR write — cannot move the shared-folder root
 placement to the Trash. The "Move to Trash" affordance is hidden
@@ -357,7 +365,8 @@ installed). Share-management mutations (POST/PATCH/DELETE on
 `/shares`) are gated by `openstation_files_share_can_manage`
 (owner-only by default). `/leave` is open to any logged-in user
 who is currently a recipient of the folder. `/users/search`
-requires `edit_posts`. The table-purge route is a destructive
+requires `edit_posts`, and returns only users who could be invited
+(see above). The table-purge route is a destructive
 site-admin cleanup (drops the folder-sharing tables) and requires
 `manage_options`.
 

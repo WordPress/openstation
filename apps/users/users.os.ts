@@ -20,6 +20,7 @@ import {
 	sprintf,
 	statusControl,
 	type ListTableSync,
+	type MenuTab,
 	type TemplateResult,
 	type ViewContext,
 } from '@openstation/app';
@@ -97,6 +98,14 @@ const table = ( ctx: Ctx ): OsTable< UserListItem > | null =>
 	ctx.root.querySelector< OsTable< UserListItem > >( '[data-os-users-table]' );
 
 const cfgOf = ( ctx: Ctx ): ProfileConfig => ctx.extra as ProfileConfig;
+
+/**
+ * The window's tabs, as `App::menu()` declared them — the same list
+ * the dock builds this menu's submenu from, which is why the two
+ * cannot drift. The caps that hide a tab are applied there.
+ */
+const menuTabs = ( ctx: Ctx ): MenuTab[] =>
+	( ctx.extra as { menuTabs?: MenuTab[] } ).menuTabs ?? [];
 
 const say = ( ctx: Ctx, message: string, duration?: number ): void => {
 	ctx.host.toast?.( duration ? { message, duration } : { message } );
@@ -378,9 +387,12 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 		const rows = visiblePeople( ctx, ui );
 		return html`<div class="os-app-list desktop-mode-users" data-os-users-root><style>${ peopleStyles.cssText }${ activityStyles.cssText }</style>
 			<os-tabs value=${ state.tab } os-bind="tab" class="os-app-list__tabs os-users__tabs" label=${ __( 'Users' ) } data-os-users-tabs>
-				<os-tab value="all">${ __( 'People' ) }</os-tab><os-tab value="roles">${ __( 'Roles' ) }</os-tab><os-tab value="activity">${ __( 'Activity' ) }</os-tab>
-				${ cfg.canCreate ? html`<os-tab value="add-new">${ __( 'Add new' ) }</os-tab>` : '' }
-				<os-tab value="edit" data-os-users-edit-tab>${ __( 'Profile' ) }</os-tab>
+				${ menuTabs( ctx ).map(
+					( tab ) => html`<os-tab
+						value=${ tab.id }
+						data-os-users-tab=${ tab.id }
+					>${ tab.label }</os-tab>`,
+				) }
 			</os-tabs>
 			${ listPanel( ctx, ui, phone, rows ) }
 			${ insightsPanel( ctx, ui, 'roles' ) }
@@ -462,7 +474,6 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 		ui.sync.sync( {
 			table: table( ctx ) as unknown as ListTableLike< UserListItem > | null,
 			rows,
-			listKey: `${ state.perPage }|${ state.search }|${ state.role }|${ state.status }|${ state.orderby }|${ state.order }`,
 			fingerprint: Array.from( next.values() ).join( '\n' ),
 			columns: ( phone ) => buildColumns( ui.cache, cfg, actions, phone ),
 			wire: ( el ) => {

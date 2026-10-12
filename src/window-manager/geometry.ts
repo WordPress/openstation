@@ -96,6 +96,153 @@ export function pickGridDimensions(
 	return { cols: best.cols, rows: best.rows };
 }
 
+/**
+ * Where a placement starts across, and how wide it is. Relative to the
+ * left edge of whatever row the caller is splitting.
+ */
+export interface RowSpan {
+	x: number;
+	width: number;
+}
+
+/**
+ * Split a row between two windows: the first takes `preferredFirst`,
+ * the second the remainder, and each keeps its own minimum width.
+ *
+ * A second window that would be narrower than its minimum takes its
+ * minimum out of the first; a first window narrower than its own takes
+ * it back. When both minimums cannot fit (`minFirst + gap + minSecond`
+ * is more than the row), each window keeps its minimum anyway and stays
+ * inside the row, the first flush left and the second flush right, and
+ * the two overlap in the middle. A window below its floor is broken
+ * (columns clip, toolbars wrap); one overlapping its neighbour is only
+ * covered, and the user can raise it.
+ *
+ * Neither width ever exceeds the row.
+ */
+export function splitRowByMinWidth(
+	total: number,
+	gap: number,
+	preferredFirst: number,
+	minFirst: number,
+	minSecond: number,
+): { first: RowSpan; second: RowSpan } {
+	let first = preferredFirst;
+	let second = total - gap - first;
+	if ( second < minSecond ) {
+		second = minSecond;
+		first = total - gap - second;
+	}
+	if ( first < minFirst ) {
+		first = minFirst;
+		second = Math.max( minSecond, total - gap - first );
+	}
+	first = Math.max( 0, Math.min( first, total ) );
+	second = Math.max( 0, Math.min( second, total ) );
+	return {
+		first: { x: 0, width: first },
+		second: { x: total - second, width: second },
+	};
+}
+
+/**
+ * The rectangle a half-screen snap gives a window in `area` (the work
+ * area, in desktop-area coordinates).
+ *
+ * The split starts at half and moves for minimum widths: the window
+ * gets at least `minWidth`, and leaves the other side at least
+ * `partnerMinWidth` (the widest minimum among the windows snapped
+ * there, `0` when none is). When both cannot fit, the window keeps its
+ * minimum against its own edge and overlaps the other side. See
+ * {@link splitRowByMinWidth}.
+ */
+export function snapHalfRect(
+	area: { x: number; y: number; width: number; height: number },
+	zone: 'left' | 'right',
+	minWidth: number,
+	partnerMinWidth: number,
+): { x: number; y: number; width: number; height: number } {
+	const half = Math.floor( area.width / 2 );
+	const split =
+		zone === 'left'
+			? splitRowByMinWidth( area.width, 0, half, minWidth, partnerMinWidth )
+			: splitRowByMinWidth( area.width, 0, half, partnerMinWidth, minWidth );
+	const span = zone === 'left' ? split.first : split.second;
+	return {
+		x: area.x + span.x,
+		y: area.y,
+		width: span.width,
+		height: area.height,
+	};
+}
+
+/**
+ * Share a row between `mins.length` windows separated by `gap`, giving
+ * every window at least its minimum width and splitting what is left
+ * evenly between the rest.
+ *
+ * With no minimum above the even share this is exactly the even split
+ * (`floor( ( total - gaps ) / n )` each, laid left to right). A window
+ * whose minimum is above the share takes its minimum, and the others
+ * share the remainder, repeated until every window's share covers its
+ * floor.
+ *
+ * When the minimums cannot all fit, every window keeps its minimum and
+ * the row is spread instead: the first flush left, the last flush
+ * right, the rest at even steps between, overlapping their neighbours.
+ * The same rule as {@link splitRowByMinWidth}, for any count.
+ */
+export function shareRowByMinWidth(
+	total: number,
+	gap: number,
+	mins: number[],
+): RowSpan[] {
+	const n = mins.length;
+	if ( n === 0 ) {
+		return [];
+	}
+	const widths = new Array< number >( n ).fill( 0 );
+	const fixed = new Array< boolean >( n ).fill( false );
+	let budget = total - gap * ( n - 1 );
+	let free = n;
+	let changed = true;
+	while ( changed && free > 0 ) {
+		changed = false;
+		const share = Math.floor( budget / free );
+		for ( let i = 0; i < n; i++ ) {
+			if ( ! fixed[ i ] && mins[ i ] > share ) {
+				fixed[ i ] = true;
+				widths[ i ] = Math.min( mins[ i ], total );
+				budget -= widths[ i ];
+				free--;
+				changed = true;
+			}
+		}
+	}
+	const share = free > 0 ? Math.floor( budget / free ) : 0;
+	for ( let i = 0; i < n; i++ ) {
+		if ( ! fixed[ i ] ) {
+			widths[ i ] = share;
+		}
+	}
+
+	if ( budget >= 0 ) {
+		let x = 0;
+		return widths.map( ( width ) => {
+			const span = { x, width };
+			x += width + gap;
+			return span;
+		} );
+	}
+
+	// Over-full: every window holds its minimum, spread edge to edge.
+	const lastX = total - widths[ n - 1 ];
+	return widths.map( ( width, i ) => {
+		const step = n > 1 ? Math.round( ( lastX * i ) / ( n - 1 ) ) : 0;
+		return { x: Math.max( 0, Math.min( step, total - width ) ), width };
+	} );
+}
+
 /** One cell in the Overview grid. */
 export interface OverviewLayoutItem {
 	win: Window;

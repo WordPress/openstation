@@ -4,14 +4,18 @@
  * Open / close lifecycle for the ⋯ menu in every window's title bar
  * (native and iframe). Built-in items: "Open on startup" (checkable),
  * optional "Open another <page>" for multi-capable pages, and — iframe
- * windows only — "Open in new window", "Reload", "Open in browser tab".
+ * windows only — "Open in new window", "Copy link", "Reload", "Open in
+ * classic wp-admin".
  * Plugin-registered rows (`wp.os.registerWindowAction`) are appended
  * after those on every open by {@link paintWindowActions}, as verbs
- * or as checkboxes of their own.
+ * or as checkboxes of their own. The ⋯ button's hover tooltip lists
+ * the same rows through {@link describeActionsMenu}.
  * Each free function here takes the `Window` instance as its first arg.
  */
 
 import { HOOKS, doAction } from '../hooks';
+import { __ } from '../i18n';
+import { osIconSvg } from '../ui/icons';
 import { urlMatchKey } from '../utils';
 import {
 	isActionChecked,
@@ -22,6 +26,45 @@ import {
 	subscribeWindowActions,
 } from '../window-actions/registry';
 import type { Window } from './index';
+
+/**
+ * The labels of the rows this window's ⋯ menu offers, in menu order.
+ *
+ * Feeds the ⋯ button's tooltip, which is shown before the menu has
+ * ever opened. Built-in rows are read off the panel; plugin rows are
+ * only painted on open, so they come from the registry instead,
+ * through the same visibility and label rules `paintWindowActions()`
+ * applies.
+ */
+export function describeActionsMenu( win: Window ): string[] {
+	const panel = win.element.querySelector( '.os-window__menu-panel' );
+	if ( ! panel ) {
+		return [];
+	}
+	syncCopyLinkRow( win, panel );
+	const labels = Array.from(
+		panel.querySelectorAll( 'os-menu-item:not(.os-window__menu-item--action):not([hidden])' ),
+	).map( ( row ) => row.textContent?.trim() ?? '' );
+	for ( const def of listWindowActions() ) {
+		if ( isActionVisible( def, win ) ) {
+			labels.push( resolveActionLabel( def, win ) );
+		}
+	}
+	return labels.filter( Boolean );
+}
+
+/**
+ * Show "Copy link" only when there is a link to copy. Asked on every
+ * open (and for the tooltip), not once at construction: a native
+ * window's answer moves with its tab, and an embedded editor's with
+ * its first save.
+ */
+function syncCopyLinkRow( win: Window, panel: Element ): void {
+	const row = panel.querySelector< HTMLElement >( '.os-window__menu-item--copy-link' );
+	if ( row && ! row.classList.contains( 'is-confirming' ) ) {
+		row.hidden = win.shareableLink() === '';
+	}
+}
 
 /** Toggle the title-bar actions menu open/closed. */
 export function toggleActionsMenu( win: Window ): void {
@@ -70,6 +113,7 @@ export function openActionsMenu( win: Window ): void {
 	if ( startup ) {
 		refreshStartupCheckState( win, startup );
 	}
+	syncCopyLinkRow( win, panel );
 
 	// Plugin-registered actions repaint from scratch on every open —
 	// see `paintWindowActions()` for why they cannot be built once.
@@ -127,7 +171,7 @@ export function openActionsMenu( win: Window ): void {
 	}, 0 );
 
 	// Move focus into the panel for keyboard navigation.
-	const firstItem = panel.querySelector<HTMLElement>( '[role="menuitem"]' );
+	const firstItem = panel.querySelector<HTMLElement>( '[role="menuitem"]:not([hidden])' );
 	firstItem?.focus();
 }
 
@@ -155,6 +199,66 @@ export function closeActionsMenu( win: Window ): void {
 	// Stop repainting a menu nobody is looking at.
 	win._unsubscribeWindowActions?.();
 	win._unsubscribeWindowActions = null;
+}
+
+/** How long the "Link copied" row holds before it reverts. */
+const COPY_CONFIRM_MS = 1000;
+
+/**
+ * Confirm a "Copy link" where the user is looking: the row itself turns
+ * into "Link copied" with a tick and holds for a moment, then goes back
+ * to its label. The menu closes with it unless the pointer is still on
+ * the menu, in which case it stays open until the user closes it. A failed
+ * copy says so in the same place. A polite live region carries the same
+ * words to screen readers, since a relabelled menu row is not announced.
+ */
+export function confirmCopyInMenu( win: Window, row: HTMLElement, copied: boolean ): void {
+	if ( row.classList.contains( 'is-confirming' ) ) {
+		return;
+	}
+	const label = row.textContent ?? '';
+	const message = copied ? __( 'Link copied' ) : __( 'Could not copy the link' );
+	// The tick goes in the label, not the row's `icon` slot: that slot
+	// is a dashicons class inside the menu's shadow root, where the
+	// dashicons font does not reach.
+	row.innerHTML = copied
+		? osIconSvg( 'check', { size: 20, className: 'os-window__menu-copied-icon' } )
+		: '';
+	row.append( message );
+	row.classList.add( 'is-confirming', copied ? 'is-copied' : 'is-copy-failed' );
+	announce( win, message );
+	window.setTimeout( () => {
+		row.textContent = label;
+		row.classList.remove( 'is-confirming', 'is-copied', 'is-copy-failed' );
+		// Someone still pointing at the menu is still using it: leave it
+		// open and let them close it as usual.
+		const panel = row.closest< HTMLElement >( '.os-window__menu-panel' );
+		if ( ! panel || panel.hidden || panel.matches( ':hover' ) ) {
+			return;
+		}
+		const hadFocus = panel.contains( panel.ownerDocument.activeElement );
+		closeActionsMenu( win );
+		if ( hadFocus ) {
+			win.element.querySelector< HTMLElement >( '.os-window__menu-btn' )?.focus();
+		}
+	}, COPY_CONFIRM_MS );
+}
+
+/**
+ * Speak `message` through a polite live region of its own. Not
+ * `.os-window__status`: that class is the title bar's activity ring,
+ * whose shadow root renders no light DOM, so text written there is
+ * neither seen nor reliably announced and is never cleared.
+ */
+function announce( win: Window, message: string ): void {
+	let region = win.element.querySelector<HTMLElement>( '.os-window__copy-status' );
+	if ( ! region ) {
+		region = document.createElement( 'span' );
+		region.className = 'os-window__copy-status screen-reader-text';
+		region.setAttribute( 'role', 'status' );
+		win.element.appendChild( region );
+	}
+	region.textContent = message;
 }
 
 /**

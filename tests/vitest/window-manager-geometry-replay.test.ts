@@ -139,11 +139,23 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 		expect( win.config.initialState ).toBe( 'maximized' );
 	} );
 
-	test( 'openNew always opens floating regardless of the saved state', async () => {
+	test( 'openNew replays the saved state for the first instance', async () => {
 		setNativeWindowSavedState( 'edit-php', 'maximized', {
 			width: 1400,
 			height: 880,
 		} );
+
+		const win = await manager.openNew( openConfig( 'edit-php' ) );
+
+		expect( win.config.initialState ).toBe( 'maximized' );
+	} );
+
+	test( 'a duplicate opens floating regardless of the saved state', async () => {
+		setNativeWindowSavedState( 'edit-php', 'maximized', {
+			width: 1400,
+			height: 880,
+		} );
+		await manager.open( openConfig( 'edit-php' ) );
 
 		const win = await manager.openNew(
 			openConfig( 'edit-php', { multi: true } ),
@@ -225,22 +237,92 @@ describe( 'WindowManager geometry replay (issue #203)', () => {
 			expect( win.config.y ).toBe( 400 );
 		} );
 
-		test( 'openNew (duplicate) cascades, not replays the primary position', async () => {
+		test( 'openNew replays the saved position for the first instance', async () => {
 			saveNativeWindowGeometry( 'edit-php', {
 				width: 800,
 				height: 600,
 			} );
 			saveNativeWindowPosition( 'edit-php', { x: 240, y: 160 } );
 
+			// Every menu click takes this door, and most of them find
+			// nothing of that page open: the first window still lands
+			// where the user left the last one.
+			const win = await manager.openNew( openConfig( 'edit-php' ) );
+
+			expect( win.config.x ).toBe( 240 );
+			expect( win.config.y ).toBe( 160 );
+		} );
+
+		test( 'openNew (duplicate) cascades, not replays the primary position', async () => {
+			saveNativeWindowGeometry( 'edit-php', {
+				width: 800,
+				height: 600,
+			} );
+			saveNativeWindowPosition( 'edit-php', { x: 240, y: 160 } );
+			await manager.open( openConfig( 'edit-php' ) );
+
 			const win = await manager.openNew(
 				openConfig( 'edit-php', { multi: true } ),
 			);
 
 			// Duplicate gets a cascade slot, not the saved primary
-			// position. The cascade index for the first window is 0,
-			// so cascade x = 40.
-			expect( win.config.x ).toBe( 40 );
-			expect( win.config.y ).toBe( 40 );
+			// position. The primary consumed cascade index 0, so the
+			// duplicate's is 1: 40 + 30.
+			expect( win.config.x ).toBe( 70 );
+			expect( win.config.y ).toBe( 70 );
 		} );
+	} );
+
+	test( '"Open windows as" maximizes a fresh window, and Focused minimizes the rest', async () => {
+		// A window applies its initial state on the next frame.
+		const frame = () => new Promise< void >( ( r ) => requestAnimationFrame( () => r() ) );
+		const first = await manager.openNew( openConfig( 'edit' ) );
+		manager.openWindowsAs = () => 'maximized';
+		const second = await manager.openNew( openConfig( 'upload' ) );
+		await frame();
+		expect( second.state ).toBe( 'maximized' );
+		expect( first.state ).toBe( 'normal' );
+
+		manager.openWindowsAs = () => 'focused';
+		const third = await manager.openNew( openConfig( 'users' ) );
+		await frame();
+		expect( third.state ).toBe( 'maximized' );
+		expect( first.state ).toBe( 'minimized' );
+		expect( second.state ).toBe( 'minimized' );
+
+		// A caller that decided keeps its decision.
+		const placed = await manager.openNew( openConfig( 'tools', { openAs: 'default' } ) );
+		await frame();
+		expect( placed.state ).toBe( 'normal' );
+	} );
+
+	test( 'Focused leaves other desks alone and explicit states bypass the preference', async () => {
+		const frame = () => new Promise< void >( ( r ) => requestAnimationFrame( () => r() ) );
+		const elsewhere = await manager.openNew( openConfig( 'elsewhere', { desktopId: 'desktop-2' } ) );
+		manager.openWindowsAs = () => 'focused';
+		const fresh = await manager.openNew( openConfig( 'fresh' ) );
+		await frame();
+		expect( fresh.state ).toBe( 'maximized' );
+		expect( elsewhere.state ).toBe( 'normal' );
+		const restored = await manager.openNew( openConfig( 'restored', { initialState: 'normal', x: 75, y: 90 } ) );
+		await frame();
+		expect( restored.state ).toBe( 'normal' );
+		expect( restored.config.x ).toBe( 75 );
+		expect( fresh.state ).toBe( 'maximized' );
+	} );
+
+	test( 'duplicates follow the preference while an explicit per-open choice wins', async () => {
+		const frame = () => new Promise< void >( ( r ) => requestAnimationFrame( () => r() ) );
+		const first = await manager.openNew( openConfig( 'edit' ) );
+		manager.openWindowsAs = () => 'focused';
+		const twin = await manager.openNew( openConfig( 'edit' ) );
+		await frame();
+		expect( twin.id ).not.toBe( first.id );
+		expect( twin.state ).toBe( 'maximized' );
+		expect( first.state ).toBe( 'minimized' );
+		const floating = await manager.openNew( openConfig( 'edit', { openAs: 'default' } ) );
+		await frame();
+		expect( floating.state ).toBe( 'normal' );
+		expect( twin.state ).toBe( 'maximized' );
 	} );
 } );

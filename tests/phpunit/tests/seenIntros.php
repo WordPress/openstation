@@ -225,4 +225,25 @@ class Tests_OpenStation_SeenIntros extends WP_UnitTestCase {
 		$this->assertSame( 403, $response->get_status() );
 		$this->assertFalse( openstation_has_seen_intro( self::$user_id, 'posts' ) );
 	}
+
+	/**
+	 * The activation nudge is the second classic-admin intro: it also
+	 * renders only while OpenStation is off, so its "Not now" must
+	 * persist through the same exception as the welcome dialog.
+	 *
+	 * @covers ::openstation_rest_seen_intros_permission
+	 */
+	public function test_rest_activation_nudge_slug_persists_without_openstation_enabled() {
+		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
+		wp_set_current_user( self::$user_id );
+
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/intros/seen' );
+		$request->set_param( 'slug', OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG );
+
+		$response = rest_get_server()->dispatch( $request );
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertTrue(
+			openstation_has_seen_intro( self::$user_id, OPENSTATION_ACTIVATION_NUDGE_INTRO_SLUG )
+		);
+	}
 }

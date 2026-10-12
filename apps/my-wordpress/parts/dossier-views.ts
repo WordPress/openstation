@@ -22,7 +22,7 @@ import {
 	type StatsRecentPost,
 	type UserPreviewAction,
 } from './types';
-import { openPreview, previewDetail, previewMessage, trashExplorerItems } from './optimistic';
+import { previewDetail, previewMessage, trashExplorerItems } from './optimistic';
 import { actionContext, opensOnTap, resolveActions, runAction } from './helpers';
 
 /**
@@ -196,20 +196,32 @@ function userPreviewActions(
  * are WP Explorer's, so plugin CSS written for its slots applies.
  */
 /**
- * The two-pane frame: the list, and beside it the preview of what is
- * open. With nothing open there is no pane at all — an empty aside
- * telling the reader to pick something was a 40% column of nothing,
- * so the list takes the whole window until a click needs the pane.
+ * The two-pane frame. The pane is always there, so a click never
+ * pushes the grid sideways under a double click; with nothing open
+ * it holds `placeholder`.
  */
 export function splitView(
 	list: TemplateResult,
 	detail: TemplateResult | null,
+	placeholder: TemplateResult | null = null,
 ): TemplateResult {
+	const pane = detail ?? placeholder;
 	return html`
-		<div class="os-mywp__split ${ detail ? '' : 'os-mywp__split--solo' }">
+		<div class="os-mywp__split ${ pane ? '' : 'os-mywp__split--solo' }">
 			<div class="os-mywp__list-pane">${ list }</div>
-			${ detail ? html`<aside class="os-mywp__detail-pane">${ detail }</aside>` : '' }
+			${ pane
+				? html`<aside class="os-mywp__detail-pane ${ detail ? '' : 'os-mywp__detail-pane--empty' }">${ pane }</aside>`
+				: '' }
 		</div>
+	`;
+}
+
+/** What the always-there pane holds before anything is open. */
+export function renderPanePlaceholder( section: SectionDef ): TemplateResult {
+	return html`
+		<os-empty-state icon=${ section.icon.startsWith( 'dashicons-' ) ? section.icon : 'dashicons-portfolio' }>
+			${ __( 'Select an item to see its details.' ) }
+		</os-empty-state>
 	`;
 }
 
@@ -226,14 +238,19 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 	const { data } = ctx;
 	const detail = previewDetail( ctx );
 	if ( ! detail ) {
-		const row = uiOf( ctx ).list.items().find( ( item ) => item.id === ctx.state.item );
-		return html`<article class="os-mywp__detail" aria-busy=${ uiOf( ctx ).previewLoading ? 'true' : 'false' }>
-			<os-button variant="ghost" class="os-mywp__pane-close" aria-label=${ __( 'Close details' ) } @click=${ () => openPreview( ctx, 0 ) }>✕</os-button>
+		const ui = uiOf( ctx );
+		const row = ui.list.items().find( ( item ) => item.id === ctx.state.item );
+		// The status sits above the excerpt so a long one never pushes
+		// the spinner out of sight.
+		return html`<article class="os-mywp__detail" aria-busy=${ ui.previewLoading ? 'true' : 'false' }>
 			${ row?.thumb ? html`<img class="os-mywp__hero" src=${ row.thumb } alt=${ row.title }/>` : '' }
 			<h2 class="os-mywp__detail-title">${ row?.title ?? '' }</h2>
 			<p>${ row?.subtitle ?? '' }</p>
+			<p class="os-mywp__pane-status" role="status">
+				${ ui.previewLoading && ! ui.previewError ? html`<os-spinner preset="inline" aria-hidden="true"></os-spinner>` : '' }
+				${ previewMessage( ctx ) }
+			</p>
 			<p>${ row?.excerpt ?? '' }</p>
-			<p role="status">${ previewMessage( ctx ) }</p>
 		</article>`;
 	}
 	const item = uiOf( ctx ).list.items().find( ( i ) => i.id === detail.id ) ?? ( data.list?.items ?? [] ).find( ( i ) => i.id === detail.id );
@@ -265,18 +282,13 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 			>${ a.label }</os-button>
 		` );
 	} else if ( detail.canEdit ) {
-		editRow = html`<os-button variant="primary" @click=${ () => void ctx.dispatch( 'edit', { item: detail.id } ) }>
+		// A button (an action, not a URL); secondary, as the accent marks state.
+		editRow = html`<os-button variant="secondary" @click=${ () => void ctx.dispatch( 'edit', { item: detail.id } ) }>
 			${ __( 'Open in editor' ) }
 		</os-button>`;
 	}
 	return html`
 		<article class="os-mywp__detail">
-			<os-button
-				variant="ghost"
-				class="os-mywp__pane-close"
-				aria-label=${ __( 'Close details' ) }
-				@click=${ () => openPreview( ctx, 0 ) }
-			>✕</os-button>
 			${ detail.avatar ? html`<os-avatar src=${ detail.avatar } name=${ detail.title } size="xl"></os-avatar>` : '' }
 			${ detail.image
 				? html`<img
@@ -308,6 +320,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 					detail.lockedBy,
 				) }</os-notice>`
 				: '' }
+			${ facts.length > 0 ? html`<h3 class="os-mywp__pane-h">${ __( 'Information' ) }</h3>` : '' }
 			${ factList( facts ) }
 			${ usedInList( detail.usedIn ) }
 			${ detail.content !== undefined
@@ -471,11 +484,11 @@ function recentPosts( ctx: Ctx, recent: StatsRecentPost[] ): TemplateResult | ''
  */
 function factList( rows: Array< [ string, string ] | [ string, string, string ] > ): TemplateResult {
 	return html`
-		<dl class="os-mywp__facts">
+		<os-facts layout="between">
 			${ rows.map( ( [ label, value ] ) => html`
-				<div class="os-mywp__fact"><dt>${ label }</dt><dd>${ value }</dd></div>
+				<os-fact label=${ label }>${ value }</os-fact>
 			` ) }
-		</dl>
+		</os-facts>
 	`;
 }
 

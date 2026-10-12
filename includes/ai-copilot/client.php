@@ -122,6 +122,79 @@ function openstation_ai_strip_thought_parts( Message $message ) {
 }
 
 /**
+ * Output-token ceiling for every generation turn the site's
+ * `openstation_ai_model_config` filter leaves uncapped.
+ *
+ * The three default providers disagree about what "no ceiling" means.
+ * The OpenAI and Google providers send none, so the model's own maximum
+ * applies; the Anthropic provider must send one and falls back to a
+ * hard-coded 4096. That is enough for a chat answer and nowhere near
+ * enough for a tool call carrying a whole post: the model runs out of
+ * room inside the call's JSON, the API returns only the argument pairs
+ * that were complete before the cut, and the ability rejects the call
+ * for its missing `content`. The Localizer failed seven translations of
+ * one post in a row exactly that way, each attempt cut at the same place.
+ *
+ * 16384 is the largest value every current-generation model of the three
+ * providers accepts (OpenAI's gpt-4o family caps output at exactly that).
+ * A site that needs more, or pins an older model with a smaller limit,
+ * sets `max_tokens` in the filter: the filter's value always wins.
+ */
+const OPENSTATION_AI_DEFAULT_MAX_TOKENS = 16384;
+
+/**
+ * Whether the provider stopped because the reply hit the output-token
+ * ceiling.
+ *
+ * Anthropic's `max_tokens` and Google's `MAX_TOKENS` stop reasons both
+ * map to the SDK's LENGTH finish reason. The OpenAI provider throws
+ * instead and never builds a result; {@see openstation_ai_client_generate()}
+ * maps that path from the WP_Error Core turns the exception into.
+ *
+ * @param mixed $result GenerativeAiResult.
+ * @return bool
+ */
+function openstation_ai_result_is_truncated( $result ) {
+	try {
+		foreach ( $result->getCandidates() as $candidate ) {
+			if ( $candidate->getFinishReason()->isLength() ) {
+				return true;
+			}
+		}
+	} catch ( \Throwable $e ) {
+		return false;
+	}
+	return false;
+}
+
+/**
+ * Builds the error for a turn the output-token ceiling cut short.
+ *
+ * A truncated reply is never usable. A JSON answer no longer parses,
+ * and a function call arrives with only the argument pairs that were
+ * complete before the cut, so the ability rejects it for a missing
+ * required field, and the model, reading its own truncated call back
+ * from history, sends the same call again to the same end. Failing the
+ * turn here turns a run of silent retries into one error that names
+ * the cause.
+ *
+ * @param string     $detail Underlying provider detail, preserved for logs.
+ * @param array|null $usage  Token usage of the truncated turn, if known.
+ * @return WP_Error
+ */
+function openstation_ai_output_truncated_error( $detail, $usage = null ) {
+	return new WP_Error(
+		'openstation_ai_output_truncated',
+		__( 'The AI provider cut the reply short at the output-token limit.', 'desktop-mode' ),
+		array(
+			'status'            => 502,
+			'detail'            => (string) $detail,
+			'completion_tokens' => is_array( $usage ) && isset( $usage['completion'] ) ? (int) $usage['completion'] : null,
+		)
+	);
+}
+
+/**
  * Builds the error for a final turn that produced no answer text.
  *
  * Observed live with the Anthropic provider under agent runs: a hard task
@@ -167,21 +240,25 @@ function openstation_ai_apply_model_config( $builder, array $context ) {
 	/**
 	 * Filters the model config for one AI turn.
 	 *
-	 * Defaults to empty. Recipe: `docs/examples/ai-model-config.md`.
+	 * Defaults to empty; the only value OpenStation fills in afterwards is
+	 * `max_tokens` ({@see OPENSTATION_AI_DEFAULT_MAX_TOKENS}), and only
+	 * when the filter left it unset. Recipe: `docs/examples/ai-model-config.md`.
 	 *
 	 * @param array $config  { model?: string|ModelInterface, max_tokens?: int, temperature?: float, custom_options?: array<string, mixed> }.
 	 * @param array $context { user_id, request_id, source, has_tools, has_schema }.
 	 */
 	$config = apply_filters( 'openstation_ai_model_config', array(), $context );
 	if ( ! is_array( $config ) ) {
-		return $builder;
+		$config = array();
 	}
 
 	$model_config = new ModelConfig();
 
+	$max_tokens = OPENSTATION_AI_DEFAULT_MAX_TOKENS;
 	if ( isset( $config['max_tokens'] ) && is_numeric( $config['max_tokens'] ) && (int) $config['max_tokens'] > 0 ) {
-		$model_config->setMaxTokens( (int) $config['max_tokens'] );
+		$max_tokens = (int) $config['max_tokens'];
 	}
+	$model_config->setMaxTokens( $max_tokens );
 
 	// Unlike max_tokens, 0.0 is a legitimate temperature (deterministic). The
 	// 2.0 ceiling is the range the SDK's own schema declares.
@@ -276,12 +353,21 @@ function openstation_ai_client_generate( $user_id, array $messages, array $tool_
 
 	$result = $builder->generate_result();
 	if ( is_wp_error( $result ) ) {
+		// The OpenAI provider reports the output ceiling as an exception
+		// rather than a finish reason; Core maps it to this code.
+		if ( 'prompt_token_limit_reached' === $result->get_error_code() ) {
+			return openstation_ai_output_truncated_error( $result->get_error_message() );
+		}
 		return $result;
 	}
 
 	$message        = $result->toMessage();
 	$function_calls = array();
+	$has_text       = false;
 	foreach ( $message->getParts() as $part ) {
+		if ( $part->getType()->isText() && ! $part->getChannel()->isThought() ) {
+			$has_text = true;
+		}
 		if ( ! $part->getType()->isFunctionCall() ) {
 			continue;
 		}
@@ -294,6 +380,17 @@ function openstation_ai_client_generate( $user_id, array $messages, array $tool_
 			'name'      => (string) $call->getName(),
 			'call_id'   => (string) $call->getId(),
 			'arguments' => wp_json_encode( is_array( $args ) ? $args : array() ),
+		);
+	}
+
+	// Whatever the ceiling cut off is partial, and partial is unusable:
+	// a function call missing its longest argument, or a JSON answer
+	// missing its closing half. A budget spent entirely on reasoning
+	// leaves nothing written at all; that case keeps its own error below.
+	if ( ( ! empty( $function_calls ) || $has_text ) && openstation_ai_result_is_truncated( $result ) ) {
+		return openstation_ai_output_truncated_error(
+			'The provider stopped at the output-token ceiling (finish reason: length).',
+			openstation_ai_result_token_usage( $result )
 		);
 	}
 

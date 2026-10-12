@@ -160,6 +160,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	}
 
 	if ( data.type === 'os-title-change' && typeof data.title === 'string' ) {
+		win._hasExplicitTitle = true;
 		win.setTitle( data.title );
 	}
 
@@ -208,10 +209,37 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 
 	// A navigation landed, reported from the answering document's head
 	// — as early as a response can say so, and a second or more ahead
-	// of `os-ready` below, which is a footer script. Only a window
-	// waiting on a submit has anything to do with it.
+	// of `os-ready` below, which is a footer script. A window waiting
+	// on a submit settles on it. A finished screen hands off from it
+	// when the shell cannot read the frame, which the `load` listener
+	// in `_wireTabNavSync` needs to do.
 	if ( data.type === 'os-iframe-navigated' ) {
+		if (
+			typeof data.url === 'string' &&
+			! canReadFrameLocation( win ) &&
+			handleFinishedScreenHandoff( win, data.url )
+		) {
+			return;
+		}
+		win._hasExplicitTitle = false;
 		win._settleNavigationActivity();
+		// For a frame the shell can't read; see `Window.getCurrentUrl()`.
+		if ( typeof data.url === 'string' && data.url !== '' && win.iframe ) {
+			win._reportedLocation = { url: data.url, src: win.iframe.src };
+		}
+	}
+
+	// The document changed its own address without navigating: the
+	// block editor's first save turns `post-new.php` into
+	// `post.php?post=N`. Only where the window thinks it is moves: no
+	// navigation landed, so nothing settles and the title stays.
+	if (
+		data.type === 'os-iframe-location' &&
+		typeof data.url === 'string' &&
+		data.url !== '' &&
+		win.iframe
+	) {
+		win._reportedLocation = { url: data.url, src: win.iframe.src };
 	}
 
 	// Iframe boot signal — the chromeless bridge script posts this
@@ -326,8 +354,9 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	//
 	//   1. Native-window remap hit (e.g. `edit.php` while the user has
 	//      the native Posts opt-in on) → open the native window and
-	//      close the source iframe. Same behavior as the original
-	//      "Exit editor" path on a locked-post takeover dialog.
+	//      close the source iframe, unless the link asked for a new
+	//      context. Same behavior as the original "Exit editor" path
+	//      on a locked-post takeover dialog.
 	//
 	//   2. Same-page slug → drive the source iframe's
 	//      `location.assign()` so the in-place navigation matches the
@@ -367,7 +396,10 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	) {
 		const deps = adminLinkDepsStore.state.deps;
 		if ( tryNativeUrlRemap( data.url ) ) {
-			win.close();
+			// Only a link followed in place leaves the page it was on.
+			if ( data.newContext !== true ) {
+				win.close();
+			}
 		} else if ( deps ) {
 			const linkLabel =
 				typeof data.label === 'string' ? data.label : '';
@@ -1077,6 +1109,21 @@ function navigatedUrl( win: Window, href: string ): string {
 }
 
 /**
+ * Whether the shell can read where its frame is. A document sent with
+ * `Document-Isolation-Policy` gets an agent cluster of its own, so the
+ * parent sees it as cross-origin even on the same origin. WordPress
+ * sends that header on the block editor in Chromium, for client-side
+ * media processing.
+ */
+function canReadFrameLocation( win: Window ): boolean {
+	try {
+		return !! win.iframe?.contentWindow?.location.href;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Close a {@link HANDOFF_SCREENS} window that has navigated itself
  * off its own screen, and route where it landed through the normal
  * window-owns-a-slug rules — which focuses the editor window the user
@@ -1138,7 +1185,7 @@ export function handleFinishedScreenHandoff(
  * {@link WindowConfig.titleFromPage}.
  */
 export function adoptPageTitle( win: Window ): void {
-	if ( ! win.config.titleFromPage ) {
+	if ( ! win.config.titleFromPage || win._hasExplicitTitle ) {
 		return;
 	}
 	let documentTitle = '';

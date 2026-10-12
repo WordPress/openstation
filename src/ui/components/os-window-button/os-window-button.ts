@@ -207,6 +207,7 @@ export class OsWindowButton extends Component {
 			{ name: '--os-ui-btn-bg-hover', description: 'Hover background wash.' },
 			{ name: '--os-ui-btn-bg-active', description: 'Pressed background.' },
 			{ name: '--os-ui-btn-danger-hover', description: 'Hover background for danger variant.' },
+			{ name: '--os-ui-btn-danger-color-hover', description: 'Hover foreground for danger variant.' },
 			{ name: '--os-ui-btn-outline', description: 'Focus outline colour.' },
 		],
 		example: html`

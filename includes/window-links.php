@@ -66,7 +66,7 @@ function openstation_build_content_identity() {
 			$identity = array(
 				'type'  => 'comment',
 				'id'    => (int) $comment->comment_ID,
-				'label' => wp_trim_words( $comment->comment_content, 10 ),
+				'label' => wp_trim_words( openstation_strip_all_tags( $comment->comment_content ), 10 ),
 			);
 
 			$post_id   = (int) $comment->comment_post_ID;
@@ -434,7 +434,10 @@ function openstation_window_revisions( $post ) {
  * The related-entity pass: attach the `related` navigation items to a
  * (post-identity-filter) content identity. Shared by the page-render
  * builder above and the REST recompute endpoint the editor
- * save-watcher hits (where `$screen` is `null`).
+ * save-watcher hits (where `$screen` is `null`). Also where the labels
+ * become plain text: they name windows (Preview, Revisions, Related)
+ * and are painted as text, where `get_the_title()`'s entities
+ * (`&#8217;`) read literally.
  *
  * @internal
  *
@@ -448,6 +451,9 @@ function openstation_window_revisions( $post ) {
 function openstation_window_related_attach( $identity, $post, $screen ) {
 	if ( ! is_array( $identity ) ) {
 		return $identity;
+	}
+	if ( isset( $identity['label'] ) && is_string( $identity['label'] ) ) {
+		$identity['label'] = openstation_plain_text_title( $identity['label'] );
 	}
 
 	$related = array();
@@ -815,6 +821,14 @@ function openstation_window_related_entities_sanitize( $related ) {
 		if ( ! is_array( $item ) ) {
 			continue;
 		}
+		// Plain text (see `openstation_window_related_attach()`),
+		// decoded before the checks below so a label that was only
+		// markup is dropped here rather than failing the whole ref.
+		foreach ( array( 'label', 'groupLabel' ) as $text ) {
+			if ( isset( $item[ $text ] ) && is_string( $item[ $text ] ) ) {
+				$item[ $text ] = openstation_plain_text_title( $item[ $text ] );
+			}
+		}
 		foreach ( array( 'id', 'group', 'label', 'url' ) as $required ) {
 			// Mirror the JS engine's validation exactly (`.trim() !== ''`):
 			// a whitespace-only value passing here would fail validateRef
@@ -852,7 +866,8 @@ function openstation_window_related_entities_sanitize( $related ) {
  * Recomputes a post's content identity — label, outbound `links`
  * references, and the `related` navigation items — outside a page
  * render. The chromeless bridge's editor save-watcher hits this
- * after every non-autosave Gutenberg save (Gutenberg saves over REST
+ * after every non-autosave Gutenberg save, and after a new post's first
+ * autosave (Gutenberg saves over REST
  * without reloading, so the page-render announcement alone would go
  * stale the moment the user adds a category or an image) and
  * re-announces the fresh identity to the parent shell.

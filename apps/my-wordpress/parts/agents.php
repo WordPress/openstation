@@ -212,6 +212,12 @@ function agent_draft_action( State $state ) {
 	if ( isset( $draft['abilities'] ) && is_array( $draft['abilities'] ) ) {
 		$cast['abilities'] = array_values( array_map( 'strval', $draft['abilities'] ) );
 	}
+	// The rewrite goes back into the brief: Describe's textarea is the
+	// system prompt, so walking back to it shows the drafted
+	// instructions, editable, rather than the sentence they grew from.
+	if ( '' !== (string) ( $cast['instructions'] ?? '' ) ) {
+		$cast['brief'] = (string) $cast['instructions'];
+	}
 	// Filled in, Meet is a review.
 	$state->set( 'cast', $cast )->set( 'wstep', 1 )->set( 'briefError', '' );
 }

@@ -36,6 +36,10 @@ export { OsUserSearch } from './os-user-search/os-user-search';
 export { OsRolePicker } from './os-role-picker/os-role-picker';
 export { OsFlyout } from './os-flyout/os-flyout';
 export type { OsFlyoutPlacement } from './os-flyout/os-flyout';
+export { OsCoachmark } from './os-coachmark/os-coachmark';
+export type { OsCoachmarkPlacement } from './os-coachmark/os-coachmark';
+export { OsTooltip, attachTooltip, hideTooltip } from './os-tooltip/os-tooltip';
+export type { OsTooltipContent, OsTooltipSource } from './os-tooltip/os-tooltip';
 export { OsTabChip } from './os-tab-chip/os-tab-chip';
 export { OsStack } from './os-stack/os-stack';
 export { OsCluster } from './os-cluster/os-cluster';
@@ -78,6 +82,7 @@ export type {
 export { OsRelativeTime } from './os-relative-time/os-relative-time';
 export { OsHistogram } from './os-histogram/os-histogram';
 export type { HistogramSeries } from './os-histogram/os-histogram';
+export { OsFact, OsFacts } from './os-facts/os-facts';
 export { OsStat } from './os-stat/os-stat';
 export { OsAvatar } from './os-avatar/os-avatar';
 export type { OsAvatarPresence } from './os-avatar/os-avatar';
