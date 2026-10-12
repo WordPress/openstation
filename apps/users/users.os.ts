@@ -332,7 +332,7 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean, rows: UserListItem[] 
  table( ctx )?.deselect( id );
 }
 } }, ui.feed.tail(), ctx.loading ) }</div>
-		<div class="os-app-list__body" data-os-users-body ?hidden=${ ui.view !== 'table' }><os-table data-os-users-table os-preserve selectable=${ canAct ? 'multi' : '' } sticky-header sticky-columns="1" hover striped bordered><div slot="empty" class="os-app-list__empty"><p>${ __( 'No users found.' ) }</p></div></os-table></div>
+		<div class="os-app-list__body" data-os-users-body ?hidden=${ ui.view !== 'table' }><os-table data-os-users-table os-preserve selectable=${ canAct ? 'multi' : null } sticky-header sticky-columns="1" hover striped bordered><div slot="empty" class="os-app-list__empty"><p>${ __( 'No users found.' ) }</p></div></os-table></div>
 		${ ui.view === 'table' ? ui.feed.tail() : '' }
 		${ bulkActions( ctx, ui, true ) }
 	</os-tabpanel>`;
@@ -406,7 +406,7 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 				<os-user-profile
 					os-preserve
 					data-os-user-profile-self
-					user-id=${ state.tab === 'edit' && cfg.currentUserId ? String( cfg.currentUserId ) : '' }
+					user-id=${ state.tab === 'edit' && cfg.currentUserId ? String( cfg.currentUserId ) : null }
 				></os-user-profile>
 			</os-tabpanel>
 		</div>`;

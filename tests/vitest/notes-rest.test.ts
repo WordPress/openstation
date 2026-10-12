@@ -95,7 +95,9 @@ describe( 'notes REST client', () => {
 		expect( note.updatedAtMs ).toBe( 2000 );
 		expect( String( fetchSpy.mock.calls[ 0 ][ 0 ] ) ).toContain( '/notes/12' );
 		const init = fetchSpy.mock.calls[ 0 ][ 1 ] as RequestInit;
-		expect( init.method ).toBe( 'PATCH' );
+		// Sent as POST: WordPress Playground drops a PATCH body.
+		expect( init.method ).toBe( 'POST' );
+		expect( new Headers( init.headers ).get( 'X-HTTP-Method-Override' ) ).toBe( 'PATCH' );
 	} );
 
 	test( '409 becomes a NotesConflictError carrying the server copy', async () => {

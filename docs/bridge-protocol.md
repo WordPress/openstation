@@ -74,6 +74,14 @@ Emitted on **every** chromeless page load, **including `identity: null`** — a 
 
 **Save broadcast**: on the same save-success edge the watcher also posts an upstream `{ type: 'os-broadcast', topic: 'os.<postType>.changed', payload: { source: 'editor', action: 'created' | 'updated', ids: [ postId ] } }` to the parent, which fans it out to every window — list windows showing that type refresh instantly. `action` is `'created'` exactly when the post was still new on the tick the save started. This is the block editor's leg of the content-change realtime layer (`includes/content-changes.php`); form-POST → redirect flows are covered server-side by the chromeless-footer emitter instead. The iframe-side consumer is the soft-reload handler: `edit.php` / `upload.php` / `edit-comments.php` are matched generically by list type, and non-standard list screens (the HPOS `wc-orders` list) are declared via the PHP-printed `/*__OPENSTATION_SOFT_RELOAD_EXTRAS__*/` placeholder, filterable server-side through `openstation_soft_reload_rules`.
 
+### Menu owner — `os-menu-owner`
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `os-menu-owner` | iframe → parent | `{ menu: string }` | The id of the dock tile whose admin menu WordPress files this page under, or `''` when no menu owns it. Resolved server-side from `$parent_file` with the rule the classic sidebar uses to highlight its current menu, after Core's `parent_file` filter has run. The dock counts the window as one of that tile's windows, so a post editor lights Posts (Pages, or its post type's menu), and `edit-comments.php?p=<id>` lights Comments, however the window was opened. |
+
+Posted on every chromeless page load, right after `os-content-identity`, so a navigation to a screen no menu owns clears it. A plugin that moves the sidebar highlight with the `parent_file` filter moves the dock's with it.
+
 ### Connection bridge — `os-bridge-*`
 
 | Type | Direction | Carries | Purpose |

@@ -15,11 +15,11 @@
  * other bundle: fetched once, then served from the browser (and the
  * shared service-worker cache) on every later window.
  *
- * The four values the server has to vary per request — the menu
- * payload, its signature, the content identity, and the soft-reload
- * rules — arrive on `window.__osChromelessData`, emitted as a small
- * inline `before` script by the same PHP file. Keep that contract in
- * step: a key added here needs a key added there.
+ * The five values the server has to vary per request — the menu
+ * payload, its signature, the content identity, the soft-reload
+ * rules, and the menu owner — arrive on `window.__osChromelessData`,
+ * emitted as a small inline `before` script by the same PHP file. Keep
+ * that contract in step: a key added here needs a key added there.
  *
  * **Still to do: convert this to TypeScript.** It is the only
  * first-class bundle in the repo whose source is plain JS, so ESLint
@@ -101,6 +101,22 @@
 			{
 				type: 'os-content-identity',
 				identity: ( '_identity' in __OS_DATA ) ? __OS_DATA._identity : null
+			},
+			window.location.origin
+		);
+	} catch ( _err ) { /* parent gone or cross-origin */ }
+
+	/*
+	 * The dock tile whose menu WordPress files this screen under, so the
+	 * dock can light it for a window it did not open (a post editor, a
+	 * post's comments). Posted on every load, empty included, so a
+	 * navigation to a screen with no menu clears it.
+	 */
+	try {
+		window.parent.postMessage(
+			{
+				type: 'os-menu-owner',
+				menu: typeof __OS_DATA._menuOwner === 'string' ? __OS_DATA._menuOwner : ''
 			},
 			window.location.origin
 		);

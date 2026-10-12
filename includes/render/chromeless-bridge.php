@@ -525,6 +525,11 @@ function openstation_chromeless_bridge_script() {
 		$soft_reload_json = '[]';
 	}
 
+	$menu_owner_json = wp_json_encode( openstation_chromeless_menu_owner() );
+	if ( false === $menu_owner_json ) {
+		$menu_owner_json = '""';
+	}
+
 	// Per-request data for the bridge bundle.
 	//
 	// This used to be a `str_replace()` pass over a nowdoc holding the
@@ -534,20 +539,21 @@ function openstation_chromeless_bridge_script() {
 	// was paid in full on every window open. The code now lives in
 	// `src/chromeless-bridge.js` and builds to a bundle that is
 	// fetched once and served from cache (browser, and the shared
-	// service-worker cache) for every later window; only these four
+	// service-worker cache) for every later window; only these five
 	// values still have to vary per request.
 	//
 	// `wp_json_encode` already guarantees safe JSON output, so the
 	// values are interpolated as-is — the same guarantee the
 	// `str_replace` pass relied on. Keys are underscore-prefixed to
 	// mark them as a private contract with the bundle rather than a
-	// public API; `src/chromeless-bridge.js` reads exactly these four.
+	// public API; `src/chromeless-bridge.js` reads exactly these five.
 	$data = sprintf(
-		'window.__osChromelessData = { _menuPayload: %s, _menuSig: %s, _identity: %s, _softReload: %s };',
+		'window.__osChromelessData = { _menuPayload: %s, _menuSig: %s, _identity: %s, _softReload: %s, _menuOwner: %s };',
 		$menu_payload_json,
 		$menu_sig_json,
 		$content_identity_json,
-		$soft_reload_json
+		$soft_reload_json,
+		$menu_owner_json
 	);
 
 	// `in_footer` + a `before` inline block reproduces exactly what the
@@ -572,6 +578,32 @@ function openstation_chromeless_bridge_script() {
 	wp_add_inline_script( 'os-chromeless-bridge', $data, 'before' );
 }
 add_action( 'admin_footer', 'openstation_chromeless_bridge_script' );
+
+/**
+ * The dock id of the admin menu WordPress files the current screen under.
+ *
+ * Picks the row the way `_wp_menu_output()` picks the sidebar's current
+ * menu, so a post editor answers to Posts, a page editor to Pages and a
+ * post's comments to Comments, however the window was opened. Read on
+ * `admin_footer`, after `menu-header.php` has applied the `parent_file`
+ * filter and resolved the parent of screens that set none.
+ *
+ * @return string Dock item id, or '' when no menu owns the screen.
+ */
+function openstation_chromeless_menu_owner() {
+	global $menu, $parent_file, $self, $typenow;
+
+	foreach ( (array) $menu as $item ) {
+		if ( empty( $item[2] ) ) {
+			continue;
+		}
+		if ( ( $parent_file && $item[2] === $parent_file ) || ( empty( $typenow ) && $self === $item[2] ) ) {
+			return openstation_dock_item_id( $item );
+		}
+	}
+
+	return '';
+}
 
 /**
  * Transient holding the screen a plugin redirected a plugins window to.

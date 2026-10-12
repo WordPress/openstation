@@ -175,6 +175,16 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		} );
 	}
 
+	// The dock tile WordPress files this page under. It lands after the
+	// window opened and took focus, so the dock has to repaint for it.
+	if ( data.type === 'os-menu-owner' ) {
+		const menu = typeof data.menu === 'string' ? data.menu : '';
+		if ( menu !== win._menuOwner ) {
+			win._menuOwner = menu;
+			doAction( HOOKS.DOCK_REFRESH_ACTIVE );
+		}
+	}
+
 	// Unified window-channel publish. Iframe content called
 	// `wp.os.send( channel, payload )` (installed by the
 	// iframe-bridge) and we forward to the parent-side subscriber

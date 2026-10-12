@@ -2810,6 +2810,13 @@ export class Dock {
 					} )
 					.filter( onActiveDesktop );
 			}
+			// Plus the windows on a page WordPress files under this menu
+			// (a post editor, a post's comments), which no id above names.
+			for ( const w of this.windowManager.getAll() ) {
+				if ( w._menuOwner === item.id && onActiveDesktop( w ) && ! instances.includes( w ) ) {
+					instances.push( w );
+				}
+			}
 			const isOpen = instances.length > 0;
 			const allMinimized = isOpen && instances.every( isMinimized );
 			const isFocused =

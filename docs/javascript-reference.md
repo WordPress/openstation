@@ -4725,6 +4725,15 @@ Posted by the same head script whenever the document changes its own address wit
 
 The parent only records `url` as where the frame now is, which is what `Window.getCurrentUrl()` returns for a frame it cannot read. Without it, "Copy link", "Open in new window", "Open in classic wp-admin" and the saved session would all go on naming the URL the document loaded on. It is not a navigation: it settles no submit and keeps the window's title.
 
+#### `os-menu-owner` — Experimental
+Posted by the chromeless bridge on every page load. `menu` is the id of the dock tile whose admin menu WordPress files the page under (the menu the classic sidebar would highlight, from `$parent_file`), or `''` when no menu owns it.
+
+```typescript
+{ type: 'os-menu-owner', menu: string }
+```
+
+The dock counts the window as one of that tile's windows: the tile shows it as open, lights as focused while it is in front, and its flyout lists it. That ties a window to its menu when nothing in its URL does: a post editor (`post.php?post=<id>`) to Posts, Pages or its post type's menu, and a post's comments (`edit-comments.php?p=<id>`) to Comments. To change it for your own screen, use Core's `parent_file` filter, which moves the sidebar highlight too.
+
 #### `os-focus-request` — Stable
 Posted by the chromeless bridge on every pointerdown inside the iframe. The parent focuses the window, unless it's currently in the overview grid (where clicks are absorbed by the grid controller).
 
@@ -4872,6 +4881,8 @@ A payload-less nudge emitted by the chromeless bridge when Core's shiny updater 
 #### `os-menu-signature` — Stable
 
 A lightweight structural fingerprint of the admin menu, emitted by the chromeless bridge on **every** chromeless admin page that does *not* already carry a full `os-plugins-changed` payload. The shell compares `sig` against its last-known value (seeded from `openStationConfig.menuSig` at boot, updated on every applied payload) and — only when it differs — spends one [`wp.os.refreshMenu()`](#refreshmenu) probe to reconcile the dock.
+
+The hash covers the slug and title of every menu and submenu item the viewer can see. The `return=` value on Customize links is left out: it is the page being viewed, and would give every page its own signature for the same menu.
 
 This closes the gap where a custom post type registered through a settings tool (CPT UI, Pods, ACF, …) saves on its own `admin.php?page=…` / `options.php` screen — none of which is on the full-payload allowlist — so the new menu item never reached the live dock until a full browser reload (GH#325). An unchanged menu costs nothing beyond the tiny message; a full harvest happens only on a real change.
 
