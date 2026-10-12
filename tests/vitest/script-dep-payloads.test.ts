@@ -193,7 +193,21 @@ describe( 'one map for native windows and every other list (GH#898)', () => {
 	test( 'an older server\'s nativeWindowScriptData is still read', () => {
 		const legacy = { 'acme-window': { url: 'https://example.test/old.js' } };
 		expect( windowScriptData( { nativeWindowScriptData: legacy } ) ).toBe( legacy );
-		expect( windowScriptData( { scriptDepPayloads: {}, nativeWindowScriptData: legacy } ) ).toEqual( {} );
 		expect( windowScriptData( {} ) ).toBeUndefined();
+	} );
+
+	test( 'a v1.1.11–v1.1.13 payload with both maps resolves the window bundles, window data winning', () => {
+		// Those servers' shared map carries only entry deps; the bundles
+		// are in nativeWindowScriptData.
+		const shared = {
+			'acme-config': { handle: 'acme-config', url: '' },
+			'acme-window': { handle: 'acme-window', url: 'https://example.test/as-dep.js' },
+		};
+		const legacy = { 'acme-window': { url: 'https://example.test/window.js', deps: [ 'acme-config' ] } };
+		const map = windowScriptData( { scriptDepPayloads: shared, nativeWindowScriptData: legacy } );
+		expect( map?.[ 'acme-window' ] ).toEqual( legacy[ 'acme-window' ] );
+		expect( map?.[ 'acme-config' ] ).toEqual( shared[ 'acme-config' ] );
+		const [ win ] = hydrateServerEntries( [ { id: 'acme', scriptHandle: 'acme-window' } ] as never, map ) as Array< { scriptUrl?: string } >;
+		expect( win.scriptUrl ).toBe( 'https://example.test/window.js' );
 	} );
 } );

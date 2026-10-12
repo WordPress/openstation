@@ -1150,8 +1150,10 @@ function declareServerTabs(
  *
  * Since GH#898 that is the one `scriptDepPayloads` map every entry
  * list shares. A payload from an older server (a menu refresh through
- * a bridge page that predates it) carries `nativeWindowScriptData`
- * instead and no shared map, so that is the fallback.
+ * a bridge page that predates it) carries `nativeWindowScriptData`.
+ * Servers from #893 to GH#898 (v1.1.11 to v1.1.13) send both, and their
+ * shared map holds only entry dependencies, so the two are merged with
+ * the windows' data winning a handle, the same order the server uses.
  *
  * @param source A boot config or menu-refresh payload.
  */
@@ -1159,14 +1161,13 @@ export function windowScriptData( source: {
 	scriptDepPayloads?: unknown;
 	nativeWindowScriptData?: unknown;
 } | null | undefined ): NativeWindowScriptData | undefined {
-	const shared = source?.scriptDepPayloads;
-	if ( shared && typeof shared === 'object' ) {
-		return shared as NativeWindowScriptData;
-	}
-	const legacy = source?.nativeWindowScriptData;
-	return legacy && typeof legacy === 'object'
-		? ( legacy as NativeWindowScriptData )
+	const shared = source?.scriptDepPayloads && typeof source.scriptDepPayloads === 'object'
+		? ( source.scriptDepPayloads as NativeWindowScriptData )
 		: undefined;
+	const legacy = source?.nativeWindowScriptData && typeof source.nativeWindowScriptData === 'object'
+		? ( source.nativeWindowScriptData as NativeWindowScriptData )
+		: undefined;
+	return shared && legacy ? { ...shared, ...legacy } : shared ?? legacy;
 }
 
 /**
