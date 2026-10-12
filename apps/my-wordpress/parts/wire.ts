@@ -51,7 +51,6 @@ import type { DragBridgePayload } from '../../../src/drag-bridge';
 import { shell, uiOf, type Ctx, type ListItem, type SectionDef } from './types';
 import { openPreview, previewDetail } from './optimistic';
 import { sectionOf } from './helpers';
-import { galleryAfterRender } from './gallery';
 import { agentsMountIdOf, agentsRosterStamp, openChatWindow } from './agents';
 
 /**
@@ -587,8 +586,6 @@ export function afterRender( ctx: Ctx ): void {
 		load: () => ctx.dispatch( 'more' ),
 		repaint: () => ctx.repaint(),
 	} );
-	// A gallery always has something on its stage.
-	galleryAfterRender( ctx );
 	// A view switch keeps the selection; bring it into sight in the
 	// other costume — the open item first, else the first selected.
 	if ( ui.revealSelection ) {

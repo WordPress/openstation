@@ -245,11 +245,8 @@ export interface AppState extends Record< string, unknown > {
 	page: number;
 	sort: string;
 	selected: number[];
-	/**
-	 * How a section lists: the tile canvas, the sortable table, or
-	 * the gallery (Media only; elsewhere it paints as icons).
-	 */
-	view: 'icons' | 'list' | 'gallery';
+	/** How a section lists: the tile canvas or the sortable table. */
+	view: 'icons' | 'list';
 	/** Agents: which detail tab is open. */
 	pane: 'define' | 'tools' | 'triggers';
 	/** Agents: whether the create wizard is on. */

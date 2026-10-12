@@ -244,21 +244,18 @@
 .os-mywp__split {
 	display: grid;
 	/*
-	 * WP Explorer's two-pane ratio: the list leads, the preview takes
-	 * roughly the remaining 40% and grows with the window — but never
-	 * below 430px while the window can afford it, because under that
-	 * the pane's fact tables and the Woo merchant panels wrap every
-	 * row. When the window truly can't (both floors exceed it), the
-	 * list keeps its 240px and the pane takes what is left.
+	 * The list leads; the preview pane is a fixed 280px column,
+	 * Finder's preview width, there whether or not anything is open
+	 * (`splitView()` in `parts/dossier-views.ts`). Fixed rather than a
+	 * share of the window, so a wider window gives the list more
+	 * columns instead of giving the pane more empty space.
 	 */
-	grid-template-columns: minmax( 240px, 1fr ) minmax( min( 430px, calc( 100% - 240px ) ), 40% );
+	grid-template-columns: minmax( 240px, 1fr ) 280px;
 	flex: 1 1 auto;
 	min-block-size: 0;
 }
 
-/* Nothing open, no pane: the list has the whole window until a
- * click needs the preview beside it (`splitView()` in
- * `parts/dossier-views.ts` leaves the aside out entirely). */
+/* No pane at all (a caller with nothing to put in it). */
 .os-mywp__split--solo {
 	grid-template-columns: minmax( 0, 1fr );
 }
@@ -276,7 +273,14 @@
 	min-inline-size: 0;
 	min-block-size: 0;
 	border-inline-start: 1px solid var( --os-ui-border, #dcdcde );
+	background: var( --os-ui-surface-raised, #f6f7f7 );
 	overflow-y: auto;
+}
+
+.os-mywp__detail-pane--empty {
+	display: grid;
+	place-items: center;
+	padding: 16px;
 }
 
 /*
@@ -289,15 +293,22 @@
  * (`.os-app`, `app-runtime.css`).
  */
 @container ( max-width: 640px ) {
+	/* fit-content caps the ROW at 45%: an 'auto' row grew to the
+	   pane's whole content and squeezed the list to one line while
+	   the pane's own max height clipped it. */
 	.os-mywp__split {
 		grid-template-columns: minmax( 0, 1fr );
-		grid-template-rows: minmax( 0, 1fr ) auto;
+		grid-template-rows: minmax( 0, 1fr ) fit-content( 45% );
 	}
 
 	.os-mywp__detail-pane {
 		border-inline-start: 0;
 		border-block-start: 1px solid var( --os-ui-border, #dcdcde );
-		max-block-size: 45%;
+	}
+
+	/* A sheet with nothing in it is height the list could use. */
+	.os-mywp__detail-pane--empty {
+		display: none;
 	}
 }
 
@@ -331,157 +342,6 @@
 
 .os-mywp__detail-page .os-mywp__actions os-button {
 	inline-size: 100%;
-}
-
-/* ----------------------------------------------------------- gallery */
-
-/*
- * Media's gallery view (`parts/gallery.ts`), after Finder's: the open
- * item large on a stage, the section as a filmstrip under it, and
- * the detail pane as an inspector that is always there. Every region
- * has a fixed size, so stepping through the strip never moves a
- * thing under the pointer.
- */
-.os-mywp__gallery {
-	display: grid;
-	grid-template-columns: minmax( 0, 1fr ) 280px;
-	grid-template-rows: minmax( 0, 1fr ) auto;
-	flex: 1 1 auto;
-	min-block-size: 0;
-}
-
-/* Flex, not grid: the image's percentage max sizes then resolve
- * against the stage's definite box, so it fits instead of
- * spilling under the strip. */
-.os-mywp__stage {
-	grid-column: 1;
-	grid-row: 1;
-	min-block-size: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 24px 32px 16px;
-	overflow: hidden;
-}
-
-.os-mywp__stage-image {
-	min-inline-size: 0;
-	min-block-size: 0;
-	max-inline-size: 100%;
-	max-block-size: 100%;
-	object-fit: contain;
-	border-radius: 6px;
-	box-shadow: 0 12px 32px -12px rgba( 0, 0, 0, 0.55 );
-	cursor: zoom-in;
-}
-
-.os-mywp__stage-glyph {
-	font-size: 96px;
-	inline-size: 96px;
-	block-size: 96px;
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
-.os-mywp__strip {
-	grid-column: 1;
-	grid-row: 2;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 10px 12px;
-	overflow-x: auto;
-	overflow-y: hidden;
-	border-block-start: 1px solid var( --os-ui-border, #dcdcde );
-	scrollbar-width: thin;
-}
-
-/* The open item is lifted, not tinted: the accent marks focus only. */
-.os-mywp__strip-cell {
-	flex: none;
-	display: grid;
-	place-items: center;
-	inline-size: 56px;
-	block-size: 64px;
-	padding: 4px;
-	border-radius: 8px;
-	cursor: default;
-}
-
-.os-mywp__strip-cell:hover {
-	background: var( --os-ui-surface-subtle, rgba( 0, 0, 0, 0.03 ) );
-}
-
-.os-mywp__strip-cell.is-open {
-	background: var( --os-ui-surface-elevated, #dcdcde );
-}
-
-.os-mywp__strip-cell:focus-visible {
-	outline: 2px solid var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) );
-	outline-offset: 1px;
-}
-
-.os-mywp__strip-cell img {
-	max-inline-size: 100%;
-	max-block-size: 100%;
-	object-fit: contain;
-	border-radius: 3px;
-	pointer-events: none;
-}
-
-.os-mywp__strip-cell .dashicons {
-	font-size: 28px;
-	inline-size: 28px;
-	block-size: 28px;
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
-.os-mywp__inspector {
-	grid-column: 2;
-	grid-row: 1 / 3;
-	min-block-size: 0;
-	overflow-y: auto;
-	background: var( --os-ui-surface-raised, #f6f7f7 );
-	border-inline-start: 1px solid var( --os-ui-border, #dcdcde );
-}
-
-.os-mywp__inspector-head {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	align-self: stretch;
-}
-
-.os-mywp__inspector-head .os-mywp__detail-title {
-	padding-inline-end: 0;
-	font-size: 15px;
-	overflow-wrap: anywhere;
-}
-
-.os-mywp__inspector-thumb {
-	flex: none;
-	inline-size: 40px;
-	block-size: 48px;
-	object-fit: cover;
-	border-radius: 3px;
-}
-
-.os-mywp__inspector os-facts {
-	align-self: stretch;
-}
-
-/* A narrow window: the inspector moves under the strip. */
-@container ( max-width: 640px ) {
-	.os-mywp__gallery {
-		grid-template-columns: minmax( 0, 1fr );
-		grid-template-rows: minmax( 0, 1fr ) auto minmax( 0, 40% );
-	}
-
-	.os-mywp__inspector {
-		grid-column: 1;
-		grid-row: 3;
-		border-inline-start: 0;
-		border-block-start: 1px solid var( --os-ui-border, #dcdcde );
-	}
 }
 
 /* -------------------------------------------------- quick-edit modal */
@@ -1058,6 +918,80 @@
 	max-block-size: 200px;
 	border-radius: 8px;
 	object-fit: contain;
+}
+
+/*
+ * In the side pane the dossier reads like Finder's preview pane: a
+ * small preview centred across the pane, then the name, then the facts as
+ * "Information" rows, label on the left and value on the right edge,
+ * split by hairlines.
+ */
+.os-mywp__detail-pane .os-mywp__hero {
+	align-self: center;
+	max-inline-size: 176px;
+	max-block-size: 144px;
+	margin-block: 8px 4px;
+	border-radius: 4px;
+	box-shadow: 0 6px 18px -8px rgba( 0, 0, 0, 0.45 );
+}
+
+/* Finder's information density: a tighter rhythm than the dossier's
+ * default 12px, on the same 4px steps. */
+.os-mywp__detail-pane .os-mywp__detail {
+	gap: 8px;
+	padding: 12px 14px 16px;
+}
+
+.os-mywp__detail-pane .os-mywp__detail > p {
+	margin: 0;
+	font-size: 12px;
+}
+
+.os-mywp__detail-pane .os-mywp__detail-title {
+	font-size: 15px;
+	padding-inline-end: 0;
+	overflow-wrap: anywhere;
+}
+
+.os-mywp__detail-pane .os-mywp__pane-h {
+	margin: 8px 0 -4px;
+	font-size: 13px;
+	font-weight: 600;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var( --os-ui-fg, #1e1e1e );
+}
+
+.os-mywp__detail-pane os-facts {
+	align-self: stretch;
+	--os-ui-facts-row-gap: 0;
+	--os-ui-facts-font-size: 12px;
+}
+
+/* The row needs a box of its own to carry the hairline. The facts
+ * list's 'between' layout is meant to give it one, but the row's
+ * own display: contents wins inside the shadow tree, so the
+ * document says it here. */
+.os-mywp__detail-pane os-fact {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 12px;
+	padding-block: 4px;
+	border-block-end: 1px solid var( --os-ui-border, #dcdcde );
+}
+
+.os-mywp__detail-pane os-fact:last-child {
+	border-block-end: 0;
+}
+
+.os-mywp__detail-pane os-fact::part( value ) {
+	font-weight: 600;
+	text-align: end;
+}
+
+.os-mywp__detail-pane .os-mywp__used-in {
+	font-size: 12px;
 }
 
 .os-mywp__detail-title {

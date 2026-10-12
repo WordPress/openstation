@@ -288,14 +288,15 @@ describe( 'view', () => {
 		expect( root.querySelector( '.os-mywp__bulk' ) ).toBeNull();
 	} );
 
-	it( 'paints no preview pane until an entry is open — the list has the whole window', () => {
+	it( 'keeps the preview pane beside the list before anything is open, so a click never reflows the grid', () => {
 		const empty = mount(
 			state( { section: 'posts' } ),
 			data( { list: page( [ item( { id: 1 } ) ] ) } ),
 		);
-		expect( empty.querySelector( '.os-mywp__detail-pane' ) ).toBeNull();
-		expect( empty.querySelector( '.os-mywp__split' )?.classList.contains( 'os-mywp__split--solo' ) ).toBe( true );
-		expect( empty.textContent ).not.toContain( 'Select an entry to preview it here.' );
+		expect( empty.querySelector( '.os-mywp__detail-pane.os-mywp__detail-pane--empty' ) ).not.toBeNull();
+		expect( empty.querySelector( '.os-mywp__detail' ) ).toBeNull();
+		expect( empty.querySelector( '.os-mywp__split--solo' ) ).toBeNull();
+		expect( empty.textContent ).toContain( 'Select an item to see its details.' );
 
 		const open = mount(
 			state( { section: 'posts', item: 1 } ),
@@ -314,7 +315,7 @@ describe( 'view', () => {
 		);
 		expect( open.querySelector( '.os-mywp__tiles' ) ).not.toBeNull();
 		expect( open.querySelector( '.os-mywp__detail-pane' ) ).not.toBeNull();
-		expect( open.querySelector( '.os-mywp__split--solo' ) ).toBeNull();
+		expect( open.querySelector( '.os-mywp__detail-pane--empty' ) ).toBeNull();
 		// A fact's label is an attribute on <os-fact> rendered into its
 		// shadow root, like <os-stat>'s, so it is not in light-DOM text.
 		expect(
@@ -998,7 +999,7 @@ describe( 'optimistic Explorer interactions', () => {
 		answer( true );
 		await vi.waitFor( () => expect( ctx.dispatch ).toHaveBeenCalledTimes( 2 ) );
 		openPreview( ctx, 0 );
-		expect( ctx.root.querySelector( '.os-mywp__detail-pane' ) ).toBeNull();
+		expect( ctx.root.querySelector( '.os-mywp__detail' ) ).toBeNull();
 		answer( true );
 		await Promise.resolve();
 		expect( ctx.state.item ).toBe( 0 );
@@ -1012,7 +1013,7 @@ describe( 'optimistic Explorer interactions', () => {
 		const stop = watchExplorerTrash( ctx );
 		const operation = beginTrashChange( trashItem( { id: 1, type: 'post', title: 'Alpha' } ) )!;
 		expect( ctx.root.querySelector( '[data-item-id="1"]' ) ).toBeNull();
-		expect( ctx.root.querySelector( '.os-mywp__detail-pane' ) ).toBeNull();
+		expect( ctx.root.querySelector( '.os-mywp__detail' ) ).toBeNull();
 		await operation.finish( false );
 		expect( ctx.root.querySelector( '[data-item-id="1"]' ) ).not.toBeNull();
 		expect( ctx.root.querySelector( '.os-mywp__detail-title' )?.textContent ).toBe( 'Alpha' );
@@ -1085,7 +1086,7 @@ describe( 'optimistic Explorer interactions', () => {
 		expect( ctx.root.querySelector( '[data-item-id="2"]' ) ).not.toBeNull();
 		expect( ctx.root.querySelector( '[data-item-id="3"]' ) ).not.toBeNull();
 		expect( ctx.state.item ).toBe( 0 );
-		expect( ctx.root.querySelector( '.os-mywp__detail-pane' ) ).toBeNull();
+		expect( ctx.root.querySelector( '.os-mywp__detail' ) ).toBeNull();
 		stop();
 	} );
 } );

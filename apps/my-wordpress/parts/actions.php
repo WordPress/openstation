@@ -23,8 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-/** The ways a section lists. Gallery is Media's; other sections paint it as icons. */
-const VIEWS = array( 'icons', 'list', 'gallery' );
+/** The two ways a section lists. */
+const VIEWS = array( 'icons', 'list' );
 
 /**
  * The storage key of the per-section hidden-column map.
