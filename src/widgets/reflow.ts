@@ -77,19 +77,27 @@ export function clusterGeometry(
 	return Array.from( groups.values() );
 }
 
-/** How far a group moves on one axis when its frame grows by `delta`. */
+/**
+ * How far a group moves on one axis when its frame goes from `span` to
+ * `next`. A centred group moves by the change in the rounded midpoint,
+ * not by a rounded half of the delta: the layer reflows on every resize
+ * event, and `Math.round( delta / 2 )` rounds .5 up both ways, so a
+ * window dragged out and back left the group further right each time.
+ * Midpoint differences telescope, so any sequence of resizes lands
+ * where one resize straight to the final size would.
+ */
 function shiftFor(
 	start: number,
 	end: number,
 	span: number,
-	delta: number,
+	next: number,
 ): number {
 	const before = start;
 	const after = span - end;
 	if ( Math.abs( before - after ) <= span * CENTRE_TOLERANCE ) {
-		return Math.round( delta / 2 );
+		return Math.round( next / 2 ) - Math.round( span / 2 );
 	}
-	return after < before ? delta : 0;
+	return after < before ? next - span : 0;
 }
 
 /**
@@ -122,8 +130,8 @@ export function reflowGeometry(
 			},
 			{ x: Infinity, y: Infinity, right: -Infinity, bottom: -Infinity },
 		);
-		const sx = dw ? shiftFor( box.x, box.right, from.width, dw ) : 0;
-		const sy = dh ? shiftFor( box.y, box.bottom, from.height, dh ) : 0;
+		const sx = dw ? shiftFor( box.x, box.right, from.width, to.width ) : 0;
+		const sy = dh ? shiftFor( box.y, box.bottom, from.height, to.height ) : 0;
 		for ( const id of group ) {
 			const g = geometry[ id ];
 			out[ id ] = { ...g, x: g.x + sx, y: g.y + sy };

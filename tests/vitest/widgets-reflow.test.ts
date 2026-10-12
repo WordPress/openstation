@@ -29,6 +29,23 @@ describe( 'widget reflow', () => {
 		expect( out.c.x ).toBe( 870 );
 	} );
 
+	it( 'a centred group does not drift when the window is dragged out and back a pixel at a time', () => {
+		let g: Record< string, ReturnType< typeof card > > = { c: card( 670, 400 ) };
+		let w = from.width;
+		const step = ( next: number ) => {
+			g = reflowGeometry( g, { width: w, height: from.height }, { width: next, height: from.height } );
+			w = next;
+		};
+		for ( let i = 1; i <= 40; i++ ) {
+			step( from.width + i );
+		}
+		expect( g.c.x ).toBe( 690 );
+		for ( let i = 39; i >= 0; i-- ) {
+			step( from.width + i );
+		}
+		expect( g.c.x ).toBe( 670 );
+	} );
+
 	it( 'is a no-op when the size did not change', () => {
 		const g = { a: card( 900, 20 ) };
 		expect( reflowGeometry( g, from, from ) ).toEqual( g );
