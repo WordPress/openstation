@@ -196,12 +196,9 @@ function userPreviewActions(
  * are WP Explorer's, so plugin CSS written for its slots applies.
  */
 /**
- * The two-pane frame: the list, and beside it the preview pane. The
- * pane is always there, Finder's preview column: a pane that appeared
- * on the first click pushed the grid sideways, and the second click
- * of a double click then landed on whatever slid under the pointer.
- * With nothing open it holds `placeholder`; with neither, the list
- * has the whole window.
+ * The two-pane frame. The pane is always there, so a click never
+ * pushes the grid sideways under a double click; with nothing open
+ * it holds `placeholder`.
  */
 export function splitView(
 	list: TemplateResult,
@@ -279,9 +276,7 @@ export function renderDetail( ctx: Ctx, section: SectionDef ): TemplateResult {
 			>${ a.label }</os-button>
 		` );
 	} else if ( detail.canEdit ) {
-		// A button, not a link: it runs an action (the editor opens in
-		// a window), it has no URL to follow. Secondary, because the
-		// accent marks state, not the pane's next step.
+		// A button (an action, not a URL); secondary, as the accent marks state.
 		editRow = html`<os-button variant="secondary" @click=${ () => void ctx.dispatch( 'edit', { item: detail.id } ) }>
 			${ __( 'Open in editor' ) }
 		</os-button>`;

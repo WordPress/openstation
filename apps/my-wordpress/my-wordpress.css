@@ -243,19 +243,13 @@
 
 .os-mywp__split {
 	display: grid;
-	/*
-	 * The list leads; the preview pane is a fixed 280px column,
-	 * Finder's preview width, there whether or not anything is open
-	 * (`splitView()` in `parts/dossier-views.ts`). Fixed rather than a
-	 * share of the window, so a wider window gives the list more
-	 * columns instead of giving the pane more empty space.
-	 */
+	/* The list leads; the preview pane is a fixed 280px column, there
+	 * whether or not anything is open (`splitView()`). */
 	grid-template-columns: minmax( 240px, 1fr ) 280px;
 	flex: 1 1 auto;
 	min-block-size: 0;
 }
 
-/* No pane at all (a caller with nothing to put in it). */
 .os-mywp__split--solo {
 	grid-template-columns: minmax( 0, 1fr );
 }
@@ -293,9 +287,7 @@
  * (`.os-app`, `app-runtime.css`).
  */
 @container ( max-width: 640px ) {
-	/* fit-content caps the ROW at 45%: an 'auto' row grew to the
-	   pane's whole content and squeezed the list to one line while
-	   the pane's own max height clipped it. */
+	/* Cap the row, not the pane: an 'auto' row squeezed the list. */
 	.os-mywp__split {
 		grid-template-columns: minmax( 0, 1fr );
 		grid-template-rows: minmax( 0, 1fr ) fit-content( 45% );
@@ -306,7 +298,6 @@
 		border-block-start: 1px solid var( --os-ui-border, #dcdcde );
 	}
 
-	/* A sheet with nothing in it is height the list could use. */
 	.os-mywp__detail-pane--empty {
 		display: none;
 	}
@@ -324,10 +315,6 @@
 	min-block-size: 0;
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
-}
-
-.os-mywp__detail-page .os-mywp__pane-close {
-	display: none;
 }
 
 .os-mywp__detail-page .os-mywp__detail {
@@ -888,17 +875,11 @@
 
 .os-mywp__detail {
 	position: relative;
-	padding: 16px;
+	padding: 12px 14px 16px;
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: 8px;
 	align-items: flex-start;
-}
-
-.os-mywp__pane-close {
-	position: absolute;
-	inset-block-start: 8px;
-	inset-inline-end: 8px;
 }
 
 /* Plugin slots on the article (`os.my-wordpress.preview-extras`).
@@ -920,12 +901,8 @@
 	object-fit: contain;
 }
 
-/*
- * In the side pane the dossier reads like Finder's preview pane: a
- * small preview centred across the pane, then the name, then the facts as
- * "Information" rows, label on the left and value on the right edge,
- * split by hairlines.
- */
+/* Finder's preview pane: a small centred preview, the name, then the
+ * facts as hairline-split rows, label left and value right. */
 .os-mywp__detail-pane .os-mywp__hero {
 	align-self: center;
 	max-inline-size: 176px;
@@ -935,13 +912,6 @@
 	box-shadow: 0 6px 18px -8px rgba( 0, 0, 0, 0.45 );
 }
 
-/* Finder's information density: a tighter rhythm than the dossier's
- * default 12px, on the same 4px steps. */
-.os-mywp__detail-pane .os-mywp__detail {
-	gap: 8px;
-	padding: 12px 14px 16px;
-}
-
 .os-mywp__detail-pane .os-mywp__detail > p {
 	margin: 0;
 	font-size: 12px;
@@ -949,17 +919,7 @@
 
 .os-mywp__detail-pane .os-mywp__detail-title {
 	font-size: 15px;
-	padding-inline-end: 0;
 	overflow-wrap: anywhere;
-}
-
-.os-mywp__detail-pane .os-mywp__pane-h {
-	margin: 8px 0 -4px;
-	font-size: 13px;
-	font-weight: 600;
-	text-transform: none;
-	letter-spacing: 0;
-	color: var( --os-ui-fg, #1e1e1e );
 }
 
 .os-mywp__detail-pane os-facts {
@@ -968,10 +928,8 @@
 	--os-ui-facts-font-size: 12px;
 }
 
-/* The row needs a box of its own to carry the hairline. The facts
- * list's 'between' layout is meant to give it one, but the row's
- * own display: contents wins inside the shadow tree, so the
- * document says it here. */
+/* The row needs its own box to carry the hairline: inside the shadow
+ * tree the row's display: contents beats the list's 'between'. */
 .os-mywp__detail-pane os-fact {
 	display: flex;
 	justify-content: space-between;
@@ -990,14 +948,9 @@
 	text-align: end;
 }
 
-.os-mywp__detail-pane .os-mywp__used-in {
-	font-size: 12px;
-}
-
 .os-mywp__detail-title {
 	margin: 0;
 	font-size: 17px;
-	padding-inline-end: 32px;
 }
 
 /* The identity line under a person's name: role badge + archive link. */
@@ -1009,17 +962,16 @@
 }
 
 .os-mywp__pane-h {
-	margin: 4px 0 0;
-	font-size: 12px;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: var( --os-ui-fg-muted, #646970 );
+	margin: 8px 0 -4px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #1e1e1e );
 }
 
 .os-mywp__used-in {
 	margin: 0;
 	padding-inline-start: 18px;
-	font-size: 13px;
+	font-size: 12px;
 }
 
 .os-mywp__actions {

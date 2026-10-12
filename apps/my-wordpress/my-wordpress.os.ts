@@ -137,9 +137,8 @@ function renderBody(
 	if ( ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) && isMobileStamped() ) {
 		return html`<div class="os-mywp__detail-page">${ renderDetail( ctx, section ) }</div>`;
 	}
-	// The preview pane sits beside the list in both views, open or
-	// not, so a click never reflows the grid. The list's columns
-	// scroll sideways inside their own pane rather than push it out.
+	// The preview pane sits beside the list in both views, open or not,
+	// so a click never reflows the grid.
 	return splitView(
 		renderList( ctx, section, items ),
 		ctx.state.item > 0 && ! explorerItemTrashing( section, ctx.state.item ) ? renderDetail( ctx, section ) : null,
