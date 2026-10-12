@@ -414,23 +414,8 @@ function openstation_agents_ability_get_media_can( $args ) {
 		return true;
 	}
 
-	$parent_id = (int) $attachment->post_parent;
-	if ( $parent_id <= 0 || $parent_id === $attachment_id ) {
-		return true;
-	}
-	$parent = get_post( $parent_id );
-	if ( ! ( $parent instanceof WP_Post ) ) {
-		return true;
-	}
-
-	if ( ! current_user_can( 'read_post', $parent->ID ) ) {
-		return false;
-	}
-	$parent_type = get_post_type_object( $parent->post_type );
-	if ( ! $parent_type || ! is_post_type_viewable( $parent_type ) ) {
-		return current_user_can( 'edit_post', $parent->ID );
-	}
-	return true;
+	// Shared with the AI Copilot's media abilities, which load first.
+	return openstation_ai_can_read_media_parent( $attachment );
 }
 
 /**

@@ -18,5 +18,6 @@ require_once __DIR__ . '/jobs.php';
 require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/abilities.php';
 require_once __DIR__ . '/abilities-debugging.php';
+require_once __DIR__ . '/abilities-media.php';
 
 require_once __DIR__ . '/mio.php';

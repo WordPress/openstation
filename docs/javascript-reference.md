@@ -3185,6 +3185,8 @@ The built-in content tools (`search_posts`, `search_pages`, `search_comments`, `
 
 Results are scoped to what the requesting user may read. The comment tools drop every comment whose parent post the caller cannot access (private, draft, or password-protected parents, and non-viewable post types), and `search_comments_by_post` returns an empty batch — without the parent title — when the target post itself is unreadable. As in Core's comments REST controller, this filtering happens per row after the query, so a batch can carry fewer items than `total` implies; treat `total` / `has_more` as pagination hints, not as an exact count of readable matches. The final `entity` record applies the same readability check to the model-chosen id, resolving unreadable entities to `null` exactly like nonexistent ones.
 
+Two media tools answer questions about the library. `search_media` finds items by title or file name and lists where each one is used, from the same scan as WP Explorer's "Used in" list (featured images and post content, limited to posts the caller can read). It needs `upload_files`. `find_unused_media` lists the items nothing on the site points at. It needs `delete_others_posts`, because it checks every post whether or not the caller can read it, so that an image used only in someone else's draft is never listed. It cannot see custom fields or page-builder data, so the assistant reports what it did not find and leaves deleting to the user.
+
 ```javascript
 const res = await wp.os.ai.ask( 'where do I manage categories?' );
 // res = { answer_type: 'navigation', message: '…', admin_links: [ … ], request_id: '…' }

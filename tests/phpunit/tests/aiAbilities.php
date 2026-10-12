@@ -196,4 +196,115 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		$private = wp_get_ability( 'desktop-mode/get-php-error-log' )->get_meta();
 		$this->assertArrayNotHasKey( 'mcp', $private );
 	}
+
+	/**
+	 * An image counts as used wherever the site points at it, in any
+	 * status and through any of the copies WordPress makes of it, and a
+	 * reference added after a first call is not served from the cache.
+	 *
+	 * @covers ::openstation_ai_find_unused_media
+	 * @covers ::openstation_ai_media_references
+	 */
+	public function test_find_unused_media_skips_every_kind_of_reference() {
+		$featured = $this->make_image( 'featured.jpg' );
+		$in_draft = $this->make_image( 'in-draft.jpg' );
+		$sized    = $this->make_image( 'sized-scaled.jpg' );
+		$logo     = $this->make_image( 'logo.png' );
+		$gallery  = $this->make_image( 'gallery.jpg' );
+		$unused   = $this->make_image( 'unused.jpg' );
+		$later    = $this->make_image( 'later.jpg' );
+
+		update_post_meta( self::factory()->post->create(), '_thumbnail_id', $featured );
+		self::factory()->post->create(
+			array(
+				'post_status'  => 'draft',
+				'post_content' => '<!-- wp:image {"id":' . $in_draft . '} --><figure><img class="wp-image-' . $in_draft . '"/></figure><!-- /wp:image -->',
+			)
+		);
+		self::factory()->post->create(
+			array(
+				'post_type'    => 'wp_template_part',
+				'post_content' => '<img src="https://example.org/wp-content/uploads/2026/01/sized-1024x768.jpg"/>',
+			)
+		);
+		self::factory()->post->create(
+			array(
+				'post_status'  => 'trash',
+				'post_content' => '<!-- wp:gallery {"ids":[' . $gallery . ']} /-->',
+			)
+		);
+		set_theme_mod( 'custom_logo', $logo );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+		$this->assertWPError( wp_get_ability( 'desktop-mode/find-unused-media' )->execute( array( 'offset' => 0 ) ) );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'editor' ) ) );
+		$result = wp_get_ability( 'desktop-mode/find-unused-media' )->execute( array( 'offset' => 0 ) );
+		$this->assertEqualsCanonicalizing( array( $unused, $later ), wp_list_pluck( $result['items'], 'id' ) );
+		$this->assertSame( 2, $result['total'] );
+
+		self::factory()->post->create( array( 'post_content' => '<img class="wp-image-' . $later . '"/>' ) );
+		$result = wp_get_ability( 'desktop-mode/find-unused-media' )->execute( array( 'offset' => 0 ) );
+		$this->assertSame( array( $unused ), wp_list_pluck( $result['items'], 'id' ) );
+	}
+
+	/**
+	 * An Author never gets an item attached to a post they cannot read,
+	 * and an item's places (and their count) leave out the posts they
+	 * cannot read.
+	 *
+	 * @covers ::openstation_ai_search_media
+	 */
+	public function test_search_media_leaves_out_what_the_caller_cannot_read() {
+		$editor  = self::factory()->user->create( array( 'role' => 'editor' ) );
+		$public  = self::factory()->post->create( array( 'post_author' => $editor ) );
+		$draft   = self::factory()->post->create(
+			array(
+				'post_author' => $editor,
+				'post_status' => 'draft',
+			)
+		);
+		$private = self::factory()->post->create(
+			array(
+				'post_author' => $editor,
+				'post_status' => 'private',
+			)
+		);
+
+		$image  = $this->make_image( 'paella.jpg' );
+		$hidden = $this->make_image( 'paella-secret.jpg', $private );
+		update_post_meta( $public, '_thumbnail_id', $image );
+		update_post_meta( $draft, '_thumbnail_id', $image );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+		$this->assertWPError( wp_get_ability( 'desktop-mode/search-media' )->execute( array( 'query' => 'paella', 'offset' => 0 ) ) );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+		$result = wp_get_ability( 'desktop-mode/search-media' )->execute( array( 'query' => 'paella', 'offset' => 0 ) );
+		$items  = array_column( $result['items'], null, 'id' );
+
+		$this->assertArrayNotHasKey( $hidden, $items );
+		$this->assertSame( 1, $items[ $image ]['used_in_count'] );
+		$this->assertSame( 'featured', $items[ $image ]['used_in'][0]['used_as'] );
+	}
+
+	/**
+	 * Creates an image attachment stored under `2026/01/<file>`.
+	 *
+	 * @param string $file   File name.
+	 * @param int    $parent Parent post id.
+	 * @return int Attachment id.
+	 */
+	private function make_image( $file, $parent = 0 ) {
+		$id = self::factory()->attachment->create_object(
+			$file,
+			$parent,
+			array(
+				'post_mime_type' => 'image/jpeg',
+				'post_title'     => pathinfo( $file, PATHINFO_FILENAME ),
+			)
+		);
+		update_post_meta( $id, '_wp_attached_file', '2026/01/' . $file );
+		return $id;
+	}
 }
