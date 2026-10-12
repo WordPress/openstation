@@ -420,6 +420,61 @@ describe( '<os-segmented> + <os-segment>', () => {
 		expect( group.getAttribute( 'value' ) ).toBe( 'late' );
 	} );
 
+	test( 'with nothing checked the keys step from the first segment, and Space checks it', async () => {
+		host.innerHTML = `
+			<os-segmented value="nope">
+				<os-segment value="a">A</os-segment>
+				<os-segment value="b">B</os-segment>
+				<os-segment value="c">C</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		await tick();
+		const group = host.querySelector( 'os-segmented' )!;
+		const press = async ( key: string, value = 'nope' ) => {
+			group.setAttribute( 'value', value );
+			await tick();
+			const e = new KeyboardEvent( 'keydown', { key, bubbles: true, cancelable: true } );
+			group.dispatchEvent( e );
+			await tick();
+			await tick();
+			return e;
+		};
+
+		await press( 'ArrowLeft' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'c' );
+		await press( 'ArrowRight' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'b' );
+		const space = await press( ' ' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'a' );
+		expect( space.defaultPrevented ).toBe( true );
+	} );
+
+	test( 'Left and Right follow the bar as drawn in RTL; Up and Down do not flip', async () => {
+		host.innerHTML = `
+			<os-segmented value="b" style="direction: rtl">
+				<os-segment value="a">A</os-segment>
+				<os-segment value="b">B</os-segment>
+				<os-segment value="c">C</os-segment>
+			</os-segmented>
+		`;
+		await tick();
+		await tick();
+		const group = host.querySelector( 'os-segmented' )!;
+		const press = async ( key: string ) => {
+			group.dispatchEvent( new KeyboardEvent( 'keydown', { key, bubbles: true } ) );
+			await tick();
+			await tick();
+		};
+
+		await press( 'ArrowRight' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'a' );
+		await press( 'ArrowLeft' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'b' );
+		await press( 'ArrowDown' );
+		expect( group.getAttribute( 'value' ) ).toBe( 'c' );
+	} );
+
 	test( 'a value naming no segment still leaves one tab stop', async () => {
 		host.innerHTML = `
 			<os-segmented value="nope">

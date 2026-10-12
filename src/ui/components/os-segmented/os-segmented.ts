@@ -186,7 +186,10 @@ export class OsSegmented extends Component {
 	 * reached at all. A radiogroup takes both axes: Left/Right because
 	 * the control is drawn as a horizontal bar, Up/Down because that is
 	 * what the role conventionally answers and what a screen reader's
-	 * own radio navigation sends. Both wrap, and Home/End jump the ends.
+	 * own radio navigation sends. Both wrap, Home/End jump the ends, and
+	 * Left/Right follow the bar as drawn, so they swap in RTL. Space
+	 * checks the focused segment: the host has focus now, not the shadow
+	 * button, so nothing else would answer it when nothing is checked.
 	 *
 	 * Selection follows focus, which is what a radiogroup does and what
 	 * the pointer already does here: there is no separate commit step,
@@ -200,7 +203,8 @@ export class OsSegmented extends Component {
 			e.key !== 'ArrowLeft' &&
 			e.key !== 'ArrowUp' &&
 			e.key !== 'Home' &&
-			e.key !== 'End'
+			e.key !== 'End' &&
+			e.key !== ' '
 		) {
 			return;
 		}
@@ -214,14 +218,18 @@ export class OsSegmented extends Component {
 		const at = segs.findIndex(
 			( seg ) => seg.getAttribute( 'value' ) === current,
 		);
-		let target = 0;
-		if ( e.key === 'End' ) {
+		// With nothing checked the first segment holds the stop, so the
+		// keys step from there.
+		const from = Math.max( at, 0 );
+		let target = from;
+		if ( e.key === 'Home' ) {
+			target = 0;
+		} else if ( e.key === 'End' ) {
 			target = segs.length - 1;
-		} else if ( e.key !== 'Home' ) {
-			const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1;
-			// `at` is -1 when `value` names no segment; stepping from
-			// there lands on the first segment either way.
-			target = ( at + step + segs.length ) % segs.length;
+		} else if ( e.key !== ' ' ) {
+			const rtl = getComputedStyle( this ).direction === 'rtl';
+			const forward = e.key === 'ArrowDown' || e.key === ( rtl ? 'ArrowLeft' : 'ArrowRight' );
+			target = ( from + ( forward ? 1 : -1 ) + segs.length ) % segs.length;
 		}
 		const value = segs[ target ]?.getAttribute( 'value' );
 		if ( ! value ) {
