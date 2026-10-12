@@ -233,6 +233,27 @@ describe( 'Window — lifecycle hook firing', () => {
 		openSpy.mockRestore();
 	} );
 
+	test( 'a page that focuses itself while loading does not raise its window', () => {
+		// The block editor focuses an empty title on `post-new.php`. On a
+		// boot that restored such a window, it rose over the page the
+		// user had just opened by URL.
+		const iframe = handle.win.iframe as HTMLIFrameElement;
+		const raise = vi.fn();
+		handle.win.onFocusRequest = raise;
+		const activation = { isActive: false };
+		Object.defineProperty( navigator, 'userActivation', { value: activation, configurable: true } );
+		try {
+			iframe.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
+			expect( raise ).not.toHaveBeenCalled();
+
+			activation.isActive = true;
+			iframe.dispatchEvent( new FocusEvent( 'focusin', { bubbles: true } ) );
+			expect( raise ).toHaveBeenCalledTimes( 1 );
+		} finally {
+			delete ( navigator as unknown as { userActivation?: unknown } ).userActivation;
+		}
+	} );
+
 	test( 'an unreadable frame that rewrites its own address is followed', () => {
 		// The block editor's first save replaces `post-new.php` with the
 		// draft's own URL without navigating; "Copy link" must share that.

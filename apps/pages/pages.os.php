@@ -96,6 +96,12 @@ return App::define( 'desktop-mode-pages' )
 			openstation_posts_app_trash( $os, $args, 'page' );
 		}
 	)
+	->action(
+		'restore',
+		static function ( State $state, Os $os, array $args ) {
+			openstation_posts_app_restore( $os, $args, 'page' );
+		}
+	)
 	->watch( 'page' )
 	->data(
 		static function ( State $state ) {

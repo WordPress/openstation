@@ -8,6 +8,10 @@
  *   - `openstation.postsWindow.bulkActions` — the bulk-bar buttons.
  *   - `openstation.postsWindow.toolbarTrailing` — extra toolbar nodes.
  *
+ * The columns and bulk-actions filters receive `{ mode }` as a second
+ * argument (`'posts' | 'pages'`), so a plugin can tell the two windows
+ * apart at registration time (#854). One-arg callbacks are unaffected.
+ *
  * @public
  */
 
@@ -22,6 +26,7 @@ import type {
 	AuthorOption,
 	BulkAction,
 	PostListItem,
+	PostsMode,
 	PostsWindowContext,
 	StatusSegment,
 	TagOption,
@@ -268,7 +273,7 @@ export function buildAllColumns(
 	const cols = buildBaseColumns( env, cache, filterData );
 	const hooks = window.wp?.hooks;
 	return hooks && typeof hooks.applyFilters === 'function'
-		? ( hooks.applyFilters( HOOK_FILTER_COLUMNS, cols ) as OsTableColumn< PostListItem >[] )
+		? ( hooks.applyFilters( HOOK_FILTER_COLUMNS, cols, { mode: env.extra.mode ?? 'posts' } ) as OsTableColumn< PostListItem >[] )
 		: cols;
 }
 
@@ -341,14 +346,18 @@ export function resolveStatusSegments(): StatusSegment[] {
 }
 
 /**
- * The shipped bulk action: "Move to trash". `trash` runs the app's
- * server action over the ids not already in the trash (a second
- * delete would remove them for good) and returns `false` — the
- * action's own dispatch already refreshed the list.
+ * The shipped bulk actions: "Move to trash" and "Restore". `trash` runs the
+ * window's server action over the ids not already in the trash (a second
+ * delete would remove them for good); `restore` runs over the ids in the
+ * trash. Both return `false` — the action's own dispatch already refreshed
+ * the list. A selection survives search and filter changes, so an id picked
+ * under an earlier query may have no row loaded: it is sent anyway, and the
+ * server skips it if it is gone or in the wrong state.
  */
 export function defaultBulkActions(
 	mode: 'posts' | 'pages',
 	trash: ( ids: number[] ) => Promise< boolean >,
+	restore?: ( ids: number[] ) => Promise< boolean >,
 ): BulkAction[] {
 	return [
 		{
@@ -370,12 +379,24 @@ export function defaultBulkActions(
 					),
 			run: async ( ids, ctx ): Promise< false > => {
 				const data = ctx.table.data ?? [];
-				const trashable = ids.filter( ( id ) => {
-					const row = data.find( ( r ) => r.id === id );
-					return row && row.status !== 'trash';
-				} );
+				const trashable = ids.filter( ( id ) => data.find( ( r ) => r.id === id )?.status !== 'trash' );
 				if ( trashable.length > 0 ) {
 					await trash( trashable );
+				}
+				ctx.table.clearSelection();
+				return false;
+			},
+		},
+		{
+			id: 'restore',
+			label: __( 'Restore' ),
+			icon: 'dashicons-image-rotate',
+			variant: 'secondary',
+			run: async ( ids, ctx ): Promise< false > => {
+				const data = ctx.table.data ?? [];
+				const restorable = ids.filter( ( id ) => ( data.find( ( r ) => r.id === id )?.status ?? 'trash' ) === 'trash' );
+				if ( restorable.length > 0 && restore ) {
+					await restore( restorable );
 				}
 				ctx.table.clearSelection();
 				return false;
@@ -384,13 +405,13 @@ export function defaultBulkActions(
 	];
 }
 
-export function resolveBulkActions( defaults: BulkAction[] ): BulkAction[] {
+export function resolveBulkActions( defaults: BulkAction[], mode: PostsMode ): BulkAction[] {
 	const hooks = window.wp?.hooks;
 	if ( ! hooks || typeof hooks.applyFilters !== 'function' ) {
 		return defaults;
 	}
 	try {
-		const out = hooks.applyFilters( HOOK_FILTER_BULK_ACTIONS, defaults );
+		const out = hooks.applyFilters( HOOK_FILTER_BULK_ACTIONS, defaults, { mode } );
 		return Array.isArray( out ) ? ( out as BulkAction[] ) : defaults;
 	} catch ( err ) {
 		// eslint-disable-next-line no-console

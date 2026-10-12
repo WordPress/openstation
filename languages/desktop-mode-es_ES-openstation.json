@@ -553,6 +553,9 @@
             "Convert to post": [
                 ""
             ],
+            "Copy link": [
+                "Mostrando %d"
+            ],
             "Corkboard container missing.": [
                 ""
             ],
@@ -569,6 +572,9 @@
                 ""
             ],
             "Could not convert the note to a post.": [
+                ""
+            ],
+            "Could not copy the link": [
                 ""
             ],
             "Could not deactivate %s": [
@@ -1123,7 +1129,13 @@
             "Link accounts": [
                 ""
             ],
+            "Link copied": [
+                ""
+            ],
             "Linked to “%s”": [
+                ""
+            ],
+            "Loading WordPress commands…": [
                 ""
             ],
             "Loading details…": [
@@ -1387,7 +1399,7 @@
             "Nothing is moved. Windows land where they land.": [
                 ""
             ],
-            "Nothing is sent until you click Send. Then your answers, your language, and the OpenStation and WordPress versions go to openstation.blog, the plugin’s own site, run by Automattic. Without an email, nothing identifies you or your site.": [
+            "Nothing is sent until you click Send. Then your answers, your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on go to openstation.blog, the plugin’s own site, run by Automattic. Without an email, nothing identifies you or your site.": [
                 ""
             ],
             "Nothing matches.": [
@@ -1505,6 +1517,9 @@
                 ""
             ],
             "Opened \"%s\" in a new browser tab — this site doesn't allow embedding.": [
+                ""
+            ],
+            "Opening the workspace wizard…": [
                 ""
             ],
             "Opens in a new tab:": [
@@ -1788,6 +1803,9 @@
             ],
             "Send challenge": [
                 ""
+            ],
+            "Send to %s": [
+                "Añadir %s"
             ],
             "Send to agent": [
                 ""
@@ -2252,6 +2270,9 @@
                 ""
             ],
             "Website": [
+                ""
+            ],
+            "What broke, and on which screen? One sentence is enough for us to find it.": [
                 ""
             ],
             "What can we do for you?": [

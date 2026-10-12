@@ -54,6 +54,10 @@ export const menuItemStyles = css`
 	:host {
 		display: block;
 	}
+	/* The display above would otherwise outrank the hidden attribute. */
+	:host( [ hidden ] ) {
+		display: none;
+	}
 	button {
 		display: flex;
 		align-items: center;

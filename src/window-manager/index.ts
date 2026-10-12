@@ -83,6 +83,7 @@ import { destroyDesktopNameHud } from './desktop-name-hud';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 import { clampWindowPosition } from '../window/pointer';
+import { focusIsFromUser } from '../window/focus-intent';
 import { subscribeWorkArea, workAreaRectOf, type WorkAreaRect } from '../work-area';
 
 /** Base z-index for desktop windows. */
@@ -477,6 +478,18 @@ export class WindowManager {
 				const id = winEl.id.replace( /^wp-window-/, '' );
 				const win = this.getById( id );
 				if ( ! win ) {
+					return;
+				}
+				// Focus a page took on its own while loading (an editor
+				// focusing its empty title) is not the user choosing
+				// this window; see `src/window/focus-intent.ts`. It
+				// stays where it is, and the keyboard is taken back
+				// from a window behind the focused one, so typing
+				// cannot land in a page the user is not looking at.
+				if ( ! focusIsFromUser() ) {
+					if ( this.getFocused() !== win ) {
+						( active as HTMLElement ).blur();
+					}
 					return;
 				}
 				// Skip while overview is active — pointer events are

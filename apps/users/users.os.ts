@@ -474,7 +474,6 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 		ui.sync.sync( {
 			table: table( ctx ) as unknown as ListTableLike< UserListItem > | null,
 			rows,
-			listKey: `${ state.perPage }|${ state.search }|${ state.role }|${ state.status }|${ state.orderby }|${ state.order }`,
 			fingerprint: Array.from( next.values() ).join( '\n' ),
 			columns: ( phone ) => buildColumns( ui.cache, cfg, actions, phone ),
 			wire: ( el ) => {

@@ -30,7 +30,7 @@ jobs:
         contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
         contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       # `contents` stays read-only on purpose: on a fork pull request the
       # action runs with this workflow token (see below), and that is what

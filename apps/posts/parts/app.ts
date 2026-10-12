@@ -330,11 +330,29 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 
 	const bulkBar = ( ctx: Ctx, ui: UiState, mode: PostsMode, footer: boolean ): TemplateResult => {
 		// Resolved once, on the first paint: the registry filter sees the
-		// same defaults it always did, and every button dispatches
-		// against the live selection at click time.
+		// shipped defaults ('trash' and 'restore'), and buttons dispatch
+		// against the live selection at click time. Actions are dynamically
+		// partitioned so 'restore' renders in Trash status and 'trash' in others.
 		if ( ! ui.bulkActions ) {
-			ui.bulkActions = resolveBulkActions( defaultBulkActions( mode, ( ids ) => ctx.dispatch( 'trash', { ids } ) ) );
+			ui.bulkActions = resolveBulkActions(
+				defaultBulkActions(
+					mode,
+					( ids ) => ctx.dispatch( 'trash', { ids } ),
+					( ids ) => ctx.dispatch( 'restore', { ids } ),
+				),
+				mode,
+			);
 		}
+		const isTrash = ctx.state.status === 'trash';
+		const visibleActions = ui.bulkActions.filter( ( action ) => {
+			if ( action.id === 'trash' ) {
+				return ! isTrash;
+			}
+			if ( action.id === 'restore' ) {
+				return isTrash;
+			}
+			return true;
+		} );
 		return html`
 			<div class="os-app-list__toolbar-right ${ footer ? 'os-app-list__bulk--footer' : '' }" data-os-posts-bulk ?hidden=${ ui.selected === 0 }>
 				<span class="os-app-list__count" data-os-posts-count>${ sprintf(
@@ -343,7 +361,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					ui.selected,
 				) }</span>
 				<os-button variant="ghost" @click=${ () => tableOf( ctx )?.clearSelection() }>${ __( 'Clear selection' ) }</os-button>
-				<span class="os-app-list__bulk-actions" data-os-posts-bulk-actions>${ ui.bulkActions.map(
+				<span class="os-app-list__bulk-actions" data-os-posts-bulk-actions>${ visibleActions.map(
 					( action ) => html`<os-button
 						variant=${ action.variant ?? 'secondary' }
 						data-os-posts-bulk-action=${ action.id }
@@ -783,7 +801,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			const ui = ctx.ui( freshUi );
 			ui.stats?.sync();
 			ui.feed.observe( ctx.root );
-			const { state, data } = ctx;
+			const { data } = ctx;
 			const env = cellEnv( ctx, ui, cells );
 			// The columns rebuild when the hidden set or the filter options
 			// change (the phone crossing is the sync's own concern).
@@ -799,7 +817,6 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				// its setter, which is the one the component declares.
 				table: table as unknown as ListTableLike< PostListItem >,
 				rows: items,
-				listKey: [ state.perPage, state.search, state.status, state.orderby, state.order, state.author.join( ',' ), state.tag.join( ',' ) ].join( '|' ),
 				fingerprint: fingerprint( items ),
 				columns: ( phone ) => {
 					ui.cellCache.clear();

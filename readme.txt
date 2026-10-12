@@ -4,7 +4,7 @@ Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.12
+Stable tag: 1.1.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -196,6 +196,47 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.13 =
+* Agents: Save conversations as sent for every role
+* Readme: Disclose the About journal feed and link the terms of service
+* Preferences: Say that "Reset what's-new dialogs" replays the tour
+* Switch active desktop when focusing cross-desktop window
+* Files: Make folder and file sharing work again
+* Windows: Keep sub-page tabs in step with the dock after a menu refresh
+* Site assistant: Title "Go to" windows with the menu's name
+* Windows: Stop opening slow front-end pages twice
+* Windows: Refresh classic list windows when their content changes
+* Deactivation feedback: Ask what broke when "too buggy" is ticked
+* Editor preview: Refresh without going black or jumping to the top
+* WP Explorer: Fix the Woo folder on WordPress.com, product drops and folder zips
+* Site assistant: Speed up Ask AI, name commenters and show plugin icons
+* Revisions: Keep the Revisions window from becoming a second editor
+* Elementor: Fix the Plugins window, dock tiles and classic tabs
+* Workspaces: Keep the wallpaper picked on a workspace desk
+* WP Explorer: Fix the weekday labels on the activity calendar
+* Welcome dialog: Show it only to the user who activated the plugin
+* Drafts widget: Refresh as soon as a post is saved
+* Widgets: Mark only the desk's own widgets as added in the picker
+* Widgets: Keep the Add widget picker inside the work area
+* Site Views: Read Jetpack Stats through the server
+* Fix request tracking, media drag setup, and session-save loop
+* Plugins: Keep the upload dialog readable on the station palette
+* Preferences: choose how newly opened windows appear
+* Folder sharing: Keep agents out of the share picker
+* Desktop icons: Seat a newly installed app's icon in the first free cell
+* Windows: Keep snapped and tiled windows at their minimum width
+* Shell: Show loading states while the palette and wizard load
+* Shell tour: Point with the tail and let Mío peek
+* Editor preview: Show the eye for drafts in the Posts app and after a first autosave
+* Desktop themes: Fix wallpapers, effects, file icons and widget text
+* Desktop themes: Add the extension points a theme needs to redraw the shell
+* Fixes: notes, Ask AI, window styling, categories and prewarm
+* Taskbar: Keep task buttons in the order the windows opened
+* Desktop themes: Let a theme draw tabs as keys
+* Windows: Add Copy link to the window actions menu
+* Widgets: Stop the column clipping the cards' shadow
+* Windows: Copy link in native windows, and stop loading pages from raising their window
 
 = 1.1.12 =
 * AI: repair the tl;dr and SEO Medic prompts, and drop dated prompting patterns

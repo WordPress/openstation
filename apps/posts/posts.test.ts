@@ -7,6 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockViewContext } from '../../src/app-runtime/testing';
+import { createHooksStub } from '../../tests/vitest/helpers/hooks-stub';
 import app from './posts.os';
 import { createPostsApp } from './parts/app';
 import { buildAuthorCell, buildTitleCell } from './parts/cells/basic';
@@ -567,6 +568,21 @@ describe( 'the bulk bar', () => {
 		await runBulkAction( ctx, optingOut, postsCtx );
 		expect( refresh ).toHaveBeenCalledTimes( 2 );
 	} );
+
+	it( 'shows restore instead of trash when in trash status and dispatches restore without confirmation', async () => {
+		const { ctx, root, dispatch, table } = mount( { status: 'trash' }, data( [ row( 1, { status: 'trash' } ), row( 2, { status: 'trash' } ) ] ) );
+		app.mounted( ctx );
+		table().selection = [ 2 ];
+		table().dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
+		expect( root.querySelector( '[data-os-posts-bulk-action="trash"]' ) ).toBeNull();
+		const restoreBtn = root.querySelector( '[data-os-posts-bulk-action="restore"]' ) as HTMLElement;
+		expect( restoreBtn ).not.toBeNull();
+		restoreBtn.click();
+		await flush();
+		expect( ctx.host.confirm ).not.toHaveBeenCalled();
+		expect( dispatch ).toHaveBeenCalledWith( 'restore', { ids: [ 2 ] } );
+		expect( Array.from( table().selection ?? [] ) ).toEqual( [] );
+	} );
 } );
 
 describe( 'the registries', () => {
@@ -578,7 +594,7 @@ describe( 'the registries', () => {
 		expect( resolveStatusSegments() ).toHaveLength( 6 );
 	} );
 
-	it( 'the trash bulk action pluralises per mode, skips trashed rows and opts out of the auto-refresh', async () => {
+	it( 'the trash bulk action pluralises per mode, skips trashed rows, keeps rows selected under another query and opts out of the auto-refresh', async () => {
 		const trash = vi.fn( async () => true );
 		const [ action ] = defaultBulkActions( 'posts', trash );
 		expect( typeof action.confirm === 'function' && action.confirm( 1 ) ).toBe( 'Move 1 post to the trash?' );
@@ -586,13 +602,64 @@ describe( 'the registries', () => {
 		const [ pages ] = defaultBulkActions( 'pages', trash );
 		expect( typeof pages.confirm === 'function' && pages.confirm( 2 ) ).toBe( 'Move 2 pages to the trash?' );
 		const clearSelection = vi.fn();
-		const result = await action.run( [ 1, 2 ], {
+		// Row 3 was selected under an earlier search: not loaded, still sent.
+		const result = await action.run( [ 1, 2, 3 ], {
 			table: { data: [ row( 1 ), row( 2, { status: 'trash' } ) ], clearSelection } as never,
 		} as never );
-		expect( trash ).toHaveBeenCalledWith( [ 1 ] );
+		expect( trash ).toHaveBeenCalledWith( [ 1, 3 ] );
 		expect( clearSelection ).toHaveBeenCalled();
 		expect( result ).toBe( false );
-		expect( resolveBulkActions( [ action ] ) ).toEqual( [ action ] );
+		expect( resolveBulkActions( [ action ], 'posts' ) ).toEqual( [ action ] );
+	} );
+
+	it( 'the restore bulk action skips loaded rows outside the trash and keeps rows selected under another query', async () => {
+		const restore = vi.fn( async () => true );
+		const [ , action ] = defaultBulkActions( 'posts', vi.fn(), restore );
+		const clearSelection = vi.fn();
+		const result = await action.run( [ 1, 2, 3 ], {
+			table: { data: [ row( 1 ), row( 2, { status: 'trash' } ) ], clearSelection } as never,
+		} as never );
+		expect( restore ).toHaveBeenCalledWith( [ 2, 3 ] );
+		expect( clearSelection ).toHaveBeenCalled();
+		expect( result ).toBe( false );
+	} );
+
+	it( 'hands the bulk-actions and columns filters the window mode, and a one-arg callback still works (#854)', () => {
+		// The real bus shape: `applyFilters( name, value, ...args )`, every
+		// callback sees the extra args — what `wp.hooks` does.
+		const hooks = createHooksStub();
+		window.wp!.hooks = hooks;
+		const seen: unknown[] = [];
+		hooks.addFilter( 'openstation.postsWindow.bulkActions', 'test', ( actions, ctx ) => {
+			seen.push( ctx );
+			return ( ctx as { mode: string } ).mode === 'pages' ? [] : actions;
+		} );
+		hooks.addFilter( 'openstation.postsWindow.bulkActions', 'test', ( actions ) => actions );
+		hooks.addFilter( 'openstation.postsWindow.columns', 'test', ( cols, ctx ) => {
+			seen.push( ctx );
+			return cols;
+		} );
+		const [ action ] = defaultBulkActions( 'posts', vi.fn( async () => true ) );
+		expect( resolveBulkActions( [ action ], 'posts' ) ).toEqual( [ action ] );
+		expect( resolveBulkActions( [ action ], 'pages' ) ).toEqual( [] );
+		buildAllColumns( cellEnv(), new Map() );
+		buildAllColumns( cellEnv( { extra: { mode: 'pages' } } ), new Map() );
+		expect( seen ).toEqual( [ { mode: 'posts' }, { mode: 'pages' }, { mode: 'posts' }, { mode: 'pages' } ] );
+	} );
+
+	it( 'the restore bulk action skips non-trashed rows and opts out of auto-refresh without confirm', async () => {
+		const trash = vi.fn( async () => true );
+		const restore = vi.fn( async () => true );
+		const [ , action ] = defaultBulkActions( 'posts', trash, restore );
+		expect( action.id ).toBe( 'restore' );
+		expect( action.confirm ).toBeUndefined();
+		const clearSelection = vi.fn();
+		const result = await action.run( [ 1, 2 ], {
+			table: { data: [ row( 1, { status: 'publish' } ), row( 2, { status: 'trash' } ) ], clearSelection } as never,
+		} as never );
+		expect( restore ).toHaveBeenCalledWith( [ 2 ] );
+		expect( clearSelection ).toHaveBeenCalled();
+		expect( result ).toBe( false );
 	} );
 
 	it( 'hides user-hidden columns but never the title, narrows to the phone set, and lists the togglable ones', () => {
@@ -848,16 +915,15 @@ describe( 'the writing desk', () => {
 		expect( root.ownerDocument.activeElement ).toBe( root.querySelector( '[data-inspect-id="2"]' ) );
 	} );
 
-	it( 'drops hidden selections when the server query changes and keeps details current', async () => {
+	it( 'preserves selections when the server query changes and keeps details current', async () => {
 		const { root, ctx, table } = mount();
 		root.querySelector( '[data-story-id="2"] os-checkbox' )!.dispatchEvent( new CustomEvent( 'os-checkbox-change', { detail: { checked: true } } ) );
 		ctx.state.search = 'Row 1';
 		( ctx as { data: ListData } ).data = data( [ row( 1 ) ] );
 		ctx.repaint();
 		await flush();
-		expect( Array.from( table().selection ?? [] ) ).toEqual( [] );
+		expect( Array.from( table().selection ?? [] ) ).toEqual( [ 2 ] );
 		expect( root.querySelectorAll( '[data-story-id]' ) ).toHaveLength( 1 );
-		expect( root.querySelector( '[data-os-posts-bulk]' )?.hasAttribute( 'hidden' ) ).toBe( true );
 	} );
 
 	it( 'sorts through the existing server action', () => {

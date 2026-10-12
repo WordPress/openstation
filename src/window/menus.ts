@@ -41,8 +41,9 @@ export function describeActionsMenu( win: Window ): string[] {
 	if ( ! panel ) {
 		return [];
 	}
+	syncCopyLinkRow( win, panel );
 	const labels = Array.from(
-		panel.querySelectorAll( 'os-menu-item:not(.os-window__menu-item--action)' ),
+		panel.querySelectorAll( 'os-menu-item:not(.os-window__menu-item--action):not([hidden])' ),
 	).map( ( row ) => row.textContent?.trim() ?? '' );
 	for ( const def of listWindowActions() ) {
 		if ( isActionVisible( def, win ) ) {
@@ -50,6 +51,19 @@ export function describeActionsMenu( win: Window ): string[] {
 		}
 	}
 	return labels.filter( Boolean );
+}
+
+/**
+ * Show "Copy link" only when there is a link to copy. Asked on every
+ * open (and for the tooltip), not once at construction: a native
+ * window's answer moves with its tab, and an embedded editor's with
+ * its first save.
+ */
+function syncCopyLinkRow( win: Window, panel: Element ): void {
+	const row = panel.querySelector< HTMLElement >( '.os-window__menu-item--copy-link' );
+	if ( row && ! row.classList.contains( 'is-confirming' ) ) {
+		row.hidden = win.shareableLink() === '';
+	}
 }
 
 /** Toggle the title-bar actions menu open/closed. */
@@ -99,6 +113,7 @@ export function openActionsMenu( win: Window ): void {
 	if ( startup ) {
 		refreshStartupCheckState( win, startup );
 	}
+	syncCopyLinkRow( win, panel );
 
 	// Plugin-registered actions repaint from scratch on every open —
 	// see `paintWindowActions()` for why they cannot be built once.
@@ -156,7 +171,7 @@ export function openActionsMenu( win: Window ): void {
 	}, 0 );
 
 	// Move focus into the panel for keyboard navigation.
-	const firstItem = panel.querySelector<HTMLElement>( '[role="menuitem"]' );
+	const firstItem = panel.querySelector<HTMLElement>( '[role="menuitem"]:not([hidden])' );
 	firstItem?.focus();
 }
 
