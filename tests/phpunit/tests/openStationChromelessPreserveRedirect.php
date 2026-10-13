@@ -222,4 +222,35 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 
 		$this->assertSame( $destination, openstation_chromeless_hand_off_plugins_redirect( $destination ) );
 	}
+
+	/**
+	 * Only a redirect that leaves the site is handed to the shell; every
+	 * redirect a window follows today (a save landing back on its list,
+	 * the front end, a relative admin URL) still is.
+	 *
+	 * @covers ::openstation_is_offsite_redirect_target
+	 */
+	public function test_only_a_redirect_to_another_host_is_offsite() {
+		$this->assertTrue( openstation_is_offsite_redirect_target( 'https://woocommerce.com/oauth/authorize?secret=x' ) );
+		$this->assertTrue( openstation_is_offsite_redirect_target( '//accounts.example.org/signin' ) );
+
+		$this->assertFalse( openstation_is_offsite_redirect_target( admin_url( 'edit.php' ) ) );
+		$this->assertFalse( openstation_is_offsite_redirect_target( home_url( '/hello-world/' ) ) );
+		$this->assertFalse( openstation_is_offsite_redirect_target( 'edit.php?updated=1' ) );
+		$this->assertFalse( openstation_is_offsite_redirect_target( 'javascript://example.org/%0Aalert(1)' ) );
+	}
+
+	/**
+	 * The hand-off page names the destination to the shell, and the URL
+	 * cannot close the script it rides in.
+	 *
+	 * @covers ::openstation_offsite_redirect_document
+	 */
+	public function test_the_hand_off_page_posts_the_destination_to_the_shell() {
+		$markup = openstation_offsite_redirect_document( 'https://woocommerce.com/oauth/authorize?a=</script><b>&c=d' );
+
+		$this->assertStringContainsString( '"type":"os-iframe-offsite-redirect"', $markup );
+		$this->assertStringContainsString( 'target="_top"', $markup );
+		$this->assertStringNotContainsString( '</script><b>', $markup );
+	}
 }

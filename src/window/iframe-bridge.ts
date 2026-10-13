@@ -400,6 +400,16 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		adminLinkDepsStore.state.deps?.openOtherAdmin?.( data.url );
 	}
 
+	// The page asked the server for something that redirected off-site
+	// (a connect flow's sign-in), and the server answered with a hand-off
+	// page instead. See openstation_chromeless_hand_off_offsite_redirect().
+	if (
+		data.type === 'os-iframe-offsite-redirect' &&
+		typeof data.url === 'string'
+	) {
+		leaveForOffsiteRedirect( win, data.url );
+	}
+
 	if (
 		data.type === 'os-iframe-admin-link' &&
 		typeof data.url === 'string' &&
@@ -618,6 +628,41 @@ function iframeActivityError( status: number ): string {
 	}
 	/* translators: %d: HTTP status code of the failed request. */
 	return sprintf( __( 'Request failed (HTTP %d).' ), status );
+}
+
+/**
+ * Follow an off-site redirect the way classic admin does: in this tab.
+ * The destination will not be framed, so it cannot be a window, and the
+ * service sends the user back to an admin URL that the portal routes
+ * into the shell again.
+ *
+ * The window goes first, and without the unsaved-changes query: its
+ * page already left, and a window kept in the session would reopen on
+ * the URL that redirects, sending the user straight back out.
+ *
+ * Only a user who has interacted with the shell is taken anywhere. A
+ * window the session restores on such a URL redirects at boot, before
+ * any click, and leaving the desktop then is a surprise, not a
+ * continuation; that window is just dropped.
+ */
+function leaveForOffsiteRedirect( win: Window, rawUrl: string ): void {
+	let url: URL;
+	try {
+		url = new URL( rawUrl );
+	} catch {
+		return;
+	}
+	if (
+		url.origin === INITIAL_ORIGIN ||
+		( url.protocol !== 'https:' && url.protocol !== 'http:' )
+	) {
+		return;
+	}
+	win.destroy();
+	if ( navigator.userActivation?.hasBeenActive === false ) {
+		return;
+	}
+	window.location.assign( url.toString() );
 }
 
 function handleDesktopNavigate(

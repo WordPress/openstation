@@ -720,6 +720,105 @@ function openstation_classic_preserve_redirect( $location ) {
 add_filter( 'wp_redirect', 'openstation_classic_preserve_redirect', 999 );
 
 /**
+ * Hands an off-site redirect from a window to the shell instead of
+ * following it inside the iframe.
+ *
+ * Connect flows send the browser to another site to sign in:
+ * WooCommerce.com's "Connect account" answers with a redirect to
+ * `woocommerce.com/oauth/authorize`. Inside a window that redirect
+ * lands in the iframe, and the destination refuses to be framed
+ * (`X-Frame-Options`), so the window shows a browser error and the
+ * flow is dead. Classic admin follows the redirect in the tab, and the
+ * service sends the user back to an admin URL, which the portal routes
+ * into the shell with that URL as its target.
+ *
+ * So the response becomes a small page that asks the shell to do
+ * exactly that: close the window and take the tab to the destination
+ * (`os-iframe-offsite-redirect`, see docs/bridge-protocol.md). It
+ * carries a link to the destination for a parent that does not answer.
+ *
+ * Only navigations are answered this way. A script's request that
+ * redirects off-site keeps the plain redirect, which it can handle.
+ *
+ * @param string $location The redirect URL.
+ * @return string The redirect URL, unchanged when the request continues.
+ */
+function openstation_chromeless_hand_off_offsite_redirect( $location ) {
+	if ( empty( $location ) || ! openstation_is_chromeless_request() || openstation_is_subresource_request() ) {
+		return $location;
+	}
+	if ( ! openstation_is_offsite_redirect_target( $location ) ) {
+		return $location;
+	}
+
+	if ( ! headers_sent() ) {
+		status_header( 200 );
+		nocache_headers();
+		header( 'Content-Type: text/html; charset=utf-8' );
+	}
+	echo openstation_offsite_redirect_document( $location ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the document escapes its own parts.
+	exit;
+}
+add_filter( 'wp_redirect', 'openstation_chromeless_hand_off_offsite_redirect', 1000 );
+
+/**
+ * Whether `$location` leaves this site: an http(s) URL on a host that
+ * is neither the admin's nor the front end's.
+ *
+ * @internal
+ *
+ * @param string $location Raw redirect URL handed to `wp_redirect`.
+ * @return bool
+ */
+function openstation_is_offsite_redirect_target( $location ) {
+	$parts = wp_parse_url( (string) $location );
+	if ( false === $parts || empty( $parts['host'] ) ) {
+		return false;
+	}
+	if ( isset( $parts['scheme'] ) && ! in_array( strtolower( $parts['scheme'] ), array( 'http', 'https' ), true ) ) {
+		return false;
+	}
+	foreach ( array( site_url(), home_url() ) as $own ) {
+		$own_host = wp_parse_url( $own, PHP_URL_HOST );
+		if ( $own_host && 0 === strcasecmp( (string) $parts['host'], (string) $own_host ) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * The page {@see openstation_chromeless_hand_off_offsite_redirect()}
+ * answers with.
+ *
+ * @internal
+ *
+ * @param string $location The off-site redirect URL.
+ * @return string A complete HTML document.
+ */
+function openstation_offsite_redirect_document( $location ) {
+	$host    = (string) wp_parse_url( $location, PHP_URL_HOST );
+	$message = wp_json_encode(
+		array(
+			'type' => 'os-iframe-offsite-redirect',
+			'url'  => $location,
+		),
+		JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_SLASHES
+	);
+	$script  = 'try{window.parent.postMessage(' . $message . ',window.location.origin);}catch(e){}';
+
+	/* translators: %s: Host name of the site the link opens, e.g. woocommerce.com. */
+	$label = sprintf( __( 'Continue to %s', 'desktop-mode' ), $host );
+
+	return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex">'
+		. '<title>' . esc_html( $label ) . '</title></head>'
+		. '<body style="font:14px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px">'
+		. '<p><a href="' . esc_url( $location ) . '" target="_top">' . esc_html( $label ) . '</a></p>'
+		. wp_get_inline_script_tag( $script )
+		. '</body></html>';
+}
+
+/**
  * Whether `$location` is a redirect target that lands inside
  * wp-admin on the current site. Handles all four shapes WP core
  * actually emits:
