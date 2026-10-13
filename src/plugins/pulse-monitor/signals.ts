@@ -285,6 +285,15 @@ export function wireSignals( opts: SignalOptions ): () => void {
 	 * assets (+ raw shell fetches) via resource timing
 	 * ------------------------------------------------------------- */
 
+	/** Whether a window page runs the chromeless bridge's network reporter. */
+	const bridged = ( win: Window ): boolean => {
+		try {
+			return typeof ( win as unknown as { __wpdInstrument?: unknown } ).__wpdInstrument === 'object';
+		} catch {
+			return true;
+		}
+	};
+
 	const observeResources = ( win: Window, isShell: boolean ): void => {
 		const PO = ( win as unknown as { PerformanceObserver?: typeof PerformanceObserver } ).PerformanceObserver;
 		if ( typeof PO !== 'function' ) {
@@ -297,14 +306,16 @@ export function wireSignals( opts: SignalOptions ): () => void {
 					const status = ( entry as { responseStatus?: number } ).responseStatus ?? 0;
 					const failed = status >= 400;
 					if ( FETCH_INITIATORS.has( entry.initiatorType ) ) {
-						// Window iframes report fetch/XHR through the
-						// chromeless bridge already; only the shell's raw
-						// requests need resource timing.
-						if ( ! isShell ) {
+						// A window page with the chromeless bridge reports
+						// its own fetch/XHR (`os-iframe-network`). One
+						// without it — a 404, a fatal error, a screen that
+						// died before `admin_footer` — reports nothing, so
+						// resource timing is its only witness.
+						if ( ! isShell && bridged( win ) ) {
 							continue;
 						}
 						latency( entry.duration );
-						if ( consume( entry.name ) ) {
+						if ( isShell && consume( entry.name ) ) {
 							continue;
 						}
 						health.recordRequest( now(), status || 200 );
