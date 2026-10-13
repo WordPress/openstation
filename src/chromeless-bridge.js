@@ -2202,11 +2202,20 @@
 	 * against Gutenberg / TinyMCE / plugin handlers bound to the same
 	 * shortcut. Shift/Alt modifiers pass through so user shortcuts using
 	 * those combos keep working.
+	 *
+	 * A keydown that arrives already `defaultPrevented` was claimed by
+	 * the editor before it reached this document: Gutenberg's block
+	 * canvas is a nested iframe, its rich-text Add Link shortcut handles
+	 * Cmd+K in there, and the canvas re-dispatches the cloned keydown up
+	 * to this document with the flag set. Core's own palette bails on
+	 * that flag, so we do too — otherwise Cmd+K in a block opens the
+	 * palette instead of the link popover.
 	 */
 	document.addEventListener( 'keydown', function ( e ) {
 		if ( ! ( e.metaKey || e.ctrlKey ) ) return;
 		if ( e.key !== 'k' && e.key !== 'K' ) return;
 		if ( e.shiftKey || e.altKey ) return;
+		if ( e.defaultPrevented ) return;
 
 		e.preventDefault();
 		e.stopImmediatePropagation();

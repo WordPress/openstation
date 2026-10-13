@@ -23,7 +23,8 @@
  *      the parent can no longer add on our behalf.
  *
  * The page is a list screen (Media), so the same harness also checks
- * that a content-change broadcast refreshes it.
+ * that a content-change broadcast refreshes it, and that Cmd+K
+ * yields to a block editor that has already claimed it.
  *
  * @vitest-environment-options { "url": "http://localhost/wp-admin/upload.php?openstation_chromeless=1" }
  */
@@ -572,5 +573,38 @@ describe( 'chromeless bridge: a content-change broadcast', () => {
 		} finally {
 			vi.unstubAllGlobals();
 		}
+	} );
+} );
+
+describe( 'chromeless bridge: the Cmd+K forwarder', () => {
+	/** Presses Cmd+K on the iframe Gutenberg re-dispatches keydowns from. */
+	function pressCmdK( handledInCanvas: boolean ): void {
+		document.body.innerHTML = '<iframe name="editor-canvas"></iframe>';
+		const event = new KeyboardEvent( 'keydown', {
+			key: 'k',
+			metaKey: true,
+			bubbles: true,
+			cancelable: true,
+		} );
+		// The canvas clones a keydown its own handlers already claimed
+		// with the flag set — the rich-text Add Link shortcut does.
+		if ( handledInCanvas ) {
+			event.preventDefault();
+		}
+		document.querySelector( 'iframe' )?.dispatchEvent( event );
+	}
+
+	function paletteMessages(): Array< Record< string, unknown > > {
+		return posted.filter( ( m ) => m.type === 'os-palette-cycle' );
+	}
+
+	test( 'opens the shell palette when nothing in the page claimed it', () => {
+		pressCmdK( false );
+		expect( paletteMessages() ).toHaveLength( 1 );
+	} );
+
+	test( 'yields to the editor that already claimed it for Add Link', () => {
+		pressCmdK( true );
+		expect( paletteMessages() ).toHaveLength( 0 );
 	} );
 } );

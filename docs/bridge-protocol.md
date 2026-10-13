@@ -145,6 +145,8 @@ A keydown inside an iframe never reaches the parent document, and every admin wi
 | `os-window-switch` | iframe → parent | `{ direction: 'prev' \| 'next' }` | `` ` `` / `` Shift+` ``. Cycles window focus on the active desktop. |
 | `os-window-close-all` | iframe → parent | *(none)* | `⌥⌘W` / `Ctrl+Alt+W`. Runs the shell's confirm-then-`closeAll()` path (see [`javascript-reference.md`](./javascript-reference.md#batch-close--closeall)). |
 
+The Cmd/Ctrl+K forwarder yields to a keydown that arrives already `defaultPrevented`: that is the block editor's canvas re-dispatching a chord its rich-text Add Link shortcut has already handled, and Core's own palette bails on the same flag.
+
 The backtick forwarder — and only that one — applies a **text-entry gate** before forwarding: a bare key with no modifier has to yield to whatever the user is typing into, including the `IFRAME` case that catches Gutenberg's block canvas re-dispatching cloned keydowns. The other two carry modifiers that type nothing, so they forward from anywhere.
 
 ### Background heartbeat throttle — `os-window-active`
