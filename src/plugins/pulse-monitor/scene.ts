@@ -38,7 +38,7 @@ export interface PulseSceneOptions {
 	 *   - `preview`    an OS Settings swatch — no labels, no glow
 	 *                  filter, no head halo.
 	 */
-	variant?: 'wallpaper' | 'widget' | 'preview';
+	variant?: 'wallpaper' | 'band' | 'widget' | 'preview';
 }
 
 export interface PulseScene {
@@ -66,6 +66,9 @@ const BUCKETS = 6;
 const VARIANTS = {
 	wallpaper: { amp: 0.17, speed: 1, echoes: Infinity },
 	widget: { amp: 0.3, speed: 0.55, echoes: 3 },
+	// The reserved top band: a short, wide strip — taller beats, no
+	// echo lines (there is no room above and below for them).
+	band: { amp: 0.42, speed: 1, echoes: 0 },
 	preview: { amp: 0.17, speed: 1, echoes: 3 },
 } as const;
 
@@ -105,10 +108,12 @@ function ensureLabelStyle(): void {
 	style.id = LABEL_STYLE_ID;
 	style.textContent = `
 .os-pulse-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+/* Physical left/top on purpose: a label is pinned to a canvas x, and the
+   canvas does not mirror in RTL. */
 .os-pulse-label {
 	position: absolute;
-	inset-block-start: 0;
-	inset-inline-start: 0;
+	top: 0;
+	left: 0;
 	transform: translate( -50%, -100% );
 	white-space: nowrap;
 	font: 600 10px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -203,15 +208,59 @@ export async function mountPulseScene( opts: PulseSceneOptions ): Promise< Pulse
 		}
 	}
 
-	function allocate(): void {
+	/**
+	 * Size the column buffer to the surface. A resize keeps the trace —
+	 * a browser window dragged wider must not wipe the monitor. Sweep
+	 * columns ARE screen positions, so they stay put (and the head with
+	 * them); a narrower surface drops what fell off its edge. Scroll
+	 * keeps its newest columns, still flowing in from the right. Only
+	 * `fresh` (a style switch, where the two layouts would read the same
+	 * buffer differently) starts over.
+	 */
+	function allocate( fresh = false ): void {
+		const prevValues = values;
+		const prevErrors = errors;
+		const prevCols = cols;
+		const prevCursor = cursor;
 		width = app.screen.width;
 		height = app.screen.height;
 		cols = Math.max( 2, Math.ceil( width / STEP ) + 1 );
 		values = new Float32Array( cols ).fill( Number.NaN );
 		errors = new Uint8Array( cols );
-		cursor = 0;
-		carry = 0;
-		clearLabels();
+		if ( fresh || prevCols === 0 ) {
+			cursor = 0;
+			carry = 0;
+			clearLabels();
+		} else if ( settings.style === 'sweep' ) {
+			const keep = Math.min( prevCols, cols );
+			values.set( prevValues.subarray( 0, keep ) );
+			errors.set( prevErrors.subarray( 0, keep ) );
+			cursor = prevCursor < cols ? prevCursor : 0;
+			labels = labels.filter( ( label ) => {
+				if ( label.col < cols ) {
+					return true;
+				}
+				label.el.remove();
+				return false;
+			} );
+		} else {
+			const keep = Math.min( prevCols, cols - 1 );
+			for ( let k = 0; k < keep; k++ ) {
+				const from = ( prevCursor - keep + k + prevCols ) % prevCols;
+				values[ k ] = prevValues[ from ];
+				errors[ k ] = prevErrors[ from ];
+			}
+			cursor = keep % cols;
+			labels = labels.filter( ( label ) => {
+				const age = ( prevCursor - label.col + prevCols ) % prevCols;
+				if ( age <= keep ) {
+					label.col = ( cursor - age + cols ) % cols;
+					return true;
+				}
+				label.el.remove();
+				return false;
+			} );
+		}
 		drawGrid();
 	}
 
@@ -275,10 +324,15 @@ export async function mountPulseScene( opts: PulseSceneOptions ): Promise< Pulse
 			const x = xFor( label.col, j );
 			const below = label.peak < -0.05;
 			const peakY = Math.min( height - 6, Math.max( 6, by - label.peak * amp ) );
-			const y = below ? peakY + 8 + label.row * 13 : peakY - 8 - label.row * 13;
+			// Kept inside the surface: in a short band a tall spike's
+			// label would otherwise ride off the top edge. A label sits
+			// on its `y` (translate -100%), so 14px is its own height.
+			const y = below
+				? Math.min( height - 2, peakY + 8 + label.row * 13 )
+				: Math.max( 14, peakY - 8 - label.row * 13 );
 			label.el.classList.toggle( 'os-pulse-label--below', below );
-			label.el.style.insetInlineStart = `${ x }px`;
-			label.el.style.insetBlockStart = `${ y }px`;
+			label.el.style.left = `${ x }px`;
+			label.el.style.top = `${ y }px`;
 			label.el.style.color = label.error ? failed : normal;
 			label.el.style.opacity = String( 0.25 + 0.75 * Math.pow( j / cols, 1.4 ) );
 		}
@@ -474,6 +528,24 @@ export async function mountPulseScene( opts: PulseSceneOptions ): Promise< Pulse
 
 	allocate();
 
+	// Pixi's `resizeTo` only re-measures on a BROWSER resize; a widget
+	// card or the reserved band changes size on its own.
+	const sizeObserver =
+		typeof ResizeObserver === 'undefined'
+			? null
+			: new ResizeObserver( () => {
+				if ( destroyed ) {
+					return;
+				}
+				app.resize?.();
+				if ( opts.prefersReducedMotion && ( app.screen.width !== width || app.screen.height !== height ) ) {
+					allocate();
+					redraw();
+					app.render();
+				}
+			} );
+	sizeObserver?.observe( container );
+
 	if ( opts.prefersReducedMotion ) {
 		// One still frame: a full desk of resting rhythm, no movement.
 		const msPerScreen = ( width / speed() ) * 1000;
@@ -497,7 +569,7 @@ export async function mountPulseScene( opts: PulseSceneOptions ): Promise< Pulse
 			settings = next;
 			container.style.background = settings.background;
 			if ( restyled ) {
-				allocate();
+				allocate( true );
 			} else {
 				drawGrid();
 			}
@@ -522,6 +594,7 @@ export async function mountPulseScene( opts: PulseSceneOptions ): Promise< Pulse
 				return;
 			}
 			destroyed = true;
+			sizeObserver?.disconnect();
 			app.ticker.remove( tick );
 			clearLabels();
 			labelLayer.remove();

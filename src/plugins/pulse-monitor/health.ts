@@ -30,7 +30,6 @@ export interface ServerHealth {
 	requests: number;
 	failures: number;
 	cronLate: number;
-	load: number | null;
 }
 
 export interface HealthReading {
@@ -52,6 +51,8 @@ export interface HealthReading {
 	visitsPerMinute: number | null;
 	/** Human-readable reasons the score is not 100, worst first. */
 	reasons: string[];
+	/** The same, itemised: what each cost the score, worst first. */
+	penalties: Penalty[];
 	/**
 	 * The reason that justified the condition — what an abnormal beat
 	 * prints. For VT it is always a failure, for fibrillation a failure
@@ -73,6 +74,26 @@ interface LatencySample {
 
 /** What a penalty is about — decides how far it can push the rhythm. */
 type PenaltyKind = 'config' | 'slow' | 'failure';
+
+/** What a penalty is about — lets the Issues window explain it and link to the cure. */
+export type PenaltyTopic =
+	| 'failures'
+	| 'latency'
+	| 'js-errors'
+	| 'session'
+	| 'site-health-critical'
+	| 'site-health-recommended'
+	| 'server-errors'
+	| 'cron';
+
+/** One item of the diagnosis. */
+export interface Penalty {
+	topic: PenaltyTopic;
+	kind: PenaltyKind;
+	/** Score points it costs (out of 100). */
+	points: number;
+	reason: string;
+}
 
 /**
  * Failure points (failed requests, server errors, an expired session)
@@ -101,6 +122,21 @@ function stateForScore( score: number ): HealthState {
 
 /** Fewer requests than this in the window and the error ratio is noise. */
 const MIN_SAMPLE = 4;
+
+/**
+ * Fewer durations than this and p95 is not reported. At 20 the 95th
+ * percentile is the second-slowest request, so one call that is long
+ * by design — an AI search, an upload, a streamed response — cannot
+ * set it on its own.
+ */
+const MIN_LATENCY_SAMPLE = 20;
+
+/**
+ * Longest duration one request contributes, ms. Past this a request
+ * is slow whatever it took, and an outlier this size would otherwise
+ * hold p50/p95 up for the whole window.
+ */
+const LATENCY_CAP_MS = 10000;
 
 /** Time constant of the score smoothing, ms. */
 const SMOOTHING_MS = 6000;
@@ -152,7 +188,7 @@ export class HealthMonitor {
 	 */
 	recordLatency( at: number, ms: number ): void {
 		if ( Number.isFinite( ms ) && ms >= 0 ) {
-			this.latencies.push( { at, ms } );
+			this.latencies.push( { at, ms: Math.min( ms, LATENCY_CAP_MS ) } );
 		}
 	}
 
@@ -210,7 +246,7 @@ export class HealthMonitor {
 		// Each penalty has a kind, because kinds cap how bad the rhythm can
 		// get (see CRITICAL_FAILURE_POINTS): a slow or misconfigured site
 		// is not a failing one, and must never draw ventricular tachycardia.
-		const penalties: Array< { points: number; reason: string; kind: PenaltyKind } > = [];
+		const penalties: Penalty[] = [];
 
 		const total = this.requests.length;
 		let failed = 0;
@@ -227,6 +263,7 @@ export class HealthMonitor {
 		if ( total >= MIN_SAMPLE && ( failed || clientErrors ) ) {
 			const ratio = ( failed + clientErrors * 0.25 ) / total;
 			penalties.push( {
+				topic: 'failures',
 				kind: 'failure',
 				points: Math.min( 80, ratio * 250 ),
 				/* translators: %d: percentage of failed requests. */
@@ -235,14 +272,16 @@ export class HealthMonitor {
 		}
 
 		durations.sort( ( a, b ) => a - b );
+		// Nearest-rank percentile.
 		const pct = ( p: number ): number | null =>
 			durations.length
-				? durations[ Math.min( durations.length - 1, Math.floor( p * durations.length ) ) ]
+				? durations[ Math.min( durations.length - 1, Math.max( 0, Math.ceil( p * durations.length ) - 1 ) ) ]
 				: null;
 		const p50 = pct( 0.5 );
-		const p95 = durations.length >= MIN_SAMPLE ? pct( 0.95 ) : null;
+		const p95 = durations.length >= MIN_LATENCY_SAMPLE ? pct( 0.95 ) : null;
 		if ( p95 !== null && p95 > 800 ) {
 			penalties.push( {
+				topic: 'latency',
 				kind: 'slow',
 				points: Math.min( 25, ( p95 - 800 ) / 80 ),
 				/* translators: %s: latency in seconds, e.g. "2.4". */
@@ -253,6 +292,7 @@ export class HealthMonitor {
 		const errorsPerMinute = ( this.jsErrors.length * 60000 ) / this.windowMs;
 		if ( errorsPerMinute > 0 ) {
 			penalties.push( {
+				topic: 'js-errors',
 				kind: 'slow',
 				points: Math.min( 20, errorsPerMinute * 5 ),
 				/* translators: %d: number of JavaScript errors in the last minute. */
@@ -261,7 +301,7 @@ export class HealthMonitor {
 		}
 
 		if ( this.authLost ) {
-			penalties.push( { kind: 'failure', points: 30, reason: __( 'session expired' ) } );
+			penalties.push( { topic: 'session', kind: 'failure', points: 30, reason: __( 'session expired' ) } );
 		}
 
 		const server = this.server;
@@ -270,6 +310,7 @@ export class HealthMonitor {
 			const recommended = server.siteHealth?.recommended ?? 0;
 			if ( critical > 0 ) {
 				penalties.push( {
+					topic: 'site-health-critical',
 					kind: 'config',
 					points: Math.min( 30, critical * 10 ),
 					/* translators: %d: number of critical Site Health issues. */
@@ -278,6 +319,7 @@ export class HealthMonitor {
 			}
 			if ( recommended > 0 ) {
 				penalties.push( {
+					topic: 'site-health-recommended',
 					kind: 'config',
 					points: Math.min( 5, recommended ),
 					/* translators: %d: number of recommended Site Health improvements. */
@@ -287,6 +329,7 @@ export class HealthMonitor {
 			if ( server.requests >= MIN_SAMPLE && server.failures > 0 ) {
 				const ratio = server.failures / server.requests;
 				penalties.push( {
+					topic: 'server-errors',
 					kind: 'failure',
 					points: Math.min( 40, ratio * 200 ),
 					/* translators: %d: percentage of site-wide requests ending in a server error. */
@@ -295,6 +338,7 @@ export class HealthMonitor {
 			}
 			if ( server.cronLate > 600 ) {
 				penalties.push( {
+					topic: 'cron',
 					kind: 'config',
 					points: Math.min( 15, ( server.cronLate / 600 ) * 4 ),
 					/* translators: %d: minutes the scheduled tasks are overdue. */
@@ -355,6 +399,7 @@ export class HealthMonitor {
 			requestsPerMinute: Math.round( ( total * 60000 ) / this.windowMs ),
 			visitsPerMinute: this.server ? Math.round( ( this.visits.length * 60000 ) / this.windowMs ) : null,
 			reasons,
+			penalties,
 			cause,
 		};
 	}

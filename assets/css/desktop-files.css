@@ -59,6 +59,19 @@
 }
 
 /*
+ * The wallpaper's layer starts where the work area starts. The grid
+ * canvas is the work area's SIZE (`gridCanvasFor()`), and tiles are
+ * placed from the layer's top-left, so a band claimed at the top or
+ * left — a reserved band (`wp.os.workArea.reserve()`), a dock there —
+ * must move the layer's origin too, or the first row/column of icons
+ * lands under it. Folder windows' layers fill their own canvas.
+ */
+#os-area > .os-files-layer {
+	top: var( --os-work-area-inset-top, 0px );
+	left: var( --os-work-area-inset-left, 0px );
+}
+
+/*
  * Live drop-cell preview. A soft outline that hovers at the cell
  * the dropped tile will land in, so the user can predict where the
  * grid snap will place it before releasing. Positioned absolutely

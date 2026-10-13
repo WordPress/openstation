@@ -184,7 +184,7 @@ describe( 'the embedded page’s error and network reports', () => {
 		post( iframe, { type: 'os-iframe-network', method: 'post', url: '/wp-json/wp/v2/posts/7', status: 200, duration: 84, failed: false } );
 
 		expect( seen ).toEqual( [
-			{ windowId: WINDOW_ID, method: 'post', url: '/wp-json/wp/v2/posts/7', status: 200, duration: 84, failed: false },
+			{ windowId: WINDOW_ID, method: 'post', url: '/wp-json/wp/v2/posts/7', status: 200, duration: 84, failed: false, aborted: false },
 		] );
 		teardown();
 	} );

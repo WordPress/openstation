@@ -208,6 +208,7 @@ The sections below name the exact tables and keys.
 | OAuth relay | | | | | | ● | |
 | PWA | | ● | | | | ● | |
 | Content changes feed | | | | | ● | | |
+| Pulse Monitor | | | | | ● | | |
 | Caches: content graph, Woo, feeds, stats | | | | | ● | ● | |
 | Migrations | | | | | ● | | |
 
@@ -296,6 +297,8 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `desktop_mode_terms_cache_version` | Content graph | Cache version for terms. |
 | `_desktop_mode_presence` | Presence | Snapshot of every user's presence (`autoload = no`). Heartbeat updates it with a write throttle; a daily cron prunes it. |
 | `_desktop_mode_content_changes_log` | Content changes | Recent content changes for the feed, capped at 100 entries (`autoload = no`). |
+| `openstation_pulse_log` | Pulse Monitor | `{ seq, entries }`: the rolling log of site-wide requests relayed to listening monitors over Heartbeat, at most 200 rows and two minutes old (`autoload = no`). A row is `{ seq, ts, kind, status, error, user }`; no URL, IP or user agent. Written on `shutdown` only while someone listens. See [Pulse Monitor](pulse-monitor.md). |
+| `openstation_pulse_listeners` | Pulse Monitor | Listener leases, user id → unix expiry (`autoload = yes`, read on every request's `shutdown`). A Heartbeat tick from a mounted monitor extends its user's lease for three minutes, rewriting it past half-life only. |
 | `_desktop_mode_recycle_bin_change_ts` | Recycle Bin | Timestamp of the last bin change, for the badge (`autoload = no`). |
 | `openstation_app_store` | App Framework | The `Store` contract with `site` scope. |
 | `openstation_installed_at` | First run | `{ at, via }`: when the plugin was activated (`autoload = no`). `via` is `activation` from the activation hook, `backfill` when reconstructed on `admin_init` for an install that predates the stamp; a backfilled age reads as unknown everywhere. |

@@ -20,9 +20,19 @@ describe( 'relayIframeReport', () => {
 		expect( relayIframeReport( 'w1', { type: 'os-iframe-network', url: '/a', status: 503, duration: 12, requestHeaders: { a: '1' } } ) ).toBe( true );
 
 		expect( seen ).toEqual( [
-			{ windowId: 'w1', method: 'GET', url: '', status: 0, duration: 0, failed: true },
-			{ windowId: 'w1', method: 'GET', url: '/a', status: 503, duration: 12, failed: false, requestHeaders: { a: '1' } },
+			{ windowId: 'w1', method: 'GET', url: '', status: 0, duration: 0, failed: true, aborted: false },
+			{ windowId: 'w1', method: 'GET', url: '/a', status: 503, duration: 12, failed: false, aborted: false, requestHeaders: { a: '1' } },
 		] );
+	} );
+
+	test( 'passes through a request the page cancelled itself', () => {
+		const seen: Array< { aborted?: boolean } > = [];
+		addAction( HOOKS.IFRAME_NETWORK_COMPLETED, 'test', ( p: unknown ) => seen.push( p as { aborted?: boolean } ) );
+
+		relayIframeReport( 'w1', { type: 'os-iframe-network', url: '/search?q=a', status: 0, failed: true, aborted: true } );
+		relayIframeReport( 'w1', { type: 'os-iframe-network', url: '/search?q=b', status: 0, failed: true, aborted: 'yes' } );
+
+		expect( seen.map( ( p ) => p.aborted ) ).toEqual( [ true, false ] );
 	} );
 
 	test( 'normalises an error report', () => {

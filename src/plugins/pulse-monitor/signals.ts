@@ -48,6 +48,7 @@ import { heartbeat } from '../../heartbeat';
 import { addAction, removeAction, HOOKS } from '../../hooks';
 import { __, sprintf } from '../../i18n';
 import type { HealthMonitor, ServerHealth } from './health';
+import type { IncidentLog } from './incidents';
 import type { BeatRequest } from './rhythm';
 
 /** Hook namespace for every listener registered here. */
@@ -120,6 +121,8 @@ interface WpHeartbeat {
 
 export interface SignalOptions {
 	health: HealthMonitor;
+	/** Where every failure is filed with its URL, status and window, for the Issues window. */
+	incidents: IncidentLog;
 	/**
 	 * Hand a beat to the monitors. `delayMs` postpones it — used to
 	 * replay a Heartbeat batch of server events at their real spacing.
@@ -163,7 +166,7 @@ function absoluteUrl( url: string ): string {
  * Wire every tap. Returns the teardown.
  */
 export function wireSignals( opts: SignalOptions ): () => void {
-	const { health, emit } = opts;
+	const { health, emit, incidents } = opts;
 	const now = (): number => performance.now();
 	// A hidden tab is throttled: the browser delays timers and
 	// callbacks, so a duration measured then is the throttling, not the
@@ -197,9 +200,10 @@ export function wireSignals( opts: SignalOptions ): () => void {
 		type: string,
 		handler: ( e: E ) => void,
 		options: AddEventListenerOptions = { passive: true },
+		into: Array< () => void > = disposers,
 	): void => {
 		target.addEventListener( type, handler as EventListener, options );
-		disposers.push( () => target.removeEventListener( type, handler as EventListener, options ) );
+		into.push( () => target.removeEventListener( type, handler as EventListener, options ) );
 	};
 
 	const hook = ( name: string, handler: ( ...args: unknown[] ) => void ): void => {
@@ -252,24 +256,42 @@ export function wireSignals( opts: SignalOptions ): () => void {
 			return;
 		}
 		const status = typeof p.status === 'number' ? p.status : 0;
+		const detail = statusDetail( status, shortDetail( p.error ) || 'network error' );
 		health.recordRequest( now(), status );
-		beat( 'requests', {
-			error: status === 0 || status >= 400,
-			detail: statusDetail( status, shortDetail( p.error ) || 'network error' ),
-		} );
+		beat( 'requests', { error: status === 0 || status >= 400, detail } );
+		if ( status === 0 || status >= 400 ) {
+			const q = raw as { method?: string; windowId?: string | null };
+			incidents.add( { source: 'requests', detail, status: status || undefined, method: q.method, url: p.url, windowId: q.windowId ?? undefined } );
+		}
 	} );
 
 	// Every fetch/XHR inside a window's page — an iframe window's, or
 	// an admin page embedded in a native window (the Posts app's block
 	// editor) — relayed by the shell from the chromeless bridge.
 	hook( HOOKS.IFRAME_NETWORK_COMPLETED, ( raw ) => {
-		const p = raw as { status?: number; duration?: number; failed?: boolean };
+		const p = raw as {
+			status?: number;
+			duration?: number;
+			failed?: boolean;
+			aborted?: boolean;
+			method?: string;
+			url?: string;
+			windowId?: string;
+		};
+		// The page cancelled it (search-as-you-type dropping its last
+		// query): not a request that failed, and not one that finished.
+		if ( p.aborted ) {
+			return;
+		}
 		const status = p.failed && ! p.status ? 0 : Number( p.status ) || 0;
 		health.recordRequest( now(), status );
 		if ( typeof p.duration === 'number' ) {
 			latency( p.duration );
 		}
 		beat( 'requests', { error: status === 0 || status >= 400, detail: statusDetail( status ) } );
+		if ( status === 0 || status >= 400 ) {
+			incidents.add( { source: 'requests', detail: statusDetail( status ), status: status || undefined, method: p.method, url: p.url, windowId: p.windowId } );
+		}
 	} );
 
 	/* ---------------------------------------------------------------
@@ -285,7 +307,7 @@ export function wireSignals( opts: SignalOptions ): () => void {
 		}
 	};
 
-	const observeResources = ( win: Window, isShell: boolean ): void => {
+	const observeResources = ( win: Window, isShell: boolean, into: Array< () => void > = disposers ): void => {
 		const PO = ( win as unknown as { PerformanceObserver?: typeof PerformanceObserver } ).PerformanceObserver;
 		if ( typeof PO !== 'function' ) {
 			return;
@@ -311,8 +333,14 @@ export function wireSignals( opts: SignalOptions ): () => void {
 						}
 						health.recordRequest( now(), status || 200 );
 						beat( 'requests', { error: failed, detail: statusDetail( status ) } );
+						if ( failed ) {
+							incidents.add( { source: 'requests', detail: statusDetail( status ), status, url: entry.name } );
+						}
 					} else {
 						beat( 'assets', { error: failed, detail: statusDetail( status ) } );
+						if ( failed ) {
+							incidents.add( { source: 'assets', detail: statusDetail( status ), status, url: entry.name } );
+						}
 					}
 				}
 			} );
@@ -320,26 +348,26 @@ export function wireSignals( opts: SignalOptions ): () => void {
 		} catch {
 			return;
 		}
-		disposers.push( () => observer.disconnect() );
+		into.push( () => observer.disconnect() );
 	};
 
 	/* ---------------------------------------------------------------
 	 * input
 	 * ------------------------------------------------------------- */
 
-	const observeInput = ( doc: Document ): void => {
+	const observeInput = ( doc: Document, into: Array< () => void > = disposers ): void => {
 		const capture: AddEventListenerOptions = { passive: true, capture: true };
-		on( doc, 'pointerdown', () => beat( 'input', { amplitude: 0.16 } ), capture );
+		on( doc, 'pointerdown', () => beat( 'input', { amplitude: 0.16 } ), capture, into );
 		on( doc, 'keydown', () => {
 			if ( gates.input( 'key' ) ) {
 				beat( 'input' );
 			}
-		}, capture );
+		}, capture, into );
 		on( doc, 'wheel', () => {
 			if ( gates.wheel( 'wheel' ) ) {
 				beat( 'input', { amplitude: 0.07 } );
 			}
-		}, capture );
+		}, capture, into );
 	};
 
 	observeResources( window, true );
@@ -350,8 +378,40 @@ export function wireSignals( opts: SignalOptions ): () => void {
 	// document does not, so documents are what we remember. Cross-origin
 	// frames throw on access and are skipped (their network traffic
 	// still arrives via the chromeless bridge).
+	//
+	// Each document's taps are released on their own — when it unloads
+	// (`pagehide`: a navigation inside the window, a reload) or when its
+	// frame leaves the shell (a closed window) — not with the hub. The
+	// hub lives as long as the wallpaper, and taps held until then would
+	// keep every page the user ever opened in memory.
+	type Release = () => void;
 	const seenDocs = new WeakSet< Document >();
+	const frameTaps = new Map< Document, Release >();
+	let wired = true;
+	const tapFrame = ( win: Window, doc: Document ): void => {
+		const own: Array< () => void > = [];
+		const release = (): void => {
+			if ( ! frameTaps.delete( doc ) ) {
+				return;
+			}
+			for ( const dispose of own.splice( 0 ) ) {
+				try {
+					dispose();
+				} catch {
+					/* a frame torn down mid-release */
+				}
+			}
+		};
+		frameTaps.set( doc, release );
+		observeResources( win, false, own );
+		observeInput( doc, own );
+		on( win, 'pagehide', release, { passive: true, once: true }, own );
+	};
 	const scanFrames = (): void => {
+		if ( ! wired ) {
+			return;
+		}
+		const live = new Set< Document >();
 		for ( const frame of Array.from( document.querySelectorAll( 'iframe' ) ) ) {
 			const win = frame.contentWindow;
 			if ( ! win ) {
@@ -359,20 +419,37 @@ export function wireSignals( opts: SignalOptions ): () => void {
 			}
 			try {
 				const doc = win.document;
-				if ( ! doc || seenDocs.has( doc ) || doc.URL === 'about:blank' ) {
+				if ( ! doc || doc.URL === 'about:blank' ) {
+					continue;
+				}
+				live.add( doc );
+				if ( seenDocs.has( doc ) ) {
 					continue;
 				}
 				seenDocs.add( doc );
-				observeResources( win, false );
-				observeInput( doc );
+				tapFrame( win, doc );
 			} catch {
 				/* cross-origin */
+			}
+		}
+		// A frame removed without unloading its page first.
+		for ( const [ doc, release ] of Array.from( frameTaps ) ) {
+			if ( ! live.has( doc ) ) {
+				release();
 			}
 		}
 	};
 	scanFrames();
 	const frameTimer = window.setInterval( scanFrames, 1500 );
-	disposers.push( () => window.clearInterval( frameTimer ) );
+	let rescan = 0;
+	disposers.push( () => {
+		wired = false;
+		window.clearInterval( frameTimer );
+		window.clearTimeout( rescan );
+		for ( const release of Array.from( frameTaps.values() ) ) {
+			release();
+		}
+	} );
 
 	/* ---------------------------------------------------------------
 	 * pages, windows
@@ -385,7 +462,7 @@ export function wireSignals( opts: SignalOptions ): () => void {
 	// overlap for shell-started loads, so a load within PAGE_DEDUPE_MS
 	// of the other counts once.
 	let lastPage = -Infinity;
-	const pageLoaded = ( status = 0, duration: number | null = null ): void => {
+	const pageLoaded = ( status = 0, duration: number | null = null, url?: string ): void => {
 		const t = performance.now();
 		if ( status ) {
 			health.recordRequest( now(), status );
@@ -398,8 +475,12 @@ export function wireSignals( opts: SignalOptions ): () => void {
 		}
 		lastPage = t;
 		beat( 'pages', { error: status >= 400, detail: statusDetail( status ) } );
+		if ( status >= 400 ) {
+			incidents.add( { source: 'pages', detail: statusDetail( status ), status, url } );
+		}
 		// A window just navigated — its new document is ready to tap.
-		window.setTimeout( scanFrames, 50 );
+		window.clearTimeout( rescan );
+		rescan = window.setTimeout( scanFrames, 50 );
 	};
 	hook( HOOKS.WINDOW_CONTENT_LOADED, () => pageLoaded() );
 	on( document, 'load', ( e: Event ) => {
@@ -410,16 +491,18 @@ export function wireSignals( opts: SignalOptions ): () => void {
 		// cross-origin ones throw and still beat, status unknown.
 		let status = 0;
 		let duration: number | null = null;
+		let url: string | undefined;
 		try {
 			const nav = e.target.contentWindow?.performance.getEntriesByType( 'navigation' )[ 0 ] as
 				| ( PerformanceNavigationTiming & { responseStatus?: number } )
 				| undefined;
 			status = nav?.responseStatus ?? 0;
 			duration = nav ? nav.responseEnd - nav.startTime : null;
+			url = nav?.name;
 		} catch {
 			/* cross-origin */
 		}
-		pageLoaded( status, duration );
+		pageLoaded( status, duration, url );
 	}, { passive: true, capture: true } );
 
 	for ( const name of WINDOW_HOOKS ) {
@@ -463,15 +546,25 @@ export function wireSignals( opts: SignalOptions ): () => void {
 	hook( HOOKS.FILE_DROP_UPLOAD_FAILED, () => {
 		health.recordRequest( now(), 500 );
 		beat( 'uploads', { error: true, detail: __( 'upload failed' ) } );
+		incidents.add( { source: 'uploads', detail: __( 'upload failed' ) } );
 	} );
 
 	/* ---------------------------------------------------------------
 	 * errors, connectivity
 	 * ------------------------------------------------------------- */
 
-	const jsError = ( message: unknown ): void => {
+	const jsError = ( message: unknown, where?: { file?: unknown; line?: unknown; windowId?: unknown } ): void => {
+		const detail = shortDetail( message ) || __( 'JavaScript error' );
 		health.recordJsError( now() );
-		beat( 'errors', { detail: shortDetail( message ) || __( 'JavaScript error' ) } );
+		beat( 'errors', { detail } );
+		const file = typeof where?.file === 'string' && where.file ? where.file : '';
+		incidents.add( {
+			source: 'errors',
+			// The full message, not the label's 48 characters.
+			detail: String( message ?? '' ).trim() || detail,
+			where: file ? `${ file }${ typeof where?.line === 'number' && where.line ? `:${ where.line }` : '' }` : undefined,
+			windowId: typeof where?.windowId === 'string' ? where.windowId : undefined,
+		} );
 	};
 	const messageOf = ( value: unknown ): unknown =>
 		( value as { message?: unknown } | null )?.message ?? value;
@@ -479,17 +572,23 @@ export function wireSignals( opts: SignalOptions ): () => void {
 	// element and only reach window while capturing.
 	on( window, 'error', ( e: Event ) => {
 		if ( e instanceof ErrorEvent ) {
-			jsError( e.message );
+			jsError( e.message, { file: e.filename, line: e.lineno } );
 		} else {
-			const tag = ( e.target as Element | null )?.tagName?.toLowerCase() ?? 'resource';
+			const target = e.target as ( Element & { src?: string; href?: string } ) | null;
+			const tag = target?.tagName?.toLowerCase() ?? 'resource';
 			/* translators: %s: HTML tag name of the element that failed to load, e.g. "img". */
-			beat( 'errors', { amplitude: 0.5, detail: sprintf( __( '%s failed to load' ), tag ) } );
+			const detail = sprintf( __( '%s failed to load' ), tag );
+			beat( 'errors', { amplitude: 0.5, detail } );
+			incidents.add( { source: 'errors', detail, url: target?.src || target?.href || undefined } );
 		}
 	}, { passive: true, capture: true } );
 	on( window, 'unhandledrejection', ( e: Event ) =>
 		jsError( messageOf( ( e as PromiseRejectionEvent ).reason ) ),
 	);
-	hook( HOOKS.IFRAME_ERROR, ( raw ) => jsError( ( raw as { message?: string } | undefined )?.message ) );
+	hook( HOOKS.IFRAME_ERROR, ( raw ) => {
+		const p = raw as { message?: string; filename?: string | null; lineno?: number | null; windowId?: string } | undefined;
+		jsError( p?.message, { file: p?.filename, line: p?.lineno, windowId: p?.windowId } );
+	} );
 	hook( HOOKS.SHELL_ERROR, ( raw ) => {
 		const p = raw as { scope?: string; error?: unknown } | undefined;
 		jsError( p?.error ? messageOf( p.error ) : p?.scope );
@@ -500,6 +599,7 @@ export function wireSignals( opts: SignalOptions ): () => void {
 	hook( HOOKS.AUTH_LOST, () => {
 		health.setAuthLost( true );
 		beat( 'errors', { detail: __( 'session expired' ) } );
+		incidents.add( { source: 'errors', detail: __( 'session expired' ) } );
 	} );
 	hook( HOOKS.AUTH_RESTORED, () => health.setAuthLost( false ) );
 
@@ -509,6 +609,7 @@ export function wireSignals( opts: SignalOptions ): () => void {
 	on( window, 'offline', () => {
 		syncOnline();
 		beat( 'errors', { detail: __( 'offline' ) } );
+		incidents.add( { source: 'errors', detail: __( 'offline' ) } );
 	} );
 
 	/* ---------------------------------------------------------------
@@ -551,9 +652,20 @@ export function wireSignals( opts: SignalOptions ): () => void {
 			const status = Number( jqXHR?.status ) || 0;
 			health.recordRequest( now(), status );
 			// textStatus: "timeout", "error", "abort", "parsererror".
-			beat( 'heartbeat', { error: true, detail: statusDetail( status, shortDetail( args[ 2 ] ) || 'error' ) } );
+			const detail = statusDetail( status, shortDetail( args[ 2 ] ) || 'error' );
+			beat( 'heartbeat', { error: true, detail } );
+			incidents.add( {
+				source: 'heartbeat',
+				detail,
+				status: status || undefined,
+				method: 'POST',
+				url: ( window as unknown as { ajaxurl?: string } ).ajaxurl,
+			} );
 		} );
-		doc.on( 'heartbeat-connection-lost.osPulse', () => health.setHeartbeatLost( true ) );
+		doc.on( 'heartbeat-connection-lost.osPulse', () => {
+			health.setHeartbeatLost( true );
+			incidents.add( { source: 'heartbeat', detail: __( 'connection lost' ) } );
+		} );
 		doc.on( 'heartbeat-connection-restored.osPulse', () => health.setHeartbeatLost( false ) );
 		disposers.push( () => doc.off( '.osPulse' ) );
 	}
@@ -575,11 +687,11 @@ export function wireSignals( opts: SignalOptions ): () => void {
 				const start = payload.now - span;
 				for ( const ev of payload.events ) {
 					const offset = Math.min( span, Math.max( 0, ev.ts - start ) );
-					beat( String( ev.kind ), {
-						error: ev.error === true,
-						delay: offset,
-						detail: ev.error ? statusDetail( ev.status, __( 'failed' ) ) : undefined,
-					} );
+					const detail = ev.error ? statusDetail( ev.status, __( 'failed' ) ) : undefined;
+					beat( String( ev.kind ), { error: ev.error === true, delay: offset, detail } );
+					if ( ev.error === true ) {
+						incidents.add( { source: String( ev.kind ), detail: detail ?? '', status: ev.status || undefined, server: true, at: ev.ts } );
+					}
 					if ( ev.kind === 'visitors' || ev.kind === 'bots' ) {
 						health.recordVisit( now() );
 					}

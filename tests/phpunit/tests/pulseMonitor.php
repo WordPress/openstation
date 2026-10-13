@@ -170,6 +170,32 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::openstation_pulse_on_comment
+	 */
+	public function test_bookkeeping_comment_types_do_not_beat() {
+		$this->listen_as( self::$admin_id );
+		$post_id = self::factory()->post->create();
+		openstation_pulse_reset(); // Publishing the post beat already.
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID' => $post_id,
+				'comment_type'    => 'order_note',
+			)
+		);
+		$state = openstation_pulse_state();
+		$this->assertSame( array(), $state['events'], 'A WooCommerce order note is not a comment.' );
+
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID' => $post_id,
+				'comment_type'    => 'review',
+			)
+		);
+		$state = openstation_pulse_state();
+		$this->assertSame( array( 'comments' ), wp_list_pluck( $state['events'], 'kind' ), 'A product review is.' );
+	}
+
+	/**
 	 * @covers ::openstation_pulse_on_transition_post_status
 	 */
 	public function test_publishing_beats_once() {
@@ -259,6 +285,31 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 	 * ------------------------------------------------------------------- */
 
 	/**
+	 * @covers ::openstation_pulse_read_log
+	 */
+	public function test_read_log_returns_the_sequence_and_the_windowed_rows() {
+		$now = (int) round( microtime( true ) * 1000 );
+		update_option(
+			OPENSTATION_PULSE_LOG_OPTION,
+			array(
+				'seq'     => 7,
+				'entries' => array(
+					array( 'seq' => 6, 'ts' => $now - OPENSTATION_PULSE_LOG_WINDOW_MS - 1, 'kind' => 'visitors' ),
+					array( 'seq' => 7, 'ts' => $now - 1000, 'kind' => 'bots' ),
+					'not a row',
+				),
+			)
+		);
+
+		$log = openstation_pulse_read_log( $now );
+		$this->assertSame( 7, $log['seq'] );
+		$this->assertSame( array( 'bots' ), wp_list_pluck( $log['entries'], 'kind' ) );
+
+		delete_option( OPENSTATION_PULSE_LOG_OPTION );
+		$this->assertSame( array( 'seq' => 0, 'entries' => array() ), openstation_pulse_read_log( $now ) );
+	}
+
+	/**
 	 * @covers ::openstation_pulse_heartbeat_received
 	 */
 	public function test_heartbeat_without_opt_in_is_untouched() {
@@ -312,6 +363,25 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 		$this->assertArrayNotHasKey( 'user', $events[0], 'User ids never leave the server.' );
 	}
 
+	/**
+	 * @covers ::openstation_pulse_heartbeat_received
+	 */
+	public function test_heartbeat_relays_everything_after_a_log_reset() {
+		wp_set_current_user( self::$admin_id );
+		// The client's cursor is from before the log was deleted.
+		openstation_pulse_append(
+			array(
+				array( 'kind' => 'visitors', 'status' => 200, 'error' => false, 'user' => 0 ),
+				array( 'kind' => 'comments', 'status' => 302, 'error' => false, 'user' => 0 ),
+			),
+			(int) round( microtime( true ) * 1000 )
+		);
+
+		$tick = openstation_pulse_heartbeat_received( array(), array( 'openstation_pulse' => array( 'since' => 500 ) ) );
+		$this->assertSame( array( 'visitors', 'comments' ), wp_list_pluck( $tick['openstation_pulse']['events'], 'kind' ) );
+		$this->assertSame( 2, $tick['openstation_pulse']['seq'], 'The cursor comes back down with the response.' );
+	}
+
 	/* ---------------------------------------------------------------------
 	 * Health snapshot
 	 * ------------------------------------------------------------------- */
@@ -340,6 +410,7 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 		$this->assertSame( 2, $snapshot['requests'] );
 		$this->assertSame( 1, $snapshot['failures'] );
 		$this->assertIsInt( $snapshot['cronLate'] );
+		$this->assertSame( array( 'siteHealth', 'requests', 'failures', 'cronLate' ), array_keys( $snapshot ) );
 	}
 
 	/**

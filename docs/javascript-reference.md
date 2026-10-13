@@ -2186,7 +2186,7 @@ Heartbeat payloads and timestamp units are unchanged. See
 
 The **work area** is the rectangle of the desktop area (`#os-area`) that no shell chrome floats over — the space content may occupy and the user can reach. The bottom dock pill floats over the area's lower band; a window, widget or icon grid that sized itself against the whole area ended up with its last row under the dock, and every surface that guessed at the dock on its own guessed differently. The shell measures it once, from the live dock geometry, and every **default** placement reads it: window open (a registered size taller than the reachable height is fitted), session restore, cascade and tile, child windows, the widget clamp, the icon grid, sticky notes, embed-window restore, and the Fit of the Corkboard, the categories mind map and the tags cloud.
 
-**Maximize and snap respect the dock safe area.** They fill the measured work area (or half its width) and reflow when dock size, placement or behavior changes, keeping window content and bottom actions above a Static dock. The `dynamic` [dock behavior](#getossettings--stable) folds the rail into a thin indicator and claims no band, so maximized windows reclaim that space; revealing a Dynamic rail remains a transient overlay. Manually dragged or resized windows keep their chosen placement. Fullscreen still fills the screen.
+**Maximize and snap respect the dock safe area.** They fill the measured work area (or half its width) and reflow when dock size, placement or behavior changes, keeping window content and bottom actions above a Static dock. The `dynamic` [dock behavior](#getossettings--stable) folds the rail into a thin indicator and claims no band, so maximized windows reclaim that space; revealing a Dynamic rail remains a transient overlay. Manually dragged or resized windows keep their chosen placement — except inside a [reserved band](#reserved-bands), which no window may enter. Fullscreen still fills the screen.
 
 ```javascript
 // The latest snapshot (a copy).
@@ -2208,11 +2208,27 @@ const inset = wp.os.workArea.insetsOf( myCanvasHost );
 // React to changes — fires once per actual change, never on a
 // same-numbers re-measure.
 const off = wp.os.workArea.subscribe( ( snapshot ) => relayout( snapshot.rect ) );
+
+// Reserve a band nothing else may use (see "Reserved bands" below).
+const release = wp.os.workArea.reserve( 'my-plugin/ticker', { edge: 'top', size: 48 } );
+const band = wp.os.workArea.reservedRectOf( 'my-plugin/ticker' ); // viewport px, or null
+const placeable = wp.os.workArea.placementRectOf(); // area minus reserved bands
+release();
 ```
 
 **CSS custom properties.** The same numbers are written on `#os-shell` so a stylesheet can reserve the band without JS: `--os-work-area-inset-top`, `--os-work-area-inset-right`, `--os-work-area-inset-bottom`, `--os-work-area-inset-left` (px) and `--os-work-area-width`, `--os-work-area-height`. Give the `bottom` inset an `80px` fallback (the bottom pill at its default size, the placement almost every user has) and the others `0px`; those apply until the shell has measured once. `.os-area`'s own padding, the `.os-icons` grid and the `.os-widgets` column read them the same way.
 
-**What claims an inset.** Only chrome that floats **over** the area: the bottom dock pill, and anything a custom dock-rail renderer floats over it (every `.os-dock` in the shell body is measured; a rail claims the edge nearest its centre). A left or right dock is a flex sibling of the area, so the area is already narrower and its inset is 0. The admin bar sits above the shell in every mode, so `viewport` is already below it — below where the bar *actually ends*, not where Core says it should: the shell measures `#wpadminbar` and publishes its bottom edge in viewport px as **`--os-admin-bar-height`** on `<html>` (`src/admin-bar-height.ts`), and `.os-shell`, the toast stack and the release card all read `var( --os-admin-bar-height, var( --wp-admin--admin-bar--height, 32px ) )`. Core's token is Core's promise about Core's bar; a host that makes the bar taller, gives it a border or pushes it down under a fixed strip of its own (WordPress.com's staff debug chrome does) moves the measured edge and the shell follows. The property is present only while the bar is laid out at the top edge — a bar hidden by a mode, a mobile viewport, solo or a fullscreen window, or parked above the viewport in the `dynamic` mode, publishes nothing, so those states keep resolving Core's token. Chrome of your own that hangs below the bar should read the same chain. There is no API for a plugin to claim a band, on purpose: a work area is only useful while few things carve it.
+**What claims an inset.** Only chrome that floats **over** the area: the bottom dock pill, and anything a custom dock-rail renderer floats over it (every `.os-dock` in the shell body is measured; a rail claims the edge nearest its centre). A left or right dock is a flex sibling of the area, so the area is already narrower and its inset is 0. The admin bar sits above the shell in every mode, so `viewport` is already below it — below where the bar *actually ends*, not where Core says it should: the shell measures `#wpadminbar` and publishes its bottom edge in viewport px as **`--os-admin-bar-height`** on `<html>` (`src/admin-bar-height.ts`), and `.os-shell`, the toast stack and the release card all read `var( --os-admin-bar-height, var( --wp-admin--admin-bar--height, 32px ) )`. Core's token is Core's promise about Core's bar; a host that makes the bar taller, gives it a border or pushes it down under a fixed strip of its own (WordPress.com's staff debug chrome does) moves the measured edge and the shell follows. The property is present only while the bar is laid out at the top edge — a bar hidden by a mode, a mobile viewport, solo or a fullscreen window, or parked above the viewport in the `dynamic` mode, publishes nothing, so those states keep resolving Core's token. Chrome of your own that hangs below the bar should read the same chain.
+
+#### Reserved bands
+
+`wp.os.workArea.reserve( id, { edge, size } )` reserves a band along one edge (`top`, `right`, `bottom`, `left`, `size` in px) for a surface that must never be covered — the Pulse Monitor's [reserved top band](./pulse-monitor.md#layout) is the built-in user. It is stronger than a dock band:
+
+- It is added to the work-area insets (stacking after any dock band on that edge, then in reservation order), so maximize, snap, new-window placement, the wallpaper's file icons, widgets and notes all stay out of it, and the CSS custom properties include it. The wallpaper's file-icon layer starts at the work area's top-left (`--os-work-area-inset-top` / `-left`), and a sticky note stored inside the band is drawn just outside it — display only, so releasing the band puts it back.
+- It also bounds **manual** placement. A window may be dragged under the dock, but not into a reserved band: dragging and resizing stop at its edge, a floating window already there is moved out when the band appears, and a window opened with explicit coordinates inside it (a native window's default `0, 0`) is placed just below it. `wp.os.workArea.placementRectOf( areaEl? )` is that bound: the desktop area minus reserved bands only.
+- Reserving the same id again resizes the band in place; the returned function releases it (by id, whatever size it was last given). `wp.os.workArea.reservedRectOf( id )` gives the band's rectangle in viewport px, so the surface can draw into it — position your element there and follow `subscribe()`.
+
+The shell does not draw anything in a band; the reserver owns that space and should paint it (a layer appended to `#os-shell` sits above the desk area and under the docks). Reserve sparingly: every band takes room from every window, and a work area is only useful while few things carve it — this is for a surface the user asked to keep in view, not for placing a plugin's chrome.
 
 **Outside the contract.** Body-level popovers — context menus, tooltips, the dock's constellation and peek cards — position against the viewport and may open over the dock; they are transient chrome, not content, and stay that way. The Exposé overview collapses every rail while it is open and lays its grid out against the whole area on purpose.
 
@@ -4775,7 +4791,7 @@ Posted from inside the chromeless iframe's `error` / `unhandledrejection` handle
 ```
 
 #### `os-iframe-network` — Stable
-Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever an HTTP call completes (success or failure). The parent re-dispatches as `HOOKS.IFRAME_NETWORK_COMPLETED` with `{ windowId, method, url, status, duration, failed }`. `status === 0` indicates a network-level failure before a response arrived.
+Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever an HTTP call completes (success or failure). The parent re-dispatches as `HOOKS.IFRAME_NETWORK_COMPLETED` with `{ windowId, method, url, status, duration, failed, aborted }`. `status === 0` indicates a network-level failure before a response arrived, unless `aborted` is set: the page cancelled the request itself (an `AbortError` from `fetch`, an `abort` before `loadend` on an XHR).
 
 ```typescript
 {
@@ -4785,6 +4801,7 @@ Posted by the chromeless bridge's `fetch` and `XMLHttpRequest` wrappers whenever
     status: number;
     duration: number;
     failed: boolean;
+    aborted?: true;  // present only for a request the page cancelled
 }
 ```
 
@@ -5491,7 +5508,7 @@ Lifecycle + instrumentation for the chromeless iframe inside each window. Re-dis
 |---|---|---|---|
 | `os.iframe.ready` | action | Stable | `{ windowId }` — fires once per iframe when the chromeless bridge script has attached its listeners. Use this instead of the iframe's `load` event when timing matters (the native `load` fires before our bridge attaches, so messages sent on `load` can miss the listener). |
 | `os.iframe.error` | action | Stable | `{ windowId, kind: 'error' \| 'unhandledrejection', message, filename, lineno, colno, stack }` — bridged from the iframe's `error` / `unhandledrejection` handlers, for an iframe window's page and for an admin page embedded in a native window (`iframeContent`, `embedAdminPage()`); `windowId` is the owning window. Cross-origin iframe errors are origin-filtered at the bridge and never reach this hook. |
-| `os.iframe.network-completed` | action | Stable | `{ windowId, method, url, status, duration, failed }` — every `fetch` + `XMLHttpRequest` call inside the iframe: an iframe window's page, or an admin page embedded in a native window (`iframeContent`, `embedAdminPage()` — the Posts app's block editor included); `windowId` is the owning window. `status === 0` indicates a network-level failure with no response received. |
+| `os.iframe.network-completed` | action | Stable | `{ windowId, method, url, status, duration, failed, aborted }` — every `fetch` + `XMLHttpRequest` call inside the iframe: an iframe window's page, or an admin page embedded in a native window (`iframeContent`, `embedAdminPage()` — the Posts app's block editor included); `windowId` is the owning window. `status === 0` indicates a network-level failure with no response received — unless `aborted` is `true`, which means the page cancelled the request itself (an `AbortController` signal, `xhr.abort()`), as a search-as-you-type field does with its previous query. |
 
 Use `IFRAME_READY` when you need to send a `os-focus` (or any parent→iframe message) as early as possible without racing the bridge setup. Use `IFRAME_ERROR` / `IFRAME_NETWORK_COMPLETED` to build a monitor widget that surfaces per-window reliability data.
 

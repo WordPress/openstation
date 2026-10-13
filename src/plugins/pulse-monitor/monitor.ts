@@ -15,6 +15,7 @@
 import { doAction } from '../../hooks';
 import type { HealthReading } from './health';
 import { acquirePulseHub } from './hub';
+import { openIssues } from './issues';
 import type { PixiNamespace } from './pixi-types';
 import { Beeper, createReadout } from './readout';
 import { Rhythm, type BeatStarted } from './rhythm';
@@ -67,6 +68,13 @@ export async function mountMonitor( opts: MonitorOptions ): Promise< Monitor > {
 	let muted = new Set< string >( settings.muted );
 	const { hub, release } = acquirePulseHub();
 	const beeper = new Beeper();
+	const soundOn = ( s: PulseSettings ): boolean => s.sound && opts.variant !== 'preview';
+	beeper.setEnabled( soundOn( settings ) );
+	// Hidden tab or suspended wallpaper: the trace is frozen, so beats
+	// are dropped rather than queued (the rhythm only drains its queues
+	// while the scene ticks — a long pause would replay as a burst).
+	// Reduced motion draws one still frame and never ticks at all.
+	let suspended = false;
 
 	// Assigned once the scene mounts; beats only start inside the
 	// scene's own step, so it is always set by the time one fires.
@@ -74,7 +82,7 @@ export async function mountMonitor( opts: MonitorOptions ): Promise< Monitor > {
 	const rhythm = new Rhythm( {
 		restingBpm: settings.restingBpm,
 		onBeat: ( beat ) => {
-			if ( settings.sound && beat.major && opts.variant !== 'preview' ) {
+			if ( soundOn( settings ) && beat.major ) {
 				beeper.beep( beat.error ? 520 : 880, 70 );
 			}
 			// Name every spike a person caused, and every failed beat —
@@ -91,7 +99,8 @@ export async function mountMonitor( opts: MonitorOptions ): Promise< Monitor > {
 			 * `rest` for the idle pacemaker; `surface` is `wallpaper` or
 			 * `widget`.
 			 */
-			doAction( BEAT_HOOK, { ...beat, surface: opts.variant } );
+			// The band is the wallpaper face in its band layout.
+			doAction( BEAT_HOOK, { ...beat, surface: opts.variant === 'band' ? 'wallpaper' : opts.variant } );
 		},
 	} );
 
@@ -114,14 +123,20 @@ export async function mountMonitor( opts: MonitorOptions ): Promise< Monitor > {
 	const mounted = scene;
 
 	const unsubscribe = hub.subscribe( ( beat, delayMs ) => {
-		if ( muted.has( beat.source ) ) {
+		if ( suspended || opts.prefersReducedMotion || muted.has( beat.source ) ) {
 			return;
 		}
 		const next = beat.error && muted.has( 'errors' ) ? { ...beat, error: false, detail: undefined } : beat;
 		rhythm.push( next, delayMs > 0 ? mounted.now() + delayMs : undefined );
 	} );
 
-	const readout = createReadout( opts.container, opts.variant === 'widget' );
+	// The widget card and the reserved band can be clicked; the
+	// full-screen wallpaper lies under the desk and cannot.
+	const readout = createReadout(
+		opts.container,
+		opts.variant === 'widget' || opts.variant === 'band' ? opts.variant : 'wallpaper',
+		opts.variant === 'widget' || opts.variant === 'band' ? openIssues : undefined,
+	);
 	readout.setVisible( settings.readout );
 
 	let lastAlarm = 0;
@@ -133,25 +148,37 @@ export async function mountMonitor( opts: MonitorOptions ): Promise< Monitor > {
 			readout.update( { reading, lineColor: settings.lineColor, errorColor: settings.errorColor } );
 		}
 		// The flatline alarm: one long tone every two seconds.
-		if ( settings.sound && reading.state === 'down' && performance.now() - lastAlarm > 2000 ) {
+		if ( soundOn( settings ) && reading.state === 'down' && performance.now() - lastAlarm > 2000 ) {
 			lastAlarm = performance.now();
 			beeper.beep( 440, 900, 0.04 );
 		}
 	};
 	refresh();
-	const timer = window.setInterval( refresh, REFRESH_MS );
+	// Paused with the trace: a hidden or suspended monitor neither
+	// redraws its numbers nor sounds the flatline alarm.
+	let timer = window.setInterval( refresh, REFRESH_MS );
 
 	return {
 		applySettings( next: PulseSettings ): void {
 			settings = next;
 			muted = new Set( settings.muted );
 			rhythm.setRestingBpm( settings.restingBpm );
+			beeper.setEnabled( soundOn( settings ) );
 			mounted.applySettings( settings );
 			readout.setVisible( settings.readout );
 			refresh();
 		},
 		setAnimating( animating: boolean ): void {
 			mounted.setAnimating( animating );
+			if ( suspended === ! animating ) {
+				return;
+			}
+			suspended = ! animating;
+			window.clearInterval( timer );
+			if ( animating ) {
+				refresh();
+				timer = window.setInterval( refresh, REFRESH_MS );
+			}
 		},
 		destroy(): void {
 			window.clearInterval( timer );

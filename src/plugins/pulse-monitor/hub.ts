@@ -15,6 +15,7 @@
  */
 
 import { HealthMonitor } from './health';
+import { IncidentLog } from './incidents';
 import type { BeatRequest } from './rhythm';
 import { wireSignals } from './signals';
 
@@ -24,12 +25,15 @@ export type BeatListener = ( beat: BeatRequest, delayMs: number ) => void;
 export interface PulseHub {
 	/** Shared diagnosis. Read it with `performance.now()`. */
 	health: HealthMonitor;
+	/** Every failure this page saw, with its URL and status — the Issues window's list. */
+	incidents: IncidentLog;
 	/** Listen to every beat. Returns the unsubscribe. */
 	subscribe( listener: BeatListener ): () => void;
 }
 
 let refs = 0;
 let health: HealthMonitor | null = null;
+let incidents: IncidentLog | null = null;
 let unwire: ( () => void ) | null = null;
 const listeners = new Set< BeatListener >();
 
@@ -39,6 +43,12 @@ const hub: PulseHub = {
 			health = new HealthMonitor();
 		}
 		return health;
+	},
+	get incidents(): IncidentLog {
+		if ( ! incidents ) {
+			incidents = new IncidentLog();
+		}
+		return incidents;
 	},
 	subscribe( listener ) {
 		listeners.add( listener );
@@ -57,6 +67,7 @@ export function acquirePulseHub(): { hub: PulseHub; release: () => void } {
 	if ( refs === 1 ) {
 		unwire = wireSignals( {
 			health: hub.health,
+			incidents: hub.incidents,
 			emit: ( beat, delayMs ) => {
 				for ( const listener of listeners ) {
 					try {
@@ -83,6 +94,7 @@ export function acquirePulseHub(): { hub: PulseHub; release: () => void } {
 				// A fresh diagnosis next time: stale observations from a
 				// previous session on the desk would only mislead.
 				health = null;
+				incidents = null;
 			}
 		},
 	};

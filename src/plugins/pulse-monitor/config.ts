@@ -2,9 +2,10 @@
  * Pulse Monitor — the settings form.
  *
  * One form, two doors: the wallpaper's "Wallpaper settings" dialog in
- * OS Settings (`renderConfig`), and the widget's gear button. Both edit
- * the same `wp-pulse` settings bag, so the wallpaper and the widget
- * always look and listen alike.
+ * OS Settings (`renderConfig`), and the widget's gear button. Each
+ * edits its own settings — the wallpaper's `wp-pulse` bag, the widget's
+ * per-widget store — through `ctx.setSettings`; `ctx.face: 'widget'`
+ * leaves out the wallpaper-only layout.
  */
 
 import { __ } from '../../i18n';
@@ -20,20 +21,28 @@ import {
 	serializeMuted,
 	type PulseSettings,
 } from './settings';
+import { openIssues } from './issues';
 import { SOURCE_IDS, sourceCatalog, type SourceId } from './sources';
 
 /** What the form needs: the current values and a way to write. */
 export interface PulseConfigContext {
 	settings: Record< string, unknown >;
 	setSettings( partial: Record< string, string | number | boolean > ): void;
+	/** Which face the form edits; the widget has no wallpaper layout. Default `wallpaper`. */
+	face?: 'wallpaper' | 'widget';
 }
 
+// Colours come from the surface's tokens (`<os-modal>` and OS Settings
+// both set `--os-ui-fg` / `--os-ui-fg-muted`). Never inherit: wp-admin's
+// `h1–h6 { color: #1d2327 }` would win and paint the headings near-black
+// on a dark dialog.
 function heading( text: string ): HTMLElement {
 	const el = document.createElement( 'h3' );
 	el.textContent = text;
 	el.style.margin = '12px 0 0';
 	el.style.font = 'inherit';
 	el.style.fontWeight = '600';
+	el.style.color = 'var( --os-ui-fg, currentColor )';
 	return el;
 }
 
@@ -41,7 +50,7 @@ function note( text: string ): HTMLElement {
 	const el = document.createElement( 'p' );
 	el.textContent = text;
 	el.style.margin = '0';
-	el.style.opacity = '0.7';
+	el.style.color = 'var( --os-ui-fg-muted, currentColor )';
 	el.style.fontSize = '12px';
 	return el;
 }
@@ -144,6 +153,28 @@ export function renderPulseConfig( container: HTMLElement, ctx: PulseConfigConte
 				container.appendChild( el );
 			}
 		};
+
+		const issues = document.createElement( 'os-button' );
+		issues.setAttribute( 'variant', 'secondary' );
+		issues.style.alignSelf = 'flex-start';
+		issues.textContent = __( 'Explore issues…' );
+		issues.addEventListener( 'click', openIssues );
+		add(
+			issues,
+			note( __( 'What is holding the health score down, and every failed request, error and timeout with its URL and window.' ) ),
+		);
+
+		if ( ctx.face !== 'widget' ) {
+			add( heading( __( 'Wallpaper layout' ) ) );
+			add(
+				segmentedField( __( 'Trace area' ), current.layout, [
+					[ 'full', __( 'Whole wallpaper' ) ],
+					[ 'band', __( 'Reserved top band' ) ],
+				], ( v ) => set( { layout: v === 'band' ? 'band' : 'full' } ) ),
+				rangeField( __( 'Band height' ), PULSE_LIMITS.bandHeight, 4, current.bandHeight, ( v ) => set( { bandHeight: Math.round( v ) } ) ),
+				note( __( 'A reserved band is kept for the trace and its numbers: windows, icons and widgets stay below it, even when moved by hand, and clicking the numbers opens the issues. Not used on phones.' ) ),
+			);
+		}
 
 		add( heading( __( 'Monitor' ) ) );
 		add(

@@ -13,7 +13,7 @@
 
 import { doAction, HOOKS } from '../hooks';
 import { isMobileStamped } from '../mode/stamp';
-import { workAreaRectOf, type WorkAreaRect } from '../work-area';
+import { placementRectOf, workAreaRectOf, type WorkAreaRect } from '../work-area';
 import { createShakeDetector, dispatchShake } from './shake';
 import { DRAG_THRESHOLD_SQUARED, EDGE_MARGIN, GRAB_MARGIN } from './constants';
 import type { Window } from './index';
@@ -285,15 +285,11 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		// Constrain to the desktop area keeping GRAB_MARGIN visible.
 		// The whole area, not the work area: a window dragged under
 		// the dock is where the user put it, and the title bar stays
-		// grabbable either way.
+		// grabbable either way. Reserved bands are the exception — no
+		// window goes there, dragged or not.
 		const desktop = win.element.parentElement;
 		if ( desktop ) {
-			const safe = clampWindowPosition( x, y, win.element.offsetWidth, {
-				x: 0,
-				y: 0,
-				width: desktop.clientWidth,
-				height: desktop.clientHeight,
-			} );
+			const safe = clampWindowPosition( x, y, win.element.offsetWidth, placementRectOf( desktop ) );
 			x = safe.x;
 			y = safe.y;
 		}
@@ -591,6 +587,7 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 			win.config.minWidth,
 			win.config.minHeight,
 			snap,
+			win.element.parentElement ? placementRectOf( win.element.parentElement ) : undefined,
 		);
 
 		win.element.style.left = `${ geom.x }px`;
@@ -643,7 +640,8 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
  * All resulting dimensions are clamped to the window's configured
  * minimums. When snap-to-grid is enabled, width/height (and the
  * resulting x/y when the top-left moves) are quantized to whole
- * cells.
+ * cells. `bounds` (desktop-area-local) moves the top/left limit off
+ * the origin — a reserved band the window may not be resized into.
  */
 export function computeResize(
 	dir: ResizeDir,
@@ -656,6 +654,7 @@ export function computeResize(
 	minWidth: number,
 	minHeight: number,
 	snap: { enabled: boolean; cellWidth: number; cellHeight: number },
+	bounds: { x: number; y: number } = { x: 0, y: 0 },
 ): { x: number; y: number; width: number; height: number } {
 	let width = startW;
 	let height = startH;
@@ -712,14 +711,16 @@ export function computeResize(
 	// difference so the opposite (pinned) edge stays exactly in place —
 	// clamping the position alone would let the bottom/right edge slide
 	// while the user drags the top/left handle.
-	if ( x < EDGE_MARGIN ) {
-		const diff = EDGE_MARGIN - x;
-		x = EDGE_MARGIN;
+	const minX = bounds.x + EDGE_MARGIN;
+	const minY = bounds.y + EDGE_MARGIN;
+	if ( x < minX ) {
+		const diff = minX - x;
+		x = minX;
 		width = Math.max( minWidth, width - diff );
 	}
-	if ( y < EDGE_MARGIN ) {
-		const diff = EDGE_MARGIN - y;
-		y = EDGE_MARGIN;
+	if ( y < minY ) {
+		const diff = minY - y;
+		y = minY;
 		height = Math.max( minHeight, height - diff );
 	}
 

@@ -413,6 +413,12 @@ describe( 'clampWindowPosition', () => {
 		expect( clampWindowPosition( 100, 2000, 800, bounds ) ).toEqual( { x: 100, y: 860 } );
 	} );
 
+	test( 'a reserved top band is a hard top limit for a dragged window', () => {
+		// `placementRectOf()` with a 160px band reserved along the top.
+		const placement = { x: 0, y: 160, width: 1600, height: 740 };
+		expect( clampWindowPosition( 100, 5, 800, placement ) ).toEqual( { x: 100, y: 160 } );
+	} );
+
 	test( 'clamps against the work area, not the desktop area', () => {
 		// A bottom dock pill claiming 80px, a left rail claiming 60px.
 		const workArea = { x: 60, y: 0, width: 1540, height: 820 };

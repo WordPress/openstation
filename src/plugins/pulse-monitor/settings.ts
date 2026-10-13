@@ -14,9 +14,20 @@ import { SOURCE_IDS, type SourceId } from './sources';
 
 export type PulseStyle = 'sweep' | 'scroll';
 
+/**
+ * `full`: the trace runs across the whole wallpaper, under the desk.
+ * `band`: the shell reserves a strip along the top for the trace and
+ * its numbers; no window, icon or widget can be placed there.
+ */
+export type PulseLayout = 'full' | 'band';
+
 export interface PulseSettings {
 	/** `sweep`: a write head crosses the screen and wraps. `scroll`: the trace flows left. */
 	style: PulseStyle;
+	/** Whole wallpaper, or a reserved band along the top (wallpaper only). */
+	layout: PulseLayout;
+	/** Height of the reserved band, CSS px. */
+	bandHeight: number;
 	/** Trace colour (hex). */
 	lineColor: string;
 	/** Backdrop colour (hex). */
@@ -56,6 +67,8 @@ export interface PulseSettings {
 
 export const PULSE_DEFAULTS: PulseSettings = {
 	style: 'sweep',
+	layout: 'full',
+	bandHeight: 88,
 	lineColor: '#ff2a2a',
 	background: '#000000',
 	errorColor: '#ffb020',
@@ -76,6 +89,7 @@ export const PULSE_DEFAULTS: PulseSettings = {
 
 /** Slider bounds for the config dialog — also the sanitizer clamps. */
 export const PULSE_LIMITS = {
+	bandHeight: { min: 56, max: 300 },
 	speed: { min: 60, max: 600 },
 	intensity: { min: 0.3, max: 2 },
 	lineWidth: { min: 1, max: 6 },
@@ -141,6 +155,8 @@ export function sanitizePulseSettings(
 	const d = PULSE_DEFAULTS;
 	return {
 		style: bag.style === 'scroll' || bag.style === 'sweep' ? bag.style : d.style,
+		layout: bag.layout === 'band' || bag.layout === 'full' ? bag.layout : d.layout,
+		bandHeight: Math.round( clampNumber( bag.bandHeight, PULSE_LIMITS.bandHeight, d.bandHeight ) ),
 		lineColor: hex( bag.lineColor, d.lineColor ),
 		background: hex( bag.background, d.background ),
 		errorColor: hex( bag.errorColor, d.errorColor ),

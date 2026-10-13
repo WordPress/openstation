@@ -54,6 +54,8 @@ export interface PixiApp {
 		resolution?: number;
 	} ): Promise< void >;
 	render(): void;
+	/** Re-measure `resizeTo` now (the resize plugin only listens to the browser window). */
+	resize?(): void;
 	/**
 	 * Pass an options object, never a literal `true` — `true` releases
 	 * Pixi's page-global pools out from under every other live

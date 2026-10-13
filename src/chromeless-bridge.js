@@ -271,7 +271,9 @@
 	 *   - `fetch` + `XMLHttpRequest` are wrapped so every completed
 	 *     request (including failures) posts
 	 *     `os-iframe-network` with `{ method, url, status,
-	 *     duration, failed }`. Parent dispatches `HOOKS.
+	 *     duration, failed }`, plus `aborted: true` when the page
+	 *     cancelled the request itself (an `AbortController`, an
+	 *     `xhr.abort()`). Parent dispatches `HOOKS.
 	 *     IFRAME_NETWORK_COMPLETED`.
 	 *
 	 * Privacy: request / response bodies are NEVER captured — only
@@ -383,6 +385,11 @@
 					duration: typeof duration === 'number' ? duration : 0,
 					failed: !! failed
 				};
+				// Cancelled by the page, not failed by the network: a
+				// search-as-you-type field aborting its last query.
+				if ( extra && extra.aborted ) {
+					msg.aborted = true;
+				}
 				if ( extra && window.__wpdInstrument && window.__wpdInstrument.observe ) {
 					if ( extra.requestHeaders ) {
 						msg.requestHeaders = extra.requestHeaders;
@@ -698,7 +705,12 @@
 						var dur = ( ( typeof performance !== 'undefined' && performance.now )
 							? performance.now()
 							: Date.now() ) - start;
-						osReportNetwork( method, url, 0, Math.round( dur ), true, requestHeaders ? { requestHeaders: requestHeaders } : null );
+						var failExtra = requestHeaders ? { requestHeaders: requestHeaders } : null;
+						if ( err && err.name === 'AbortError' ) {
+							failExtra = failExtra || {};
+							failExtra.aborted = true;
+						}
+						osReportNetwork( method, url, 0, Math.round( dur ), true, failExtra );
 						osActivityEnd( tracked, true, 0 );
 						throw err;
 					}
@@ -764,10 +776,16 @@
 					}
 				}
 
+				// `loadend` follows `abort` too; remember which one it was.
+				var aborted = false;
+				var onAbort = function () {
+					aborted = true;
+				};
 				var fire = function () {
 					// An uploader may open/send the same XHR again. Keep
 					// this request's closure out of later completions.
 					xhr.removeEventListener( 'loadend', fire );
+					xhr.removeEventListener( 'abort', onAbort );
 					var dur = ( ( typeof performance !== 'undefined' && performance.now )
 						? performance.now()
 						: Date.now() ) - start;
@@ -792,6 +810,10 @@
 						} catch ( _rErr ) { /* swallow */ }
 					}
 					var failed = xhr.status === 0 || xhr.status >= 400;
+					if ( aborted ) {
+						extra = extra || {};
+						extra.aborted = true;
+					}
 					osReportNetwork(
 						xhr.__wpdMethod,
 						xhr.__wpdUrl,
@@ -804,6 +826,7 @@
 					osMaybeForceAuthCheck( xhr.status, xhr.__wpdUrl, background );
 				};
 				try {
+					xhr.addEventListener( 'abort', onAbort );
 					xhr.addEventListener( 'loadend', fire );
 				} catch ( _err ) { /* swallow */ }
 				try {
@@ -812,6 +835,7 @@
 					// A synchronous send failure has no loadend to remove
 					// the listener or balance the activity-start message.
 					xhr.removeEventListener( 'loadend', fire );
+					xhr.removeEventListener( 'abort', onAbort );
 					osReportNetwork( xhr.__wpdMethod, xhr.__wpdUrl, 0, 0, true, null );
 					osActivityEnd( tracked, true, 0 );
 					throw sync;

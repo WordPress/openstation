@@ -1872,7 +1872,7 @@ apply_filters( 'openstation_pulse_is_bot', bool $is_bot, string $user_agent );
 // One event before it is logged: { kind, status, error, user }. Return false to drop it.
 apply_filters( 'openstation_pulse_event', array|false $row );
 
-// Health snapshot sent with every Heartbeat: { siteHealth, requests, failures, cronLate, load }.
+// Health snapshot sent with every Heartbeat: { siteHealth, requests, failures, cronLate }.
 apply_filters( 'openstation_pulse_health', array $snapshot );
 ```
 

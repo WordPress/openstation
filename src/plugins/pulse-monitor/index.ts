@@ -25,7 +25,9 @@
  *   rhythm.ts     beat scheduling + waveform synthesis
  *   scene.ts      the Pixi trace and spike labels
  *   readout.ts    the numbers and the beeper
- *   config.ts     the settings form (both faces edit one settings bag)
+ *   incidents.ts  every failure with its URL, status and window
+ *   issues.ts     the Issues window: the diagnosis, itemised, and the incidents
+ *   config.ts     the settings form (each face edits its own settings)
  *   sources.ts    the signal catalog
  *   settings.ts   settings sanitizing
  *
@@ -33,8 +35,10 @@
  * widget registration) and `includes/wallpapers.php` (wallpaper).
  */
 
+import { __ } from '../../i18n';
 import type { WallpaperDef } from '../../wallpapers/types';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
+import { openIssues } from './issues';
 import { WALLPAPER_ID, wallpaperDef } from './wallpaper';
 import { WIDGET_ID, mountWidget } from './widget';
 
@@ -50,3 +54,18 @@ w.openStationWallpapers[ WALLPAPER_ID ] = wallpaperDef;
 
 w.openStationWidgets = w.openStationWidgets || {};
 w.openStationWidgets[ WIDGET_ID ] = mountWidget;
+
+// "Pulse Monitor: issues" in the command palette — the way in when the
+// trace is the full-screen wallpaper, under the desk and not clickable.
+( window.wp as unknown as {
+	os?: { registerCommand?: ( cmd: Record< string, unknown > ) => void };
+} | undefined )?.os?.registerCommand?.( {
+	slug: 'pulse-issues',
+	label: __( 'Pulse Monitor: issues' ),
+	description: __( 'Why the site’s health score is what it is, and every failed request and error with its URL.' ),
+	icon: 'dashicons-heart',
+	run: ( _args: string, ctx: { close?: () => void } ) => {
+		openIssues();
+		ctx?.close?.();
+	},
+} );

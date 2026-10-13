@@ -12,7 +12,7 @@ The wallpaper and the widget ship in the same bundle. The shell's loaders de-dup
 
 - **One hub per page.** `hub.ts` wires the signal taps, the Heartbeat feed and the health diagnosis once, reference-counted, however many monitors are mounted. Two faces never mean two `PerformanceObserver`s or two contributors to the Heartbeat field.
 - **One monitor composition.** `monitor.ts` is what both faces mount: its own rhythm and Pixi scene, subscribed to the hub, plus the numbers, the spike labels and the beeper. The faces differ only in the scene variant. The widget's trace has taller beats, a slower sweep so labels stay readable, at most three echo lines, and the numbers in small type along its bottom edge.
-- **One settings bag.** Both faces read and write the `wp-pulse` wallpaper settings. The wallpaper edits them from *OS Settings → Wallpaper → Wallpaper settings*; the widget edits them from its gear button, with the same form (`config.ts`). Muting is applied per monitor, and the diagnosis is shared.
+- **Separate settings, one form.** The wallpaper's settings are the `wp-pulse` wallpaper settings, edited from *OS Settings → Wallpaper → Wallpaper settings*. The widget keeps its own, in its per-widget store (`ctx.storage`, this browser), edited from its gear button — so the widget can look and listen differently from the wallpaper. Both use the same form (`config.ts`); the widget's leaves out the wallpaper-only layout. Muting is applied per monitor, and the diagnosis is shared.
 
 | File | Role |
 |---|---|
@@ -22,6 +22,7 @@ The wallpaper and the widget ship in the same bundle. The shell's loaders de-dup
 | `hub.ts`, `signals.ts` | the page's signal taps and Heartbeat feed |
 | `health.ts`, `rhythm.ts` | diagnosis, beat scheduling and waveforms |
 | `scene.ts`, `readout.ts` | the Pixi trace and labels, the numbers and beeper |
+| `incidents.ts`, `issues.ts` | every failure with its URL and window; the Issues window |
 | `config.ts`, `settings.ts`, `sources.ts` | the settings form, sanitizing, the signal catalog |
 
 ## What makes it beat
@@ -42,7 +43,7 @@ Each beat comes from a **source**. Users switch sources on and off in *OS Settin
 | `errors` | JS errors and rejections (shell, windows, commands), failed resources, auth loss, going offline | ectopic beat |
 | `visitors`, `bots`, `comments`, `publish`, `orders`, `logins`, `api`, `cron`, `team` | the server feed (below) | full beat / short spike |
 
-Any request that fails (status ≥ 400 or a network error) draws as an ectopic beat in the failed-beat colour.
+Any request that fails (status ≥ 400 or a network error) draws as an ectopic beat in the failed-beat colour. A request the page cancelled itself (an `AbortController`, `xhr.abort()`: a search-as-you-type field dropping its previous query) is neither: it does not beat and does not count towards the diagnosis.
 
 Resting beats are deliberately small. With no activity, a pacemaker fires at the *Resting heart rate* setting. Every activity beat resets that clock and stands well above it. Bursts queue behind a 300 ms refractory gap: a page load reads as a run of tall, fast beats, and a queue that overflows makes the next beats taller instead of growing forever.
 
@@ -63,7 +64,20 @@ Beats in the failed-beat colour (amber by default) failed, and their label says 
 | `PVC: slow responses (p95 3.1 s)` | a strained site: the diagnosis turned a resting beat ectopic, and names its leading cause |
 | `request · VT: 42% of requests failing` | a critical site: every beat is ventricular tachycardia |
 
-**Background tabs.** A hidden tab is throttled: the browser delays timers and callbacks. Latency samples taken while the document is hidden are therefore discarded, so a backgrounded tab does not diagnose itself "slow" and fill the trace with PVCs. Other failures that happen in the background (a Heartbeat `timeout`, a failed request) are real; they queue and draw, with their reason, when the tab comes back.
+**Background tabs.** A hidden tab is throttled: the browser delays timers and callbacks. Latency samples taken while the document is hidden are therefore discarded, so a backgrounded tab does not diagnose itself "slow" and fill the trace with PVCs. While the tab is hidden (or the wallpaper is suspended) the trace is frozen: beats are dropped rather than queued, so coming back does not replay the pause as one burst, and the numbers and the flatline alarm pause with it. Failures in the background still count towards the diagnosis, so a site that broke while you were away is drawn sick when you return.
+
+## Layout
+
+*Wallpaper layout → Trace area* in the settings picks where the wallpaper's trace lives:
+
+- **Whole wallpaper** (default). The trace runs across the whole wallpaper, under the desk. Windows can cover it, and the numbers sit at the bottom-right of the work area, clear of a docked pill.
+- **Reserved top band**. The shell reserves a strip along the top of the desktop (*Band height*, 56–300 px, 88 by default) through [`wp.os.workArea.reserve()`](./javascript-reference.md#reserved-bands). Nothing else may be placed there: maximize, snap, new windows, icons and widgets stay below it, and dragging or resizing a window stops at its edge. The trace and its numbers draw on a layer over the band, the rest of the wallpaper is the plain background colour, and since nothing can cover the numbers, clicking them opens the [Issues window](#issues).
+
+On a phone (the shell's mobile mode, `wp.os.mode.isMobile()`), the band is not used: apps open full-screen there, so a reserved strip would only take room from them. The wallpaper falls back to the whole-wallpaper layout and reserves nothing, and switches back when the shell leaves mobile mode (a rotation, a wider window).
+
+The widget always fills its card.
+
+Resizing the browser keeps the trace. In sweep mode columns stay where they were drawn (a narrower window drops what fell off the edge); in scroll mode the newest columns are kept. Switching between sweep and scroll starts the trace over.
 
 ## Health diagnosis
 
@@ -80,7 +94,7 @@ The rhythm reflects site health over a sliding one-minute window:
 The score combines:
 
 - failed requests (5xx and network failures fully, 4xx at a quarter weight)
-- p95 latency above 800 ms
+- p95 latency above 800 ms, once the window holds at least 20 timed requests (so a single long call — an AI search, an upload, a streamed response — cannot set it on its own); each request counts for at most 10 s
 - JavaScript errors per minute
 - an expired session
 - the server snapshot: Site Health criticals and recommendations, the 5xx share of site-wide traffic, and overdue cron
@@ -89,21 +103,32 @@ What kind of trouble it is caps how bad the rhythm can get, whatever the score. 
 
 The score is smoothed, quick to worsen and slow to recover, so one failed request is a skipped beat, not a rhythm change. Turn *Diagnose site health* off to keep a sinus rhythm regardless.
 
-The numbers (bottom-right on the wallpaper, along the bottom edge of the widget) are measured values only:
+The numbers are measured values only. Hover one for what it means:
 
-- **req/min** — requests this shell saw settle in the last minute
-- **ms** — median response time
-- **errors** — failed share of those requests
-- **visits/min** — front-end page views from the server feed; `--` when the feed does not reach this user
+- **req/min** — requests this browser saw finish in the last minute.
+- **ms** (with a clock icon) — the **median response time** over the last minute: half the requests were faster, half slower. It is the whole round trip (PHP, the database, the network), not a network ping, so 500–900 ms is normal on a heavy site. Only requests that finished with the tab visible count. The diagnosis looks at the slow end separately (p95, see above).
+- **errors** — the share of those requests that failed: a 4xx or 5xx answer, or none at all.
+- **visits/min** — front-end page views across the whole site, from the server feed; `--` when the feed does not reach this user.
+
+## Issues
+
+The Issues window explains the trace. Open it by clicking the numbers (in the widget card or the reserved band), with *Explore issues…* at the top of the settings form, or with **Pulse Monitor: issues** in the command palette (the way in when the trace is the full-screen wallpaper, under the desk). It shows:
+
+- **The score and the rhythm**, live.
+- **Why**: each item holding the score down, with the points it costs, what it means, and — for Site Health issues and overdue cron — a button that opens Site Health in a window.
+- **Recent problems**: every failure this page saw, newest first, up to 200 — failed requests with method, URL, status and the window they came from; JavaScript errors with file and line; broken resources; Heartbeat errors and lost connections; uploads; session expiry; going offline; and site-wide failures from the server feed. *Clear* empties the list.
+
+Everything listed was seen by this browser, about this browser's own traffic, and stays in the page. Site-wide events from the server feed carry a kind and a status only — the feed never relays URLs or IPs. While open, the window keeps the signal taps running, so it works with no monitor on the desk.
 
 ## Server feed
 
 `includes/pulse-monitor.php` records requests the shell cannot see and relays them over Heartbeat.
 
-- **Cost.** Nothing is recorded unless a shell is listening. A mounted wallpaper contributes `openstation_pulse` to every Heartbeat tick, and each tick refreshes a three-minute lease in the autoloaded `openstation_pulse_listeners` option. While any lease is live, each request does one `update_option` on the non-autoloaded `openstation_pulse_log` (capped at 200 rows / 2 minutes). A listener's own requests are never recorded.
-- **Classification.** Cron → `cron`. REST, XML-RPC, admin-ajax and admin pages → `team` when logged in, `api` when not. Front-end → `visitors`, or `bots` when the user agent looks automated. Explicit events replace the classification: a new comment → `comments`, a post going live → `publish`, `wp_login` → `logins`, `wp_login_failed` → `logins` (failed), `woocommerce_new_order` → `orders`.
+- **Cost.** Nothing is recorded unless a shell is listening. A mounted wallpaper contributes `openstation_pulse` to every Heartbeat tick, and each tick refreshes a three-minute lease in the autoloaded `openstation_pulse_listeners` option. With no live lease, a request pays one in-memory option read at `shutdown`. While any lease is live, **every** recorded request (front-end page views by every visitor included) does one `update_option` on the non-autoloaded `openstation_pulse_log` (capped at 200 rows / 2 minutes). On a busy site, an admin who leaves the wallpaper on means one `wp_options` UPDATE per page view, all on the same row; return `''` from `openstation_pulse_request_kind` to keep a class of traffic off the monitor. A listener's own requests and WP-CLI commands are never recorded.
+- **Best effort.** The log and the leases are read-modify-write options with no lock. Under concurrent traffic some rows overwrite each other and those beats are lost; a lost lease write is redone on the next tick past its half-life. Fine for a live trace; not an audit log.
+- **Classification.** Cron → `cron`. REST, XML-RPC, admin-ajax and admin pages → `team` when logged in, `api` when not. Front-end → `visitors`, or `bots` when the user agent looks automated. Explicit events replace the classification: a new comment, review, pingback or trackback → `comments` (other comment types, such as WooCommerce order notes, are bookkeeping and do not beat; `wp_insert_comment` also fires for imports, so an importer beats once per comment), a post going live → `publish`, `wp_login` → `logins`, `wp_login_failed` → `logins` (failed), `woocommerce_new_order` → `orders`.
 - **Privacy.** Rows carry a kind, a timestamp, an HTTP status, an error flag and a user id. The user id is used only to exclude a listener's own traffic and never leaves the server. No URLs, IPs, user agents or names are stored.
-- **Delivery.** The first tick returns only the cursor, so mounting does not replay history. Later ticks return the newer events plus a health snapshot. The client replays each batch at its real spacing, one tick late. While mounted, the wallpaper raises a slower Heartbeat interval to 15 s and restores it on unmount.
+- **Delivery.** The first tick returns only the cursor, so mounting does not replay history. Later ticks return the newer events plus a health snapshot (`{ siteHealth, requests, failures, cronLate }`). A cursor ahead of the log means the log was reset; that tick relays everything the log holds and brings the cursor back down. The client replays each batch at its real spacing, one tick late. While mounted, the wallpaper raises a slower Heartbeat interval to 15 s and restores it on unmount.
 - **Access.** The feed requires `manage_options` by default (filter: `openstation_pulse_capability`). Users without it still get a live trace from their own shell.
 
 ### PHP API
@@ -145,10 +170,12 @@ wp.hooks.addAction( 'os.pulse.beat', 'my-plugin', ( beat ) => {
 
 ## Settings
 
-Persisted through the wallpaper settings surface (`ctx.settings`) under `wp-pulse`, and shared by the widget. The shell round-trips scalars only and caps a wallpaper at 32 keys, so muted sources travel as one comma-separated `muted` string.
+The wallpaper's are persisted through the wallpaper settings surface (`ctx.settings`) under `wp-pulse`; the widget's in its own store (`os.widget.desktop-mode/pulse.settings` in `localStorage`), with the same keys and defaults (`layout` and `bandHeight` do not apply to it). The shell round-trips scalars only and caps a wallpaper at 32 keys, so muted sources travel as one comma-separated `muted` string.
 
 | Key | Default | |
 |---|---|---|
+| `layout` | `full` | wallpaper only: `full` (whole wallpaper) or `band` (a [reserved top band](#layout)) |
+| `bandHeight` | 88 | height of the reserved band, px (56–300) |
 | `style` | `sweep` | `sweep` (head crosses and wraps) or `scroll` (trace flows left) |
 | `lineColor` / `background` / `errorColor` | `#ff2a2a` / `#000000` / `#ffb020` | |
 | `speed` | 220 | px per second |
@@ -159,7 +186,7 @@ Persisted through the wallpaper settings surface (`ctx.settings`) under `wp-puls
 | `grid` | off | ECG paper grid |
 | `readout` | on | the numbers |
 | `labels` | on | name each spike |
-| `sound` | off | beep per full beat; alarm on flatline |
+| `sound` | off | beep per full beat; alarm on flatline. No audio context exists while it is off |
 | `restingBpm` | 62 | 0 = flatline when quiet |
 | `diagnose` | on | read site health into the rhythm |
 | `muted` | `''` | comma-separated source ids |

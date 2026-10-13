@@ -18,9 +18,20 @@
  * to every Heartbeat tick, and each tick refreshes a short lease in the
  * autoloaded `openstation_pulse_listeners` option. With no live lease
  * a request pays one in-memory option read at `shutdown` and returns.
- * With one, a request pays one `update_option` on a non-autoloaded
- * log capped at {@see OPENSTATION_PULSE_LOG_MAX} rows. A listener's
- * own requests are never recorded — the shell already sees them.
+ * With one, EVERY recorded request — front-end page views included —
+ * pays one `update_option` on a non-autoloaded log capped at
+ * {@see OPENSTATION_PULSE_LOG_MAX} rows: on a busy site, an admin who
+ * leaves the monitor on means one `wp_options` UPDATE per page view,
+ * all on the same row. The `openstation_pulse_request_kind` filter can
+ * return '' to keep a class of traffic (front-end views, say) off the
+ * monitor. A listener's own requests are never recorded — the shell
+ * already sees them — and neither are WP-CLI commands.
+ *
+ * Best effort. The log and the leases are read-modify-write options
+ * with no lock, so concurrent requests can overwrite each other's
+ * rows: under heavy traffic some beats are dropped, and a lease write
+ * can be lost (the next tick past its half-life rewrites it). Both
+ * are acceptable for a live trace; neither is an audit log.
  *
  * Privacy. Rows carry a kind, a timestamp, an HTTP status and the
  * user id (only to exclude a listener's own traffic). No URLs, IPs,
@@ -191,8 +202,6 @@ function openstation_pulse_is_bot( $user_agent ) {
 	 * Filters whether the current request counts as a bot for the
 	 * Pulse Monitor — bot beats render smaller than visitor beats.
 	 *
-	 * @since 1.2.0
-	 *
 	 * @param bool   $is_bot     Whether the user agent matched the bot pattern.
 	 * @param string $user_agent The raw user agent.
 	 */
@@ -222,11 +231,38 @@ function openstation_pulse_classify_request() {
 	 * Filters the Pulse kind a request is classified as. Return an
 	 * empty string to keep the request off the monitor.
 	 *
-	 * @since 1.2.0
-	 *
 	 * @param string $kind The classified kind.
 	 */
 	return (string) apply_filters( 'openstation_pulse_request_kind', $kind );
+}
+
+/**
+ * Reads the log: its sequence counter and the rows still inside the
+ * retention window.
+ *
+ * @param int $now Current time in milliseconds.
+ * @return array {
+ *     @type int   $seq     Highest sequence number handed out.
+ *     @type array $entries Rows with `ts` at or after `$now` minus the window, oldest first.
+ * }
+ */
+function openstation_pulse_read_log( $now ) {
+	$log     = get_option( OPENSTATION_PULSE_LOG_OPTION, array() );
+	$seq     = ( is_array( $log ) && isset( $log['seq'] ) ) ? (int) $log['seq'] : 0;
+	$entries = ( is_array( $log ) && isset( $log['entries'] ) && is_array( $log['entries'] ) ) ? $log['entries'] : array();
+	$cutoff  = $now - OPENSTATION_PULSE_LOG_WINDOW_MS;
+
+	return array(
+		'seq'     => $seq,
+		'entries' => array_values(
+			array_filter(
+				$entries,
+				function ( $entry ) use ( $cutoff ) {
+					return is_array( $entry ) && isset( $entry['ts'] ) && (int) $entry['ts'] >= $cutoff;
+				}
+			)
+		),
+	);
 }
 
 /**
@@ -236,9 +272,9 @@ function openstation_pulse_classify_request() {
  * @param int   $now  Current time in milliseconds.
  */
 function openstation_pulse_append( $rows, $now ) {
-	$log     = get_option( OPENSTATION_PULSE_LOG_OPTION, array() );
-	$seq     = ( is_array( $log ) && isset( $log['seq'] ) ) ? (int) $log['seq'] : 0;
-	$entries = ( is_array( $log ) && isset( $log['entries'] ) && is_array( $log['entries'] ) ) ? $log['entries'] : array();
+	$log     = openstation_pulse_read_log( $now );
+	$seq     = $log['seq'];
+	$entries = $log['entries'];
 
 	foreach ( $rows as $row ) {
 		$entries[] = array(
@@ -251,15 +287,6 @@ function openstation_pulse_append( $rows, $now ) {
 		);
 	}
 
-	$cutoff  = $now - OPENSTATION_PULSE_LOG_WINDOW_MS;
-	$entries = array_values(
-		array_filter(
-			$entries,
-			function ( $entry ) use ( $cutoff ) {
-				return isset( $entry['ts'] ) && (int) $entry['ts'] >= $cutoff;
-			}
-		)
-	);
 	if ( count( $entries ) > OPENSTATION_PULSE_LOG_MAX ) {
 		$entries = array_slice( $entries, -OPENSTATION_PULSE_LOG_MAX );
 	}
@@ -283,7 +310,9 @@ function openstation_pulse_on_shutdown() {
 	$explicit  = $state['events'];
 	openstation_pulse_reset();
 
-	if ( empty( $listeners ) ) {
+	// A WP-CLI command is not site traffic — and with no user agent it
+	// would otherwise beat as a bot.
+	if ( empty( $listeners ) || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 		return;
 	}
 	$user_id = get_current_user_id();
@@ -323,8 +352,6 @@ function openstation_pulse_on_shutdown() {
 		 * Filters one Pulse Monitor event before it is logged. Return
 		 * a falsy value to drop it.
 		 *
-		 * @since 1.2.0
-		 *
 		 * @param array|false $row {
 		 *     The event.
 		 *
@@ -360,7 +387,6 @@ function openstation_pulse_on_shutdown() {
  *     @type int        $requests   Logged requests in the window.
  *     @type int        $failures   Logged requests that failed (5xx / flagged).
  *     @type int        $cronLate   Seconds the oldest due cron event is overdue.
- *     @type float|null $load       One-minute load average, when the host exposes it.
  * }
  */
 function openstation_pulse_health_snapshot( $entries ) {
@@ -392,28 +418,17 @@ function openstation_pulse_health_snapshot( $entries ) {
 		$cron_late = max( 0, time() - $first - 60 );
 	}
 
-	$load = null;
-	if ( function_exists( 'sys_getloadavg' ) ) {
-		$avg = sys_getloadavg();
-		if ( is_array( $avg ) && isset( $avg[0] ) ) {
-			$load = round( (float) $avg[0], 2 );
-		}
-	}
-
 	$snapshot = array(
 		'siteHealth' => $site_health,
 		'requests'   => count( $entries ),
 		'failures'   => $failures,
 		'cronLate'   => $cron_late,
-		'load'       => $load,
 	);
 
 	/**
 	 * Filters the health snapshot the Pulse Monitor diagnoses from.
 	 * Plugins that know more (an uptime monitor, a queue depth) can
 	 * add failures or override the cron delay.
-	 *
-	 * @since 1.2.0
 	 *
 	 * @param array $snapshot The snapshot.
 	 */
@@ -427,7 +442,10 @@ function openstation_pulse_health_snapshot( $entries ) {
  * Opt-in via the client-sent `openstation_pulse` key; ticks without
  * it return untouched. The first tick (cursor 0) returns only the
  * cursor, so mounting the wallpaper does not replay two minutes of
- * history as one burst.
+ * history as one burst. A cursor ahead of the log means the log was
+ * reset (deleted, restored, migrated): every row it holds is new to
+ * that client, so they are all relayed and the response brings the
+ * cursor back down.
  *
  * @param array $response Heartbeat response.
  * @param array $data     Client-sent payload.
@@ -447,8 +465,6 @@ function openstation_pulse_heartbeat_received( $response, $data ) {
 	 * own shell's traffic; they just do not see visitors, logins or
 	 * other people's activity.
 	 *
-	 * @since 1.2.0
-	 *
 	 * @param string $capability Capability. Default 'manage_options'.
 	 */
 	$capability = (string) apply_filters( 'openstation_pulse_capability', 'manage_options' );
@@ -462,23 +478,17 @@ function openstation_pulse_heartbeat_received( $response, $data ) {
 	$payload = is_array( $data['openstation_pulse'] ) ? $data['openstation_pulse'] : array();
 	$since   = isset( $payload['since'] ) ? (int) $payload['since'] : 0;
 
-	$log     = get_option( OPENSTATION_PULSE_LOG_OPTION, array() );
-	$seq     = ( is_array( $log ) && isset( $log['seq'] ) ) ? (int) $log['seq'] : 0;
-	$entries = ( is_array( $log ) && isset( $log['entries'] ) && is_array( $log['entries'] ) ) ? $log['entries'] : array();
-
-	$now     = (int) round( microtime( true ) * 1000 );
-	$cutoff  = $now - OPENSTATION_PULSE_LOG_WINDOW_MS;
-	$windowed = array_values(
-		array_filter(
-			$entries,
-			function ( $entry ) use ( $cutoff ) {
-				return isset( $entry['ts'] ) && (int) $entry['ts'] >= $cutoff;
-			}
-		)
-	);
+	$now      = (int) round( microtime( true ) * 1000 );
+	$log      = openstation_pulse_read_log( $now );
+	$seq      = $log['seq'];
+	$windowed = $log['entries'];
+	$replay   = $since > 0;
+	if ( $since > $seq ) {
+		$since = 0;
+	}
 
 	$fresh = array();
-	if ( $since > 0 ) {
+	if ( $replay ) {
 		foreach ( $windowed as $entry ) {
 			if ( (int) $entry['seq'] <= $since || (int) $entry['user'] === $user_id ) {
 				continue;
@@ -503,9 +513,23 @@ function openstation_pulse_heartbeat_received( $response, $data ) {
 }
 
 /**
- * Comment hook — every new comment (spam included) beats as a comment.
+ * Comment hook — a new comment, review, pingback or trackback beats as
+ * a comment (spam included). Other comment types are bookkeeping that
+ * plugins keep in the comments table — WooCommerce order notes, for
+ * one — and stay off the trace.
+ *
+ * `wp_insert_comment` also fires for imports and programmatic
+ * inserts: an importer bringing in a thousand comments beats a
+ * thousand times.
+ *
+ * @param int             $comment_id Comment id.
+ * @param WP_Comment|null $comment    Comment.
  */
-function openstation_pulse_on_comment() {
+function openstation_pulse_on_comment( $comment_id, $comment = null ) {
+	$type = ( $comment instanceof WP_Comment ) ? $comment->comment_type : get_comment_type( $comment_id );
+	if ( ! in_array( (string) $type, array( '', 'comment', 'review', 'pingback', 'trackback' ), true ) ) {
+		return;
+	}
 	openstation_pulse_record( 'comments' );
 }
 
@@ -579,7 +603,7 @@ function openstation_pulse_register_widget() {
  * Wires the recorder.
  */
 function openstation_pulse_register_hooks() {
-	add_action( 'wp_insert_comment', 'openstation_pulse_on_comment' );
+	add_action( 'wp_insert_comment', 'openstation_pulse_on_comment', 10, 2 );
 	add_action( 'transition_post_status', 'openstation_pulse_on_transition_post_status', 10, 3 );
 	add_action(
 		'wp_login',

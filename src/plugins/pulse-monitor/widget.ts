@@ -2,29 +2,24 @@
  * Pulse Monitor — the widget face (`desktop-mode/pulse`).
  *
  * The same monitor as the wallpaper — same engine, same signal hub,
- * same diagnosis, same settings bag — drawn into a widget card: a
- * smaller trace with taller beats and a slower sweep, the numbers
- * along its bottom edge, and a gear that opens the shared settings
- * form. Wallpaper and widget can run together; the hub wires the
- * signal taps once for both.
+ * same diagnosis — drawn into a widget card: a smaller trace with
+ * taller beats and a slower sweep, the numbers along its bottom edge,
+ * and a gear that opens the settings form. Its settings are its own,
+ * kept in the widget's store, so the widget and the wallpaper can
+ * look and listen differently. Wallpaper and widget can run together;
+ * the hub wires the signal taps once for both.
  */
 
 import { __ } from '../../i18n';
-import { addAction, removeAction, HOOKS } from '../../hooks';
 import '../../ui/components/os-modal/os-modal';
 import '../../ui/components/os-button/os-button';
 import { osIconSvg } from '../../ui/icons';
-import {
-	getWallpaperSettings,
-	publishWallpaperSettings,
-	type WallpaperSettings,
-} from '../../wallpapers/settings-store';
+import type { WallpaperSettings } from '../../wallpapers/settings-store';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 import { renderPulseConfig } from './config';
 import { mountMonitor, type Monitor } from './monitor';
 import { getPixi } from './pixi-types';
 import { sanitizePulseSettings } from './settings';
-import { WALLPAPER_ID } from './wallpaper';
 
 export const WIDGET_ID = 'desktop-mode/pulse';
 
@@ -44,26 +39,19 @@ function ensureStyle(): void {
 	overflow: hidden;
 	border-radius: 10px;
 }
+/* Placement and reveal only; the look is <os-button variant="ghost">'s. */
 .os-widget-pulse__gear {
 	position: absolute;
 	inset-block-start: 6px;
 	inset-inline-end: 6px;
 	z-index: 2;
-	inline-size: 24px;
-	block-size: 24px;
-	padding: 0;
-	border: 0;
-	border-radius: 6px;
-	background: rgb(255 255 255 / 0.08);
-	color: rgb(255 255 255 / 0.7);
-	cursor: pointer;
-	display: grid;
-	place-items: center;
+	--os-ui-button-padding: 4px;
 	opacity: 0;
 	transition: opacity 120ms ease;
 }
+.os-widget-pulse__gear svg { display: block; }
 .os-widget-pulse:hover .os-widget-pulse__gear,
-.os-widget-pulse__gear:focus-visible { opacity: 1; }
+.os-widget-pulse__gear:focus-within { opacity: 1; }
 .os-widget-pulse__form { display: flex; flex-direction: column; gap: 12px; }
 @media (prefers-reduced-motion: reduce) {
 	.os-widget-pulse__gear { transition: none; }
@@ -82,29 +70,18 @@ async function loadPixi(): Promise< void > {
 	await load( [ 'pixijs' ] );
 }
 
-/**
- * Write a partial into the shared `wp-pulse` settings bag — the same
- * path the OS Settings dialog takes: persist through the OS Settings
- * store, then publish so every mounted monitor live-applies.
- */
-function writeSettings( partial: WallpaperSettings ): void {
-	const merged: WallpaperSettings = { ...getWallpaperSettings( WALLPAPER_ID ), ...partial };
-	const api = ( window.wp as unknown as {
-		os?: {
-			getOsSettings?: () => { wallpaperSettings?: Record< string, WallpaperSettings > };
-			updateOsSettings?: ( patch: Record< string, unknown > ) => void;
-		};
-	} | undefined )?.os;
-	const all = api?.getOsSettings?.().wallpaperSettings ?? {};
-	api?.updateOsSettings?.( { wallpaperSettings: { ...all, [ WALLPAPER_ID ]: merged } } );
-	publishWallpaperSettings( WALLPAPER_ID, merged );
-}
+/** The widget's own settings, in its per-widget store (`ctx.storage`). */
+const SETTINGS_KEY = 'settings';
 
-/** The gear's dialog: the shared settings form in an `<os-modal>`. */
-function openSettings(): void {
+/**
+ * The gear's dialog: the settings form in an `<os-modal>`.
+ *
+ * @return Closes the dialog (a no-op once it is closed).
+ */
+function openSettings( current: () => WallpaperSettings, write: ( partial: WallpaperSettings ) => void ): () => void {
 	const modal = document.createElement( 'os-modal' );
 	modal.setAttribute( 'size', 'sm' );
-	modal.setAttribute( 'title', __( 'Pulse Monitor settings' ) );
+	modal.setAttribute( 'title', __( 'Pulse Monitor widget settings' ) );
 	const body = document.createElement( 'div' );
 	body.className = 'os-widget-pulse__form';
 	modal.appendChild( body );
@@ -114,11 +91,13 @@ function openSettings(): void {
 	done.textContent = __( 'Done' );
 	modal.appendChild( done );
 
-	const teardown = renderPulseConfig( body, {
-		settings: getWallpaperSettings( WALLPAPER_ID ),
-		setSettings: writeSettings,
-	} );
+	const teardown = renderPulseConfig( body, { settings: current(), setSettings: write, face: 'widget' } );
+	let open = true;
 	const close = (): void => {
+		if ( ! open ) {
+			return;
+		}
+		open = false;
 		teardown();
 		modal.remove();
 	};
@@ -126,6 +105,7 @@ function openSettings(): void {
 	modal.addEventListener( 'os-modal-cancel', close );
 	document.body.appendChild( modal );
 	modal.setAttribute( 'open', '' );
+	return close;
 }
 
 export async function mountWidget( container: HTMLElement, ctx: WidgetContext ): Promise< WidgetTeardown > {
@@ -146,41 +126,49 @@ export async function mountWidget( container: HTMLElement, ctx: WidgetContext ):
 	screen.className = 'os-widget-pulse__screen';
 	container.appendChild( screen );
 
-	const gear = document.createElement( 'button' );
-	gear.type = 'button';
+	const gear = document.createElement( 'os-button' );
+	gear.setAttribute( 'variant', 'ghost' );
 	gear.className = 'os-widget-pulse__gear';
 	// Static SVG markup from the icon set — no user content involved.
 	gear.innerHTML = osIconSvg( 'settings', { size: 16 } );
 	gear.setAttribute( 'aria-label', __( 'Pulse Monitor settings' ) );
-	gear.addEventListener( 'click', openSettings );
+	let stored: WallpaperSettings = ctx.storage.get< WallpaperSettings >( SETTINGS_KEY ) ?? {};
+	let monitor: Monitor | null = null;
+	const write = ( partial: WallpaperSettings ): void => {
+		stored = { ...stored, ...partial };
+		ctx.storage.set( SETTINGS_KEY, stored );
+		monitor?.applySettings( sanitizePulseSettings( stored ) );
+	};
+	// The open dialog, so removing the widget can take it down too.
+	let closeSettings: ( () => void ) | null = null;
+	const onGear = (): void => {
+		closeSettings?.();
+		closeSettings = openSettings( () => stored, write );
+	};
+	gear.addEventListener( 'click', onGear );
 	container.appendChild( gear );
 
-	const monitor: Monitor = await mountMonitor( {
+	const mounted: Monitor = await mountMonitor( {
 		container: screen,
 		pixi,
-		settings: sanitizePulseSettings( getWallpaperSettings( WALLPAPER_ID ) ),
+		settings: sanitizePulseSettings( stored ),
 		prefersReducedMotion: window.matchMedia?.( '(prefers-reduced-motion: reduce)' ).matches ?? false,
 		variant: 'widget',
 	} );
 
-	const ns = `${ ctx.id }/pulse-settings`;
-	addAction( HOOKS.WALLPAPER_SETTINGS_CHANGED, ns, ( ...args: unknown[] ) => {
-		const detail = args[ 0 ] as { id?: string; settings?: Record< string, unknown > } | undefined;
-		if ( detail?.id === WALLPAPER_ID ) {
-			monitor.applySettings( sanitizePulseSettings( detail.settings ) );
-		}
-	} );
+	monitor = mounted;
 	// Widgets get no visibility hook; follow the document like the
 	// wallpaper's own suspend does.
-	const onVisibility = (): void => monitor.setAnimating( document.visibilityState === 'visible' );
+	const onVisibility = (): void => mounted.setAnimating( document.visibilityState === 'visible' );
 	document.addEventListener( 'visibilitychange', onVisibility );
 	onVisibility();
 
 	return (): void => {
-		removeAction( HOOKS.WALLPAPER_SETTINGS_CHANGED, ns );
 		document.removeEventListener( 'visibilitychange', onVisibility );
-		gear.removeEventListener( 'click', openSettings );
-		monitor.destroy();
+		gear.removeEventListener( 'click', onGear );
+		closeSettings?.();
+		mounted.destroy();
+		monitor = null;
 		screen.remove();
 		gear.remove();
 		container.classList.remove( 'os-widget-pulse' );
