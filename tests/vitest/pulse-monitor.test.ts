@@ -10,6 +10,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { activity } from '../../src/activity';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
+import { doAction, HOOKS } from '../../src/hooks';
 import { acquirePulseHub } from '../../src/plugins/pulse-monitor/hub';
 import { spikeText } from '../../src/plugins/pulse-monitor/monitor';
 import {
@@ -368,30 +369,18 @@ describe( 'shared hub', () => {
 		off();
 	} );
 
-	test( 'window network reports beat, editor included — but only from the desk’s own iframes', () => {
+	test( 'window network reports beat — the editor’s included — without a messages tick', () => {
 		const { hub, release } = acquirePulseHub();
-		const beats: Array< { source: string; detail?: string } > = [];
+		const beats: Array< { source: string; error?: boolean; detail?: string } > = [];
 		const off = hub.subscribe( ( beat ) => beats.push( beat ) );
-		const frame = document.createElement( 'iframe' );
-		document.body.appendChild( frame );
-		const report = ( source: Window | null, status: number ): void => {
-			window.dispatchEvent(
-				new MessageEvent( 'message', {
-					data: { type: 'os-iframe-network', method: 'POST', url: '/wp-json/wp/v2/posts/1', status, duration: 120, failed: status >= 400 },
-					origin: window.location.origin,
-					source,
-				} ),
-			);
-		};
-		report( frame.contentWindow, 200 );
-		report( frame.contentWindow, 500 );
-		report( window, 200 ); // not one of the desk's iframes
-		expect( beats.filter( ( b ) => b.source === 'requests' ) ).toEqual( [
+		doAction( HOOKS.IFRAME_NETWORK_COMPLETED, { windowId: 'desktop-mode-posts', method: 'POST', url: '/wp-json/wp/v2/posts/1', status: 200, duration: 120, failed: false } );
+		doAction( HOOKS.IFRAME_NETWORK_COMPLETED, { windowId: 'edit-php', method: 'GET', url: '/x', status: 500, duration: 80, failed: true } );
+		// The bridge message the shell relays from is not a "messages" beat.
+		window.dispatchEvent( new MessageEvent( 'message', { data: { type: 'os-iframe-network' }, origin: window.location.origin } ) );
+		expect( beats ).toEqual( [
 			expect.objectContaining( { source: 'requests', error: false } ),
 			expect.objectContaining( { source: 'requests', error: true, detail: '500' } ),
 		] );
-		expect( beats.filter( ( b ) => b.source === 'messages' ) ).toHaveLength( 0 );
-		frame.remove();
 		off();
 		release();
 	} );

@@ -30,7 +30,7 @@ Each beat comes from a **source**. Users switch sources on and off in *OS Settin
 
 | Source | Where it comes from | Spike |
 |---|---|---|
-| `requests` | `os/request-settled` (every `wp.os.fetch`), the chromeless bridge's `os-iframe-network` reports (fetch/XHR inside every window — the cross-origin-isolated block editor included, whose reports the shell's `os.iframe.network-completed` hook does not re-dispatch), and `PerformanceObserver` resource timing in the shell for raw fetch/XHR | full beat |
+| `requests` | `os/request-settled` (every `wp.os.fetch`), `os.iframe.network-completed` (fetch/XHR inside every window's page, the block editor embedded in the Posts app included), resource timing for window pages without the bridge (a 404, a fatal error), and `PerformanceObserver` resource timing in the shell for raw fetch/XHR | full beat |
 | `pages` | `os.window.content-loaded`, plus every window iframe's `load` (in-window links, form POSTs, redirects), with the page's own HTTP status when same-origin | full beat |
 | `heartbeat` | WordPress Heartbeat `heartbeat-tick` | double beat ("lub-dub") |
 | `assets` | resource timing in the shell and every same-origin window iframe (scripts, styles, images, fonts) | tick |

@@ -14,11 +14,12 @@
  *
  * Taps, by source id:
  *
- *   requests   `os/request-settled` (every `wp.os.fetch`), the
- *              chromeless bridge's `os-iframe-network` reports
- *              (fetch/XHR inside every window, the block editor
- *              included), and a `PerformanceObserver` on the shell for
- *              raw fetch/XHR that bypassed both.
+ *   requests   `os/request-settled` (every `wp.os.fetch`),
+ *              `os.iframe.network-completed` (fetch/XHR inside every
+ *              window's page, the block editor included), resource
+ *              timing for pages without the bridge, and a
+ *              `PerformanceObserver` on the shell for raw fetch/XHR
+ *              that bypassed both.
  *   assets     resource timing in the shell and in every same-origin
  *              window iframe: scripts, styles, images, fonts.
  *   pages      `os.window.content-loaded`, and every window iframe's
@@ -258,25 +259,15 @@ export function wireSignals( opts: SignalOptions ): () => void {
 		} );
 	} );
 
-	// Every fetch/XHR inside a window iframe: the chromeless bridge
-	// wraps both and posts `os-iframe-network` on completion. Read
-	// straight off the message rather than via the shell's
-	// `os.iframe.network-completed` re-dispatch, which only fires for
-	// windows whose iframe the window bridge tracks — the block editor's
-	// windows are not among them, so the hook misses the editor's REST,
-	// autosave and Heartbeat traffic. Same gates as the window bridge:
-	// same origin, and sent by one of the desk's own iframes.
-	const fromOwnFrame = ( source: MessageEventSource | null ): boolean =>
-		!! source && Array.from( document.querySelectorAll( 'iframe' ) ).some( ( f ) => f.contentWindow === source );
-	on( window, 'message', ( e: MessageEvent ) => {
-		const d = e.data as { type?: unknown; status?: unknown; duration?: unknown; failed?: unknown } | null;
-		if ( ! d || d.type !== 'os-iframe-network' || e.origin !== window.location.origin || ! fromOwnFrame( e.source ) ) {
-			return;
-		}
-		const status = d.failed && ! d.status ? 0 : Number( d.status ) || 0;
+	// Every fetch/XHR inside a window's page — an iframe window's, or
+	// an admin page embedded in a native window (the Posts app's block
+	// editor) — relayed by the shell from the chromeless bridge.
+	hook( HOOKS.IFRAME_NETWORK_COMPLETED, ( raw ) => {
+		const p = raw as { status?: number; duration?: number; failed?: boolean };
+		const status = p.failed && ! p.status ? 0 : Number( p.status ) || 0;
 		health.recordRequest( now(), status );
-		if ( typeof d.duration === 'number' ) {
-			latency( d.duration );
+		if ( typeof p.duration === 'number' ) {
+			latency( p.duration );
 		}
 		beat( 'requests', { error: status === 0 || status >= 400, detail: statusDetail( status ) } );
 	} );
