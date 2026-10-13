@@ -1869,12 +1869,8 @@ apply_filters( 'openstation_pulse_request_kind', string $kind );
 // Whether a user agent counts as a bot (bot beats draw smaller).
 apply_filters( 'openstation_pulse_is_bot', bool $is_bot, string $user_agent );
 
-// One event before it is logged: { kind, status, error, user, own }. Return false to drop it.
+// One event before it is logged: { kind, status, error, user }. Return false to drop it.
 apply_filters( 'openstation_pulse_event', array|false $row );
-
-// Screens (Referer file names) whose requests the shell cannot see — logged even for the
-// listener's own session. Default: post.php, post-new.php, site-editor.php, widgets.php.
-apply_filters( 'openstation_pulse_unobservable_screens', string[] $screens );
 
 // Health snapshot sent with every Heartbeat: { siteHealth, requests, failures, cronLate, load }.
 apply_filters( 'openstation_pulse_health', array $snapshot );

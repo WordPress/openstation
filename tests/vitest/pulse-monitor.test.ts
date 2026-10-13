@@ -165,7 +165,23 @@ describe( 'HealthMonitor', () => {
 		for ( let i = 0; i < 20; i++ ) {
 			failing.recordRequest( i * 100, 503 );
 		}
-		expect( settle( failing ).state ).toBe( 'critical' );
+		const f = settle( failing );
+		expect( f.state ).toBe( 'critical' );
+		expect( f.cause ).toMatch( /of requests failing/ );
+		// The live case: a slow, misconfigured site where a few requests
+		// (5 %) also fail. Low score — but fibrillation, not VT, and its
+		// beats blame the slowness, not the failures.
+		const mixed = new HealthMonitor();
+		mixed.setServer( 0, { siteHealth: { good: 1, recommended: 9, critical: 2 }, requests: 0, failures: 0, cronLate: 999999, load: null } );
+		for ( let i = 0; i < 40; i++ ) {
+			mixed.recordRequest( i * 100, i % 20 === 0 ? 404 : 200 );
+			mixed.recordLatency( i * 100, 3400 );
+			mixed.recordJsError( i * 100 );
+		}
+		const m = settle( mixed );
+		expect( m.state ).toBe( 'sick' );
+		expect( m.cause ).toMatch( /slow responses|JavaScript errors/ );
+
 	} );
 
 	test( 'offline, a lost Heartbeat connection or a run of network failures is down', () => {
@@ -350,6 +366,34 @@ describe( 'shared hub', () => {
 		activity.publish( 'os/request-settled', { url: '/z', method: 'GET', status: 200, ok: true, windowId: null, silent: false } );
 		expect( seen ).toHaveLength( 2 );
 		off();
+	} );
+
+	test( 'window network reports beat, editor included — but only from the desk’s own iframes', () => {
+		const { hub, release } = acquirePulseHub();
+		const beats: Array< { source: string; detail?: string } > = [];
+		const off = hub.subscribe( ( beat ) => beats.push( beat ) );
+		const frame = document.createElement( 'iframe' );
+		document.body.appendChild( frame );
+		const report = ( source: Window | null, status: number ): void => {
+			window.dispatchEvent(
+				new MessageEvent( 'message', {
+					data: { type: 'os-iframe-network', method: 'POST', url: '/wp-json/wp/v2/posts/1', status, duration: 120, failed: status >= 400 },
+					origin: window.location.origin,
+					source,
+				} ),
+			);
+		};
+		report( frame.contentWindow, 200 );
+		report( frame.contentWindow, 500 );
+		report( window, 200 ); // not one of the desk's iframes
+		expect( beats.filter( ( b ) => b.source === 'requests' ) ).toEqual( [
+			expect.objectContaining( { source: 'requests', error: false } ),
+			expect.objectContaining( { source: 'requests', error: true, detail: '500' } ),
+		] );
+		expect( beats.filter( ( b ) => b.source === 'messages' ) ).toHaveLength( 0 );
+		frame.remove();
+		off();
+		release();
 	} );
 
 	test( 'failed requests carry their status', () => {

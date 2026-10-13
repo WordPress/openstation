@@ -20,9 +20,7 @@
  * a request pays one in-memory option read at `shutdown` and returns.
  * With one, a request pays one `update_option` on a non-autoloaded
  * log capped at {@see OPENSTATION_PULSE_LOG_MAX} rows. A listener's
- * own requests are skipped — the shell already sees them — except
- * from screens the shell cannot observe (the cross-origin-isolated
- * block editor), which are logged for that listener alone.
+ * own requests are never recorded — the shell already sees them.
  *
  * Privacy. Rows carry a kind, a timestamp, an HTTP status and the
  * user id (only to exclude a listener's own traffic). No URLs, IPs,
@@ -202,54 +200,6 @@ function openstation_pulse_is_bot( $user_agent ) {
 }
 
 /**
- * Whether the current request came from a screen the shell cannot
- * observe. The block editor loads cross-origin isolated, so neither the
- * shell's resource timing nor the chromeless bridge sees its REST,
- * autosave or Heartbeat traffic — for those, the server is the only
- * witness, even when the requester is a listener.
- *
- * Judged by the Referer's screen, because that is what tells an
- * editor's own `fetch` apart from the same endpoint called by the shell.
- *
- * @return bool
- */
-function openstation_pulse_is_unobservable_request() {
-	$referer = wp_get_raw_referer();
-	if ( ! $referer ) {
-		return false;
-	}
-	$path   = (string) wp_parse_url( $referer, PHP_URL_PATH );
-	$screen = basename( $path );
-
-	/**
-	 * Filters the admin screens whose requests the shell cannot see,
-	 * so the Pulse Monitor records them even for the listener's own
-	 * session. Match is on the Referer's file name.
-	 *
-	 * @since 1.2.0
-	 *
-	 * @param string[] $screens Screen file names. Default the block-editor screens.
-	 */
-	$screens = (array) apply_filters(
-		'openstation_pulse_unobservable_screens',
-		array( 'post.php', 'post-new.php', 'site-editor.php', 'widgets.php' )
-	);
-	return in_array( $screen, $screens, true );
-}
-
-/**
- * Kind for one of the listener's own unobservable requests: the
- * editor's Heartbeat beats as a Heartbeat, everything else as a request.
- *
- * @return string
- */
-function openstation_pulse_own_request_kind() {
-	// phpcs:ignore WordPress.Security.NonceVerification.Missing -- read-only classification of the request's action name.
-	$action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
-	return ( wp_doing_ajax() && 'heartbeat' === $action ) ? 'heartbeat' : 'requests';
-}
-
-/**
  * Classifies the current request into one Pulse kind.
  *
  * @return string Event kind, or '' when the request is not worth a beat.
@@ -282,7 +232,7 @@ function openstation_pulse_classify_request() {
 /**
  * Appends rows to the log, pruning by age and count.
  *
- * @param array $rows Rows with `kind`, `status`, `error`, `user` and optional `own`.
+ * @param array $rows Rows with `kind`, `status`, `error`, `user`.
  * @param int   $now  Current time in milliseconds.
  */
 function openstation_pulse_append( $rows, $now ) {
@@ -298,7 +248,6 @@ function openstation_pulse_append( $rows, $now ) {
 			'status' => (int) $row['status'],
 			'error'  => (bool) $row['error'],
 			'user'   => (int) $row['user'],
-			'own'    => ! empty( $row['own'] ),
 		);
 	}
 
@@ -338,9 +287,10 @@ function openstation_pulse_on_shutdown() {
 		return;
 	}
 	$user_id = get_current_user_id();
-	$own     = $user_id > 0 && isset( $listeners[ $user_id ] );
-	if ( $own && ! openstation_pulse_is_unobservable_request() ) {
-		// The listener's own shell already beats for this request.
+	if ( $user_id > 0 && isset( $listeners[ $user_id ] ) ) {
+		// The listener's own shell already beats for its requests —
+		// including the block editor's, which the chromeless bridge
+		// reports from inside the editor window.
 		return;
 	}
 
@@ -348,7 +298,7 @@ function openstation_pulse_on_shutdown() {
 	$status = is_int( $status ) ? $status : 200;
 
 	if ( empty( $explicit ) ) {
-		$kind = $own ? openstation_pulse_own_request_kind() : openstation_pulse_classify_request();
+		$kind = openstation_pulse_classify_request();
 		if ( '' === $kind ) {
 			return;
 		}
@@ -367,7 +317,6 @@ function openstation_pulse_on_shutdown() {
 			'status' => $status,
 			'error'  => $event['error'] || $status >= 500,
 			'user'   => $user_id,
-			'own'    => $own,
 		);
 
 		/**
@@ -383,7 +332,6 @@ function openstation_pulse_on_shutdown() {
 		 *     @type int    $status HTTP status of the request.
 		 *     @type bool   $error  Whether it renders as a failed beat.
 		 *     @type int    $user   Current user id (0 for visitors).
-		 *     @type bool   $own    Whether a listener made it from a screen the shell cannot see.
 		 * }
 		 */
 		$row = apply_filters( 'openstation_pulse_event', $row );
@@ -393,7 +341,6 @@ function openstation_pulse_on_shutdown() {
 				'status' => isset( $row['status'] ) ? (int) $row['status'] : $status,
 				'error'  => ! empty( $row['error'] ),
 				'user'   => $user_id,
-				'own'    => $own,
 			);
 		}
 	}
@@ -533,10 +480,7 @@ function openstation_pulse_heartbeat_received( $response, $data ) {
 	$fresh = array();
 	if ( $since > 0 ) {
 		foreach ( $windowed as $entry ) {
-			// Another listener's own rows are theirs; this user's own
-			// rows are exactly the ones their shell could not see.
-			$mine = (int) $entry['user'] === $user_id;
-			if ( (int) $entry['seq'] <= $since || ( $mine && empty( $entry['own'] ) ) || ( ! $mine && ! empty( $entry['own'] ) ) ) {
+			if ( (int) $entry['seq'] <= $since || (int) $entry['user'] === $user_id ) {
 				continue;
 			}
 			$fresh[] = array(

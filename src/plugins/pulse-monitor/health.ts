@@ -52,6 +52,12 @@ export interface HealthReading {
 	visitsPerMinute: number | null;
 	/** Human-readable reasons the score is not 100, worst first. */
 	reasons: string[];
+	/**
+	 * The reason that justified the condition — what an abnormal beat
+	 * prints. For VT it is always a failure, for fibrillation a failure
+	 * or slowness; otherwise the worst reason.
+	 */
+	cause: string;
 }
 
 interface RequestSample {
@@ -68,18 +74,20 @@ interface LatencySample {
 /** What a penalty is about — decides how far it can push the rhythm. */
 type PenaltyKind = 'config' | 'slow' | 'failure';
 
-/** Kinds from least to most serious. */
-const SEVERITY_ORDER: readonly PenaltyKind[] = [ 'config', 'slow', 'failure' ];
+/**
+ * Failure points (failed requests, server errors, an expired session)
+ * a site needs before it may draw ventricular tachycardia — about 16 %
+ * of requests failing. Below it, however low the score, the worst
+ * rhythm is fibrillation: a slow site is not a failing one.
+ */
+const CRITICAL_FAILURE_POINTS = 40;
 
-/** The worst condition each kind of trouble can produce on its own. */
-const SEVERITY_CAP: Record< PenaltyKind, HealthState > = {
-	config: 'strained',
-	slow: 'sick',
-	failure: 'critical',
-};
-
-/** Conditions from best to worst (excluding `down`, which is connectivity). */
-const STATES: readonly HealthState[] = [ 'healthy', 'strained', 'sick', 'critical' ];
+/**
+ * Failure + slowness points needed for fibrillation. Below it the
+ * trouble is configuration (Site Health, overdue cron), which tops out
+ * at occasional PVCs.
+ */
+const SICK_TROUBLE_POINTS = 20;
 
 function stateForScore( score: number ): HealthState {
 	if ( score >= 80 ) {
@@ -200,8 +208,8 @@ export class HealthMonitor {
 	read( now: number ): HealthReading {
 		this.prune( now );
 		// Each penalty has a kind, because kinds cap how bad the rhythm can
-		// get (see SEVERITY_CAP): a slow or misconfigured site is not a
-		// failing one, and must never draw ventricular tachycardia.
+		// get (see CRITICAL_FAILURE_POINTS): a slow or misconfigured site
+		// is not a failing one, and must never draw ventricular tachycardia.
 		const penalties: Array< { points: number; reason: string; kind: PenaltyKind } > = [];
 
 		const total = this.requests.length;
@@ -308,22 +316,33 @@ export class HealthMonitor {
 		const score = Math.round( this.smoothed );
 
 		const reasons = penalties.map( ( p ) => p.reason );
+		const pointsOf = ( kinds: PenaltyKind[] ): number =>
+			penalties.filter( ( p ) => kinds.includes( p.kind ) ).reduce( ( sum, p ) => sum + p.points, 0 );
+		const topReasonOf = ( kinds: PenaltyKind[] ): string =>
+			penalties.find( ( p ) => kinds.includes( p.kind ) )?.reason ?? reasons[ 0 ] ?? '';
 		let state: HealthState;
+		let cause = reasons[ 0 ] ?? '';
 		if ( this.offline || this.heartbeatLost || this.consecutiveFailures >= DOWN_AFTER_FAILURES ) {
 			state = 'down';
 			reasons.unshift( this.offline ? __( 'offline' ) : __( 'server not answering' ) );
+			cause = reasons[ 0 ];
 		} else {
+			// The score says how bad; the kind of trouble caps how bad it
+			// may look. Only substantial failure reaches ventricular
+			// tachycardia, only failure or slowness reaches fibrillation.
 			state = stateForScore( score );
-			// Cap the rhythm by what actually hurts: misconfiguration
-			// (Site Health, overdue cron) alone tops out at PVCs, adding
-			// slowness or JS errors tops out at fibrillation, and only
-			// failing requests reach ventricular tachycardia.
-			const worst = penalties.reduce< PenaltyKind >(
-				( acc, p ) => ( SEVERITY_ORDER.indexOf( p.kind ) > SEVERITY_ORDER.indexOf( acc ) ? p.kind : acc ),
-				'config',
-			);
-			if ( STATES.indexOf( state ) > STATES.indexOf( SEVERITY_CAP[ worst ] ) ) {
-				state = SEVERITY_CAP[ worst ];
+			if ( state === 'critical' && pointsOf( [ 'failure' ] ) < CRITICAL_FAILURE_POINTS ) {
+				state = 'sick';
+			}
+			if ( state === 'sick' && pointsOf( [ 'failure', 'slow' ] ) < SICK_TROUBLE_POINTS ) {
+				state = 'strained';
+			}
+			// The reason printed on the rhythm's beats is the one that
+			// justified it: a failure for VT, failure or slowness for AF.
+			if ( state === 'critical' ) {
+				cause = topReasonOf( [ 'failure' ] );
+			} else if ( state === 'sick' ) {
+				cause = topReasonOf( [ 'failure', 'slow' ] );
 			}
 		}
 
@@ -336,6 +355,7 @@ export class HealthMonitor {
 			requestsPerMinute: Math.round( ( total * 60000 ) / this.windowMs ),
 			visitsPerMinute: this.server ? Math.round( ( this.visits.length * 60000 ) / this.windowMs ) : null,
 			reasons,
+			cause,
 		};
 	}
 }

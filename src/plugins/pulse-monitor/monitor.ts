@@ -127,8 +127,8 @@ export async function mountMonitor( opts: MonitorOptions ): Promise< Monitor > {
 	let lastAlarm = 0;
 	const refresh = (): void => {
 		const real = hub.health.read( performance.now() );
-		const reading: HealthReading = settings.diagnose ? real : { ...real, state: 'healthy', reasons: [] };
-		rhythm.setState( reading.state, reading.reasons[ 0 ] ?? '' );
+		const reading: HealthReading = settings.diagnose ? real : { ...real, state: 'healthy', reasons: [], cause: '' };
+		rhythm.setState( reading.state, reading.cause );
 		if ( settings.readout ) {
 			readout.update( { reading, lineColor: settings.lineColor, errorColor: settings.errorColor } );
 		}

@@ -30,7 +30,7 @@ Each beat comes from a **source**. Users switch sources on and off in *OS Settin
 
 | Source | Where it comes from | Spike |
 |---|---|---|
-| `requests` | `os/request-settled` (every `wp.os.fetch`), `os.iframe.network-completed` (fetch/XHR inside admin windows), and `PerformanceObserver` resource timing in the shell for raw fetch/XHR | full beat |
+| `requests` | `os/request-settled` (every `wp.os.fetch`), the chromeless bridge's `os-iframe-network` reports (fetch/XHR inside every window — the cross-origin-isolated block editor included, whose reports the shell's `os.iframe.network-completed` hook does not re-dispatch), and `PerformanceObserver` resource timing in the shell for raw fetch/XHR | full beat |
 | `pages` | `os.window.content-loaded`, plus every window iframe's `load` (in-window links, form POSTs, redirects), with the page's own HTTP status when same-origin | full beat |
 | `heartbeat` | WordPress Heartbeat `heartbeat-tick` | double beat ("lub-dub") |
 | `assets` | resource timing in the shell and every same-origin window iframe (scripts, styles, images, fonts) | tick |
@@ -102,7 +102,6 @@ The numbers (bottom-right on the wallpaper, along the bottom edge of the widget)
 
 - **Cost.** Nothing is recorded unless a shell is listening. A mounted wallpaper contributes `openstation_pulse` to every Heartbeat tick, and each tick refreshes a three-minute lease in the autoloaded `openstation_pulse_listeners` option. While any lease is live, each request does one `update_option` on the non-autoloaded `openstation_pulse_log` (capped at 200 rows / 2 minutes). A listener's own requests are never recorded.
 - **Classification.** Cron → `cron`. REST, XML-RPC, admin-ajax and admin pages → `team` when logged in, `api` when not. Front-end → `visitors`, or `bots` when the user agent looks automated. Explicit events replace the classification: a new comment → `comments`, a post going live → `publish`, `wp_login` → `logins`, `wp_login_failed` → `logins` (failed), `woocommerce_new_order` → `orders`.
-- **The block editor.** The editor loads cross-origin isolated, so the shell cannot see its REST, autosave or Heartbeat traffic. A listener's own requests are normally skipped, since the shell already beat for them, but those whose Referer is an editor screen (`post.php`, `post-new.php`, `site-editor.php`, `widgets.php`; filter: `openstation_pulse_unobservable_screens`) are logged as `requests` / `heartbeat` and relayed to that listener only. They arrive one Heartbeat tick late.
 - **Privacy.** Rows carry a kind, a timestamp, an HTTP status, an error flag and a user id. The user id is used only to exclude a listener's own traffic and never leaves the server. No URLs, IPs, user agents or names are stored.
 - **Delivery.** The first tick returns only the cursor, so mounting does not replay history. Later ticks return the newer events plus a health snapshot. The client replays each batch at its real spacing, one tick late. While mounted, the wallpaper raises a slower Heartbeat interval to 15 s and restores it on unmount.
 - **Access.** The feed requires `manage_options` by default (filter: `openstation_pulse_capability`). Users without it still get a live trace from their own shell.
@@ -123,7 +122,6 @@ Kinds are slug-sanitized; unknown kinds render as a standard beat labelled with 
 | `openstation_pulse_request_kind` | filter | rename a request's kind, or return `''` to keep it off the monitor |
 | `openstation_pulse_is_bot` | filter | override bot detection for a user agent |
 | `openstation_pulse_event` | filter | edit or drop (`false`) an event before it is logged |
-| `openstation_pulse_unobservable_screens` | filter | screens whose requests the shell cannot see (default: the block-editor screens) |
 | `openstation_pulse_health` | filter | extend the health snapshot (e.g. add failures from an uptime monitor) |
 
 Signatures are in the [Hooks Reference](./hooks-reference.md#pulse-monitor-filters--experimental).

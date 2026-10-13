@@ -39,7 +39,6 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_pulse_capability' );
 		remove_all_filters( 'openstation_pulse_health' );
 		unset( $_SERVER['HTTP_USER_AGENT'], $_SERVER['HTTP_REFERER'], $_REQUEST['_wp_http_referer'] );
-		remove_all_filters( 'openstation_pulse_unobservable_screens' );
 		parent::tear_down();
 	}
 
@@ -129,51 +128,15 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 
 	/**
 	 * @covers ::openstation_pulse_on_shutdown
-	 * @covers ::openstation_pulse_is_unobservable_request
 	 */
-	public function test_listener_own_editor_requests_are_recorded_for_them_alone() {
-		// Cursor 1: a row that predates the editor request.
-		openstation_pulse_append(
-			array( array( 'kind' => 'cron', 'status' => 200, 'error' => false, 'user' => 0 ) ),
-			(int) round( microtime( true ) * 1000 )
-		);
+	public function test_listener_own_editor_requests_are_not_recorded() {
+		// The chromeless bridge reports the editor's requests from inside
+		// the editor window, so the server must not echo them back.
 		$this->listen_as( self::$admin_id );
 		wp_set_current_user( self::$admin_id );
 		$_SERVER['HTTP_REFERER'] = admin_url( 'post.php?post=12&action=edit' );
 		openstation_pulse_on_shutdown();
-
-		$entries = $this->log_entries();
-		$this->assertCount( 2, $entries );
-		$this->assertSame( 'requests', $entries[1]['kind'] );
-		$this->assertTrue( $entries[1]['own'] );
-
-		// Relayed to the listener who made it…
-		$response = openstation_pulse_heartbeat_received( array(), array( 'openstation_pulse' => array( 'since' => 1 ) ) );
-		$this->assertSame( array( 'requests' ), wp_list_pluck( $response['openstation_pulse']['events'], 'kind' ) );
-
-		// …and to nobody else.
-		$other = self::factory()->user->create( array( 'role' => 'administrator' ) );
-		wp_set_current_user( $other );
-		$response = openstation_pulse_heartbeat_received( array(), array( 'openstation_pulse' => array( 'since' => 1 ) ) );
-		$this->assertSame( array(), $response['openstation_pulse']['events'] );
-	}
-
-	/**
-	 * @covers ::openstation_pulse_is_unobservable_request
-	 */
-	public function test_unobservable_screens_are_filterable() {
-		$_SERVER['HTTP_REFERER'] = admin_url( 'admin.php?page=openstation' );
-		$this->assertFalse( openstation_pulse_is_unobservable_request() );
-		$_SERVER['HTTP_REFERER'] = admin_url( 'site-editor.php' );
-		$this->assertTrue( openstation_pulse_is_unobservable_request() );
-		add_filter(
-			'openstation_pulse_unobservable_screens',
-			function () {
-				return array( 'admin.php' );
-			}
-		);
-		$_SERVER['HTTP_REFERER'] = admin_url( 'admin.php?page=openstation' );
-		$this->assertTrue( openstation_pulse_is_unobservable_request() );
+		$this->assertFalse( get_option( OPENSTATION_PULSE_LOG_OPTION ) );
 	}
 
 	/**

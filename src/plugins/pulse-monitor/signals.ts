@@ -14,9 +14,10 @@
  *
  * Taps, by source id:
  *
- *   requests   `os/request-settled` (every `wp.os.fetch`),
- *              `os.iframe.network-completed` (fetch/XHR inside admin
- *              windows), and a `PerformanceObserver` on the shell for
+ *   requests   `os/request-settled` (every `wp.os.fetch`), the
+ *              chromeless bridge's `os-iframe-network` reports
+ *              (fetch/XHR inside every window, the block editor
+ *              included), and a `PerformanceObserver` on the shell for
  *              raw fetch/XHR that bypassed both.
  *   assets     resource timing in the shell and in every same-origin
  *              window iframe: scripts, styles, images, fonts.
@@ -257,12 +258,25 @@ export function wireSignals( opts: SignalOptions ): () => void {
 		} );
 	} );
 
-	hook( HOOKS.IFRAME_NETWORK_COMPLETED, ( raw ) => {
-		const p = raw as { status?: number; duration?: number; failed?: boolean };
-		const status = p.failed && ! p.status ? 0 : Number( p.status ) || 0;
+	// Every fetch/XHR inside a window iframe: the chromeless bridge
+	// wraps both and posts `os-iframe-network` on completion. Read
+	// straight off the message rather than via the shell's
+	// `os.iframe.network-completed` re-dispatch, which only fires for
+	// windows whose iframe the window bridge tracks — the block editor's
+	// windows are not among them, so the hook misses the editor's REST,
+	// autosave and Heartbeat traffic. Same gates as the window bridge:
+	// same origin, and sent by one of the desk's own iframes.
+	const fromOwnFrame = ( source: MessageEventSource | null ): boolean =>
+		!! source && Array.from( document.querySelectorAll( 'iframe' ) ).some( ( f ) => f.contentWindow === source );
+	on( window, 'message', ( e: MessageEvent ) => {
+		const d = e.data as { type?: unknown; status?: unknown; duration?: unknown; failed?: unknown } | null;
+		if ( ! d || d.type !== 'os-iframe-network' || e.origin !== window.location.origin || ! fromOwnFrame( e.source ) ) {
+			return;
+		}
+		const status = d.failed && ! d.status ? 0 : Number( d.status ) || 0;
 		health.recordRequest( now(), status );
-		if ( typeof p.duration === 'number' ) {
-			latency( p.duration );
+		if ( typeof d.duration === 'number' ) {
+			latency( d.duration );
 		}
 		beat( 'requests', { error: status === 0 || status >= 400, detail: statusDetail( status ) } );
 	} );
@@ -419,7 +433,11 @@ export function wireSignals( opts: SignalOptions ): () => void {
 	 * messages, notices, uploads
 	 * ------------------------------------------------------------- */
 
-	on( window, 'message', () => {
+	on( window, 'message', ( e: MessageEvent ) => {
+		// A window's network report already beats as a request.
+		if ( ( e.data as { type?: unknown } | null )?.type === 'os-iframe-network' ) {
+			return;
+		}
 		if ( gates.messages( 'message' ) ) {
 			beat( 'messages' );
 		}
@@ -562,10 +580,6 @@ export function wireSignals( opts: SignalOptions ): () => void {
 					} );
 					if ( ev.kind === 'visitors' || ev.kind === 'bots' ) {
 						health.recordVisit( now() );
-					} else if ( ev.kind === 'requests' || ev.kind === 'heartbeat' ) {
-						// This user's own editor traffic, which only the
-						// server saw — it counts toward this shell's numbers.
-						health.recordRequest( now(), ev.status || 200 );
 					}
 				}
 			}
