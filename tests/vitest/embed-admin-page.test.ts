@@ -22,6 +22,7 @@ import {
 	LOADING_SPINNER_SIZE,
 } from '../../src/window/constants';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
+import { addAction, HOOKS } from '../../src/hooks';
 
 const WINDOW_ID = 'desktop-mode-posts';
 
@@ -160,5 +161,56 @@ describe( 'embedAdminPage', () => {
 		expect( getWindowContent( WINDOW_ID ) ).toBeUndefined();
 
 		teardown();
+	} );
+} );
+
+describe( 'the embedded page’s error and network reports', () => {
+	/** A message from inside the embedded page, as the chromeless bridge posts it. */
+	function post( iframe: HTMLIFrameElement | Window | null, data: unknown, origin = window.location.origin ): void {
+		window.dispatchEvent(
+			new MessageEvent( 'message', {
+				data,
+				origin,
+				source: iframe instanceof HTMLIFrameElement ? iframe.contentWindow : iframe,
+			} ),
+		);
+	}
+
+	test( 'fetch / XHR completions reach os.iframe.network-completed, tagged with the window', () => {
+		const seen: unknown[] = [];
+		addAction( HOOKS.IFRAME_NETWORK_COMPLETED, 'test', ( payload: unknown ) => seen.push( payload ) );
+		const { iframe, teardown } = mount();
+
+		post( iframe, { type: 'os-iframe-network', method: 'post', url: '/wp-json/wp/v2/posts/7', status: 200, duration: 84, failed: false } );
+
+		expect( seen ).toEqual( [
+			{ windowId: WINDOW_ID, method: 'post', url: '/wp-json/wp/v2/posts/7', status: 200, duration: 84, failed: false },
+		] );
+		teardown();
+	} );
+
+	test( 'errors reach os.iframe.error, tagged with the window', () => {
+		const seen: Array< { windowId: string; message: string } > = [];
+		addAction( HOOKS.IFRAME_ERROR, 'test', ( payload: { windowId: string; message: string } ) => seen.push( payload ) );
+		const { iframe, teardown } = mount();
+
+		post( iframe, { type: 'os-iframe-error', kind: 'error', message: 'TypeError: x is undefined' } );
+
+		expect( seen ).toEqual( [ expect.objectContaining( { windowId: WINDOW_ID, message: 'TypeError: x is undefined' } ) ] );
+		teardown();
+	} );
+
+	test( 'reports from another frame, another origin, or after teardown are ignored', () => {
+		const seen: unknown[] = [];
+		addAction( HOOKS.IFRAME_NETWORK_COMPLETED, 'test', ( payload: unknown ) => seen.push( payload ) );
+		const { iframe, teardown } = mount();
+		const report = { type: 'os-iframe-network', url: '/x', status: 200 };
+
+		post( window, report );
+		post( iframe, report, 'https://evil.example' );
+		teardown();
+		post( iframe, report );
+
+		expect( seen ).toEqual( [] );
 	} );
 } );

@@ -236,8 +236,12 @@ export const HOOKS = {
 	 * `unhandledrejection` handler catches an exception. Payload: `{
 	 * windowId: string, kind: 'error' | 'unhandledrejection', message:
 	 * string, filename: string | null, lineno: number | null, colno:
-	 * number | null, stack: string | null }`. Origin-filtered at the
-	 * parent shell; cross-origin iframe errors never reach here.
+	 * number | null, stack: string | null }`. Covers an iframe window's
+	 * page and an admin page embedded in a native window (an
+	 * `iframeContent` window, `embedAdminPage()` — the Posts app's
+	 * editor); `windowId` is the owning window either way. Origin-
+	 * filtered at the parent shell; cross-origin iframe errors never
+	 * reach here.
 	 */
 	IFRAME_ERROR: 'os.iframe.error',
 	/**
@@ -247,7 +251,9 @@ export const HOOKS = {
 	 * duration: number, failed: boolean }`. Subscribers get a faithful
 	 * view of admin-ajax + REST calls that previously never left the
 	 * iframe boundary. `status === 0` indicates a network failure with
-	 * no response received.
+	 * no response received. Covers an iframe window's page and an
+	 * admin page embedded in a native window (the Posts app's block
+	 * editor included); `windowId` is the owning window either way.
 	 */
 	IFRAME_NETWORK_COMPLETED: 'os.iframe.network-completed',
 	/**

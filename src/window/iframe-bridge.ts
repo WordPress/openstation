@@ -18,6 +18,7 @@ import { tryNativeUrlRemap } from '../native-url-remap';
 import { createSharedStore } from '../shared-store';
 import { matchDestructiveAdminAction } from '../destructive-admin-actions';
 import { setWindowContent } from '../window-links/engine';
+import { relayIframeReport } from './iframe-reports';
 import { openUserFootprintWindow } from '../open-targets/footprint-target';
 
 /**
@@ -493,24 +494,9 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 		addExternalTab( win, data.url, label );
 	}
 
-	// Iframe error relay — the chromeless bridge posts
-	// `os-iframe-error` from inside the iframe's error +
-	// unhandledrejection handlers. We annotate with the owning
-	// windowId and dispatch the hook, where monitor widgets pick it
-	// up. Shape matches `HOOKS.IFRAME_ERROR`.
-	if ( data.type === 'os-iframe-error' ) {
-		doAction( HOOKS.IFRAME_ERROR, {
-			windowId: win.id,
-			kind: data.kind === 'unhandledrejection'
-				? 'unhandledrejection'
-				: 'error',
-			message: typeof data.message === 'string' ? data.message : '',
-			filename: typeof data.filename === 'string' ? data.filename : null,
-			lineno: typeof data.lineno === 'number' ? data.lineno : null,
-			colno: typeof data.colno === 'number' ? data.colno : null,
-			stack: typeof data.stack === 'string' ? data.stack : null,
-		} );
-	}
+	// The chromeless bridge's error and network reports — shared with
+	// admin pages embedded in native windows (`src/native-windows.ts`).
+	relayIframeReport( win.id, data );
 
 	// Layer-1 theme — iframe content can re-theme its own window
 	// via the bridge. `tokens` is a CSS-variable map; `setAppearanceTheme`
@@ -608,35 +594,6 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 				failed ? iframeActivityError( status ) : undefined,
 			);
 		}
-	}
-
-	// Iframe network completion — bridged from the fetch + XHR
-	// wrappers inside the chromeless iframe. Every completed call
-	// (success or failure) fires here. `status === 0` indicates a
-	// network-level failure before a response arrived; `failed` is
-	// pre-computed inside the iframe (by the chromeless bridge's
-	// fetch/XHR wrappers) so subscribers don't have to re-derive
-	// the success / 4xx / 5xx / network boundary.
-	if ( data.type === 'os-iframe-network' ) {
-		const networkPayload: Record< string, unknown > = {
-			windowId: win.id,
-			method: typeof data.method === 'string' ? data.method : 'GET',
-			url: typeof data.url === 'string' ? data.url : '',
-			status: typeof data.status === 'number' ? data.status : 0,
-			duration: typeof data.duration === 'number' ? data.duration : 0,
-			failed: !! data.failed,
-		};
-		// `requestHeaders` / `responseHeaders` only ride along when
-		// devtools have asked the iframe to observe (via
-		// `wp.os.devtools.onRequest( id, cb, { observe: true } )`).
-		// Default deliveries stay summary-only for privacy.
-		if ( data.requestHeaders && typeof data.requestHeaders === 'object' ) {
-			networkPayload.requestHeaders = data.requestHeaders;
-		}
-		if ( data.responseHeaders && typeof data.responseHeaders === 'object' ) {
-			networkPayload.responseHeaders = data.responseHeaders;
-		}
-		doAction( HOOKS.IFRAME_NETWORK_COMPLETED, networkPayload );
 	}
 }
 

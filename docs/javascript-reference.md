@@ -5490,8 +5490,8 @@ Lifecycle + instrumentation for the chromeless iframe inside each window. Re-dis
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
 | `os.iframe.ready` | action | Stable | `{ windowId }` — fires once per iframe when the chromeless bridge script has attached its listeners. Use this instead of the iframe's `load` event when timing matters (the native `load` fires before our bridge attaches, so messages sent on `load` can miss the listener). |
-| `os.iframe.error` | action | Stable | `{ windowId, kind: 'error' \| 'unhandledrejection', message, filename, lineno, colno, stack }` — bridged from the iframe's `error` / `unhandledrejection` handlers. Cross-origin iframe errors are origin-filtered at the bridge and never reach this hook. |
-| `os.iframe.network-completed` | action | Stable | `{ windowId, method, url, status, duration, failed }` — every `fetch` + `XMLHttpRequest` call inside the iframe. `status === 0` indicates a network-level failure with no response received. |
+| `os.iframe.error` | action | Stable | `{ windowId, kind: 'error' \| 'unhandledrejection', message, filename, lineno, colno, stack }` — bridged from the iframe's `error` / `unhandledrejection` handlers, for an iframe window's page and for an admin page embedded in a native window (`iframeContent`, `embedAdminPage()`); `windowId` is the owning window. Cross-origin iframe errors are origin-filtered at the bridge and never reach this hook. |
+| `os.iframe.network-completed` | action | Stable | `{ windowId, method, url, status, duration, failed }` — every `fetch` + `XMLHttpRequest` call inside the iframe: an iframe window's page, or an admin page embedded in a native window (`iframeContent`, `embedAdminPage()` — the Posts app's block editor included); `windowId` is the owning window. `status === 0` indicates a network-level failure with no response received. |
 
 Use `IFRAME_READY` when you need to send a `os-focus` (or any parent→iframe message) as early as possible without racing the bridge setup. Use `IFRAME_ERROR` / `IFRAME_NETWORK_COMPLETED` to build a monitor widget that surfaces per-window reliability data.
 

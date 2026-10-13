@@ -30,6 +30,7 @@ import { injectInlineScript, loadVendorScript } from './wallpapers/vendor-loader
 import { registerSyntheticIframe } from './connection';
 import { isShellDocumentUrl } from './shell-url';
 import { recordFrameLocation, setWindowMenuPages } from './window/share-link';
+import { relayIframeReport } from './window/iframe-reports';
 import {
 	registerNativeUrlRemap,
 	unregisterNativeUrlRemap,
@@ -586,6 +587,15 @@ function buildIframeContentRender(
 					( data as { channel: string } ).channel,
 					( data as { payload?: unknown } ).payload,
 				);
+			}
+			// The chromeless bridge's error and network reports, relayed
+			// exactly as `src/window/iframe-bridge.ts` relays them for an
+			// iframe window. Without this an embedded page — the Posts
+			// app's block editor — never reached `os.iframe.error` or
+			// `os.iframe.network-completed`. Same-origin only, matching
+			// the bridge's own trust boundary.
+			if ( e.origin === window.location.origin ) {
+				relayIframeReport( windowId, data );
 			}
 			// Content identity of the page in this iframe — the same
 			// announcement `src/window/iframe-bridge.ts` forwards for an
