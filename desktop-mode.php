@@ -171,6 +171,7 @@ require_once OPENSTATION_DIR . 'includes/ai-copilot/bootstrap.php';
 // Content-changes must load before the recycle bin — the bin's
 // changelog delegates into the generic recorder.
 require_once OPENSTATION_DIR . 'includes/content-changes.php';
+require_once OPENSTATION_DIR . 'includes/pulse-monitor.php';
 require_once OPENSTATION_DIR . 'includes/recycle-bin/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/desktop-files/bootstrap.php';
 require_once OPENSTATION_DIR . 'includes/desktop-themes/bootstrap.php';

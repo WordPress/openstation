@@ -171,5 +171,25 @@ function openstation_register_builtin_wallpapers() {
 			'description' => __( 'Snow falling over a midnight sky. Flakes settle on the top edge of every window, pile into little drifts, then quietly melt away. Open the wallpaper settings to tune the wind, the snowfall, the flake size, and the colour of the night.', 'desktop-mode' ),
 		)
 	);
+
+	// Pulse Monitor — built-in PixiJS canvas wallpaper: an ECG trace
+	// that beats for every HTTP request and every signal the shell can
+	// see (window traffic, Heartbeat, clicks, errors), plus the
+	// site-wide events `includes/pulse-monitor.php` relays over
+	// Heartbeat (visitors, bots, comments, logins, cron, API). The
+	// rhythm doubles as a health diagnosis. The preview must match the
+	// default backdrop in `src/plugins/pulse-monitor/settings.ts`; the
+	// script handle (shared with the Pulse widget) is registered in
+	// `includes/pulse-monitor.php`.
+	openstation_register_wallpaper(
+		'wp-pulse',
+		array(
+			'label'       => __( 'Pulse Monitor', 'desktop-mode' ),
+			'preview'     => '#000000',
+			'type'        => 'canvas',
+			'script'      => 'os-pulse-monitor',
+			'description' => __( 'A heart monitor wired to your site. Every request, visitor, comment, login, Heartbeat tick and click is a beat. A healthy site keeps a steady sinus rhythm; errors, slow responses and outages show up as skipped beats, fibrillation, tachycardia or a flatline. Open the wallpaper settings to choose what it listens to, the colours, the sweep speed and the intensity.', 'desktop-mode' ),
+		)
+	);
 }
 add_action( 'init', 'openstation_register_builtin_wallpapers', 5 );

@@ -1854,6 +1854,36 @@ apply_filters( 'openstation_wallpapers', array $registry );
 
 ---
 
+### Pulse Monitor filters — Experimental
+
+The server feed behind the built-in Pulse Monitor wallpaper and widget (`includes/pulse-monitor.php`). Full design in [Pulse Monitor](./pulse-monitor.md).
+
+```php
+// Capability required to receive the site-wide feed. Default 'manage_options'.
+apply_filters( 'openstation_pulse_capability', string $capability );
+
+// Kind a request is classified as ('visitors', 'bots', 'api', 'team', 'cron').
+// Return '' to keep the request off the monitor.
+apply_filters( 'openstation_pulse_request_kind', string $kind );
+
+// Whether a user agent counts as a bot (bot beats draw smaller).
+apply_filters( 'openstation_pulse_is_bot', bool $is_bot, string $user_agent );
+
+// One event before it is logged: { kind, status, error, user, own }. Return false to drop it.
+apply_filters( 'openstation_pulse_event', array|false $row );
+
+// Screens (Referer file names) whose requests the shell cannot see — logged even for the
+// listener's own session. Default: post.php, post-new.php, site-editor.php, widgets.php.
+apply_filters( 'openstation_pulse_unobservable_screens', string[] $screens );
+
+// Health snapshot sent with every Heartbeat: { siteHealth, requests, failures, cronLate, load }.
+apply_filters( 'openstation_pulse_health', array $snapshot );
+```
+
+`openstation_pulse_record( string $kind, array $args = array() )` — *Experimental (PHP function).* Queue a beat for the current request (`$args['error']` draws it as a failed beat). Explicit events replace the request's own classification, so a comment POST beats once, as a comment.
+
+---
+
 ### `openstation_network_enabled` — Experimental
 
 Whether the OpenStation Network is enabled site-wide. The default comes from the `network` extended option (OpenStation Preferences → Features → Extended options, admins only) — **off by default**: the network is opt-in. When the resolved value is `false`, `includes/network/bootstrap.php` loads **none** of the network module — no keypair, no identity or list route, no registry, no Network window, no hop token minted or spent — a single site has no site switcher, and a multisite keeps the one it has on its own. Pairings already made survive a disable. See [network.md](network.md).

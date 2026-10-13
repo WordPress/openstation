@@ -5945,6 +5945,19 @@ Declare `submenu` as a getter if the rows depend on live state — it is read fr
 
 ---
 
+### Pulse Monitor — beats in and out *(Experimental)*
+
+The built-in Pulse Monitor — wallpaper `wp-pulse` and widget `desktop-mode/pulse`, one bundle — beats for every request and shell signal. See [Pulse Monitor](./pulse-monitor.md).
+
+- **Activity channel `pulse/beat`** — publish to add a beat. Payload `{ source?: string, amplitude?: number, error?: boolean, detail?: string }`. A known source id (`requests`, `visitors`, …) borrows that source's shape and label; anything else is a standard beat labelled with the id. `amplitude` is clamped to 0–2; on a failed beat, `detail` is printed after the label ("my-plugin · quota exceeded").
+- **Action `os.pulse.beat`** — fires for every beat a monitor draws. Payload `{ source, shape, error, major, duration, detail, ectopic, surface }`; `source` is `rest` for the idle pacemaker, `ectopic` marks a beat the diagnosis made abnormal, `surface` is `wallpaper` or `widget`.
+- **Heartbeat field `openstation_pulse`** — sent while a monitor is mounted (`{ since }`); answered with `{ seq, now, events, health }`.
+
+```js
+wp.os.activity.publish( 'pulse/beat', { source: 'my-plugin', error: true, detail: 'quota exceeded' } );
+wp.hooks.addAction( 'os.pulse.beat', 'my-plugin', ( beat ) => console.log( beat.source, beat.detail ) );
+```
+
 ### Wallpaper surfaces
 
 Collision-aware wallpapers (snow, rain, leaves, particle effects) need to know where things can "land" — window tops, the desktop floor, each dock's desktop-facing edge, widget cards. Rather than having every wallpaper hand-query the shell's DOM + hope the class names don't move, the shell emits a live surface list through `wp.os.getWallpaperSurfaces()`.

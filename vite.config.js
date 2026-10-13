@@ -435,6 +435,18 @@ const TARGETS = {
 		fileBase: 'snow-wallpaper',
 		iifeName: 'openStationSnowWallpaper',
 	},
+	// Pulse Monitor — a PixiJS ECG trace that beats for every request
+	// and shell signal, with the rhythm doubling as a site-health
+	// diagnosis. ONE bundle for both faces: it publishes the canvas
+	// wallpaper (`window.openStationWallpapers['wp-pulse']`) and the
+	// widget (`window.openStationWidgets['desktop-mode/pulse']`), so
+	// the engine, the signal taps and the Heartbeat feed load once
+	// whichever face (or both) is on the desk.
+	'pulse-monitor': {
+		entry:    'src/plugins/pulse-monitor/index.ts',
+		fileBase: 'pulse-monitor',
+		iifeName: 'openStationPulseMonitor',
+	},
 	// Mio — the desk companion: a PixiJS soft-body blob with a
 	// chroma neon outline that floats over the wallpaper, falls onto
 	// nearby windows, watches the pointer, and can be dragged around.
