@@ -25,9 +25,13 @@ import {
 } from '../../src/work-area/compute';
 import {
 	_resetWorkAreaForTests,
+	getReservedInsets,
 	getWorkArea,
 	installWorkArea,
 	measureWorkArea,
+	placementRectOf,
+	reservedRectOf,
+	reserveWorkArea,
 	subscribeWorkArea,
 	WORK_AREA_CHANGED_EVENT,
 	workAreaInsetsOf,
@@ -386,6 +390,51 @@ describe( 'installWorkArea', () => {
 		ctl.refresh();
 		expect( getWorkArea().insets.bottom ).toBe( 84 );
 		ctl.destroy();
+	} );
+
+	test( 'a reserved band shrinks the work area, after the dock band on its edge', () => {
+		const ctl = installWorkArea( { shell, shellBody: body, area } );
+		const seen: number[] = [];
+		const off = subscribeWorkArea( ( s ) => seen.push( s.insets.top ) );
+
+		const release = reserveWorkArea( 'test/ecg', { edge: 'top', size: 160 } );
+		expect( getWorkArea().insets ).toEqual( { top: 160, right: 0, bottom: 84, left: 0 } );
+		expect( getWorkArea().rect ).toEqual( { x: 0, y: 160, width: 1600, height: 656 } );
+		expect( seen ).toEqual( [ 160 ] );
+		// Where the band itself sits, in viewport px.
+		expect( reservedRectOf( 'test/ecg' ) ).toEqual( { x: 0, y: 32, width: 1600, height: 160 } );
+
+		// Re-reserving the same id resizes in place; a second band stacks inward.
+		reserveWorkArea( 'test/ecg', { edge: 'top', size: 120 } );
+		const second = reserveWorkArea( 'test/other', { edge: 'top', size: 40 } );
+		expect( getReservedInsets().top ).toBe( 160 );
+		expect( reservedRectOf( 'test/ecg' ) ).toEqual( { x: 0, y: 32, width: 1600, height: 120 } );
+		expect( reservedRectOf( 'test/other' ) ).toEqual( { x: 0, y: 152, width: 1600, height: 40 } );
+
+		second();
+		release();
+		release(); // twice is harmless
+		expect( getWorkArea().insets.top ).toBe( 0 );
+		expect( reservedRectOf( 'test/ecg' ) ).toBeNull();
+		off();
+		ctl.destroy();
+	} );
+
+	test( 'placement is bounded by reserved bands only, never by the dock band', () => {
+		const ctl = installWorkArea( { shell, shellBody: body, area } );
+		// A window may be dragged under the dock: the whole area.
+		expect( placementRectOf( area ) ).toEqual( { x: 0, y: 0, width: 1600, height: 900 } );
+		const release = reserveWorkArea( 'test/ecg', { edge: 'top', size: 160 } );
+		expect( placementRectOf( area ) ).toEqual( { x: 0, y: 160, width: 1600, height: 740 } );
+		release();
+		ctl.destroy();
+	} );
+
+	test( 'a malformed reservation is ignored', () => {
+		const release = reserveWorkArea( '', { edge: 'top', size: 100 } );
+		reserveWorkArea( 'x', { edge: 'middle' as 'top', size: 100 } );
+		expect( getReservedInsets() ).toEqual( { top: 0, right: 0, bottom: 0, left: 0 } );
+		release();
 	} );
 
 	test( 'destroy stops listening', () => {

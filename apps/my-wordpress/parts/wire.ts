@@ -620,7 +620,7 @@ export function afterRender( ctx: Ctx ): void {
 	if ( picked?.kind === 'revision' ) {
 		pickedContent = picked.content;
 	} else if ( picked?.kind === 'comment' ) {
-		pickedContent = String( picked.stats.comment?.content ?? '' );
+		pickedContent = String( picked.stats.comment?.rendered ?? '' );
 	}
 	const subContent = picked ? { id: ctx.state.item, content: pickedContent } : null;
 	for ( const [ where, source ] of [

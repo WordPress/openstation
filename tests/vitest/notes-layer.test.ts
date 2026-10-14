@@ -9,6 +9,7 @@ import { __resetNotesHeartbeatForTests } from '../../src/notes/heartbeat';
 import { __resetNotesRestForTests, installNotesRestDeps } from '../../src/notes/rest';
 import type { Note } from '../../src/notes/types';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
+import { _resetWorkAreaForTests, installWorkArea, reserveWorkArea } from '../../src/work-area';
 
 function makeNote( overrides: Partial< Note > = {} ): Note {
 	return {
@@ -128,6 +129,32 @@ describe( 'NotesLayer', () => {
 		const layer = makeLayer();
 		const controller = layer.upsertNote( makeNote( { color: 'seafoam' } ) );
 		expect( controller.element.dataset.noteColor ).toBe( 'seafoam' );
+	} );
+
+	test( 'a reserved band moves notes out of it, display only, and back', () => {
+		_resetWorkAreaForTests();
+		const layer = makeLayer();
+		// The layer's host as the measured desktop area.
+		const shell = document.createElement( 'div' );
+		const body = document.createElement( 'div' );
+		shell.append( body );
+		body.append( layer.host );
+		document.body.append( shell );
+		const ctl = installWorkArea( { shell, shellBody: body, area: layer.host } );
+		const controller = layer.upsertNote( makeNote( { id: 1, x: 0.1, y: 0.02 } ) );
+		expect( parseFloat( controller.element.style.top ) ).toBe( 2 );
+
+		const release = reserveWorkArea( 'test/band', { edge: 'top', size: 100 } );
+		controller.applyPosition();
+		// 100px of a 500px host: the note is drawn at 20 %, not 2 %.
+		expect( parseFloat( controller.element.style.top ) ).toBe( 20 );
+		expect( controller.note.y ).toBe( 0.02 );
+
+		release();
+		controller.applyPosition();
+		expect( parseFloat( controller.element.style.top ) ).toBe( 2 );
+		ctl.destroy();
+		_resetWorkAreaForTests();
 	} );
 
 	test( 'remote z changes apply to the element on replace', () => {

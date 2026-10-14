@@ -39,6 +39,11 @@
  *     opt-IN. While off, `includes/network/bootstrap.php` skips every
  *     module file (see `openstation_network_enabled()`), and a
  *     multisite keeps the site switcher it has on its own.
+ *   - pulse_visitors: when true, the Pulse Monitor counts front-end
+ *     page views (visitors and bots) while a monitor is open. **Defaults
+ *     to `false`** — opt-IN, because each counted page view costs the
+ *     server a little work (see `includes/pulse-monitor.php`). While
+ *     off, front-end page views pay nothing for the monitor.
  *
  * @package OpenStation
  */
@@ -63,7 +68,7 @@ const OPENSTATION_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
 /**
  * Returns the extended options with defaults filled in.
  *
- * @return array{ media_library_enhanced: bool, games: bool, agents: bool, network: bool, window_prewarm: bool, admin_asset_cache: bool }
+ * @return array{ media_library_enhanced: bool, games: bool, agents: bool, network: bool, pulse_visitors: bool, window_prewarm: bool, admin_asset_cache: bool }
  */
 function openstation_get_extended_options() {
 	$defaults = array(
@@ -73,6 +78,7 @@ function openstation_get_extended_options() {
 		'games'                  => false,
 		'agents'                 => false,
 		'network'                => false,
+		'pulse_visitors'         => false,
 	);
 	$raw      = get_option( OPENSTATION_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {

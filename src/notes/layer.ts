@@ -45,7 +45,7 @@ import {
 import { startNotesHeartbeat } from './heartbeat';
 import { trashNoteWithUndo } from './trash';
 import { convertNoteToPost } from './convert';
-import { workAreaRectOf } from '../work-area';
+import { getReservedInsets, subscribeWorkArea, workAreaRectOf } from '../work-area';
 import {
 	NOTE_PAYLOAD_TYPE,
 	type Note,
@@ -146,6 +146,13 @@ export class NotesLayer {
 				this.upsertNote( note, { animate: 'none' } );
 			} );
 			startNotesHeartbeat( this );
+			// A band reserved (or released) after the notes were placed
+			// moves them out of it, and back.
+			subscribeWorkArea( () => {
+				for ( const controller of this.controllers.values() ) {
+					controller.applyPosition();
+				}
+			} );
 		} catch ( error ) {
 			// A fresh site with zero notes still resolves fine — an
 			// error here means the routes are unreachable. Stay quiet
@@ -840,9 +847,20 @@ export class NoteController {
 		}, Z_SAVE_DEBOUNCE_MS );
 	}
 
+	/**
+	 * Paint the stored position. While a band is reserved
+	 * (`reserveWorkArea()`), a note that would sit in it is drawn just
+	 * outside instead — display only: the stored position is the
+	 * user's, and releasing the band puts the note back where it was.
+	 */
 	applyPosition(): void {
-		this.element.style.left = `${ ( this.note.x * 100 ).toFixed( 3 ) }%`;
-		this.element.style.top = `${ ( this.note.y * 100 ).toFixed( 3 ) }%`;
+		let { x, y } = this.note;
+		const reserved = getReservedInsets();
+		if ( reserved.top > 0 || reserved.left > 0 ) {
+			( { x, y } = this.layer.clampPosition( x, y ) );
+		}
+		this.element.style.left = `${ ( x * 100 ).toFixed( 3 ) }%`;
+		this.element.style.top = `${ ( y * 100 ).toFixed( 3 ) }%`;
 	}
 
 	/** Optimistically move + persist. Used by drop handler and keyboard. */

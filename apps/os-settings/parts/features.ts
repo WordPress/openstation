@@ -432,6 +432,11 @@ const extendedSection: Section = ( _s, ctx ) => {
 				__( 'Adds a Games app for every user: built-in games, scoreboards, and player-to-player challenges. Off by default — while off, nothing game-related runs anywhere, on the server or in the browser. Saved scores are kept across a disable and reappear when re-enabled.' ),
 			) }
 			${ toggle(
+				'pulse_visitors',
+				__( 'Count site visitors in the Pulse Monitor' ),
+				__( 'Lets the Pulse Monitor beat for every page view on your site, from people and from bots. Off by default, because while a monitor is open each page view that is not served from a page cache costs the server a little extra work after the page is sent. Comments, logins, orders, REST and cron beat either way, and so do server errors.' ),
+			) }
+			${ toggle(
 				'window_prewarm',
 				__( 'Preload windows on hover' ),
 				__( 'Starts loading a window while you hover its dock icon, so it appears sooner when you click. Enabled by default for everyone; turn off to avoid the extra memory and background requests. Takes effect after reloading OpenStation.' ),

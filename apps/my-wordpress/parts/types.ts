@@ -378,7 +378,7 @@ export interface StatsPayload {
 	coTerms?: Array< { id: number; name: string; count: number } >;
 	activity?: Array< { ym: string; count: number } >;
 	milestones?: Record< string, string | null >;
-	comment?: { content?: string; date?: string; status?: string } & Record< string, unknown >;
+	comment?: { rendered?: string; content?: string; date?: string; status?: string } & Record< string, unknown >;
 	author?: { name?: string; totalApprovedComments?: number } & Record< string, unknown >;
 	post?: { id?: number; title?: string } & Record< string, unknown >;
 }

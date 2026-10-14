@@ -88,4 +88,13 @@ describe( 'computeResize', () => {
 		expect( r.width % 50 ).toBe( 0 );
 		expect( r.height % 50 ).toBe( 0 );
 	} );
+
+	test( 'a reserved band moves the top limit: the north edge stops at it, bottom pinned', () => {
+		// A 160px band reserved along the top of the desktop area.
+		const r = computeResize(
+			'ne', 0, -400, 40, 300, 800, 600, 320, 200, NO_SNAP, { x: 0, y: 160 },
+		);
+		expect( r.y ).toBe( 160 );
+		expect( r.y + r.height ).toBe( 300 + 600 );
+	} );
 } );

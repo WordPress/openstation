@@ -56,7 +56,9 @@ export function relayIframeReport( windowId: string, data: unknown ): boolean {
 	// call (success or failure) fires here. `status === 0` is a
 	// network-level failure before a response arrived; `failed` is
 	// pre-computed inside the page so subscribers don't re-derive the
-	// success / 4xx / 5xx / network boundary.
+	// success / 4xx / 5xx / network boundary. `aborted` marks a status-0
+	// report the page caused itself by cancelling the request — not a
+	// network problem.
 	if ( d.type === 'os-iframe-network' ) {
 		const payload: Record< string, unknown > = {
 			windowId,
@@ -65,6 +67,7 @@ export function relayIframeReport( windowId: string, data: unknown ): boolean {
 			status: typeof d.status === 'number' ? d.status : 0,
 			duration: typeof d.duration === 'number' ? d.duration : 0,
 			failed: !! d.failed,
+			aborted: d.aborted === true,
 		};
 		// `requestHeaders` / `responseHeaders` only ride along when
 		// devtools have asked the page to observe (via

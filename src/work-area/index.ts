@@ -37,6 +37,16 @@
  * and anything a custom dock-rail renderer floats over it, since
  * every `.os-dock` in the shell body is measured.
  *
+ * **Reserved bands.** A surface that must never be covered — the Pulse
+ * Monitor's ECG strip — reserves an edge band with
+ * {@link reserveWorkArea}. A reservation is added to the insets, so
+ * everything that reads the work area (maximize, snap, the icon grid,
+ * widgets, notes, new-window placement) stays out of it. It is also
+ * stricter than a dock band: a dock band is only "where things go by
+ * default", and a user may still drag a window under the dock, but a
+ * reserved band bounds manual placement too ({@link placementRectOf}),
+ * so neither a drag nor a resize can push a window into it.
+ *
  * State lives in a {@link createSharedStore} slot: the Corkboard is a
  * lazy bundle with its own compiled copy of every module, and a
  * module-level variable here would be empty there. One store, every
@@ -121,6 +131,119 @@ const store = createSharedStore< WorkAreaState >( WORK_AREA_STORE_KEY, () => ( {
 	installed: false,
 	areaEl: null,
 } ) );
+
+/** A band a surface reserves along one edge of the desktop area. */
+export interface WorkAreaReservation {
+	edge: 'top' | 'right' | 'bottom' | 'left';
+	/** Thickness in px. */
+	size: number;
+}
+
+const RESERVATION_EDGES: ReadonlyArray< WorkAreaReservation[ 'edge' ] > = [ 'top', 'right', 'bottom', 'left' ];
+
+/**
+ * Reservations, in their own shared slot: a plugin bundle reserves,
+ * and the installer — which lives in the main bundle only — hears it
+ * through this store and re-measures.
+ */
+const reservations = createSharedStore< { bands: Array< { id: string } & WorkAreaReservation > } >(
+	`${ WORK_AREA_STORE_KEY }/reservations`,
+	() => ( { bands: [] } ),
+);
+
+/**
+ * Reserve a band along one edge of the desktop area that nothing else
+ * may use: the work area shrinks by it, and manual window placement
+ * is bounded by it. Bands on the same edge stack in reservation order,
+ * after any dock band on that edge. Reserving an id again replaces its
+ * band in place.
+ *
+ * @param id   Unique id (`plugin/purpose`).
+ * @param band Edge and thickness in px.
+ * @return Releases the band reserved under `id` (any later re-reservation
+ *         included). Calling it twice is harmless.
+ */
+export function reserveWorkArea( id: string, band: WorkAreaReservation ): () => void {
+	if ( ! id || ! RESERVATION_EDGES.includes( band.edge ) ) {
+		return () => undefined;
+	}
+	const entry = { id, edge: band.edge, size: Math.max( 0, Math.round( Number( band.size ) || 0 ) ) };
+	const bands = reservations.state.bands.slice();
+	const at = bands.findIndex( ( b ) => b.id === id );
+	if ( at >= 0 ) {
+		bands[ at ] = entry;
+	} else {
+		bands.push( entry );
+	}
+	reservations.setState( { bands } );
+	let released = false;
+	return () => {
+		if ( released ) {
+			return;
+		}
+		released = true;
+		// By id: an id names one purpose, so releasing it frees the band
+		// whatever size it was last re-reserved at.
+		if ( reservations.state.bands.some( ( b ) => b.id === id ) ) {
+			reservations.setState( { bands: reservations.state.bands.filter( ( b ) => b.id !== id ) } );
+		}
+	};
+}
+
+/** The total reserved thickness on each edge. */
+export function getReservedInsets(): WorkAreaInsets {
+	const insets: WorkAreaInsets = { ...ZERO_INSETS };
+	for ( const band of reservations.state.bands ) {
+		insets[ band.edge ] += band.size;
+	}
+	return insets;
+}
+
+/**
+ * Where a band reserved under `id` sits, in viewport coordinates, or
+ * null when there is none (or the work area is not installed). A top
+ * or bottom band spans the work area's width; a side band its height.
+ */
+export function reservedRectOf( id: string ): WorkAreaRect | null {
+	const { installed, snapshot } = store.state;
+	const band = reservations.state.bands.find( ( b ) => b.id === id );
+	if ( ! installed || ! band ) {
+		return null;
+	}
+	const { viewport } = snapshot;
+	// Bands stack outward-in after the chrome on their edge, so this
+	// one starts where the work area ends minus everything reserved
+	// after it on the same edge.
+	let after = 0;
+	for ( const other of reservations.state.bands.slice( reservations.state.bands.indexOf( band ) + 1 ) ) {
+		if ( other.edge === band.edge ) {
+			after += other.size;
+		}
+	}
+	switch ( band.edge ) {
+		case 'top':
+			return { x: viewport.x, y: viewport.y - after - band.size, width: viewport.width, height: band.size };
+		case 'bottom':
+			return { x: viewport.x, y: viewport.y + viewport.height + after, width: viewport.width, height: band.size };
+		case 'left':
+			return { x: viewport.x - after - band.size, y: viewport.y, width: band.size, height: viewport.height };
+		default:
+			return { x: viewport.x + viewport.width + after, y: viewport.y, width: band.size, height: viewport.height };
+	}
+}
+
+/**
+ * The rectangle a user may place a window in by hand: the whole desktop
+ * area minus the reserved bands — but not minus dock bands, which a
+ * window may still be dragged under. Desktop-area-local, like
+ * {@link workAreaRectOf}.
+ */
+export function placementRectOf( areaEl?: HTMLElement | null ): WorkAreaRect {
+	const el = areaEl ?? store.state.areaEl;
+	const width = el ? el.clientWidth || el.getBoundingClientRect().width : store.state.snapshot.area.width;
+	const height = el ? el.clientHeight || el.getBoundingClientRect().height : store.state.snapshot.area.height;
+	return rectFromInsets( width, height, getReservedInsets() );
+}
 
 /** Wiring the installer needs from the shell boot path. */
 export interface WorkAreaInstallDeps {
@@ -265,7 +388,14 @@ export function measureWorkArea( deps: WorkAreaInstallDeps ): WorkAreaSnapshot {
 		}
 		chrome.push( node.getBoundingClientRect() );
 	}
-	const insets = computeInsets( areaRect, chrome );
+	const chromeInsets = computeInsets( areaRect, chrome );
+	const reserved = getReservedInsets();
+	const insets: WorkAreaInsets = {
+		top: chromeInsets.top + reserved.top,
+		right: chromeInsets.right + reserved.right,
+		bottom: chromeInsets.bottom + reserved.bottom,
+		left: chromeInsets.left + reserved.left,
+	};
 	// `clientWidth` / `clientHeight` rather than the bounding rect's
 	// size: the rect is fractional and transform-affected (the
 	// desktop-switch slide animates `.os-area`), while the client
@@ -449,6 +579,8 @@ export function installWorkArea( deps: WorkAreaInstallDeps ): WorkAreaController
 	};
 	addAction( HOOKS.OVERVIEW_ENTERING, HOOKS_NAMESPACE, onOverviewEntering );
 	addAction( HOOKS.OVERVIEW_EXITED, HOOKS_NAMESPACE, onOverviewExited );
+	// A band reserved or released from any bundle.
+	const unsubscribeReservations = reservations.subscribe( () => measure() );
 
 	observeRails();
 	measure();
@@ -465,6 +597,7 @@ export function installWorkArea( deps: WorkAreaInstallDeps ): WorkAreaController
 			railObservers.clear();
 			document.removeEventListener( 'os-layout-changed', onLayoutChanged );
 			window.removeEventListener( 'resize', measure );
+			unsubscribeReservations();
 			removeAction( HOOKS.OVERVIEW_ENTERING, HOOKS_NAMESPACE );
 			removeAction( HOOKS.OVERVIEW_EXITED, HOOKS_NAMESPACE );
 			if ( installed === controller ) {
@@ -498,6 +631,7 @@ export function refreshWorkArea(): void {
  */
 export function _resetWorkAreaForTests(): void {
 	store.reset();
+	reservations.reset();
 }
 
 /** The shape plugins get on `wp.os.workArea`. */
@@ -510,6 +644,12 @@ export interface WorkAreaApi {
 	insetsOf( element: Element ): WorkAreaInsets;
 	/** Subscribe to changes; returns the unsubscribe function. */
 	subscribe( cb: ( snapshot: WorkAreaSnapshot ) => void ): () => void;
+	/** Reserve an edge band nothing else may use; returns the release function. */
+	reserve( id: string, band: WorkAreaReservation ): () => void;
+	/** Viewport rect of the band reserved under `id`, or null. */
+	reservedRectOf( id: string ): WorkAreaRect | null;
+	/** Rect manual window placement is bounded by (area minus reserved bands). */
+	placementRectOf( areaEl?: HTMLElement | null ): WorkAreaRect;
 }
 
 export const workAreaApi: WorkAreaApi = {
@@ -517,4 +657,7 @@ export const workAreaApi: WorkAreaApi = {
 	rectOf: workAreaRectOf,
 	insetsOf: workAreaInsetsOf,
 	subscribe: subscribeWorkArea,
+	reserve: reserveWorkArea,
+	reservedRectOf,
+	placementRectOf,
 };
