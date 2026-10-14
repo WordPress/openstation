@@ -18,14 +18,19 @@
  * to every Heartbeat tick, and each tick refreshes a short lease in the
  * autoloaded `openstation_pulse_listeners` option. With no live lease
  * a request pays one in-memory option read at `shutdown` and returns.
- * With one, EVERY recorded request — front-end page views included —
- * pays one `update_option` on a non-autoloaded log capped at
- * {@see OPENSTATION_PULSE_LOG_MAX} rows: on a busy site, an admin who
- * leaves the monitor on means one `wp_options` UPDATE per page view,
- * all on the same row. The `openstation_pulse_request_kind` filter can
- * return '' to keep a class of traffic (front-end views, say) off the
- * monitor. A listener's own requests are never recorded — the shell
- * already sees them — and neither are WP-CLI commands.
+ * Front-end page views — visitors and bots — are not counted unless an
+ * administrator turns on the `pulse_visitors` extended option ("Count
+ * site visitors"), so by default a listening monitor costs visitors
+ * nothing either. When a request is recorded, the response is closed
+ * first (`fastcgi_finish_request()` where the server has it) so nobody
+ * waits for the write, and the write itself is kept small: with a
+ * persistent object cache the log lives there and never touches the
+ * database; without one, ordinary traffic writes the log at most once
+ * per {@see OPENSTATION_PULSE_WRITE_INTERVAL_MS} — the beats in
+ * between are sampled out — while failures and explicit events
+ * (comments, logins, orders…) always write. A listener's own requests
+ * are never recorded — the shell already sees them — and neither are
+ * WP-CLI commands.
  *
  * Best effort. The log and the leases are read-modify-write options
  * with no lock, so concurrent requests can overwrite each other's
@@ -65,6 +70,24 @@ const OPENSTATION_PULSE_LISTENERS_OPTION = 'openstation_pulse_listeners';
 const OPENSTATION_PULSE_LEASE_TTL = 180;
 
 /**
+ * Autoloaded option holding when the log was last written, in unix ms.
+ * Without a persistent object cache it spaces the database writes out;
+ * it is autoloaded so checking it costs nothing.
+ */
+const OPENSTATION_PULSE_GATE_OPTION = 'openstation_pulse_gate';
+
+/**
+ * Object cache group the log lives in when a persistent cache is in use.
+ */
+const OPENSTATION_PULSE_CACHE_GROUP = 'openstation_pulse';
+
+/**
+ * Minimum milliseconds between two database writes of the log for
+ * ordinary traffic, when there is no persistent object cache.
+ */
+const OPENSTATION_PULSE_WRITE_INTERVAL_MS = 1000;
+
+/**
  * Maximum retained log rows.
  */
 const OPENSTATION_PULSE_LOG_MAX = 200;
@@ -101,6 +124,81 @@ function &openstation_pulse_state() {
 function openstation_pulse_reset() {
 	$state           = &openstation_pulse_state();
 	$state['events'] = array();
+}
+
+/**
+ * Whether front-end page views — visitors and bots — beat.
+ *
+ * Off by default: counting them gives every uncached page view some
+ * server work while a monitor is open. An administrator turns it on
+ * with the `pulse_visitors` extended option ("Count site visitors").
+ *
+ * @return bool
+ */
+function openstation_pulse_counts_visitors() {
+	$enabled = false;
+	if ( function_exists( 'openstation_get_extended_options' ) ) {
+		$options = openstation_get_extended_options();
+		$enabled = ! empty( $options['pulse_visitors'] );
+	}
+
+	/**
+	 * Filters whether the Pulse Monitor counts front-end page views
+	 * (visitors and bots). Defaults to the `pulse_visitors` extended
+	 * option, which is off.
+	 *
+	 * @param bool $enabled Whether front-end page views are recorded.
+	 */
+	return (bool) apply_filters( 'openstation_pulse_count_visitors', $enabled );
+}
+
+/**
+ * Whether this request is a front-end page view: not cron, REST,
+ * XML-RPC, admin-ajax or an admin screen.
+ *
+ * @return bool
+ */
+function openstation_pulse_is_front_end_request() {
+	return ! (
+		wp_doing_cron()
+		|| wp_doing_ajax()
+		|| is_admin()
+		|| ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+		|| ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST )
+	);
+}
+
+/**
+ * Whether the log lives in a persistent object cache instead of
+ * `wp_options`.
+ *
+ * @return bool
+ */
+function openstation_pulse_uses_object_cache() {
+	return (bool) wp_using_ext_object_cache();
+}
+
+/**
+ * Sends the response and closes the connection before the log is
+ * written, so the visitor never waits for it. A no-op where the server
+ * API cannot do it (mod_php, CLI).
+ */
+function openstation_pulse_finish_response() {
+	/**
+	 * Filters whether the Pulse Monitor closes the response before it
+	 * writes the log. Return false if something later on `shutdown`
+	 * still needs to send output.
+	 *
+	 * @param bool $finish Whether to finish the response early.
+	 */
+	if ( ! apply_filters( 'openstation_pulse_finish_request', true ) ) {
+		return;
+	}
+	if ( function_exists( 'fastcgi_finish_request' ) ) {
+		fastcgi_finish_request();
+	} elseif ( function_exists( 'litespeed_finish_request' ) ) {
+		litespeed_finish_request();
+	}
 }
 
 /**
@@ -247,7 +345,9 @@ function openstation_pulse_classify_request() {
  * }
  */
 function openstation_pulse_read_log( $now ) {
-	$log     = get_option( OPENSTATION_PULSE_LOG_OPTION, array() );
+	$log     = openstation_pulse_uses_object_cache()
+		? wp_cache_get( 'log', OPENSTATION_PULSE_CACHE_GROUP )
+		: get_option( OPENSTATION_PULSE_LOG_OPTION, array() );
 	$seq     = ( is_array( $log ) && isset( $log['seq'] ) ) ? (int) $log['seq'] : 0;
 	$entries = ( is_array( $log ) && isset( $log['entries'] ) && is_array( $log['entries'] ) ) ? $log['entries'] : array();
 	$cutoff  = $now - OPENSTATION_PULSE_LOG_WINDOW_MS;
@@ -291,14 +391,35 @@ function openstation_pulse_append( $rows, $now ) {
 		$entries = array_slice( $entries, -OPENSTATION_PULSE_LOG_MAX );
 	}
 
-	update_option(
-		OPENSTATION_PULSE_LOG_OPTION,
-		array(
-			'seq'     => $seq,
-			'entries' => $entries,
-		),
-		false
+	$log = array(
+		'seq'     => $seq,
+		'entries' => $entries,
 	);
+	if ( openstation_pulse_uses_object_cache() ) {
+		wp_cache_set( 'log', $log, OPENSTATION_PULSE_CACHE_GROUP );
+		return;
+	}
+	update_option( OPENSTATION_PULSE_LOG_OPTION, $log, false );
+}
+
+/**
+ * Without a persistent object cache, whether ordinary traffic may write
+ * the log now — at most once per {@see OPENSTATION_PULSE_WRITE_INTERVAL_MS}.
+ * Claims the slot when it does.
+ *
+ * @param int $now Current time in milliseconds.
+ * @return bool
+ */
+function openstation_pulse_claim_write( $now ) {
+	if ( openstation_pulse_uses_object_cache() ) {
+		return true;
+	}
+	$last = (int) get_option( OPENSTATION_PULSE_GATE_OPTION, 0 );
+	if ( $now - $last < OPENSTATION_PULSE_WRITE_INTERVAL_MS && $now >= $last ) {
+		return false;
+	}
+	update_option( OPENSTATION_PULSE_GATE_OPTION, $now, true );
+	return true;
 }
 
 /**
@@ -308,6 +429,7 @@ function openstation_pulse_on_shutdown() {
 	$listeners = openstation_pulse_listeners();
 	$state     = &openstation_pulse_state();
 	$explicit  = $state['events'];
+	$announced = ! empty( $explicit );
 	openstation_pulse_reset();
 
 	// A WP-CLI command is not site traffic — and with no user agent it
@@ -327,6 +449,11 @@ function openstation_pulse_on_shutdown() {
 	$status = is_int( $status ) ? $status : 200;
 
 	if ( empty( $explicit ) ) {
+		// Page views are off by default; a front-end server error still
+		// counts, it is what the monitor is for.
+		if ( $status < 500 && openstation_pulse_is_front_end_request() && ! openstation_pulse_counts_visitors() ) {
+			return;
+		}
 		$kind = openstation_pulse_classify_request();
 		if ( '' === $kind ) {
 			return;
@@ -372,9 +499,19 @@ function openstation_pulse_on_shutdown() {
 		}
 	}
 
-	if ( ! empty( $rows ) ) {
-		openstation_pulse_append( $rows, (int) round( microtime( true ) * 1000 ) );
+	if ( empty( $rows ) ) {
+		return;
 	}
+
+	// Ordinary traffic is sampled; a failure or an explicit event (a
+	// comment, a login, an order) always makes it into the log.
+	$now    = (int) round( microtime( true ) * 1000 );
+	$always = $announced || in_array( true, wp_list_pluck( $rows, 'error' ), true );
+	if ( ! $always && ! openstation_pulse_claim_write( $now ) ) {
+		return;
+	}
+	openstation_pulse_finish_response();
+	openstation_pulse_append( $rows, $now );
 }
 
 /**
@@ -623,7 +760,9 @@ function openstation_pulse_register_hooks() {
 			openstation_pulse_record( 'orders' );
 		}
 	);
-	add_action( 'shutdown', 'openstation_pulse_on_shutdown' );
+	// Last on `shutdown`: the recorder may close the response before it
+	// writes, and nothing after it should still be sending output.
+	add_action( 'shutdown', 'openstation_pulse_on_shutdown', PHP_INT_MAX );
 	add_filter( 'heartbeat_received', 'openstation_pulse_heartbeat_received', 10, 2 );
 }
 add_action( 'init', 'openstation_pulse_register_hooks', 5 );

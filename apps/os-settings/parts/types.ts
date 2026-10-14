@@ -33,6 +33,7 @@ export interface ExtendedOptions {
 	games: boolean;
 	agents: boolean;
 	network: boolean;
+	pulse_visitors: boolean;
 }
 
 /** What `data()` returns — the server facts that can change mid-session. */

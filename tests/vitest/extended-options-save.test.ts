@@ -92,7 +92,7 @@ describe( 'Extended Options — saving', () => {
 		await flush();
 		expect( dispatch ).toHaveBeenCalledTimes( 1 );
 		expect( dispatch.mock.calls[ 0 ][ 0 ] ).toBe( 'extended' );
-		expect( optionsOf( 0 ) ).toEqual( { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: true, games: true, agents: false, network: false } );
+		expect( optionsOf( 0 ) ).toEqual( { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: true, games: true, agents: false, network: false, pulse_visitors: false } );
 	} );
 
 	test( 'a second toggle carries the newest values', async () => {
@@ -101,7 +101,7 @@ describe( 'Extended Options — saving', () => {
 		toggle( 'Enable AI agents', true );
 		await flush();
 		expect( dispatch ).toHaveBeenCalledTimes( 2 );
-		expect( optionsOf( 1 ) ).toEqual( { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: true, games: true, agents: true, network: false } );
+		expect( optionsOf( 1 ) ).toEqual( { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: true, games: true, agents: true, network: false, pulse_visitors: false } );
 	} );
 
 	test( 'rapid toggles while a save is in flight carry the newest values and do not drop prior toggles', async () => {
@@ -123,8 +123,8 @@ describe( 'Extended Options — saving', () => {
 		await new Promise( ( resolve ) => setTimeout( resolve, 150 ) );
 
 		expect( dispatch ).toHaveBeenCalledTimes( 2 );
-		expect( optionsOf( 0 ) ).toEqual( { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: false, games: false, agents: false, network: false } );
-		expect( optionsOf( 1 ) ).toEqual( { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: false, games: true, agents: false, network: false } );
+		expect( optionsOf( 0 ) ).toEqual( { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: false, games: false, agents: false, network: false, pulse_visitors: false } );
+		expect( optionsOf( 1 ) ).toEqual( { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: false, games: true, agents: false, network: false, pulse_visitors: false } );
 		expect( el.querySelector( '.os-ext__saving' ) ).toBeNull();
 	} );
 
@@ -135,7 +135,7 @@ describe( 'Extended Options — saving', () => {
 		);
 		toggle( 'Enable games', true );
 		await flush();
-		expect( heard ).toEqual( [ { options: { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: true, games: true, agents: false, network: false } } ] );
+		expect( heard ).toEqual( [ { options: { window_prewarm: true, admin_asset_cache: true, media_library_enhanced: true, games: true, agents: false, network: false, pulse_visitors: false } } ] );
 	} );
 
 	test( 'a failed save says so inline and announces nothing', async () => {

@@ -134,6 +134,17 @@ function segmentedField(
  * doubles as a tuning panel. Rebuilt in place on reset. Returns its
  * teardown (listeners die with the DOM, so it has nothing to do).
  */
+/**
+ * Whether the site counts front-end page views — the `pulse_visitors`
+ * extended option. Only administrators get the options in the boot
+ * config; for anyone else the site-wide sources are not relayed anyway.
+ */
+function countsVisitors(): boolean {
+	const config = ( window as unknown as { openStationConfig?: { extendedOptions?: { pulse_visitors?: boolean } | null } } )
+		.openStationConfig;
+	return config?.extendedOptions?.pulse_visitors === true;
+}
+
 export function renderPulseConfig( container: HTMLElement, ctx: PulseConfigContext ): () => void {
 	let current = sanitizePulseSettings( ctx.settings );
 
@@ -228,10 +239,15 @@ export function renderPulseConfig( container: HTMLElement, ctx: PulseConfigConte
 		add( heading( __( 'Listening to — this browser' ) ) );
 		add( ...sourceSwitches( 'client' ) );
 		add( heading( __( 'Listening to — the whole site' ) ) );
-		add(
-			note( __( 'Relayed over Heartbeat, so they arrive in batches and replay at their real spacing. Administrators only.' ) ),
-			...sourceSwitches( 'server' ),
-		);
+		add( note( __( 'Relayed over Heartbeat, so they arrive in batches and replay at their real spacing. Administrators only.' ) ) );
+		if ( ! countsVisitors() ) {
+			add(
+				note(
+					__( 'Page views from visitors and bots are not counted: off by default, so the monitor never slows your site down. An administrator can turn on “Count site visitors in the Pulse Monitor” in Settings → Features → Extended options.' ),
+				),
+			);
+		}
+		add( ...sourceSwitches( 'server' ) );
 
 		const reset = document.createElement( 'os-button' );
 		reset.setAttribute( 'variant', 'ghost' );

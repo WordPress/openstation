@@ -1869,6 +1869,15 @@ apply_filters( 'openstation_pulse_request_kind', string $kind );
 // Whether a user agent counts as a bot (bot beats draw smaller).
 apply_filters( 'openstation_pulse_is_bot', bool $is_bot, string $user_agent );
 
+// Whether front-end page views (visitors, bots) are counted. Defaults to the
+// `pulse_visitors` extended option, which is off: page views cost nothing.
+apply_filters( 'openstation_pulse_count_visitors', bool $enabled );
+
+// Whether to close the response (fastcgi_finish_request / litespeed_finish_request)
+// before the log is written. Default true; return false if something later on
+// `shutdown` still sends output. The recorder runs at PHP_INT_MAX.
+apply_filters( 'openstation_pulse_finish_request', bool $finish );
+
 // One event before it is logged: { kind, status, error, user }. Return false to drop it.
 apply_filters( 'openstation_pulse_event', array|false $row );
 

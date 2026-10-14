@@ -2803,6 +2803,7 @@ export interface DesktopConfig {
 		games: boolean;
 		agents: boolean;
 		network: boolean;
+		pulse_visitors: boolean;
 	} | null;
 	/**
 	 * REST endpoint for reading/writing extended options (admin only).
