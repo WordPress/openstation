@@ -23,12 +23,14 @@
  * site visitors"), so by default a listening monitor costs visitors
  * nothing either. When a request is recorded, the response is closed
  * first (`fastcgi_finish_request()` where the server has it) so nobody
- * waits for the write, and the write itself is kept small: with a
- * persistent object cache the log lives there and never touches the
- * database; without one, ordinary traffic writes the log at most once
- * per {@see OPENSTATION_PULSE_WRITE_INTERVAL_MS} — the beats in
- * between are sampled out — while failures and explicit events
- * (comments, logins, orders…) always write. A listener's own requests
+ * waits for the write, and the write itself is kept rare and small:
+ * at most one request per {@see OPENSTATION_PULSE_WRITE_INTERVAL_MS}
+ * writes the log — the ones in between are sampled out, failures
+ * included, so the failure rate the trace diagnoses from stays fair and
+ * a burst (a login attack, a crawler) cannot turn into a write per
+ * request. Only comments, publishing and orders always write: they are
+ * rare and already wrote to the database. With a persistent object
+ * cache the log lives there and never touches the database. A listener's own requests
  * are never recorded — the shell already sees them — and neither are
  * WP-CLI commands.
  *
@@ -82,8 +84,8 @@ const OPENSTATION_PULSE_GATE_OPTION = 'openstation_pulse_gate';
 const OPENSTATION_PULSE_CACHE_GROUP = 'openstation_pulse';
 
 /**
- * Minimum milliseconds between two database writes of the log for
- * ordinary traffic, when there is no persistent object cache.
+ * Minimum milliseconds between two writes of the log, for everything
+ * but comments, publishing and orders.
  */
 const OPENSTATION_PULSE_WRITE_INTERVAL_MS = 1000;
 
@@ -403,16 +405,17 @@ function openstation_pulse_append( $rows, $now ) {
 }
 
 /**
- * Without a persistent object cache, whether ordinary traffic may write
- * the log now — at most once per {@see OPENSTATION_PULSE_WRITE_INTERVAL_MS}.
- * Claims the slot when it does.
+ * Whether this request may write the log now — at most one request per
+ * {@see OPENSTATION_PULSE_WRITE_INTERVAL_MS}. Claims the slot when it does.
  *
  * @param int $now Current time in milliseconds.
  * @return bool
  */
 function openstation_pulse_claim_write( $now ) {
 	if ( openstation_pulse_uses_object_cache() ) {
-		return true;
+		// `add` is atomic in Redis and Memcached: one request per second
+		// wins, and the rest never fetch the log.
+		return (bool) wp_cache_add( 'gate', $now, OPENSTATION_PULSE_CACHE_GROUP, (int) ceil( OPENSTATION_PULSE_WRITE_INTERVAL_MS / 1000 ) );
 	}
 	$last = (int) get_option( OPENSTATION_PULSE_GATE_OPTION, 0 );
 	if ( $now - $last < OPENSTATION_PULSE_WRITE_INTERVAL_MS && $now >= $last ) {
@@ -503,10 +506,12 @@ function openstation_pulse_on_shutdown() {
 		return;
 	}
 
-	// Ordinary traffic is sampled; a failure or an explicit event (a
-	// comment, a login, an order) always makes it into the log.
+	// Everything is sampled alike, failures included, so the failure
+	// rate stays fair and a burst cannot become a write per request.
+	// Comments, publishing and orders are rare and already wrote to the
+	// database: they always make it into the log.
 	$now    = (int) round( microtime( true ) * 1000 );
-	$always = $announced || in_array( true, wp_list_pluck( $rows, 'error' ), true );
+	$always = $announced && ! in_array( true, wp_list_pluck( $rows, 'error' ), true );
 	if ( ! $always && ! openstation_pulse_claim_write( $now ) ) {
 		return;
 	}

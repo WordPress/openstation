@@ -115,7 +115,6 @@ interface JQueryish {
 }
 
 interface WpHeartbeat {
-	interval( next?: number | string ): number;
 	connectNow?: () => void;
 }
 
@@ -706,21 +705,11 @@ export function wireSignals( opts: SignalOptions ): () => void {
 		} ),
 	);
 
-	// Server events arrive one tick late, so a faster tick is a
-	// livelier trace. Raise a slow Heartbeat to 15 s while mounted and
-	// put it back afterwards.
-	if ( wpHeartbeat && typeof wpHeartbeat.interval === 'function' ) {
-		const previous = wpHeartbeat.interval();
-		if ( previous > 15 ) {
-			wpHeartbeat.interval( 15 );
-			disposers.push( () => {
-				if ( wpHeartbeat.interval() === 15 ) {
-					wpHeartbeat.interval( previous );
-				}
-			} );
-		}
-		wpHeartbeat.connectNow?.();
-	}
+	// Server events arrive one tick late. The monitor keeps the user's
+	// own Heartbeat rate (Settings → Heartbeat rate) rather than speeding
+	// it up: every tick is a full request to the server. One tick now
+	// fetches the cursor, so the first batch is not a whole interval away.
+	wpHeartbeat?.connectNow?.();
 
 	return (): void => {
 		for ( const dispose of disposers.splice( 0 ) ) {

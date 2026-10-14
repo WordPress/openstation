@@ -41,6 +41,7 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 		delete_option( OPENSTATION_EXTENDED_OPTIONS_KEY );
 		delete_transient( 'health-check-site-status-result' );
 		wp_cache_delete( 'log', OPENSTATION_PULSE_CACHE_GROUP );
+		wp_cache_delete( 'gate', OPENSTATION_PULSE_CACHE_GROUP );
 		remove_all_filters( 'openstation_pulse_count_visitors' );
 		remove_all_filters( 'openstation_pulse_event' );
 		remove_all_filters( 'openstation_pulse_request_kind' );
@@ -323,7 +324,11 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 
 		do_action( 'wp_login_failed', 'nobody', new WP_Error() );
 		openstation_pulse_on_shutdown();
-		$this->assertSame( array( 'bots', 'logins' ), wp_list_pluck( $this->log_entries(), 'kind' ), 'Explicit events always write.' );
+		$this->assertCount( 1, $this->log_entries(), 'Failures are sampled too: a login attack is not a write per attempt.' );
+
+		openstation_pulse_record( 'comments' );
+		openstation_pulse_on_shutdown();
+		$this->assertSame( array( 'bots', 'comments' ), wp_list_pluck( $this->log_entries(), 'kind' ), 'A comment always writes.' );
 
 		update_option( OPENSTATION_PULSE_GATE_OPTION, (int) round( microtime( true ) * 1000 ) - OPENSTATION_PULSE_WRITE_INTERVAL_MS - 1 );
 		openstation_pulse_on_shutdown();
@@ -342,10 +347,10 @@ class Tests_OpenStation_PulseMonitor extends WP_UnitTestCase {
 			openstation_pulse_on_shutdown();
 
 			$this->assertFalse( get_option( OPENSTATION_PULSE_LOG_OPTION ) );
-			$this->assertFalse( get_option( OPENSTATION_PULSE_GATE_OPTION ), 'No write gate: nothing to space out.' );
+			$this->assertFalse( get_option( OPENSTATION_PULSE_GATE_OPTION ), 'The gate lives in the cache too.' );
 			$log = openstation_pulse_read_log( (int) round( microtime( true ) * 1000 ) );
-			$this->assertSame( 2, $log['seq'] );
-			$this->assertCount( 2, $log['entries'] );
+			$this->assertSame( 1, $log['seq'], 'The cache gate samples the second page view out.' );
+			$this->assertCount( 1, $log['entries'] );
 		} finally {
 			wp_using_ext_object_cache( (bool) $was ); // Passing null would leave it on.
 		}
