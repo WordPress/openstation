@@ -343,10 +343,13 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 	 * @covers ::openstation_station_home_tribute_window_args
 	 */
 	public function test_the_tribute_bundle_rides_the_station_home_window() {
+		// Registered on `init` at bootstrap; a test class that rebuilds
+		// `$wp_scripts` loses it, so the filter path re-registers. That
+		// safety net is what the registration asserts check.
+		$args = openstation_station_home_tribute_window_args( array( 'scripts' => array( 'x' ) ), self::APP_ID );
 		$this->assertTrue( wp_script_is( 'openstation-station-home-tribute', 'registered' ) );
 		$this->assertStringContainsString( 'assets/js/apps/station-home-tribute', wp_scripts()->registered['openstation-station-home-tribute']->src );
 
-		$args = openstation_station_home_tribute_window_args( array( 'scripts' => array( 'x' ) ), self::APP_ID );
 		$this->assertSame( array( 'x', 'openstation-station-home-tribute' ), $args['scripts'] );
 		$this->assertSame( $args, openstation_station_home_tribute_window_args( $args, self::APP_ID ), 'appended once' );
 
