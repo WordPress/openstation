@@ -791,6 +791,11 @@ function openstation_is_offsite_redirect_target( $location ) {
  * The page {@see openstation_chromeless_hand_off_offsite_redirect()}
  * answers with.
  *
+ * The shell normally takes the tab before anything paints. The link is
+ * for a shell that cannot read the message, one that loaded before the
+ * plugin was updated, so it stays hidden for a second and then shows
+ * on wp-admin's own colours: the palette never reaches a window's page.
+ *
  * @internal
  *
  * @param string $location The off-site redirect URL.
@@ -811,8 +816,15 @@ function openstation_offsite_redirect_document( $location ) {
 	$label = sprintf( __( 'Continue to %s', 'desktop-mode' ), $host );
 
 	return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="robots" content="noindex">'
-		. '<title>' . esc_html( $label ) . '</title></head>'
-		. '<body style="font:14px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;padding:24px">'
+		. '<title>' . esc_html( $label ) . '</title>'
+		. '<style>'
+		. 'html{background:#f0f0f1}'
+		. 'body{margin:0;padding:24px;color:#3c434a;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}'
+		. 'a{color:#2271b1}a:hover,a:active{color:#135e96}'
+		. 'p{margin:0;animation:os-offsite-reveal 0s 1s both}'
+		. '@keyframes os-offsite-reveal{from{visibility:hidden}to{visibility:visible}}'
+		. '</style></head>'
+		. '<body>'
 		. '<p><a href="' . esc_url( $location ) . '" target="_top">' . esc_html( $label ) . '</a></p>'
 		. wp_get_inline_script_tag( $script )
 		. '</body></html>';
