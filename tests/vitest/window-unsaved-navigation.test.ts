@@ -187,6 +187,29 @@ describe( 'a navigation the page inside can refuse', () => {
 		expect( win._deferredNavigationCommit ).toBeNull();
 	} );
 
+	test( 'reload of a frame it cannot reach loads the URL the page reported', async () => {
+		// The block editor is sent with `Document-Isolation-Policy`, so
+		// the shell cannot call its `location.reload()`, and a first save
+		// moves it from post-new.php to the saved post without touching
+		// `src`. Reloading `src` would open an empty new draft.
+		const iframe = win.iframe as HTMLIFrameElement;
+		iframe.src = ADMIN + 'post-new.php?openstation_chromeless=1';
+		win._reportedLocation = {
+			url: ADMIN + 'post.php?post=52&action=edit',
+			src: iframe.src,
+		};
+
+		win.reload();
+		await vi.waitFor( () => expect( asked ).toHaveLength( 1 ) );
+		answerGuard( false );
+
+		await vi.waitFor( () =>
+			expect( iframe.src ).toBe(
+				ADMIN + 'post.php?post=52&action=edit&openstation_chromeless=1',
+			),
+		);
+	} );
+
 	test( 'a second reload click cannot slip past the in-flight query', async () => {
 		win.reload();
 		await vi.waitFor( () => expect( asked ).toHaveLength( 1 ) );
