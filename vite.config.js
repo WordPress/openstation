@@ -351,6 +351,15 @@ const TARGETS = {
 		fileBase: 'apps/user-profile',
 		iifeName: 'openStationUserProfile',
 	},
+	// `<os-tribute-heart>` — the heart in Station Home's "Thank you,
+	// Eric" that opens into a heart around the name on hover. A
+	// companion script of the Station Home window
+	// (`apps/station-home/parts/tribute-script.php`).
+	'station-home-tribute': {
+		entry:    'apps/station-home/tribute/index.ts',
+		fileBase: 'apps/station-home-tribute',
+		iifeName: 'openStationStationHomeTribute',
+	},
 	// Games hub — launcher grid + scoreboard + challenges client.
 	// Registers a render callback on
 	// `window.openStationNativeWindows['desktop-mode-games']`; the

@@ -35,6 +35,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/parts/snapshot.php';
 require_once __DIR__ . '/parts/view.php';
+require_once __DIR__ . '/parts/tribute-script.php';
 
 /** The window id the Dashboard URL remap opens. */
 const APP_ID = 'desktop-mode-dashboard';

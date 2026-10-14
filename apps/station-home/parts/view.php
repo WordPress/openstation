@@ -169,7 +169,13 @@ function dedication( $placement ) {
 			'target' => '_blank',
 			'rel'    => 'noopener',
 		),
-		icon( 'dashicons-heart' ) . '<span>' . esc( __( 'Thank you, Eric', 'desktop-mode' ) ) . '</span>'
+		// `os-preserve`: the heart's canvas belongs to its script, not the re-render.
+		'<os-tribute-heart os-preserve>' . icon( 'dashicons-heart' ) . '</os-tribute-heart>'
+		. '<span>' . sprintf(
+			/* translators: %s: Eric, the name the heart wraps itself around. */
+			esc( __( 'Thank you, %s', 'desktop-mode' ) ),
+			'<span class="os-station-home__dedication-name" data-os-tribute-name>' . esc( 'Eric' ) . '</span>'
+		) . '</span>'
 	);
 }
 

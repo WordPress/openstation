@@ -243,12 +243,16 @@ os-button.os-station-home__action:hover {
  * than the accent, which marks state.
  */
 .os-station-home__dedication {
+	/* Read by `<os-tribute-heart>`: where its pixels start and what they warm to. */
+	--os-tribute-heart-rest: var( --os-ui-fg-faint, #66636b );
+	--os-tribute-heart-glow: #ff5a5f;
 	position: relative;
 	z-index: 1;
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	margin-block-start: 18px;
+	/* Room for the hover heart, which is taller than the line. */
+	margin-block: 30px 22px;
 	padding: 6px 12px;
 	border-radius: 8px;
 	font: 500 12px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
@@ -269,8 +273,75 @@ a.os-station-home__dedication:focus {
 .os-station-home__dedication .dashicons {
 	inline-size: 14px;
 	block-size: 14px;
-	color: var( --os-ui-fg-faint, #66636b );
+	color: var( --os-tribute-heart-rest );
 	font-size: 14px;
+}
+
+/*
+ * The hover heart. The element stays unpositioned so its canvas is
+ * placed against the link; while the canvas is painting, the glyph it
+ * copied is hidden underneath it.
+ */
+os-tribute-heart {
+	display: flex;
+}
+
+/*
+ * At rest the heart beats now and then, softly, to invite a hover.
+ * It stops the moment the link is pointed at, so the hover starts
+ * from the glyph's own, unscaled pixels.
+ */
+@keyframes os-tribute-heart-beat {
+	0%,
+	22%,
+	100% {
+		transform: scale( 1 );
+	}
+
+	6% {
+		transform: scale( 1.12 );
+		color: var( --os-ui-fg-muted, #b3afb5 );
+	}
+
+	12% {
+		transform: scale( 1 );
+	}
+
+	17% {
+		transform: scale( 1.06 );
+	}
+}
+
+os-tribute-heart .dashicons {
+	animation: os-tribute-heart-beat 3.2s ease-in-out 1.5s infinite;
+}
+
+a.os-station-home__dedication:hover os-tribute-heart .dashicons,
+a.os-station-home__dedication:focus-visible os-tribute-heart .dashicons,
+os-tribute-heart[active] .dashicons {
+	animation: none;
+}
+
+os-tribute-heart[active] .dashicons {
+	visibility: hidden;
+}
+
+.os-tribute-heart__canvas {
+	position: absolute;
+	z-index: 2;
+	pointer-events: none;
+}
+
+.os-station-home__dedication-name {
+	/* Inline-block so the heart's script can slide it aside. */
+	display: inline-block;
+	transition: color 0.6s ease, text-shadow 0.6s ease;
+}
+
+a.os-station-home__dedication:hover .os-station-home__dedication-name,
+a.os-station-home__dedication:focus-visible .os-station-home__dedication-name {
+	color: var( --os-tribute-heart-glow );
+	text-shadow: 0 0 12px rgba( 255, 90, 95, 0.45 );
 }
 
 a.os-station-home__dedication:hover,
@@ -723,7 +794,7 @@ a.os-station-home__card:focus-visible {
 	.os-station-home__dedication--main {
 		display: flex;
 		inline-size: fit-content;
-		margin: 40px auto 0;
+		margin: 44px auto 28px;
 	}
 
 	.os-station-home__location,
@@ -815,6 +886,14 @@ a.os-station-home__card:focus-visible {
 }
 
 @media ( prefers-reduced-motion: reduce ) {
+	.os-station-home__dedication-name {
+		transition: none;
+	}
+
+	os-tribute-heart .dashicons {
+		animation: none;
+	}
+
 	.os-station-home__work-row,
 	.os-station-home__attention-row,
 	.os-station-home__action {

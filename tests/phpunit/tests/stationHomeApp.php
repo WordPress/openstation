@@ -321,6 +321,39 @@ class Tests_OpenStation_StationHomeApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The dedication's heart is wrapped for the hover animation, the
+	 * morph is told to leave it alone, and the name it circles is
+	 * marked, in the rail and at the end of the page.
+	 *
+	 * @covers \OpenStation\Apps\StationHome\dedication
+	 */
+	public function test_the_dedication_heart_is_wired_for_its_animation() {
+		$html = $this->dispatch( 'mount' )['html'];
+
+		$this->assertSame( 2, substr_count( $html, '<os-tribute-heart os-preserve><span class="dashicons dashicons-heart" aria-hidden="true"></span></os-tribute-heart>' ) );
+		$this->assertSame( 2, substr_count( $html, 'Thank you, <span class="os-station-home__dedication-name" data-os-tribute-name>Eric</span>' ) );
+		$this->assertStringContainsString( 'href="https://friendsofericbinnion.wordpress.com/"', $html );
+	}
+
+	/**
+	 * The heart's bundle is registered once and rides the Station Home
+	 * window only.
+	 *
+	 * @covers ::openstation_station_home_tribute_register_script
+	 * @covers ::openstation_station_home_tribute_window_args
+	 */
+	public function test_the_tribute_bundle_rides_the_station_home_window() {
+		$this->assertTrue( wp_script_is( 'openstation-station-home-tribute', 'registered' ) );
+		$this->assertStringContainsString( 'assets/js/apps/station-home-tribute', wp_scripts()->registered['openstation-station-home-tribute']->src );
+
+		$args = openstation_station_home_tribute_window_args( array( 'scripts' => array( 'x' ) ), self::APP_ID );
+		$this->assertSame( array( 'x', 'openstation-station-home-tribute' ), $args['scripts'] );
+		$this->assertSame( $args, openstation_station_home_tribute_window_args( $args, self::APP_ID ), 'appended once' );
+
+		$this->assertSame( array( 'scripts' => array( 'x' ) ), openstation_station_home_tribute_window_args( array( 'scripts' => array( 'x' ) ), 'desktop-mode-users' ) );
+	}
+
+	/**
 	 * The legacy surface is gone, not shadowed: no snapshot route, no
 	 * preference route, no registration function, no bundle handle.
 	 *
