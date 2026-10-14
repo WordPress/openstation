@@ -151,6 +151,29 @@ function quick_action( array $action ) {
 }
 
 /**
+ * The dedication to Eric Binnion.
+ *
+ * Rendered twice: in the rail, and at the end of the page for when
+ * the rail is too narrow to hold it. The stylesheet shows one.
+ *
+ * @param string $placement `rail` or `main`.
+ * @return string
+ */
+function dedication( $placement ) {
+	return tag(
+		'a',
+		array(
+			'class'  => 'os-station-home__dedication os-station-home__dedication--' . $placement,
+			'href'   => 'https://friendsofericbinnion.wordpress.com/',
+			'title'  => __( 'The Big Legacy of Eric Binnion', 'desktop-mode' ),
+			'target' => '_blank',
+			'rel'    => 'noopener',
+		),
+		icon( 'dashicons-heart' ) . '<span>' . esc( __( 'Thank you, Eric', 'desktop-mode' ) ) . '</span>'
+	);
+}
+
+/**
  * The whole body.
  *
  * @param State $state State.
@@ -186,6 +209,7 @@ function render( State $state, Os $os ) {
 					}
 					?>
 				</nav>
+				<?php echo dedication( 'rail' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built with the framework's escaping helpers. ?>
 			</aside>
 
 			<main class="os-station-home__main">
@@ -257,6 +281,7 @@ function render( State $state, Os $os ) {
 						</div>
 					</section>
 				<?php endif; ?>
+				<?php echo dedication( 'main' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built with the framework's escaping helpers. ?>
 			</main>
 		</div>
 

@@ -238,6 +238,57 @@ os-button.os-station-home__action:hover {
 	font-size: 20px;
 }
 
+/*
+ * The dedication: quiet until it is pointed at, and neutral rather
+ * than the accent, which marks state.
+ */
+.os-station-home__dedication {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-block-start: 18px;
+	padding: 6px 12px;
+	border-radius: 8px;
+	font: 500 12px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
+	text-decoration: none;
+}
+
+/*
+ * wp-admin's own a:focus paints a link blue with a hairline ring, and
+ * the link keeps focus after it opens the site in a new tab. Matching
+ * a:focus here keeps the resting look until focus is from the keyboard.
+ */
+a.os-station-home__dedication,
+a.os-station-home__dedication:focus {
+	color: var( --os-ui-fg-muted, #b3afb5 );
+	box-shadow: none;
+}
+
+.os-station-home__dedication .dashicons {
+	inline-size: 14px;
+	block-size: 14px;
+	color: var( --os-ui-fg-faint, #66636b );
+	font-size: 14px;
+}
+
+a.os-station-home__dedication:hover,
+a.os-station-home__dedication:focus-visible,
+.os-station-home__dedication:hover .dashicons,
+.os-station-home__dedication:focus-visible .dashicons {
+	color: var( --os-ui-fg, #fffbff );
+}
+
+a.os-station-home__dedication:focus-visible {
+	outline: none;
+	box-shadow: var( --os-ui-focus-ring, 0 0 0 2px #0c0b0f, 0 0 0 4px #f252fc );
+}
+
+.os-station-home__dedication--main {
+	display: none;
+}
+
 .os-station-home__main {
 	min-block-size: 0;
 	min-inline-size: 0;
@@ -663,6 +714,16 @@ a.os-station-home__card:focus-visible {
 		padding: 14px 18px;
 		border-inline-end: 0;
 		border-block-end: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.12 ) );
+	}
+
+	.os-station-home__dedication--rail {
+		display: none;
+	}
+
+	.os-station-home__dedication--main {
+		display: flex;
+		inline-size: fit-content;
+		margin: 40px auto 0;
 	}
 
 	.os-station-home__location,
