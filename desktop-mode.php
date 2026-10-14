@@ -110,6 +110,7 @@ require_once OPENSTATION_DIR . 'includes/mobile.php';
 // bootstraps cannot skip it while classifying the request shape.
 require_once OPENSTATION_DIR . 'includes/about-feed.php';
 require_once OPENSTATION_DIR . 'includes/seen-intros.php';
+require_once OPENSTATION_DIR . 'includes/remembering.php';
 // One-time data migrations. After os-settings.php and seen-intros.php,
 // whose meta-key constants and helpers the migrations call.
 //
