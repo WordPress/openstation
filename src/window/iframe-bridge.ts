@@ -643,7 +643,8 @@ function iframeActivityError( status: number ): string {
  * Only a user who has interacted with the shell is taken anywhere. A
  * window the session restores on such a URL redirects at boot, before
  * any click, and leaving the desktop then is a surprise, not a
- * continuation; that window is just dropped.
+ * continuation; that window is just dropped. A browser without
+ * `navigator.userActivation` cannot tell, and always follows.
  */
 function leaveForOffsiteRedirect( win: Window, rawUrl: string ): void {
 	let url: URL;

@@ -765,6 +765,11 @@ add_filter( 'wp_redirect', 'openstation_chromeless_hand_off_offsite_redirect', 1
  * Whether `$location` leaves this site: an http(s) URL on a host that
  * is neither the admin's nor the front end's.
  *
+ * Another site in the network (a sibling subdomain, the network admin
+ * on its own host) counts as off-site, and so does a host trusted
+ * through `allowed_redirect_hosts`. Both are other origins that cannot
+ * be windows (docs/multisite.md), so the tab follows them instead.
+ *
  * @internal
  *
  * @param string $location Raw redirect URL handed to `wp_redirect`.

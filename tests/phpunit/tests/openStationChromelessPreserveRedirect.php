@@ -34,7 +34,7 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		delete_transient( openstation_plugins_handoff_key( self::$admin_id ) );
-		unset( $_GET['openstation_chromeless'], $_SERVER['REQUEST_URI'] );
+		unset( $_GET['openstation_chromeless'], $_SERVER['REQUEST_URI'], $_SERVER['HTTP_SEC_FETCH_MODE'] );
 		$GLOBALS['pagenow'] = $this->pagenow;
 		parent::tear_down();
 	}
@@ -238,6 +238,22 @@ class Tests_OpenStationChromelessPreserveRedirect extends WP_UnitTestCase {
 		$this->assertFalse( openstation_is_offsite_redirect_target( home_url( '/hello-world/' ) ) );
 		$this->assertFalse( openstation_is_offsite_redirect_target( 'edit.php?updated=1' ) );
 		$this->assertFalse( openstation_is_offsite_redirect_target( 'javascript://example.org/%0Aalert(1)' ) );
+	}
+
+	/**
+	 * Outside a window, and for a script's request inside one, an
+	 * off-site redirect stays a plain redirect.
+	 *
+	 * @covers ::openstation_chromeless_hand_off_offsite_redirect
+	 */
+	public function test_an_offsite_redirect_outside_a_window_navigation_is_left_alone() {
+		$location = 'https://woocommerce.com/oauth/authorize?secret=x';
+
+		$this->assertSame( $location, openstation_chromeless_hand_off_offsite_redirect( $location ) );
+
+		$this->enter_chromeless();
+		$_SERVER['HTTP_SEC_FETCH_MODE'] = 'cors';
+		$this->assertSame( $location, openstation_chromeless_hand_off_offsite_redirect( $location ) );
 	}
 
 	/**
