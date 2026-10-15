@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       OpenStation Beta
- * Plugin URI:        https://github.com/WordPress/openstation
+ * Plugin URI:        https://openstation.me
  * Description:       Test unreleased builds of OpenStation. Switch the installed OpenStation plugin to a pull-request branch build, the trunk build, or back to the latest stable release.
  * Version:           0.1.0
  * Requires at least: 6.0

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       OpenStation
- * Plugin URI:        https://github.com/WordPress/openstation
+ * Plugin URI:        https://openstation.me
  * Description:       Renders the WordPress admin as a desktop OS. Admin screens become draggable, resizable, minimizable windows floating on a desktop with a dock. Purely opt-in per user.
  * Version:           1.1.14
  * Requires at least: 6.0
