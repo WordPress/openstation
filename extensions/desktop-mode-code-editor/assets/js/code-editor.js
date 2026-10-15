@@ -1145,8 +1145,8 @@ var openStationCodeEditor = function(exports) {
       noSemanticValidation: false,
       noSyntaxValidation: false,
       // 2307 — "Cannot find module 'X'": single-file context, almost
-      // always noise. Re-enable once Phase 2's file tree gives the
-      // worker a project to resolve against.
+      // always noise. Re-enable once the worker has a project to
+      // resolve against.
       // 2304 — "Cannot find name 'X'": same.
       diagnosticCodesToIgnore: [2307, 2304]
     });

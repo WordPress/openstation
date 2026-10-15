@@ -9,9 +9,6 @@
  * own `template` callback so plugins can't accidentally collide
  * with the built-in main pane.
  *
- * Extracted from `components.php` during the architecture-0.8.1
- * PHP slicing (phase 6).
- *
  * @package OpenStation
  */
 

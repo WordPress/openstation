@@ -275,7 +275,7 @@ export function mountTabsStrip(
 /**
  * Derive default tab metadata from a file path. The host can pass
  * its own `icon`/`label` to {@link TabsStripHandle.open}, but
- * Phase 2.5's typical case (open via tree click) already has
+ * the typical case (open via tree click) already has
  * everything the icon-and-basename derivation needs.
  */
 export function tabMetaForPath( path: string ): OpenFileMeta {

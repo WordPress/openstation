@@ -1,5 +1,5 @@
 /**
- * Phase F tests — Layer 4 (Experimental) custom-chrome mount/swap.
+ * Tests for Layer 4 (Experimental) custom-chrome mount/swap.
  *
  *   - `mountWindowChrome` returns null for the standard chrome
  *     (no-op — Layer 1-3 already painted).

@@ -16,9 +16,7 @@
  *   - `openstation_render_native_window_templates()` — renders
  *     the `<template>` elements the shell clones
  *
- * Extracted from `components.php` during the architecture-0.8.1
- * PHP slicing (phase 6). The window-tabs registry that builds on
- * top of this lives in `includes/registries/window-tabs.php`.
+ * The window-tabs registry that builds on top of this lives in `includes/registries/window-tabs.php`.
  *
  * @package OpenStation
  */

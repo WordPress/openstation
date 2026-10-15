@@ -2,8 +2,8 @@
  * OpenStation — Files-on-the-Desktop shared store.
  *
  * Cross-bundle state holder for placements + folders, keyed by
- * the canonical `'desktop-mode/files'` slot. Phase 3's renderer
- * subscribes to this store and re-paints on change; Phase 6's
+ * the canonical `'desktop-mode/files'` slot. The `FilesLayer`
+ * renderer subscribes to this store and re-paints on change; the
  * Heartbeat sync feeds delta updates into it.
  *
  * Contract:
@@ -16,7 +16,7 @@
  *     consumers (toasts, devtools) hear about it without
  *     reading the store.
  *
- * The store is intentionally framework-agnostic — Phase 3 wires
+ * The store is intentionally framework-agnostic — the layer wires
  * a tiny render loop on top, but plugin authors who want to
  * read the placements list synchronously can do so directly.
  */

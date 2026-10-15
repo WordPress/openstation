@@ -21,9 +21,6 @@
  *     hook in the original render.php (~1,950 LOC) — the bulk is
  *     the inline JS string the iframe runs.
  *
- * Extracted from `render.php` during the architecture-0.8.1 PHP
- * slicing (phase 6).
- *
  * @package OpenStation
  */
 

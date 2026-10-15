@@ -2296,7 +2296,7 @@ export interface DesktopConfig {
 	 * `openstation_register_file_opener()`). PHP ships metadata
 	 * only — the JS bundle that registers the opener carries the
 	 * executable handler. The OS Settings → File Associations tab
-	 * (Phase 5) renders pickers from this list.
+	 * renders pickers from this list.
 	 */
 	serverFileOpeners?: Array< {
 		id: string;

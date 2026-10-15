@@ -26,11 +26,11 @@
  * already registered.
  */
 
-// Action-triggered overlays (Stage 9).
+// Action-triggered overlays.
 import '../ui/components/os-toast/os-toast';
 import '../ui/components/os-confirm-dialog/os-confirm-dialog';
 import '../ui/components/os-context-menu/os-context-menu';
-// Window-chrome + folder-dialog components (Stage 10). None are
+// Window-chrome + folder-dialog components. None are
 // constructed at first paint: window chrome only renders when a
 // window opens; the form fields only render when a user opens a
 // folder-window dialog (rename URL, file-association settings) or

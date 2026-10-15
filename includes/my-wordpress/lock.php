@@ -131,7 +131,7 @@ function openstation_my_wordpress_post_contributors_payload( $post_id ) {
 	// no `ID` and aren't WP users). We only collect real users; CAP
 	// guest authors are out of scope today (their avatar/edit URL
 	// shape is plugin-specific and would force an extra abstraction
-	// layer that doesn't pay for itself in Phase 1).
+	// layer that doesn't pay for itself yet).
 	if ( function_exists( 'get_coauthors' ) ) {
 		$coauthors = get_coauthors( $post_id );
 		foreach ( (array) $coauthors as $user ) {
@@ -242,7 +242,7 @@ function openstation_my_wordpress_post_contributors_payload( $post_id ) {
 /**
  * Register the REST fields on every post type the site window can
  * browse — public REST-exposed types plus the ones bridged under
- * `desktop-mode/v1`. Posts and pages cover the Phase 1 surface; CPTs
+ * `desktop-mode/v1`. Posts and pages are the main surface; CPTs
  * come along for free.
  *
  * Two fields:

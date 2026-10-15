@@ -67,7 +67,7 @@
 }
 
 /* ---------------------------------------------------------------
- * Phase 2 — two-pane layout: tree | (editor + status bar).
+ * Two-pane layout: tree | (editor + status bar).
  * --------------------------------------------------------------- */
 
 .osc-editor__split {

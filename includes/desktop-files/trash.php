@@ -293,7 +293,7 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 		// Folder is gone — recreate it and place it under the
 		// resolved parent. Owner falls back to the acting user
 		// when the original owner can't be inferred (shared-
-		// folder edge case Phase 6 will revisit).
+		// folder edge case).
 		$owner_id = (int) ( $entry['folder_owner_id'] ? $entry['folder_owner_id'] : $user_id );
 		$new_id   = openstation_files_create_folder(
 			$owner_id,

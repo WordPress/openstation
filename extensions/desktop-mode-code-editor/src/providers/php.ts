@@ -1,8 +1,8 @@
 /**
  * Code Editor — Monaco PHP completion + hover providers.
  *
- * Phase 5a brings WordPress-aware autocomplete + hover docs for PHP
- * files. Backed by the server-side WP core symbol index (functions
+ * WordPress-aware autocomplete + hover docs for PHP files.
+ * Backed by the server-side WP core symbol index (functions
  * + hooks). Hook-context detection is regex-based: when the cursor
  * sits inside `add_action( '|`, `add_filter( '|`, `do_action( '|`,
  * or `apply_filters( '|`, the completion request narrows to action

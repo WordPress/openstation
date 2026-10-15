@@ -15,10 +15,6 @@
  *   3. Drag-within-folder mutates CSS transform live; pointerup
  *      persists via REST and store-upserts the new geometry.
  *   4. `dispose()` unsubscribes and removes the container.
- *
- * Phase 3 only ships drag-within-folder. Cross-folder drags
- * (drop into a folder, drop out to root) and the Recycle Bin
- * drop integration land in later phases.
  */
 
 import { doAction } from '../hooks';

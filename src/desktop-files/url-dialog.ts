@@ -14,7 +14,7 @@
  */
 
 import { applyFilters, doAction } from '../hooks';
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
+// Pre-registered globally by the lazy shell-overlays bundle — see src/shell-overlays/entry.ts.
 import { focusField, readFieldValue, setControlDisabled } from './dialog-fields';
 
 const ROOT_CLASS = 'os-url-dialog';

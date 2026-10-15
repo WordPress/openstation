@@ -15,9 +15,6 @@
  * window don't bubble up to this listener, so the chromeless
  * iframe's own link rewriter still owns iframe-internal
  * navigation.
- *
- * Extracted from `src/desktop.ts` during the architecture-0.8.1
- * boot decomposition (phase 5).
  */
 
 import { tryNativeUrlRemap } from '../native-url-remap';

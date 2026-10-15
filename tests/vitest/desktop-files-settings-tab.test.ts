@@ -1,5 +1,5 @@
 /**
- * Phase-5 OS Settings tab tests. The tab renders into a host
+ * File Associations OS Settings tab tests. The tab renders into a host
  * element from `registerSettingsTab`'s `render` callback; we
  * exercise that callback directly.
  */

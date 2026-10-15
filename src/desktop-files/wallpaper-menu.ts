@@ -2,7 +2,7 @@
  * OpenStation — Wallpaper context menu (CMO).
  *
  * Clicking empty wallpaper used to call `manager.toggleShowDesktop()`
- * directly. Phase 4 replaces that with a small floating menu —
+ * directly. This replaces that with a small floating menu —
  * the desktop-OS equivalent of the right-click "Create folder /
  * New URL / Sort by / Show desktop / OS Settings" affordance.
  *

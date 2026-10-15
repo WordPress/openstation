@@ -17,7 +17,7 @@ import { __, sprintf } from '../i18n';
 // connected to the document. Custom-element registrations are
 // idempotent, so importing here is safe even if a downstream entry
 // imported the spinner first.
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
+// Pre-registered globally by the lazy shell-overlays bundle — see src/shell-overlays/entry.ts.
 import {
 	markWindowContentLoading,
 	markWindowContentReady,

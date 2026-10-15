@@ -244,7 +244,7 @@ function openstation_agent_invoke( $agent_user_id, $message, $context = array() 
 	 * Fires after a successful agent invocation.
 	 *
 	 * The audit + chaining seam: logging plugins persist the run,
-	 * and the (Phase C) agent-to-agent trigger consumes it to feed
+	 * and the agent-to-agent trigger consumes it to feed
 	 * one agent's output into another.
 	 *
 	 * @param int    $agent_user_id Agent user id.

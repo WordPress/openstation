@@ -10,9 +10,6 @@
  * redirects are handled by
  * `openstation_classic_preserve_redirect()` in routing.php.
  *
- * Extracted from `render.php` during the architecture-0.8.1 PHP
- * slicing (phase 6).
- *
  * @package OpenStation
  */
 

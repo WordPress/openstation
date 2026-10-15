@@ -65,7 +65,7 @@ const OPENSTATION_PWA_SW_QUERY = 'openstation_sw';
  * User-meta key — JSON blob persisting per-user PWA UI state.
  *
  * Today: `installHintDismissed` (bool), `notificationsEnabled` (bool).
- * Future: `pushSubscription` (object) when phase 4 lands.
+ * Future: `pushSubscription` (object) once Web Push lands.
  *
  * The VALUE keeps its pre-rebrand spelling on purpose: it is a
  * persisted or externally-visible identifier, so renaming it would
@@ -925,7 +925,7 @@ function openstation_pwa_register_rest_routes() {
 		)
 	);
 
-	// Future: register POST /pwa-push-subscription here when phase 4
+	// Future: register POST /pwa-push-subscription here once Web Push
 	// lands. The state route is intentionally orthogonal so the v1
 	// surface stays stable when push arrives.
 }

@@ -50,7 +50,7 @@ export {
 	syncTabRoving,
 } from './tab-strip';
 export type { PanelTabEntry } from './tab-strip';
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
+// Pre-registered globally by the lazy shell-overlays bundle — see src/shell-overlays/entry.ts.
 
 /**
  * Find the submenu tab that owns the page `currentUrl` sits on, for

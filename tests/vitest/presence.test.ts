@@ -224,8 +224,7 @@ describe( 'presence', () => {
 
 	test( 'public presenceApi exposes applyBatch as the canonical entry', () => {
 		// `applyBatch` is the public name for `applyPresenceBatch` —
-		// what plugins call as `wp.os.presence.applyBatch( … )`
-		// after the messages-port DX work.
+		// what plugins call as `wp.os.presence.applyBatch( … )`.
 		expect( typeof presenceApi.applyBatch ).toBe( 'function' );
 
 		const events: Array< unknown > = [];

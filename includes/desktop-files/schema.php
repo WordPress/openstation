@@ -19,7 +19,7 @@
  *     "Projects" folder via a placement).
  *
  *   - `_desktop_mode_file_tombstones` — id ledger of removals so the
- *     Heartbeat delta sync (Phase 6) can tell connected clients
+ *     Heartbeat delta sync can tell connected clients
  *     "this placement / folder is gone." Pruned daily.
  *
  *   - `_desktop_mode_folder_shares` — one row per (folder, principal)
@@ -31,8 +31,8 @@
  *     denies individually; the shares row itself stays `pending`).
  *
  * dbDelta is the only safe path for schema migrations against the
- * Core tables environment — Phase 6 re-uses this file by bumping
- * `OPENSTATION_FILES_SCHEMA_VERSION` and adding columns.
+ * Core tables environment — evolve the schema by bumping
+ * `OPENSTATION_FILES_SCHEMA_VERSION` and adding columns here.
  *
  * @package OpenStation
  */

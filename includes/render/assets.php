@@ -8,9 +8,6 @@
  * largest hook in the original render.php and the natural seam
  * for "what does the shell ship to the browser today?".
  *
- * Extracted from `render.php` during the architecture-0.8.1 PHP
- * slicing (phase 6).
- *
  * @package OpenStation
  */
 
@@ -335,7 +332,7 @@ function openstation_enqueue_assets() {
 		? $menu_payload['desktopIcons']
 		: array();
 
-	// Files-on-the-Desktop payload (Phase 0+1). Plugin-registered
+	// Files-on-the-Desktop payload. Plugin-registered
 	// file types and openers ship as metadata only; the JS side
 	// holds the executable handlers and resolves on double-click.
 	$server_file_types           = function_exists( 'openstation_build_file_types_payload' )
@@ -672,7 +669,7 @@ function openstation_enqueue_assets() {
 			// filter would silently not apply until the next reload.
 			'mio'                           => openstation_mio_config(),
 			'mioBundleUrl'                  => $lazy_bundle_url( 'mio' ),
-			// URL of the lazy window-system bundle (Stage 11).
+			// URL of the lazy window-system bundle.
 			// Holds the `Window` class and its DOM / pointer / tab /
 			// chrome helpers — the single largest module split out of
 			// the main bundle. Loaded on first `windowManager.open()`

@@ -692,7 +692,7 @@ function beginSpeculation( href: string ): Promise< Response | null > | null {
 }
 
 sw.addEventListener( 'push', ( event: SWPushEvent ) => {
-	// v1: no-op. Phase 4 will populate this from the push payload.
+	// No-op for now; Web Push will populate this from the payload.
 	// We claim the event so a hosting environment that signs us up
 	// for a push subscription before the v2 PR lands doesn't see
 	// silently-dropped pushes — the empty handler still satisfies

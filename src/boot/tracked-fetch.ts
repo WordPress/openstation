@@ -19,9 +19,6 @@
  * Returns the same Response Promise the native fetch would have,
  * so callers can `.then(r => r.json())` / `await` / catch
  * unchanged.
- *
- * Extracted from `src/desktop.ts` during the architecture-0.8.1
- * boot decomposition (phase 5).
  */
 
 import type { WindowManager } from '../window-manager';

@@ -44,7 +44,7 @@ import '../../src/ui/components/os-text-field/os-text-field';
  * Pre-register the lazy `window-system[.min].js` factory.
  *
  * Production main bundle loads this via `<script>` injection on the
- * first `manager.open()` call (Stage 11). In jsdom unit tests we
+ * first `manager.open()` call. In jsdom unit tests we
  * don't fetch scripts — instead we import the `Window` class
  * directly and wire the factory by hand so
  * `ensureWindowSystemLoaded( '' )` returns the pre-registered

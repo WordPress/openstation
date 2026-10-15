@@ -26,7 +26,7 @@ import { trackedFetch } from '../tracked-fetch';
 import { formatBytes } from '../os-file-drop/format-bytes';
 import { navigateToDownload } from './download-nav';
 import { getUploadDownloadUrl, type RestPlacementShape } from './rest';
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
+// Pre-registered globally by the lazy shell-overlays bundle — see src/shell-overlays/entry.ts.
 
 interface FetchInit extends RequestInit {
 	silent?: boolean;

@@ -1,7 +1,7 @@
 /**
  * OpenStation — File Associations OS Settings tab.
  *
- * Phase 5 of the Files-on-the-Desktop system. Renders one row
+ * Part of the Files-on-the-Desktop system. Renders one row
  * per registered file type with a `<select>` listing every
  * opener that handles that type. Saving writes through the
  * `PUT /associations` REST endpoint and updates the JS-side
@@ -19,7 +19,7 @@ import {
 	subscribeOpeners,
 } from './openers';
 import { getTypes } from './registry';
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
+// Pre-registered globally by the lazy shell-overlays bundle — see src/shell-overlays/entry.ts.
 
 const TAB_ID = 'os-file-associations';
 

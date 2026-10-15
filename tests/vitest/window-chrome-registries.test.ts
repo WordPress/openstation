@@ -1,9 +1,9 @@
 /**
- * Phase A foundation tests for the four window-chrome registries:
+ * Foundation tests for the four window-chrome registries:
  * themes, controls, slots, and (Experimental) custom chrome.
  *
- * The registries are pure storage at this phase — no rendering yet.
- * These tests cover the contract every registry shares:
+ * These tests treat the registries as pure storage (rendering is
+ * tested separately) and cover the contract every registry shares:
  *
  *   - register / re-register / unregister round-trips
  *   - id validation (non-empty, lowercase alphanum + `-_/`)

@@ -358,7 +358,7 @@ class Tests_OpenStation_WindowTabs extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<p class="main">MAIN</p>', $html );
 		// Non-active panel ships with `hidden` so first paint is
 		// correct regardless of custom-element upgrade order — see
-		// the Phase A DX fix in `openstation_build_native_window_template_html`.
+		// `openstation_build_native_window_template_html`.
 		$this->assertStringContainsString( '<os-tabpanel for="about" hidden>', $html );
 		$this->assertStringContainsString( '<p class="about">ABOUT</p>', $html );
 	}

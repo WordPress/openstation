@@ -1,6 +1,6 @@
 <?php
 /**
- * Phase A foundation tests for the four window-chrome registration
+ * Foundation tests for the four window-chrome registration
  * surfaces: themes, controls, slots, and (Experimental) custom
  * chrome.
  *

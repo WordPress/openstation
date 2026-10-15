@@ -753,8 +753,8 @@ export class GraphScene {
 			// Wrap each label in a Container so the backing rect, the
 			// text, and the per-node alpha all transform as one unit
 			// when the camera zooms. The backing keeps labels readable
-			// over busy edge tangles + the dot-grid background — the
-			// review feedback flagged unbacked labels as hard to read.
+			// over busy edge tangles + the dot-grid background;
+			// unbacked labels are hard to read.
 			const labelBox = new this.pixi.Container();
 			this.labelLayer.addChild( labelBox );
 

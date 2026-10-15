@@ -11,7 +11,7 @@
  * capability gate.
  *
  * Files do NOT know how to open themselves. Opening is a separate
- * concern delegated to the file-opener registry (Phase 1) so the
+ * concern delegated to the file-opener registry so the
  * same `post` file can be opened by Gutenberg, the Classic Editor,
  * or any plugin's editor of choice — the user's per-type
  * association decides which.

@@ -5,7 +5,7 @@
  * minimize, maximize, custom plugin actions. Built-in controls
  * (`core/minimize`, `core/maximize`, `core/focus-tab`, `core/close`)
  * register here at shell boot in {@link
- * registerBuiltInControls} (Phase C); plugin authors register
+ * registerBuiltInControls}; plugin authors register
  * additional controls via `wp.os.registerWindowControl()`. The
  * shell renders the control cluster from this registry, so plugins
  * can reorder, hide, or replace built-ins through

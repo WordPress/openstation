@@ -12,9 +12,9 @@
  *     the optimistic-concurrency check passes on retry.
  *   - **Cancel** — leave the buffer dirty, do nothing.
  *
- * Phase 4 will add a real diff view here. v1 stays text-only — most
- * conflicts are "two tabs of the same editor"; offering reload /
- * overwrite covers them without the diff complexity.
+ * The dialog stays text-only, with no diff view — most conflicts
+ * are "two tabs of the same editor"; offering reload / overwrite
+ * covers them without the diff complexity.
  */
 
 export type ConflictChoice = 'reload' | 'overwrite' | 'cancel';
