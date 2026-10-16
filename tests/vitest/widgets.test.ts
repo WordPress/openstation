@@ -570,6 +570,71 @@ describe( 'widgets/layer', () => {
 		layer.disposeAll();
 	} );
 
+	test( 'liberating a docked widget taller than the work area fits it inside, above the dock', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'tall-mov',
+			label: 'Tall movable',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["tall-mov"]' );
+		Object.defineProperty( document.body, 'clientWidth', { value: 1024, configurable: true } );
+		Object.defineProperty( document.body, 'clientHeight', { value: 768, configurable: true } );
+
+		try {
+			const layer = new WidgetLayer( host, '' );
+			layer.hydrate();
+			const card = host.querySelector< HTMLElement >( '.os-widgets__card' )!;
+			// A docked card sizes to its content: forty rows stand far
+			// taller than the 768 px desktop.
+			card.getBoundingClientRect = (): DOMRect => {
+				const height = parseFloat( card.style.height ) || 1040;
+				return {
+					x: 700, y: 120, width: 310, height,
+					top: 120, left: 700, right: 1010, bottom: 120 + height,
+					toJSON: () => ( {} ),
+				};
+			};
+			Object.defineProperty( card, 'offsetWidth', { configurable: true, get: () => 310 } );
+			Object.defineProperty( card, 'offsetHeight', { configurable: true, get: () => parseFloat( card.style.height ) || 1040 } );
+
+			const ptr = ( type: string, x: number, y: number ): Event => {
+				const e = new Event( type, { bubbles: true } );
+				Object.defineProperty( e, 'pointerId', { value: 1 } );
+				Object.defineProperty( e, 'button', { value: 0 } );
+				Object.defineProperty( e, 'clientX', { value: x } );
+				Object.defineProperty( e, 'clientY', { value: y } );
+				return e;
+			};
+			const chrome = card.querySelector< HTMLElement >( '.os-widgets__chrome' )!;
+			( chrome as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
+			( chrome as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
+			chrome.dispatchEvent( ptr( 'pointerdown', 720, 130 ) );
+			chrome.dispatchEvent( ptr( 'pointermove', 400, 200 ) );
+			chrome.dispatchEvent( ptr( 'pointerup', 400, 200 ) );
+
+			// The whole card, bottom edge included, sits inside the work
+			// area with the 20 px of air the drag clamp keeps.
+			const top = parseFloat( card.style.top );
+			const height = parseFloat( card.style.height );
+			expect( top ).toBeGreaterThanOrEqual( 20 );
+			expect( top + height ).toBeLessThanOrEqual( 768 - 20 );
+			const geom = JSON.parse(
+				window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) || '{}',
+			);
+			expect( geom[ 'tall-mov' ].height ).toBe( height );
+
+			layer.disposeAll();
+		} finally {
+			delete ( document.body as unknown as Record< string, unknown > ).clientWidth;
+			delete ( document.body as unknown as Record< string, unknown > ).clientHeight;
+		}
+	} );
+
 	test( 'dragging a docked widget out ends the drag on release, although the re-parent drops pointer capture', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );

@@ -459,9 +459,12 @@ function attachDrag(
 				x: rect.left - parentRect.left,
 				y: rect.top - parentRect.top,
 				width: rect.width ? box.width : def.defaultWidth || DEFAULT_WIDTH,
-				height:
+				height: fitHeightToWorkArea(
 					fit?.floor() ??
-					( rect.height ? box.height : def.defaultHeight || DEFAULT_HEIGHT ),
+						( rect.height ? box.height : def.defaultHeight || DEFAULT_HEIGHT ),
+					def,
+					ctx.floatingParent,
+				),
 			};
 			fit?.setFloor( initial.height );
 			applyGeometry( card, initial );
@@ -749,6 +752,27 @@ function clampDockedHeight( height: number, def: WidgetDef ): number {
 		def.minHeight ?? DEFAULT_MIN_HEIGHT,
 		def.maxHeight ?? Infinity,
 	);
+}
+
+/**
+ * Cap a liberated card's height at what the parent's work area can
+ * hold with {@link VIEWPORT_MARGIN} of air above and below. A docked
+ * card sizes to its content, so it can stand taller than the desktop;
+ * floated at that height it would sit from the top edge down under
+ * the dock, its bottom edge out of reach. A parent that is not laid
+ * out yet leaves the height alone.
+ */
+function fitHeightToWorkArea(
+	height: number,
+	def: WidgetDef,
+	parent: HTMLElement,
+): number {
+	const area = workAreaRectOf( parent );
+	if ( ! area.height ) {
+		return height;
+	}
+	const room = area.height - 2 * VIEWPORT_MARGIN;
+	return Math.min( height, Math.max( def.minHeight ?? DEFAULT_MIN_HEIGHT, room ) );
 }
 
 /**
