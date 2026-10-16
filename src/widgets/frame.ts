@@ -760,7 +760,9 @@ function clampDockedHeight( height: number, def: WidgetDef ): number {
  * card sizes to its content, so it can stand taller than the desktop;
  * floated at that height it would sit from the top edge down under
  * the dock, its bottom edge out of reach. A parent that is not laid
- * out yet leaves the height alone.
+ * out yet leaves the height alone. The widget's own `minHeight` wins
+ * over the room: on a window too short for it, the card keeps its
+ * declared minimum rather than shrinking below it.
  */
 function fitHeightToWorkArea(
 	height: number,
