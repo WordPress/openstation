@@ -3531,6 +3531,11 @@ function init(): void {
 						onSelect: toggleFullscreen,
 					},
 					{
+						title: 'Tile all windows',
+						url: '',
+						onSelect: () => manager.tile(),
+					},
+					{
 						title: 'Keyboard shortcuts',
 						url: '',
 						windowId: SHORTCUTS_WINDOW_ID,
