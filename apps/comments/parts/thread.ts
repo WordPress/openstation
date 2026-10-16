@@ -175,23 +175,49 @@ function messageActions( ctx: Ctx, ui: UiState, row: CommentRow ): TemplateResul
 	// first, then the authoring verbs, then the two destructive ones.
 	const items: TemplateResult[] = [];
 	if ( canModerate ) {
-		const approveAction: BulkAction = status === 'approved' ? 'unapprove' : 'approve';
-		items.push(
-			actionButton(
-				status === 'approved' ? __( 'Unapprove' ) : __( 'Approve' ),
-				'default',
-				busyOn( approveAction ),
-				() => void moderate( ctx, ui, row.id, approveAction ),
-			),
-		);
+		// Spam/trash replace Approve with their own restorative verb —
+		// wp_set_comment_status( 'approve' ) destroys _wp_trash_meta_status, bypassing moderation.
+		if ( 'spam' === status ) {
+			items.push(
+				actionButton(
+					__( 'Not Spam' ),
+					'default',
+					busyOn( 'unspam' ),
+					() => void moderate( ctx, ui, row.id, 'unspam' ),
+				),
+			);
+		} else if ( 'trash' === status ) {
+			items.push(
+				actionButton(
+					__( 'Restore' ),
+					'default',
+					busyOn( 'untrash' ),
+					() => void moderate( ctx, ui, row.id, 'untrash' ),
+				),
+			);
+		} else {
+			const approveAction: BulkAction = 'approved' === status ? 'unapprove' : 'approve';
+			items.push(
+				actionButton(
+					'unapprove' === approveAction ? __( 'Unapprove' ) : __( 'Approve' ),
+					'default',
+					busyOn( approveAction ),
+					() => void moderate( ctx, ui, row.id, approveAction ),
+				),
+			);
+		}
 	}
 	// Replying posts a comment — gated on `edit_posts`, the cap the
 	// reply action and route enforce (the parent's post is re-checked
 	// server-side), so the action isn't offered to someone it will 403.
-	if ( canReply ) {
+	// Core also withholds Reply and Edit for spam/trash: a reply under a
+	// quarantined parent is semantically incoherent, and editing spam/trash
+	// content offers no value until it is restored first.
+	const isQuarantined = 'spam' === status || 'trash' === status;
+	if ( canReply && ! isQuarantined ) {
 		items.push( actionButton( __( 'Reply' ), 'default', false, () => openComposerFor( ctx, ui, row ) ) );
 	}
-	if ( row.openstation_can_edit ) {
+	if ( row.openstation_can_edit && ! isQuarantined ) {
 		items.push( actionButton( __( 'Edit' ), 'default', false, () => openInlineEdit( ctx, ui, row ) ) );
 	}
 	if ( canModerate ) {
