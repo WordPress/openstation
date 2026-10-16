@@ -549,7 +549,7 @@
 
 /*
  * Wallpaper + tile context menus use `<os-context-menu>` and
- * `<os-context-menu-option>` (since 0.9.0). Their host-level
+ * `<os-context-menu-option>`. Their host-level
  * styles live inside the component shadow DOM — see
  * `src/ui/components/os-context-menu/os-context-menu.styles.ts`.
  * No project CSS rules needed here; the legacy `.os-
