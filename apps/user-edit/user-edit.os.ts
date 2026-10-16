@@ -45,5 +45,6 @@ export default defineApp< State, Data >( 'desktop-mode-user-edit', {
 		profile.config = ctx.extra as ProfileConfig;
 		profile.fetch = ctx.fetch;
 		profile.toast = ( message, kind ) => ctx.host.toast?.( { message, duration: TOAST_MS[ kind ?? 'info' ] } );
+		profile.openUrl = ( url, title ) => ctx.host.openUrl?.( url, title );
 	},
 } );
