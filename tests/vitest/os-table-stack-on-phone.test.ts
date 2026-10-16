@@ -4,6 +4,7 @@
  * grid back (sticky columns included) once the stamp is gone.
  */
 import { describe, expect, test } from 'vitest';
+import '../../src/ui/components/os-table/os-table';
 import { stackOnPhone } from '../../src/ui/components/os-table/stack-on-phone';
 
 function root( mode: string | null ): HTMLElement {
@@ -49,5 +50,82 @@ describe( 'stackOnPhone', () => {
 		stackOnPhone( table, root( null ) );
 		expect( table.hasAttribute( 'stacked' ) ).toBe( false );
 		expect( table.hasAttribute( 'sticky-columns' ) ).toBe( false );
+	} );
+} );
+
+describe( '<os-table stack-on-phone>', () => {
+	const tick = (): Promise< void > =>
+		new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+
+	test( 'mount under a root stamped data-os-mode="mobile" stacks and lifts sticky columns', async () => {
+		const container = document.createElement( 'div' );
+		container.setAttribute( 'data-os-mode', 'mobile' );
+		container.innerHTML = '<os-table stack-on-phone sticky-columns="1"></os-table>';
+		document.body.appendChild( container );
+		await tick();
+
+		const table = container.querySelector( 'os-table' )!;
+		expect( table.hasAttribute( 'stacked' ) ).toBe( true );
+		expect( table.hasAttribute( 'sticky-columns' ) ).toBe( false );
+		expect( table.getAttribute( 'data-os-sticky-columns' ) ).toBe( '1' );
+
+		container.remove();
+	} );
+
+	test( 'a mode flip from mobile to desktop restores the grid and pinned columns', async () => {
+		const container = document.createElement( 'div' );
+		container.setAttribute( 'data-os-mode', 'mobile' );
+		container.innerHTML = '<os-table stack-on-phone sticky-columns="2"></os-table>';
+		document.body.appendChild( container );
+		await tick();
+
+		const table = container.querySelector( 'os-table' )!;
+		expect( table.hasAttribute( 'stacked' ) ).toBe( true );
+
+		container.setAttribute( 'data-os-mode', 'desktop' );
+		await tick();
+
+		expect( table.hasAttribute( 'stacked' ) ).toBe( false );
+		expect( table.getAttribute( 'sticky-columns' ) ).toBe( '2' );
+		expect( table.hasAttribute( 'data-os-sticky-columns' ) ).toBe( false );
+
+		container.remove();
+	} );
+
+	test( 'a table without stack-on-phone is untouched on mobile', async () => {
+		const container = document.createElement( 'div' );
+		container.setAttribute( 'data-os-mode', 'mobile' );
+		container.innerHTML = '<os-table sticky-columns="1"></os-table>';
+		document.body.appendChild( container );
+		await tick();
+
+		const table = container.querySelector( 'os-table' )!;
+		expect( table.hasAttribute( 'stacked' ) ).toBe( false );
+		expect( table.getAttribute( 'sticky-columns' ) ).toBe( '1' );
+
+		container.remove();
+	} );
+
+	test( 'dynamically toggling stack-on-phone responds to mode', async () => {
+		const container = document.createElement( 'div' );
+		container.setAttribute( 'data-os-mode', 'mobile' );
+		container.innerHTML = '<os-table sticky-columns="3"></os-table>';
+		document.body.appendChild( container );
+		await tick();
+
+		const table = container.querySelector( 'os-table' )!;
+		expect( table.hasAttribute( 'stacked' ) ).toBe( false );
+
+		table.setAttribute( 'stack-on-phone', '' );
+		await tick();
+		expect( table.hasAttribute( 'stacked' ) ).toBe( true );
+		expect( table.hasAttribute( 'sticky-columns' ) ).toBe( false );
+
+		table.removeAttribute( 'stack-on-phone' );
+		await tick();
+		expect( table.hasAttribute( 'stacked' ) ).toBe( false );
+		expect( table.getAttribute( 'sticky-columns' ) ).toBe( '3' );
+
+		container.remove();
 	} );
 } );
