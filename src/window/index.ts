@@ -2206,6 +2206,7 @@ export class Window {
 			this._restoreAnimation = null;
 			this.element.classList.remove( 'os-window--restoring' );
 		}
+		this.element.classList.remove( 'os-window--genie-flight' );
 		this._clearGenieStyles();
 	}
 
@@ -2322,6 +2323,7 @@ export class Window {
 				// class on finish.
 				this.state = 'minimized';
 				this.element.classList.add( 'os-window--minimizing' );
+				this.element.classList.add( 'os-window--genie-flight' );
 				this.element.style.willChange = 'transform';
 
 				const { dx, dy, scale } = this._buildGenieTransform( startRect, targetRect, 0.22 );
@@ -2362,6 +2364,7 @@ export class Window {
 						this._minimizeAnimation = null;
 						this.element.classList.add( 'os-window--minimized' );
 						this.element.classList.remove( 'os-window--minimizing' );
+						this.element.classList.remove( 'os-window--genie-flight' );
 						this._clearGenieStyles();
 						try {
 							anim!.cancel();
@@ -2374,6 +2377,7 @@ export class Window {
 						if ( this._minimizeAnimation === anim ) {
 							this._minimizeAnimation = null;
 							this.element.classList.remove( 'os-window--minimizing' );
+							this.element.classList.remove( 'os-window--genie-flight' );
 							this._clearGenieStyles();
 						}
 					};
@@ -2392,6 +2396,7 @@ export class Window {
 
 				// WAAPI threw or returned null — fall through to the CSS path.
 				this.element.classList.remove( 'os-window--minimizing' );
+				this.element.classList.remove( 'os-window--genie-flight' );
 				this._clearGenieStyles();
 			}
 		}
@@ -2441,6 +2446,7 @@ export class Window {
 			// the flight; the visual is still at the dock via WAAPI.
 			this.element.classList.remove( 'os-window--minimized' );
 			this.element.classList.add( 'os-window--restoring' );
+			this.element.classList.add( 'os-window--genie-flight' );
 			this.element.style.willChange = 'transform';
 
 			const nextState = this._stateBeforeMinimize ?? 'normal';
@@ -2498,6 +2504,7 @@ export class Window {
 						}
 						this._restoreAnimation = null;
 						this.element.classList.remove( 'os-window--restoring' );
+						this.element.classList.remove( 'os-window--genie-flight' );
 						this._clearGenieStyles();
 						try {
 							anim!.cancel();
@@ -2510,6 +2517,7 @@ export class Window {
 						if ( this._restoreAnimation === anim ) {
 							this._restoreAnimation = null;
 							this.element.classList.remove( 'os-window--restoring' );
+							this.element.classList.remove( 'os-window--genie-flight' );
 							this._clearGenieStyles();
 						}
 					};
@@ -2528,6 +2536,7 @@ export class Window {
 			// WAAPI threw or geometry was degenerate — clean up and
 			// fall through to the instant path.
 			this.element.classList.remove( 'os-window--restoring' );
+			this.element.classList.remove( 'os-window--genie-flight' );
 			this._clearGenieStyles();
 			// State already flipped above; still need to fire the
 			// focus/restore hooks for the non-animated case.
