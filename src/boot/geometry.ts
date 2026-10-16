@@ -1,11 +1,9 @@
 /**
  * Boot-time geometry helpers.
  *
- * Pure functions extracted from `src/desktop.ts` during the
- * architecture-0.8.1 boot decomposition (phase 5). They have no
- * captured state and reach into the rest of the shell only via
- * the `deriveWindowId` utility, so they're safe to live in their
- * own module — and to test in isolation.
+ * Pure functions with no captured state that reach into the rest
+ * of the shell only via the `deriveWindowId` utility, so they're
+ * safe to live in their own module — and to test in isolation.
  */
 
 import { deriveWindowId } from '../utils';

@@ -22,7 +22,7 @@ import { paintThemedControlIcon } from './paint-themed-icon';
 
 import type { Window as DesktopWindow } from '../../window';
 import type { WindowControlsConfig } from '../../types';
-// Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
+// Pre-registered globally by the lazy shell-overlays bundle — see src/shell-overlays/entry.ts.
 
 /**
  * Resolve the control list for a window, partitioned by placement.
@@ -256,7 +256,7 @@ function legacyVariantFor( id: string ): string {
  * painted buttons (so plugin renders' event listeners get cleaned up)
  * and rebuilds from the resolved registry.
  *
- * Phase C scope: handles only the controls cluster (close / minimize
+ * Scope: handles only the controls cluster (close / minimize
  * / maximize / focus / detach + plugin entries with `placement:
  * 'controls'`). The `left` / `right` slots remain owned by the
  * legacy title-bar-button registry — `registerTitleBarButton` still

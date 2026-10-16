@@ -1,5 +1,5 @@
 /**
- * Phase-7 helpers — recycle-bin → desktop pinning.
+ * Recycle-bin → desktop pinning helpers.
  *
  * The full handler is DOM-driven and runs inside the Trash app's
  * client view; what's worth unit-testing is the recycle-type →

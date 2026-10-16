@@ -19,7 +19,7 @@
  *
  * Pointer-only: touch devices skip the peek and fall back to plain
  * tap-to-focus / tap-to-open. Hover popovers don't translate to touch
- * cleanly, and Phase 5–6 is where the mobile shell takes over.
+ * cleanly, and the mobile shell takes over there.
  */
 
 import { __, sprintf } from '../i18n';

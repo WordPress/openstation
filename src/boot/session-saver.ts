@@ -7,9 +7,6 @@
  * with the nonce on the URL because WP REST's cookie-auth
  * middleware reads the nonce from `$_REQUEST` (URL query string +
  * form-encoded body), NOT from JSON bodies.
- *
- * Extracted from `src/desktop.ts` during the architecture-0.8.1
- * boot decomposition (phase 5).
  */
 
 import { HOOKS, doAction } from '../hooks';

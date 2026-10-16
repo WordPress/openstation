@@ -2,8 +2,7 @@
 /**
  * Security-hardening tests for the OpenStation plugin.
  *
- * Covers the Phase-1 hardeners introduced alongside the DX refactor:
- * the URL helpers that replace raw `strpos()` same-origin checks, the
+ * Covers the URL helpers that replace raw `strpos()` same-origin checks, the
  * admin-target file whitelist, the dock-icon sanitizer that now rejects
  * `data:` URIs outright, and the session dimension clamp that rejects
  * non-numeric input instead of silently coercing it to zero.

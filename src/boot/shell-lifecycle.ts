@@ -5,9 +5,6 @@
  * lifecycle CustomEvents to the corresponding `HOOKS.SHELL_*`
  * actions and to the session saver. Pure setup — no captured
  * state at module level.
- *
- * Extracted from `src/desktop.ts` during the architecture-0.8.1
- * boot decomposition (phase 5).
  */
 
 import { HOOKS, addAction, doAction } from '../hooks';

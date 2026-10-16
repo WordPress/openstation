@@ -1,5 +1,5 @@
 /**
- * Unit tests for the Phase-3 FilesLayer + tile renderer.
+ * Unit tests for the FilesLayer + tile renderer.
  *
  * Tests run against jsdom — the layer DOM and the drag handlers
  * are exercised through synthesized Pointer events. REST is

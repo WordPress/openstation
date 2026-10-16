@@ -6,7 +6,7 @@
  * Every read goes through `openstation_files_query_args` so
  * plugins can scope what's visible (mirror of the recycle-bin's
  * filter pattern). Every write fires before / after actions so
- * other plugins can react and so Phase 6's Heartbeat sync has a
+ * other plugins can react and so the Heartbeat sync has a
  * single subscription point.
  *
  * Capability gate is per-call: callers pass the `$user_id` they
@@ -373,7 +373,7 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 }
 
 /**
- * Remove a placement. Writes a tombstone for Phase-6 sync.
+ * Remove a placement. Writes a tombstone for the Heartbeat sync.
  *
  * @param int $placement_id Placement id.
  * @param int $user_id      Acting user.
@@ -879,10 +879,9 @@ function openstation_files_clear_tombstones_for( $kind, $ref_id ) {
 }
 
 /**
- * Daily prune of tombstones older than 7 days. Phase 6 may tune
- * the retention window when the Heartbeat sync lands; for now 7d
- * is plenty since a client that's been offline that long will
- * always need a full REST resync anyway.
+ * Daily prune of tombstones older than 7 days. That is plenty:
+ * a client that's been offline that long will always need a full
+ * REST resync anyway.
  */
 function openstation_files_prune_tombstones() {
 	global $wpdb;

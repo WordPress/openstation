@@ -1,5 +1,5 @@
 /**
- * Phase E tests — iframe → parent chrome bridge.
+ * Tests for the iframe → parent chrome bridge.
  *
  * The parent's `handleWindowMessage` routes three new message types
  * (`os-chrome-theme/controls/slot`) to the matching

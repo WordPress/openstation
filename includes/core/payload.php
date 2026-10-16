@@ -7,13 +7,6 @@
  * and the script/style handle resolvers used by the live-refresh
  * and lazy-load paths.
  *
- * Extracted from the 1,609-LOC `helpers.php` during the
- * architecture-0.8.1 PHP slicing (phase 6). Behaviour is
- * unchanged: every function name is identical and every WP filter
- * still fires with the same shape — PHP looks function references
- * up by name at hook-fire time, so existing callers continue to
- * resolve regardless of which file owns the definition.
- *
  * @package OpenStation
  */
 

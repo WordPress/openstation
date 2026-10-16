@@ -529,7 +529,7 @@ const TARGETS = {
 		fileBase: 'usage-feedback',
 		iifeName: 'openStationUsageFeedbackBundle',
 	},
-	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
+	// Shell overlays — toast, confirm dialog, context menus.
 	// Components for action-triggered overlays that aren't constructed
 	// at first paint. Preloaded by main after first paint via
 	// `preloadShellOverlays( … )` so the first toast / osConfirm /
@@ -596,7 +596,7 @@ const TARGETS = {
 		fileBase: 'os-components',
 		iifeName: 'openStationComponentKit',
 	},
-	// Window system (Stage 11) — the `Window` class + DOM / pointer
+	// Window system — the `Window` class + DOM / pointer
 	// / tab / chrome helpers. Largest single module in the pre-0.8.4
 	// main bundle (~68 kB pre-min just for `window/index.ts`).
 	// Loaded on demand by the first call to

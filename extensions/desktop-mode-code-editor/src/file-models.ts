@@ -3,8 +3,7 @@
  *
  * Each file the user opens gets one Monaco model, keyed by relative
  * path. Re-opening the same file from the tree re-uses the model
- * (preserves edits + scroll position + selection — Phase 2 is
- * read-only so edits are moot, but Phase 2.5+ relies on this cache).
+ * (preserves edits + scroll position + selection).
  *
  * Path → language detection is intentionally extension-driven only.
  * Shebang sniffing or content-detection would slow tree clicks for
@@ -18,7 +17,7 @@ import type * as Monaco from 'monaco-editor';
 /**
  * Map a file path to the Monaco language id Monaco's tokenizer +
  * language services key off. Unknown extensions resolve to
- * `'plaintext'` so the editor still opens them — Phase 2 lists every
+ * `'plaintext'` so the editor still opens them — the tree lists every
  * file with `allowed: true` in the tree, so an unknown extension
  * here means the allowlist was extended without a language map
  * update; better to show plaintext than refuse to open.

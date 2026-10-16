@@ -1,9 +1,9 @@
 /**
  * Unit tests for the JS-side files registry — the registerType /
  * resolve / getTypes surface that mirrors the PHP file-type
- * registry. These tests cover Phase 0: registry behavior only.
- * Higher-phase tests (opener resolution, REST round-trips, layer
- * rendering) live in their own files.
+ * registry. These tests cover registry behavior only; opener
+ * resolution, REST round-trips, and layer rendering are tested
+ * in their own files.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';

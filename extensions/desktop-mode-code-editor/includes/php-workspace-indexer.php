@@ -2,7 +2,7 @@
 /**
  * Workspace PHP symbol indexer for the Code Editor extension.
  *
- * Phase 5a indexed WP core. This module covers the user's own
+ * `php-indexer.php` indexes WP core. This module covers the user's own
  * plugins / themes — functions, classes, interfaces, traits, and
  * locally-declared hooks. The two indexes merge through the
  * `openstation_code_editor_php_index_extra_symbols` filter seam, so

@@ -1,5 +1,5 @@
 /**
- * Unit tests for the Phase-4 wallpaper context menu.
+ * Unit tests for the wallpaper context menu.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';

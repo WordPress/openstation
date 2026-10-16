@@ -4,15 +4,12 @@
  *
  * Chromeless / classic admin-bar suppression and the
  * `wp_redirect` filter pair that re-stamps the openstation
- * flags onto server-built redirects. Extracted from the
- * 1,609-LOC `helpers.php` during the architecture-0.8.1 PHP
- * slicing (phase 6).
+ * flags onto server-built redirects.
  *
- * Behaviour is unchanged. Plugins that registered against any of
- * these filters keep working: PHP looks function references up by
- * name at hook-fire time, and `desktop-mode.php` requires this
- * file before `helpers.php`, so the function definitions are
- * always present by the time WordPress wants them.
+ * PHP looks function references up by name at hook-fire time, and
+ * `desktop-mode.php` requires this file before `helpers.php`, so
+ * the function definitions are always present by the time
+ * WordPress wants them.
  *
  * Functions in this file:
  *   - {@see openstation_url_is_same_admin()}      — same-origin admin URL predicate

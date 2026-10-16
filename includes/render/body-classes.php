@@ -9,9 +9,6 @@
  * `?desktop_mode_classic=1` suppresses them for the detached-tab
  * workflow.
  *
- * Extracted from the 2,525-LOC `render.php` during the
- * architecture-0.8.1 PHP slicing (phase 6).
- *
  * @package OpenStation
  */
 

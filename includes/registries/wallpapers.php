@@ -9,10 +9,6 @@
  * the shell and ships their script handles into the boot
  * payload.
  *
- * Extracted from `components.php` during the architecture-0.8.1
- * PHP slicing (phase 6). Behaviour, function names, filter
- * contracts, and error codes all unchanged.
- *
  * @package OpenStation
  */
 

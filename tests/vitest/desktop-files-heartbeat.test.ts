@@ -1,5 +1,5 @@
 /**
- * Phase-6 JS-side Heartbeat sync tests.
+ * JS-side Heartbeat sync tests.
  *
  * The contributor / subscriber wiring goes through the framework
  * heartbeat bus; we hijack `heartbeat.subscribe` to capture the

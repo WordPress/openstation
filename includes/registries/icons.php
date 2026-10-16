@@ -13,12 +13,6 @@
  * eleven pieces of artwork to WordPress's own icon registry for use with
  * `wp_get_icon()`. This file is about a surface of the desktop.
  *
- * Extracted from the 2,101-LOC `components.php` during the
- * architecture-0.8.1 PHP slicing (phase 6). Behaviour is
- * unchanged: every function name, every WP filter, every error
- * code is identical. PHP looks function references up by name at
- * hook-fire time, so existing call sites resolve from any module.
- *
  * @package OpenStation
  */
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for Phase-6 sharing visibility + Heartbeat delta.
+ * Tests for folder-sharing visibility + Heartbeat delta.
  *
  * @package WordPress
  * @subpackage UnitTests

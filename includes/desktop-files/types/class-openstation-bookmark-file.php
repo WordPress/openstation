@@ -5,7 +5,7 @@
  * Reference is the URL itself (validated against `esc_url_raw`).
  * Title falls back to the host when the user hasn't set one — the
  * UI promotes a separate `title` field stored alongside the
- * placement in the placement row's `meta` column (Phase 2), but
+ * placement in the placement row's `meta` column, but
  * the base shape works without it.
  *
  * @package OpenStation

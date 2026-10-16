@@ -1,5 +1,5 @@
 /**
- * Phase D tests for the title-bar slot pipeline:
+ * Tests for the title-bar slot pipeline:
  *
  *   - `paintWindowSlots` honors `appearance.slots[name]` overrides
  *     in three shapes (`null`, `{ html }`, `{ render }`).

@@ -51,9 +51,9 @@
 	z-index: 0;
 	/*
 	 * Layer doesn't intercept pointer events itself — tiles and
-	 * the wallpaper own that. Phase 4's wallpaper context menu
-	 * binds clicks on the parent `#os-area`, which is
-	 * unblocked because of this rule.
+	 * the wallpaper own that. The wallpaper context menu binds
+	 * clicks on the parent `#os-area`, which is unblocked
+	 * because of this rule.
 	 */
 	pointer-events: none;
 }
@@ -407,8 +407,7 @@
  * Missing files (the underlying entity was deleted but the
  * placement still exists) render the tile dimmed so the user
  * can right-click → Remove without confusing it for an active
- * file. Phase 6's per-placement permission re-check uses the
- * same affordance for "you can't see this" placeholders.
+ * file.
  */
 .os-file-tile--missing {
 	opacity: 0.5;
@@ -550,7 +549,7 @@
 
 /*
  * Wallpaper + tile context menus use `<os-context-menu>` and
- * `<os-context-menu-option>` (Phase 4 / 0.9.0). Their host-level
+ * `<os-context-menu-option>`. Their host-level
  * styles live inside the component shadow DOM — see
  * `src/ui/components/os-context-menu/os-context-menu.styles.ts`.
  * No project CSS rules needed here; the legacy `.os-
@@ -852,7 +851,7 @@ button.os-folder-status-bar__segment:hover {
 }
 
 /*
- * File Associations OS Settings tab (Phase 5). One row per file
+ * File Associations OS Settings tab. One row per file
  * type: label on the left, a `<os-select>` of compatible
  * openers on the right. Color tokens use the OS-Settings-canonical
  * `--os-ui-fg-muted` so the tab inherits theme colors instead of

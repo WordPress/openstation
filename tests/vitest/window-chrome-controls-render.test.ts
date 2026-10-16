@@ -1,5 +1,5 @@
 /**
- * Phase C tests for the controls cluster pipeline:
+ * Tests for the controls cluster pipeline:
  *
  *   - `resolveWindowControls` honors `appearance.controls.hide`,
  *     `.custom`, and `.order` overrides on top of the registry.

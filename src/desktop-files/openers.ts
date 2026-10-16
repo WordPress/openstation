@@ -111,7 +111,7 @@ export interface FileOpenerDef {
 const seed = new Map< string, FileOpenerDef >();
 const listeners = new Set<() => void >();
 
-/** Per-user `{ type: openerId }` association map; written by the settings tab in Phase 5. */
+/** Per-user `{ type: openerId }` association map; written by the File Associations settings tab. */
 let userAssociations: Record< string, string > = {};
 
 /** Replace the active user-association map. Called once at boot from the shell config. */

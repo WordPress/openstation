@@ -34,7 +34,7 @@ export default defineConfig( {
 		// Pre-register every `<os-*>` component class that production
 		// code loads via the `shell-overlays[.min].js` lazy bundle
 		// (toast / confirm / context-menu). Production main bundle
-		// does NOT eager-import them anymore (Stage 9); the setup
+		// does NOT eager-import them anymore; the setup
 		// file is in `tests/vitest/` so it never reaches a production
 		// build.
 		setupFiles: [ './tests/vitest/setup.ts' ],

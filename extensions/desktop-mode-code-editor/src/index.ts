@@ -1,5 +1,5 @@
 /**
- * Code Editor — Phase 3 / 2.5 entry.
+ * Code Editor — entry.
  *
  * Three-zone layout:
  *

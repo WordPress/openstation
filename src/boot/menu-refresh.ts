@@ -14,9 +14,6 @@
  * iframe at `admin.php?openstation_chromeless=1&openstation_menu_refresh=1`,
  * waits for the bridge's payload message, then disposes the
  * iframe.
- *
- * Extracted from `src/desktop.ts` during the architecture-0.8.1
- * boot decomposition (phase 5).
  */
 
 import { HOOKS, doAction } from '../hooks';

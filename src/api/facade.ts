@@ -5,8 +5,7 @@
  * be assembled inline inside `init()` as a single ~280-LOC object
  * literal. Plugin authors who wanted to know "what's available on
  * `wp.os`?" had to scroll through `desktop.ts` looking for
- * the literal. Phase 5 of the architecture-0.8.1 boot
- * decomposition pulls the literal out: `init()` builds a
+ * the literal. Now `init()` builds a
  * dependency bag and calls `buildPublicApi(deps)`; this module
  * owns the literal, the reserved-namespace allowlist, and the
  * merge-onto-shim assignment.

@@ -8,7 +8,7 @@
  * Gutenberg, open the Classic Editor, open someone-else's modal,
  * etc. Multiple openers can register for the same file-type slug;
  * the user picks their preferred one in OS Settings → File
- * Associations (Phase 5), and the JS side resolves on every
+ * Associations, and the JS side resolves on every
  * double-click using this chain:
  *
  *   1. The user's per-type override (`desktop_mode_file_associations`
@@ -77,7 +77,7 @@ function openstation_file_opener_registry( $id = '', $entry = null ) {
  *     @type string   $script       Optional handle the shell loads
  *                                  on activation so JS-side handlers
  *                                  defined in a plugin bundle appear
- *                                  without a page reload (Phase 5+).
+ *                                  without a page reload.
  *     @type string[] $capabilities Gate: ALL caps must match.
  * }
  * @return true|WP_Error

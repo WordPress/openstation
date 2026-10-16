@@ -2,8 +2,8 @@
  * Custom ESLint rule — `os-component-registration`.
  *
  * Catches the regression class that broke posts / pages / users /
- * plugins / comments / recycle-bin after Stage 1 of the bundle-size
- * work: a module constructs a `<os-foo>` element at runtime (via
+ * plugins / comments / recycle-bin during the bundle-size work: a
+ * module constructs a `<os-foo>` element at runtime (via
  * `document.createElement('os-foo')` or a literal `'os-foo'`
  * argument to any `createElement` callee) yet does NOT side-effect-
  * import the matching `'<…>/os-foo/os-foo'` module — so the
@@ -82,13 +82,13 @@ const path = require( 'node:path' );
  * @since 0.8.4
  */
 const SHELL_OVERLAYS_TAGS = new Set( [
-	// Stage 9 — action-triggered overlays.
+	// Action-triggered overlays.
 	'os-toast',
 	'os-toast-container',
 	'os-confirm-dialog',
 	'os-context-menu',
 	'os-context-menu-option',
-	// Stage 10 — window chrome + folder-dialog components. All
+	// Window chrome + folder-dialog components. All
 	// constructed only after the user has triggered some action
 	// (open a window, open a folder, open the rename dialog) so
 	// the shell-overlays preload covers them.

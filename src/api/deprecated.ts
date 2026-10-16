@@ -10,8 +10,7 @@
  * name and emits a one-shot `console.warn` with a clear pointer
  * to the replacement.
  *
- * This module owns the JS side of those shims. The PHP side is
- * `includes/deprecated.php` (added in phase 6).
+ * This module owns the JS side of those shims.
  */
 
 const warned = new Set< string >();

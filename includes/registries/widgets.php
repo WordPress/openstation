@@ -8,9 +8,6 @@
  * module is the PHP side that announces them and ships their
  * script handles into the boot payload.
  *
- * Extracted from `components.php` during the architecture-0.8.1
- * PHP slicing (phase 6).
- *
  * @package OpenStation
  */
 

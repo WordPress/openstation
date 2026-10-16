@@ -7,9 +7,6 @@
  * to. Both functions are pure with respect to module state: every
  * dependency comes through arguments so they're directly
  * testable in isolation.
- *
- * Extracted from `src/desktop.ts` during the architecture-0.8.1
- * boot decomposition (phase 5).
  */
 
 import { tryNativeUrlRemap } from '../native-url-remap';

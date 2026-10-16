@@ -8,9 +8,6 @@
  * the body class added by `body-classes.php` triggers the CSS that
  * hides classic chrome.
  *
- * Extracted from `render.php` during the architecture-0.8.1 PHP
- * slicing (phase 6).
- *
  * @package OpenStation
  */
 

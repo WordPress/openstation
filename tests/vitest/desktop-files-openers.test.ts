@@ -1,7 +1,7 @@
 /**
  * Unit tests for the JS-side file-opener registry — registerOpener,
  * resolveOpener (resolution chain), and the open() dispatcher's
- * handler-kind routing. These tests cover Phase 1.
+ * handler-kind routing.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
