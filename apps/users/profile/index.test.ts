@@ -3,7 +3,7 @@
  * one mount per id with the record and the insights fetched ONCE each,
  * a retarget that re-mounts once, the properties the host feeds, and
  * an aside that refreshes ITSELF after a save (not the first aside in
- * the document).
+ * the document), and the plugin sections embedded below the form.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import '../../../src/ui/components/os-form/os-form';
@@ -202,5 +202,62 @@ describe( '<os-user-profile>', () => {
 		door?.click();
 		expect( openWindow ).toHaveBeenCalledWith( 'my-wordpress', expect.objectContaining( { source: expect.any( String ) } ) );
 		expect( readFootprintTarget() ).toMatchObject( { userId: 3, userName: 'Jane Doe' } );
+	} );
+
+	test( 'embeds the plugin sections of the screen the person is edited on, and reloads them after a save', async () => {
+		const urls: string[] = [];
+		const embedAdminPage = vi.fn( ( host: HTMLElement, url: string ) => {
+			urls.push( url );
+			host.replaceChildren( document.createElement( 'iframe' ) );
+			return () => host.replaceChildren();
+		} );
+		( window as unknown as { wp?: unknown } ).wp = { os: { embedAdminPage } };
+		const pluginSections = { own: true, others: false, adminUrl: 'http://example.test/wp-admin/' };
+
+		const self = fakeFetch();
+		const own = mountProfile( 1, { fetch: self.fetch, config: { ...config, pluginSections } } );
+		const other = mountProfile( 3, { fetch: fakeFetch().fetch, config: { ...config, pluginSections } } );
+		await wait( 10 );
+		expect( urls ).toEqual( [ 'http://example.test/wp-admin/profile.php?openstation_profile_sections=1&openstation_chromeless=1' ] );
+		expect( other.querySelector< HTMLElement >( '[data-os-user-profile-plugins]' )?.hidden ).toBe( true );
+
+		// The embedded page posts the core fields it loaded with: a save
+		// from the form reloads it.
+		( own.querySelector( 'os-form' ) as HTMLElement & { submit: () => void } ).submit();
+		await wait( 30 );
+		expect( urls.length ).toBe( 2 );
+
+		const editor = mountProfile( 3, { fetch: fakeFetch().fetch, config: { ...config, pluginSections: { ...pluginSections, others: true } } } );
+		await wait( 10 );
+		expect( urls[ 2 ] ).toBe( 'http://example.test/wp-admin/user-edit.php?user_id=3&openstation_profile_sections=1&openstation_chromeless=1' );
+		expect( editor.querySelector< HTMLElement >( '[data-os-user-profile-plugins]' )?.hidden ).toBe( false );
+	} );
+
+	test( 'routes the embedded page’s links, which an embed alone drops', async () => {
+		( window as unknown as { wp?: unknown } ).wp = {
+			os: {
+				embedAdminPage: ( host: HTMLElement ) => {
+					host.replaceChildren( document.createElement( 'iframe' ) );
+					return () => host.replaceChildren();
+				},
+			},
+		};
+		const openUrl = vi.fn();
+		const open = vi.spyOn( window, 'open' ).mockImplementation( () => null );
+		const el = mountProfile( 1, { fetch: fakeFetch().fetch, config: { ...config, pluginSections: { own: true, adminUrl: 'http://example.test/wp-admin/' } } } );
+		el.openUrl = openUrl;
+		await wait( 10 );
+		// `openUrl` was set after the first mount; re-mount to pick it up.
+		el.remove();
+		document.body.appendChild( el );
+		const frame = el.querySelector( '[data-os-user-profile-plugins] iframe' ) as HTMLIFrameElement;
+		const post = ( data: unknown ): void => {
+			window.dispatchEvent( new MessageEvent( 'message', { data, origin: window.location.origin, source: frame.contentWindow } ) );
+		};
+
+		post( { type: 'os-iframe-admin-link', url: `${ window.location.origin }/wp-admin/options-general.php`, label: 'Settings' } );
+		expect( openUrl ).toHaveBeenCalledWith( `${ window.location.origin }/wp-admin/options-general.php`, 'Settings' );
+		post( { type: 'os-external-link', url: 'https://example.org/docs' } );
+		expect( open ).toHaveBeenCalledWith( 'https://example.org/docs', '_blank', 'noopener' );
 	} );
 } );

@@ -296,4 +296,63 @@ class Tests_OpenStation_UserEditApp extends WP_UnitTestCase {
 
 		unset( $_COOKIE[ LOGGED_IN_COOKIE ] );
 	}
+	/**
+	 * The facts say whether plugins print profile sections, per screen.
+	 *
+	 * @covers ::openstation_users_profile_plugin_sections
+	 */
+	public function test_plugin_sections_fact_follows_the_profile_hooks() {
+		foreach ( array( 'show_user_profile', 'edit_user_profile', 'personal_options', 'profile_personal_options' ) as $hook ) {
+			remove_all_actions( $hook );
+		}
+		$this->assertFalse( openstation_users_profile_plugin_sections()['own'] );
+
+		add_action( 'show_user_profile', '__return_null' );
+		$facts = openstation_users_profile_plugin_sections();
+		$this->assertTrue( $facts['own'] );
+		$this->assertFalse( $facts['others'] );
+		$this->assertSame( admin_url(), $facts['adminUrl'] );
+
+		// Rows in core's Personal Options table show on both screens.
+		remove_all_actions( 'show_user_profile' );
+		add_action( 'personal_options', '__return_null' );
+		$facts = openstation_users_profile_plugin_sections();
+		$this->assertTrue( $facts['own'] );
+		$this->assertTrue( $facts['others'] );
+	}
+
+	/**
+	 * The flagged screen marks where the plugin sections begin, posts
+	 * the flag back with the save, and keeps it through the redirect.
+	 *
+	 * @covers ::openstation_profile_sections_setup
+	 * @covers ::openstation_profile_sections_preserve_redirect
+	 */
+	public function test_flagged_profile_screen_marks_the_plugin_sections_and_keeps_the_flag() {
+		global $pagenow;
+		$previous = $pagenow;
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$pagenow                                    = 'profile.php';
+		$_GET['openstation_chromeless']             = '1';
+		$_REQUEST[ OPENSTATION_PROFILE_SECTIONS_FLAG ] = '1';
+
+		openstation_profile_sections_setup();
+		ob_start();
+		do_action( 'show_user_profile', wp_get_current_user() );
+		$html = ob_get_clean();
+		$this->assertStringContainsString( 'id="os-profile-sections-start"', $html );
+		$this->assertStringContainsString( 'name="' . OPENSTATION_PROFILE_SECTIONS_FLAG . '" value="1"', $html );
+
+		$this->assertStringContainsString(
+			OPENSTATION_PROFILE_SECTIONS_FLAG . '=1',
+			openstation_profile_sections_preserve_redirect( admin_url( 'profile.php?updated=1' ) )
+		);
+		$this->assertSame( admin_url( 'edit.php' ), openstation_profile_sections_preserve_redirect( admin_url( 'edit.php' ) ), 'only the profile screens' );
+
+		unset( $_REQUEST[ OPENSTATION_PROFILE_SECTIONS_FLAG ] );
+		$this->assertSame( admin_url( 'profile.php' ), openstation_profile_sections_preserve_redirect( admin_url( 'profile.php' ) ), 'not without the flag' );
+
+		unset( $_GET['openstation_chromeless'] );
+		$pagenow = $previous;
+	}
 }

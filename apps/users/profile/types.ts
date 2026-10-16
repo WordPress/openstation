@@ -22,6 +22,8 @@ export interface ProfileConfig {
 	defaultRole?: string;
 	contactMethods?: Record< string, string >;
 	colorSchemes?: Record< string, ColorSchemeInfo >;
+	/** Whether plugins add sections to the classic profile screens, and the admin URL they live under. */
+	pluginSections?: { own?: boolean; others?: boolean; adminUrl?: string };
 }
 
 export interface ColorSchemeInfo {
@@ -41,6 +43,8 @@ export interface ProfileHost {
 	config: ProfileConfig;
 	fetch: ( path: string, init?: RequestInit ) => Promise< Response >;
 	toast: ( message: string, kind?: 'success' | 'error' | 'info' ) => void;
+	/** Open an admin URL the way the shell would (the hosting app's `ctx.host.openUrl`). */
+	openUrl?: ( url: string, title: string ) => void;
 }
 
 export interface UserEditRecord {

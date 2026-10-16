@@ -440,6 +440,7 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 			profile.config = cfg;
 			profile.fetch = ctx.fetch;
 			profile.toast = ( message, kind ) => say( ctx, message, TOAST_MS[ kind ?? 'info' ] );
+			profile.openUrl = ( url, title ) => ctx.host.openUrl?.( url, title );
 		}
 
 		syncPeopleControls( ctx.root );
