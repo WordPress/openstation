@@ -467,6 +467,18 @@ function attachDrag(
 			applyGeometry( card, initial );
 			card.classList.add( FLOATING_CLASS );
 			handlers.onLiberate( initial );
+			// The re-parent took the chrome out of the document, which
+			// releases its pointer capture. Take it back, or the rest of
+			// the gesture goes to whatever is under the cursor: the card
+			// stops following, and the release never reaches `onUp`, so
+			// the card keeps its dragging class.
+			if ( pointerId !== null ) {
+				try {
+					chrome.setPointerCapture( pointerId );
+				} catch {
+					/* pointer already released */
+				}
+			}
 			// Re-read the inline styles — the applyGeometry call
 			// above just wrote them. Without this, the first
 			// move-frame would anchor at 0,0 and the card would jump

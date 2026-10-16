@@ -570,6 +570,62 @@ describe( 'widgets/layer', () => {
 		layer.disposeAll();
 	} );
 
+	test( 'dragging a docked widget out ends the drag on release, although the re-parent drops pointer capture', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'liberate-capture',
+			label: 'Liberate capture',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["liberate-capture"]' );
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		const card = host.querySelector< HTMLElement >( '.os-widgets__card' )!;
+		const chrome = card.querySelector< HTMLElement >( '.os-widgets__chrome' )!;
+
+		// A browser releases pointer capture when the capturing element
+		// leaves the document, which is what the liberate re-parent does,
+		// and then sends the rest of the gesture to whatever holds capture,
+		// or to the element under the cursor (here: the desktop host).
+		let captured: Element | null = null;
+		( chrome as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => {
+			captured = chrome;
+		};
+		( chrome as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => {
+			captured = null;
+		};
+		const appendChild = Node.prototype.appendChild;
+		const spy = vi.spyOn( Node.prototype, 'appendChild' ).mockImplementation( function ( this: Node, node ) {
+			if ( captured && node.contains( captured ) ) {
+				captured = null;
+			}
+			return appendChild.call( this, node );
+		} as typeof Node.prototype.appendChild );
+
+		const ptr = ( type: string, x: number, y: number ): Event => {
+			const e = new Event( type, { bubbles: true } );
+			Object.defineProperty( e, 'pointerId', { value: 1 } );
+			Object.defineProperty( e, 'button', { value: 0 } );
+			Object.defineProperty( e, 'clientX', { value: x } );
+			Object.defineProperty( e, 'clientY', { value: y } );
+			return e;
+		};
+		chrome.dispatchEvent( ptr( 'pointerdown', 110, 210 ) );
+		chrome.dispatchEvent( ptr( 'pointermove', 200, 300 ) );
+		spy.mockRestore();
+		( captured ?? host ).dispatchEvent( ptr( 'pointerup', 200, 300 ) );
+
+		expect( card.classList.contains( 'os-widgets__card--floating' ) ).toBe( true );
+		expect( card.classList.contains( 'os-widgets__card--dragging' ) ).toBe( false );
+
+		layer.disposeAll();
+	} );
+
 	test( 'removing a widget drops its persisted geometry', async () => {
 		const registry = await import( '../../src/widgets/registry' );
 		const { WidgetLayer } = await import( '../../src/widgets/layer' );
