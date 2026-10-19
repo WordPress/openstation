@@ -13,7 +13,11 @@
  *
  * @public
  */
-import { isMobileStamped } from '../../../mode/stamp';
+import { isMobileStamped, MODE_ATTRIBUTE } from '../../../mode/stamp';
+
+interface StackOnPhoneElement extends Element {
+	_dataOsStickyColumns?: string;
+}
 
 /**
  * Apply the phone layout to a table when the shell is in its phone
@@ -23,7 +27,10 @@ import { isMobileStamped } from '../../../mode/stamp';
  * @param root  The element carrying the mode stamp; the document's by default.
  */
 export function stackOnPhone( table: Element, root: Element | null = null ): boolean {
-	const stampRoot = root ?? ( typeof document !== 'undefined' ? document.documentElement : null );
+	const stampRoot =
+		root ??
+		( typeof table.closest === 'function' ? table.closest( `[${ MODE_ATTRIBUTE }]` ) : null ) ??
+		( typeof document !== 'undefined' ? document.documentElement : null );
 	const phone = !! stampRoot && isMobileStamped( stampRoot );
 	if ( phone ) {
 		if ( ! table.hasAttribute( 'stacked' ) ) {
@@ -31,20 +38,32 @@ export function stackOnPhone( table: Element, root: Element | null = null ): boo
 		}
 		// A pinned column over a card list has nothing to pin against;
 		// the attribute is remembered so the grid gets it back.
-		const sticky = table.getAttribute( 'sticky-columns' );
+		const sticky =
+			table.getAttribute( 'sticky-columns' ) ??
+			( table as StackOnPhoneElement )._dataOsStickyColumns ??
+			null;
 		if ( sticky !== null ) {
-			table.setAttribute( 'data-os-sticky-columns', sticky );
-			table.removeAttribute( 'sticky-columns' );
+			if ( table.getAttribute( 'data-os-sticky-columns' ) !== sticky ) {
+				table.setAttribute( 'data-os-sticky-columns', sticky );
+			}
+			( table as StackOnPhoneElement )._dataOsStickyColumns = sticky;
+			if ( table.hasAttribute( 'sticky-columns' ) ) {
+				table.removeAttribute( 'sticky-columns' );
+			}
 		}
 		return true;
 	}
 	if ( table.hasAttribute( 'stacked' ) ) {
 		table.removeAttribute( 'stacked' );
 	}
-	const kept = table.getAttribute( 'data-os-sticky-columns' );
+	const kept =
+		table.getAttribute( 'data-os-sticky-columns' ) ??
+		( table as StackOnPhoneElement )._dataOsStickyColumns ??
+		null;
 	if ( kept !== null ) {
 		table.setAttribute( 'sticky-columns', kept );
 		table.removeAttribute( 'data-os-sticky-columns' );
+		delete ( table as StackOnPhoneElement )._dataOsStickyColumns;
 	}
 	return false;
 }
