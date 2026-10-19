@@ -5,8 +5,13 @@
  *
  * @group bug-report
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { buildGithubIssueUrl, renderBugReport } from '../../src/bug-report';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+	buildGithubIssueUrl,
+	composeSupportTopic,
+	renderBugReport,
+	SUPPORT_FORUM_URL,
+} from '../../src/bug-report';
 
 beforeEach( () => {
 	// `collectMetadata()` reads navigator + window.location; jsdom
@@ -122,5 +127,74 @@ describe( 'renderBugReport', () => {
 		form.dispatchEvent( new Event( 'submit', { cancelable: true } ) );
 
 		expect( body.querySelector( '.os-bug-report__error' ) ).not.toBeNull();
+	} );
+} );
+
+describe( 'questions go to the WordPress.org support forum', () => {
+	function renderFilled( type: 'bug' | 'feature' | 'question' ): HTMLFormElement {
+		const body = document.createElement( 'div' );
+		document.body.appendChild( body );
+		renderBugReport( body );
+		const form = body.querySelector< HTMLFormElement >( '.os-bug-report__form' )!;
+		form.querySelector< HTMLInputElement >( `input[ name = "type" ][ value = "${ type }" ]` )!.checked = true;
+		form.dispatchEvent( new Event( 'change' ) );
+		form.querySelector< HTMLInputElement >( 'input[ name = "title" ]' )!.value = 'How do I pin a note?';
+		form.querySelector< HTMLTextAreaElement >( 'textarea[ name = "description" ]' )!.value = 'I cannot find the Note Pad.';
+		return form;
+	}
+
+	afterEach( () => {
+		vi.restoreAllMocks();
+	} );
+
+	test( 'the forum URL points at the desktop-mode support forum', () => {
+		expect( SUPPORT_FORUM_URL ).toBe( 'https://wordpress.org/support/plugin/desktop-mode/#new-topic-0' );
+	} );
+
+	test( 'the submit button names the destination for the selected type', () => {
+		const form = renderFilled( 'question' );
+		const submit = form.querySelector( '.os-bug-report__submit' )!;
+		expect( submit.textContent ).toBe( 'Ask on the WordPress.org support forum' );
+
+		form.querySelector< HTMLInputElement >( 'input[ name = "type" ][ value = "bug" ]' )!.checked = true;
+		form.dispatchEvent( new Event( 'change' ) );
+		expect( submit.textContent ).toBe( 'Open issue on GitHub' );
+	} );
+
+	test( 'submitting a question copies it and opens the forum', () => {
+		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
+		const writeText = vi.fn().mockResolvedValue( undefined );
+		Object.defineProperty( navigator, 'clipboard', { value: { writeText }, configurable: true } );
+
+		const form = renderFilled( 'question' );
+		form.dispatchEvent( new Event( 'submit', { cancelable: true } ) );
+
+		expect( open ).toHaveBeenCalledWith( SUPPORT_FORUM_URL, '_blank', 'noopener' );
+		expect( writeText ).toHaveBeenCalledTimes( 1 );
+		expect( writeText.mock.calls[ 0 ][ 0 ] ).toContain( 'How do I pin a note?' );
+	} );
+
+	test( 'submitting a bug still opens a GitHub issue', () => {
+		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
+
+		const form = renderFilled( 'bug' );
+		form.dispatchEvent( new Event( 'submit', { cancelable: true } ) );
+
+		expect( String( open.mock.calls[ 0 ][ 0 ] ) ).toMatch( /^https:\/\/github\.com\/WordPress\/openstation\/issues\/new\?/ );
+	} );
+
+	test( 'composeSupportTopic puts title, description and environment in plain text', () => {
+		const text = composeSupportTopic( {
+			type: 'question',
+			title: '  How do I pin a note?  ',
+			description: 'I cannot find the Note Pad.',
+			steps: '',
+		} );
+		const lines = text.split( '\n' );
+		expect( lines[ 0 ] ).toBe( 'How do I pin a note?' );
+		expect( text ).toContain( 'I cannot find the Note Pad.' );
+		expect( text ).toContain( 'Environment:' );
+		expect( text ).toContain( 'Plugin version:' );
+		expect( text ).not.toContain( '<details>' );
 	} );
 } );
