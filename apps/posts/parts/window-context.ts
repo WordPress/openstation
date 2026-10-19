@@ -53,8 +53,16 @@ export function postsContext( ctx: Ctx, cache: { postsCtx: PostsWindowContext | 
 	return cache.postsCtx;
 }
 
-/** Confirm if asked, run, then clear + refresh unless the runner opted out. */
-export async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: PostsWindowContext ): Promise< void > {
+/**
+ * Confirm if asked, run, then clear + refresh unless the runner opted out.
+ * `onRunning` brackets the run itself, so the confirm prompt never reads as busy.
+ */
+export async function runBulkAction(
+	ctx: Ctx,
+	action: BulkAction,
+	postsCtx: PostsWindowContext,
+	onRunning: ( running: boolean ) => void = () => {},
+): Promise< void > {
 	const ids = postsCtx.getSelectedIds();
 	if ( ids.length === 0 ) {
 		return;
@@ -74,6 +82,7 @@ export async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: Pos
 			return;
 		}
 	}
+	onRunning( true );
 	try {
 		if ( ( await action.run( ids, postsCtx ) ) === false ) {
 			return;
@@ -81,6 +90,8 @@ export async function runBulkAction( ctx: Ctx, action: BulkAction, postsCtx: Pos
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
 		console.error( `${ LOG } bulk action "${ action.id }" failed`, err );
+	} finally {
+		onRunning( false );
 	}
 	postsCtx.table.clearSelection();
 	await postsCtx.refresh();

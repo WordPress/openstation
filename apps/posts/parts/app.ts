@@ -99,6 +99,8 @@ interface UiState {
 	hidden: Set< string > | null;
 	selected: number;
 	bulkActions: BulkAction[] | null;
+	/** The bulk action whose run is in flight, or `''`. */
+	bulkRunning: string;
 	extras: HTMLElement[] | null;
 	postsCtx: PostsWindowContext | null;
 	tab: string;
@@ -127,6 +129,7 @@ const freshUi = (): UiState => ( {
 	hidden: null,
 	selected: 0,
 	bulkActions: null,
+	bulkRunning: '',
 	extras: null,
 	postsCtx: null,
 	tab: 'posts',
@@ -365,7 +368,21 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 					( action ) => html`<os-button
 						variant=${ action.variant ?? 'secondary' }
 						data-os-posts-bulk-action=${ action.id }
-						@click=${ () => void runBulkAction( ctx, action, postsContext( ctx, ui ) ) }
+						?busy=${ ui.bulkRunning === action.id }
+						?disabled=${ ui.bulkRunning !== '' }
+						@click=${ () => {
+							// A disabled os-button still hands its host the click.
+							if ( ui.bulkRunning ) {
+								return;
+							}
+							void runBulkAction( ctx, action, postsContext( ctx, ui ), ( running ) => {
+								// A run can take a few seconds (moving posts to the trash):
+								// the button spins and the selected cards dim until it lands.
+								ui.bulkRunning = running ? action.id : '';
+								ctx.root.toggleAttribute( 'data-os-posts-bulk-running', running );
+								ctx.repaint();
+							} );
+						} }
 					>${ action.icon ? html`<span class="dashicons ${ action.icon }" aria-hidden="true"></span>` : '' } ${ action.label }</os-button>`,
 				) }</span>
 			</div>

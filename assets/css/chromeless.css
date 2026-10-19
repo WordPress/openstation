@@ -120,6 +120,20 @@ html.wp-toolbar:has( body.os-chromeless ) {
 }
 
 /*
+ * A Trash, Restore or Delete Permanently on its way to the server
+ * (the chromeless bridge marks it): the rows it acts on dim, and the
+ * list takes no clicks until the next page replaces it.
+ */
+.os-chromeless .os-list-pending {
+	pointer-events: none;
+}
+
+.os-chromeless .os-list-row-pending {
+	opacity: 0.5;
+	transition: opacity 0.2s;
+}
+
+/*
  * MailPoet top-bar overlap fix.
  *
  * MailPoet mounts a 64px-tall brand bar on its screens as

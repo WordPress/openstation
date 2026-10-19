@@ -539,6 +539,28 @@ describe( 'the bulk bar', () => {
 		expect( Array.from( table().selection ?? [] ) ).toEqual( [] );
 	} );
 
+	it( 'stays busy while the trash runs, and a second click sends nothing', async () => {
+		const { ctx, root, dispatch, table } = mount();
+		app.mounted( ctx );
+		let land: ( ok: boolean ) => void = () => undefined;
+		dispatch.mockImplementationOnce( () => new Promise< boolean >( ( resolve ) => {
+			land = resolve;
+		} ) );
+		table().selection = [ 1, 2 ];
+		table().dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
+		const button = () => root.querySelector( '[data-os-posts-bulk-action="trash"]' ) as HTMLElement;
+		button().click();
+		await flush();
+		expect( button().hasAttribute( 'busy' ) ).toBe( true );
+		button().click();
+		await flush();
+		expect( ctx.host.confirm ).toHaveBeenCalledTimes( 1 );
+		expect( dispatch ).toHaveBeenCalledTimes( 1 );
+		land( true );
+		await flush();
+		expect( button().hasAttribute( 'busy' ) ).toBe( false );
+	} );
+
 	it( 'runBulkAction confirms, tolerates a throwing runner, and refreshes unless the runner opts out', async () => {
 		const { ctx } = mount();
 		const clearSelection = vi.fn();

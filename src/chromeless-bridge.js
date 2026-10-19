@@ -1315,6 +1315,44 @@
 		return ( clone.textContent || '' ).replace( /\s+/g, ' ' ).trim();
 	}
 
+	/*
+	 * Trash, Restore and Delete Permanently, as a row action or a bulk
+	 * action. Each one reloads the list, and the server does the work
+	 * before the next page arrives, which can take a few seconds with
+	 * nothing on screen saying so. A second click in that gap sends the
+	 * action again, and a post that is already in the trash answers it
+	 * with an error page.
+	 */
+	var PENDING_LIST_ACTIONS = [ 'trash', 'untrash', 'delete' ];
+
+	/*
+	 * Whether a row action link is one of them. The nonce matches the
+	 * shell's own test for reloading this list in place rather than
+	 * opening the URL in a new window.
+	 */
+	function isPendingListAction( url ) {
+		try {
+			var parsed = new URL( url, window.location.href );
+			return PENDING_LIST_ACTIONS.indexOf( parsed.searchParams.get( 'action' ) ) !== -1 &&
+				parsed.searchParams.has( '_wpnonce' );
+		} catch ( err ) {
+			return false;
+		}
+	}
+
+	/*
+	 * Dim the rows the action works on and stop the list taking clicks
+	 * until the next page replaces it.
+	 */
+	function markListActionPending( rows, list ) {
+		for ( var i = 0; i < rows.length; i++ ) {
+			rows[ i ].classList.add( 'os-list-row-pending' );
+		}
+		if ( list ) {
+			list.classList.add( 'os-list-pending' );
+		}
+	}
+
 	document.addEventListener( 'click', function ( e ) {
 		if ( e.defaultPrevented ) {
 			return;
@@ -1599,6 +1637,16 @@
 					},
 					window.location.origin
 				);
+				// The shell reloads the list in place, as it does a bulk
+				// action submitted below: report the wait the same way.
+				var pendingRow = link.closest( '.row-actions' ) ? link.closest( 'tr' ) : null;
+				if ( pendingRow && ! newContext && isPendingListAction( absolute ) ) {
+					markListActionPending( [ pendingRow ], pendingRow.closest( 'form' ) );
+					window.parent.postMessage(
+						{ type: 'os-iframe-activity', phase: 'start', navigation: true },
+						window.location.origin
+					);
+				}
 			} catch ( bridgeErr ) {
 				/* Same-origin postMessage to the same window can only fail in
 				 * a sandbox we don't support — swallow rather than block the
@@ -1720,15 +1768,25 @@
 			if ( e.submitter && 'filter_action' === e.submitter.name ) {
 				return;
 			}
-			var picked = false;
+			var picked = '';
 			var actions = form.querySelectorAll( 'select[name="action"],select[name="action2"]' );
 			for ( var i = 0; i < actions.length; i++ ) {
-				if ( actions[ i ].value && '-1' !== actions[ i ].value ) {
-					picked = true;
+				if ( ! picked && actions[ i ].value && '-1' !== actions[ i ].value ) {
+					picked = actions[ i ].value;
 				}
 			}
 			if ( ! picked ) {
 				return;
+			}
+			if ( PENDING_LIST_ACTIONS.indexOf( picked ) !== -1 ) {
+				var checked = form.querySelectorAll( 'tbody .check-column input[type="checkbox"]:checked' );
+				var checkedRows = [];
+				for ( var j = 0; j < checked.length; j++ ) {
+					if ( checked[ j ].closest( 'tr' ) ) {
+						checkedRows.push( checked[ j ].closest( 'tr' ) );
+					}
+				}
+				markListActionPending( checkedRows, form );
 			}
 		}
 		try {
