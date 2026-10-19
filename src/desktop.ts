@@ -41,7 +41,10 @@ import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
 // in this bundle.
 import { OsSettings } from './settings';
-import { OS_SETTINGS_WINDOW_ID } from './settings/constants';
+import {
+	OS_SETTINGS_LAYOUT_SECTION_ID,
+	OS_SETTINGS_WINDOW_ID,
+} from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
 import { getNetworkAdminTileDef } from './multisite/dock-tiles';
 import { createHopMinter, hopToAdmin, type HopMinter } from './multisite/hop';
@@ -1200,7 +1203,7 @@ export interface OpenStationPublicApi {
 	 * Settings on the side rail, which a custom primary-rail
 	 * renderer can't see).
 	 */
-	openOsSettings: ( opts?: { tabId?: string } ) => void;
+	openOsSettings: ( opts?: { tabId?: string; sectionId?: string } ) => void;
 	/**
 	 * Read the current OS Settings snapshot. Mirrors the same shape
 	 * any settings tab sees via its `ctx.getOsSettings()`. Use this
@@ -3492,8 +3495,8 @@ function init(): void {
 			navKind: 'control',
 			// Movable and hideable like every other control. It is the
 			// most convenient route to Preferences, not the only one:
-			// the right-click menu on any tile or icon carries a
-			// "Navigation settings…" row, and ⌘K reaches it too.
+			// the right-click menu on any tile, icon or the rail itself
+			// carries a "Customize dock…" row, and ⌘K reaches it too.
 			placeable: true,
 			order: SYSTEM_TILE_ORDER.system,
 			// The tile's own click opens Preferences: the flyout is
@@ -3593,9 +3596,6 @@ function init(): void {
 		} );
 	}
 
-	/** The Desktop layout section in Preferences, the tour's deep-link target. */
-	const LAYOUT_SECTION_ID = 'os-settings-layout';
-
 	/**
 	 * How long {@link revealSettingsSection} waits for its section. A
 	 * cold Preferences open is two lazy bundles and a request, so the
@@ -3658,9 +3658,13 @@ function init(): void {
 	 * Pass `{ tabId }` to land directly on a specific settings tab
 	 * (e.g. `'ai'`, `'navigation'`). The tab is set before the window
 	 * opens so a fresh render mounts on it; if the window is already
-	 * open, `focusTab` switches the live tab strip in place.
+	 * open, `focusTab` switches the live tab strip in place. Add
+	 * `sectionId` to scroll one section of that tab into view once it
+	 * has painted.
 	 */
-	function openOsSettings( opts: { tabId?: string } = {} ): void {
+	function openOsSettings(
+		opts: { tabId?: string; sectionId?: string } = {},
+	): void {
 		// Tabs that merged into another page. A deep link to a page
 		// that no longer exists is worse than a stale one: `focusTab`
 		// sets `os-tabs.value` to an id no row carries, and the panel
@@ -3694,6 +3698,9 @@ function init(): void {
 				apps?: { local: ( id: string, action: string, args: Record< string, unknown > ) => void };
 			} | undefined )?.apps;
 			apps?.local( OS_SETTINGS_WINDOW_ID, 'tab', { value: opts.tabId } );
+		}
+		if ( opts.sectionId ) {
+			revealSettingsSection( opts.sectionId );
 		}
 	}
 
@@ -5236,8 +5243,10 @@ function init(): void {
 			// ends, and a Preferences window the user already had is not
 			// the tour's to close.
 			const wasAlreadyOpen = !! manager.getById( OS_SETTINGS_WINDOW_ID );
-			openOsSettings( { tabId: 'appearance' } );
-			revealSettingsSection( LAYOUT_SECTION_ID );
+			openOsSettings( {
+				tabId: 'appearance',
+				sectionId: OS_SETTINGS_LAYOUT_SECTION_ID,
+			} );
 			return { windowId: OS_SETTINGS_WINDOW_ID, wasAlreadyOpen };
 		},
 		// Where the layout settings are, right now: the Desktop layout
@@ -5246,7 +5255,7 @@ function init(): void {
 		// when neither is on screen (a user may hide the tile), and the
 		// tour falls back to the rail.
 		findLayoutTarget: () =>
-			visibleSettingsSection( LAYOUT_SECTION_ID ) ??
+			visibleSettingsSection( OS_SETTINGS_LAYOUT_SECTION_ID ) ??
 			document.querySelector(
 				`.os-dock__item[data-system-id="${ SYSTEM_TILE_ID }"]`,
 			),

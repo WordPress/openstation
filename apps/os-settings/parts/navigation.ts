@@ -101,6 +101,16 @@ const leadFor = ( layout: NavLayout ): string =>
 			'Choose where each menu shows up: on the dock, on the desktop wallpaper, both, or hidden entirely. Changes apply instantly.',
 		);
 
+/**
+ * Order is not set on this page: it is set by dragging tiles on the
+ * rail, where the result is visible as it happens. Said here because
+ * this is where people come looking for it.
+ */
+const orderHintFor = ( layout: NavLayout ): string =>
+	'classic' === layout
+		? __( 'To change the order, drag the tiles on the dock or sidebar.' )
+		: __( 'To change the order, drag the tiles on the dock.' );
+
 /** The four options for one row; only the rail label varies. */
 const optionsFor = ( kind: NavKind, layout: NavLayout ): Array< { id: NavPlacement; label: string } > => [
 	{
@@ -150,7 +160,7 @@ export const renderNavigation: Section = ( s ) => {
 		rows: sortByOrder( items.filter( ( item ) => group.kinds.includes( item.kind ) ) ),
 	} ) ).filter( ( group ) => group.rows.length > 0 );
 	return html`
-		<p class="os-settings__page-description os-nav-settings__lead">${ leadFor( s.desktopLayout ) }</p>
+		<p class="os-settings__page-description os-nav-settings__lead">${ leadFor( s.desktopLayout ) } ${ orderHintFor( s.desktopLayout ) }</p>
 		${ groups.length === 0
 			? html`<os-empty-state
 				heading=${ __( 'Nothing registered yet' ) }

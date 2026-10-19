@@ -349,6 +349,9 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 				paragraph(
 					__( 'Every WordPress admin menu lives on this rail. Hover a tile for its name; the ones with submenus fan them out.' ),
 				),
+				paragraph(
+					__( 'Drag a tile to reorder the rail. Right-click it to hide it or to choose what the rail shows.' ),
+				),
 			],
 			// Nothing to perform, so the action is simply the way on.
 			primary: __( 'Next' ),

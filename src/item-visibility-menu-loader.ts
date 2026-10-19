@@ -16,11 +16,15 @@
  * predecessor, so this only avoids a flicker).
  */
 
-import type { OpenItemVisibilityMenuOpts } from './item-visibility-menu';
+import type {
+	OpenItemVisibilityMenuOpts,
+	OpenRailMenuOpts,
+} from './item-visibility-menu';
 import { loadVendorScript } from './wallpapers/vendor-loader';
 
 interface MenuApi {
 	openItemVisibilityMenu: ( opts: OpenItemVisibilityMenuOpts ) => void;
+	openRailMenu: ( opts: OpenRailMenuOpts ) => void;
 }
 
 let generation = 0;
@@ -40,20 +44,13 @@ function bundleUrl(): string {
 }
 
 /**
- * Open the visibility menu, loading its bundle on first use.
- *
- * Same signature and fire-and-forget semantics as the real
- * `openItemVisibilityMenu` — call sites (dock tiles, desktop icons)
- * are unchanged apart from the import path.
- *
- * @param opts Menu options (position, item id, surface, …).
+ * Run `open` against the bundle's API, loading the bundle on first use.
+ * A newer call supersedes one still waiting on the load.
  */
-export function openItemVisibilityMenu(
-	opts: OpenItemVisibilityMenuOpts,
-): void {
+function withMenuApi( open: ( api: MenuApi ) => void ): void {
 	const api = loadedApi();
 	if ( api ) {
-		api.openItemVisibilityMenu( opts );
+		open( api );
 		return;
 	}
 	const url = bundleUrl();
@@ -69,7 +66,10 @@ export function openItemVisibilityMenu(
 			if ( myGen !== generation ) {
 				return;
 			}
-			loadedApi()?.openItemVisibilityMenu( opts );
+			const loaded = loadedApi();
+			if ( loaded ) {
+				open( loaded );
+			}
 		} )
 		.catch( ( err ) => {
 			if ( typeof console !== 'undefined' ) {
@@ -79,4 +79,29 @@ export function openItemVisibilityMenu(
 				);
 			}
 		} );
+}
+
+/**
+ * Open the visibility menu, loading its bundle on first use.
+ *
+ * Same signature and fire-and-forget semantics as the real
+ * `openItemVisibilityMenu` — call sites (dock tiles, desktop icons)
+ * are unchanged apart from the import path.
+ *
+ * @param opts Menu options (position, item id, surface, …).
+ */
+export function openItemVisibilityMenu(
+	opts: OpenItemVisibilityMenuOpts,
+): void {
+	withMenuApi( ( api ) => api.openItemVisibilityMenu( opts ) );
+}
+
+/**
+ * Open the rail's own menu (a right-click on the dock's empty space),
+ * loading the bundle on first use.
+ *
+ * @param opts Cursor position and which rail was clicked.
+ */
+export function openRailMenu( opts: OpenRailMenuOpts ): void {
+	withMenuApi( ( api ) => api.openRailMenu( opts ) );
 }
