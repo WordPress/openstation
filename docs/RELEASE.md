@@ -18,7 +18,7 @@ Flags:
 
 The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `openstation.zip` attached, then — for stable tags only — deploys to WordPress.org.
 
-Requires the `gh` CLI authenticated (`gh auth status`).
+Requires the `gh` CLI authenticated on github.com (`gh auth status --hostname github.com`).
 
 ## The WordPress.org deploy
 
