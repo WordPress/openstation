@@ -1315,20 +1315,10 @@
 		return ( clone.textContent || '' ).replace( /\s+/g, ' ' ).trim();
 	}
 
-	/*
-	 * Trash, Restore and Delete Permanently, as a row action or a bulk
-	 * action. Each one reloads the list, and the server does the work
-	 * before the next page arrives, which can take a few seconds with
-	 * nothing on screen saying so. A second click in that gap sends the
-	 * action again, and a post that is already in the trash answers it
-	 * with an error page.
-	 */
 	var PENDING_LIST_ACTIONS = [ 'trash', 'untrash', 'delete' ];
 
 	/*
-	 * Whether a row action link is one of them. The nonce matches the
-	 * shell's own test for reloading this list in place rather than
-	 * opening the URL in a new window.
+	 * Whether a row action link is pending.
 	 */
 	function isPendingListAction( url ) {
 		try {
@@ -1637,8 +1627,6 @@
 					},
 					window.location.origin
 				);
-				// The shell reloads the list in place, as it does a bulk
-				// action submitted below: report the wait the same way.
 				var pendingRow = link.closest( '.row-actions' ) ? link.closest( 'tr' ) : null;
 				if ( pendingRow && ! newContext && isPendingListAction( absolute ) ) {
 					markListActionPending( [ pendingRow ], pendingRow.closest( 'form' ) );

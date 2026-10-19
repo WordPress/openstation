@@ -55,7 +55,6 @@ export function postsContext( ctx: Ctx, cache: { postsCtx: PostsWindowContext | 
 
 /**
  * Confirm if asked, run, then clear + refresh unless the runner opted out.
- * `onRunning` brackets the run itself, so the confirm prompt never reads as busy.
  */
 export async function runBulkAction(
 	ctx: Ctx,

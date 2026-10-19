@@ -120,7 +120,6 @@ export const deskStyles = css`
 	padding-inline-start: 18px;
 }
 
-/* A bulk action is working on the selected stories. */
 [data-os-posts-bulk-running] .os-posts-desk__story:has( .os-posts-desk__select[checked] ) {
 	opacity: 0.5;
 	pointer-events: none;

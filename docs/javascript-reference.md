@@ -4829,8 +4829,6 @@ A navigation settles the ring **immediately**, with none of the minimum-display 
 
 `GET` carries one exception, because WordPress breaks its own rule where it matters most: `edit.php`, `upload.php` and `edit-comments.php` submit their **bulk actions** over `GET`, on the same form as the search box. So a `GET` submit reports when a bulk-action `<select>` (`action` / `action2`) holds anything but `-1`, and stays quiet otherwise — which mirrors `WP_List_Table::current_action()`, including its rule that the Filter button is not an action whatever the select says.
 
-**Trash, Restore and Delete Permanently report too.** As row actions they are links, not submits, and the shell reloads the list with them in place, so the bridge posts the same `navigation: true` start. While one of them is on its way, as a row action or a bulk action, the bridge also adds `os-list-row-pending` to the rows it acts on and `os-list-pending` to the list's form: the rows dim and the list takes no clicks until the next page replaces it. A second click would send the action again, and a post that is already in the trash answers it with an error page.
-
 This is the automatic path, and it is conservative on purpose. `wp.os.fetch` is the deliberate one: a call site that passes a `GET` there **does** move the phase, because someone chose to report it. Pass `silent: true` to opt a single call out.
 
 #### `os-screen-meta` — Stable

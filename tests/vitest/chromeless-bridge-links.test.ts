@@ -549,12 +549,6 @@ describe( 'chromeless bridge: which submits light the status ring', () => {
 } );
 
 describe( 'chromeless bridge: a trash on its way to the server', () => {
-	/*
-	 * The list only changes once the next page arrives, seconds later
-	 * on a slow host. Until then the rows dim and the list takes no
-	 * clicks: a second Trash on a post already in the trash ends in
-	 * an error page.
-	 */
 	const listRow = ( link: string ): string =>
 		'<form id="posts-filter" method="get"><table><tbody><tr id="post-1"><td>' +
 		`<div class="row-actions">${ link }</div>` +

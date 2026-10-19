@@ -119,11 +119,6 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	width: 100% !important;
 }
 
-/*
- * A Trash, Restore or Delete Permanently on its way to the server
- * (the chromeless bridge marks it): the rows it acts on dim, and the
- * list takes no clicks until the next page replaces it.
- */
 .os-chromeless .os-list-pending {
 	pointer-events: none;
 }
