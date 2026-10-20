@@ -869,12 +869,81 @@ function openstation_enqueue_assets() {
 
 	wp_localize_script( 'openstation', 'openStationConfig', $config );
 
+	$boot_menu_sig = &openstation_shell_boot_menu_sig();
+	$boot_menu_sig = isset( $config['menuSig'] ) ? (string) $config['menuSig'] : null;
+
 	/**
 	 * Fires when OpenStation assets are enqueued.
 	 */
 	do_action( 'openstation_mode_init' );
 }
 add_action( 'admin_enqueue_scripts', 'openstation_enqueue_assets' );
+
+/**
+ * The menu signature the shell config was localized with, or null when
+ * this request localized no shell config.
+ *
+ * Written by {@see openstation_enqueue_assets()}, read by
+ * {@see openstation_resync_shell_dock_after_admin_head()}.
+ *
+ * @return string|null
+ */
+function &openstation_shell_boot_menu_sig() {
+	static $sig = null;
+	return $sig;
+}
+
+/**
+ * Re-send the dock when a plugin edited the menu on `admin_head`.
+ *
+ * Hiding a page from the admin menu while keeping it reachable is
+ * commonly done by registering it on `admin_menu` and calling
+ * `remove_submenu_page()` on `admin_head`: Core reads the screen title
+ * from the submenu entry at the top of `admin-header.php`, so removing
+ * it on `admin_menu` would blank the page's own heading. Classic
+ * wp-admin prints the menu after `admin_head`, so the entry never
+ * shows there. The shell config is built on `admin_enqueue_scripts`,
+ * which runs BEFORE `admin_head`, so the dock got the entry the
+ * sidebar never shows.
+ *
+ * The config is localized on a footer script, so it has not been
+ * printed yet. When the menu signature moved since it was built, a
+ * `before` inline on the same handle replaces `dockItems` and
+ * `menuSig` with what the menu now says. It prints right after the
+ * localized object and before the bundle runs, which only holds while
+ * the handle prints in the footer. An unchanged menu, the usual case,
+ * costs one signature.
+ *
+ * Only the dock is re-sent. The rest of the config does not read the
+ * menu rows: native windows and desktop icons come from their own
+ * registries, and `App::menu()` tabs reach the dock through
+ * `dockItems`. The boot window's first-paint title is the one
+ * exception: it is resolved from the dock as it was before
+ * `admin_head`, which keeps a hidden page's own title when that page
+ * is the boot target.
+ */
+function openstation_resync_shell_dock_after_admin_head() {
+	$boot_menu_sig = openstation_shell_boot_menu_sig();
+	if ( null === $boot_menu_sig ) {
+		return;
+	}
+
+	$menu_sig = openstation_menu_signature();
+	if ( $menu_sig === $boot_menu_sig ) {
+		return;
+	}
+
+	wp_add_inline_script(
+		'openstation',
+		sprintf(
+			'if(window.openStationConfig){window.openStationConfig.dockItems=%1$s;window.openStationConfig.menuSig=%2$s;}',
+			wp_json_encode( openstation_build_ordered_dock_items() ),
+			wp_json_encode( $menu_sig )
+		),
+		'before'
+	);
+}
+add_action( 'admin_head', 'openstation_resync_shell_dock_after_admin_head', PHP_INT_MAX );
 
 /**
  * Keep Core's boot-time command-palette enqueue off shell pages.

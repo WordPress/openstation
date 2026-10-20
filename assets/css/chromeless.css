@@ -119,6 +119,15 @@ html.wp-toolbar:has( body.os-chromeless ) {
 	width: 100% !important;
 }
 
+.os-chromeless .os-list-pending {
+	pointer-events: none;
+}
+
+.os-chromeless .os-list-row-pending {
+	opacity: 0.5;
+	transition: opacity 0.2s;
+}
+
 /*
  * MailPoet top-bar overlap fix.
  *

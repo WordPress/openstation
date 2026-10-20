@@ -1,0 +1,459 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Plugins - OpenStation - Stable Readme (latest release)\n"
+"PO-Revision-Date: 2026-10-19 12:00+0000\n"
+"Last-Translator: OpenStation\n"
+"Language-Team: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: ja\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. Plugin name.
+msgid "OpenStation – Admin Dashboard Notes, Custom Dashboard, AI Assistant &amp; PWA"
+msgstr "OpenStation – 管理画面のメモ（付箋）、カスタムダッシュボード、AI アシスタント、PWA 対応"
+
+#. Short description.
+msgid "A productivity desktop and custom dashboard for wp-admin: windows, dark mode, dashboard notes, an AI assistant, and a progressive web app (PWA)."
+msgstr "管理画面を、生産性を高めるデスクトップ型のカスタムダッシュボードに。ウィンドウ、ダークモード、ダッシュボードのメモ（付箋）、AI アシスタント、PWA に対応しています。"
+
+#. Found in Screenshot description.
+msgid "Real multitasking: your posts, your preferences, and the Trash open side by side as windows."
+msgstr "本物のマルチタスク：投稿、環境設定、ゴミ箱をウィンドウとして並べて開けます。"
+
+#. Found in Screenshot description.
+msgid "Make it yours: accent colours, wallpaper presets and animated scenes, and a dock on whichever edge you like."
+msgstr "自分好みにカスタマイズ：アクセントカラー、壁紙のプリセットやアニメーションするシーン、ドックは好きな端に配置できます。"
+
+#. Found in Screenshot description.
+msgid "Find anything with Cmd+K: the Site Assistant opens admin pages, runs commands, and answers questions about your content."
+msgstr "Cmd+K で何でも見つかる：サイトアシスタントが管理ページを開き、コマンドを実行し、コンテンツに関する質問に答えます。"
+
+#. Found in Screenshot description.
+msgid "Give an AI agent its own instructions and tools, then set it to work on your posts, media, and comments."
+msgstr "AI エージェントに独自の指示とツールを与えて、投稿、メディア、コメントの作業を任せましょう。"
+
+#. Found in Screenshot description.
+msgid "Live widgets on the wallpaper: post stats, recent comments, drafts, a notepad, and more from your plugins."
+msgstr "壁紙の上のライブウィジェット：投稿の統計、最近のコメント、下書き、メモ帳、さらにプラグインが追加するウィジェットも。"
+
+#. Found in Screenshot description.
+msgid "Mio, your desk companion, tuned to whatever shape, colour, and mood suits you."
+msgstr "デスクの相棒 Mio。形、色、気分をお好みに合わせて調整できます。"
+
+#. Found in Screenshot description.
+msgid "One desktop per job: keep writing, the store, and moderation on separate Spaces."
+msgstr "作業ごとにデスクトップを分けましょう：執筆、ストア、コメント管理をそれぞれ別のスペースに。"
+
+#. Found in Screenshot description.
+msgid "Games built into the desktop, with a scoreboard shared across everyone on your site."
+msgstr "デスクトップに組み込まれたゲーム。スコアボードはサイトの全ユーザーで共有されます。"
+
+#. Found in Screenshot description.
+msgid "Corkboard: a zoomable map of how your posts and pages link together."
+msgstr "Corkboard：投稿と固定ページのリンク関係を、ズームして見渡せるマップです。"
+
+#. Found in description header.
+msgid "Work on more than one thing at once"
+msgstr "複数の作業を同時に進める"
+
+#. Found in description header.
+msgid "Never lose your place"
+msgstr "作業中の場所を見失わない"
+
+#. Found in description header.
+msgid "A desk you can actually put things on"
+msgstr "実際に物を置けるデスク"
+
+#. Found in description header.
+msgid "One desktop per job"
+msgstr "作業ごとに 1 つのデスクトップ"
+
+#. Found in description header.
+msgid "Find anything with Cmd+K"
+msgstr "Cmd+K で何でも見つかる"
+
+#. Found in description header.
+msgid "See how your site fits together, orphan pages included"
+msgstr "サイトのつながりを可視化（孤立ページも発見）"
+
+#. Found in description header.
+msgid "Running a store?"
+msgstr "ストアを運営していますか？"
+
+#. Found in description header.
+msgid "Make it yours"
+msgstr "自分好みにカスタマイズ"
+
+#. Found in description header.
+msgid "Sticky notes on the admin dashboard"
+msgstr "管理画面に貼れる付箋メモ"
+
+#. Found in description header.
+msgid "A multisite dashboard"
+msgstr "マルチサイトのダッシュボード"
+
+#. Found in description header.
+msgid "Works on your phone"
+msgstr "スマホでも使えます"
+
+#. Found in description header.
+msgid "For developers"
+msgstr "開発者向け"
+
+#. Found in description header.
+msgid "External services"
+msgstr "外部サービス"
+
+#. Found in description header.
+msgid "Credits"
+msgstr "クレジット"
+
+#. Found in description header.
+msgid "Third-party libraries"
+msgstr "サードパーティライブラリ"
+
+#. Found in description header.
+msgid "Data files"
+msgstr "データファイル"
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the user's prompt, the conversation history for the active session, and tool-call metadata. The plugin's built-in tools (<code>search_posts</code>, <code>search_pages</code>, <code>search_comments</code>) run WordPress's native keyword search and may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to the provider as part of the agentic loop."
+msgstr "<strong>送信される内容：</strong>ユーザーのプロンプト、アクティブなセッションの会話履歴、ツール呼び出しのメタデータ。プラグインの組み込みツール（<code>search_posts</code>、<code>search_pages</code>、<code>search_comments</code>）は WordPress 標準のキーワード検索を実行し、一致した投稿・固定ページ・コメントの抜粋をツールの結果に含める場合があります。これらの結果は、エージェントループの一部としてプロバイダーへ送り返されます。"
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> on user-initiated AI requests only. Nothing is sent automatically — posts, pages, comments and taxonomy terms are never analyzed in the background."
+msgstr "<strong>送信されるタイミング：</strong>ユーザーが自ら開始した AI リクエストの場合のみです。自動的に送信されるものはなく、投稿、固定ページ、コメント、タクソノミーのタームがバックグラウンドで分析されることは一切ありません。"
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to obtain model completions and tool-call decisions that drive the AI Assistant."
+msgstr "<strong>送信される理由：</strong>AI アシスタントを動作させるための、モデルの応答（コンプリーション）とツール呼び出しの判断を取得するためです。"
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> whichever provider you configured in Settings → Connectors. Which provider (and endpoint) receives the data depends entirely on that configuration. Review the chosen provider's own terms and privacy policy (e.g. OpenAI, Anthropic, or Google)."
+msgstr "<strong>サービスの提供者：</strong>「設定 → コネクター」で設定したプロバイダーです。どのプロバイダー（およびエンドポイント）がデータを受け取るかは、すべてその設定によって決まります。選択したプロバイダー自身の利用規約とプライバシーポリシー（例：OpenAI、Anthropic、Google）をご確認ください。"
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> a request for the public RSS feed at <code>https://openstation.blog/feed/</code>. It is made from your WordPress server with WordPress's default user-agent string, which includes your WordPress version and your site's URL, along with the server's IP address and normal HTTP request metadata. Nothing about the user who opened the page is sent."
+msgstr "<strong>送信される内容：</strong><code>https://openstation.blog/feed/</code> の公開 RSS フィードへのリクエスト。このリクエストは WordPress サーバーから、WordPress のデフォルトのユーザーエージェント文字列（WordPress のバージョンとサイトの URL を含みます）とともに行われ、サーバーの IP アドレスと通常の HTTP リクエストのメタデータも送信されます。ページを開いたユーザーに関する情報は一切送信されません。"
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when someone opens the About page, and at most once every 30 minutes; in between, the cached copy is shown. Nothing is fetched when nobody visits About."
+msgstr "<strong>送信されるタイミング：</strong>誰かが「概要」（About）ページを開いたときのみ、最大で 30 分に 1 回です。その間はキャッシュされたコピーが表示されます。誰も「概要」を開かなければ、何も取得されません。"
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to show the project's latest news next to the version you are running."
+msgstr "<strong>送信される理由：</strong>使用中のバージョンの横に、プロジェクトの最新ニュースを表示するためです。"
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>."
+msgstr "<strong>サービスの提供者：</strong>プラグインの公式サイトである <a href=\"https://openstation.blog/\">openstation.blog</a>（Automattic が運営）です。<a href=\"https://wordpress.com/tos/\">WordPress.com 利用規約</a>と <a href=\"https://automattic.com/privacy/\">Automattic プライバシーポリシー</a>をご確認ください。"
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the reasons you ticked, the optional details you typed, the OpenStation, WordPress and PHP versions, your site language, whether the site is a network, how long OpenStation was installed, whether anyone on the site had turned it on (how many people, and how many days after install the first one did), whether the person deactivating had it on, the number of active plugins, and where the dialog was shown. Nothing that identifies you or your site: no URL, no site id, no email, no user name, no plugin names, and no IP address is stored. Each submission carries a random id used only to ignore an accidental retry."
+msgstr "<strong>送信される内容：</strong>チェックした理由、任意で入力した詳細、OpenStation・WordPress・PHP のバージョン、サイトの言語、サイトがネットワーク（マルチサイト）かどうか、OpenStation がインストールされていた期間、サイト上の誰かが OpenStation をオンにしていたかどうか（その人数と、インストールから最初の 1 人がオンにするまでの日数）、無効化を行う人がオンにしていたかどうか、有効なプラグインの数、ダイアログが表示された場所。あなたやサイトを特定する情報は含まれません。URL、サイト ID、メールアドレス、ユーザー名、プラグイン名、IP アドレスはいずれも保存されません。各送信には、誤って再送信された場合にそれを無視する目的でのみ使用されるランダムな ID が付与されます。"
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when you click Send in the dialog shown on deactivation. There is no background ping."
+msgstr "<strong>送信されるタイミング：</strong>無効化時に表示されるダイアログで「送信」をクリックしたときのみです。バックグラウンドでの通信はありません。"
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to learn what did not work so it can be fixed."
+msgstr "<strong>送信される理由：</strong>うまく機能しなかった点を把握し、修正するためです。"
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> the request goes from your server to <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>. Site owners can turn the dialog off with the <code>openstation_deactivation_feedback_enabled</code> filter."
+msgstr "<strong>サービスの提供者：</strong>リクエストはあなたのサーバーから、プラグインの公式サイトである <a href=\"https://openstation.blog/\">openstation.blog</a>（Automattic が運営）に送信されます。<a href=\"https://wordpress.com/tos/\">WordPress.com 利用規約</a>と <a href=\"https://automattic.com/privacy/\">Automattic プライバシーポリシー</a>をご確認ください。サイト所有者は <code>openstation_deactivation_feedback_enabled</code> フィルターでこのダイアログを無効にできます。"
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the answers you typed, the email address if you chose to type one (the field starts empty and is never filled in for you), your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on. Nothing that identifies your site: no URL, no site id, no user name, and no IP address is stored. Without an email the submission is anonymous. Each submission carries a random id used only to ignore an accidental retry."
+msgstr "<strong>送信される内容：</strong>入力した回答、入力することを選んだ場合のメールアドレス（入力欄は最初は空で、自動で入力されることはありません）、言語、OpenStation と WordPress のバージョン、OpenStation をオンにしてからの日数。サイトを特定する情報は含まれません。URL、サイト ID、ユーザー名、IP アドレスはいずれも保存されません。メールアドレスを入力しなければ、送信は匿名です。各送信には、誤って再送信された場合にそれを無視する目的でのみ使用されるランダムな ID が付与されます。"
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when you click Send in the form. There is no background ping."
+msgstr "<strong>送信されるタイミング：</strong>フォームで「送信」をクリックしたときのみです。バックグラウンドでの通信はありません。"
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to learn what works and what gets in the way. An email address, when given, is used only to follow up on the feedback."
+msgstr "<strong>送信される理由：</strong>何がうまく機能し、何が妨げになっているかを把握するためです。メールアドレスが入力された場合は、フィードバックへのフォローアップにのみ使用されます。"
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> the request goes from your server to <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>. Site owners can turn the prompt off with the <code>openstation_usage_feedback_enabled</code> filter."
+msgstr "<strong>サービスの提供者：</strong>リクエストはあなたのサーバーから、プラグインの公式サイトである <a href=\"https://openstation.blog/\">openstation.blog</a>（Automattic が運営）に送信されます。<a href=\"https://wordpress.com/tos/\">WordPress.com 利用規約</a>と <a href=\"https://automattic.com/privacy/\">Automattic プライバシーポリシー</a>をご確認ください。サイト所有者は <code>openstation_usage_feedback_enabled</code> フィルターでこの案内を無効にできます。"
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://pixijs.com/\">PixiJS</a></strong> (MIT License) — used by the <strong>Corkboard</strong> window, built-in canvas wallpapers (e.g. the animated WordPress logo), the <strong>Mio</strong> desk companion, and the <strong>Inkfall</strong> typing game. PixiJS is loaded from the plugin's own <code>assets/vendor/</code> directory; no CDN requests are made."
+msgstr "<strong><a href=\"https://pixijs.com/\">PixiJS</a></strong>（MIT ライセンス）— <strong>Corkboard</strong> ウィンドウ、組み込みのキャンバス壁紙（例：アニメーションする WordPress ロゴ）、デスクの相棒 <strong>Mio</strong>、タイピングゲーム <strong>Inkfall</strong> で使用しています。PixiJS はプラグイン自身の <code>assets/vendor/</code> ディレクトリから読み込まれ、CDN へのリクエストは行われません。"
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/hermitdave/FrequencyWords\">FrequencyWords</a></strong> by Hermit Dave (CC-BY-SA 4.0) — English word-frequency ranking derived from the OpenSubtitles corpus."
+msgstr "<strong><a href=\"https://github.com/hermitdave/FrequencyWords\">FrequencyWords</a></strong>（作者：Hermit Dave、CC-BY-SA 4.0）— OpenSubtitles コーパスから作成された英単語の出現頻度ランキング。"
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/dwyl/english-words\">english-words</a></strong> by dwyl (Unlicense) — used as a validity filter."
+msgstr "<strong><a href=\"https://github.com/dwyl/english-words\">english-words</a></strong>（作者：dwyl、Unlicense）— 単語の有効性を判定するフィルターとして使用しています。"
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words\">LDNOOBW English list</a></strong> (CC-BY 4.0) — used as an exclusion filter."
+msgstr "<strong><a href=\"https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words\">LDNOOBW 英語リスト</a></strong>（CC-BY 4.0）— 除外フィルターとして使用しています。"
+
+#. Found in description paragraph.
+msgid "<strong>wp-admin forgets. OpenStation doesn't.</strong>"
+msgstr "<strong>wp-admin は忘れてしまう。OpenStation は覚えています。</strong>"
+
+#. Found in description paragraph.
+msgid "You know the moment. You're deep in a post and you need one image from the Media Library. You click over, find it, click back, and everything you had going is gone. Your scroll position, your half-typed thought, the three other things you had queued up in your head."
+msgstr "こんな経験はありませんか。投稿の執筆に集中しているときに、メディアライブラリの画像が 1 枚必要になる。画面を移動して画像を見つけ、元の画面に戻ると、進めていた作業はすべて消えている。スクロール位置も、書きかけの考えも、頭の中で順番待ちさせていたほかの 3 つの作業も。"
+
+#. Found in description paragraph.
+msgid "That's not a bug you hit. That's the design. wp-admin shows you one screen at a time, and every navigation throws the last one away. It has worked this way since 2003, like a fridge that empties itself every time you close the door."
+msgstr "これはたまたま遭遇したバグではありません。そういう設計なのです。wp-admin は一度に 1 つの画面しか表示せず、画面を移動するたびに直前の画面を捨ててしまいます。2003 年からずっとこの仕組みのままです。ドアを閉めるたびに中身が空になる冷蔵庫のようなものです。"
+
+#. Found in description paragraph.
+msgid "WordPress has rebuilt almost everything else. The editor, the site editor, the patterns, the styles. The admin's one-screen-at-a-time model is the layer nobody touched."
+msgstr "WordPress はほかのほとんどすべてを作り直してきました。エディター、サイトエディター、パターン、スタイル。それでも、管理画面の「一度に 1 画面」というモデルだけは、誰も手を付けてこなかった層です。"
+
+#. Found in description paragraph.
+msgid "OpenStation touches it."
+msgstr "OpenStation は、そこに手を入れます。"
+
+#. Found in description paragraph.
+msgid "https://www.youtube.com/watch?v=g5MLB3WMlCc"
+msgstr "https://www.youtube.com/watch?v=g5MLB3WMlCc"
+
+#. Found in description paragraph.
+msgid "Install it and admin screens become draggable, resizable windows. Edit a post while the Media Library sits open next to it. Drag an image from one window straight into the other. Keep comments open in the corner. Reload the browser and your window layout — open pages, positions, sizes, and window states — comes back where you left it."
+msgstr "インストールすると、管理画面がドラッグやサイズ変更のできるウィンドウになります。メディアライブラリを横に開いたまま投稿を編集。画像を一方のウィンドウからもう一方へ直接ドラッグ。コメントは画面の隅に開いたままに。ブラウザーを再読み込みしても、ウィンドウのレイアウト（開いていたページ、位置、サイズ、ウィンドウの状態）が元どおりに戻ります。"
+
+#. Found in description paragraph.
+msgid "OpenStation itself is free, GPL, and opt-in per user. One click in the admin bar turns it on for you. One click turns it off. Nobody else on your site sees anything change, and deactivating the plugin restores the classic admin exactly. Prefer the classic admin look while you keep the windows? Switch on the Legacy theme. No Core patches and no lock-in. Optional AI providers may charge for their service."
+msgstr "OpenStation 本体は無料、GPL ライセンスで、ユーザーごとのオプトイン方式です。ツールバーでワンクリックすればオンに、もう一度クリックすればオフになります。サイトのほかのユーザーには何の変化もなく、プラグインを無効化すればクラシック管理画面が完全に元どおりになります。ウィンドウは使いつつ、見た目はクラシック管理画面のままがいいですか？ Legacy テーマに切り替えてください。コアへのパッチはなく、ロックインもありません。オプションの AI プロバイダーは、サービスの利用料金が発生する場合があります。"
+
+#. Found in description paragraph.
+msgid "Built and maintained by <a href=\"https://automattic.com\">Automattic</a>, the company behind WordPress.com, Jetpack, WooCommerce, and Tumblr."
+msgstr "WordPress.com、Jetpack、WooCommerce、Tumblr を手がける <a href=\"https://automattic.com\">Automattic</a> が開発・保守しています。"
+
+#. Found in description paragraph.
+msgid "Admin pages open as windows, including pages added by most other plugins. Drag them, resize them, snap them, tile them, minimize them to a taskbar. The admin menu becomes a dock of icons. Two editors open at once is one click away."
+msgstr "管理ページはウィンドウとして開きます。ほかの多くのプラグインが追加したページも同様です。ドラッグ、サイズ変更、スナップ、タイル配置、タスクバーへの最小化ができます。管理メニューはアイコンのドックになります。2 つのエディターを同時に開くのもワンクリックです。"
+
+#. Found in description paragraph.
+msgid "Moving between open windows leaves each page in place. Across reloads, OpenStation remembers your open pages, window positions, sizes and states, virtual desktops, and focus. Closing a window with unsaved changes warns you first."
+msgstr "開いているウィンドウ間を移動しても、各ページはそのままの状態を保ちます。再読み込みしても、OpenStation は開いているページ、ウィンドウの位置・サイズ・状態、仮想デスクトップ、フォーカスを記憶しています。未保存の変更があるウィンドウを閉じるときは、事前に警告が表示されます。"
+
+#. Found in description paragraph.
+msgid "Drop posts, media, and links right onto the wallpaper. Sort them into folders. Trash them to a Trash that actually holds things. The stuff you're working on this week can just sit out where you can see it."
+msgstr "投稿、メディア、リンクを壁紙に直接ドロップして、フォルダーに整理できます。不要なものは、ちゃんと中身を保持してくれるゴミ箱へ。今週取り組んでいるものは、目に見える場所にそのまま置いておけます。"
+
+#. Found in description paragraph.
+msgid "Virtual desktops, the way your operating system does them. One for writing. One for the store. One for comment triage. One for that redesign you keep poking at. Switch between them without closing anything."
+msgstr "OS と同じ感覚で使える仮想デスクトップ。執筆用に 1 つ。ストア用に 1 つ。コメントの仕分け用に 1 つ。ずっと手を入れ続けているリデザイン用に 1 つ。何も閉じることなく切り替えられます。"
+
+#. Found in description paragraph.
+msgid "The full WordPress command palette, plus slash commands from your plugins, all under one keystroke. Turn on the optional AI assistant and you can ask it things like \"which post had the comment asking for the recipe?\" and it searches your own content to answer. (Requires an AI provider configured in Settings → Connectors on WordPress 7.0+. Details under \"External services\" below.)"
+msgstr "WordPress のコマンドパレットのすべてに加え、プラグインのスラッシュコマンドも、ひとつのキー操作で呼び出せます。オプションの AI アシスタントをオンにすれば、「レシピを教えてほしいというコメントが付いたのはどの投稿？」のように質問でき、あなた自身のコンテンツを検索して答えてくれます。（WordPress 7.0 以降で、「設定 → コネクター」に AI プロバイダーを設定する必要があります。詳しくは下記の「外部サービス」をご覧ください。）"
+
+#. Found in description paragraph.
+msgid "The Corkboard is an interactive, zoomable map of how your posts, pages, and products link to each other. Pan around it. Find orphan pages that nothing links to, and link them in. Find the hubs."
+msgstr "Corkboard は、投稿、固定ページ、商品が互いにどうリンクしているかを示す、ズーム可能なインタラクティブマップです。自由に動かして見渡し、どこからもリンクされていない孤立ページを見つけてリンクを追加できます。ハブとなるページも見つかります。"
+
+#. Found in description paragraph.
+msgid "Orders, Products, Coupons, and Customers become browsable folders with stock and sale ribbons. Open a customer to see their lifetime spend and what they buy most. Follow a product to its buyers, or a coupon to who redeemed it."
+msgstr "注文、商品、クーポン、顧客が、在庫やセールのリボン付きで閲覧できるフォルダーになります。顧客を開けば、生涯購入額やよく購入する商品がわかります。商品からその購入者へ、クーポンからその利用者へとたどることもできます。"
+
+#. Found in description paragraph.
+msgid "Build the custom dashboard you actually want. Dark mode by default, with a light theme one click away. Wallpapers, from color presets to animated scenes to your own photo. Live dashboard widgets pinned to the desktop: drafts, stats, recent comments, a focus timer. Write dashboard notes in the Note Pad widget, or straight on the wallpaper, and pin them to the desktop. Uploadable desktop themes, including a built-in Legacy theme that brings the classic admin look and the old WordPress blue back in one click. And Mio, a soft-body desk companion that drifts across your wallpaper and gets bumped around by your windows. Off by default. You'll turn it on."
+msgstr "本当に欲しかったカスタムダッシュボードを作りましょう。デフォルトはダークモードで、ライトテーマにもワンクリックで切り替えられます。壁紙は、カラープリセットからアニメーションするシーン、自分の写真まで選べます。ライブのダッシュボードウィジェット（下書き、統計、最近のコメント、集中タイマー）をデスクトップに固定できます。Note Pad ウィジェットや壁紙に直接ダッシュボードのメモを書いて、付箋のようにデスクトップに貼っておけます。デスクトップテーマはアップロードでき、組み込みの Legacy テーマを使えば、クラシック管理画面の見た目と懐かしい WordPress ブルーがワンクリックで戻ってきます。そして Mio は、壁紙の上をふわふわと漂い、ウィンドウにぶつかって押し動かされる、やわらかいボディのデスクの相棒です。初期設定ではオフですが、きっとオンにしたくなるはずです。"
+
+#. Found in description paragraph.
+msgid "Write notes in the Note Pad widget or straight on the wallpaper and pin them to the admin dashboard like sticky notes. Keep a note private or share it with everyone who uses OpenStation, and turn a note into a draft post when it grows up."
+msgstr "Note Pad ウィジェットや壁紙の上に直接メモを書き、付箋のように管理画面に貼り付けられます。メモは非公開にすることも、OpenStation を使うすべてのユーザーと共有することもでき、内容が増えたら投稿の下書きに変換できます。"
+
+#. Found in description paragraph.
+msgid "On a multisite network, OpenStation works in the network admin too, keeps a separate desktop for each site, and lists every site in one switcher, so the multisite dashboard is one click from anywhere."
+msgstr "マルチサイトネットワークでは、OpenStation はネットワーク管理画面でも動作し、サイトごとに別々のデスクトップを保持します。すべてのサイトを 1 つのスイッチャーに一覧表示するので、どこからでもワンクリックでマルチサイトのダッシュボードにアクセスできます。"
+
+#. Found in description paragraph.
+msgid "On a phone, OpenStation becomes a mobile admin: full-screen apps, an app switcher, and a tab bar. Add it to your home screen and it runs as an installed progressive web app (PWA) that updates itself."
+msgstr "スマホでは、OpenStation はモバイル向けの管理画面になります。フルスクリーンのアプリ、アプリスイッチャー、タブバーを備えています。ホーム画面に追加すれば、自動で更新されるプログレッシブウェブアプリ（PWA）として動作します。"
+
+#. Found in description paragraph.
+msgid "Extend OpenStation through documented PHP and JavaScript APIs. Register windows, icons, wallpapers, widgets, commands, and settings tabs through stable <code>openstation_register_*</code> PHP APIs and a typed JavaScript API; customize dock items through documented hooks; add AI tools with the WordPress Abilities API. Copy-paste examples live in the <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">developer docs on GitHub</a>."
+msgstr "ドキュメント化された PHP と JavaScript の API で OpenStation を拡張できます。安定版の <code>openstation_register_*</code> PHP API と型付きの JavaScript API で、ウィンドウ、アイコン、壁紙、ウィジェット、コマンド、設定タブを登録できます。ドックの項目はドキュメント化されたフックでカスタマイズでき、AI ツールは WordPress Abilities API で追加できます。コピー＆ペーストで使えるサンプルは <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">GitHub の開発者向けドキュメント</a>にあります。"
+
+#. Found in description paragraph.
+msgid "No external service is required for OpenStation's desktop interface. The optional AI Assistant, two user-initiated enrichment features, the journal on the About tab, an optional feedback form on deactivation and an optional one-time feedback form for active users make the external requests described below."
+msgstr "OpenStation のデスクトップインターフェースに外部サービスは必要ありません。オプションの AI アシスタント、ユーザーの操作で実行される 2 つの情報補完機能、「概要」タブのジャーナル、無効化時の任意のフィードバックフォーム、アクティブユーザー向けの 1 回限りの任意のフィードバックフォームが、以下に記載する外部リクエストを行います。"
+
+#. Found in description paragraph.
+msgid "<strong>AI Assistant</strong>"
+msgstr "<strong>AI アシスタント</strong>"
+
+#. Found in description paragraph.
+msgid "The optional AI Assistant sends data to the <strong>AI provider you configure in WordPress's Settings → Connectors</strong> (for example OpenAI, Anthropic, or Google). Generation is routed through WordPress 7.0's built-in AI Client, which supplies the credentials stored in Connectors. The plugin never handles an API key itself. With no provider configured in Connectors, no external AI requests are made."
+msgstr "オプションの AI アシスタントは、<strong>WordPress の「設定 → コネクター」で設定した AI プロバイダー</strong>（例：OpenAI、Anthropic、Google）にデータを送信します。生成処理は WordPress 7.0 に組み込まれた AI クライアントを経由し、コネクターに保存された認証情報が使用されます。プラグイン自体が API キーを扱うことはありません。コネクターにプロバイダーが設定されていない場合、外部への AI リクエストは行われません。"
+
+#. Found in description paragraph.
+msgid "When the AI Assistant is enabled and a user invokes it (via Cmd+K or the slash-command palette):"
+msgstr "AI アシスタントが有効で、ユーザーが（Cmd+K またはスラッシュコマンドパレットから）呼び出した場合："
+
+#. Found in description paragraph.
+msgid "<strong>URL shortcut favicons</strong>"
+msgstr "<strong>URL ショートカットのファビコン</strong>"
+
+#. Found in description paragraph.
+msgid "When an authorized user creates a desktop shortcut to an external URL, OpenStation asks that URL for its page HTML and favicon so the shortcut can display the site's icon. The request is made from your WordPress server and sends the requested URL, the server's IP address, an OpenStation user-agent string, and normal HTTP request metadata to the operator of that site. This happens only when a user creates the shortcut. The destination site's terms and privacy policy apply."
+msgstr "権限のあるユーザーが外部 URL へのデスクトップショートカットを作成すると、OpenStation はショートカットにサイトのアイコンを表示するため、その URL にページの HTML とファビコンを要求します。このリクエストは WordPress サーバーから行われ、要求された URL、サーバーの IP アドレス、OpenStation のユーザーエージェント文字列、通常の HTTP リクエストのメタデータがそのサイトの運営者に送信されます。これはユーザーがショートカットを作成したときにのみ発生します。送信先サイトの利用規約とプライバシーポリシーが適用されます。"
+
+#. Found in description paragraph.
+msgid "<strong>OpenStation journal (About tab)</strong>"
+msgstr "<strong>OpenStation ジャーナル（「概要」タブ）</strong>"
+
+#. Found in description paragraph.
+msgid "When a user opens the About page in OpenStation Preferences, OpenStation shows the latest posts from the OpenStation journal."
+msgstr "ユーザーが OpenStation の環境設定で「概要」（About）ページを開くと、OpenStation ジャーナルの最新記事が表示されます。"
+
+#. Found in description paragraph.
+msgid "<strong>Deactivation feedback</strong>"
+msgstr "<strong>無効化時のフィードバック</strong>"
+
+#. Found in description paragraph.
+msgid "When an administrator deactivates OpenStation, a dialog asks one optional question about why. Nothing is sent unless you click <strong>Send and deactivate</strong>; <strong>Skip and deactivate</strong> sends nothing, and both deactivate the plugin."
+msgstr "管理者が OpenStation を無効化すると、ダイアログで理由について任意の質問が 1 つ表示されます。<strong>送信して無効化</strong>をクリックしない限り、何も送信されません。<strong>スキップして無効化</strong>では何も送信されず、どちらの場合もプラグインは無効化されます。"
+
+#. Found in description paragraph.
+msgid "<strong>Usage feedback</strong>"
+msgstr "<strong>利用状況のフィードバック</strong>"
+
+#. Found in description paragraph.
+msgid "After you have had OpenStation on for a week, a small card asks once whether you have two minutes to say how it is going. Answering <strong>No thanks</strong> sends nothing, and it never comes back. Saying yes opens a short form with three optional questions and an optional email field. Nothing is sent unless you click <strong>Send</strong>; <strong>Cancel</strong>, Escape and the close button send nothing."
+msgstr "OpenStation をオンにして 1 週間たつと、使い心地について 2 分ほど答えてもらえるかを尋ねる小さなカードが 1 度だけ表示されます。<strong>結構です</strong>と答えると何も送信されず、二度と表示されません。「はい」と答えると、3 つの任意の質問と任意のメールアドレス欄からなる短いフォームが開きます。<strong>送信</strong>をクリックしない限り、何も送信されません。<strong>キャンセル</strong>、Esc キー、閉じるボタンでは何も送信されません。"
+
+#. Found in description paragraph.
+msgid "<strong>WordPress.org plugin information</strong>"
+msgstr "<strong>WordPress.org のプラグイン情報</strong>"
+
+#. Found in description paragraph.
+msgid "When an authorized user opens or refreshes parts of OpenStation's Plugins window, OpenStation may request public plugin details, update metadata, and review excerpts from WordPress.org. These requests send plugin slugs, the site's locale, and normal HTTP request metadata to WordPress.org. This information is used only to display and manage plugins. Review the <a href=\"https://wordpress.org/about/privacy/\">WordPress.org Privacy Policy</a>."
+msgstr "権限のあるユーザーが OpenStation のプラグインウィンドウの一部を開いたり更新したりすると、OpenStation は WordPress.org に公開プラグイン情報、更新メタデータ、レビューの抜粋をリクエストすることがあります。これらのリクエストでは、プラグインのスラッグ、サイトのロケール、通常の HTTP リクエストのメタデータが WordPress.org に送信されます。この情報はプラグインの表示と管理にのみ使用されます。<a href=\"https://wordpress.org/about/privacy/\">WordPress.org プライバシーポリシー</a>をご確認ください。"
+
+#. Found in description paragraph.
+msgid "OpenStation's OAuth relay does not contact a service by itself. Third-party plugins that configure the relay may contact their own providers and are responsible for disclosing those services."
+msgstr "OpenStation の OAuth リレーは、それ自体でサービスに接続することはありません。リレーを設定するサードパーティプラグインは独自のプロバイダーに接続する場合があり、それらのサービスの開示はそのプラグインの責任となります。"
+
+#. Found in description paragraph.
+msgid "OpenStation is brought to you by <a href=\"https://automattic.com\">Automattic</a>. The plugin is open source under GPLv2-or-later; contributions are welcome on <a href=\"https://github.com/WordPress/openstation\">GitHub</a>."
+msgstr "OpenStation は <a href=\"https://automattic.com\">Automattic</a> が提供しています。プラグインは GPLv2 以降のライセンスによるオープンソースで、<a href=\"https://github.com/WordPress/openstation\">GitHub</a> でのコントリビューションを歓迎します。"
+
+#. Found in description paragraph.
+msgid "The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:"
+msgstr "このプラグインには以下のサードパーティ JavaScript ライブラリが同梱されており、それを必要とする機能の使用時にのみオンデマンドで読み込まれます："
+
+#. Found in description paragraph.
+msgid "The <strong>Inkfall</strong> game's word list (<code>assets/games/inkfall/words.txt</code>) is generated from the following sources (attribution also ships in the file's header):"
+msgstr "<strong>Inkfall</strong> ゲームの単語リスト（<code>assets/games/inkfall/words.txt</code>）は、以下のソースから生成されています（帰属表示はファイルのヘッダーにも含まれています）："
+
+#. Found in installation header.
+msgid "Optional: enable the AI Assistant"
+msgstr "オプション：AI アシスタントを有効にする"
+
+#. Found in installation list item.
+msgid "Install via <strong>Plugins → Add New</strong> (search for \"OpenStation\"), or upload the plugin folder to <code>/wp-content/plugins/</code>."
+msgstr "<strong>プラグイン → 新規追加</strong>からインストールする（「OpenStation」で検索）か、プラグインフォルダーを <code>/wp-content/plugins/</code> にアップロードします。"
+
+#. Found in installation list item.
+msgid "Activate the plugin through the <strong>Plugins</strong> screen."
+msgstr "<strong>プラグイン</strong>画面からプラグインを有効化します。"
+
+#. Found in installation list item.
+msgid "Click the <strong>desktop</strong> icon in the admin bar's top-right corner. The admin reloads inside the desktop shell."
+msgstr "ツールバー右上の<strong>デスクトップ</strong>アイコンをクリックします。管理画面がデスクトップシェル内で再読み込みされます。"
+
+#. Found in installation list item.
+msgid "Click the same icon again at any time to return to the classic admin."
+msgstr "同じアイコンをもう一度クリックすれば、いつでもクラシック管理画面に戻れます。"
+
+#. Found in installation list item.
+msgid "In <strong>Settings → Connectors</strong>, set up an AI provider (OpenAI, Anthropic, or Google). Requires WordPress 7.0+."
+msgstr "<strong>設定 → コネクター</strong>で AI プロバイダー（OpenAI、Anthropic、Google）を設定します。WordPress 7.0 以降が必要です。"
+
+#. Found in installation list item.
+msgid "In OpenStation, open <strong>OpenStation Preferences → Features</strong> and turn on <strong>AI assistant</strong> (it's off by default)."
+msgstr "OpenStation で <strong>OpenStation 環境設定 → 機能</strong>を開き、<strong>AI アシスタント</strong>をオンにします（初期設定ではオフです）。"
+
+#. Found in installation list item.
+msgid "Press <strong>Cmd+K</strong> (or <strong>Ctrl+K</strong>) anywhere in OpenStation to open the AI assistant."
+msgstr "OpenStation のどこからでも <strong>Cmd+K</strong>（または <strong>Ctrl+K</strong>）を押すと、AI アシスタントが開きます。"
+
+#. Found in faq header.
+msgid "Isn't this just a gimmick?"
+msgstr "見た目だけの仕掛けではありませんか？"
+
+#. Found in faq header.
+msgid "Will this slow down my site?"
+msgstr "サイトが遅くなりませんか？"
+
+#. Found in faq header.
+msgid "Does this change anything for users who don't opt in?"
+msgstr "オプトインしていないユーザーに何か変化はありますか？"
+
+#. Found in faq header.
+msgid "Does it work with my other plugins?"
+msgstr "ほかのプラグインと一緒に使えますか？"
+
+#. Found in faq header.
+msgid "Does the plugin require an external service to function?"
+msgstr "プラグインの動作に外部サービスは必要ですか？"
+
+#. Found in faq header.
+msgid "Does it patch WordPress core?"
+msgstr "WordPress コアにパッチを当てますか？"
+
+#. Found in faq header.
+msgid "How do I turn OpenStation off for my user?"
+msgstr "自分のユーザーで OpenStation をオフにするには？"
+
+#. Found in faq header.
+msgid "Where do I get help?"
+msgstr "サポートはどこで受けられますか？"
+
+#. Found in faq header.
+msgid "Where is the developer documentation?"
+msgstr "開発者向けドキュメントはどこにありますか？"
+
+#. Found in faq paragraph.
+msgid "The desktop look is the visible part, so it's a fair question. But the look is a consequence, and the mechanism underneath is the point: windows hold their state, so switching tasks stops costing you your place. wp-admin is a single-document interface where every navigation destroys the last screen. OpenStation replaces that with the same concurrency model your operating system has used for decades. The research behind it goes back to Henderson and Card's \"Rooms\" paper at Xerox PARC in 1986. The wallpaper is just what that model looks like when you build it."
+msgstr "デスクトップの見た目は目に見える部分なので、もっともな疑問です。しかし見た目は結果にすぎず、肝心なのはその下にある仕組みです。ウィンドウが状態を保持するので、作業を切り替えても作業中の場所を失いません。wp-admin はシングルドキュメントインターフェースで、画面を移動するたびに直前の画面が破棄されます。OpenStation はそれを、OS が何十年も前から使ってきたのと同じ並行作業のモデルに置き換えます。その背景にある研究は、1986 年に Xerox PARC で発表された Henderson と Card の「Rooms」論文にまでさかのぼります。壁紙は、そのモデルを形にしたときの見た目にすぎません。"
+
+#. Found in faq paragraph.
+msgid "OpenStation's desktop interface and browser assets are loaded only inside wp-admin, and only for users who have turned it on. Its PHP integration still participates in normal WordPress request handling where needed, including tracking content changes, but visitors never receive the desktop UI."
+msgstr "OpenStation のデスクトップインターフェースとブラウザー用アセットは、wp-admin 内でのみ、しかもオンにしたユーザーに対してのみ読み込まれます。PHP の連携部分は、コンテンツの変更の追跡など、必要に応じて通常の WordPress のリクエスト処理に関与しますが、サイト訪問者にデスクトップ UI が配信されることはありません。"
+
+#. Found in faq paragraph.
+msgid "No. The classic admin is untouched until a user toggles OpenStation on for themselves. Deactivating the plugin restores vanilla Core exactly."
+msgstr "いいえ。ユーザーが自分で OpenStation をオンにするまで、クラシック管理画面には一切手が加えられません。プラグインを無効化すれば、素の WordPress コアの状態に完全に戻ります。"
+
+#. Found in faq paragraph.
+msgid "Most plugin admin pages open as windows without special integration. Plugins that depend on running in the top-level browser context or use unusual navigation may need compatibility work. Plugins can also register their own native windows, widgets, and commands for a deeper integration."
+msgstr "ほとんどのプラグインの管理ページは、特別な連携なしでウィンドウとして開きます。トップレベルのブラウザーコンテキストでの実行を前提とするプラグインや、特殊なナビゲーションを使うプラグインは、互換性対応が必要な場合があります。また、プラグインは独自のネイティブウィンドウ、ウィジェット、コマンドを登録して、より深く統合することもできます。"
+
+#. Found in faq paragraph.
+msgid "No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information, fetches the OpenStation journal when you open the About page, offers an optional, one-click feedback form when you deactivate, and once asks active users whether they want to share feedback. See \"External services\" in the description."
+msgstr "いいえ。デスクトップシェル、ウィンドウ機能、ドック、タスクバー、仮想デスクトップ、ウィジェット、壁紙、拡張 API は外部サービスなしで動作します。オプションの AI アシスタントには、AI プロバイダーの設定が必要です。また OpenStation は、URL ショートカットのファビコンの取得と WordPress.org のプラグイン情報の表示のために、ユーザーの操作による限定的なリクエストを行います。さらに、「概要」ページを開いたときに OpenStation ジャーナルを取得し、無効化時にはワンクリックで送れる任意のフィードバックフォームを表示し、アクティブユーザーにはフィードバックを共有するかどうかを 1 度だけ尋ねます。詳しくは説明の「外部サービス」をご覧ください。"
+
+#. Found in faq paragraph.
+msgid "No. Every feature is wired through public WordPress actions and filters."
+msgstr "いいえ。すべての機能は、公開されている WordPress のアクションとフィルターを通じて実装されています。"
+
+#. Found in faq paragraph.
+msgid "Click the desktop icon in the admin bar a second time. The plugin can also be deactivated globally from the Plugins screen."
+msgstr "ツールバーのデスクトップアイコンをもう一度クリックしてください。プラグイン画面から、サイト全体でプラグインを無効化することもできます。"
+
+#. Found in faq paragraph.
+msgid "Ask on the <a href=\"https://wordpress.org/support/plugin/desktop-mode/\">OpenStation support forum</a> here on WordPress.org. From inside OpenStation, open Report a bug from the System dock tile, choose Question, and it takes you there with your question ready to paste. Bug reports and feature requests are welcome on <a href=\"https://github.com/WordPress/openstation/issues\">GitHub</a>."
+msgstr "WordPress.org の<a href=\"https://wordpress.org/support/plugin/desktop-mode/\">OpenStation サポートフォーラム</a>で質問してください。OpenStation からは、ドックの「System」タイルにある「Report a bug」を開いて「Question」を選ぶと、質問を貼り付けられる状態でフォーラムが開きます。バグ報告や機能リクエストは <a href=\"https://github.com/WordPress/openstation/issues\">GitHub</a> で受け付けています。"
+
+#. Found in faq paragraph.
+msgid "In <code>docs/</code> inside the plugin, and on <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">GitHub</a>. The hook reference, JavaScript reference, bridge protocol, and copy-paste examples all live there."
+msgstr "プラグイン内の <code>docs/</code> と <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">GitHub</a> にあります。フックリファレンス、JavaScript リファレンス、ブリッジプロトコル、コピー＆ペーストで使えるサンプルがすべてそこにあります。"

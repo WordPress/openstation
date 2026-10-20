@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OpenStation 0.9.8\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
-"POT-Creation-Date: 2026-10-16T15:38:25+00:00\n"
+"POT-Creation-Date: 2026-10-19T11:57:30+00:00\n"
 "PO-Revision-Date: 2026-04-19 20:42+0200\n"
 "Last-Translator: OpenStation team\n"
 "Language-Team: Español\n"
@@ -337,7 +337,7 @@ msgstr ""
 msgid "Untitled"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:2035 src/desktop.ts:3763
+#: src/ai-assistant/impl.ts:2035 src/desktop.ts:3775
 msgid "Site assistant"
 msgstr ""
 
@@ -378,67 +378,76 @@ msgstr ""
 msgid "Request failed (HTTP %s)."
 msgstr ""
 
-#: src/bug-report/index.ts:56
+#: src/bug-report/index.ts:67
 msgid ""
 "Found a bug or have a feature idea? Fill this in and we will open a pre-"
-"filled GitHub issue for you to review and submit."
+"filled GitHub issue for you to review and submit. Questions go to the "
+"WordPress.org support forum."
 msgstr ""
 
-#: src/bug-report/index.ts:62
+#: src/bug-report/index.ts:73
 msgid "Title"
 msgstr ""
 
-#: src/bug-report/index.ts:63
+#: src/bug-report/index.ts:74
 msgid "A short summary"
 msgstr ""
 
-#: src/bug-report/index.ts:66
+#: src/bug-report/index.ts:77
 msgid "What happened? What did you expect?"
 msgstr ""
 
-#: src/bug-report/index.ts:67
+#: src/bug-report/index.ts:78
 msgid "Describe the issue or the feature you have in mind."
 msgstr ""
 
-#: src/bug-report/index.ts:71
+#: src/bug-report/index.ts:82
 msgid "Steps to reproduce (bug only)"
 msgstr ""
 
-#: src/bug-report/index.ts:72
+#: src/bug-report/index.ts:83
 msgid "One step per line"
 msgstr ""
 
-#: src/bug-report/index.ts:85
+#: src/bug-report/index.ts:108
+msgid "Ask on the WordPress.org support forum"
+msgstr ""
+
+#: src/bug-report/index.ts:109
+msgid "Your question is copied, ready to paste into a new topic."
+msgstr ""
+
+#: src/bug-report/index.ts:111
 msgid "Open issue on GitHub"
 msgstr ""
 
-#: src/bug-report/index.ts:90
+#: src/bug-report/index.ts:112
 msgid "You will review and submit on GitHub."
 msgstr ""
 
-#: src/bug-report/index.ts:103
+#: src/bug-report/index.ts:126
 msgid "Title and description are both required."
 msgstr ""
 
-#: src/bug-report/index.ts:123 src/content-graph/panel.ts:894
+#: src/bug-report/index.ts:153 src/content-graph/panel.ts:894
 #: src/plugins/my-wordpress-woocommerce/index.ts:750
 #: apps/my-wordpress/parts/lists.php:497 includes/agents/identity.php:233
 msgid "Type"
 msgstr ""
 
-#: src/bug-report/index.ts:131
+#: src/bug-report/index.ts:161
 msgid "Bug"
 msgstr ""
 
-#: src/bug-report/index.ts:132
+#: src/bug-report/index.ts:162
 msgid "Feature request"
 msgstr ""
 
-#: src/bug-report/index.ts:133
+#: src/bug-report/index.ts:163
 msgid "Question"
 msgstr ""
 
-#: src/bug-report/index.ts:221
+#: src/bug-report/index.ts:251
 msgid "Environment included with the report"
 msgstr ""
 
@@ -617,7 +626,7 @@ msgstr ""
 
 #: src/content-graph/panel.ts:623 src/content-graph/panel.ts:711
 #: src/content-graph/panel.ts:725 src/desktop-files/preview.ts:390
-#: src/desktop-files/preview.ts:465 src/desktop.ts:5282
+#: src/desktop-files/preview.ts:465 src/desktop.ts:5294
 #: apps/my-wordpress/parts/sections.php:42 apps/posts/posts.os.php:39
 #: includes/my-wordpress/window.php:162 includes/welcome-dialog.php:572
 msgid "Posts"
@@ -1020,13 +1029,13 @@ msgid "Retry"
 msgstr ""
 
 #. %1$s is the workspace name, %2$d the windows kept, %3$d the windows on the desk.
-#: src/desktop.ts:2878
+#: src/desktop.ts:2882
 msgid ""
 "%1$s will open like this — the top %2$d of %3$d windows, where they are."
 msgstr ""
 
 #. %1$s is the workspace name, %2$d a number of windows.
-#: src/desktop.ts:2886
+#: src/desktop.ts:2890
 msgid "%1$s will open like this — %2$d windows, where they are."
 msgstr ""
 

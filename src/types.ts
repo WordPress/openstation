@@ -664,6 +664,12 @@ export interface NativeWindowIframeContent {
 	 * speak a non-`os-window-*` postMessage protocol.
 	 */
 	onMessage?: ( payload: unknown ) => void;
+	/**
+	 * Optional callback invoked when an in-iframe admin link matches
+	 * this native window's remap registration. Returning true indicates
+	 * the host app handled the navigation (e.g. by switching tabs).
+	 */
+	onAdminLink?: ( linkUrl: string, tab: string ) => boolean;
 }
 
 /**

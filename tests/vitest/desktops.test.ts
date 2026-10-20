@@ -865,6 +865,40 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( b.state ).toBe( 'normal' );
 	} );
 
+	test( 'minimizeAll, restoreFrom, and toggleShowDesktop bypass genie flight layer for batch operations', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const b = await manager.open( openConfig( 'b' ) );
+		const minSpyA = vi.spyOn( a, 'minimize' );
+		const minSpyB = vi.spyOn( b, 'minimize' );
+		const resSpyA = vi.spyOn( a, 'restore' );
+		const resSpyB = vi.spyOn( b, 'restore' );
+
+		manager.minimizeAll();
+		expect( minSpyA ).toHaveBeenCalledWith( { flightLayer: false } );
+		expect( minSpyB ).toHaveBeenCalledWith( { flightLayer: false } );
+
+		manager.restoreFrom( [ a, b ] );
+		expect( resSpyA ).toHaveBeenCalledWith( { flightLayer: false } );
+		expect( resSpyB ).toHaveBeenCalledWith( { flightLayer: false } );
+
+		manager.toggleShowDesktop();
+		expect( minSpyA ).toHaveBeenCalledWith( { flightLayer: false } );
+		expect( minSpyB ).toHaveBeenCalledWith( { flightLayer: false } );
+
+		manager.toggleShowDesktop();
+		expect( resSpyA ).toHaveBeenCalledWith( { flightLayer: false } );
+		expect( resSpyB ).toHaveBeenCalledWith( { flightLayer: false } );
+	} );
+
+	test( 'focused-mode open minimizes other windows with flightLayer: false', async () => {
+		const a = await manager.open( openConfig( 'a' ) );
+		const minSpyA = vi.spyOn( a, 'minimize' );
+
+		const b = await manager.open( { ...openConfig( 'b' ), openAs: 'focused' } );
+		expect( minSpyA ).toHaveBeenCalledWith( { flightLayer: false } );
+		expect( b.state ).toBe( 'normal' );
+	} );
+
 	describe( 'Overview inert + tile structure', () => {
 		// Background chrome (admin sidebar, dock, widgets) and all windows
 		// are made inert on overview enter so Tab focus doesn't waste

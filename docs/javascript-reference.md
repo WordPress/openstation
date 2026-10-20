@@ -1266,8 +1266,8 @@ interface Window {
 
     // Lifecycle
     close(): void;
-    minimize(): void;
-    restore(): void;
+    minimize( options?: { flightLayer?: boolean } ): void;
+    restore( options?: { flightLayer?: boolean } ): void;
     maximize(): void;
     detach(): void;          // pop into a new browser tab (iframe windows only)
 
@@ -1289,6 +1289,8 @@ const win = wp.os.windowManager.getById( 'edit-php' );
 // first attempt before the predicates landed).
 if ( win && ! win.isMinimized() ) win.minimize();
 ```
+
+While a minimize or restore animation runs, the window flies on the `--os-z-genie` layer, above every other window and just below the dock, so a window focused in its place cannot cover it mid-flight. A fullscreen window keeps its own layer instead. Pass `{ flightLayer: false }` when you minimize or restore several windows at once: they would all share that one layer and lose their stacking order, while without it each keeps its own `z-index` for the whole animation. The built-in batch paths (Show Desktop and its undo, focused mode, cascade and tile) already do this.
 
 #### `Window.send( channel, payload? )` — Stable
 
@@ -1472,13 +1474,18 @@ Mount a chromeless admin page **inside an element of a native window's body**, a
 wp.os.embedAdminPage(
     host:  HTMLElement,
     url:   string,
-    opts?: { windowId?: string },
+    opts?: {
+        windowId?: string;
+        onAdminLink?: ( linkUrl: string, tab: string ) => boolean;
+    },
 ): () => void;
 ```
 
 An app's window is its own surface, not an iframe, so an app offering one of wp-admin's own screens had only `open_url()` — which spawns a second window. This is for the case where that reads wrong: the Posts app's tabs are the Posts menu's pages, and its **Add Post** tab swaps the body for the editor the way every tab beside it swaps the body.
 
 The page is registered as that window's **synthetic iframe**, so [`wp.os.connect( windowId )`](#wposconnect-windowid-opts---stable) and `Window.send()` reach it, and `os-bridge-*` traffic and `os-window-publish` route as they do for any window. The chromeless flag is added for you.
+
+When `opts.onAdminLink` is provided, clicks inside the embedded page that remap to this window (such as the block editor's "View Posts" button) invoke `onAdminLink( linkUrl, tab )`. Returning `true` signals that the host app handled the navigation (e.g. by switching tabs via `activateTab()`), bypassing fallback window navigation.
 
 While the page loads, the busy mark is the **host's**, not the window's: an embed occupies one panel of a body the user is still looking at, and the window overlay would black out the tab strip that put them there — including the tab they would use to leave. The helper centres an `<os-spinner>` over the host — the same WordPress mark, at the same size, as a window's own loading overlay — and removes it on load, styling it inline so no selector of the shell's lands in your body.
 

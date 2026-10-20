@@ -66,7 +66,7 @@ export function cascade( mgr: WindowManager ): void {
 	// state and bring it down to 'normal'.
 	for ( const w of eligible ) {
 		if ( w.state === 'minimized' ) {
-			w.restore();
+			w.restore( { flightLayer: false } );
 		}
 		if ( w.state === 'fullscreen' ) {
 			w.toggleFullscreen();
@@ -150,7 +150,7 @@ export function tile( mgr: WindowManager ): void {
 	// passes below have to come after that to actually catch it.
 	for ( const w of eligible ) {
 		if ( w.state === 'minimized' ) {
-			w.restore();
+			w.restore( { flightLayer: false } );
 		}
 		if ( w.state === 'fullscreen' ) {
 			w.toggleFullscreen();
@@ -256,7 +256,7 @@ function prepareForArrange( mgr: WindowManager ): Window[] {
 	}
 	for ( const w of eligible ) {
 		if ( w.state === 'minimized' ) {
-			w.restore();
+			w.restore( { flightLayer: false } );
 		}
 		if ( w.state === 'fullscreen' ) {
 			w.toggleFullscreen();

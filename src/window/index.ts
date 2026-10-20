@@ -2180,6 +2180,7 @@ export class Window {
 		this.element.style.removeProperty( 'will-change' );
 		this.element.style.removeProperty( 'transform' );
 		this.element.style.removeProperty( 'opacity' );
+		this.element.style.removeProperty( '--os-genie-rank' );
 	}
 
 	/**
@@ -2206,6 +2207,7 @@ export class Window {
 			this._restoreAnimation = null;
 			this.element.classList.remove( 'os-window--restoring' );
 		}
+		this.element.classList.remove( 'os-window--genie-flight' );
 		this._clearGenieStyles();
 	}
 
@@ -2291,7 +2293,17 @@ export class Window {
 		);
 	}
 
-	public minimize(): void {
+	/**
+	 * Minimize the window to the dock.
+	 *
+	 * @param options             Flight options.
+	 * @param options.flightLayer When true (the default), elevates the window
+	 *                            to `--os-z-genie` during animation so it remains
+	 *                            above windows focused in response. Pass false for
+	 *                            batch flights (e.g. Show Desktop) so concurrent
+	 *                            animations preserve their existing stack order.
+	 */
+	public minimize( options?: { flightLayer?: boolean } ): void {
 		// Re-entering minimize from minimize would clobber the saved
 		// underlying state, leaking the 'minimized' value into the
 		// restore target.
@@ -2322,6 +2334,9 @@ export class Window {
 				// class on finish.
 				this.state = 'minimized';
 				this.element.classList.add( 'os-window--minimizing' );
+				if ( options?.flightLayer ?? true ) {
+					this.element.classList.add( 'os-window--genie-flight' );
+				}
 				this.element.style.willChange = 'transform';
 
 				const { dx, dy, scale } = this._buildGenieTransform( startRect, targetRect, 0.22 );
@@ -2362,6 +2377,7 @@ export class Window {
 						this._minimizeAnimation = null;
 						this.element.classList.add( 'os-window--minimized' );
 						this.element.classList.remove( 'os-window--minimizing' );
+						this.element.classList.remove( 'os-window--genie-flight' );
 						this._clearGenieStyles();
 						try {
 							anim!.cancel();
@@ -2374,6 +2390,7 @@ export class Window {
 						if ( this._minimizeAnimation === anim ) {
 							this._minimizeAnimation = null;
 							this.element.classList.remove( 'os-window--minimizing' );
+							this.element.classList.remove( 'os-window--genie-flight' );
 							this._clearGenieStyles();
 						}
 					};
@@ -2392,6 +2409,7 @@ export class Window {
 
 				// WAAPI threw or returned null — fall through to the CSS path.
 				this.element.classList.remove( 'os-window--minimizing' );
+				this.element.classList.remove( 'os-window--genie-flight' );
 				this._clearGenieStyles();
 			}
 		}
@@ -2419,8 +2437,14 @@ export class Window {
 	 * silently dropping into 'normal' while the `--maximized` class
 	 * (still on the element from before minimize) leaves the visual
 	 * out of sync with `this.state`.
+	 *
+	 * @param options             Flight options.
+	 * @param options.flightLayer When true (the default), elevates the window
+	 *                            to `--os-z-genie` during animation. Pass false for
+	 *                            batch flights (e.g. restore from Show Desktop)
+	 *                            so concurrent animations preserve stack order.
 	 */
-	public restore(): void {
+	public restore( options?: { flightLayer?: boolean } ): void {
 		// Cancel any in-flight genie animations.
 		this._cancelGenieAnimation( 'minimize' );
 		this._cancelGenieAnimation( 'restore' );
@@ -2441,6 +2465,9 @@ export class Window {
 			// the flight; the visual is still at the dock via WAAPI.
 			this.element.classList.remove( 'os-window--minimized' );
 			this.element.classList.add( 'os-window--restoring' );
+			if ( options?.flightLayer ?? true ) {
+				this.element.classList.add( 'os-window--genie-flight' );
+			}
 			this.element.style.willChange = 'transform';
 
 			const nextState = this._stateBeforeMinimize ?? 'normal';
@@ -2498,6 +2525,7 @@ export class Window {
 						}
 						this._restoreAnimation = null;
 						this.element.classList.remove( 'os-window--restoring' );
+						this.element.classList.remove( 'os-window--genie-flight' );
 						this._clearGenieStyles();
 						try {
 							anim!.cancel();
@@ -2510,6 +2538,7 @@ export class Window {
 						if ( this._restoreAnimation === anim ) {
 							this._restoreAnimation = null;
 							this.element.classList.remove( 'os-window--restoring' );
+							this.element.classList.remove( 'os-window--genie-flight' );
 							this._clearGenieStyles();
 						}
 					};
@@ -2528,6 +2557,7 @@ export class Window {
 			// WAAPI threw or geometry was degenerate — clean up and
 			// fall through to the instant path.
 			this.element.classList.remove( 'os-window--restoring' );
+			this.element.classList.remove( 'os-window--genie-flight' );
 			this._clearGenieStyles();
 			// State already flipped above; still need to fire the
 			// focus/restore hooks for the non-animated case.

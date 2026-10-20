@@ -163,6 +163,14 @@ function openstation_comments_window_create_reply( $parent_id, $content ) {
 		);
 	}
 
+	if ( in_array( wp_get_comment_status( $parent ), array( 'spam', 'trash' ), true ) ) {
+		return new WP_Error(
+			'openstation_comments_quarantined_parent',
+			__( 'You cannot reply to a comment in spam or trash.', 'desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
 	if ( openstation_comments_window_is_blank( $content ) ) {
 		return new WP_Error(
 			'openstation_comments_empty_reply',

@@ -520,6 +520,38 @@ describe( 'child windows — cascades', () => {
 		expect( child.state ).not.toBe( 'minimized' );
 	} );
 
+	test( 'an owner and its children fly in their stack order, not their DOM order', async () => {
+		const owner = await manager.open( cfg( 'owner' ) );
+		const first = await manager.openChild( 'owner', cfg( 'first' ) );
+		const second = await manager.openChild( 'owner', cfg( 'second' ) );
+		// Bring the earlier child forward: it is now on top, yet later
+		// in the DOM it is still behind its sibling.
+		manager.focus( first );
+		expect( zOrder( manager ) ).toEqual( [ 'owner', 'second', 'first' ] );
+
+		// Give the genie its geometry so the flight runs through WAAPI.
+		const dock = document.createElement( 'div' );
+		dock.id = 'os-dock';
+		dock.getBoundingClientRect = () =>
+			( { left: 500, top: 850, right: 548, bottom: 898, width: 48, height: 48, x: 500, y: 850, toJSON: () => ( {} ) } ) as DOMRect;
+		document.body.appendChild( dock );
+		for ( const w of [ owner, first, second ] ) {
+			w.element.getBoundingClientRect = () =>
+				( { left: 40, top: 60, right: 840, bottom: 660, width: 800, height: 600, x: 40, y: 60, toJSON: () => ( {} ) } ) as DOMRect;
+			w.element.animate = vi.fn( () => ( { onfinish: null, oncancel: null, cancel: vi.fn() } ) ) as unknown as typeof w.element.animate;
+		}
+
+		owner.minimize();
+
+		// One shared z-index would let `second` cover `first` for the
+		// whole flight; the rank keeps the stack.
+		const rank = ( w: typeof owner ) => w.element.style.getPropertyValue( '--os-genie-rank' );
+		expect( [ owner, first, second ].every( ( w ) => w.element.classList.contains( 'os-window--genie-flight' ) ) ).toBe( true );
+		expect( [ rank( owner ), rank( second ), rank( first ) ] ).toEqual( [ '2', '1', '0' ] );
+
+		dock.remove();
+	} );
+
 	test( 'restoring the owner leaves a child the user had minimized alone', async () => {
 		const owner = await manager.open( cfg( 'owner' ) );
 		const child = await manager.openChild( 'owner', cfg( 'child' ) );

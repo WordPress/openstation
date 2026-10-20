@@ -334,6 +334,9 @@
             "Ask about this window, or tell me what to change.": [
                 ""
             ],
+            "Ask on the WordPress.org support forum": [
+                ""
+            ],
             "Ask the agent to do something…": [
                 ""
             ],
@@ -1018,7 +1021,7 @@
             "Folds away until reached for": [
                 ""
             ],
-            "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
+            "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit. Questions go to the WordPress.org support forum.": [
                 ""
             ],
             "Free": [
@@ -2705,6 +2708,9 @@
                 ""
             ],
             "Your login expired. Sign in again to keep working.": [
+                ""
+            ],
+            "Your question is copied, ready to paste into a new topic.": [
                 ""
             ],
             "Your score could not be saved.": [

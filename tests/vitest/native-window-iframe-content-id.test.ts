@@ -16,8 +16,13 @@
  *   - `Window.on( channel )` on the second window never fired;
  *   - closing either instance tore down the other's bridge entry.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createRegisterWindow } from '../../src/native-windows';
+import {
+	bindNativeUrlRemap,
+	registerNativeUrlRemap,
+	_resetNativeUrlRemap,
+} from '../../src/native-url-remap';
 import { getSyntheticIframe } from '../../src/connection';
 import { isWindowContentLoading } from '../../src/window-channels';
 import { WindowManager } from '../../src/window-manager';
@@ -164,6 +169,45 @@ describe( 'iframeContent native windows — window id plumbing', () => {
 		// `window` for the rest of the session and kept firing the
 		// plugin's `onMessage` after its window was gone.
 		expect( received ).toHaveLength( 1 );
+	} );
+
+	test( 'an admin link the shell routes to another window still reaches onMessage', async () => {
+		const openById = vi.fn( () => true );
+		bindNativeUrlRemap( {
+			adminUrl: `${ window.location.origin }/wp-admin/`,
+			getSnapshot: () => ( {} ) as never,
+			openById,
+		} );
+		registerNativeUrlRemap( {
+			id: 'desktop-mode-pages',
+			nativeWindowId: 'desktop-mode-pages',
+			matches: ( _url, parsed ) => parsed.searchParams.get( 'post_type' ) === 'page',
+		} );
+		const received: unknown[] = [];
+		try {
+			const win = await registerWindow( {
+				...def(),
+				iframeContent: {
+					url: '/wp-admin/admin.php?page=chat',
+					onMessage: ( data: unknown ) => received.push( data ),
+				},
+			} );
+			const iframe = win.element.querySelector( 'iframe' )!;
+			const link = {
+				type: 'os-iframe-admin-link',
+				url: `${ window.location.origin }/wp-admin/edit.php?post_type=page`,
+			};
+			const ev = new MessageEvent( 'message', { data: link, origin: window.location.origin } );
+			Object.defineProperty( ev, 'source', { value: iframe.contentWindow, configurable: true } );
+			window.dispatchEvent( ev );
+
+			// The shell opened the Pages window, and the plugin still saw
+			// the message: routing a link never swallows it.
+			expect( openById ).toHaveBeenCalledWith( 'desktop-mode-pages' );
+			expect( received ).toEqual( [ link ] );
+		} finally {
+			_resetNativeUrlRemap();
+		}
 	} );
 
 	test( 'closing one instance leaves the other bridge entry intact', async () => {

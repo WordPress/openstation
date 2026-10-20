@@ -62,7 +62,7 @@ fi
 tag="v$new"
 
 command -v gh >/dev/null || { echo "error: 'gh' CLI required (for CI polling)" >&2; exit 1; }
-if ! gh auth status >/dev/null 2>&1; then
+if ! gh auth status --hostname github.com >/dev/null 2>&1; then
 	echo "error: gh CLI is not authenticated. Run:  gh auth login" >&2
 	exit 1
 fi

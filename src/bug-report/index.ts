@@ -9,6 +9,11 @@
  * GitHub before submitting, so we never POST on their behalf and
  * never need an OAuth token.
  *
+ * Questions go to the plugin's WordPress.org support forum instead,
+ * where support questions belong. The forum can't be pre-filled from
+ * a URL, so the composed question is copied to the clipboard for the
+ * user to paste into the new topic.
+ *
  * The System dock tile's "Report a bug" row is its front door,
  * registered in `src/desktop.ts`.
  */
@@ -21,6 +26,12 @@ export const BUG_REPORT_WINDOW_ID = 'desktop-mode-bug-report';
 /** GitHub repo the issue is filed against. */
 const REPO_OWNER = 'WordPress';
 const REPO_NAME = 'openstation';
+
+/**
+ * WordPress.org support forum, opened at its new-topic form. The slug
+ * is frozen at `desktop-mode` (see AGENTS.md).
+ */
+export const SUPPORT_FORUM_URL = 'https://wordpress.org/support/plugin/desktop-mode/#new-topic-0';
 
 /**
  * Conservative cap on the body length passed via `?body=…`. GitHub
@@ -54,7 +65,7 @@ export function renderBugReport( body: HTMLElement ): void {
 	const intro = document.createElement( 'p' );
 	intro.className = 'os-bug-report__intro';
 	intro.textContent = __(
-		'Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.',
+		'Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit. Questions go to the WordPress.org support forum.',
 	);
 	form.appendChild( intro );
 
@@ -82,15 +93,27 @@ export function renderBugReport( body: HTMLElement ): void {
 	const submit = document.createElement( 'button' );
 	submit.type = 'submit';
 	submit.className = 'os-bug-report__submit';
-	submit.textContent = __( 'Open issue on GitHub' );
 	actions.appendChild( submit );
 
 	const hint = document.createElement( 'span' );
 	hint.className = 'os-bug-report__hint';
-	hint.textContent = __( 'You will review and submit on GitHub.' );
 	actions.appendChild( hint );
 
 	form.appendChild( actions );
+
+	// The destination follows the type: questions go to the support
+	// forum, everything else to GitHub. Keep the button honest about it.
+	const syncDestination = (): void => {
+		if ( 'question' === readFormState( form ).type ) {
+			submit.textContent = __( 'Ask on the WordPress.org support forum' );
+			hint.textContent = __( 'Your question is copied, ready to paste into a new topic.' );
+		} else {
+			submit.textContent = __( 'Open issue on GitHub' );
+			hint.textContent = __( 'You will review and submit on GitHub.' );
+		}
+	};
+	syncDestination();
+	form.addEventListener( 'change', syncDestination );
 
 	form.addEventListener( 'submit', ( e: Event ) => {
 		e.preventDefault();
@@ -101,6 +124,13 @@ export function renderBugReport( body: HTMLElement ): void {
 			// validation would clobber our submit handler with a
 			// browser-rendered tooltip, so keep it form-driven.
 			showInlineError( form, __( 'Title and description are both required.' ) );
+			return;
+		}
+		if ( 'question' === state.type ) {
+			// Start the copy before opening the tab: both need the
+			// click's user activation, and the copy may be refused.
+			navigator.clipboard?.writeText( composeSupportTopic( state ) ).catch( () => {} );
+			window.open( SUPPORT_FORUM_URL, '_blank', 'noopener' );
 			return;
 		}
 		const url = buildGithubIssueUrl( state );
@@ -308,6 +338,22 @@ function composeIssueBody( state: FormState ): string {
 			'\n\n…(truncated to fit GitHub URL length limit)';
 	}
 	return out;
+}
+
+/**
+ * Compose the plain-text question the user pastes into a new forum
+ * topic: title, description, then the environment. Exported so tests
+ * can pin the contract independently of the form scaffolding.
+ */
+export function composeSupportTopic( state: FormState ): string {
+	return [
+		state.title.trim(),
+		'',
+		state.description.trim(),
+		'',
+		'Environment:',
+		formatMetadata( collectMetadata() ),
+	].join( '\n' );
 }
 
 /* ──────────────────────────────────────────────────────────────────
