@@ -129,7 +129,7 @@ Preferences → Appearance (a desktop theme can recommend one through
 
 | Id | What it paints |
 |---|---|
-| `default` | The icon strip: tiles with badges, tooltips, multi-instance chips, attention animations and the constellation flyouts. Right-clicking a tile opens its placement menu; right-clicking the rail's empty space opens the rail's own menu, **Customize dock…** (Preferences → Navigation) and **Dock position and behavior…** (Preferences → Appearance → Desktop layout). In the split layout the sidebar's menu says *sidebar* instead. |
+| `default` | The icon strip: tiles with badges, tooltips, multi-instance chips, attention animations and the constellation flyouts. Right-clicking a tile opens its placement menu; right-clicking the rail's empty space opens the rail's own menu, **Customize dock…** (Preferences → Navigation) and **Dock position and behavior…** (Preferences → Appearance → Desktop layout). In the split layout the sidebar's menu reads **Customize sidebar…** and **Sidebar behavior…** (same section; the sidebar has a behavior setting but no position). |
 | `taskbar` | One bar along the bottom edge: a **Start** button whose menu lists the `core` and `apps` zones (a menu with children cascades into them; the way out sits last), a button for every open window on the current desktop (pressed while that window is in front; a click brings it forward, or minimizes it if it already is), and a tray with the `controls` zone and a clock. On a side placement it hands the rail to `default`. |
 
 The taskbar is styled entirely through tokens, each falling back to the

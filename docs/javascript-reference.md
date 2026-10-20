@@ -4254,7 +4254,7 @@ wp.os.openOsSettings( { tabId: 'features' } );
 | Param | Type | Notes |
 |---|---|---|
 | `opts.tabId` | `string` (optional) | Settings tab to activate. On a fresh open, unknown ids fall back to the default tab; passing an unknown id while OpenStation Preferences is already open deselects every tab in the live strip — validate the id first. |
-| `opts.sectionId` | `string` (optional) | Id of a section on that tab to scroll into view once it has painted. The built-in one is `'os-settings-layout'`, Appearance → Desktop layout. An id that never appears is ignored after a short wait, leaving the tab at its top. |
+| `opts.sectionId` | `string` (optional) | Id of a section on that tab to scroll into view once it has painted. The built-in one is `'os-settings-layout'`, Appearance → Desktop layout. Pair it with `tabId`: the section is only looked for on the page that ends up showing, so on its own it works only when Preferences is already on that page. An id that never appears is ignored after a short wait, leaving the tab at its top. |
 
 ```js
 // Land on Appearance → Desktop layout, where the rail is placed.
