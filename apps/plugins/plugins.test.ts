@@ -82,6 +82,11 @@ function jsonResponse( body: unknown, status = 200 ): Response {
 const ajaxOk = ( data: unknown ): Response => jsonResponse( { success: true, data } );
 
 const fetchMock = (): ReturnType< typeof vi.fn > => globalThis.fetch as unknown as ReturnType< typeof vi.fn >;
+/** Every request but the row-links read the view makes when its list lands. */
+const requests = (): unknown[][] =>
+	fetchMock().mock.calls.filter(
+		( [ , init ] ) => ( ( init as RequestInit | undefined )?.body as URLSearchParams | undefined )?.get?.( 'action' ) !== 'openstation_plugins_action_links',
+	);
 const restOver = ( cfg = extra() ) => createPluginsRest( () => cfg, ( url, init ) => globalThis.fetch( url, init ) );
 
 /** A host for the parts that never touch the view. */
@@ -97,6 +102,8 @@ function fakeHost( over: Partial< PluginsHost > = {} ): PluginsHost & { toasts: 
 		root: document.body,
 		busy: freshBusy(),
 		caches: { info: new Map(), reviews: new Map() },
+		actionLinks: new Map(),
+		openLink: () => undefined,
 		dispatch: async ( action ) => {
 			dispatched.push( action );
 			return true;
@@ -168,6 +175,31 @@ describe( 'the plugins app view', () => {
 		expect( card.shadowRoot ).not.toBeNull();
 		expect( renderedText( card ) ).toContain( 'Akismet' );
 		expect( root.querySelector( '.os-plugins__library-empty' ) ).toBeNull();
+	} );
+
+	it( 'offers the links a plugin adds to its own row: admin pages as windows, the rest in a tab', async () => {
+		fetchMock().mockImplementation( async ( _url: string, init?: RequestInit ) => {
+			const action = ( init?.body as URLSearchParams | undefined )?.get?.( 'action' );
+			return action === 'openstation_plugins_action_links'
+				? ajaxOk( {
+					'akismet/akismet': [
+						{ key: 'settings', label: 'Settings', url: 'http://example.test/wp-admin/options-general.php?page=akismet', admin: true },
+						{ key: 'docs', label: 'Docs', url: 'https://docs.example.test/', admin: false },
+					],
+				} )
+				: ajaxOk( { plugins: [], info: {} } );
+		} );
+		const openUrl = vi.fn();
+		const open = vi.spyOn( window, 'open' ).mockImplementation( () => null );
+		const { root } = mount( {}, { installed: [ row( { status: 'active' } ) ] }, {}, { openUrl } );
+		await vi.waitFor( () => expect( root.querySelectorAll( '[data-plugin-card] [data-plugin-links] os-button' ) ).toHaveLength( 2 ) );
+
+		const [ settings, docs ] = root.querySelectorAll< HTMLElement >( '[data-plugin-card] [data-plugin-links] os-button' );
+		settings.click();
+		expect( openUrl ).toHaveBeenCalledWith( 'http://example.test/wp-admin/options-general.php?page=akismet', 'Settings', 'dashicons-admin-plugins' );
+		docs.click();
+		expect( open ).toHaveBeenCalledWith( 'https://docs.example.test/', '_blank', expect.any( String ) );
+		expect( openUrl ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	it( 'declares a placeholder: the frame paints before mount with a library loading state', () => {
@@ -269,9 +301,9 @@ describe( 'the plugins app view', () => {
 
 	it( 'does not fetch a gallery until its tab is on screen', () => {
 		mount( { tab: 'installed' } );
-		expect( fetchMock() ).not.toHaveBeenCalled();
+		expect( requests() ).toHaveLength( 0 );
 		mount( { tab: 'featured' } );
-		const actions = fetchMock().mock.calls.map( ( [ , init ] ) => ( ( init as RequestInit ).body as URLSearchParams ).get( 'action' ) );
+		const actions = requests().map( ( [ , init ] ) => ( ( init as RequestInit ).body as URLSearchParams ).get( 'action' ) );
 		expect( actions ).toEqual( [ 'openstation_plugins_featured' ] );
 	} );
 
@@ -794,7 +826,7 @@ describe( 'the installed plugin library', () => {
 		expect( root.querySelector( '[data-plugin-card="sleep/sleep"] .os-plugins__module-icon' ) ).not.toBeNull();
 		expect( root.querySelectorAll( '[data-plugin-card]' ) ).toHaveLength( 1 );
 		expect( root.querySelector( '.os-plugins__selection-count' )?.textContent ).toBe( '1 selected' );
-		expect( fetchMock() ).not.toHaveBeenCalled();
+		expect( requests() ).toHaveLength( 0 );
 	} );
 
 	it( 'always shows compact checkboxes and opens bulk tools only with a selection', async () => {
@@ -819,7 +851,7 @@ describe( 'the installed plugin library', () => {
 		click( root, '[data-shelf="update"] .os-plugins__shelf-heading os-button' );
 		expect( root.querySelector( '.os-plugins__selection-count' )?.textContent ).toBe( '1 selected' );
 		expect( root.querySelector( '.os-plugins__selection-actions' )?.textContent ).toContain( 'Update 1' );
-		expect( fetchMock() ).not.toHaveBeenCalled();
+		expect( requests() ).toHaveLength( 0 );
 	} );
 
 	it( 'adds update candidates without clearing previously selected inactive plugins', () => {
@@ -839,7 +871,7 @@ describe( 'the installed plugin library', () => {
 		expect( rows.map( ( r ) => r.plugin ) ).toEqual( [ 'sleep/sleep', 'network/network', 'update/update' ] );
 		expect( root.querySelector( '[data-plugin-card="sleep/sleep"] .os-plugins__module-actions' )?.textContent ).toContain( 'Activate' );
 		expect( root.querySelector( '[data-plugin-card="update/update"] .os-plugins__module-actions os-button' )?.textContent ).toBe( 'Update' );
-		expect( fetchMock() ).not.toHaveBeenCalled();
+		expect( requests() ).toHaveLength( 0 );
 	} );
 
 	it( 'keeps inspector actions independent, preserves details on repaint, and returns keyboard focus', async () => {

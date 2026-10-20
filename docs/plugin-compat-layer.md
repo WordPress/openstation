@@ -158,6 +158,12 @@ A second way to keep a page reachable while hiding its row: register it on `admi
 
 **Fix**: `openstation_resync_shell_dock_after_admin_head()` (`admin_head @ PHP_INT_MAX`) compares the menu signature with the one the config was built from. When they differ, it re-sends `dockItems` and `menuSig` through a `before` inline on the footer `openstation` handle, which still has not printed. The probe replays `admin_head` into a discarded buffer before it builds its payload, the same way it already replays `admin_enqueue_scripts`. The chromeless bridge on `plugins.php` and the other pages it covers runs on `admin_footer` and needs neither.
 
+### Row links in the native Plugins window
+
+A plugin that hides its settings page from the menu usually leaves its **Settings** link on its row in the Plugins screen, from `plugin_action_links` / `plugin_action_links_{$plugin_file}`. The native Plugins window reads `/wp/v2/plugins`, which carries no row links, so the page had no way in from there.
+
+**Fix**: `apps/plugins/parts/action-links.php` answers `wp_ajax_openstation_plugins_action_links` with every plugin's row links. It runs both filters the way `WP_Plugins_List_Table::single_row()` does, seeded with Core's own actions for the row (`deactivate` for an active plugin, `activate` and `delete` otherwise), then drops Core's keys and keeps the http(s) links. It runs on admin-ajax rather than as a REST field because many plugins add the filter only behind `is_admin()`, which is false on a REST request. The window shows the links on each card, in the inspector and in the table's row menu. A link into this site's wp-admin opens as a window, through the same remap the dock uses; any other link opens in a browser tab. The window refetches when a plugin is installed, removed, activated or deactivated. **Test**: `tests/phpunit/tests/pluginsWindowActionLinks.php`.
+
 ### Synthetic "Add Theme" tab on the Appearance window
 
 Core does not register `theme-install.php` as a submenu of `themes.php` — classic admin only surfaces it through the in-page "Add Theme" `.page-title-action` button at the top of `themes.php`. Inside chromeless that button scrolls out of view on first paint (the focus-target heuristic on the visible theme grid steals the scroll position), leaving no entry point to the install flow.

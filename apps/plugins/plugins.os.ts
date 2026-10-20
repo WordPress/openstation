@@ -27,6 +27,7 @@ import { isMobileStamped } from '../../src/mode/stamp';
 import { freshBusy } from './parts/actions';
 import { installPluginDropTargets } from './parts/card-drag';
 import { createBrowseGallery, createFeaturedGallery, type BrowseGallery, type FeaturedGallery } from './parts/gallery';
+import { openInNewTab } from './parts/html';
 import { installedPanel, freshInstalledUi, syncLibraryControls, syncLibraryTable, type InstalledUi } from './parts/installed-library';
 import { createPluginsRest } from './parts/rest';
 import {
@@ -62,6 +63,8 @@ interface UiState {
 	featured: FeaturedGallery | null;
 	/** installed-list identity the galleries last painted their CTAs from. */
 	ctaKey: string;
+	/** installed-list identity the row links were last fetched for. */
+	linksKey: string;
 	/** Nesting depth of the window-wide .zip drag (child enter/leave pairs). */
 	dragDepth: number;
 	/** Heartbeat ids of the plugins this window mutated, with when. */
@@ -84,6 +87,14 @@ function createHost( ctx: Ctx, ownChanges: Map< number, number > ): PluginsHost 
 		root: ctx.root,
 		busy: freshBusy(),
 		caches: { info: new Map(), reviews: new Map() },
+		actionLinks: new Map(),
+		openLink: ( link ) => {
+			if ( link.admin && ctx.host.openUrl ) {
+				ctx.host.openUrl( link.url, link.label, 'dashicons-admin-plugins' );
+			} else {
+				openInNewTab( link.url );
+			}
+		},
 		dispatch: ctx.dispatch,
 		refresh: () => ctx.dispatch( 'refresh' ),
 		repaint: () => ctx.repaint(),
@@ -142,11 +153,44 @@ const uiOf = ( ctx: Ctx ): UiState =>
 			browse: null,
 			featured: null,
 			ctaKey: '',
+			linksKey: '',
 			dragDepth: 0,
 			ownChanges,
 			teardown: [],
 		};
 	} );
+
+/**
+ * Fetch the plugins' own row links (Settings, Docs, …) whenever a
+ * plugin is installed, removed, activated or deactivated: activation is
+ * what loads the code that adds them. A version bump does not refetch,
+ * or a batch update would pay a round trip per plugin. A failed read
+ * leaves the rows without links, as they were before.
+ */
+function syncActionLinks( ctx: Ctx, ui: UiState ): void {
+	const { host } = ui;
+	if ( host.installed.length === 0 ) {
+		return;
+	}
+	const key = host.installed.map( ( r ) => `${ r.plugin }:${ r.status }` ).join( '|' );
+	if ( key === ui.linksKey ) {
+		return;
+	}
+	ui.linksKey = key;
+	host.rest.fetchActionLinks().then(
+		( map ) => {
+			if ( ui.linksKey !== key ) {
+				return;
+			}
+			host.actionLinks.clear();
+			for ( const [ plugin, links ] of Object.entries( map ?? {} ) ) {
+				host.actionLinks.set( plugin, links );
+			}
+			ctx.repaint();
+		},
+		() => undefined,
+	);
+}
 
 const flyout = ( ctx: Ctx ): HTMLElement | null =>
 	ctx.root.querySelector< HTMLElement >( '[data-os-plugins-flyout]' );
@@ -427,6 +471,7 @@ export default defineApp< AppState, AppData >( APP_ID, {
 		syncLibraryControls( ctx.root );
 		const ui = uiOf( ctx );
 		const { host } = ui;
+		syncActionLinks( ctx, ui );
 		syncLibraryTable( ctx, host, ui.installed );
 
 		if ( host.extra.caps.install ) {
