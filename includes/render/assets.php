@@ -910,8 +910,17 @@ function &openstation_shell_boot_menu_sig() {
  * printed yet. When the menu signature moved since it was built, a
  * `before` inline on the same handle replaces `dockItems` and
  * `menuSig` with what the menu now says. It prints right after the
- * localized object and before the bundle runs. An unchanged menu, the
- * usual case, costs one signature.
+ * localized object and before the bundle runs, which only holds while
+ * the handle prints in the footer. An unchanged menu, the usual case,
+ * costs one signature.
+ *
+ * Only the dock is re-sent. The rest of the config does not read the
+ * menu rows: native windows and desktop icons come from their own
+ * registries, and `App::menu()` tabs reach the dock through
+ * `dockItems`. The boot window's first-paint title is the one
+ * exception: it is resolved from the dock as it was before
+ * `admin_head`, which keeps a hidden page's own title when that page
+ * is the boot target.
  */
 function openstation_resync_shell_dock_after_admin_head() {
 	$boot_menu_sig = openstation_shell_boot_menu_sig();

@@ -371,7 +371,9 @@ function openstation_menu_refresh_probe_payload() {
 	// long before it, so replay it too, or the probe ships the entries
 	// every real admin page drops — see
 	// `openstation_resync_shell_dock_after_admin_head()` for the boot
-	// side of the same rule.
+	// side of the same rule. That callback fires in this replay too and
+	// returns at once: a chromeless request localizes no shell config,
+	// so there is no boot signature to compare against.
 	if ( ! did_action( 'admin_head' ) ) {
 		ob_start();
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberate replay of Core's own hook so menu edits made there are in the harvest below.

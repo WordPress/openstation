@@ -42,6 +42,7 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$boot_menu_sig = &openstation_shell_boot_menu_sig();
 		$boot_menu_sig = null;
 		wp_scripts()->add_data( 'openstation', 'before', array() );
+		wp_scripts()->add_data( 'openstation', 'data', '' );
 		parent::tear_down();
 	}
 
@@ -273,6 +274,23 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$this->assertStringContainsString( wp_json_encode( openstation_menu_signature() ), $before );
 		$this->assertStringContainsString( 'Reading', $before );
 		$this->assertStringNotContainsString( 'Hidden Plugin Page', $before );
+
+		// The mechanism: the handle still prints in the footer, after
+		// `admin_head`, and the patch lands between the localized
+		// config and the bundle.
+		$this->assertSame( 1, wp_scripts()->get_data( 'openstation', 'group' ) );
+		wp_localize_script( 'openstation', 'openStationConfig', array( 'dockItems' => array() ) );
+		ob_start();
+		wp_scripts()->do_item( 'openstation', 1 );
+		$printed = (string) ob_get_clean();
+		$config  = strpos( $printed, 'var openStationConfig' );
+		$patch   = strpos( $printed, 'openStationConfig.dockItems=' );
+		$bundle  = strpos( $printed, 'id="openstation-js"' );
+		$this->assertIsInt( $config );
+		$this->assertIsInt( $patch );
+		$this->assertIsInt( $bundle );
+		$this->assertLessThan( $patch, $config );
+		$this->assertLessThan( $bundle, $patch );
 	}
 
 	/**
