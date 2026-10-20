@@ -152,6 +152,12 @@ Plugins (notably WooCommerce's `wc-addons` Extensions row) register `menu_title 
 
 **Fix**: `openstation_build_dock_items()` skips submenu entries whose cleaned title is empty / null / whitespace.
 
+### Menu entries removed on `admin_head`
+
+A second way to keep a page reachable while hiding its row: register it on `admin_menu`, then call `remove_submenu_page()` on `admin_head`. Removing it on `admin_menu` would blank the page's own heading, because Core reads the screen title from the submenu entry at the top of `admin-header.php`. Classic admin prints the menu after `admin_head`, so the row never shows there. The shell config is built on `admin_enqueue_scripts`, before `admin_head`, and the menu-refresh probe exits on `admin_init`. Both shipped the hidden rows to the dock, so a reload brought them back.
+
+**Fix**: `openstation_resync_shell_dock_after_admin_head()` (`admin_head @ PHP_INT_MAX`) compares the menu signature with the one the config was built from. When they differ, it re-sends `dockItems` and `menuSig` through a `before` inline on the footer `openstation` handle, which still has not printed. The probe replays `admin_head` into a discarded buffer before it builds its payload, the same way it already replays `admin_enqueue_scripts`. The chromeless bridge on `plugins.php` and the other pages it covers runs on `admin_footer` and needs neither.
+
 ### Synthetic "Add Theme" tab on the Appearance window
 
 Core does not register `theme-install.php` as a submenu of `themes.php` — classic admin only surfaces it through the in-page "Add Theme" `.page-title-action` button at the top of `themes.php`. Inside chromeless that button scrolls out of view on first paint (the focus-target heuristic on the visible theme grid steals the scroll position), leaving no entry point to the install flow.

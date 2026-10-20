@@ -365,6 +365,20 @@ function openstation_menu_refresh_probe_payload() {
 		ob_end_clean();
 	}
 
+	// A page registered on `admin_menu` and hidden with
+	// `remove_submenu_page()` on `admin_head` is absent from the
+	// classic sidebar, which prints after that hook. The probe exits
+	// long before it, so replay it too, or the probe ships the entries
+	// every real admin page drops — see
+	// `openstation_resync_shell_dock_after_admin_head()` for the boot
+	// side of the same rule.
+	if ( ! did_action( 'admin_head' ) ) {
+		ob_start();
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- deliberate replay of Core's own hook so menu edits made there are in the harvest below.
+		do_action( 'admin_head' );
+		ob_end_clean();
+	}
+
 	return openstation_build_menu_payload();
 }
 

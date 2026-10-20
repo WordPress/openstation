@@ -11,6 +11,8 @@
  * @group openstation
  *
  * @covers ::openstation_menu_signature
+ * @covers ::openstation_resync_shell_dock_after_admin_head
+ * @covers ::openstation_menu_refresh_probe_payload
  */
 class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 
@@ -35,8 +37,11 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 
 	public function tear_down() {
 		global $menu, $submenu;
-		$menu    = $this->original_menu;
-		$submenu = $this->original_submenu;
+		$menu          = $this->original_menu;
+		$submenu       = $this->original_submenu;
+		$boot_menu_sig = &openstation_shell_boot_menu_sig();
+		$boot_menu_sig = null;
+		wp_scripts()->add_data( 'openstation', 'before', array() );
 		parent::tear_down();
 	}
 
@@ -227,5 +232,77 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$without        = openstation_menu_signature();
 
 		$this->assertSame( $with_separator, $without );
+	}
+
+	/**
+	 * Settings with a page registered on `admin_menu`, the shape a
+	 * plugin hiding that page on `admin_head` leaves before the hook.
+	 */
+	private function seed_settings_with_hidden_page() {
+		global $menu, $submenu;
+		$menu    = array( $this->make_menu_row( 'Settings', 'manage_options', 'options-general.php' ) );
+		$submenu = array(
+			'options-general.php' => array(
+				array( 'General', 'manage_options', 'options-general.php' ),
+				array( 'Reading', 'manage_options', 'options-reading.php' ),
+				array( 'Hidden Plugin Page', 'manage_options', 'hidden-plugin-page' ),
+			),
+		);
+	}
+
+	/**
+	 * The shell config is built on `admin_enqueue_scripts`, before a
+	 * plugin hides its page on `admin_head`; classic wp-admin prints
+	 * the menu after that hook and never shows the row. The boot page
+	 * must re-send the dock the menu ends up with.
+	 */
+	public function test_boot_dock_follows_a_menu_edited_on_admin_head() {
+		openstation_register_assets();
+		$this->seed_settings_with_hidden_page();
+		$boot_menu_sig = &openstation_shell_boot_menu_sig();
+		$boot_menu_sig = openstation_menu_signature();
+
+		// Unchanged menu: nothing to re-send.
+		openstation_resync_shell_dock_after_admin_head();
+		$this->assertEmpty( wp_scripts()->get_data( 'openstation', 'before' ) );
+
+		remove_submenu_page( 'options-general.php', 'hidden-plugin-page' );
+		openstation_resync_shell_dock_after_admin_head();
+
+		$before = implode( "\n", (array) wp_scripts()->get_data( 'openstation', 'before' ) );
+		$this->assertStringContainsString( wp_json_encode( openstation_menu_signature() ), $before );
+		$this->assertStringContainsString( 'Reading', $before );
+		$this->assertStringNotContainsString( 'Hidden Plugin Page', $before );
+	}
+
+	/**
+	 * The refresh probe exits on `admin_init`, so without a replay of
+	 * `admin_head` it hands the shell the row every real page drops.
+	 */
+	public function test_probe_payload_drops_entries_removed_on_admin_head() {
+		$this->seed_settings_with_hidden_page();
+		$hide = static function () {
+			remove_submenu_page( 'options-general.php', 'hidden-plugin-page' );
+		};
+		add_action( 'admin_head', $hide );
+
+		// Core's own `admin_head` callbacks read the request URI, which
+		// a real probe request always carries and the CLI does not.
+		$request_uri            = $_SERVER['REQUEST_URI'] ?? null;
+		$_SERVER['REQUEST_URI'] = '/wp-admin/admin.php?openstation_menu_refresh=1';
+
+		$this->assertSame( 0, did_action( 'admin_head' ) );
+		$payload = openstation_menu_refresh_probe_payload();
+		remove_action( 'admin_head', $hide );
+
+		if ( null === $request_uri ) {
+			unset( $_SERVER['REQUEST_URI'] );
+		} else {
+			$_SERVER['REQUEST_URI'] = $request_uri;
+		}
+
+		$dock = wp_json_encode( $payload['dockItems'] );
+		$this->assertStringContainsString( 'Reading', $dock );
+		$this->assertStringNotContainsString( 'Hidden Plugin Page', $dock );
 	}
 }
