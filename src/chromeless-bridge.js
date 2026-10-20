@@ -1623,7 +1623,16 @@
 						 * fires on slug mismatch, which is exactly the
 						 * shape a `_blank` reaches us with.
 						 */
-						newContext: newContext
+						newContext: newContext,
+						/*
+						 * The link is a tab in core's in-page tab strip
+						 * (`.nav-tab-wrapper`). Plugins often give each
+						 * tab its own `page=` slug, which the parent's
+						 * slug rules read as another screen and open in
+						 * a second window; a tab says "show this here",
+						 * so the parent switches this window instead.
+						 */
+						inPageTab: !! link.closest( '.nav-tab-wrapper' )
 					},
 					window.location.origin
 				);
