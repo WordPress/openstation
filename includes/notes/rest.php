@@ -213,7 +213,8 @@ function openstation_notes_prepare( $post ) {
 }
 
 /**
- * Derive the post title from the note text (first non-empty line).
+ * Derive the post title from the note text: its first line with any
+ * text left once the Markdown markers are dropped.
  *
  * Only used for admin-side lists / exports — the shell never shows it.
  *
@@ -222,7 +223,7 @@ function openstation_notes_prepare( $post ) {
  */
 function openstation_notes_derive_title( $text ) {
 	foreach ( preg_split( '/\r\n|\r|\n/', (string) $text ) as $line ) {
-		$line = trim( $line );
+		$line = openstation_notes_markdown_plain_line( $line );
 		if ( '' !== $line ) {
 			return mb_substr( sanitize_text_field( $line ), 0, 80 );
 		}
@@ -493,31 +494,6 @@ function openstation_notes_rest_restore( $request ) {
 	}
 
 	return rest_ensure_response( openstation_notes_prepare( get_post( $post->ID ) ) );
-}
-
-/**
- * Convert a note's plain text into Gutenberg paragraph-block markup.
- *
- * Blank lines split paragraphs; single newlines within a paragraph
- * become `<br>`. The result lands clean in the block editor rather
- * than as one classic-HTML blob.
- *
- * @param string $text Note text.
- * @return string Serialized block markup (empty string for empty text).
- */
-function openstation_notes_text_to_blocks( $text ) {
-	$text       = str_replace( array( "\r\n", "\r" ), "\n", (string) $text );
-	$paragraphs = preg_split( '/\n{2,}/', trim( $text ) );
-	$blocks     = array();
-	foreach ( $paragraphs as $paragraph ) {
-		$paragraph = trim( $paragraph, "\n" );
-		if ( '' === $paragraph ) {
-			continue;
-		}
-		$html     = nl2br( esc_html( $paragraph ), false );
-		$blocks[] = "<!-- wp:paragraph -->\n<p>{$html}</p>\n<!-- /wp:paragraph -->";
-	}
-	return implode( "\n\n", $blocks );
 }
 
 /**

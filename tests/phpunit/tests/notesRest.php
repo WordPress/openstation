@@ -377,6 +377,42 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A Markdown note becomes real blocks, not its source in paragraphs:
+	 * the title loses its markers, `#` steps down to h2 under the post
+	 * title, a checklist keeps its state as ☐ / ☑, and markup typed into
+	 * the note is still text.
+	 *
+	 * @covers ::openstation_notes_text_to_blocks
+	 * @covers ::openstation_notes_derive_title
+	 */
+	public function test_convert_turns_markdown_into_blocks() {
+		$note = $this->create_note(
+			array(
+				'text' => "# **Shop** list\n- [ ] milk\n- [x] [eggs](https://example.test/a_b)\n\n1. one\n> *quoted*\n\n```\n- [ ] not a task\n```",
+			)
+		);
+
+		$data  = openstation_notes_rest_convert( $this->convert_request( $note['id'] ) )->get_data();
+		$draft = get_post( $data['postId'] );
+
+		$this->assertSame( 'Shop list', $draft->post_title );
+		$this->assertStringContainsString( "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\"><strong>Shop</strong> list</h2>", $draft->post_content );
+		$this->assertStringContainsString( "<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>\u{2610} milk</li>", $draft->post_content );
+		$this->assertStringContainsString( "<li>\u{2611} <a href=\"https://example.test/a_b\">eggs</a></li>", $draft->post_content );
+		$this->assertStringContainsString( "<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\">", $draft->post_content );
+		$this->assertStringContainsString( "<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p><em>quoted</em></p>", $draft->post_content );
+		$this->assertStringContainsString( "<pre class=\"wp-block-code\"><code>- &#91; ] not a task</code></pre>", $draft->post_content );
+		$this->assertStringNotContainsString( '<p>#', $draft->post_content );
+
+		// Every block the draft holds parses as a known block.
+		foreach ( parse_blocks( $draft->post_content ) as $block ) {
+			if ( null !== $block['blockName'] ) {
+				$this->assertNotNull( WP_Block_Type_Registry::get_instance()->get_registered( $block['blockName'] ), $block['blockName'] );
+			}
+		}
+	}
+
+	/**
 	 * The client opens `editUrl` inside a window that can only show this
 	 * site's wp-admin, so a host filter that points edit links off-site
 	 * (WordPress.com routes them to wordpress.com) or blanks them must

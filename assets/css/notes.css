@@ -308,17 +308,20 @@
 	color: var(--dm-note-ink, #4d4419);
 }
 
-/* "Convert to post" — same treatment as the visibility toggle. Only
-   rendered for users who can author posts. */
+/* "Edit note", and "Convert to post" (only rendered for users who can
+   author posts) — same treatment as the visibility toggle. */
+.os-pinned-note__edit,
 .os-pinned-note__convert {
 	--os-ui-btn-color: var(--dm-note-ink-soft);
 	opacity: 0.75;
 }
 
+.os-pinned-note__edit:hover,
 .os-pinned-note__convert:hover {
 	opacity: 1;
 }
 
+.os-pinned-note__edit svg,
 .os-pinned-note__convert svg {
 	width: 20px;
 	height: 20px;
@@ -398,13 +401,147 @@
 	font-family: var(--dm-note-hand-font);
 	font-size: 14px;
 	line-height: 1.45;
-	white-space: pre-wrap;
 	overflow-wrap: break-word;
 	user-select: text;
 }
 
+.os-pinned-note__body ::selection,
 .os-pinned-note__body::selection {
 	background: var(--dm-note-paper-deep, #f4df7c);
+}
+
+/* The owner's render is the way into the editor: a click on it. */
+.os-pinned-note[data-owner="me"] .os-pinned-note__body {
+	cursor: text;
+}
+
+/* The render, the editor and the Edit button take turns. The
+   components' own :host display would otherwise outrank the UA's
+   [hidden]. */
+.os-pinned-note [hidden] {
+	display: none;
+}
+
+.os-pinned-note__body:focus-visible {
+	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+.os-pinned-note__body:empty::before {
+	content: attr(data-placeholder);
+	color: var(--dm-note-ink-soft, rgba(0, 0, 0, 0.55));
+}
+
+/* Rendered Markdown, sized for a 208px paper: headings step up from
+   the ink rather than shout, and every block keeps a hand's spacing. */
+.os-pinned-note__body > :first-child {
+	margin-top: 0;
+}
+
+.os-pinned-note__body > :last-child {
+	margin-bottom: 0;
+}
+
+.os-pinned-note__body p,
+.os-pinned-note__body ul,
+.os-pinned-note__body ol,
+.os-pinned-note__body pre,
+.os-pinned-note__body blockquote {
+	margin: 0 0 0.45em;
+}
+
+.os-pinned-note__body h3,
+.os-pinned-note__body h4,
+.os-pinned-note__body h5,
+.os-pinned-note__body h6 {
+	margin: 0.3em 0 0.25em;
+	color: inherit;
+	font-family: inherit;
+	line-height: 1.2;
+}
+
+.os-pinned-note__body h3 {
+	font-size: 1.3em;
+}
+
+.os-pinned-note__body h4 {
+	font-size: 1.15em;
+}
+
+.os-pinned-note__body h5,
+.os-pinned-note__body h6 {
+	font-size: 1em;
+}
+
+.os-pinned-note__body ul,
+.os-pinned-note__body ol {
+	padding-left: 1.2em;
+}
+
+.os-pinned-note__body li {
+	margin: 0;
+}
+
+.os-pinned-note__body a {
+	color: inherit;
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 2px;
+}
+
+.os-pinned-note__body code,
+.os-pinned-note__body pre {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.85em;
+	background: color-mix(in srgb, var(--dm-note-ink, #4d4419) 10%, transparent);
+	border-radius: 3px;
+}
+
+.os-pinned-note__body code {
+	padding: 0 0.2em;
+}
+
+.os-pinned-note__body pre {
+	padding: 0.4em 0.5em;
+	overflow-x: auto;
+	white-space: pre;
+}
+
+.os-pinned-note__body pre code {
+	padding: 0;
+	background: none;
+	font-size: inherit;
+}
+
+.os-pinned-note__body blockquote {
+	padding-left: 0.6em;
+	border-left: 2px solid color-mix(in srgb, var(--dm-note-ink, #4d4419) 35%, transparent);
+	color: var(--dm-note-ink-soft, rgba(0, 0, 0, 0.55));
+}
+
+.os-pinned-note__body hr {
+	margin: 0.5em 0;
+	border: 0;
+	border-top: 1px solid color-mix(in srgb, var(--dm-note-ink, #4d4419) 30%, transparent);
+}
+
+/* To-do items: the box stands in for the bullet, and a ticked item
+   reads as done. The label inherits the paper's ink and hand, not the
+   kit's admin text. */
+.os-pinned-note__body li.os-md-task {
+	list-style: none;
+	margin-left: -1.2em;
+}
+
+.os-pinned-note__body li.os-md-task os-checkbox {
+	--os-ui-fg: var(--dm-note-ink, #4d4419);
+	font-size: inherit;
+}
+
+.os-pinned-note__body li.os-md-task os-checkbox[checked] > span {
+	text-decoration: line-through;
+	color: var(--dm-note-ink-soft, rgba(0, 0, 0, 0.55));
 }
 
 .os-pinned-note__footer {

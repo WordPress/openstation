@@ -121,7 +121,7 @@ const mount = (
 	const editor = document.createElement( 'os-textarea' ) as OsTextareaElement;
 	editor.className = 'dm-notes-pad__editor';
 	editor.setAttribute( 'aria-label', __( 'New note', 'desktop-mode' ) );
-	editor.setAttribute( 'placeholder', __( 'Write a note…', 'desktop-mode' ) );
+	editor.setAttribute( 'placeholder', __( 'Write a note… Markdown works, and - [ ] makes a to-do.', 'desktop-mode' ) );
 	editor.setAttribute( 'rows', '5' );
 	editor.setAttribute( 'auto-grow', '' );
 	editor.setAttribute( 'max-rows', '8' );

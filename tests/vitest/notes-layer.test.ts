@@ -360,6 +360,67 @@ describe( 'NotesLayer', () => {
 	} );
 
 
+	test( 'an owner note shows its Markdown rendered and edits the source on click', () => {
+		const layer = makeLayer();
+		const controller = layer.upsertNote( makeNote( { text: '# Shop\n**milk**' } ) );
+		const el = controller.element;
+		const body = el.querySelector( '.os-pinned-note__body' ) as HTMLElement;
+		const editor = el.querySelector( 'os-textarea' ) as HTMLElement;
+		expect( body.innerHTML ).toBe( '<h3>Shop</h3><p><strong>milk</strong></p>' );
+		expect( editor.hidden ).toBe( true );
+
+		body.click();
+		expect( el.classList.contains( 'is-editing' ) ).toBe( true );
+		expect( body.hidden ).toBe( true );
+		expect( editor.hidden ).toBe( false );
+
+		// Typing, then focus leaving the editor, shows the new text rendered.
+		editor.dispatchEvent( new CustomEvent( 'os-input-change', { detail: { value: '*oat* milk' } } ) );
+		editor.dispatchEvent( new FocusEvent( 'focusout', { relatedTarget: null } ) );
+		expect( el.classList.contains( 'is-editing' ) ).toBe( false );
+		expect( body.hidden ).toBe( false );
+		expect( body.innerHTML ).toBe( '<p><em>oat</em> milk</p>' );
+	} );
+
+	test( 'ticking a box on your own note saves [x] into its text; theirs are inert and escaped', async () => {
+		const patches: string[] = [];
+		vi.stubGlobal(
+			'fetch',
+			vi.fn( async ( _url: string, init?: RequestInit ) => {
+				if ( typeof init?.body === 'string' ) {
+					patches.push( JSON.parse( init.body ).text );
+				}
+				return new Response(
+					JSON.stringify( makeNote( { text: '- [x] milk\n- [ ] eggs', updatedAtMs: 2000 } ) ),
+					{ status: 200 },
+				);
+			} ),
+		);
+		const layer = makeLayer();
+		const mine = layer.upsertNote( makeNote( { text: '- [ ] milk\n- [ ] eggs' } ) );
+		const box = mine.element.querySelector( 'os-checkbox[value="0"]' ) as HTMLElement;
+		expect( box.hasAttribute( 'disabled' ) ).toBe( false );
+		box.dispatchEvent(
+			new CustomEvent( 'os-checkbox-change', {
+				detail: { checked: true, value: '0' },
+				bubbles: true,
+				composed: true,
+			} ),
+		);
+		await new Promise( ( r ) => setTimeout( r, 10 ) );
+		expect( patches ).toEqual( [ '- [x] milk\n- [ ] eggs' ] );
+		// A tick is not a request to edit, and the box it came from stays.
+		expect( mine.element.classList.contains( 'is-editing' ) ).toBe( false );
+		expect( mine.element.querySelector( 'os-checkbox[value="0"]' ) ).toBe( box );
+
+		const theirs = layer.upsertNote(
+			makeNote( { id: 2, canEdit: false, public: true, text: '- [ ] <img src=x onerror=alert(1)>' } ),
+		);
+		const theirBody = theirs.element.querySelector( '.os-pinned-note__body' )!;
+		expect( theirBody.querySelector( 'img' ) ).toBeNull();
+		expect( theirBody.querySelector( 'os-checkbox' )?.hasAttribute( 'disabled' ) ).toBe( true );
+	} );
+
 	test( 'every action sits together in the footer, clear of the pushpin', () => {
 		// The pin is painted over the meta row and covers its middle,
 		// so that row holds the colour dot and nothing else.
@@ -372,6 +433,7 @@ describe( 'NotesLayer', () => {
 		expect(
 			[ ...( actions?.children ?? [] ) ].map( ( c ) => c.className ),
 		).toEqual( [
+			'os-pinned-note__edit',
 			'os-pinned-note__visibility',
 			'os-pinned-note__convert',
 			'os-pinned-note__trash',

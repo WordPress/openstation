@@ -1,9 +1,9 @@
 /**
  * Unit tests for `src/markdown.ts` — the minimal shared renderer used
- * by the AI assistant overlay and the Agent chat window.
+ * by the AI assistant overlay, the Agent chat window and pinned notes.
  */
 import { describe, expect, test } from 'vitest';
-import { renderMarkdown } from '../../src/markdown';
+import { renderMarkdown, setTaskChecked } from '../../src/markdown';
 
 describe( 'renderMarkdown', () => {
 	test( 'escapes HTML before interpreting tokens', () => {
@@ -64,5 +64,39 @@ describe( 'renderMarkdown', () => {
 
 	test( 'italics never pair across lines inside a paragraph', () => {
 		expect( renderMarkdown( 'a *start\nend* b' ) ).not.toContain( '<em>' );
+	} );
+
+	test( 'an underscore in a URL and an asterisk in code stay literal', () => {
+		expect( renderMarkdown( 'see https://example.test/_a_/b, `**x**`' ) ).toBe(
+			'<p>see <a href="https://example.test/_a_/b" target="_blank" rel="noopener noreferrer">https://example.test/_a_/b</a>, <code>**x**</code></p>',
+		);
+		expect( renderMarkdown( '[`run`](https://example.test)' ) ).toBe(
+			'<p><a href="https://example.test" target="_blank" rel="noopener noreferrer"><code>run</code></a></p>',
+		);
+	} );
+
+	test( 'renders fenced code verbatim, quotes and strikethrough', () => {
+		expect( renderMarkdown( '```\n<b> *x*\n```\n> said ~~it~~' ) ).toBe(
+			'<pre><code>&lt;b&gt; *x*</code></pre><blockquote><p>said <del>it</del></p></blockquote>',
+		);
+	} );
+
+	test( 'task items are literal unless asked for, then carry their source line', () => {
+		const md = 'To do\n- [ ] milk\n- [x] **eggs**';
+		expect( renderMarkdown( md ) ).toContain( '<li>[ ] milk</li>' );
+		expect( renderMarkdown( md, { tasks: { disabled: true } } ) ).toBe(
+			'<p>To do</p><ul>' +
+				'<li class="os-md-task"><os-checkbox value="1" disabled><span>milk</span></os-checkbox></li>' +
+				'<li class="os-md-task"><os-checkbox value="2" checked disabled><span><strong>eggs</strong></span></os-checkbox></li>' +
+				'</ul>',
+		);
+	} );
+
+	test( 'setTaskChecked rewrites only that line, and refuses a line that is not a task', () => {
+		const md = 'To do\r\n- [ ] milk\r\n  1. [X] eggs';
+		expect( setTaskChecked( md, 1, true ) ).toBe( 'To do\r\n- [x] milk\r\n  1. [X] eggs' );
+		expect( setTaskChecked( md, 2, false ) ).toBe( 'To do\r\n- [ ] milk\r\n  1. [ ] eggs' );
+		expect( setTaskChecked( md, 0, true ) ).toBeNull();
+		expect( setTaskChecked( md, 9, true ) ).toBeNull();
 	} );
 } );

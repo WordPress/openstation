@@ -4984,6 +4984,12 @@ OpenStation user's wallpaper). Only the owner can edit, move, recolor,
 or delete a note; administrators do not bypass ownership through this
 controller.
 
+A note's text is stored as typed, and read as **Markdown**: the pinned
+note renders it (escaped first, so a public note can carry no markup
+onto anyone else's wallpaper) and the owner edits the plain source.
+`- [ ]` / `- [x]` items are checkboxes the owner can tick on the
+pinned note, which writes the mark back into the text.
+
 ### `openstation_notes_user_can_create` — Experimental *(filter)*
 
 Filters whether the current user may create a note. Defaults to
@@ -5043,9 +5049,13 @@ Filters the arguments passed to `wp_insert_post()` when a note is
 converted to a post via `POST /desktop-mode/v1/notes/:id/convert` (the
 inline "Convert to post" button and the drag-onto-Posts gesture). The
 default spawns a **draft `post`** authored by the note owner, titled
-from the note's first line, with the note body wrapped in
-`wp:paragraph` blocks (blank lines split paragraphs; single newlines
-become `<br>`). Hook here to change the post type/status, assign a
+from the note's first line with its Markdown markers dropped, and
+converts the note's Markdown into blocks: paragraphs (blank lines split
+them; single newlines become `<br>`), headings (`#` becomes an `h2`,
+under the post title), bullet and numbered lists, checklists (a list
+whose items open with ☐ / ☑ — Core has no checklist block), quotes,
+code and separators, with bold, italic, strikethrough, code and
+http(s) links inline. Hook here to change the post type/status, assign a
 category, or rewrite the block markup. The convert route itself is
 gated on the owner + the `edit_posts` capability, which this filter
 does not loosen.
