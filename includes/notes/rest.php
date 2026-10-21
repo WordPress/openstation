@@ -213,9 +213,9 @@ function openstation_notes_prepare( $post ) {
 }
 
 /**
- * Keep the save filters off a note's text, the way
- * `openstation_agent_conversation_preserve_text()` does for a
- * conversation. Hooked only while a note handler saves.
+ * Keep the save filters off a note's text, the way the agents module
+ * does for a conversation's transcript. Hooked only while a note
+ * handler saves.
  *
  * The text is Markdown the client renders escaped, never HTML that
  * WordPress echoes, and `sanitize_textarea_field()` has already
