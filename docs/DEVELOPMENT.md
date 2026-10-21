@@ -38,25 +38,27 @@ wp-env does not start inside a Claude Code cloud container. Two things go wrong:
 - It decides it is offline by resolving `WordPress.org` over DNS, and the container has no outside DNS, only an HTTPS proxy.
 - It builds its own images at start-up, and their `apk` / `apt-get` steps cannot see that proxy.
 
-`bin/cloud-test-env.sh` sets the same suite up without it:
+`bin/cloud-test-env.sh` rebuilds, without it, the part of wp-env the suite depends on, so a run here matches CI:
 
-- the host's PHP;
-- a MariaDB container, pulled through `mirror.gcr.io` because Docker Hub rate-limits the shared egress;
-- a pinned WordPress core from wordpress.org;
-- the matching `wp-phpunit/wp-phpunit` test library from Packagist, which `tests/phpunit/bootstrap.php` reads through `WP_PHPUNIT__DIR`.
+- PHPUnit runs in the image CI's tests run in (`wordpress:cli-php8.3` by default), with the checkout mounted at `wp-content/plugins/desktop-mode` of a pinned WordPress core from wordpress.org;
+- the core gets a `wp-config.php`, and the tests config is that file minus its `wp-settings.php` line, with wp-env's default constants overlaid by `.wp-env.tests.json` — the way wp-env writes both;
+- the test library is the matching `wp-phpunit/wp-phpunit` from Packagist, which `tests/phpunit/bootstrap.php` already reads;
+- MariaDB runs in a container, and Docker pulls go through `mirror.gcr.io` because Docker Hub rate-limits the shared egress;
+- the test container shares the host network, so the few tests that call wordpress.org reach it through the egress proxy, as they reach it directly in CI.
 
-It also installs Node 24 when the host's is older. Every step checks first, so it is safe as the environment's setup script and safe to run again.
+It also installs Node 24 when the host's is older, and builds the app client views when they are missing (CI builds them for the same reason). Every step checks first, so it is safe as the environment's setup script and safe to run again.
 
 ```bash
-bin/cloud-test-env.sh            # PHPUnit only
-bin/cloud-test-env.sh serve      # also serves this checkout as a site on :8890 (admin / password)
-source ~/.cache/openstation-tests/env.sh
-vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist
+bin/cloud-test-env.sh                          # prepare only
+bin/cloud-test-env.sh phpunit                  # prepare, then run the suite
+bin/cloud-test-env.sh phpunit --filter Tests_OpenStation_NotesRest
+WP_MULTISITE=1 bin/cloud-test-env.sh phpunit   # the multisite run
+bin/cloud-test-env.sh serve                    # also serves this checkout as a site on :8890 (admin / password)
 ```
 
-The environment's network allowlist needs `wordpress.org`, `api.wordpress.org` and `downloads.wordpress.org`. `OPENSTATION_TESTS_WP_VERSION` picks the WordPress version, and core and test library always move together; the default is the newest `wp-phpunit` tag on Packagist, which can trail the newest core release.
+The environment's network allowlist needs `wordpress.org`, `api.wordpress.org` and `downloads.wordpress.org`. `OPENSTATION_TESTS_WP_VERSION` picks the WordPress version, and core and test library always move together; the default is the newest `wp-phpunit` tag on Packagist, which can trail the newest core release. `OPENSTATION_TESTS_PHP_VERSION=8.4` runs CI's other PHP row.
 
-**Judge a run against trunk, not against zero.** About twenty tests fail in this setup on trunk too, because they assume wp-env's layout (the checkout mounted at `wp-content/plugins/desktop-mode`) or outbound HTTP to wordpress.org. Run the same suite on `origin/trunk` and compare the failing names.
+A clean run here has no failures, single site and multisite: a failure is a failure, not the environment.
 
 ## Manual QA and per-worktree instances (wp-env)
 

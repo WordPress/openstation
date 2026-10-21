@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 #
 # Turn a fresh Claude Code cloud container into one that can run this
-# repo's PHPUnit suite, and serve a real WordPress for browser checks.
+# repo's PHPUnit suite the way CI does, and serve a real WordPress for
+# browser checks.
 #
-#   bin/cloud-test-env.sh          # prepare PHPUnit (idempotent)
-#   bin/cloud-test-env.sh serve    # …and serve a site on :8890
+#   bin/cloud-test-env.sh                          # prepare (idempotent)
+#   bin/cloud-test-env.sh phpunit [args…]          # prepare, run the suite
+#   WP_MULTISITE=1 bin/cloud-test-env.sh phpunit   # …as a network
+#   bin/cloud-test-env.sh serve                    # prepare, serve a site
 #
-# Then:
-#
-#   source "$HOME/.cache/openstation-tests/env.sh"
-#   vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist
+# `phpunit` passes its arguments through: `phpunit --filter Tests_Foo`.
 #
 # Safe to run from an environment setup script and to run again: every
 # step checks before it acts and reuses what is already there.
 #
-# WHY NOT wp-env. `npm run test:php` is the contributor path and stays
-# so, but it cannot start behind a cloud container's egress proxy, for
-# two reasons no wp-env setting reaches:
+# WHY NOT wp-env. `npm run test:php` is the contributor path and CI's,
+# and stays so, but it cannot start behind a cloud container's egress
+# proxy, for two reasons no wp-env setting reaches:
 #
 #   - wp-env decides it is offline by resolving WordPress.org over DNS.
 #     The container has no outside DNS — only an HTTPS proxy — so the
@@ -25,30 +25,50 @@
 #   - wp-env builds its own images at start-up, and those builds run
 #     `apk` / `apt-get` inside containers that cannot see the proxy.
 #
-# So this runs PHPUnit with the host's PHP against a MariaDB container,
-# a pinned WordPress core from wordpress.org and the matching
-# `wp-phpunit/wp-phpunit` test library from Packagist — the layout
-# `tests/phpunit/bootstrap.php` already reads through WP_PHPUNIT__DIR.
-# Docker pulls go through mirror.gcr.io because Docker Hub rate-limits
-# the container's shared egress (429 Too Many Requests).
+# So this rebuilds, by hand, the part of wp-env the suite depends on.
+# Each piece is load-bearing: a test fails without it.
 #
-# Needs: php (with mysqli), composer, curl, unzip, docker + dockerd, and
-# the environment's network allowlist to include wordpress.org,
-# api.wordpress.org and downloads.wordpress.org.
+#   - PHPUnit runs in the image CI's tests run in (`wordpress:cli-phpX.Y`,
+#     PHP 8.3 by default, CI's first matrix row), with the checkout
+#     mounted at wp-content/plugins/desktop-mode of a pinned WordPress
+#     core. The plugin has to live under WP_PLUGIN_DIR, under its slug.
+#   - The core carries a wp-config.php, and wp-tests-config.php is that
+#     file minus the wp-settings.php line, as wp-env derives it. The
+#     constants are wp-env's defaults overlaid with .wp-env.tests.json:
+#     WP_DEBUG off, the test domain localhost:<its port>, salts defined.
+#     Subprocess tests boot through the core's wp-load.php, so the
+#     wp-config.php has to be there too.
+#   - The test library is `wp-phpunit/wp-phpunit` from Packagist, at the
+#     same version as the core.
+#   - The container shares the host network, so it reaches MariaDB on
+#     127.0.0.1 and the egress proxy. WordPress is pointed at the proxy
+#     (WP_PROXY_*), and the proxy's CA is added to this test core's CA
+#     bundle: a few tests make real requests to wordpress.org, as in CI.
+#   - Docker pulls go through mirror.gcr.io because Docker Hub
+#     rate-limits the container's shared egress (429 Too Many Requests).
+#
+# Needs: php + composer on the host (vendor/ and the config generator),
+# curl, unzip, docker + dockerd, and the environment's network allowlist
+# to include wordpress.org, api.wordpress.org and downloads.wordpress.org.
 #
 # Environment overrides:
-#   OPENSTATION_TESTS_WP_VERSION  WordPress + wp-phpunit version (both
-#                                 pinned to the same one). Default 7.1.1,
-#                                 the newest wp-phpunit tag on Packagist.
-#   OPENSTATION_TESTS_CACHE       Download/cache root.
-#                                 Default $HOME/.cache/openstation-tests.
-#   OPENSTATION_TESTS_NODE_DIR    Where Node 24 goes when the host's is
-#                                 older. Default $HOME/.local/node24.
-#   OPENSTATION_SERVE_PORT        Port for `serve`. Default 8890.
+#   OPENSTATION_TESTS_WP_VERSION   WordPress + wp-phpunit version (both
+#                                  pinned to the same one). Default
+#                                  7.1.1, the newest wp-phpunit tag on
+#                                  Packagist.
+#   OPENSTATION_TESTS_PHP_VERSION  PHP of the test image. Default 8.3;
+#                                  CI also runs 8.4.
+#   OPENSTATION_TESTS_CACHE        Download/cache root.
+#                                  Default $HOME/.cache/openstation-tests.
+#   OPENSTATION_TESTS_NODE_DIR     Where Node 24 goes when the host's is
+#                                  older. Default $HOME/.local/node24.
+#   OPENSTATION_SERVE_PORT         Port for `serve`. Default 8890.
 
 set -euo pipefail
 
 WP_VERSION="${OPENSTATION_TESTS_WP_VERSION:-7.1.1}"
+PHP_VERSION="${OPENSTATION_TESTS_PHP_VERSION:-8.3}"
+TEST_IMAGE="wordpress:cli-php${PHP_VERSION}"
 CACHE_ROOT="${OPENSTATION_TESTS_CACHE:-$HOME/.cache/openstation-tests}"
 NODE_DIR="${OPENSTATION_TESTS_NODE_DIR:-$HOME/.local/node24}"
 SERVE_PORT="${OPENSTATION_SERVE_PORT:-8890}"
@@ -65,7 +85,7 @@ VERSION_DIR="${CACHE_ROOT}/${WP_VERSION}"
 CORE_DIR="${VERSION_DIR}/wordpress"
 LIB_DIR="${VERSION_DIR}/lib"
 TESTS_CONFIG="${VERSION_DIR}/wp-tests-config.php"
-ENV_FILE="${CACHE_ROOT}/env.sh"
+SALTS_FILE="${VERSION_DIR}/salts.php"
 
 log() { printf '\033[1m[cloud-test-env]\033[0m %s\n' "$*"; }
 die() { printf '\033[31m[cloud-test-env] %s\033[0m\n' "$*" >&2; exit 1; }
@@ -75,7 +95,7 @@ need() {
 }
 
 # ---------------------------------------------------------------------
-# 1. Node 24 and the JS dependencies
+# 1. Node 24, the JS dependencies, the app client views
 # ---------------------------------------------------------------------
 
 ensure_node() {
@@ -106,7 +126,7 @@ ensure_node() {
 	fi
 	if [ -x "${NODE_DIR}/bin/node" ] && [ "${current}" -lt "${NODE_MAJOR}" ]; then
 		export PATH="${NODE_DIR}/bin:${PATH}"
-		NODE_PATH_LINE="export PATH=\"${NODE_DIR}/bin:\$PATH\""
+		log "put ${NODE_DIR}/bin first on PATH for this run; in your shell: export PATH=\"${NODE_DIR}/bin:\$PATH\""
 	fi
 
 	if [ -d "${REPO_ROOT}/node_modules" ]; then
@@ -114,6 +134,16 @@ ensure_node() {
 	else
 		log "npm ci"
 		( cd "${REPO_ROOT}" && npm ci --no-audit --no-fund )
+	fi
+
+	# The one piece of build output the PHP suite reads from disk, built
+	# in CI for the same reason: an app's client view only counts when
+	# its bundle exists.
+	if compgen -G "${REPO_ROOT}/assets/js/apps/*.js" >/dev/null; then
+		log "app client views already built"
+	else
+		log "npm run build:apps"
+		( cd "${REPO_ROOT}" && npm run --silent build:apps )
 	fi
 }
 
@@ -231,44 +261,89 @@ ensure_wordpress() {
 }
 
 # ---------------------------------------------------------------------
-# 6. wp-tests-config.php
+# 6. wp-config.php + wp-tests-config.php, the way wp-env writes them
 # ---------------------------------------------------------------------
 
-write_tests_config() {
-	cat > "${TESTS_CONFIG}" <<EOF
-<?php
-// Written by bin/cloud-test-env.sh — regenerated on every run.
-define( 'ABSPATH', '${CORE_DIR}/' );
-define( 'WP_DEFAULT_THEME', 'default' );
-define( 'WP_DEBUG', true );
-define( 'DB_NAME', '${DB_NAME}' );
-define( 'DB_USER', 'root' );
-define( 'DB_PASSWORD', '${DB_PASSWORD}' );
-define( 'DB_HOST', '127.0.0.1:3306' );
-define( 'DB_CHARSET', 'utf8mb4' );
-define( 'DB_COLLATE', '' );
-define( 'WP_TESTS_DOMAIN', 'example.org' );
-define( 'WP_TESTS_EMAIL', 'admin@example.org' );
-define( 'WP_TESTS_TITLE', 'Test Blog' );
-define( 'WP_PHP_BINARY', 'php' );
-define( 'WPLANG', '' );
-EOF
-	log "wrote ${TESTS_CONFIG}"
+# The egress proxy as host:port, or nothing.
+proxy_host_port() {
+	local proxy="${HTTPS_PROXY:-${https_proxy:-}}"
+	proxy="${proxy#*://}"
+	proxy="${proxy##*@}"
+	proxy="${proxy%%/*}"
+	printf '%s' "${proxy}"
+}
+
+# The CA bundle that trusts the egress proxy, or nothing.
+proxy_ca_file() {
+	local candidate
+	for candidate in "${SSL_CERT_FILE:-}" "${CURL_CA_BUNDLE:-}" /root/.ccr/ca-bundle.crt; do
+		if [ -n "${candidate}" ] && [ -f "${candidate}" ]; then
+			printf '%s' "${candidate}"
+			return
+		fi
+	done
+}
+
+write_configs() {
+	if [ ! -f "${SALTS_FILE}" ]; then
+		php "${REPO_ROOT}/bin/cloud-test-env-config.php" salts "${SALTS_FILE}"
+		log "generated salts"
+	fi
+
+	local proxy
+	proxy="$( proxy_host_port )"
+	php "${REPO_ROOT}/bin/cloud-test-env-config.php" configs \
+		"${REPO_ROOT}/.wp-env.tests.json" "${SALTS_FILE}" \
+		"${CORE_DIR}/wp-config.php" "${TESTS_CONFIG}" "${proxy}"
+	log "wrote ${CORE_DIR}/wp-config.php and ${TESTS_CONFIG}"
+
+	# WordPress verifies TLS against its own bundle, which does not know
+	# the proxy's CA. This core is a disposable test copy; add it there.
+	local ca bundle="${CORE_DIR}/wp-includes/certificates/ca-bundle.crt"
+	ca="$( proxy_ca_file )"
+	if [ -n "${proxy}" ] && [ -n "${ca}" ] && ! grep -q 'cloud-test-env: egress proxy CA' "${bundle}"; then
+		{
+			printf '\n# cloud-test-env: egress proxy CA\n'
+			cat "${ca}"
+		} >> "${bundle}"
+		log "added the egress proxy's CA to the test core's CA bundle"
+	fi
 }
 
 # ---------------------------------------------------------------------
-# 7. The env file
+# 7. The test image
 # ---------------------------------------------------------------------
 
-write_env_file() {
-	{
-		echo '# Written by bin/cloud-test-env.sh. Source it, then run:'
-		echo '#   vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist'
-		[ -n "${NODE_PATH_LINE:-}" ] && echo "${NODE_PATH_LINE}"
-		echo "export WP_PHPUNIT__DIR=\"${LIB_DIR}/vendor/wp-phpunit/wp-phpunit\""
-		echo "export WP_PHPUNIT__TESTS_CONFIG=\"${TESTS_CONFIG}\""
-	} > "${ENV_FILE}"
-	log "wrote ${ENV_FILE}"
+ensure_test_image() {
+	if docker image inspect "${TEST_IMAGE}" >/dev/null 2>&1; then
+		log "${TEST_IMAGE} already pulled"
+	else
+		log "pulling ${TEST_IMAGE}"
+		docker pull -q "${TEST_IMAGE}" >/dev/null
+	fi
+}
+
+# ---------------------------------------------------------------------
+# phpunit: the suite, inside the test image
+# ---------------------------------------------------------------------
+
+run_phpunit() {
+	local plugin="/var/www/html/wp-content/plugins/desktop-mode"
+	local env_args=( -e WP_TESTS_DIR=/wordpress-phpunit -e WP_PHPUNIT__TESTS_CONFIG=/wp-tests-config.php )
+	if [ -n "${WP_MULTISITE:-}" ]; then
+		env_args+=( -e "WP_MULTISITE=${WP_MULTISITE}" )
+	fi
+	log "running PHPUnit in ${TEST_IMAGE}"
+	docker run --rm --network host --user 0:0 \
+		-v "${CORE_DIR}:/var/www/html" \
+		-v "${REPO_ROOT}:${plugin}" \
+		-v "${LIB_DIR}/vendor/wp-phpunit/wp-phpunit:/wordpress-phpunit:ro" \
+		-v "${TESTS_CONFIG}:/wp-tests-config.php:ro" \
+		"${env_args[@]}" \
+		-w "${plugin}" \
+		--entrypoint php \
+		"${TEST_IMAGE}" \
+		vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist "$@"
 }
 
 # ---------------------------------------------------------------------
@@ -284,7 +359,13 @@ serve_site() {
 		cp -R "${CORE_DIR}/." "${site}/"
 	fi
 	# `desktop-mode` is the plugin slug, which is frozen (see AGENTS.md).
-	ln -sfn "${REPO_ROOT}" "${site}/wp-content/plugins/desktop-mode"
+	# A copy of the test core carries the empty directory the test image
+	# mounts the checkout on; the link replaces it.
+	local link="${site}/wp-content/plugins/desktop-mode"
+	if [ -d "${link}" ] && [ ! -L "${link}" ]; then
+		rmdir "${link}"
+	fi
+	ln -sfn "${REPO_ROOT}" "${link}"
 	cat > "${site}/wp-config.php" <<EOF
 <?php
 // Written by bin/cloud-test-env.sh — regenerated on every run.
@@ -319,30 +400,20 @@ EOF
 		done
 	fi
 
-	php -r '
-		define( "WP_INSTALLING", true );
-		$_SERVER["HTTP_HOST"] = "localhost";
-		require $argv[1] . "/wp-load.php";
-		require_once ABSPATH . "wp-admin/includes/upgrade.php";
-		require_once ABSPATH . "wp-admin/includes/plugin.php";
-		if ( ! is_blog_installed() ) {
-			wp_install( "OpenStation", "admin", "admin@example.org", true, "", "password" );
-			echo "installed\n";
-		}
-		$result = activate_plugin( "desktop-mode/desktop-mode.php" );
-		if ( is_wp_error( $result ) ) {
-			fwrite( STDERR, $result->get_error_message() . "\n" );
-			exit( 1 );
-		}
-	' "${site}" | sed 's/^/[cloud-test-env] site: /'
+	php "${REPO_ROOT}/bin/cloud-test-env-config.php" install-site "${site}" \
+		| sed 's/^/[cloud-test-env] site: /'
 	log "site ready: ${url}/wp-admin/ (admin / password). JS changes need npm run build."
 }
 
 # ---------------------------------------------------------------------
 
 main() {
-	need php "install PHP with the mysqli extension"
-	php -m | grep -qi '^mysqli$' || die "PHP is missing the mysqli extension"
+	local command="${1:-}"
+	if [ $# -gt 0 ]; then
+		shift
+	fi
+
+	need php "install PHP (it writes the configs and serves the site)"
 	need curl "install curl"
 
 	ensure_node
@@ -350,18 +421,24 @@ main() {
 	ensure_docker
 	ensure_db
 	ensure_wordpress
-	write_tests_config
-	write_env_file
+	write_configs
+	ensure_test_image
 
-	if [ "${1:-}" = "serve" ]; then
-		serve_site
-	fi
-
-	log "done. Run the suite with:"
-	echo
-	echo "  source \"${ENV_FILE}\""
-	echo "  vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist"
-	echo
+	case "${command}" in
+		phpunit)
+			run_phpunit "$@"
+			;;
+		serve)
+			php -m | grep -qi '^mysqli$' || die "the host PHP is missing the mysqli extension"
+			serve_site
+			;;
+		'')
+			log "done. Run the suite with: bin/cloud-test-env.sh phpunit"
+			;;
+		*)
+			die "unknown command '${command}' (expected: phpunit, serve)"
+			;;
+	esac
 }
 
 main "$@"
