@@ -426,6 +426,11 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '#<pre class="wp-block-code"><code>- &\#0?91; \] not a task</code></pre>#', $draft->post_content );
 		$this->assertStringNotContainsString( '<p>#', $draft->post_content );
 
+		// An entity typed into the note is text, in a paragraph and in a fence.
+		$blocks = openstation_notes_text_to_blocks( "a &amp; b\n\n```\n&lt;div&gt;\n```" );
+		$this->assertStringContainsString( '<p>a &amp;amp; b</p>', $blocks );
+		$this->assertStringContainsString( '<code>&amp;lt;div&amp;gt;</code>', $blocks );
+
 		// Every block the draft holds parses as a known block.
 		foreach ( parse_blocks( $draft->post_content ) as $block ) {
 			if ( null !== $block['blockName'] ) {

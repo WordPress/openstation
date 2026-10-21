@@ -4988,7 +4988,10 @@ A note's text is stored as typed, and read as **Markdown**: the pinned
 note renders it (escaped first, so a public note can carry no markup
 onto anyone else's wallpaper) and the owner edits the plain source.
 `- [ ]` / `- [x]` items are checkboxes the owner can tick on the
-pinned note, which writes the mark back into the text.
+pinned note, which writes the mark back into the text. Headings step
+down from where they appear: `#` paints as an `h3` on the paper (under
+the shell's own headings) and becomes an `h2` in a converted post
+(under the post title).
 
 ### `openstation_notes_user_can_create` — Experimental *(filter)*
 

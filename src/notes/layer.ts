@@ -725,6 +725,11 @@ export class NoteController {
 			if ( next instanceof Node && editor.contains( next ) ) {
 				return;
 			}
+			// Switching tabs or apps blurs the page too; the owner comes
+			// back to the caret, not to a render they must reopen.
+			if ( ! document.hasFocus() ) {
+				return;
+			}
 			this.exitEditMode();
 		} );
 		editor.addEventListener( 'os-input-change', ( event ) => {

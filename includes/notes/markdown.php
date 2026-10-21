@@ -46,7 +46,10 @@ function openstation_notes_markdown_inline( $text ) {
 		return '<a href="' . esc_url( $url ) . '">' . $label . '</a>';
 	};
 
-	$html = esc_html( (string) $text );
+	// Every `&` is encoded, existing entities included: a note that
+	// says `&amp;` means those five characters, as the shell renders it.
+	// esc_html() would leave the entity alone and the draft would read `&`.
+	$html = htmlspecialchars( (string) $text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 	$html = preg_replace_callback(
 		'/`([^`\n]+?)`/',
 		static function ( $m ) use ( $keep ) {
@@ -182,7 +185,7 @@ function openstation_notes_text_to_blocks( $text ) {
 	$flush_code  = static function () use ( &$code, &$blocks ) {
 		// Core's code block escapes `[` so a shortcode in the sample
 		// stays a sample.
-		$body     = str_replace( '[', '&#91;', esc_html( implode( "\n", $code ) ) );
+		$body     = str_replace( '[', '&#91;', htmlspecialchars( implode( "\n", $code ), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' ) );
 		$blocks[] = "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>{$body}</code></pre>\n<!-- /wp:code -->";
 		$code     = null;
 	};
