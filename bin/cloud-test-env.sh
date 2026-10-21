@@ -508,8 +508,11 @@ EOF
 		# loopback request (Site Health, the plugin editor's save check)
 		# deadlocks a single-worker server against itself.
 		log "starting php -S on ${url} (${SERVE_WORKERS} workers)"
-		( cd "${site}" && PHP_CLI_SERVER_WORKERS="${SERVE_WORKERS}" \
-			setsid nohup php -S "127.0.0.1:${SERVE_PORT}" >"${CACHE_ROOT}/php-server.log" 2>&1 < /dev/null & )
+		# The redirections are on the whole background job, so no shell
+		# left holding this script's stdout keeps a caller's pipe open.
+		( cd "${site}" && exec env PHP_CLI_SERVER_WORKERS="${SERVE_WORKERS}" \
+			setsid php -S "127.0.0.1:${SERVE_PORT}" ) >"${CACHE_ROOT}/php-server.log" 2>&1 < /dev/null &
+		disown || true
 		local i
 		for i in $( seq 1 30 ); do
 			curl -fsS -o /dev/null "${url}/wp-login.php" 2>/dev/null && break
