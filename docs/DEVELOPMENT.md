@@ -31,6 +31,33 @@ One PHPUnit test reads build output rather than source: an app's client view is 
 
 `npm run env:start` spins up a self-contained WordPress + MariaDB stack with this checkout bind-mounted as the plugin: the manual QA environment on `http://localhost:8890/wp-admin/` (`admin` / `password`). PHPUnit runs in a second, independent instance defined by `.wp-env.tests.json` (port `8891`), started with `npm run env:start:tests`; `npm run test:php:multisite` reuses that instance with `WP_MULTISITE=1`, so the same suite also runs against a network install (the test library reinstalls the database either way — the two runs never taint each other); the `test:php*` scripts target it via wp-env's `--config` flag, so QA state and test runs never share a database. See [Manual QA and per-worktree instances](#manual-qa-and-per-worktree-instances-wp-env) for how the mount works and how to run one instance per git worktree.
 
+## Cloud containers (no wp-env)
+
+wp-env does not start inside a Claude Code cloud container. Two things go wrong:
+
+- It decides it is offline by resolving `WordPress.org` over DNS, and the container has no outside DNS, only an HTTPS proxy.
+- It builds its own images at start-up, and their `apk` / `apt-get` steps cannot see that proxy.
+
+`bin/cloud-test-env.sh` sets the same suite up without it:
+
+- the host's PHP;
+- a MariaDB container, pulled through `mirror.gcr.io` because Docker Hub rate-limits the shared egress;
+- a pinned WordPress core from wordpress.org;
+- the matching `wp-phpunit/wp-phpunit` test library from Packagist, which `tests/phpunit/bootstrap.php` reads through `WP_PHPUNIT__DIR`.
+
+It also installs Node 24 when the host's is older. Every step checks first, so it is safe as the environment's setup script and safe to run again.
+
+```bash
+bin/cloud-test-env.sh            # PHPUnit only
+bin/cloud-test-env.sh serve      # also serves this checkout as a site on :8890 (admin / password)
+source ~/.cache/openstation-tests/env.sh
+vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist
+```
+
+The environment's network allowlist needs `wordpress.org`, `api.wordpress.org` and `downloads.wordpress.org`. `OPENSTATION_TESTS_WP_VERSION` picks the WordPress version, and core and test library always move together; the default is the newest `wp-phpunit` tag on Packagist, which can trail the newest core release.
+
+**Judge a run against trunk, not against zero.** About twenty tests fail in this setup on trunk too, because they assume wp-env's layout (the checkout mounted at `wp-content/plugins/desktop-mode`) or outbound HTTP to wordpress.org. Run the same suite on `origin/trunk` and compare the failing names.
+
 ## Manual QA and per-worktree instances (wp-env)
 
 ### How the instance works
