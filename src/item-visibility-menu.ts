@@ -36,11 +36,12 @@ import { placeAfterRender } from './ui/util/menu-position';
 import { trackedFetch } from './tracked-fetch';
 import { showToast } from './toast';
 import { joinRestUrl } from './rest-url';
+import { OS_SETTINGS_LAYOUT_SECTION_ID } from './settings/constants';
 
 interface OpenStationShim {
 	getOsSettings?: () => { desktopLayout?: NavLayout; mioShowOnWallpaper?: boolean };
 	updateOsSettings?: ( patch: { mioShowOnWallpaper: boolean } ) => void;
-	openOsSettings?: ( opts?: { tabId?: string } ) => void;
+	openOsSettings?: ( opts?: { tabId?: string; sectionId?: string } ) => void;
 }
 
 function getApi(): OpenStationShim | null {
@@ -68,6 +69,18 @@ function railName( rail: NavRail ): string {
 	return 'sidebar' === rail ? __( 'sidebar' ) : __( 'dock' );
 }
 
+/**
+ * The row that opens Preferences → Navigation. Whole strings rather
+ * than a `%s`, so a translation can inflect the rail's name.
+ */
+function customizeRailLabel( rail: NavRail ): string {
+	return 'sidebar' === rail ? __( 'Customize sidebar…' ) : __( 'Customize dock…' );
+}
+
+function openSettingsTab( tabId: string, sectionId?: string ): void {
+	getApi()?.openOsSettings?.( { tabId, sectionId } );
+}
+
 export interface OpenItemVisibilityMenuOpts {
 	/** Viewport coordinates the user right-clicked at. */
 	x: number;
@@ -93,6 +106,19 @@ export interface OpenItemVisibilityMenuOpts {
 	 */
 	pluginName?: string | null;
 }
+
+type MenuOption =
+	| {
+			kind?: 'option';
+			id: string;
+			label: string;
+			icon?: string;
+			danger?: boolean;
+			onPick: () => void;
+		}
+	| { kind: 'separator' };
+
+type PickableOption = Exclude< MenuOption, { kind: 'separator' } >;
 
 /**
  * Generation counter to drop superseded menu-open calls. Bumped on
@@ -143,6 +169,53 @@ export function openItemVisibilityMenu(
 	);
 }
 
+export interface OpenRailMenuOpts {
+	/** Viewport coordinates the user right-clicked at. */
+	x: number;
+	y: number;
+	/** Which rail was right-clicked: the dock, or the split layout's sidebar. */
+	rail: NavRail;
+}
+
+/**
+ * Open the menu for the rail itself: a right-click on the dock's empty
+ * space, a divider, or a tile that has no menu of its own. It points
+ * at the two pages that shape the rail, because people look for those
+ * on the rail rather than in Preferences: Navigation for what is on
+ * it, Appearance for where it sits and how it behaves.
+ */
+export function openRailMenu( opts: OpenRailMenuOpts ): void {
+	closeMenu();
+	const myGen = ++openGeneration;
+	openWithShellOverlays(
+		() => myGen === openGeneration,
+		() => {
+			closeMenu();
+			showMenu(
+				[
+					{
+						id: 'open-settings',
+						label: customizeRailLabel( opts.rail ),
+						icon: 'dashicons-admin-generic',
+						onPick: () => openSettingsTab( 'navigation' ),
+					},
+					{
+						id: 'open-layout',
+						label: 'sidebar' === opts.rail
+							? __( 'Sidebar behavior…' )
+							: __( 'Dock position and behavior…' ),
+						icon: 'dashicons-layout',
+						onPick: () => openSettingsTab( 'appearance', OS_SETTINGS_LAYOUT_SECTION_ID ),
+					},
+				],
+				opts.x,
+				opts.y,
+				'dock',
+			);
+		},
+	);
+}
+
 function openItemVisibilityMenuImmediate(
 	opts: OpenItemVisibilityMenuOpts,
 ): void {
@@ -160,17 +233,6 @@ function openItemVisibilityMenuImmediate(
 	const placement = resolvePlacement( item, readNavConfig().placement );
 	const rail = railForItem( item );
 	const railWord = railName( rail );
-
-	type MenuOption =
-		| {
-				kind?: 'option';
-				id: string;
-				label: string;
-				icon?: string;
-				danger?: boolean;
-				onPick: () => void;
-			}
-		| { kind: 'separator' };
 
 	const options: MenuOption[] = [];
 
@@ -244,14 +306,16 @@ function openItemVisibilityMenuImmediate(
 		} );
 	}
 
+	// Set apart from the actions above: they change this one item, this
+	// one opens the page that places every item. Named for the surface
+	// the user is looking at, because people go looking for "customize
+	// the dock", not for a page called Navigation.
+	options.push( { kind: 'separator' } );
 	options.push( {
 		id: 'open-settings',
-		label: __( 'Navigation settings…' ),
+		label: 'dock' === opts.surface ? customizeRailLabel( rail ) : __( 'Customize desktop icons…' ),
 		icon: 'dashicons-admin-generic',
-		onPick: () => {
-			const api = getApi();
-			api?.openOsSettings?.( { tabId: 'navigation' } );
-		},
+		onPick: () => openSettingsTab( 'navigation' ),
 	} );
 
 	// When the tile is owned by an active, deactivatable plugin, surface
@@ -278,10 +342,27 @@ function openItemVisibilityMenuImmediate(
 		} );
 	}
 
+	showMenu( options, opts.x, opts.y, opts.surface, opts.id );
+}
+
+/**
+ * Paint `options` as an `<os-context-menu>` at the cursor and wire
+ * the pick, outside-click and Escape handling. Shared by the item
+ * menu and the rail menu so both place and dismiss the same way.
+ */
+function showMenu(
+	options: MenuOption[],
+	x: number,
+	y: number,
+	surface: 'dock' | 'desktop',
+	itemId?: string,
+): void {
 	const menu = document.createElement( 'os-context-menu' );
 	menu.setAttribute( 'open', '' );
 	menu.classList.add( 'os-item-visibility-menu' );
-	( menu as HTMLElement ).dataset.itemId = opts.id;
+	if ( itemId ) {
+		( menu as HTMLElement ).dataset.itemId = itemId;
+	}
 	menu.style.position = 'fixed';
 	// Off-screen first so we can measure size before placement.
 	// `placeAfterRender` owns the hiding, so no `visibility` here:
@@ -294,7 +375,6 @@ function openItemVisibilityMenuImmediate(
 	// underneath the thumbnail strip.
 	menu.style.zIndex = '1000000';
 
-	type PickableOption = Exclude< MenuOption, { kind: 'separator' } >;
 	const byKey = new Map< string, PickableOption >();
 	for ( const opt of options ) {
 		if ( opt.kind === 'separator' ) {
@@ -351,14 +431,14 @@ function openItemVisibilityMenuImmediate(
 	// the component has completed its microtask render. Measuring
 	// synchronously here returns a near-zero height (shadow DOM not
 	// populated yet) — which made dock right-clicks land the
-	// "anchor-above-cursor" math at `opts.y - 0 - 8 ≈ opts.y`,
+	// "anchor-above-cursor" math at `y - 0 - 8 ≈ y`,
 	// pushing the bottom dock's menu off-screen below the viewport.
 	// This menu does its own placement rather than calling
 	// `clampToViewport` because the dock case anchors the menu's
 	// bottom edge at the cursor unconditionally.
 	placeAfterRender( menu, ( rect ) => {
 		const margin = 8;
-		let left = opts.x;
+		let left = x;
 		let top: number;
 		// Dock right-clicks ALWAYS anchor the menu's bottom edge at the
 		// cursor (i.e., the menu opens upward). The dock hugs a
@@ -367,16 +447,16 @@ function openItemVisibilityMenuImmediate(
 		// menu off-screen. Desktop-icon right-clicks default to opening
 		// below the cursor (natural OS-style menu) and only flip up
 		// when they would overflow the viewport.
-		if ( opts.surface === 'dock' ) {
-			top = Math.max( margin, opts.y - rect.height - margin );
+		if ( surface === 'dock' ) {
+			top = Math.max( margin, y - rect.height - margin );
 		} else {
-			top = opts.y;
+			top = y;
 			if ( top + rect.height + margin > window.innerHeight ) {
-				top = Math.max( margin, opts.y - rect.height );
+				top = Math.max( margin, y - rect.height );
 			}
 		}
 		if ( left + rect.width + margin > window.innerWidth ) {
-			left = Math.max( margin, opts.x - rect.width );
+			left = Math.max( margin, x - rect.width );
 		}
 		menu.style.left = `${ left }px`;
 		menu.style.top = `${ top }px`;

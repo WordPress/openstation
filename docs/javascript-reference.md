@@ -428,6 +428,8 @@ document.addEventListener( 'os-item-menu-opening', ( e ) => {
 
 Named for the intent rather than the input: a menu opened from the keyboard has the same collision, and so does one opened programmatically.
 
+A right-click on the rail's empty space opens the rail's own menu instead, which does not fire this event: it anchors to no tile, so no hover surface is in its way.
+
 ---
 
 ### `os-palette-opened` / `os-palette-closed` — Experimental
@@ -4259,6 +4261,12 @@ wp.os.openOsSettings( { tabId: 'features' } );
 | Param | Type | Notes |
 |---|---|---|
 | `opts.tabId` | `string` (optional) | Settings tab to activate. On a fresh open, unknown ids fall back to the default tab; passing an unknown id while OpenStation Preferences is already open deselects every tab in the live strip — validate the id first. |
+| `opts.sectionId` | `string` (optional) | Id of a section on that tab to scroll into view once it has painted. The built-in one is `'os-settings-layout'`, Appearance → Desktop layout. Pair it with `tabId`: the section is only looked for on the page that ends up showing, so on its own it works only when Preferences is already on that page. An id that never appears is ignored after a short wait, leaving the tab at its top. |
+
+```js
+// Land on Appearance → Desktop layout, where the rail is placed.
+wp.os.openOsSettings( { tabId: 'appearance', sectionId: 'os-settings-layout' } );
+```
 
 The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OpenStation Preferences tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OpenStation Preferences from inside the renderer used to require DOM-scraping `[data-system-id="os-settings"]` and clicking it; this method is the documented portable path.
 
