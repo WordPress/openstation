@@ -84,15 +84,9 @@ describe( 'renderMarkdown', () => {
 	test( 'task items are literal unless asked for, then carry their source line', () => {
 		const md = 'To do\n- [ ] milk\n- [x] **eggs**';
 		expect( renderMarkdown( md ) ).toContain( '<li>[ ] milk</li>' );
-		expect( renderMarkdown( '-[] a\n- [] b\n-[x] c', { tasks: {} } ) ).toBe(
-			'<ul>' +
-				'<li class="os-md-task"><os-checkbox value="0"><span>a</span></os-checkbox></li>' +
-				'<li class="os-md-task"><os-checkbox value="1"><span>b</span></os-checkbox></li>' +
-				'<li class="os-md-task"><os-checkbox value="2" checked><span>c</span></os-checkbox></li>' +
-				'</ul>',
-		);
-		// A bullet still needs its space before anything but a box.
-		expect( renderMarkdown( '-not a list' ) ).toBe( '<p>-not a list</p>' );
+		// Only the task-list syntax: `[]` and a box with no space after
+		// its bullet are not task items.
+		expect( renderMarkdown( '- [] a\n-[ ] b', { tasks: {} } ) ).toBe( '<ul><li>[] a</li></ul><p>-[ ] b</p>' );
 		expect( renderMarkdown( md, { tasks: { disabled: true } } ) ).toBe(
 			'<p>To do</p><ul>' +
 				'<li class="os-md-task"><os-checkbox value="1" disabled><span>milk</span></os-checkbox></li>' +
@@ -106,9 +100,6 @@ describe( 'renderMarkdown', () => {
 		expect( setTaskChecked( md, 1, true ) ).toBe( 'To do\r\n- [x] milk\r\n  1. [X] eggs' );
 		expect( setTaskChecked( md, 2, false ) ).toBe( 'To do\r\n- [ ] milk\r\n  1. [ ] eggs' );
 		expect( setTaskChecked( md, 0, true ) ).toBeNull();
-		// The forms people type: no space in the box, none after the dash.
-		expect( setTaskChecked( '-[] milk\n- [] eggs', 0, true ) ).toBe( '-[x] milk\n- [] eggs' );
-		expect( setTaskChecked( '-[x] milk', 0, false ) ).toBe( '-[ ] milk' );
 		expect( setTaskChecked( md, 9, true ) ).toBeNull();
 	} );
 } );

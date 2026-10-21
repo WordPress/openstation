@@ -117,7 +117,7 @@ function openstation_notes_markdown_plain_line( $line ) {
 	}
 	$line = preg_replace( '/^#{1,6}\s+/', '', $line );
 	$line = preg_replace( '/^>\s?/', '', $line );
-	$line = preg_replace( '/^(?:[-*+]|\d+\.)(?:\s+|(?=\[[ xX]?\]))(?:\[[ xX]?\](?:\s+|$))?/', '', $line );
+	$line = preg_replace( '/^(?:[-*+]|\d+\.)\s+(?:\[[ xX]\](?:\s+|$))?/', '', $line );
 	$line = preg_replace( '/\[([^\]]+)\]\([^)\s]+\)/', '$1', $line );
 	$line = preg_replace( '/(\*\*|~~|`)(.+?)\1/', '$2', $line );
 	$line = preg_replace( '/(?<![*\w])\*([^*]+?)\*(?![*\w])/u', '$1', $line );
@@ -233,8 +233,7 @@ function openstation_notes_text_to_blocks( $text ) {
 		}
 		$flush_quote();
 
-		// A task box may follow its bullet with no space (`-[ ] milk`).
-		if ( preg_match( '/^(?:([-*+])|\d+\.)(?:\s+|(?=\[[ xX]?\]))(.*)$/', $line, $m ) ) {
+		if ( preg_match( '/^(?:([-*+])|\d+\.)\s+(.*)$/', $line, $m ) ) {
 			$flush_para();
 			$ordered = '' === $m[1];
 			if ( ! $list || $list['ordered'] !== $ordered ) {
@@ -245,8 +244,8 @@ function openstation_notes_text_to_blocks( $text ) {
 				);
 			}
 			$content = $m[2];
-			if ( preg_match( '/^\[([ xX]?)\](?:\s+(.*))?$/', $content, $task ) ) {
-				$box     = '' === trim( $task[1] ) ? "\u{2610}" : "\u{2611}";
+			if ( preg_match( '/^\[([ xX])\](?:\s+(.*))?$/', $content, $task ) ) {
+				$box     = ' ' === $task[1] ? "\u{2610}" : "\u{2611}";
 				$content = isset( $task[2] ) ? $task[2] : '';
 				$item    = $box . ( '' === $content ? '' : ' ' . openstation_notes_markdown_inline( $content ) );
 			} else {

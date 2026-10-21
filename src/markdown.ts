@@ -125,26 +125,11 @@ export interface RenderMarkdownOptions {
 	};
 }
 
-/**
- * A list item's text that is a task: `[ ] text` / `[x] text`. Lenient
- * where people are: `[]` is an empty box too.
- */
-const TASK_ITEM = /^\[([ xX]?)\](?:\s+(.*))?$/;
+/** A list item's text that is a task: `[ ] text` / `[x] text`. */
+const TASK_ITEM = /^\[([ xX])\](?:\s+(.*))?$/;
 
-/**
- * A source line that is a task item, split around its mark. The space
- * after the bullet is optional before a box (`-[ ] milk`), as it is in
- * the list-item patterns below.
- */
-const TASK_LINE = /^(\s*(?:[-*+]|\d+\.)\s*\[)[ xX]?(\])/;
-
-/**
- * After a bullet or number: the usual whitespace, or none when a task
- * box follows straight on (`-[]`).
- */
-const ITEM_GAP = String.raw`(?:\s+|(?=\[[ xX]?\]))`;
-const UL_ITEM = new RegExp( String.raw`^[-*+]${ ITEM_GAP }(.*)$` );
-const OL_ITEM = new RegExp( String.raw`^\d+\.${ ITEM_GAP }(.*)$` );
+/** A source line that is a task item, split around its mark. */
+const TASK_LINE = /^(\s*(?:[-*+]|\d+\.)\s+\[)[ xX](\])/;
 
 /**
  * Render a short markdown string to safe HTML.
@@ -206,7 +191,7 @@ export function renderMarkdown( md: string, options: RenderMarkdownOptions = {} 
 		if ( ! task ) {
 			return null;
 		}
-		const checked = /[xX]/.test( task[ 1 ] ) ? ' checked' : '';
+		const checked = task[ 1 ] !== ' ' ? ' checked' : '';
 		const disabled = options.tasks.disabled ? ' disabled' : '';
 		// One wrapping span: the slotted label is a single flex item,
 		// so its words and emphasis don't pick up the box's gap.
@@ -269,8 +254,8 @@ export function renderMarkdown( md: string, options: RenderMarkdownOptions = {} 
 		}
 		flushQuote();
 
-		const ulItem = UL_ITEM.exec( line );
-		const olItem = OL_ITEM.exec( line );
+		const ulItem = /^[-*+]\s+(.*)$/.exec( line );
+		const olItem = /^\d+\.\s+(.*)$/.exec( line );
 		if ( ulItem || olItem ) {
 			flushPara();
 			const tag = ulItem ? 'ul' : 'ol';
