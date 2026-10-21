@@ -39,6 +39,7 @@ require_once __DIR__ . '/parts/rest-fields.php';
 require_once __DIR__ . '/parts/updates.php';
 require_once __DIR__ . '/parts/icons.php';
 require_once __DIR__ . '/parts/ajax.php';
+require_once __DIR__ . '/parts/action-links.php';
 require_once __DIR__ . '/parts/reviews.php';
 require_once __DIR__ . '/parts/upload.php';
 require_once __DIR__ . '/parts/featured.php';

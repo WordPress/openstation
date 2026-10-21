@@ -98,12 +98,13 @@ function suggest( tag: string ): string | null {
 }
 
 function folderFor( tag: string ): string {
-	// `os-context-menu-option` lives inside `os-context-menu/`;
-	// `os-segment` inside `os-segmented/`; etc. We can't always
-	// derive the folder from the tag, so for known compound tags we
-	// fall back to a best-effort suggestion and let the developer
-	// correct the path. The barrel import is always safe.
-	return tag.startsWith( 'os-' ) ? tag.slice( 4 ) : tag;
+	// A component's folder and module are named after its tag,
+	// prefix included (`os-flyout/os-flyout.ts`). Child tags are the
+	// exception: `os-context-menu-option` lives inside
+	// `os-context-menu/`, `os-segment` inside `os-segmented/`, so for
+	// those the suggestion is best-effort and the developer corrects
+	// the path. The barrel import is always safe.
+	return tag;
 }
 
 function warnFor( tag: string, sample: Element ): void {
