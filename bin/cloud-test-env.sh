@@ -67,6 +67,10 @@
 #                                  Default $HOME/.cache/openstation-tests.
 #   OPENSTATION_TESTS_NODE_DIR     Where Node 24 goes when the host's is
 #                                  older. Default $HOME/.local/node24.
+#   OPENSTATION_TESTS_DB_PORT      Host port for MariaDB. Default 3306.
+#                                  Another port gets its own container
+#                                  (os-tests-db-<port>), so a second
+#                                  checkout never shares the first's.
 #   OPENSTATION_SERVE_PORT         Port for `serve`. Default 8890.
 #   OPENSTATION_SERVE_WORKERS      PHP built-in server workers for
 #                                  `serve`. Default 4.
@@ -84,7 +88,12 @@ NODE_MAJOR=24
 # Used only when Packagist cannot be asked and nothing is cached yet.
 FALLBACK_WP_VERSION="7.1.1"
 
+DB_PORT="${OPENSTATION_TESTS_DB_PORT:-3306}"
+DB_HOST="127.0.0.1:${DB_PORT}"
 DB_CONTAINER="os-tests-db"
+if [ "${DB_PORT}" != "3306" ]; then
+	DB_CONTAINER="os-tests-db-${DB_PORT}"
+fi
 DB_IMAGE="mariadb:lts"
 DB_PASSWORD="password"
 DB_NAME="wordpress_test"
@@ -100,6 +109,10 @@ CORE_DIR=""
 LIB_DIR=""
 TESTS_CONFIG=""
 SALTS_FILE=""
+
+# Appended to a failed pull or run: a running dockerd without the
+# registry mirror pulls from Docker Hub, which rate-limits this egress.
+PULL_HINT=""
 
 log() { printf '\033[1m[cloud-test-env]\033[0m %s\n' "$*"; }
 die() { printf '\033[31m[cloud-test-env] %s\033[0m\n' "$*" >&2; exit 1; }
@@ -219,6 +232,7 @@ ensure_docker() {
 		log "dockerd already running"
 		if ! docker info 2>/dev/null | grep -q 'mirror.gcr.io'; then
 			log "note: the running dockerd has no mirror.gcr.io registry mirror; Docker Hub pulls may hit 429"
+			PULL_HINT=" (this dockerd has no mirror.gcr.io registry mirror, and Docker Hub rate-limits this egress with 429: add it to /etc/docker/daemon.json and restart dockerd)"
 		fi
 		return
 	fi
@@ -267,12 +281,13 @@ ensure_db() {
 		log "starting existing database container ${DB_CONTAINER}"
 		docker start "${DB_CONTAINER}" >/dev/null
 	else
-		log "starting ${DB_IMAGE} as ${DB_CONTAINER} on 127.0.0.1:3306"
+		log "starting ${DB_IMAGE} as ${DB_CONTAINER} on ${DB_HOST}"
 		docker run -d --name "${DB_CONTAINER}" \
-			-p 127.0.0.1:3306:3306 \
+			-p "${DB_HOST}:3306" \
 			-e MARIADB_ROOT_PASSWORD="${DB_PASSWORD}" \
 			-e MARIADB_DATABASE="${DB_NAME}" \
-			"${DB_IMAGE}" >/dev/null
+			"${DB_IMAGE}" >/dev/null \
+			|| die "could not start ${DB_CONTAINER}: is ${DB_HOST} already taken? Pick another port with OPENSTATION_TESTS_DB_PORT${PULL_HINT}"
 	fi
 	local i
 	for i in $( seq 1 90 ); do
@@ -384,20 +399,27 @@ write_configs() {
 	proxy="$( proxy_host_port )"
 	php "${REPO_ROOT}/bin/cloud-test-env-config.php" configs \
 		"${REPO_ROOT}/.wp-env.tests.json" "${SALTS_FILE}" \
-		"${CORE_DIR}/wp-config.php" "${TESTS_CONFIG}" "${proxy}"
+		"${CORE_DIR}/wp-config.php" "${TESTS_CONFIG}" "${DB_HOST}" "${proxy}"
 	log "wrote ${CORE_DIR}/wp-config.php and ${TESTS_CONFIG}"
 
 	# WordPress verifies TLS against its own bundle, which does not know
 	# the proxy's CA. This core is a disposable test copy; add it there.
+	# The CA goes last, after a marker, and is replaced on every run, so
+	# a rotated proxy CA never leaves the bundle trusting the old one.
 	local ca bundle="${CORE_DIR}/wp-includes/certificates/ca-bundle.crt"
+	local marker='# cloud-test-env: egress proxy CA'
 	ca="$( proxy_ca_file )"
-	if [ -n "${proxy}" ] && [ -n "${ca}" ] && [ -f "${bundle}" ] \
-		&& ! grep -q 'cloud-test-env: egress proxy CA' "${bundle}"; then
+	if [ -f "${bundle}" ] && grep -qF "${marker}" "${bundle}"; then
+		sed -i "/^${marker}\$/,\$d" "${bundle}"
+		# The blank line printed before the marker.
+		sed -i '$ { /^$/d }' "${bundle}"
+	fi
+	if [ -n "${proxy}" ] && [ -n "${ca}" ] && [ -f "${bundle}" ]; then
 		{
-			printf '\n# cloud-test-env: egress proxy CA\n'
+			printf '\n%s\n' "${marker}"
 			cat "${ca}"
 		} >> "${bundle}"
-		log "added the egress proxy's CA to the test core's CA bundle"
+		log "put the egress proxy's CA in the test core's CA bundle"
 	fi
 }
 
@@ -410,7 +432,7 @@ ensure_test_image() {
 		log "${TEST_IMAGE} already pulled"
 	else
 		log "pulling ${TEST_IMAGE}"
-		docker pull -q "${TEST_IMAGE}" >/dev/null
+		docker pull -q "${TEST_IMAGE}" >/dev/null || die "could not pull ${TEST_IMAGE}${PULL_HINT}"
 	fi
 }
 
@@ -483,7 +505,7 @@ define( 'WP_PROXY_PORT', '${BASH_REMATCH[2]}' );"
 define( 'DB_NAME', '${DB_SITE_NAME}' );
 define( 'DB_USER', 'root' );
 define( 'DB_PASSWORD', '${DB_PASSWORD}' );
-define( 'DB_HOST', '127.0.0.1:3306' );
+define( 'DB_HOST', '${DB_HOST}' );
 define( 'DB_CHARSET', 'utf8mb4' );
 define( 'DB_COLLATE', '' );
 require '${SALTS_FILE}';
@@ -523,6 +545,7 @@ EOF
 	php "${REPO_ROOT}/bin/cloud-test-env-config.php" install-site "${site}" \
 		| sed 's/^/[cloud-test-env] site: /'
 	log "site ready: ${url}/wp-admin/ (admin / password). JS changes need npm run build."
+	log "it listens on 127.0.0.1 only: do not forward the port, the login is public knowledge."
 }
 
 # ---------------------------------------------------------------------

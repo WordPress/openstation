@@ -57,7 +57,7 @@ bin/cloud-test-env.sh lint                     # phpcs -n, the PHP lint gate CI 
 bin/cloud-test-env.sh serve                    # also serves this checkout as a site on :8890 (admin / password), 4 PHP workers
 ```
 
-The environment's network allowlist needs `wordpress.org`, `api.wordpress.org` and `downloads.wordpress.org`. `OPENSTATION_TESTS_WP_VERSION` picks the WordPress version, and core and test library always move together; the default is looked up on every run as the newest stable `wp-phpunit` release on Packagist, the latest core that has a test library (CI runs the latest core, which that release can briefly trail). `OPENSTATION_TESTS_PHP_VERSION=8.4` runs CI's other PHP row.
+The environment's network allowlist needs `wordpress.org`, `api.wordpress.org` and `downloads.wordpress.org`. `OPENSTATION_TESTS_WP_VERSION` picks the WordPress version, and core and test library always move together; the default is looked up on every run as the newest stable `wp-phpunit` release on Packagist, the latest core that has a test library (CI runs the latest core, which that release can briefly trail). `OPENSTATION_TESTS_PHP_VERSION=8.4` runs CI's other PHP row. `OPENSTATION_TESTS_DB_PORT` moves MariaDB off `3306` (a second checkout, or a port already taken) into a container of its own. The `serve` site listens on `127.0.0.1` only, with `WP_DEBUG` on and a well-known `admin` / `password` login: never forward its port.
 
 A clean run here has no failures, single site and multisite: a failure is a failure, not the environment.
 

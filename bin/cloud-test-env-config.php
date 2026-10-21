@@ -6,7 +6,7 @@
  *
  *   salts <file>
  *       Write a set of the eight auth keys and salts as `define()`s.
- *   configs <wp-env.json> <salts> <wp-config.php> <wp-tests-config.php> [proxy host:port]
+ *   configs <wp-env.json> <salts> <wp-config.php> <wp-tests-config.php> <db host:port> [proxy host:port]
  *       Write the test core's wp-config.php and the tests config the way
  *       wp-env does: wp-env's default constants overlaid with the
  *       `config` of its config file, the file's `port` added to the three
@@ -33,8 +33,8 @@ if ( 'salts' === $command ) {
 }
 
 if ( 'configs' === $command ) {
-	list( , , $wp_env_json, $salts_file, $wp_config, $tests_config ) = $argv;
-	$proxy = $argv[6] ?? '';
+	list( , , $wp_env_json, $salts_file, $wp_config, $tests_config, $db_host ) = $argv;
+	$proxy = $argv[7] ?? '';
 
 	// wp-env's defaults, from @wordpress/env lib/config/parse-config.js.
 	$config = array(
@@ -75,7 +75,7 @@ if ( 'configs' === $command ) {
 		"define( 'DB_NAME', 'wordpress_test' );",
 		"define( 'DB_USER', 'root' );",
 		"define( 'DB_PASSWORD', 'password' );",
-		"define( 'DB_HOST', '127.0.0.1:3306' );",
+		"define( 'DB_HOST', " . var_export( $db_host, true ) . ' );',
 		"define( 'DB_CHARSET', 'utf8' );",
 		"define( 'DB_COLLATE', '' );",
 		trim( substr( (string) file_get_contents( $salts_file ), strlen( '<?php' ) ) ),
