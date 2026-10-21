@@ -234,6 +234,14 @@ Jetpack mounts its Stats (`admin.php?page=stats`) and Blaze (`?page=advertising`
 
 **Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
 
+### WooCommerce order row clicks
+
+WooCommerce's `wc-orders.js` binds a row-level delegated click handler (`tbody td:not(.check-column)`) on both HPOS (`admin.php?page=wc-orders`) and legacy CPT (`edit.php?post_type=shop_order`) list tables. Clicks on non-anchor elements (the date, order status, total amount, or empty cell padding) execute `window.location = href`, which in classic admin makes the entire table row act like a link. Inside OpenStation, that raw in-iframe navigation replaced the Orders list window in place, discarding the list context.
+
+**Fix**: `resolveOrderRowLink()` in `src/chromeless-bridge.js` intercepts row clicks on WooCommerce order tables in the capture phase. Unless the click target is an interactive control (`button`, `input`, `.check-column`, `.order-preview`, `.wc_actions`) or text is selected, the click is mapped to the row's primary order link (`a.order-view`), stopped from propagating to WooCommerce's bubble-phase handler via `e.stopPropagation()` and `e.stopImmediatePropagation()`, and routed through `os-iframe-admin-link` so the order opens in its own window beside the list.
+
+**Test**: `tests/vitest/chromeless-bridge-links.test.ts`.
+
 ### Elementor 4's legacy menus
 
 Elementor 4 keeps its old **Elementor** menu and the **Templates** menu registered for their URLs, under the new `elementor-home` menu, and hides both from the classic sidebar with CSS the dock can't see. **Fix**: `includes/compat/elementor.php` hides those two slugs through `openstation_dock_placement` once `elementor-home` exists. The same file prints the navigation ping in Elementor's editor head, which never fires `admin_head`. **Test**: `tests/phpunit/tests/openStationBuildDockItems.php`.

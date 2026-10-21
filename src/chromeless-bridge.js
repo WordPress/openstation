@@ -1343,6 +1343,51 @@
 		}
 	}
 
+	/**
+	 * Find the primary order-view link when clicking on an order list table row.
+	 *
+	 * WooCommerce's `wc-orders.js` binds a row-level click handler on
+	 * `.woocommerce_page_wc-orders` and `.post-type-shop_order` table cells
+	 * that calls `window.location = href` when the user clicks anywhere on
+	 * the row (date, status, total, cell whitespace) rather than on an
+	 * anchor directly.
+	 *
+	 * Inside OpenStation, that raw `window.location` assignment replaces the
+	 * Orders list window's content in place. Intercepting the row click here
+	 * routes the order's edit URL through the parent shell instead, so it
+	 * opens in its own window beside the list.
+	 *
+	 * @param {Element|EventTarget} target The clicked DOM element.
+	 * @return {HTMLAnchorElement|null} The order link, or null if not applicable.
+	 */
+	function resolveOrderRowLink( target ) {
+		if ( ! target || ! target.closest ) {
+			return null;
+		}
+		var doc = target.ownerDocument || document;
+		var defaultView = doc.defaultView;
+		if ( defaultView && defaultView.getSelection && defaultView.getSelection().toString().length > 0 ) {
+			return null;
+		}
+		if ( target.closest( 'button, input, select, textarea, label, .check-column, .order-preview, .no-link, .wc_actions' ) ) {
+			return null;
+		}
+		// Scope to WooCommerce HPOS and legacy CPT order tables only.
+		var table = target.closest(
+			'.woocommerce_page_wc-orders table, ' +
+			'.post-type-shop_order table, ' +
+			'table.wc-orders-list-table'
+		);
+		if ( ! table ) {
+			return null;
+		}
+		var row = target.closest( 'tr' );
+		if ( ! row ) {
+			return null;
+		}
+		return row.querySelector( 'a.order-view, .column-order_number a:not(.order-preview), .column-order_title a:not(.order-preview)' );
+	}
+
 	document.addEventListener( 'click', function ( e ) {
 		if ( e.defaultPrevented ) {
 			return;
@@ -1351,6 +1396,9 @@
 			return;
 		}
 		var link = e.target && e.target.closest ? e.target.closest( 'a[href]' ) : null;
+		if ( ! link ) {
+			link = resolveOrderRowLink( e.target );
+		}
 		if ( ! link ) {
 			return;
 		}
@@ -1592,6 +1640,8 @@
 			 * still works.
 			 */
 			e.preventDefault();
+			e.stopPropagation();
+			e.stopImmediatePropagation();
 			try {
 				var absolute = new URL( rewritten || href, window.location.href ).toString();
 				/*
@@ -1663,6 +1713,7 @@
 			 * docs/multisite.md.
 			 */
 			e.preventDefault();
+			e.stopPropagation();
 			var other;
 			try {
 				other = new URL( href, window.location.href );
@@ -1694,6 +1745,7 @@
 			 * parent an absolute URL it doesn't have to re-resolve.
 			 */
 			e.preventDefault();
+			e.stopPropagation();
 			// Named apart from the `absolute` in the admin-link branch
 			// above: `var` is function-scoped, so both branches shared
 			// one binding. They are mutually exclusive and each assigns
