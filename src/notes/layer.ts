@@ -53,6 +53,7 @@ import { startNotesHeartbeat } from './heartbeat';
 import { trashNoteWithUndo } from './trash';
 import { convertNoteToPost } from './convert';
 import { getReservedInsets, subscribeWorkArea, workAreaRectOf } from '../work-area';
+import { NOTE_MIN_MAX_HEIGHT, fitEditorRows, paperMaxHeight } from './fit';
 import {
 	NOTE_PAYLOAD_TYPE,
 	type Note,
@@ -262,6 +263,12 @@ export class NotesLayer {
 			x: Math.min( maxX, Math.max( minX, x ) ),
 			y: Math.min( maxY, Math.max( minY, y ) ),
 		};
+	}
+
+	/** Pixels between a note whose top sits at `y` and the work area's bottom. */
+	spaceBelow( y: number ): number {
+		const area = workAreaRectOf( this.host );
+		return area.y + area.height - y * this.hostSize().height;
 	}
 
 	/** Normalized 0–1 top-left for a viewport point. */
@@ -496,6 +503,8 @@ export class NoteController {
 	private editBtn: HTMLElement | null = null;
 	/** Owner only: the source editor is showing instead of the render. */
 	private editing = false;
+	/** The paper's current max-height, from where the note is pinned. */
+	private maxHeight = NOTE_MIN_MAX_HEIGHT;
 	private statusEl: HTMLElement | null = null;
 	private colorDot: HTMLButtonElement | null = null;
 	private visibilityBtn: HTMLElement | null = null;
@@ -758,6 +767,7 @@ export class NoteController {
 			if ( this.editBtn ) {
 				this.editBtn.hidden = true;
 			}
+			this.fitEditor();
 		}
 		this.editor.focusInput?.();
 	}
@@ -955,6 +965,16 @@ export class NoteController {
 		}
 		this.element.style.left = `${ ( x * 100 ).toFixed( 3 ) }%`;
 		this.element.style.top = `${ ( y * 100 ).toFixed( 3 ) }%`;
+		this.maxHeight = paperMaxHeight( this.layer.spaceBelow( y ) );
+		this.paperEl.style.maxHeight = `${ this.maxHeight }px`;
+		this.fitEditor();
+	}
+
+	/** While editing, let the editor grow as far as the paper may. */
+	private fitEditor(): void {
+		if ( this.editing && this.editor ) {
+			fitEditorRows( this.paperEl, this.editor, this.maxHeight );
+		}
 	}
 
 	/** Optimistically move + persist. Used by drop handler and keyboard. */
