@@ -277,6 +277,10 @@ Quick links:
 - [JavaScript Reference](./docs/javascript-reference.md) — CustomEvents, `window.wp.os` API, and the iframe `postMessage` bridge.
 - [Examples](./docs/examples/) — copy-paste recipes.
 
+## Security
+
+Found a vulnerability? Please email **security@automattic.com** rather than opening an issue. See [SECURITY.md](SECURITY.md).
+
 ## License
 
 GPLv2 or later. See [LICENSE](LICENSE).
