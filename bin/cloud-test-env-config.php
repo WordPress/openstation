@@ -2,6 +2,8 @@
 /**
  * The PHP half of bin/cloud-test-env.sh; not intended to run on its own.
  *
+ * Commands:
+ *
  *   salts <file>
  *       Write a set of the eight auth keys and salts as `define()`s.
  *   configs <wp-env.json> <salts> <wp-config.php> <wp-tests-config.php> [proxy host:port]
@@ -103,7 +105,7 @@ if ( 'configs' === $command ) {
 }
 
 if ( 'install-site' === $command ) {
-	define( 'WP_INSTALLING', true );
+	define( 'WP_INSTALLING', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound -- Core's own constant: keeps wp-load.php from redirecting to the installer.
 	$_SERVER['HTTP_HOST'] = 'localhost';
 	require $argv[2] . '/wp-load.php';
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';

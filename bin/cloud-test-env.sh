@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 #
 # Turn a fresh Claude Code cloud container into one that can run this
-# repo's PHPUnit suite the way CI does, and serve a real WordPress for
-# browser checks.
+# repo's PHPUnit suite and PHP lint the way CI does, and serve a real
+# WordPress for browser checks.
 #
 #   bin/cloud-test-env.sh                          # prepare (idempotent)
 #   bin/cloud-test-env.sh phpunit [args…]          # prepare, run the suite
 #   WP_MULTISITE=1 bin/cloud-test-env.sh phpunit   # …as a network
+#   bin/cloud-test-env.sh lint [args…]             # phpcs -n, as CI runs it
 #   bin/cloud-test-env.sh serve                    # prepare, serve a site
 #
-# `phpunit` passes its arguments through: `phpunit --filter Tests_Foo`.
+# `phpunit` and `lint` pass their arguments through:
+# `phpunit --filter Tests_Foo`, `lint includes/foo.php`.
 #
 # Safe to run from an environment setup script and to run again: every
-# step checks before it acts and reuses what is already there.
+# step checks before it acts, reuses what is already there, and redoes
+# what has gone stale (dependencies after a lockfile change, the app
+# client views after a source change).
 #
 # WHY NOT wp-env. `npm run test:php` is the contributor path and CI's,
 # and stays so, but it cannot start behind a cloud container's egress
@@ -53,9 +57,10 @@
 #
 # Environment overrides:
 #   OPENSTATION_TESTS_WP_VERSION   WordPress + wp-phpunit version (both
-#                                  pinned to the same one). Default
-#                                  7.1.1, the newest wp-phpunit tag on
-#                                  Packagist.
+#                                  pinned to the same one). Default: the
+#                                  newest stable wp-phpunit release on
+#                                  Packagist, which is what CI's latest
+#                                  core has a test library for.
 #   OPENSTATION_TESTS_PHP_VERSION  PHP of the test image. Default 8.3;
 #                                  CI also runs 8.4.
 #   OPENSTATION_TESTS_CACHE        Download/cache root.
@@ -63,16 +68,21 @@
 #   OPENSTATION_TESTS_NODE_DIR     Where Node 24 goes when the host's is
 #                                  older. Default $HOME/.local/node24.
 #   OPENSTATION_SERVE_PORT         Port for `serve`. Default 8890.
+#   OPENSTATION_SERVE_WORKERS      PHP built-in server workers for
+#                                  `serve`. Default 4.
 
 set -euo pipefail
 
-WP_VERSION="${OPENSTATION_TESTS_WP_VERSION:-7.1.1}"
 PHP_VERSION="${OPENSTATION_TESTS_PHP_VERSION:-8.3}"
 TEST_IMAGE="wordpress:cli-php${PHP_VERSION}"
 CACHE_ROOT="${OPENSTATION_TESTS_CACHE:-$HOME/.cache/openstation-tests}"
 NODE_DIR="${OPENSTATION_TESTS_NODE_DIR:-$HOME/.local/node24}"
 SERVE_PORT="${OPENSTATION_SERVE_PORT:-8890}"
+SERVE_WORKERS="${OPENSTATION_SERVE_WORKERS:-4}"
 NODE_MAJOR=24
+
+# Used only when Packagist cannot be asked and nothing is cached yet.
+FALLBACK_WP_VERSION="7.1.1"
 
 DB_CONTAINER="os-tests-db"
 DB_IMAGE="mariadb:lts"
@@ -81,17 +91,28 @@ DB_NAME="wordpress_test"
 DB_SITE_NAME="wordpress_site"
 
 REPO_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-VERSION_DIR="${CACHE_ROOT}/${WP_VERSION}"
-CORE_DIR="${VERSION_DIR}/wordpress"
-LIB_DIR="${VERSION_DIR}/lib"
-TESTS_CONFIG="${VERSION_DIR}/wp-tests-config.php"
-SALTS_FILE="${VERSION_DIR}/salts.php"
+PLUGIN_MOUNT="/var/www/html/wp-content/plugins/desktop-mode"
+
+# Set by resolve_wp_version().
+WP_VERSION=""
+VERSION_DIR=""
+CORE_DIR=""
+LIB_DIR=""
+TESTS_CONFIG=""
+SALTS_FILE=""
 
 log() { printf '\033[1m[cloud-test-env]\033[0m %s\n' "$*"; }
 die() { printf '\033[31m[cloud-test-env] %s\033[0m\n' "$*" >&2; exit 1; }
 
 need() {
 	command -v "$1" >/dev/null 2>&1 || die "missing '$1' — $2"
+}
+
+# True when any file under the given paths is newer than $1.
+newer_than() {
+	local ref="$1"
+	shift
+	[ -n "$( find "$@" -type f -newer "${ref}" -print -quit 2>/dev/null )" ]
 }
 
 # ---------------------------------------------------------------------
@@ -129,22 +150,46 @@ ensure_node() {
 		log "put ${NODE_DIR}/bin first on PATH for this run; in your shell: export PATH=\"${NODE_DIR}/bin:\$PATH\""
 	fi
 
-	if [ -d "${REPO_ROOT}/node_modules" ]; then
-		log "node_modules present; skipping npm ci"
+	# npm stamps node_modules/.package-lock.json on every install, so a
+	# package-lock.json newer than it (a pull, a branch switch) is stale.
+	local stamp="${REPO_ROOT}/node_modules/.package-lock.json"
+	if [ -f "${stamp}" ] && ! newer_than "${stamp}" "${REPO_ROOT}/package-lock.json"; then
+		log "node_modules up to date; skipping npm ci"
 	else
 		log "npm ci"
 		( cd "${REPO_ROOT}" && npm ci --no-audit --no-fund )
 	fi
+}
 
-	# The one piece of build output the PHP suite reads from disk, built
-	# in CI for the same reason: an app's client view only counts when
-	# its bundle exists.
-	if compgen -G "${REPO_ROOT}/assets/js/apps/*.js" >/dev/null; then
-		log "app client views already built"
-	else
-		log "npm run build:apps"
-		( cd "${REPO_ROOT}" && npm run --silent build:apps )
+# The one piece of build output the PHP suite reads from disk, built in
+# CI for the same reason: an app's client view only counts when its
+# bundle exists. Rebuilt when one is missing, or when anything a client
+# view compiles from (the app, the kit, the runtime) changed after the
+# oldest of them was built.
+ensure_app_bundles() {
+	local src name bundle oldest="" stale=""
+	for src in "${REPO_ROOT}"/apps/*/*.os.ts; do
+		[ -e "${src}" ] || continue
+		name="$( basename "${src}" .os.ts )"
+		bundle="${REPO_ROOT}/assets/js/apps/${name}.js"
+		if [ ! -f "${bundle}" ]; then
+			stale="missing ${name}.js"
+			break
+		fi
+		if [ -z "${oldest}" ] || [ "${bundle}" -ot "${oldest}" ]; then
+			oldest="${bundle}"
+		fi
+	done
+	if [ -z "${stale}" ] && [ -n "${oldest}" ] \
+		&& newer_than "${oldest}" "${REPO_ROOT}/apps" "${REPO_ROOT}/src" "${REPO_ROOT}/package-lock.json"; then
+		stale="sources changed since the last build"
 	fi
+	if [ -z "${stale}" ]; then
+		log "app client views up to date"
+		return
+	fi
+	log "npm run build:apps (${stale})"
+	( cd "${REPO_ROOT}" && npm run --silent build:apps )
 }
 
 # ---------------------------------------------------------------------
@@ -152,8 +197,11 @@ ensure_node() {
 # ---------------------------------------------------------------------
 
 ensure_composer_deps() {
-	if [ -x "${REPO_ROOT}/vendor/bin/phpunit" ]; then
-		log "vendor/ present; skipping composer install"
+	# Composer rewrites vendor/composer/installed.json on every install.
+	local stamp="${REPO_ROOT}/vendor/composer/installed.json"
+	if [ -x "${REPO_ROOT}/vendor/bin/phpunit" ] && [ -f "${stamp}" ] \
+		&& ! newer_than "${stamp}" "${REPO_ROOT}/composer.lock" "${REPO_ROOT}/composer.json"; then
+		log "vendor/ up to date; skipping composer install"
 		return
 	fi
 	need composer "install Composer"
@@ -184,7 +232,11 @@ ensure_docker() {
 	fi
 	log "starting dockerd"
 	mkdir -p "${CACHE_ROOT}"
-	nohup dockerd >"${CACHE_ROOT}/dockerd.log" 2>&1 &
+	# Its own session, detached from this shell's, so it outlives the
+	# script — and an environment setup script — that started it. If a
+	# later session finds it gone anyway, running this again restarts it.
+	setsid nohup dockerd >"${CACHE_ROOT}/dockerd.log" 2>&1 < /dev/null &
+	disown || true
 	local i
 	for i in $( seq 1 60 ); do
 		docker info >/dev/null 2>&1 && { log "dockerd is up"; return; }
@@ -197,8 +249,13 @@ ensure_docker() {
 # 4. MariaDB
 # ---------------------------------------------------------------------
 
+# Over TCP on purpose: on first start the image runs a temporary server
+# with networking off to create the database, then restarts. A socket
+# query reaches that temporary server and reports "ready" just before
+# it goes away; the suite connects over TCP, so readiness is asked the
+# same way.
 db_query() {
-	docker exec "${DB_CONTAINER}" mariadb -uroot -p"${DB_PASSWORD}" -e "$1"
+	docker exec "${DB_CONTAINER}" mariadb --protocol=tcp -h127.0.0.1 -uroot -p"${DB_PASSWORD}" -e "$1"
 }
 
 ensure_db() {
@@ -218,7 +275,7 @@ ensure_db() {
 			"${DB_IMAGE}" >/dev/null
 	fi
 	local i
-	for i in $( seq 1 60 ); do
+	for i in $( seq 1 90 ); do
 		if db_query 'SELECT 1' >/dev/null 2>&1; then
 			db_query "CREATE DATABASE IF NOT EXISTS ${DB_NAME}; CREATE DATABASE IF NOT EXISTS ${DB_SITE_NAME};"
 			log "database accepts connections"
@@ -233,10 +290,42 @@ ensure_db() {
 # 5. Pinned WordPress core + the matching test library
 # ---------------------------------------------------------------------
 
+# CI runs against the latest core (`"core": null`), and core and test
+# library have to match, so the default is the newest stable wp-phpunit
+# release: the latest core that has a test library. Offline, the newest
+# version already cached here stands in.
+resolve_wp_version() {
+	if [ -n "${OPENSTATION_TESTS_WP_VERSION:-}" ]; then
+		WP_VERSION="${OPENSTATION_TESTS_WP_VERSION}"
+	else
+		WP_VERSION="$( curl -fsSL --max-time 20 https://repo.packagist.org/p2/wp-phpunit/wp-phpunit.json 2>/dev/null \
+			| php -r '
+				$j = json_decode( stream_get_contents( STDIN ), true );
+				$v = array_column( $j["packages"]["wp-phpunit/wp-phpunit"] ?? array(), "version" );
+				$v = array_values( array_filter( $v, fn( $x ) => preg_match( "/^\d+\.\d+(\.\d+)?$/", $x ) ) );
+				usort( $v, "version_compare" );
+				echo $v ? end( $v ) : "";
+			' 2>/dev/null || true )"
+		if [ -z "${WP_VERSION}" ]; then
+			WP_VERSION="$( find "${CACHE_ROOT}" -mindepth 3 -maxdepth 3 -path '*/wordpress/wp-includes' 2>/dev/null \
+				| awk -F/ '{ print $(NF-2) }' | sort -V | tail -n 1 )"
+			WP_VERSION="${WP_VERSION:-${FALLBACK_WP_VERSION}}"
+			log "could not ask Packagist for the newest wp-phpunit; using ${WP_VERSION}"
+		fi
+	fi
+	VERSION_DIR="${CACHE_ROOT}/${WP_VERSION}"
+	CORE_DIR="${VERSION_DIR}/wordpress"
+	LIB_DIR="${VERSION_DIR}/lib"
+	TESTS_CONFIG="${VERSION_DIR}/wp-tests-config.php"
+	SALTS_FILE="${VERSION_DIR}/salts.php"
+	log "WordPress + wp-phpunit ${WP_VERSION}"
+}
+
 ensure_wordpress() {
 	need unzip "install unzip"
 	mkdir -p "${VERSION_DIR}"
-	if [ -f "${CORE_DIR}/wp-includes/version.php" ]; then
+	# The marker is written last, so an interrupted unzip is redone.
+	if [ -f "${VERSION_DIR}/.core-complete" ] && [ -f "${CORE_DIR}/wp-includes/version.php" ]; then
 		log "WordPress ${WP_VERSION} already in ${CORE_DIR}"
 	else
 		log "downloading WordPress ${WP_VERSION}"
@@ -246,6 +335,7 @@ ensure_wordpress() {
 		rm -rf "${CORE_DIR}"
 		unzip -q "${zip}" -d "${VERSION_DIR}"
 		rm -f "${zip}"
+		touch "${VERSION_DIR}/.core-complete"
 	fi
 
 	if [ -f "${LIB_DIR}/vendor/wp-phpunit/wp-phpunit/includes/bootstrap.php" ]; then
@@ -301,7 +391,8 @@ write_configs() {
 	# the proxy's CA. This core is a disposable test copy; add it there.
 	local ca bundle="${CORE_DIR}/wp-includes/certificates/ca-bundle.crt"
 	ca="$( proxy_ca_file )"
-	if [ -n "${proxy}" ] && [ -n "${ca}" ] && ! grep -q 'cloud-test-env: egress proxy CA' "${bundle}"; then
+	if [ -n "${proxy}" ] && [ -n "${ca}" ] && [ -f "${bundle}" ] \
+		&& ! grep -q 'cloud-test-env: egress proxy CA' "${bundle}"; then
 		{
 			printf '\n# cloud-test-env: egress proxy CA\n'
 			cat "${ca}"
@@ -324,11 +415,10 @@ ensure_test_image() {
 }
 
 # ---------------------------------------------------------------------
-# phpunit: the suite, inside the test image
+# phpunit / lint: inside the test image, as CI runs them
 # ---------------------------------------------------------------------
 
 run_phpunit() {
-	local plugin="/var/www/html/wp-content/plugins/desktop-mode"
 	local env_args=( -e WP_TESTS_DIR=/wordpress-phpunit -e WP_PHPUNIT__TESTS_CONFIG=/wp-tests-config.php )
 	if [ -n "${WP_MULTISITE:-}" ]; then
 		env_args+=( -e "WP_MULTISITE=${WP_MULTISITE}" )
@@ -336,14 +426,25 @@ run_phpunit() {
 	log "running PHPUnit in ${TEST_IMAGE}"
 	docker run --rm --network host --user 0:0 \
 		-v "${CORE_DIR}:/var/www/html" \
-		-v "${REPO_ROOT}:${plugin}" \
+		-v "${REPO_ROOT}:${PLUGIN_MOUNT}" \
 		-v "${LIB_DIR}/vendor/wp-phpunit/wp-phpunit:/wordpress-phpunit:ro" \
 		-v "${TESTS_CONFIG}:/wp-tests-config.php:ro" \
 		"${env_args[@]}" \
-		-w "${plugin}" \
+		-w "${PLUGIN_MOUNT}" \
 		--entrypoint php \
 		"${TEST_IMAGE}" \
 		vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist "$@"
+}
+
+# `npm run lint:php`: phpcs -n (errors only), CI's gate, on CI's PHP.
+run_lint() {
+	log "running phpcs -n in ${TEST_IMAGE}"
+	docker run --rm --user 0:0 \
+		-v "${REPO_ROOT}:${PLUGIN_MOUNT}" \
+		-w "${PLUGIN_MOUNT}" \
+		--entrypoint php \
+		"${TEST_IMAGE}" \
+		vendor/bin/phpcs -n "$@"
 }
 
 # ---------------------------------------------------------------------
@@ -366,6 +467,16 @@ serve_site() {
 		rmdir "${link}"
 	fi
 	ln -sfn "${REPO_ROOT}" "${link}"
+
+	# The site's outbound requests (update checks, the plugin installer)
+	# go through the egress proxy like the test core's; its CA is already
+	# in the bundle copied from that core.
+	local proxy proxy_defines=""
+	proxy="$( proxy_host_port )"
+	if [[ "${proxy}" =~ ^([^:]+):([0-9]+)$ ]]; then
+		proxy_defines="define( 'WP_PROXY_HOST', '${BASH_REMATCH[1]}' );
+define( 'WP_PROXY_PORT', '${BASH_REMATCH[2]}' );"
+	fi
 	cat > "${site}/wp-config.php" <<EOF
 <?php
 // Written by bin/cloud-test-env.sh — regenerated on every run.
@@ -375,12 +486,14 @@ define( 'DB_PASSWORD', '${DB_PASSWORD}' );
 define( 'DB_HOST', '127.0.0.1:3306' );
 define( 'DB_CHARSET', 'utf8mb4' );
 define( 'DB_COLLATE', '' );
+require '${SALTS_FILE}';
 define( 'WP_HOME', '${url}' );
 define( 'WP_SITEURL', '${url}' );
 define( 'WP_ENVIRONMENT_TYPE', 'local' );
 define( 'WP_DEBUG', true );
 define( 'WP_DEBUG_DISPLAY', false );
 define( 'WP_DEBUG_LOG', true );
+${proxy_defines}
 \$table_prefix = 'wp_';
 if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', __DIR__ . '/' );
@@ -391,8 +504,12 @@ EOF
 	if curl -fsS -o /dev/null "${url}/wp-login.php" 2>/dev/null; then
 		log "a server already answers on ${url}"
 	else
-		log "starting php -S on ${url}"
-		( cd "${site}" && nohup php -S "127.0.0.1:${SERVE_PORT}" >"${CACHE_ROOT}/php-server.log" 2>&1 & )
+		# Several workers: the shell fires REST calls in parallel, and a
+		# loopback request (Site Health, the plugin editor's save check)
+		# deadlocks a single-worker server against itself.
+		log "starting php -S on ${url} (${SERVE_WORKERS} workers)"
+		( cd "${site}" && PHP_CLI_SERVER_WORKERS="${SERVE_WORKERS}" \
+			setsid nohup php -S "127.0.0.1:${SERVE_PORT}" >"${CACHE_ROOT}/php-server.log" 2>&1 < /dev/null & )
 		local i
 		for i in $( seq 1 30 ); do
 			curl -fsS -o /dev/null "${url}/wp-login.php" 2>/dev/null && break
@@ -413,19 +530,35 @@ main() {
 		shift
 	fi
 
+	case "${command}" in
+		''|phpunit|lint|serve) ;;
+		*) die "unknown command '${command}' (expected: phpunit, lint, serve)" ;;
+	esac
+
 	need php "install PHP (it writes the configs and serves the site)"
 	need curl "install curl"
 
+	# lint needs neither a database nor a core: only vendor/ and the image.
+	if [ "${command}" = "lint" ]; then
+		ensure_composer_deps
+		ensure_docker
+		ensure_test_image
+		run_lint "$@"
+		return
+	fi
+
 	ensure_node
+	ensure_app_bundles
 	ensure_composer_deps
 	ensure_docker
 	ensure_db
+	resolve_wp_version
 	ensure_wordpress
 	write_configs
-	ensure_test_image
 
 	case "${command}" in
 		phpunit)
+			ensure_test_image
 			run_phpunit "$@"
 			;;
 		serve)
@@ -433,10 +566,8 @@ main() {
 			serve_site
 			;;
 		'')
+			ensure_test_image
 			log "done. Run the suite with: bin/cloud-test-env.sh phpunit"
-			;;
-		*)
-			die "unknown command '${command}' (expected: phpunit, serve)"
 			;;
 	esac
 }

@@ -46,17 +46,18 @@ wp-env does not start inside a Claude Code cloud container. Two things go wrong:
 - MariaDB runs in a container, and Docker pulls go through `mirror.gcr.io` because Docker Hub rate-limits the shared egress;
 - the test container shares the host network, so the few tests that call wordpress.org reach it through the egress proxy, as they reach it directly in CI.
 
-It also installs Node 24 when the host's is older, and builds the app client views when they are missing (CI builds them for the same reason). Every step checks first, so it is safe as the environment's setup script and safe to run again.
+It also installs Node 24 when the host's is older, and builds the app client views when one is missing or their sources changed since the last build (CI builds them for the same reason). Every step checks first and redoes only what is stale (`npm ci` after a `package-lock.json` change, `composer install` after a `composer.lock` change), so it is safe as the environment's setup script and safe to run again, including after a branch switch. If a later session finds `dockerd` gone, running it again restarts it.
 
 ```bash
 bin/cloud-test-env.sh                          # prepare only
 bin/cloud-test-env.sh phpunit                  # prepare, then run the suite
 bin/cloud-test-env.sh phpunit --filter Tests_OpenStation_NotesRest
 WP_MULTISITE=1 bin/cloud-test-env.sh phpunit   # the multisite run
-bin/cloud-test-env.sh serve                    # also serves this checkout as a site on :8890 (admin / password)
+bin/cloud-test-env.sh lint                     # phpcs -n, the PHP lint gate CI runs (npm run lint:php)
+bin/cloud-test-env.sh serve                    # also serves this checkout as a site on :8890 (admin / password), 4 PHP workers
 ```
 
-The environment's network allowlist needs `wordpress.org`, `api.wordpress.org` and `downloads.wordpress.org`. `OPENSTATION_TESTS_WP_VERSION` picks the WordPress version, and core and test library always move together; the default is the newest `wp-phpunit` tag on Packagist, which can trail the newest core release. `OPENSTATION_TESTS_PHP_VERSION=8.4` runs CI's other PHP row.
+The environment's network allowlist needs `wordpress.org`, `api.wordpress.org` and `downloads.wordpress.org`. `OPENSTATION_TESTS_WP_VERSION` picks the WordPress version, and core and test library always move together; the default is looked up on every run as the newest stable `wp-phpunit` release on Packagist, the latest core that has a test library (CI runs the latest core, which that release can briefly trail). `OPENSTATION_TESTS_PHP_VERSION=8.4` runs CI's other PHP row.
 
 A clean run here has no failures, single site and multisite: a failure is a failure, not the environment.
 
