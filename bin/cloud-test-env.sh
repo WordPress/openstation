@@ -176,9 +176,9 @@ ensure_node() {
 
 # The one piece of build output the PHP suite reads from disk, built in
 # CI for the same reason: an app's client view only counts when its
-# bundle exists. Rebuilt when one is missing, or when anything a client
-# view compiles from (the app, the kit, the runtime) changed after the
-# oldest of them was built.
+# bundle exists. Rebuilt when one is missing, or when a source a client
+# view compiles from (the app, the kit, the runtime, the build config)
+# changed after the oldest of them was built.
 ensure_app_bundles() {
 	local src name bundle oldest="" stale=""
 	for src in "${REPO_ROOT}"/apps/*/*.os.ts; do
@@ -193,8 +193,14 @@ ensure_app_bundles() {
 			oldest="${bundle}"
 		fi
 	done
-	if [ -z "${stale}" ] && [ -n "${oldest}" ] \
-		&& newer_than "${oldest}" "${REPO_ROOT}/apps" "${REPO_ROOT}/src" "${REPO_ROOT}/package-lock.json"; then
+	# Only what a bundle compiles from counts: tests, docs and the PHP
+	# halves of the apps never reach one, so touching them costs no build.
+	if [ -z "${stale}" ] && [ -n "${oldest}" ] && {
+		[ -n "$( find "${REPO_ROOT}/apps" "${REPO_ROOT}/src" -type f \
+			\( \( -name '*.ts' ! -name '*.test.ts' \) -o -name '*.css' -o -name '*.js' \) \
+			-newer "${oldest}" -print -quit 2>/dev/null )" ] \
+		|| newer_than "${oldest}" "${REPO_ROOT}/package-lock.json" "${REPO_ROOT}/vite.config.js"
+	}; then
 		stale="sources changed since the last build"
 	fi
 	if [ -z "${stale}" ]; then
