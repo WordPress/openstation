@@ -474,9 +474,16 @@
 	font-size: 1em;
 }
 
+/* wp-admin resets lists to list-style: none; a note's lists keep
+   their markers. */
 .os-pinned-note__body ul,
 .os-pinned-note__body ol {
 	padding-left: 1.2em;
+	list-style: disc outside;
+}
+
+.os-pinned-note__body ol {
+	list-style-type: decimal;
 }
 
 .os-pinned-note__body li {

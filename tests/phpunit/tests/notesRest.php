@@ -388,7 +388,7 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 	public function test_convert_turns_markdown_into_blocks() {
 		$note = $this->create_note(
 			array(
-				'text' => "# **Shop** list\n- [ ] milk\n- [x] [eggs](https://example.test/a_b)\n\n1. one\n> *quoted*\n\n```\n- [ ] not a task\n```",
+				'text' => "# **Shop** list\n- [ ] milk\n- [x] [eggs](https://example.test/a_b)\n-[] bread\n\n1. one\n> *quoted*\n\n```\n- [ ] not a task\n```",
 			)
 		);
 
@@ -399,6 +399,7 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertStringContainsString( "<!-- wp:heading -->\n<h2 class=\"wp-block-heading\"><strong>Shop</strong> list</h2>", $draft->post_content );
 		$this->assertStringContainsString( "<!-- wp:list -->\n<ul class=\"wp-block-list\"><!-- wp:list-item -->\n<li>\u{2610} milk</li>", $draft->post_content );
 		$this->assertStringContainsString( "<li>\u{2611} <a href=\"https://example.test/a_b\">eggs</a></li>", $draft->post_content );
+		$this->assertStringContainsString( "<li>\u{2610} bread</li>", $draft->post_content );
 		$this->assertStringContainsString( "<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\">", $draft->post_content );
 		$this->assertStringContainsString( "<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p><em>quoted</em></p>", $draft->post_content );
 		$this->assertStringContainsString( "<pre class=\"wp-block-code\"><code>- &#91; ] not a task</code></pre>", $draft->post_content );
