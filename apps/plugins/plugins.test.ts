@@ -169,6 +169,9 @@ describe( 'the plugins app view', () => {
 		// A type-only import used to leave the preserved table inert,
 		// exposing its empty slot even when installed rows existed.
 		expect( customElements.get( 'os-table' ) ).toBeDefined();
+		// The detail flyout's host is in the view; un-upgraded, the
+		// details painted inline over the gallery.
+		expect( customElements.get( 'os-flyout' ) ).toBeDefined();
 		const { root } = mount();
 		await Promise.resolve();
 		const card = root.querySelector( '[data-plugin-card]' )!;

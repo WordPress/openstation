@@ -24,6 +24,9 @@
 
 import { __, defineApp, html, statusControl, type TemplateResult } from '@openstation/app';
 import { isMobileStamped } from '../../src/mode/stamp';
+// The view renders the detail flyout's host; without its module the
+// tag never upgrades and the details paint inline over the gallery.
+import '../../src/ui/components/os-flyout/os-flyout';
 import { freshBusy } from './parts/actions';
 import { installPluginDropTargets } from './parts/card-drag';
 import { createBrowseGallery, createFeaturedGallery, type BrowseGallery, type FeaturedGallery } from './parts/gallery';
