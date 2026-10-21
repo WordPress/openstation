@@ -258,6 +258,8 @@ Two traps: the `<arg name="extensions" value="php"/>` in the ruleset is load-bea
 
 Even small chores (typos, doc tweaks, one-line fixes) go on a feature branch. Open a PR for every change. Wait for the user's green light before running `gh pr create`; once given, run it yourself.
 
+**Write the PR body from `.github/pull_request_template.md`.** Keep its four headings (What it does, Rationale, Implementation, Testing instructions) and follow the guidance in its comments, then delete the comments. A small change can drop a section it doesn't need; don't invent a new layout. Describe what the branch delivers now, not the steps it took to get there, and link the `docs/` page you updated when the change touches a public surface.
+
 ### Use `bin/sync-to-wp-develop.sh` for local sync, not raw rsync
 
 The script is the single source of truth for the include list and runs `npm run build` first. Only fall back to raw `rsync` for files that are genuinely outside the script's scope (and then question why they're outside it).
