@@ -213,6 +213,38 @@ function openstation_notes_prepare( $post ) {
 }
 
 /**
+ * Keep the save filters off a note's text, the way
+ * `openstation_agent_conversation_preserve_text()` does for a
+ * conversation. Hooked only while a note handler saves.
+ *
+ * The text is Markdown the client renders escaped, never HTML that
+ * WordPress echoes, and `sanitize_textarea_field()` has already
+ * stripped its tags. For a user without `unfiltered_html` (everyone
+ * but a super admin on multisite) kses would still turn a quote's
+ * `>` into `&gt;` and `&` into `&amp;`, so the note would stop being
+ * the text its owner typed.
+ *
+ * @param array $data                Slashed, sanitized post data.
+ * @param array $postarr             Sanitized post data.
+ * @param array $unsanitized_postarr Slashed post data as passed to `wp_insert_post()`.
+ * @return array
+ */
+function openstation_notes_preserve_text( $data, $postarr, $unsanitized_postarr ) {
+	global $wpdb;
+
+	if ( OPENSTATION_NOTES_POST_TYPE !== $data['post_type'] || ! isset( $unsanitized_postarr['post_content'] ) ) {
+		return $data;
+	}
+	$data['post_content'] = $unsanitized_postarr['post_content'];
+	// `wp_insert_post()` has already swapped emoji for entities where
+	// the column is utf8mb3. Redo it on the restored text.
+	if ( in_array( $wpdb->get_col_charset( $wpdb->posts, 'post_content' ), array( 'utf8', 'utf8mb3' ), true ) ) {
+		$data['post_content'] = wp_encode_emoji( $data['post_content'] );
+	}
+	return $data;
+}
+
+/**
  * Derive the post title from the note text: its first line with any
  * text left once the Markdown markers are dropped.
  *
@@ -303,16 +335,18 @@ function openstation_notes_rest_create( $request ) {
 
 	$text = sanitize_textarea_field( (string) $request['text'] );
 
+	add_filter( 'wp_insert_post_data', 'openstation_notes_preserve_text', 5, 3 );
 	$post_id = wp_insert_post(
 		array(
 			'post_type'    => OPENSTATION_NOTES_POST_TYPE,
 			'post_status'  => $request['public'] ? 'publish' : 'private',
 			'post_author'  => get_current_user_id(),
 			'post_title'   => openstation_notes_derive_title( $text ),
-			'post_content' => $text,
+			'post_content' => wp_slash( $text ),
 		),
 		true
 	);
+	remove_filter( 'wp_insert_post_data', 'openstation_notes_preserve_text', 5 );
 	if ( is_wp_error( $post_id ) ) {
 		$post_id->add_data( array( 'status' => 500 ) );
 		return $post_id;
@@ -395,7 +429,7 @@ function openstation_notes_rest_update( $request ) {
 
 	if ( null !== $request['text'] ) {
 		$text                   = sanitize_textarea_field( (string) $request['text'] );
-		$update['post_content'] = $text;
+		$update['post_content'] = wp_slash( $text );
 		$update['post_title']   = openstation_notes_derive_title( $text );
 	}
 	if ( null !== $request['public'] ) {
@@ -418,7 +452,9 @@ function openstation_notes_rest_update( $request ) {
 	// Always run the post update — even a meta-only PATCH must bump
 	// `post_modified` so the concurrency token advances and the
 	// Heartbeat delta query sees the move.
+	add_filter( 'wp_insert_post_data', 'openstation_notes_preserve_text', 5, 3 );
 	$result = wp_update_post( $update, true );
+	remove_filter( 'wp_insert_post_data', 'openstation_notes_preserve_text', 5 );
 	if ( is_wp_error( $result ) ) {
 		$result->add_data( array( 'status' => 500 ) );
 		return $result;

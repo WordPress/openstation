@@ -341,6 +341,26 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A note is Markdown, not HTML: for a user without `unfiltered_html`
+	 * (everyone but a super admin on multisite) kses must not turn a
+	 * quote's `>` into `&gt;` on create or on edit.
+	 *
+	 * @covers ::openstation_notes_preserve_text
+	 */
+	public function test_text_survives_kses_for_a_user_without_unfiltered_html() {
+		kses_init_filters();
+		try {
+			$note = $this->create_note( array( 'text' => '> a & b\\c' ) );
+			$this->assertSame( '> a & b\\c', get_post_field( 'post_content', $note['id'], 'raw' ) );
+
+			openstation_notes_rest_update( $this->update_request( $note['id'], array( 'text' => '> c & d' ) ) );
+			$this->assertSame( '> c & d', get_post_field( 'post_content', $note['id'], 'raw' ) );
+		} finally {
+			kses_remove_filters();
+		}
+	}
+
+	/**
 	 * @covers ::openstation_notes_rest_convert
 	 * @covers ::openstation_notes_text_to_blocks
 	 */
@@ -402,7 +422,8 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 		$this->assertStringContainsString( '<li>[] not a box</li>', $draft->post_content );
 		$this->assertStringContainsString( "<!-- wp:list {\"ordered\":true} -->\n<ol class=\"wp-block-list\">", $draft->post_content );
 		$this->assertStringContainsString( "<blockquote class=\"wp-block-quote\"><!-- wp:paragraph -->\n<p><em>quoted</em></p>", $draft->post_content );
-		$this->assertStringContainsString( "<pre class=\"wp-block-code\"><code>- &#91; ] not a task</code></pre>", $draft->post_content );
+		// kses pads the entity to `&#091;` for a user without `unfiltered_html`.
+		$this->assertMatchesRegularExpression( '#<pre class="wp-block-code"><code>- &\#0?91; \] not a task</code></pre>#', $draft->post_content );
 		$this->assertStringNotContainsString( '<p>#', $draft->post_content );
 
 		// Every block the draft holds parses as a known block.
