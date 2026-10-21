@@ -540,7 +540,7 @@ WordPress 7.0 adds its own command-palette admin-bar icon (`#wp-admin-bar-comman
 
 A **mode switch** at the end of the input row flips between them (replacing the `/` shortcut) and is always shown, so the assistant looks the same whether or not AI is set up. Each mode keeps its own input draft, and the last AI answer is re-shown when returning to Ask AI. The **OpenStation Preferences → Features → "AI assistant"** toggle (`ai.enabled`, off by default, provider-gated) enables Ask AI and makes it the default mode on open (off → Commands). The overlay reads AI support, provider status, whether the user can connect one, and the toggle live via `AiAssistantConfig.isAiSupported()` / `isAiAvailable()` / `canConnectProvider()` / `isOverrideEnabled()`, so connecting a provider or flipping the toggle takes effect on the next open without a reload.
 
-Besides ⌘K and Core's admin-bar icon, the overlay has a dock tile: **Site assistant** (`os-site-assistant`), the first tile of the shell's trailing cluster, wearing the brand's copilot sparkle. It is placeable, so Preferences → Navigation can move or hide it.
+Besides ⌘K and Core's admin-bar icon, the overlay has a dock tile: **Site assistant** (`os-site-assistant`), the first tile of the shell's trailing cluster (only the [Notifications](plugin-compat-layer.md#wordpresscom--jetpack-notifications-under-a-hidden-admin-bar) tile, on a site that has one, sits ahead of it), wearing the brand's copilot sparkle. It is placeable, so Preferences → Navigation can move or hide it.
 
 ### AI Agents (opt-in)
 

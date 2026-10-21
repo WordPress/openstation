@@ -234,6 +234,19 @@ Jetpack mounts its Stats (`admin.php?page=stats`) and Blaze (`?page=advertising`
 
 **Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
 
+### WordPress.com / Jetpack notifications under a hidden admin bar
+
+Jetpack's Notifications module, and the WordPress.com masterbar that shares its markup, put a bell in the admin bar: `#wp-admin-bar-notes`, whose `#wpnt-notes-unread-count` carries the unread state, and a panel (`#wpnt-notes-panel2`, or `-panel3` on the v3 opt-in) that Jetpack's own script fills with an iframe and toggles from a click on the bell. The shell hides the bar by default (`adminBarMode: 'hidden'`), so out of the box the bell, its count and its panel never showed, and the only way back to them was the whole bar.
+
+**Fix**, while the mode is `hidden` and only on a site that registers the node:
+
+1. `src/admin-bar-notes.ts` adds a **Notifications** dock tile (`os-notifications`, a `control` tile ahead of Site assistant, placeable in Preferences → Navigation). Its badge mirrors the bell's count, and a click clicks the bell, so the panel, the unread logic and the keyboard handling stay Jetpack's. In `static` and `dynamic` the bell is on the bar and the tile is removed; the mode is read off the `os-admin-bar-<mode>` body class, so it follows the `openstation_admin_bar_mode` filter, and a switch in Preferences lands without a reload.
+2. `desktop.css` keeps the bar laid out instead of `display: none` on those sites, as `visibility: hidden` at zero height, and turns `visibility` back on for the panel alone. Hidden items take no pointer events and no focus, and a zero-height bar publishes no `--os-admin-bar-height`, so the rest of the desktop sees no bar. Fullscreen and solo still remove it.
+
+Jetpack closes the panel on a press outside it, and a press on the tile is one. The tile therefore decides between opening and closing from the state the press found, and clicks the bell only after its own click has finished bubbling. A click inside a window's iframe never reaches the shell document, so it does not close the panel; that is true of the bell in `static` mode too.
+
+**Test**: `tests/vitest/admin-bar-notes.test.ts`, against Jetpack's markup and a stand-in for its toggle.
+
 ### Elementor 4's legacy menus
 
 Elementor 4 keeps its old **Elementor** menu and the **Templates** menu registered for their URLs, under the new `elementor-home` menu, and hides both from the classic sidebar with CSS the dock can't see. **Fix**: `includes/compat/elementor.php` hides those two slugs through `openstation_dock_placement` once `elementor-home` exists. The same file prints the navigation ping in Elementor's editor head, which never fires `admin_head`. **Test**: `tests/phpunit/tests/openStationBuildDockItems.php`.

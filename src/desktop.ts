@@ -47,6 +47,7 @@ import {
 	OS_SETTINGS_WINDOW_ID,
 } from './settings/constants';
 import { getExitOpenStationTileDef } from './exit-openstation';
+import { installAdminBarNotes } from './admin-bar-notes';
 import { getNetworkAdminTileDef } from './multisite/dock-tiles';
 import { createHopMinter, hopToAdmin, type HopMinter } from './multisite/hop';
 import { buildSiteSwitcher, installSiteSwitcherKeys, switchToSite } from './multisite/site-switcher';
@@ -3835,6 +3836,19 @@ function init(): void {
 				} else {
 					manager.enterOverview();
 				}
+			},
+		} );
+
+		// Notifications tile — the WordPress.com / Jetpack admin-bar
+		// bell, on the dock while the bar is hidden. Nothing on a site
+		// without the bell.
+		const dispatcher = layoutDispatcher;
+		installAdminBarNotes( {
+			appendSystemTile: ( item ) => dispatcher.appendSystemTile( item ),
+			removeSystemTile: ( id ) => dispatcher.removeSystemTile( id ),
+			setBadge: ( id, count ) => {
+				dispatcher.getPrimary()?.setBadge( id, count );
+				dispatcher.getSide()?.setBadge( id, count );
 			},
 		} );
 	}

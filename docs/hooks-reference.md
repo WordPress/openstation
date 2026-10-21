@@ -1749,7 +1749,7 @@ apply_filters( 'openstation_admin_bar_mode', string $mode );
 |---|---|
 | `static` | The bar is pinned above the shell and the shell starts below it. Vanilla behavior. |
 | `dynamic` | The bar parks off the top edge leaving a visible seam (`--os-admin-bar-peek`, `4px`), and slides back in on hover, keyboard focus, or tap. The pointer target is larger than the seam — an invisible reveal zone extends `--os-admin-bar-reveal-zone` (`16px`) below it, so the band to hit is `20px` from the top of the viewport. The shell takes the full viewport. |
-| `hidden` | The bar is not rendered. The shell takes the full viewport. The default: a desktop whose navigation is consolidated into one dock has no second place for navigation to live. |
+| `hidden` | The bar is not rendered. The shell takes the full viewport. The default: a desktop whose navigation is consolidated into one dock has no second place for navigation to live. On a site with the WordPress.com / Jetpack notifications bell, the dock gains a **Notifications** tile in its place; see [the compat note](plugin-compat-layer.md#wordpresscom--jetpack-notifications-under-a-hidden-admin-bar). |
 
 A value outside the three coerces back to `static`. The same three ids are the user-facing setting (`adminBarMode` in `wp.os.getOsSettings()`) and a [theme recommendation key](desktop-themes.md#fields).
 

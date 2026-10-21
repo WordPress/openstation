@@ -3,7 +3,9 @@
  * sit in.
  *
  * The tiles that answer for OpenStation itself rather than for the
- * site: Site assistant, Mio, Overview, System and Exit OpenStation,
+ * site: Notifications (only with the WordPress.com / Jetpack bell and
+ * the admin bar hidden), Site assistant, Mio, Overview, System and
+ * Exit OpenStation,
  * clustered at the tail of the rail. Everything here is data;
  * `desktop.ts` does the registering.
  *
@@ -49,6 +51,7 @@ export const SYSTEM_TILE_ID = 'os-system';
  * slot between two of them without a renumbering.
  */
 export const SYSTEM_TILE_ORDER = {
+	notifications: 2,
 	assistant: 5,
 	mio: 10,
 	overview: 20,
