@@ -106,6 +106,32 @@ describe( 'WindowManager — Arrange (tile + snap)', async () => {
 		expect( payload.rows ).toBe( 2 );
 	} );
 
+	test( 'tile() puts 3 windows on a landscape area in thirds', async () => {
+		const wins = [
+			await manager.open( openConfig( 'a' ) ),
+			await manager.open( openConfig( 'b' ) ),
+			await manager.open( openConfig( 'c' ) ),
+		];
+
+		manager.tile();
+
+		expect( wins.map( ( w ) => w.element.style.top ) ).toEqual( [ '16px', '16px', '16px' ] );
+		expect( wins.map( ( w ) => w.element.style.width ) ).toEqual( [ '514px', '514px', '514px' ] );
+	} );
+
+	test( 'tile() stretches a short last row across the full width', async () => {
+		const wins = [];
+		for ( const id of [ 'a', 'b', 'c', 'd', 'e' ] ) {
+			wins.push( await manager.open( openConfig( id ) ) );
+		}
+
+		manager.tile();
+
+		const [ d, e ] = wins.slice( 3 );
+		expect( [ d.element.style.left, d.element.style.width ] ).toEqual( [ '16px', '778px' ] );
+		expect( [ e.element.style.left, e.element.style.width ] ).toEqual( [ '806px', '778px' ] );
+	} );
+
 	test( 'tile() gives a window its minimum width out of its row', async () => {
 		const wide = await manager.open( { ...openConfig( 'wide' ), minWidth: 1000 } );
 		const other = await manager.open( openConfig( 'other' ) );
