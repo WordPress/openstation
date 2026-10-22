@@ -208,8 +208,11 @@ export function installAdminBarNotes(
 		attributes: true,
 		attributeFilter: [ 'class', 'style' ],
 	} );
-	// Capture, so the state is read before any bubbling handler of
-	// Jetpack's can close the panel.
+	// On the document, not the tile: the dock rebuilds its tiles, and
+	// every press but the tile's is ignored anyway, since `onOpen`
+	// reads this only for a pointer click that follows it. Capture, so
+	// the state is read before any bubbling handler of Jetpack's can
+	// close the panel.
 	document.addEventListener( 'pointerdown', onPress, true );
 	document.addEventListener( 'os-layout-changed', onLayoutChanged );
 

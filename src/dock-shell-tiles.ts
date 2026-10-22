@@ -5,9 +5,8 @@
  * The tiles that answer for OpenStation itself rather than for the
  * site: Notifications (only with the WordPress.com / Jetpack bell and
  * the admin bar hidden), Site assistant, Mio, Overview, System and
- * Exit OpenStation,
- * clustered at the tail of the rail. Everything here is data;
- * `desktop.ts` does the registering.
+ * Exit OpenStation, clustered at the tail of the rail. Everything here
+ * is data; `desktop.ts` does the registering.
  *
  * The orders are the point of the module. Registration order cannot
  * express the intended rail: native-window tiles (Trash, and every
