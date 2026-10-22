@@ -1190,7 +1190,7 @@ add_filter( 'openstation_mode_enabled', function ( $enabled, $user_id ) {
 A `false` return has two effects:
 
 1. The AJAX save endpoint refuses to flip the user meta to `'1'` (it returns `openstation_disabled`).
-2. `openstation_is_enabled()` returns `false` for that user even when their existing meta is `'1'`. Every render-time gate that consults the helper (and there are many — see `includes/render.php`, `includes/components.php`, `includes/recycle-bin/rest.php`, `includes/pwa.php`, `includes/presence.php`, `includes/admin-bar.php`) treats the user as not-enabled.
+2. `openstation_is_enabled()` returns `false` for that user even when their existing meta is `'1'`. The helper has one more gate after this filter: for the current user, a `'classic'` Mobile layout on a phone request (see [`openstation_mode_is_phone_request`](#openstation_mode_is_phone_request--experimental-filter)) also answers `false`. Every render-time gate that consults the helper (and there are many — see `includes/render.php`, `includes/components.php`, `includes/recycle-bin/rest.php`, `includes/pwa.php`, `includes/presence.php`, `includes/admin-bar.php`) treats the user as not-enabled.
 
 ---
 
@@ -2768,7 +2768,7 @@ apply_filters( 'openstation_drop_enabled', bool $enabled, int $user_id );
 
 ## Responsive mode — Experimental
 
-The shell renders `desktop`, `tablet` (reported, rendered as desktop for now) or `mobile` — the phone layer. The mode is resolved client-side from the viewport and the user's preference (`src/mode/index.ts`); PHP cannot see the viewport, so what it shapes is the inputs. All three live in `includes/mobile.php`. Full contract: [mobile.md](./mobile.md).
+The shell renders `desktop`, `tablet` (reported, rendered as desktop for now) or `mobile` — the phone layer. The mode is resolved client-side from the viewport and the user's preference (`src/mode/index.ts`); PHP cannot see the viewport, so what it shapes is the inputs. The exception is the `'classic'` preference, which keeps a phone out of the shell and is therefore decided on the server, from the request. All four live in `includes/mobile.php`. Full contract: [mobile.md](./mobile.md).
 
 ### `openstation_mode_preference` — Experimental (filter)
 
@@ -2776,12 +2776,27 @@ The shell renders `desktop`, `tablet` (reported, rendered as desktop for now) or
 apply_filters( 'openstation_mode_preference', string $preference, int $user_id );
 ```
 
-The user's `mobileLayout` setting — `'auto'` (follow the viewport), `'desktop'` (force the desktop on a phone) or `'mobile'` (force the phone layer anywhere) — before it reaches the shell config **and the head stamp**, so the first paint honours the filter too. Anything other than those three strings falls back to the saved value.
+The user's `mobileLayout` setting — `'auto'` (follow the viewport), `'desktop'` (force the desktop on a phone), `'mobile'` (force the phone layer anywhere) or `'classic'` (plain wp-admin on a phone, see [`openstation_mode_is_phone_request`](#openstation_mode_is_phone_request--experimental-filter)) — before it reaches the shell config **and the head stamp**, so the first paint honours the filter too. Anything other than those four strings falls back to the saved value.
 
 ```php
 add_filter( 'openstation_mode_preference', function ( $preference, $user_id ) {
     return user_can( $user_id, 'my_plugin_kiosk' ) ? 'desktop' : $preference;
 }, 10, 2 );
+```
+
+### `openstation_mode_is_phone_request` — Experimental (filter)
+
+```php
+apply_filters( 'openstation_mode_is_phone_request', bool $is_phone, int $user_id );
+// default: wp_is_mobile()
+```
+
+Whether the current request comes from a phone. It is read only for a user whose preference is `'classic'`: a `true` answer makes `openstation_is_enabled()` return `false` for that user on this request, so they get plain wp-admin while their `desktop_mode_mode` meta, and therefore their desktop, stays on. The server has to decide before any script can measure the viewport, so the default is `wp_is_mobile()`. That's a user-agent sniff that counts Android tablets as phones and misses iPads, which identify as Macs. Replace it when the site has better detection:
+
+```php
+add_filter( 'openstation_mode_is_phone_request', function ( $is_phone ) {
+    return my_plugin_device_class() === 'phone';
+} );
 ```
 
 ### `openstation_mode_breakpoints` — Experimental (filter)

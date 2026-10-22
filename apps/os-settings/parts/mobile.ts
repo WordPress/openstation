@@ -18,6 +18,7 @@ const LAYOUTS = [
 	{ id: 'auto', label: () => __( 'Automatic' ) },
 	{ id: 'desktop', label: () => __( 'Always desktop' ) },
 	{ id: 'mobile', label: () => __( 'Always mobile' ) },
+	{ id: 'classic', label: () => __( 'Classic wp-admin' ) },
 ] as const;
 
 type LayoutId = ( typeof LAYOUTS )[ number ][ 'id' ];
@@ -62,7 +63,7 @@ export const renderMobile: Section = ( s, _ctx: Ctx ) => {
 	return html`
 		<os-section
 			heading=${ __( 'Layout' ) }
-			description=${ __( 'Automatic follows the screen: phones get the phone layer, everything wider gets the desktop. Force either to preview or to opt out.' ) }
+			description=${ __( 'Automatic follows the screen: phones get the phone layer, everything wider gets the desktop. Force either to preview or to opt out. Classic wp-admin skips OpenStation on your phone, from the next page you open there, and keeps it everywhere else.' ) }
 		>
 			<os-segmented value=${ s.mobileLayout } label=${ __( 'Mobile layout' ) } @os-pick=${ onLayout }>
 				${ LAYOUTS.map( ( l ) => html`<os-segment value=${ l.id }>${ l.label() }</os-segment>` ) }

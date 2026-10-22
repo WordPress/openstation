@@ -38,11 +38,15 @@ function openstation_asset_suffix() {
 /**
  * Checks whether a user has OpenStation enabled.
  *
- * Two gates, both must pass:
+ * Three gates, all must pass:
  *
  * 1. The user's `desktop_mode_mode` user-meta is `'1'` (the per-user
  *    opt-in toggle the admin-bar button writes via the AJAX endpoint).
  * 2. The `openstation_mode_enabled` filter returns truthy for that user.
+ * 3. For the current user only: they don't keep classic wp-admin on
+ *    this device ({@see openstation_mode_keeps_classic()}, the
+ *    `classic` Mobile layout on a phone). The device belongs to the
+ *    request, so it says nothing about any other user.
  *
  * Centralising the filter check here means render-time gates (chromeless
  * detection, payload generation, REST permission callbacks) can rely on
@@ -79,7 +83,13 @@ function openstation_is_enabled( $user_id = 0 ) {
 	 * @param bool $enabled Whether OpenStation is enabled. Default true.
 	 * @param int  $user_id The user ID being checked.
 	 */
-	return (bool) apply_filters( 'openstation_mode_enabled', true, $user_id );
+	if ( ! apply_filters( 'openstation_mode_enabled', true, $user_id ) ) {
+		return false;
+	}
+
+	return ! ( get_current_user_id() === $user_id
+		&& function_exists( 'openstation_mode_keeps_classic' )
+		&& openstation_mode_keeps_classic( $user_id ) );
 }
 
 /**
