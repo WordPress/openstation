@@ -59,15 +59,16 @@ export function isValidCellSize(
 }
 
 /**
- * Choose the (cols × rows) grid for `tile()` that maximises individual
- * window size while still fitting all `n` windows in a `width × height`
- * area. Scoring: minimise the absolute difference between the cell
- * aspect ratio and the area aspect ratio, with a small penalty for
- * empty trailing cells (so 5 windows pick 3×2 over 5×1 when the area is
- * roughly square).
+ * Choose the (cols × rows) grid for `tile()` that fits all `n` windows
+ * in a `width × height` area.
  *
- * Capped at 6×6 — beyond that, individual windows are too small to be
- * useful and the user is better off with cascade or overview.
+ * The short side gets `floor( sqrt( n ) )` lines and the long side as
+ * many as it takes to seat the rest: two windows side by side, three in
+ * thirds, four in a 2×2 square, five and six in 3×2, nine in 3×3. On a
+ * landscape area the long side is the width, so the extra windows go
+ * into columns; on a portrait one they go into rows. Never more than
+ * one line short of full, and `tile()` lets the windows on that line
+ * share its whole width.
  */
 export function pickGridDimensions(
 	n: number,
@@ -77,23 +78,11 @@ export function pickGridDimensions(
 	if ( n <= 1 ) {
 		return { cols: 1, rows: 1 };
 	}
-	const areaAspect = width / Math.max( 1, height );
-	const max = 6;
-	let best = { cols: n, rows: 1, score: Infinity };
-	for ( let cols = 1; cols <= Math.min( max, n ); cols++ ) {
-		const rows = Math.min( max, Math.ceil( n / cols ) );
-		if ( cols * rows < n ) {
-			continue;
-		}
-		const cellAspect = ( width / cols ) / Math.max( 1, height / rows );
-		const aspectDelta = Math.abs( cellAspect - areaAspect );
-		const emptyCells = cols * rows - n;
-		const score = aspectDelta + emptyCells * 0.05;
-		if ( score < best.score ) {
-			best = { cols, rows, score };
-		}
-	}
-	return { cols: best.cols, rows: best.rows };
+	const minor = Math.floor( Math.sqrt( n ) );
+	const major = Math.ceil( n / minor );
+	return width >= height
+		? { cols: major, rows: minor }
+		: { cols: minor, rows: major };
 }
 
 /**
