@@ -172,7 +172,6 @@ The `extensions/` directory hosts sibling plugins that build on OpenStation's pu
 - **Cron Manager** (`desktop-mode-cron-manager`) — a Cron Jobs native window for browsing, editing, deleting, and running WP-Cron events. Gated by `manage_options`.
 - **Popup Siege** (`desktop-mode-popup-siege`) — a 90-second Breakout-style archive rescue game with OpenStation leaderboards, play-time tracking, and score-to-beat challenges. The deterministic game runtime is lazy-loaded on first play.
 - **SOL Inbound Monologue** (`desktop-mode-feed-buddy`) — an AIM-era RSS/Atom reader with a movable buddy-list widget, a native conversation-style reader window, per-user subscriptions and unread state, safe server-side feed discovery, and optional synthesized chimes.
-- **phpMyAdmin** (`desktop-mode-phpmyadmin`) — embeds a bundled phpMyAdmin install as a native window. **Local environments only**: the window registers solely when `wp_get_environment_type()` is `'local'`, because the bundled phpMyAdmin runs with `auth_type=config` and reuses the WordPress DB credentials — any visitor who finds the URL gets full DB access. The `manage_options` check only hides the shortcut from lower-privilege users; it does **not** gate the underlying URL.
 
 ---
 

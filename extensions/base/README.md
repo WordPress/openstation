@@ -15,7 +15,7 @@ Removes ~250 LOC of boilerplate per extension — script registration, AJAX bund
 
 ## Migration
 
-The three in-tree extensions (`desktop-mode-code-editor`, `desktop-mode-cron-manager`, `desktop-mode-phpmyadmin`) still ship their hand-rolled boilerplate. Migrating them to the base classes is a follow-up cleanup; the base library is intentionally additive so the migration can land one extension at a time.
+The two in-tree extensions (`desktop-mode-code-editor`, `desktop-mode-cron-manager`) still ship their hand-rolled boilerplate. Migrating them to the base classes is a follow-up cleanup; the base library is intentionally additive so the migration can land one extension at a time.
 
 ## License
 

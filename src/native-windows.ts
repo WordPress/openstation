@@ -1125,7 +1125,7 @@ interface NativeWindowGlobals {
 	openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	/**
 	 * Deprecated legacy registry bag. Extension bundles built before
-	 * the rename (cron-manager, code-editor, phpMyAdmin) register
+	 * the rename (cron-manager, code-editor) register
 	 * their render callbacks here; the shell merges it at read time
 	 * so those windows stay interactive. New code must register on
 	 * `openStationNativeWindows`.

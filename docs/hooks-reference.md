@@ -5971,10 +5971,8 @@ this reference does not enumerate: `openstation_code_editor_*`
 (capability gate, workspace root, extension allowlist, save
 pipeline, PHP indexing, REST limits, template/window/icon args —
 `extensions/desktop-mode-code-editor/includes/`),
-`openstation_cron_manager_*` (capability gate, template/window/icon
-args — `extensions/desktop-mode-cron-manager/includes/`), and
-`openstation_phpmyadmin_user_can_use`
-(`extensions/desktop-mode-phpmyadmin/includes/window.php`). Each hook
+and `openstation_cron_manager_*` (capability gate, template/window/icon
+args — `extensions/desktop-mode-cron-manager/includes/`). Each hook
 carries a docblock at its call site; the extension source is the
 reference until these graduate into a doc of their own.
 
