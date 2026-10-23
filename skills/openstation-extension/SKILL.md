@@ -26,7 +26,7 @@ Give the plugin a `.wp-env.json` that installs OpenStation next to it:
 }
 ```
 
-Then, in the plugin folder, run `npx @wordpress/env start`. Make sure Docker is running and Node 20+ is installed. Check that http://localhost:8888/wp-admin loads (admin / password) with both plugins active, then switch OpenStation on from the admin-bar toggle.
+Make sure Docker is running and Node 20+ is installed. Then, in the plugin folder, run `npx @wordpress/env start`. It uses port 8888; if that port is taken, pick a free one and run `WP_ENV_PORT=<port> npx @wordpress/env start` instead. Check that http://localhost:<port>/wp-admin loads (admin / password) with both plugins active, then switch OpenStation on from the admin-bar toggle.
 
 ## Rules
 
