@@ -739,10 +739,10 @@ Never edit Core's `common.css` or color scheme files. Everything we need is expo
 
 **Coming up**
 
-- **Polish** — color-scheme-aware variables across every shell surface, View Transitions API animations, full accessibility audit (ARIA, focus traps, keyboard navigation).
-- **Mobile, next** — pull-to-refresh (needs the chromeless bridge to report overscroll from inside the iframe), and a device pass on real phones.
-- **Tablet hybrid** — split view, slide-over overlay, horizontal bottom dock, optional OpenStation toggle for large tablets — on the `wp.os.mode` primitive the phone layer shipped.
-- **The North Star — cross-window drag & drop** — extend the existing cross-frame drag bridge beyond Media Library attachments: pluggable mime-type negotiation (`openstation_drag_mime_types` / `openstation_drag_payload` / `openstation_drop_accepts`), Gutenberg block-insertion target, visual lift-and-drop feedback.
+- **Polish** — full accessibility audit (ARIA, focus traps, keyboard navigation).
+- **Mobile, next** — pull-to-refresh (needs the chromeless bridge to report overscroll from inside the iframe).
+- **Tablet hybrid** — split view, slide-over overlay, optional OpenStation toggle for large tablets — on the `wp.os.mode` primitive the phone layer shipped.
+- **Cross-window drag & drop, next** — the Gutenberg drop receiver ships (`src/gutenberg-drop-receiver.ts`, see [bridge-protocol.md](./bridge-protocol.md#receiver-protocol)); still ahead are pluggable mime-type negotiation (`openstation_drag_mime_types` / `openstation_drag_payload` / `openstation_drop_accepts`) and a receiver for the Site Editor.
 
 See [Hooks Reference](./hooks-reference.md) for the filter/action names each phase will introduce.
 

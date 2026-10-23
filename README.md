@@ -1,6 +1,6 @@
 # WP OpenStation
 
-A WordPress plugin that reimagines `/wp-admin` as a desktop operating system. Admin screens open as draggable, resizable, minimizable **windows** on a **desktop**, with a left-edge **dock** built from the admin menu. Purely opt-in per user — the classic admin stays untouched for everyone else, and deactivating the plugin restores vanilla Core exactly.
+A WordPress plugin that reimagines `/wp-admin` as a desktop operating system. Admin screens open as draggable, resizable, minimizable **windows** on a **desktop**, with a **dock** built from the admin menu. Purely opt-in per user — the classic admin stays untouched for everyone else, and deactivating the plugin restores vanilla Core exactly.
 
 Zero Core patches. Every feature is wired through public WordPress hooks.
 
@@ -43,7 +43,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Iframe windows load admin pages with `?openstation_chromeless=1` (chromeless mode). Native windows render directly in the parent DOM via `openstation_register_window()` / `wp.os.registerWindow()` — multi-tab native windows are supported through `openstation_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
 
 - **Dock**
-  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is a user preference in OpenStation Preferences. Core menus are ordered before plugin menus; per-item hiding via `openstation_dock_placement` (`'hidden'`). Per-item multi-window support via `openstation_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
+  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is a user preference in OpenStation Preferences. Core menus are ordered before plugin menus; per-item hiding via `openstation_dock_placement` (`'hidden'`). Per-item multi-window support via `openstation_dock_item_multi`. Letter-badge icon fallback for plugins without icon art. An auto-hide Dock behavior folds the rail into a thin line at its edge and morphs it back with the View Transitions API.
 
 - **Virtual desktops (“Spaces”)**
   Multiple desktops per user, each with its own window set. The Workspaces grid (zoom-out view) surfaces the Spaces switcher, thumbnails, and create/close controls.
@@ -61,13 +61,13 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Wallpaper-layer shortcuts via `openstation_register_icon()` — targets a registered native window or an admin URL.
 
 - **AI Assistant + slash commands**
-  Cmd+K palette backed by an OpenAI agentic loop whose `search_posts` / `search_pages` / `search_comments` tools run WordPress's native keyword search. Admin-configured API key + model picker. No content is analyzed in the background: every AI call is one a user asked for. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
+  Cmd+K palette backed by an agentic loop on the WordPress AI Client: provider credentials come from Core's Connectors screen, and the model's tools are read-only abilities (`search_posts` / `search_pages` / `search_comments` run WordPress's native keyword search). No content is analyzed in the background: every AI call is one a user asked for. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
 
 - **Palette registry**
   Cmd+K cycles through all registered palettes (`wp.os.registerPalette()`) — the AI assistant is palette 0 by default; additional plugin overlays share the shortcut.
 
-- **Cross-frame drag bridge**
-  Media-library attachments drag across iframe boundaries via coordinated postMessage. Site-wide toggle through the Extended Options REST endpoint.
+- **Cross-window drag & drop into Gutenberg**
+  Media Library attachments and My WordPress media, post and user tiles drag across iframe boundaries via coordinated postMessage. Dropped on a post editor window, they become blocks: `core/image` / `core/video` / `core/audio` / `core/file` by mime type, or a linked paragraph for a post or user, inserted where Gutenberg's own insertion line shows under the pointer. A desktop file is copied into the Media Library on the way in. The Media Library side has a site-wide toggle in Extended Options. See [`docs/bridge-protocol.md`](./docs/bridge-protocol.md).
 
 - **Toast notifications**
   Shell-level toasts rendered via the `<os-toast>` component. Plugins register their own tone/icon via the `openstation_toast_types` filter. Iframe pages raise a toast through the `os-notification` bridge message — it survives the iframe's own lifecycle.
@@ -87,6 +87,9 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 - **UI component library**
   ~25 `<os-*>` web components (`os-button`, `os-menu`, `os-panel`, `os-range-field`, `os-swatch`, `os-toast`, `os-tabs`, …) available to plugin authors — rendered server-side via `openstation_component()` or imported in TS.
 
+- **Design tokens & desktop themes**
+  Every shell surface reads its colours from `--os-*` tokens in `assets/css/variables.css`. Desktop themes (`openstation_register_desktop_theme()` or an uploaded ZIP) re-skin them wholesale, and the built-in Legacy theme restores the pre-brand look. See [`docs/desktop-themes.md`](./docs/desktop-themes.md).
+
 - **i18n**
   Full gettext coverage across PHP and TypeScript; Spanish translation shipped. Strings go through `wp.i18n` (`__`, `_x`, `_n`, `sprintf`) directly — no shell-specific re-export.
 
@@ -100,10 +103,10 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 
 ## Still ahead
 
-- **Mobile, the next pass** — the phone layer ships (`docs/mobile.md`: home-screen grid, full-screen apps, app switcher, edge-swipe back, bottom tab bar, `wp.os.mode`); still ahead are pull-to-refresh and a pass on real devices.
-- **Tablet hybrid** — split view, slide-over, horizontal dock, on the `wp.os.mode` primitive that already reports `'tablet'`.
-- **Cross-window drag & drop (the North Star)** — extend the current drag bridge to Media → Gutenberg block insertion, with pluggable mime-type negotiation.
-- **Polish** — color-scheme-aware variables across all shell surfaces, View Transitions API animations, full a11y audit (ARIA, focus traps, keyboard nav).
+- **Mobile, the next pass** — pull-to-refresh, which needs the chromeless bridge to report overscroll from inside the iframe.
+- **Tablet hybrid** — split view and slide-over, on the `wp.os.mode` primitive that already reports `'tablet'`. A tablet gets the desktop today.
+- **Cross-window drag & drop, the next pass** — pluggable mime-type negotiation (the payload-to-block map is fixed today, and the planned `openstation_drag_*` filters don't exist yet), and a drop receiver for the Site Editor.
+- **Polish** — full a11y audit (ARIA, focus traps, keyboard nav).
 - **…and a whole lot more hooks, filters, and actions** — every new surface lands with its own extension points, so this list keeps growing.
 
 See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit together and [`docs/hooks-reference.md`](./docs/hooks-reference.md) for the hook surface (current and planned).
