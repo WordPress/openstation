@@ -17,6 +17,7 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 
 	public function tear_down() {
 		remove_all_filters( 'openstation_mode_enabled' );
+		remove_all_filters( 'openstation_mode_is_phone_request' );
 		parent::tear_down();
 	}
 
@@ -71,6 +72,25 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 		// keeps working for users hitting it directly, but the toggle
 		// does not forward through it.
 		$this->assertNotSame( openstation_portal_url(), $response['data']['redirect'] );
+	}
+
+	/**
+	 * Pressed on a phone that keeps classic wp-admin, the toggle sets
+	 * the Mobile layout back to Automatic. Without that the redirect
+	 * lands on a shell screen that sends the user straight back.
+	 */
+	public function test_enabling_on_a_phone_under_classic_returns_the_layout_to_auto() {
+		$this->_setRole( 'administrator' );
+		$user_id = get_current_user_id();
+		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
+		openstation_save_os_settings( $user_id, array( 'mobileLayout' => 'classic' ) );
+		add_filter( 'openstation_mode_is_phone_request', '__return_true' );
+
+		$response = $this->dispatch( '1' );
+
+		$this->assertTrue( $response['success'] );
+		$this->assertSame( 'auto', openstation_get_os_settings( $user_id )['mobileLayout'] );
+		$this->assertTrue( openstation_is_enabled() );
 	}
 
 	public function test_disables_openstation_for_user() {

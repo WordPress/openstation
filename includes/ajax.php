@@ -39,6 +39,20 @@ function openstation_ajax_save() {
 
 	update_user_meta( get_current_user_id(), 'desktop_mode_mode', $enabled );
 
+	/*
+	 * "Switch to OpenStation" pressed on a phone that keeps classic
+	 * wp-admin: the meta is already on, and the setting is what kept
+	 * the user out. Pressing the button on this device says they want
+	 * the shell here, so the Mobile layout goes back to Automatic —
+	 * otherwise the redirect below would land on a shell screen that
+	 * sends them straight back to classic.
+	 */
+	if ( '1' === $enabled && openstation_mode_keeps_classic() ) {
+		$settings                 = openstation_get_os_settings( get_current_user_id() );
+		$settings['mobileLayout'] = 'auto';
+		openstation_save_os_settings( get_current_user_id(), $settings );
+	}
+
 	// The first-run stamps and the enable / disable actions. One helper
 	// shared with the portal's auto-enable so the two writers cannot
 	// drift — see `includes/first-run/stamps.php`.
