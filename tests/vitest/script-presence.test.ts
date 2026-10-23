@@ -168,6 +168,26 @@ describe( 'isScriptInDocument', () => {
 		).toBe( false );
 	} );
 
+	it( 'treats two bundles behind one endpoint as different scripts', () => {
+		// The reported break: a plugin serving every window bundle
+		// through admin-ajax.php. A path-only match marked B loaded
+		// once A was, and B's window never left its loading state.
+		printScript(
+			'https://site.test/wp-admin/admin-ajax.php?action=a_bundle&ver=1',
+		);
+
+		expect(
+			isScriptInDocument( {
+				url: 'https://site.test/wp-admin/admin-ajax.php?action=b_bundle&ver=1',
+			} ),
+		).toBe( false );
+		expect(
+			isScriptInDocument( {
+				url: 'https://site.test/wp-admin/admin-ajax.php?ver=2&action=a_bundle',
+			} ),
+		).toBe( true );
+	} );
+
 	it( 'sees a blob printed after the first query', () => {
 		expect( isScriptInDocument( { handle: 'wp-hooks' } ) ).toBe( false );
 
