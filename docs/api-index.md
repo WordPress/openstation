@@ -330,7 +330,6 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 | `os-plugins-changed` | iframe → shell (top window) | Stable |
 | `os-menu-signature` | iframe → shell (top window) | Stable |
 | `os-updates-changed` *(shiny-update completion nudge)* | iframe → shell | Stable |
-| `os-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable |
 | `os-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable |
 | `os-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable |
 | `os-drag-over` / `-leave` / `os-drop` | parent → iframe | Stable |

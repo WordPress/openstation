@@ -204,7 +204,8 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 
 The `extensions/` directory hosts sibling plugins that build on OpenStation's public APIs. Each one is a standalone WordPress plugin (`Requires Plugins: desktop-mode`) installed from its own zip — run `./bin/package-extensions.sh` to build one `<slug>.zip` per extension under `dist/`; see [`docs/RELEASE.md`](./docs/RELEASE.md#packaging-extensions) for the full packaging steps. (`extensions/base/` is a shared base library for extension authors, and `extensions/mio-js/` is a standalone build of Mio for any web page; neither is an installable plugin.)
 
-- **Code Editor** (`desktop-mode-code-editor`) — a Monaco-backed Code editor native window for browsing and editing files inside `wp-content`. Editing requires the `edit_plugins` capability and is disabled entirely when `DISALLOW_FILE_EDIT` is set.
+Extensions that are not bundled here, such as the Code Editor (`desktop-mode-code-editor`), live in [desktop-mode-official-extensions](https://github.com/AllTerrainDeveloper/desktop-mode-official-extensions).
+
 - **Cron Manager** (`desktop-mode-cron-manager`) — a Cron Jobs native window for browsing, editing, deleting, and running WP-Cron events. Gated by `manage_options`.
 - **Electron Adapter** (`openstation-electron-adapter`) — lets any OpenStation window leave the desk as a real OS window when the desktop is opened through the bundled OpenStation Desktop (Electron) app. Adds nothing to the browser experience.
 - **OpenStation Beta** (`openstation-beta`) — switches the installed OpenStation to a pull-request build, the trunk build, or back to the latest stable release. Never distributed on WordPress.org.

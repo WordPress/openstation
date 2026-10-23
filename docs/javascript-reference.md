@@ -1443,9 +1443,7 @@ if ( ! wp.os.openWindow( 'alcazaba-monitor' ) ) {
 }
 ```
 
-The Code editor ships as the standalone **OpenStation — Code Editor** extension; `wpdc-editor` only resolves when that plugin is active.
-
-For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`os-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
+The Code editor ships as the standalone **OpenStation — Code Editor** plugin from [desktop-mode-official-extensions](https://github.com/AllTerrainDeveloper/desktop-mode-official-extensions); `wpdc-editor` only resolves when that plugin is active.
 
 ---
 

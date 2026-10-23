@@ -11,8 +11,8 @@
 # Round-tripping through `tar` + `zip` lands the entries at the tools'
 # defaults (0644 / 0755), which is what WordPress expects.
 #
-# Vendored content (e.g. extensions/desktop-mode-code-editor/assets/
-# vendor/monaco-editor/) is gitignored — `git archive` skips it. After
+# Vendored content (extensions/<slug>/assets/vendor/, when an
+# extension ships any) is gitignored — `git archive` skips it. After
 # extraction this script splices any working-tree assets/vendor/*
 # back in for each extension, so end users get a single zip that "just
 # works" on activation.

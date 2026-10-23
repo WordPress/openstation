@@ -5982,11 +5982,7 @@ Adapter extension**, not in core. See
 ### Other bundled-extension hooks
 
 The extensions under `extensions/` fire their own prefixed hooks, which
-this reference does not enumerate: `openstation_code_editor_*`
-(capability gate, workspace root, extension allowlist, save
-pipeline, PHP indexing, REST limits, template/window/icon args —
-`extensions/desktop-mode-code-editor/includes/`),
-and `openstation_cron_manager_*` (capability gate, template/window/icon
+this reference does not enumerate: `openstation_cron_manager_*` (capability gate, template/window/icon
 args — `extensions/desktop-mode-cron-manager/includes/`). Each hook
 carries a docblock at its call site; the extension source is the
 reference until these graduate into a doc of their own.
