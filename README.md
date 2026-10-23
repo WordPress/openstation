@@ -17,10 +17,11 @@ Paste this into your coding agent (Claude Code, Cursor, Codex…):
 ```text
 Fork https://github.com/WordPress/openstation and clone my fork. Then:
 1. Make sure Docker is running and Node 20+ is installed.
-2. In the repo, run: npm install && npm run build && npm run env:start
-3. Check that http://localhost:8890/wp-admin loads (admin / password) and that the Desktop Mode plugin is active.
-4. Run npm test to check the baseline.
-5. Read AGENTS.md, CLAUDE.md and docs/, summarise the architecture in five lines, then wait for my first task.
+2. In the repo, run: npm install && npm run build
+3. Start WordPress with npm run env:start. It uses port 8890; if that port is taken, pick a free one and run WP_ENV_PORT=<port> npm run env:start instead.
+4. Check that http://localhost:<port>/wp-admin loads (admin / password) and that the Desktop Mode plugin is active.
+5. Run npm test to check the baseline.
+6. Read AGENTS.md, CLAUDE.md and docs/, summarise the architecture in five lines, then wait for my first task.
 If a step fails, fix it and keep going. Only ask me if you're blocked.
 ```
 
