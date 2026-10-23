@@ -10,11 +10,43 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 
 <video src="https://github.com/user-attachments/assets/590aacc2-e9d7-4213-889e-b91e060e1bd8" controls width="720"></video>
 
+## Develop OpenStation with an AI agent
+
+Paste this into your coding agent (Claude Code, Cursor, Codex…):
+
+```text
+Fork https://github.com/WordPress/openstation and clone my fork. Then:
+1. Make sure Docker is running and Node 20+ is installed.
+2. In the repo, run: npm install && npm run build && npm run env:start
+3. Check that http://localhost:8890/wp-admin loads (admin / password) and that the Desktop Mode plugin is active.
+4. Run npm test to check the baseline.
+5. Read AGENTS.md, CLAUDE.md and docs/, summarise the architecture in five lines, then wait for my first task.
+If a step fails, fix it and keep going. Only ask me if you're blocked.
+```
+
+## Build your own OpenStation extension with an AI agent
+
+Anyone can build their own plugin on top of OpenStation, in their own folder and repository, without touching OpenStation's code. Install the [`openstation-extension`](skills/openstation-extension/SKILL.md) skill in your plugin's folder:
+
+```bash
+npx skills add WordPress/openstation --skill openstation-extension
+```
+
+Then ask your agent: `Use the openstation-extension skill to build <describe your extension>.` The skill sets up a wp-env test site with OpenStation and keeps the agent to its documented hooks, `wp.os.*` API and `<os-*>` components.
+
+No skills support in your agent? Paste this instead:
+
+```text
+Read https://github.com/WordPress/openstation/blob/trunk/skills/openstation-extension/SKILL.md and follow it to build <describe your extension>.
+```
+
 ---
 
 ## Contents
 
 - [Demo](#demo)
+- [Develop OpenStation with an AI agent](#develop-openstation-with-an-ai-agent)
+- [Build your own OpenStation extension with an AI agent](#build-your-own-openstation-extension-with-an-ai-agent)
 - [Current State](#current-state)
 - [Still ahead](#still-ahead)
 - [Repository layout](#repository-layout)
