@@ -43,7 +43,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Iframe windows load admin pages with `?openstation_chromeless=1` (chromeless mode). Native windows render directly in the parent DOM via `openstation_register_window()` / `wp.os.registerWindow()` — multi-tab native windows are supported through `openstation_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
 
 - **Dock**
-  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is a user preference in OpenStation Preferences. Core menus are ordered before plugin menus; per-item hiding via `openstation_dock_placement` (`'hidden'`). Per-item multi-window support via `openstation_dock_item_multi`. Letter-badge icon fallback for plugins without icon art. An auto-hide Dock behavior folds the rail into a thin line at its edge and morphs it back with the View Transitions API.
+  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is a user preference in OpenStation Preferences. Core menus are ordered before plugin menus; per-item hiding via `openstation_dock_placement` (`'hidden'`). Per-item multi-window support via `openstation_dock_item_multi`. Letter-badge icon fallback for plugins without icon art. The Dynamic dock behavior (auto-hide) folds the rail into a thin line at its edge and morphs it back with the View Transitions API.
 
 - **Virtual desktops (“Spaces”)**
   Multiple desktops per user, each with its own window set. The Workspaces grid (zoom-out view) surfaces the Spaces switcher, thumbnails, and create/close controls.
@@ -61,7 +61,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Wallpaper-layer shortcuts via `openstation_register_icon()` — targets a registered native window or an admin URL.
 
 - **AI Assistant + slash commands**
-  Cmd+K palette backed by an agentic loop on the WordPress AI Client: provider credentials come from Core's Connectors screen, and the model's tools are read-only abilities (`search_posts` / `search_pages` / `search_comments` run WordPress's native keyword search). No content is analyzed in the background: every AI call is one a user asked for. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
+  Cmd+K palette backed by an agentic loop on the WordPress AI Client (WordPress 7.0+): provider credentials come from Core's Connectors screen, and the model's tools are read-only abilities (`search_posts` / `search_pages` / `search_comments` run WordPress's native keyword search). No content is analyzed in the background: every AI call is one a user asked for. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
 
 - **Palette registry**
   Cmd+K cycles through all registered palettes (`wp.os.registerPalette()`) — the AI assistant is palette 0 by default; additional plugin overlays share the shortcut.
@@ -85,7 +85,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Typed messages for title changes, navigation (same-origin validated), focus, color-scheme sync, screen-meta panels (Screen Options / Help), external-link capture, iframe-ready handshake, and observability (`iframe-error`, `iframe-network`).
 
 - **UI component library**
-  ~25 `<os-*>` web components (`os-button`, `os-menu`, `os-panel`, `os-range-field`, `os-swatch`, `os-toast`, `os-tabs`, …) available to plugin authors — rendered server-side via `openstation_component()` or imported in TS.
+  ~70 `<os-*>` web components (`os-button`, `os-menu`, `os-panel`, `os-range-field`, `os-swatch`, `os-toast`, `os-tabs`, …) available to plugin authors — rendered server-side via `openstation_component()` or imported in TS.
 
 - **Design tokens & desktop themes**
   Every shell surface reads its colours from `--os-*` tokens in `assets/css/variables.css`. Desktop themes (`openstation_register_desktop_theme()` or an uploaded ZIP) re-skin them wholesale, and the built-in Legacy theme restores the pre-brand look. See [`docs/desktop-themes.md`](./docs/desktop-themes.md).
@@ -97,7 +97,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Stable `openstation_register_*` functions for windows, widgets, wallpapers, icons, and window tabs. All return `true` / `WP_Error` with documented error codes.
 
 - **Public hook API**
-  Comprehensive PHP and JS hook surface — dock items, placement, multi-window, native-window lifecycle, widget lifecycle, wallpaper lifecycle + surfaces, window lifecycle, iframe observability, arrange actions, virtual-desktop transitions, palette registration, command lifecycle, batch close, AI prompt + model + post-type filters, accents, toast types, default wallpaper. See [`docs/hooks-reference.md`](./docs/hooks-reference.md) and [`docs/javascript-reference.md`](./docs/javascript-reference.md).
+  Comprehensive PHP and JS hook surface — dock items, placement, multi-window, native-window lifecycle, widget lifecycle, wallpaper lifecycle + surfaces, window lifecycle, iframe observability, arrange actions, virtual-desktop transitions, palette registration, command lifecycle, batch close, AI prompt + model + tool filters, accents, toast types, default wallpaper. See [`docs/hooks-reference.md`](./docs/hooks-reference.md) and [`docs/javascript-reference.md`](./docs/javascript-reference.md).
 
 ---
 
@@ -125,7 +125,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── os-settings.php          extended-options.php
 │   ├── accents.php              wallpapers.php      toast-types.php
 │   ├── media-query.php
-│   └── ai-copilot/              # AI assistant (OpenAI client, analysis, search, jobs)
+│   └── ai-copilot/              # AI assistant (WordPress AI Client adapter, abilities, search, on-demand comment analysis)
 ├── apps/                  # App Framework apps: <name>.os.php (window, state, actions,
 │                          #   data) + optional <name>.os.ts (client view) + <name>.css;
 │                          #   Code Blue lives here — see docs/app-framework.md
@@ -150,10 +150,10 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── window-manager/  # stack, desktops, arrange, snap, overview
 │   ├── wallpapers/      # registry, layer, surfaces, server sync, vendor loader
 │   ├── widgets/         # registry, layer, frame, picker, storage
-│   ├── settings/        # OpenStation Preferences panel sections
+│   ├── settings/        # settings store + registry (the window is apps/os-settings/)
 │   ├── ui/              # <os-*> web components
 │   ├── modules/         # vendor-script lazy-loader
-│   └── plugins/         # built-in demos (animated-logo-wallpaper)
+│   └── plugins/         # built-in widgets and wallpapers, one bundle each
 ├── docs/                  # developer-facing docs (source of truth for plugin authors)
 ├── extensions/            # bundled sibling plugins (see "Bundled extensions" below)
 ├── tests/                 # PHPUnit + Vitest
@@ -169,10 +169,12 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 
 ## Bundled extensions
 
-The `extensions/` directory hosts sibling plugins that build on OpenStation's public APIs. Each one is a standalone WordPress plugin (`Requires Plugins: desktop-mode`) installed from its own zip — run `./bin/package-extensions.sh` to build one `<slug>.zip` per extension under `dist/`; see [`docs/RELEASE.md`](./docs/RELEASE.md#packaging-extensions) for the full packaging steps. (`extensions/base/` is a shared base library for extension authors, not an installable plugin.)
+The `extensions/` directory hosts sibling plugins that build on OpenStation's public APIs. Each one is a standalone WordPress plugin (`Requires Plugins: desktop-mode`) installed from its own zip — run `./bin/package-extensions.sh` to build one `<slug>.zip` per extension under `dist/`; see [`docs/RELEASE.md`](./docs/RELEASE.md#packaging-extensions) for the full packaging steps. (`extensions/base/` is a shared base library for extension authors, and `extensions/mio-js/` is a standalone build of Mio for any web page; neither is an installable plugin.)
 
 - **Code Editor** (`desktop-mode-code-editor`) — a Monaco-backed Code editor native window for browsing and editing files inside `wp-content`. Editing requires the `edit_plugins` capability and is disabled entirely when `DISALLOW_FILE_EDIT` is set.
 - **Cron Manager** (`desktop-mode-cron-manager`) — a Cron Jobs native window for browsing, editing, deleting, and running WP-Cron events. Gated by `manage_options`.
+- **Electron Adapter** (`openstation-electron-adapter`) — lets any OpenStation window leave the desk as a real OS window when the desktop is opened through the bundled OpenStation Desktop (Electron) app. Adds nothing to the browser experience.
+- **OpenStation Beta** (`openstation-beta`) — switches the installed OpenStation to a pull-request build, the trunk build, or back to the latest stable release. Never distributed on WordPress.org.
 - **Popup Siege** (`desktop-mode-popup-siege`) — a 90-second Breakout-style archive rescue game with OpenStation leaderboards, play-time tracking, and score-to-beat challenges. The deterministic game runtime is lazy-loaded on first play.
 - **SOL Inbound Monologue** (`desktop-mode-feed-buddy`) — an AIM-era RSS/Atom reader with a movable buddy-list widget, a native conversation-style reader window, per-user subscriptions and unread state, safe server-side feed discovery, and optional synthesized chimes.
 
@@ -212,7 +214,7 @@ Writes one `assets/js/<target>.js` / `.min.js` pair per target, including:
 
 - `assets/js/desktop.js` / `.min.js` — main shell bundle (loaded based on `SCRIPT_DEBUG`).
 - `assets/js/iframe-bridge.js` / `.min.js` — opt-in bridge that gives any same-origin iframe access to `wp.os.iframe.*`.
-- `assets/js/posts-window.js` / `.min.js` — Native Posts window (the `<os-table>` replacement for the `edit.php` iframe; opt-in per user via OpenStation Preferences → Features).
+- `assets/js/apps/<name>.js` / `.min.js` — App Framework client views, built from `apps/<dir>/<name>.os.ts` by `npm run build:apps`. The native Posts window (`apps/posts/`, the `<os-table>` replacement for the `edit.php` iframe, opt-in per user via OpenStation Preferences → Features) is one of them.
 
 **Development watch** — auto-recompiles the unminified bundle on save:
 
