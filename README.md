@@ -204,9 +204,8 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 
 The `extensions/` directory hosts sibling plugins that build on OpenStation's public APIs. Each one is a standalone WordPress plugin (`Requires Plugins: desktop-mode`) installed from its own zip — run `./bin/package-extensions.sh` to build one `<slug>.zip` per extension under `dist/`; see [`docs/RELEASE.md`](./docs/RELEASE.md#packaging-extensions) for the full packaging steps. (`extensions/base/` is a shared base library for extension authors, and `extensions/mio-js/` is a standalone build of Mio for any web page; neither is an installable plugin.)
 
-Extensions that are not bundled here, such as the Code Editor (`desktop-mode-code-editor`), live in [desktop-mode-official-extensions](https://github.com/AllTerrainDeveloper/desktop-mode-official-extensions).
+Extensions that are not bundled here, such as the Code Editor (`desktop-mode-code-editor`) and the Cron Manager (`desktop-mode-cron-manager`), live in [desktop-mode-official-extensions](https://github.com/AllTerrainDeveloper/desktop-mode-official-extensions).
 
-- **Cron Manager** (`desktop-mode-cron-manager`) — a Cron Jobs native window for browsing, editing, deleting, and running WP-Cron events. Gated by `manage_options`.
 - **Electron Adapter** (`openstation-electron-adapter`) — lets any OpenStation window leave the desk as a real OS window when the desktop is opened through the bundled OpenStation Desktop (Electron) app. Adds nothing to the browser experience.
 - **OpenStation Beta** (`openstation-beta`) — switches the installed OpenStation to a pull-request build, the trunk build, or back to the latest stable release. Never distributed on WordPress.org.
 - **Popup Siege** (`desktop-mode-popup-siege`) — a 90-second Breakout-style archive rescue game with OpenStation leaderboards, play-time tracking, and score-to-beat challenges. The deterministic game runtime is lazy-loaded on first play.

@@ -60,17 +60,13 @@
 		directory and the plugin's update path, so it cannot change.
 		The code is prefixed for the brand instead, hence the explicit
 		list: `openstation_*` / `OPENSTATION_*` for the plugin itself
-		(one word, like `wordpress_` rather than `word_press_`), plus
-		the `wpdm` namespace the bundled cron-manager extension keeps —
-		its window id is persisted and its prebuilt bundle hardcodes
-		the selectors.
+		(one word, like `wordpress_` rather than `word_press_`).
 	-->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
 				<element value="openstation"/>
 				<element value="OPENSTATION"/>
-				<element value="wpdm"/>
 			</property>
 		</properties>
 	</rule>
