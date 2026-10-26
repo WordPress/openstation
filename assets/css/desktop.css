@@ -2286,6 +2286,14 @@ os-notice a:active {
 	overflow-wrap: anywhere;
 }
 
+.os-mio-chat__action-description {
+	flex-basis: 100%;
+	margin: 0;
+	font-size: 12px;
+	color: var(--os-mio-chat-muted, #646970);
+	overflow-wrap: anywhere;
+}
+
 .os-mio-chat__composer os-textarea::part(textarea) {
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;

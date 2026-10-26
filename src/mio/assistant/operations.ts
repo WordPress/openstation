@@ -50,7 +50,7 @@ export class MioOperations {
 		return Array.from( this.records.values(), ( entry ) => structuredClone( entry ) );
 	}
 
-	public record( call: MioCallContext, ability: string, status: MioOperation['status'], receipt?: string ): MioOperation {
+	public record( call: MioCallContext, ability: string, status: MioOperation['status'], receipt?: string, source?: MioOperation['source'] ): MioOperation {
 		const existing = this.records.get( call.callId );
 		// A late abort or network error cannot erase an authoritative receipt.
 		if ( existing?.status === 'confirmed' && status !== 'confirmed' ) {
@@ -60,7 +60,7 @@ export class MioOperations {
 			throw new Error( 'MIO operation receipt changed unexpectedly.' );
 		}
 		const duplicate = receipt && this.receipts.has( receipt ) && this.receipts.get( receipt ) !== call.callId;
-		const entry: MioOperation = { turnId: call.turnId, callId: call.callId, idempotencyKey: call.idempotencyKey, windowId: call.windowId, revision: call.revision, ability, effect: call.effect, status: duplicate ? 'unknown' : status, ...( receipt ? { receipt } : {} ) };
+		const entry: MioOperation = { turnId: call.turnId, callId: call.callId, idempotencyKey: call.idempotencyKey, windowId: call.windowId, revision: call.revision, ability, source: source ?? existing?.source ?? 'ability', effect: call.effect, status: duplicate ? 'unknown' : status, ...( receipt ? { receipt } : {} ) };
 		if ( receipt && ! duplicate ) {
 			this.receipts.set( receipt, call.callId );
 		}

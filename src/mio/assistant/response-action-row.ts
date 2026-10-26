@@ -10,6 +10,9 @@ export function mioResponseActionRow( message: MioChatMessage, actions: MioRespo
 	element.className = 'os-mio-chat__actions';
 	element.setAttribute( 'role', 'group' );
 	element.setAttribute( 'aria-label', __( 'Suggested actions' ) );
+	// App-written consequence text, shown once below the row.
+	const description = document.createElement( 'p' );
+	description.className = 'os-mio-chat__action-description';
 	const nodes = new Map<string, { item: HTMLElement; button: HTMLElement; status: HTMLElement; focus: ReturnType<typeof mioActionFocus> }>();
 	return { element, destroy: () => {
 		for ( const node of nodes.values() ) {
@@ -51,8 +54,12 @@ export function mioResponseActionRow( message: MioChatMessage, actions: MioRespo
 				const status = document.createElement( 'span' );
 				status.className = 'os-mio-chat__action-status';
 				status.setAttribute( 'role', 'status' ); status.setAttribute( 'aria-live', 'polite' );
-				button.addEventListener( 'click', () => {
-					void actions.run( message.id!, view.id );
+				if ( view.effect === 'write' && view.description ) {
+					button.setAttribute( 'aria-description', view.description );
+				}
+				// The event goes along so a write can require a trusted click.
+				button.addEventListener( 'click', ( event ) => {
+					void actions.run( message.id!, view.id, event );
 				} );
 				item.append( button, status ); element.appendChild( item );
 				node = { item, button, status, focus: mioActionFocus( button ) }; nodes.set( view.id, node );
@@ -63,6 +70,15 @@ export function mioResponseActionRow( message: MioChatMessage, actions: MioRespo
 			if ( node.status.textContent !== view.status ) {
 				node.status.textContent = view.status;
 			}
+		}
+		const consequence = views.find( ( view ) => view.description )?.description ?? '';
+		if ( description.textContent !== consequence ) {
+			description.textContent = consequence;
+		}
+		if ( consequence && element.lastElementChild !== description ) {
+			element.append( description );
+		} else if ( ! consequence ) {
+			description.remove();
 		}
 		element.hidden = views.length === 0;
 	} };

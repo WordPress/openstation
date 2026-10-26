@@ -66,6 +66,17 @@ describe( '<os-button>', () => {
 		expect( inner.hasAttribute( 'aria-label' ) ).toBe( false );
 	} );
 
+	test( 'aria-description on the host is forwarded and dropped with it', async () => {
+		host.innerHTML = `<os-button aria-description="Replaces your edits">Apply</os-button>`;
+		await tick();
+		const btn = host.querySelector( 'os-button' )!;
+		const inner = btn.shadowRoot!.querySelector( 'button' )!;
+		expect( inner.getAttribute( 'aria-description' ) ).toBe( 'Replaces your edits' );
+		btn.removeAttribute( 'aria-description' );
+		await tick();
+		expect( inner.hasAttribute( 'aria-description' ) ).toBe( false );
+	} );
+
 	test( 'a host with no ARIA naming leaves the inner button without any', async () => {
 		host.innerHTML = `<os-button variant="primary" disabled>Save</os-button>`;
 		await tick();

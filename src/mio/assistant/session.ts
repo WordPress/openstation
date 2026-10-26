@@ -34,7 +34,7 @@ export class MioSession {
 		public readonly conversation = memoryMioConversation(),
 	) {
 		this.operations = new MioOperations( context );
-		this.responseActions = new MioResponseActions( context, () => ! this.disposed && active(), () => conversation.read() );
+		this.responseActions = new MioResponseActions( context, () => ! this.disposed && active(), () => conversation.read(), this.operations );
 	}
 
 	public subscribeThinking( listener: ( thinking: boolean ) => void ): () => void {
@@ -100,7 +100,7 @@ export class MioSession {
 		};
 		this.pending = controller; this.abortTurn = abort; this.notifyThinking();
 		const messages = [ ...this.conversation.read().slice( -39 ), { role: 'user' as const, text: query, id: crypto.randomUUID() } ];
-		this.conversation.write( messages ); this.responseActions.prune();
+		this.conversation.write( messages ); this.responseActions.prune(); this.responseActions.retireWrites();
 		const finish = ( text: string ): void => {
 			const message: MioChatMessage = { role: 'assistant', text, id: crypto.randomUUID() };
 			const actionIds = this.responseActions.create( Object.freeze( {
@@ -117,7 +117,8 @@ export class MioSession {
 			this.conversation.write( [ ...messages, message ].slice( -40 ) );
 			this.responseActions.prune();
 		};
-		const outcomes: unknown[] = [];
+		// Choices the user made since the previous turn, so the model knows what was applied.
+		const outcomes: unknown[] = [ ...this.responseActions.drain() ];
 		const attemptedWrites = new Set<string>();
 		const repeats = new Map<string, number>();
 		const abilities = () => [ ...mioHelpAbilities( this.context.documents ), ...this.context.abilities() ].filter( ( ability ) => ! ability.allowed || ability.allowed() );
