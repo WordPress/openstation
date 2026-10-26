@@ -54,15 +54,20 @@ export function mioResponseActionRow( message: MioChatMessage, actions: MioRespo
 				const status = document.createElement( 'span' );
 				status.className = 'os-mio-chat__action-status';
 				status.setAttribute( 'role', 'status' ); status.setAttribute( 'aria-live', 'polite' );
-				if ( view.effect === 'write' && view.description ) {
-					button.setAttribute( 'aria-description', view.description );
-				}
 				// The event goes along so a write can require a trusted click.
 				button.addEventListener( 'click', ( event ) => {
 					void actions.run( message.id!, view.id, event );
 				} );
 				item.append( button, status ); element.appendChild( item );
 				node = { item, button, status, focus: mioActionFocus( button ) }; nodes.set( view.id, node );
+			}
+			// The description is announced with the action that owns it.
+			if ( node.button.getAttribute( 'aria-description' ) !== ( view.description ?? null ) ) {
+				if ( view.description ) {
+					node.button.setAttribute( 'aria-description', view.description );
+				} else {
+					node.button.removeAttribute( 'aria-description' );
+				}
 			}
 			node.focus.update( view.pending );
 			node.button.toggleAttribute( 'busy', view.pending );

@@ -212,6 +212,6 @@ responseActions: ({summary}) => {
 },
 ```
 
-Only a real click runs "Apply", and only while its message is the newest in the conversation; asking MIO anything else retires it. Choosing either button retires the other. The click makes no model request. The write is recorded in `getOperations()` as `response:apply-mio-changes` with `source: 'response-action'`, so an unknown outcome reconciles through `forms.operationStatus` like any other save, and the next turn tells the model which button the user chose. Clear `conflicts` when disposing the editor.
+Only a real click runs "Apply", and only while its message is the newest in the conversation; asking MIO anything else retires both buttons. Choosing either one retires the other. The click makes no model request. The write is recorded in `getOperations()` as `response:apply-mio-changes` with `source: 'response-action'`, so an unknown outcome reconciles through `forms.operationStatus` like any other save, and the next turn tells the model which button the user chose. Clear `conflicts` when disposing the editor.
 
 Check `responseActionEffects` before returning the conflict result. On an older shell the write button would be dropped, leaving a question with no way to answer it; fall back to the ordinary rejected outcome there.

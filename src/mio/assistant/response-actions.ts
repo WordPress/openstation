@@ -8,6 +8,8 @@ import type { MioCallContext, MioChatMessage, MioOperation, MioResponseAction, M
 export const MIO_RESPONSE_ACTION_EFFECTS: readonly MioResponseActionEffect[] = Object.freeze( [ 'read', 'navigate', 'write' ] );
 
 interface Entry {
+	/** The opaque action id this entry is registered under. */
+	key: string;
 	messageId: string;
 	turnId: string;
 	action: MioResponseAction;
@@ -37,6 +39,8 @@ export interface MioResponseActionView {
 }
 /** Shell-authored evidence for the next turn; no callback, URL or receipt body. */
 interface MioResponseActionRecord {
+	/** Lease-local; stripped before the record reaches history. */
+	entryId: string;
 	source: 'response-action';
 	label: string;
 	effect: MioResponseActionEffect;
@@ -84,6 +88,7 @@ export class MioResponseActions {
 			const names = new Set<string>();
 			let primary = false;
 			let write = false;
+			let described = false;
 			// Bound even a buggy application's descriptor list.
 			for ( const candidate of descriptors.slice( 0, 100 ) ) {
 				try {
@@ -109,6 +114,13 @@ export class MioResponseActions {
 						write = true;
 					}
 					names.add( action.id );
+					// One consequence line per message: later descriptions are dropped.
+					if ( action.description !== undefined ) {
+						if ( described ) {
+							delete action.description;
+						}
+						described = true;
+					}
 					// The kit resolves only Dashicons; unknown names produce no glyph.
 					if ( action.icon !== undefined && ( typeof action.icon !== 'string' || ! /^(?:dashicons-)?[a-z][a-z0-9-]{0,63}$/.test( action.icon ) ) ) {
 						delete action.icon;
@@ -120,7 +132,7 @@ export class MioResponseActions {
 					}
 					const id = crypto.randomUUID();
 					const turnId = context.summary.turnId;
-					this.entries.set( id, { messageId: context.messageId, turnId, action, pending: null, status: '', retired: false, hidden: false, attempts: 0,
+					this.entries.set( id, { key: id, messageId: context.messageId, turnId, action, pending: null, status: '', retired: false, hidden: false, attempts: 0,
 						...( action.effect === 'write' ? { idempotencyKey: `${ turnId }:response:${ id }` } : {} ) } );
 					ids.push( id );
 					if ( ids.length === 3 ) {
@@ -143,12 +155,21 @@ export class MioResponseActions {
 		}
 	}
 
-	/** A new user message retires every write that has not started. */
+	/**
+	 * A new user message retires every write that has not started, and every
+	 * other action in its choice group: a decision the conversation has moved
+	 * past cannot be answered either way.
+	 */
 	public retireWrites(): void {
 		let changed = false;
 		for ( const entry of this.entries.values() ) {
-			if ( entry.action.effect === 'write' && ! entry.pending && ! entry.retired && ! entry.hidden ) {
-				entry.retired = true; entry.status = __( 'No longer available.' ); changed = true;
+			if ( entry.action.effect !== 'write' ) {
+				continue;
+			}
+			for ( const member of [ entry, ...this.siblings( entry ) ] ) {
+				if ( ! member.pending && ! member.retired && ! member.hidden ) {
+					member.retired = true; member.status = __( 'No longer available.' ); changed = true;
+				}
 			}
 		}
 		if ( changed ) {
@@ -161,9 +182,19 @@ export class MioResponseActions {
 		const records = this.records; this.records = [];
 		return records;
 	}
+	/** Puts back records a turn drained but never sent, ahead of any newer ones. */
+	public restore( records: readonly MioResponseActionRecord[] ): void {
+		if ( this.disposed ) {
+			return;
+		}
+		const newer = new Set( this.records.map( ( record ) => record.entryId ) );
+		this.records = [ ...records.filter( ( record ) => ! newer.has( record.entryId ) ), ...this.records ].slice( -20 );
+	}
+	/** One record per action: a retry that settles replaces its earlier rejection. */
 	private remember( entry: Entry, status: MioResponseActionRecord['status'] ): void {
-		this.records.push( { source: 'response-action', label: entry.action.label, effect: entry.action.effect, status } );
-		this.records = this.records.slice( -20 );
+		const entryId = entry.key;
+		this.records = [ ...this.records.filter( ( record ) => record.entryId !== entryId ),
+			{ entryId, source: 'response-action' as const, label: entry.action.label, effect: entry.action.effect, status } ].slice( -20 );
 	}
 
 	private siblings( entry: Entry ): Entry[] {
@@ -213,7 +244,9 @@ export class MioResponseActions {
 			}
 			// A sibling in flight disables this choice without withdrawing it.
 			const available = allowed && ! this.siblings( entry ).some( ( other ) => other.pending );
-			const { label, ariaLabel, icon, emphasis, effect, description } = entry.action;
+			const { label, ariaLabel, icon, emphasis, effect } = entry.action;
+			// A settled action's consequence is history, not a warning.
+			const description = entry.retired ? undefined : entry.action.description;
 			return [ { id, label, ariaLabel, icon, emphasis: emphasis ?? 'secondary', effect, description, pending: entry.pending !== null, available, status: entry.status } ];
 		} );
 	}
@@ -324,7 +357,7 @@ export class MioResponseActions {
 			if ( outcome?.effect !== 'write' || outcome.status !== 'confirmed' ) {
 				this.record( call, ability, 'unknown' );
 			}
-			entry.status = __( "Couldn't confirm the result. Check before trying again." ); entry.retired = true;
+			entry.status = __( 'Could not confirm the result. Check before trying again.' ); entry.retired = true;
 			this.remember( entry, 'unknown' );
 		}
 		this.notify();

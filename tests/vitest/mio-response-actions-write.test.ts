@@ -67,7 +67,7 @@ test( 'confirmed retires the whole group and records a confirmed ledger entry wi
 test( 'a retryable rejection allows another deliberate click with the same idempotency key', async () => {
 	const contexts: MioResponseActionContext[] = [];
 	const outcomes: MioOperationOutcome[] = [ { effect: 'none', status: 'rejected', errors: [ { code: 'conflict', path: '$', message: 'The form changed again.' } ], retryable: true }, confirmed ];
-	const { session } = setup( () => [ apply( { run: async ( context ) => { contexts.push( context ); return outcomes.shift(); } } ), keep() ] );
+	const { session, transport } = setup( () => [ apply( { run: async ( context ) => { contexts.push( context ); return outcomes.shift(); } } ), keep() ] );
 	await session.ask( 'Update the form' );
 	await click( session, 0 );
 	expect( views( session )[ 0 ] ).toMatchObject( { status: 'The form changed again.', available: true } );
@@ -77,6 +77,9 @@ test( 'a retryable rejection allows another deliberate click with the same idemp
 	expect( contexts[ 1 ].idempotencyKey ).toBe( contexts[ 0 ].idempotencyKey );
 	expect( contexts[ 1 ].callId ).not.toBe( contexts[ 0 ].callId );
 	expect( responseOps( session ).map( ( op ) => op.status ) ).toEqual( [ 'rejected', 'confirmed' ] );
+	// One choice, one record: the confirmation replaces the rejection.
+	await session.ask( 'Is it saved?' );
+	expect( JSON.parse( transport.mock.calls.at( -1 )![ 0 ].transcript ).outcomes ).toEqual( [ { source: 'response-action', label: "Apply MIO's changes", effect: 'write', status: 'confirmed' } ] );
 } );
 
 test( 'a terminal rejection retires the button', async () => {
@@ -94,7 +97,7 @@ test.each( [
 ] )( '%s is recorded as unknown and retires the button', async ( _name, run ) => {
 	const { session } = setup( () => [ apply( { run: run as MioResponseAction['run'] } ), keep() ] );
 	await session.ask( 'Update the form' ); await click( session, 0 );
-	expect( views( session )[ 0 ] ).toMatchObject( { status: "Couldn't confirm the result. Check before trying again.", available: false } );
+	expect( views( session )[ 0 ] ).toMatchObject( { status: 'Could not confirm the result. Check before trying again.', available: false } );
 	expect( responseOps( session ).map( ( op ) => op.status ) ).toEqual( [ 'unknown' ] );
 	await click( session, 0 ); expect( responseOps( session ) ).toHaveLength( 1 );
 } );
@@ -108,6 +111,19 @@ test( 'a write on an older message is retired when a new user message is sent', 
 	await click( session, 0, trusted, old ); expect( run ).not.toHaveBeenCalled();
 	// The newest message's own write is still live.
 	expect( views( session )[ 0 ].available ).toBe( true );
+} );
+
+test( 'a new user message retires the whole choice, not just the write', async () => {
+	const kept = vi.fn();
+	const { session } = setup( () => [ apply(), keep( { run: kept } ), { id: 'help', label: 'Open help', effect: 'navigate', run: vi.fn() } ] );
+	await session.ask( 'Update the form' ); const old = last( session );
+	await session.ask( 'Actually, what changed?' );
+	expect( views( session, old ).map( ( view ) => [ view.label, view.available, view.status ] ) ).toEqual( [
+		[ "Apply MIO's changes", false, 'No longer available.' ],
+		[ 'Keep my edits', false, 'No longer available.' ],
+		[ 'Open help', true, '' ], // Outside the group: unaffected.
+	] );
+	await click( session, 1, trusted, old ); expect( kept ).not.toHaveBeenCalled();
 } );
 
 test( 'closing the chat mid-write keeps the pending entry and shows the late outcome on reopen', async () => {
@@ -180,8 +196,8 @@ test( 'inspectOperation reconciles an unknown response-action write through oper
 	expect( operationStatus.mock.calls[ 0 ][ 0 ] ).toMatchObject( { ability: 'response:apply', idempotencyKey: op.idempotencyKey } );
 } );
 
-test( 'the description renders once below the row and is announced with the write button', async () => {
-	const { session } = setup( () => [ apply(), keep( { description: 'A second description is not shown.' } ) ] );
+test( 'one description per message renders below the row and is announced with the button that owns it', async () => {
+	const { session } = setup( () => [ apply(), keep( { description: 'A second description is dropped.' } ) ] );
 	await session.ask( 'Update the form' );
 	const chat = mountMioChat( document.body, 'Forms', session, vi.fn() ); await flush();
 	const row = document.querySelector( '.os-mio-chat__actions' )!;
@@ -192,7 +208,50 @@ test( 'the description renders once below the row and is announced with the writ
 	const [ write, read ] = row.querySelectorAll( '[data-mio-action]' );
 	expect( write.getAttribute( 'aria-description' ) ).toBe( 'Applying replaces the edits you made since MIO started.' );
 	expect( read.hasAttribute( 'aria-description' ) ).toBe( false );
+	expect( views( session )[ 1 ].description ).toBeUndefined();
+	// Once the choice is made, the warning is history and goes away.
+	await click( session, 0 ); await flush();
+	expect( row.querySelector( '.os-mio-chat__action-description' ) ).toBeNull();
+	expect( write.hasAttribute( 'aria-description' ) ).toBe( false );
 	chat.destroy();
+} );
+
+test( 'a read or navigate action can own the description, and announces it', async () => {
+	const { session } = setup( () => [ keep( { description: 'Discards the draft MIO prepared.' } ) ] );
+	await session.ask( 'Update the form' );
+	const chat = mountMioChat( document.body, 'Forms', session, vi.fn() ); await flush();
+	expect( document.querySelector( '[data-mio-action]' )!.getAttribute( 'aria-description' ) ).toBe( 'Discards the draft MIO prepared.' );
+	chat.destroy();
+} );
+
+test.each( [
+	[ 'the prompt hook throws', { prompt: () => { throw new Error( 'Prompt unavailable' ); } } ],
+	[ 'the request is over budget', { prompt: () => 'x'.repeat( 2_000_000 ) } ],
+] )( 'a choice survives a next turn that fails before the provider answers (%s)', async ( _name, failing ) => {
+	const { session, transport, context } = setup( () => [ apply(), keep() ] );
+	await session.ask( 'Update the form' ); await click( session, 0 );
+	const prompt = context.prompt; Object.assign( context, failing );
+	await expect( session.ask( 'Is it saved?' ) ).rejects.toThrow();
+	context.prompt = prompt;
+	await session.ask( 'Is it saved now?' );
+	expect( JSON.parse( transport.mock.calls.at( -1 )![ 0 ].transcript ).outcomes ).toEqual( [ { source: 'response-action', label: "Apply MIO's changes", effect: 'write', status: 'confirmed' } ] );
+} );
+
+test( 'a choice survives a next turn stopped before the provider answers', async () => {
+	const { session, transport } = setup( () => [ apply(), keep() ] );
+	await session.ask( 'Update the form' ); await click( session, 0 );
+	transport.mockImplementationOnce( ( _request, signal ) => new Promise( ( _resolve, reject ) => { signal.addEventListener( 'abort', () => reject( new DOMException( 'Stopped', 'AbortError' ) ) ); } ) );
+	const stopped = session.ask( 'Is it saved?' ); await flush(); session.cancel();
+	await expect( stopped ).rejects.toThrow();
+	await session.ask( 'Is it saved now?' );
+	expect( JSON.parse( transport.mock.calls.at( -1 )![ 0 ].transcript ).outcomes ).toHaveLength( 1 );
+} );
+
+test( 'a grouped read stopped mid-way leaves the group open', async () => {
+	const { session } = setup( () => [ apply(), keep( { run: ( { signal } ) => new Promise<void>( ( _resolve, reject ) => { signal.addEventListener( 'abort', () => reject( signal.reason ) ); } ) } ) ] );
+	await session.ask( 'Update the form' );
+	const pending = click( session, 1 ); session.cancel(); await pending;
+	expect( views( session ).map( ( view ) => [ view.label, view.available, view.status ] ) ).toEqual( [ [ "Apply MIO's changes", true, '' ], [ 'Keep my edits', true, '' ] ] );
 } );
 
 test( 'ability writes keep their source', async () => {

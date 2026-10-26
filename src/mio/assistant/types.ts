@@ -73,7 +73,7 @@ export interface MioResponseAction {
 	effect: MioResponseActionEffect;
 	/** Actions sharing a group on one message are a single choice; same rules as `id`. */
 	group?: string;
-	/** Plain-text consequence written by the app, 1–160 characters. */
+	/** Plain-text consequence written by the app, 1–160 characters. One per message. */
 	description?: string;
 	allowed?: () => boolean;
 	/** `write` callbacks must return a MioOperationOutcome. */
@@ -186,7 +186,8 @@ export interface MioOperation {
 	revision?: string;
 	/** An ability name, or `response:<action id>` for a response-action write. */
 	ability: string;
-	source: 'ability' | 'response-action';
+	/** Always set by the ledger; a record without it is an ability call. */
+	source?: 'ability' | 'response-action';
 	effect: 'read' | 'validate' | 'write' | 'none';
 	status: 'running' | 'completed' | 'rejected' | 'confirmed' | 'unknown';
 	receipt?: string;
