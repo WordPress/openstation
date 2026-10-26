@@ -77,6 +77,9 @@ export function pickGridDimensions(
 	if ( n <= 1 ) {
 		return { cols: 1, rows: 1 };
 	}
+	if ( n <= 3 && width >= height ) {
+		return { cols: n, rows: 1 };
+	}
 	const areaAspect = width / Math.max( 1, height );
 	const max = 6;
 	let best = { cols: n, rows: 1, score: Infinity };
