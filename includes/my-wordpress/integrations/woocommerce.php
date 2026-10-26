@@ -1928,7 +1928,7 @@ function openstation_my_wordpress_woo_register_assets() {
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : OPENSTATION_VERSION,
 		true
 	);
-	wp_set_script_translations( 'os-my-wordpress-woocommerce', 'desktop-mode' );
+	wp_set_script_translations( 'os-my-wordpress-woocommerce', 'desktop-mode', OPENSTATION_DIR . 'languages' );
 
 	$css_path = OPENSTATION_DIR . 'assets/css/my-wordpress-woocommerce.css';
 	wp_register_style(
