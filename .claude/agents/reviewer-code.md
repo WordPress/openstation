@@ -49,7 +49,9 @@ your one file goes there.
   `wordpress.php` and `app/wordpress/`, and keep the dual direct-access guard
   in its exact shape.
 - **Tests**: AGENTS.md's testing rule. A new test must catch a real bug; flag
-  tests that restate the implementation or pin source text.
+  tests that restate the implementation or pin source text. A change that
+  weakens an existing test's assertions (loosened, deleted, or rewritten to
+  match new output) is a finding unless the spec explains why.
 - **Docs**: a change to a public surface updates its `docs/` page in the same
   branch (AGENTS.md's doc map), and a new REST route has its row in
   `includes/rest/README.md`.

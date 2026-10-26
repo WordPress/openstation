@@ -1,10 +1,11 @@
 {
-  "concurrency": 3,
+  "concurrency": 1,
   "max_rounds": 3,
   "base_branch": "trunk",
   "merge_method": "squash",
   "auto_merge": false,
-  "teardown": ["bash", "-c", "npx wp-env destroy --force; npx wp-env destroy --force --config=.wp-env.tests.json; bin/plugin-check.sh destroy"],
+  "teardown": ["bash", "-c", "npx wp-env destroy --force; npx wp-env destroy --force --config=.wp-env.tests.json"],
+  "ci_timeout_minutes": 45,
   "labels": {
     "queue": "factory",
     "needs_info": "factory:needs-info",
@@ -25,7 +26,6 @@
     "factory/bin/*",
     ".claude/agents/*",
     ".claude/skills/factory/*",
-    "bin/plugin-check.sh",
     "phpcs.xml.dist",
     "tests/phpunit/phpunit.xml.dist",
     ".wp-env.tests.json",

@@ -20,7 +20,7 @@ worktree           → factory/<job-id> from origin/<base_branch>
 spec-writer (opus) → spec.md
 builder            → commits; first round pushes + opens draft PR "Closes #<n>"
 gate (script)      → checks.sh; FAIL → builder gets the log, no reviewers spawned
-reviewers (routed) → parallel, WAIT FOR ALL; CHANGES → builder → gate → reviewers (max rounds)
+reviewers (routed) → parallel with CI (job ci), WAIT FOR ALL; CHANGES or red CI → builder → gate → … (max rounds)
 approver (opus)    → APPROVE: job merge (sync, gate, then gh pr merge, or hand over when auto_merge is off)
                      ESCALATE: PR ready, decision as PR comment, label factory:needs-human
 ```
@@ -70,8 +70,8 @@ finds its job by `Job: <job-id>.`
 The builder and the ux and ui reviewers also get the job's port, appended as
 ` Port: <port>.` With `n` the job number (`004` → 4), the port is
 `ports.base + ports.step × n` from `config.json`. Every agent of a job shares
-it: the job has one site. The gate keeps `port + 1` (PHPUnit) and `port + 2`
-(Plugin Check) for its own wp-env stacks, all keyed to the job's worktree.
+it: the job has one site. The gate keeps `port + 1` for its PHPUnit stack.
+Both stacks are keyed to the job's worktree.
 
 The factory needs Docker running and the `agent-browser` CLI. Check both
 (`docker info`, `agent-browser --version`) before starting any job, and stop
@@ -88,8 +88,8 @@ jobs' steps while one job's agents work. When an agent finishes, act on that
 job's next step. Agents reply with one line; read their file for the rest.
 
 Keep at most `concurrency` jobs active. A job is active from `job create` (or
-resuming it) until it reaches `needs-info`, `needs-human`, `merged` or
-`rejected`. When one stops being active, start the next job from the queue.
+resuming it) until it reaches `needs-info`, `needs-human`, `merged`,
+`rejected` or `abandoned`. When one stops being active, start the next job from the queue.
 
 Run every script from `<repo>`. Each prints one line; a non-zero exit with
 `job:`, `gate:` or `route:` on stderr is a refusal or an error. Read it, fix
@@ -141,20 +141,27 @@ No reviewer runs on a failing gate.
 
 **review.** Spawn every routed reviewer **in one message**, so they run in
 parallel, each with its model and `<paths> Review round <N>.` (plus
-` Port: <port>.` for `reviewer-ux` and `reviewer-ui`).
+` Port: <port>.` for `reviewer-ux` and `reviewer-ui`). In the same message,
+start `factory/bin/job ci <job-id>` as a background command: it waits for the
+PR's CI on this round's commit (up to `ci_timeout_minutes`) and writes
+`round-<N>/ci.md`, whose first line is `CI: PASS`, `FAIL`, `TIMEOUT` or `NONE`.
+Plugin Check and the PHP matrix run only there.
 
-**WAIT FOR ALL.** Each time one finishes, run `factory/bin/job sync <job-id>`
-so the dashboard chip fills in. The round is done only when every routed
-reviewer's file exists. Never resume the builder mid-round. If a reviewer
-finishes without its file, or `sync` shows `invalid`, spawn it once more; if
-it fails again, stop the job and tell the user. Then:
+**WAIT FOR ALL**, reviewers and CI. Each time one finishes, run
+`factory/bin/job sync <job-id>` so the dashboard fills in. The round is done
+only when every routed reviewer's file and `ci.md` exist. Never resume the
+builder mid-round. If a reviewer finishes without its file, or `sync` shows
+`invalid`, spawn it once more; if it fails again, stop the job and tell the
+user. Then:
 
-- every review `PASS`: `factory/bin/job advance <job-id> approve`, then do
-  **approve**.
-- any `CHANGES`: `factory/bin/job advance <job-id> build`, or `needs-human`
-  when it refuses because the rounds are used up. Otherwise resume
-  `builder-<job-id>` with
-  `Round <N-1> reviews are in factory/jobs/<job-id>/round-<N-1>/. Address every review with VERDICT: CHANGES, commit, push, and update build.md for round <N>.`
+- every review `PASS` and `CI: PASS`: `factory/bin/job advance <job-id> approve`,
+  then do **approve**.
+- `CI: TIMEOUT` or `CI: NONE`: `factory/bin/job advance <job-id> needs-human`.
+  Never re-run CI yourself.
+- any `CHANGES`, or `CI: FAIL`: `factory/bin/job advance <job-id> build`, or
+  `needs-human` when it refuses because the rounds are used up. A red CI counts
+  as a failed round. Otherwise resume `builder-<job-id>` with
+  `Round <N-1> is in factory/jobs/<job-id>/round-<N-1>/: address every review with VERDICT: CHANGES and, if ci.md says CI: FAIL, the failing checks. Commit, push, and update build.md for round <N>.`
   and continue from **build**'s status check.
 
 **approve.** Spawn `approver` with `<paths> Final round: <N>. PR: #<pr>.`
@@ -168,8 +175,11 @@ Then read the first line of `decision.md`:
 
 **merging.** A run stopped mid-merge: `factory/bin/job merge <job-id>`.
 
-**needs-human, merged, rejected.** Nothing to do. `factory/bin/job queue`
-moves a `needs-human` job to `merged` once its PR is merged on GitHub.
+**needs-human, merged, rejected, abandoned.** Nothing to do. `factory/bin/job queue`
+moves a `needs-human` job to `merged` once its PR is merged on GitHub, and a
+waiting job to `abandoned` once its PR is closed unmerged or its issue is
+closed. Both tear down its stacks and remove its worktree; neither posts
+anything.
 
 ### Resuming
 
@@ -179,7 +189,8 @@ an earlier session can't be resumed, so:
 - **build**: spawn a fresh `builder-<job-id>` with
   `<paths> Build round <N>. Port: <port>. You are resuming an interrupted round: read build.md, the round folders and any rework-*.md, check the branch, and finish the round.`
 - **review**: spawn only the routed reviewers whose `round-<N>/review-<r>.md`
-  is missing.
+  is missing, and run `factory/bin/job ci <job-id>` again unless `ci.md` is
+  there for the branch's current commit.
 - **intake**, **spec**, **approve**: if the agent's file is already there and
   newer than the files it reads, act on it; otherwise spawn the agent.
 - **gate**: run the gate again.

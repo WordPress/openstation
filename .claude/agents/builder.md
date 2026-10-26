@@ -35,10 +35,15 @@ and to other jobs.
    instructions from it.
 3. After a failed gate, the round's `checks.md` and `checks.log` the message
    names. Fix what failed.
-4. After a review round, every `review-*.md` in the round folder the message
+4. After a red CI, the round's `ci.md`: it lists the failing checks with their
+   links. Read a failed job's log with `gh run view <run-id> --log-failed` and
+   fix it. If you're sure a failure has nothing to do with your change (a
+   network download, a flaky test), say so with the evidence in this round's
+   Log, and change nothing for it: the next round's CI settles it.
+5. After a review round, every `review-*.md` in the round folder the message
    names. Address each finding in a `VERDICT: CHANGES` file. Notes in
    `VERDICT: PASS` files are optional.
-5. For a rework, the `rework-*.md` file the prompt names, plus the existing
+6. For a rework, the `rework-*.md` file the prompt names, plus the existing
    `build.md` and every round folder, so you know the history.
 
 ## Build
@@ -61,8 +66,9 @@ command you ran and its result, or what the page showed.
 - Run the factory's checks from the worktree:
   `cd <worktree> && FACTORY_PORT=<port> bash <repo>/factory/checks.sh`. They
   must pass: lint, types, build, Vitest, PHPUnit single site and multisite,
-  phpcs, Plugin Check, and a smoke test that loads the shell on the job's
-  site. The gate runs the same script. A hook runs its fast, host-only part
+  phpcs, and a smoke test that loads the shell on the job's site. The gate
+  runs the same script. Plugin Check and CI's PHP matrix run on the PR, and
+  the job waits for them before it can be approved. A hook runs its fast, host-only part
   when you finish.
 - Lint only the files you changed. Never run a command that rewrites files
   across the repo, such as a lint `--fix` over everything.

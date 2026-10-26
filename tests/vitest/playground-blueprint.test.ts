@@ -45,11 +45,11 @@ const BLUEPRINT = JSON.parse(
 	),
 ) as Blueprint;
 const RELEASE_ARTIFACT_FILES = [
+	'.github/workflows/ci.yml',
 	'.github/workflows/pr-preview-build.yml',
 	'.github/workflows/pr-preview-publish.yml',
 	'.github/workflows/release.yml',
 	'bin/package.sh',
-	'bin/plugin-check.sh',
 ];
 
 describe( 'public Playground Blueprint', () => {

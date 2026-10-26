@@ -8,9 +8,12 @@
 # FACTORY_CHECKS picks how much runs:
 #   full (the gate): everything, against the job's own wp-env stacks. Needs
 #        Docker and FACTORY_PORT, the job's port: its site is on FACTORY_PORT,
-#        PHPUnit on +1, Plugin Check on +2. The stacks are keyed to the
-#        worktree, so they never touch another checkout's.
+#        PHPUnit on +1. The stacks are keyed to the worktree, so they never
+#        touch another checkout's.
 #   fast (the builder's stop hook): the host-only part, no Docker.
+#
+# Plugin Check is not here: it runs in CI on the job's PR, and the factory
+# waits for CI to pass before the approver (`factory/bin/job ci`).
 set -euo pipefail
 
 mode="${FACTORY_CHECKS:-full}"
@@ -39,8 +42,6 @@ npm run test:php:install
 npm run test:php
 npm run test:php:multisite
 npm run lint:php
-
-WP_ENV_PORT=$(( port + 2 )) bin/plugin-check.sh
 
 # The main checkout's copy, like this script, so a branch can't weaken it.
 bash "$factory/smoke.sh"

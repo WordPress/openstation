@@ -10,11 +10,12 @@ Usage:
   job queue                      what /factory run should do with each labeled issue
   job create <issue>             new job for an open `factory` issue; prints the job id
   job advance <job> <stage>      move a job to <stage>, or refuse
+  job ci <job>                   wait for the PR's CI on the round's commit → round-N/ci.md
   job merge <job>                APPROVE → sync with the base branch, gate, merge the PR
                                  (with auto_merge off: mark it ready and hand it to you)
   job rework <job>               needs-human → build, with your PR comments as rework-<k>.md
   job agents <job> <json>        record the routed agent set (called by factory/bin/route)
-  job sync <job>                 refresh reviews, gate and cost from the job's files
+  job sync <job>                 refresh reviews, gate, CI and cost from the job's files
   job summary [<job>...]         table of jobs: issue, stage, PR, cost, time
 
 <job> is a job id (004-dark-mode) or an issue number (12).
@@ -26,6 +27,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,16 +42,16 @@ MARKER = "<!-- factory -->"
 
 TRANSITIONS = {
     "intake": {"needs-info", "rejected", "spec"},
-    "needs-info": {"intake"},
+    "needs-info": {"intake", "abandoned"},
     "spec": {"build"},
     "build": {"gate", "needs-human"},
     "gate": {"review", "build", "needs-human"},
     "review": {"approve", "build", "needs-human"},
     "approve": {"merging", "needs-human"},
     "merging": {"merged", "needs-human"},
-    "needs-human": {"build", "merged"},
+    "needs-human": {"build", "merged", "abandoned"},
 }
-TERMINAL = {"merged", "rejected"}
+TERMINAL = {"merged", "rejected", "abandoned"}
 WAITING = {"needs-info", "needs-human"}
 
 
@@ -304,6 +306,7 @@ def sync(job):
         rd = round_dir(job)
         gate = header(rd / "checks.md").get("GATE") if (rd / "checks.md").exists() else None
         job["gate"] = gate
+        job["ci"] = header(rd / "ci.md").get("CI") if (rd / "ci.md").exists() else None
         if job["agents"] and job["stage"] in {"review", "approve", "merging", "merged", "needs-human"}:
             job["reviews"] = {}
             for r in reviewers(job):
@@ -343,10 +346,27 @@ def check_reviews_done(job):
     require(not bad, f"first line isn't a verdict in review-{bad[0]}.md" if bad else "")
 
 
+def check_ci_done(job):
+    """The round's CI verdict, refusing one written for another commit."""
+    path = round_dir(job) / "ci.md"
+    require(path.exists(), f"wait for CI first: factory/bin/job ci {job['id']}")
+    require(header(path).get("COMMIT") == git(job, "rev-parse", "HEAD").stdout.strip(),
+            "ci.md was written for another commit; run `job ci` again")
+    return header(path).get("CI")
+
+
+def closed_upstream(job):
+    """True when the job's PR was closed without merging, or its issue was closed."""
+    if job["pr"] and pr_state(job) == "CLOSED":
+        return True
+    return fetch_issue(job["issue"])["state"] == "CLOSED"
+
+
 def next_round(job):
     job["round"] += 1
     round_dir(job).mkdir(exist_ok=True)
     job["gate"] = None
+    job["ci"] = None
     job["reviews"] = {}
 
 
@@ -357,7 +377,11 @@ def advance(job, stage):
     decision = header(d / "intake.md").get("DECISION") if (d / "intake.md").exists() else None
     intake_body = lambda: "\n".join((d / "intake.md").read_text().split("\n\n", 1)[1:]).strip()
 
-    if old == "intake":
+    if stage == "abandoned":
+        require(closed_upstream(job), f"neither PR #{job['pr']} nor issue #{job['issue']} is closed"
+                if job["pr"] else f"issue #{job['issue']} isn't closed")
+
+    elif old == "intake":
         want = {"needs-info": "NEEDS-INFO", "rejected": "REJECT", "spec": "ACCEPT"}[stage]
         require(decision == want, f"intake.md says DECISION: {decision}, not {want}")
         title = f"### Factory intake: {decision}"
@@ -430,16 +454,24 @@ def advance(job, stage):
     elif old == "review":
         check_reviews_done(job)
         changes = [r for r, v in job["reviews"].items() if v == "CHANGES"]
+        ci = check_ci_done(job)
+        failed = changes + (["CI"] if ci == "FAIL" else [])
         if stage == "approve":
             require(not changes, f"reviews want CHANGES: {', '.join(changes)}")
+            require(ci == "PASS", f"CI is {ci}, not PASS: see round-{job['round']}/ci.md")
+        elif stage == "needs-human" and ci in {"TIMEOUT", "NONE"}:
+            escalate(job, f"CI didn't settle on round {job['round']}'s commit "
+                          f"({'no checks reported' if ci == 'NONE' else 'it timed out'}). "
+                          f"See round-{job['round']}/ci.md.")
         else:
-            require(changes, "every review passed")
+            require(ci in {"PASS", "FAIL"}, f"CI is {ci}: go to needs-human")
+            require(failed, "every review and CI passed")
             last = job["round"] >= job["round_limit"]
             require(last == (stage == "needs-human"),
                     f"round {job['round']} of {job['round_limit']}: go to {'needs-human' if last else 'build'}")
             if last:
-                escalate(job, f"Review rounds exhausted. Outstanding CHANGES in round-{job['round']}/ "
-                              f"from: {', '.join(changes)}.")
+                escalate(job, f"Rounds exhausted. Still failing in round-{job['round']}/: "
+                              f"{', '.join(failed)}.")
             else:
                 next_round(job)
 
@@ -472,7 +504,7 @@ def advance(job, stage):
             comment("issue", job["issue"], body)
         label("issue", job["issue"], add=LABELS["needs_human"])
 
-    if stage == "merged" and Path(job["worktree"]).exists():
+    if stage in {"merged", "abandoned"} and Path(job["worktree"]).exists():
         if CONFIG.get("teardown"):
             run(CONFIG["teardown"], cwd=job["worktree"], check=False)
         run(["git", "worktree", "remove", "--force", job["worktree"]])
@@ -510,7 +542,7 @@ def cmd_create(number):
         "branch": f"factory/{job_id}",
         "worktree": str(REPO.parent / f"{REPO.name}-factory" / job_id),
         "stage": "intake", "round": 0, "round_limit": CONFIG["max_rounds"],
-        "intake": None, "agents": None, "gate": None, "reviews": {},
+        "intake": None, "agents": None, "gate": None, "ci": None, "reviews": {},
         "cost_usd": 0.0, "started": now(), "ended": None,
     }
     write_issue_md(job)
@@ -521,10 +553,13 @@ def cmd_create(number):
 def cmd_queue():
     jobs = {j["issue"]: j for j in all_jobs()}
     rows = []
-    # A needs-human job is done once its PR is merged on GitHub, which also closes the issue.
+    # A waiting job ends on GitHub: merged once its PR is merged (which also closes the
+    # issue), abandoned once its PR is closed unmerged or its issue is closed.
     for j in jobs.values():
         if j["stage"] == "needs-human" and j["pr"] and pr_state(j) == "MERGED":
             save(advance(sync(j), "merged"))
+        elif j["stage"] in WAITING and closed_upstream(j):
+            save(advance(sync(j), "abandoned"))
     issues = gh_json("issue", "list", "--label", LABELS["queue"], "--state", "open",
                      "--limit", "200", "--json", "number,title")
     open_numbers = set()
@@ -545,6 +580,8 @@ def cmd_queue():
             rows.append(("skip", n, j["id"], j["stage"], f"rejected; delete factory/jobs/{j['id']} to retry"))
         elif j["stage"] == "merged":
             rows.append(("skip", n, j["id"], j["stage"], "merged"))
+        elif j["stage"] == "abandoned":
+            rows.append(("skip", n, j["id"], j["stage"], f"PR closed unmerged; delete factory/jobs/{j['id']} to retry"))
         else:
             rows.append(("resume", n, j["id"], j["stage"], f"round {j['round']}"))
     for n, j in sorted(jobs.items()):
@@ -552,6 +589,61 @@ def cmd_queue():
             rows.append(("skip", n, j["id"], j["stage"], f"issue is closed or no longer labeled {LABELS['queue']}"))
     for row in rows:
         print("\t".join(str(c) for c in row))
+
+
+def peek(arg):
+    """Read a job without taking its lock, for a command that runs long and writes no job.json."""
+    for p in sorted(JOBS.iterdir()) if JOBS.exists() else []:
+        if (p / "job.json").exists():
+            job = json.loads((p / "job.json").read_text())
+            if job["id"] == arg or (arg.isdigit() and job["issue"] == int(arg)):
+                return job
+    die(f"no job {arg}")
+
+
+def ci_check(c):
+    """(name, url, done, ok, result) for one entry of a PR's statusCheckRollup."""
+    if c.get("__typename") == "StatusContext":
+        state = c.get("state")
+        return c.get("context"), c.get("targetUrl"), state not in {"PENDING", "EXPECTED"}, state == "SUCCESS", state
+    conclusion = c.get("conclusion")
+    return (c.get("name"), c.get("detailsUrl"), c.get("status") == "COMPLETED",
+            conclusion in {"SUCCESS", "NEUTRAL", "SKIPPED"}, conclusion or c.get("status"))
+
+
+def cmd_ci(job):
+    """Wait for the PR's checks on the round's commit and write round-N/ci.md.
+
+    PASS when every check finishes green, FAIL when any finishes red, NONE when no
+    check reports within ten minutes, TIMEOUT when they don't all finish within
+    ci_timeout_minutes. The factory never re-runs CI.
+    """
+    if job["stage"] != "review":
+        die(f"{job['id']} is in {job['stage']}, not review")
+    head = git(job, "rev-parse", "HEAD").stdout.strip()
+    start = time.monotonic()
+    while True:
+        pr = gh_json("pr", "view", str(job["pr"]), "--json", "headRefOid,statusCheckRollup")
+        checks = [ci_check(c) for c in pr["statusCheckRollup"]] if pr["headRefOid"] == head else []
+        waited = (time.monotonic() - start) / 60
+        if checks and all(done for _, _, done, _, _ in checks):
+            verdict = "PASS" if all(ok for _, _, _, ok, _ in checks) else "FAIL"
+            break
+        if not checks and waited >= 10:
+            verdict = "NONE"
+            break
+        if waited >= CONFIG["ci_timeout_minutes"]:
+            verdict = "TIMEOUT"
+            break
+        time.sleep(30)
+    lines = [f"CI: {verdict}", f"COMMIT: {head}", "", f"## Checks on PR #{job['pr']}", ""]
+    lines += [f"- {result or 'PENDING'}: {name} {url or ''}".rstrip() for name, url, _, _, result in
+              sorted(checks, key=lambda c: (c[3], c[0] or ""))] or ["None reported."]
+    if verdict == "FAIL":
+        lines += ["", "Read a failed GitHub Actions job's log with `gh run view <run-id> --log-failed`; "
+                      "the run id is in its URL."]
+    (round_dir(job) / "ci.md").write_text("\n".join(lines) + "\n")
+    print(f"{job['id']}: CI {verdict} on {head[:7]} after {int(waited)}m")
 
 
 def cmd_merge(job):
@@ -677,6 +769,8 @@ def main(argv):
             job = advance(sync(resolve(args[0])), args[1])
             save(sync(job))
             print(f"{job['id']}: {job['stage']} (round {job['round']})")
+        elif cmd == "ci" and len(args) == 1:
+            cmd_ci(peek(args[0]))
         elif cmd == "merge" and len(args) == 1:
             cmd_merge(resolve(args[0]))
         elif cmd == "rework" and len(args) == 1:
