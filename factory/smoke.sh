@@ -23,18 +23,24 @@ wp user meta update admin desktop_mode_mode 1 >/dev/null
 wp eval 'file_put_contents( WP_CONTENT_DIR . "/debug.log", "" );'
 
 trap 'ab close >/dev/null 2>&1 || true' EXIT
-ab open "$url/wp-login.php" >/dev/null
-ab fill '#user_login' admin >/dev/null
-ab fill '#user_pass' password >/dev/null
-ab click '#wp-submit' >/dev/null
-ab wait --url '**/wp-admin/**' >/dev/null
-ab errors --clear >/dev/null
-ab console --clear >/dev/null
-
-ab open "$url/wp-admin/" >/dev/null
 status=0
-if ! ab wait --fn "!! ( window.wp && window.wp.os && document.querySelector( '#os-shell .os-dock' ) )" >/dev/null; then
-	echo "smoke: the shell never booted on $url/wp-admin/" >&2
+
+# Every browser step can fail; each failure is reported, and the evidence
+# below is collected either way, since it usually says why.
+if ab open "$url/wp-login.php" >/dev/null &&
+	ab fill '#user_login' admin >/dev/null &&
+	ab fill '#user_pass' password >/dev/null &&
+	ab click '#wp-submit' >/dev/null &&
+	ab wait --url '**/wp-admin/**' >/dev/null; then
+	ab errors --clear >/dev/null
+	ab console --clear >/dev/null
+	ab open "$url/wp-admin/" >/dev/null || true
+	if ! ab wait --fn "!! ( window.wp && window.wp.os && document.querySelector( '#os-shell .os-dock' ) )" >/dev/null; then
+		echo "smoke: the shell never booted on $url/wp-admin/" >&2
+		status=1
+	fi
+else
+	echo "smoke: could not sign in as admin on $url/wp-login.php" >&2
 	status=1
 fi
 ab screenshot "$out/wp-admin.png" >/dev/null || true
