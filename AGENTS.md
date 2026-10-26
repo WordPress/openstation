@@ -280,6 +280,16 @@ i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't 
 
 When a change breaks a test, don't just rewrite the assertion to match. Decide whether it caught a real regression or pinned an implementation detail, and delete or rewrite it in the second case.
 
+### Software factory
+
+`/factory run` builds every open GitHub issue labeled `factory` through intake → spec → build → gate → review → approve, one PR per issue. State is in `factory/jobs/` (gitignored); `factory/bin/job` is its only writer. Checks: `factory/checks.sh`. Dashboard: `cd factory && python3 -m http.server`, then open http://localhost:8000/dashboard.html. The agents live in `.claude/agents/`, the orchestrator in `.claude/skills/factory/SKILL.md`.
+
+- **Run it from the main checkout**, never from a Claude Code worktree: `phpcs.xml.dist` excludes every path under `/.claude/`, so a job worktree there would pass phpcs without scanning a file. `checks.sh` refuses to run there.
+- **The `factory` label is the green light** for the factory to push `factory/<job-id>` and open that issue's draft PR. `auto_merge` is off in `factory/config.json`: an approved PR is synced with `trunk`, gated again, marked ready and labeled `factory:needs-human` for a maintainer to merge.
+- **Fresh worktree setup**: `npm ci` and `composer install` (`checks.sh` does both when they're missing or stale).
+- **Validation**, the same commands as `checks.sh`: `npm run lint`, `npm run typecheck`, `npm run build`, `npm run test:js`, and `vendor/bin/phpcs -n` run on the host. PHPUnit and Plugin Check need wp-env, so they run in GitHub CI on the PR; the approver reads `gh pr checks`.
+- **The job's site** is one wp-env QA instance per worktree, on the port in the agent's prompt: `cd <worktree> && npm run build && WP_ENV_PORT=<port> npm run env:start`, then `http://localhost:<port>/wp-admin/` as `admin` / `password`. Turn the shell on for that user with `cd <worktree> && npx wp-env run cli wp user meta update admin desktop_mode_mode 1`. If the port already answers, that is this job's site: reuse it. Leave it running for the job's other agents; the factory stops it when the job merges.
+
 ---
 
 ## Process reminders
