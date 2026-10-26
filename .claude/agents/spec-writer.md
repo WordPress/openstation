@@ -70,6 +70,10 @@ The approver escalates to a human when one of these is a product decision.
 - Include the doc updates the change needs as requirements: AGENTS.md's doc map
   says which `docs/` page owns each surface, and a change to that surface
   updates it in the same PR.
+- Anything a user sees or does gets at least one criterion checked on the
+  job's running site: the screen to open, as which role, what to do, and what
+  it must show. AGENTS.md's software factory section says how the site runs;
+  write `<port>` for its port.
 - Use the repo's real validation commands from AGENTS.md in the acceptance
   criteria. Ask for a new test only where AGENTS.md's testing rule says it
   would catch a real bug, and never ask to edit a file listed under

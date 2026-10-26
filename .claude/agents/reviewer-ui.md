@@ -44,7 +44,9 @@ screenshot it at desktop and phone widths, in light and dark. Pass
 `--session <job-id>-ui` on every `agent-browser` call, so other jobs'
 reviewers never drive your browser. When you're done, run
 `agent-browser --session <job-id>-ui close`; leave the site running. If
-`agent-browser` isn't installed, review from the code and say so under Notes.
+`agent-browser` or the site isn't available, write no file and reply with one
+line saying so: the orchestrator stops the job rather than pass a change no
+one looked at.
 
 ## What to look for
 

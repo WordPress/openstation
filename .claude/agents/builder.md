@@ -59,18 +59,23 @@ Verify every acceptance criterion and record the evidence in build.md: the
 command you ran and its result, or what the page showed.
 
 - Run the factory's checks from the worktree:
-  `cd <worktree> && bash <repo>/factory/checks.sh`. They must pass. The gate
-  runs the same script, and a hook runs it again when you finish.
+  `cd <worktree> && FACTORY_PORT=<port> bash <repo>/factory/checks.sh`. They
+  must pass: lint, types, build, Vitest, PHPUnit single site and multisite,
+  phpcs, Plugin Check, and a smoke test that loads the shell on the job's
+  site. The gate runs the same script. A hook runs its fast, host-only part
+  when you finish.
 - Lint only the files you changed. Never run a command that rewrites files
   across the repo, such as a lint `--fix` over everything.
-- For criteria you can see on a page, bring up the job's site on your port as
-  AGENTS.md's software factory section says, then look at the page with the
+- **Verify on the job's real site.** Every criterion a user can see or do is
+  checked in a browser, not inferred from the code. Bring up the job's site on
+  your port as AGENTS.md's software factory section says, then use the
   `agent-browser` CLI (run `agent-browser skills get core` first to learn it).
   Pass `--session <job-id>-builder` on every `agent-browser` call, so other
   jobs never drive your browser, and close it with
-  `agent-browser --session <job-id>-builder close` when you're done. Leave the
-  site running for the reviewers. If `agent-browser` isn't installed, say so
-  in build.md and verify those criteria from the code and the tests instead.
+  `agent-browser --session <job-id>-builder close` when you're done. Record
+  what you did and what the page showed. Leave the site running for the
+  reviewers. If `agent-browser` or Docker isn't available, write BLOCKED: the
+  job can't be verified.
 
 ## Commit, push, PR
 
