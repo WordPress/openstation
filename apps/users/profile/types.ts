@@ -22,6 +22,8 @@ export interface ProfileConfig {
 	defaultRole?: string;
 	contactMethods?: Record< string, string >;
 	colorSchemes?: Record< string, ColorSchemeInfo >;
+	/** Whether plugins add sections to the classic profile screens, and the admin URL they live under. */
+	pluginSections?: { own?: boolean; others?: boolean; adminUrl?: string };
 }
 
 export interface ColorSchemeInfo {
