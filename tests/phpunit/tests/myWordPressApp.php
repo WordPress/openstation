@@ -1229,10 +1229,13 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		// (`revision_facts()`: the author's face, "2 days ago", and a
 		// deleted author named as such), and a notch for the preview
 		// pane that is always there (its empty state, the loading
-		// spinner, and closing that clears the selection with it). The like-for-like original it displaced measured
+		// spinner, and closing that clears the selection with it), and a
+		// notch for the read gates every list, dossier and relation pane
+		// asks (`read_post`, the post password, account facts behind
+		// `list_users`). The like-for-like original it displaced measured
 		// ~32,000 lines; the whole replacement stays well under half
 		// of that.
-		$this->assertLessThan( 12750, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,750 — still well under half of the original it replaced.', $lines ) );
+		$this->assertLessThan( 12900, $lines, sprintf( 'My WordPress is %d lines; the budget is under 12,900 — still well under half of the original it replaced.', $lines ) );
 
 		// The house file-length rule, pinned hard for this app: every
 		// PHP and TS source stays under 1,000 lines. The lint twins

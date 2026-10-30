@@ -33,6 +33,8 @@ import { recordFrameLocation, setWindowMenuPages } from './window/share-link';
 import { relayIframeReport } from './window/iframe-reports';
 import {
 	registerNativeUrlRemap,
+	resolveNativeUrlRemapTarget,
+	tryNativeUrlRemap,
 	unregisterNativeUrlRemap,
 } from './native-url-remap';
 import { setPanelTabs } from './window/tab-strip';
@@ -532,6 +534,40 @@ function buildIframeContentRender(
 		// chromeless bridge's own message listener doesn't see this
 		// iframe (it sits inside a native window's body, not the
 		// shell-managed iframe).
+		/**
+		 * Route an admin link clicked inside the page: to the host app
+		 * when it points back at this window (the block editor's "View
+		 * Posts" / "View Pages"), to another native window when one is
+		 * registered for it, and to a plain iframe window otherwise.
+		 */
+		const routeAdminLink = ( linkUrl: string, linkLabel: string ): void => {
+			const win = window.wp?.os?.windowManager?.getById?.( windowId );
+			const baseId = win?.config?.baseId || registeredId;
+			const target = resolveNativeUrlRemapTarget( linkUrl );
+			const tab = target?.params?.tab;
+			if (
+				target?.id === baseId &&
+				typeof tab === 'string' &&
+				cfg.onAdminLink?.( linkUrl, tab )
+			) {
+				return;
+			}
+			if ( tryNativeUrlRemap( linkUrl ) ) {
+				return;
+			}
+			const osApi = window.wp?.os;
+			if ( osApi?.deriveWindowId && osApi?.windowManager ) {
+				const id = osApi.deriveWindowId( linkUrl );
+				void osApi.windowManager.open( {
+					id,
+					baseId: id,
+					url: linkUrl,
+					title: linkLabel || linkUrl,
+					icon: 'dashicons-admin-generic',
+				} );
+			}
+		};
+
 		const onMessage = ( e: MessageEvent ): void => {
 			if ( ! iframe.contentWindow || e.source !== iframe.contentWindow ) {
 				return;
@@ -613,6 +649,27 @@ function buildIframeContentRender(
 						.identity ?? null;
 				syncIdentity();
 			}
+			// In-iframe admin link navigation from the synthetic iframe.
+			// Synthetic iframes in native window tabs lack the outer
+			// `Window.iframe` binding that routes through `handleWindowMessage`,
+			// so in-frame navigation events are handled here. Same-origin
+			// only, like the handlers above. The message still reaches
+			// `cfg.onMessage` below whichever way the link is routed.
+			if (
+				data &&
+				typeof data === 'object' &&
+				( data as { type?: string } ).type === 'os-iframe-admin-link' &&
+				typeof ( data as { url?: string } ).url === 'string' &&
+				( data as { url: string } ).url !== '' &&
+				e.origin === window.location.origin
+			) {
+				const label = ( data as { label?: unknown } ).label;
+				routeAdminLink(
+					( data as { url: string } ).url,
+					typeof label === 'string' ? label : '',
+				);
+			}
+
 			try {
 				cfg.onMessage?.( e.data );
 			} catch ( err ) {
@@ -674,11 +731,13 @@ function buildIframeContentRender(
  * cross-origin URL, or the shell screen, mounts nothing and returns
  * a no-op.
  *
- * @param host          Element to mount into. Its contents are replaced.
- * @param url           Admin URL. The chromeless flag is added here.
- * @param opts          Mount options.
- * @param opts.windowId Fallback for a host that is not inside a window
- *                      root yet; normally resolved from the DOM.
+ * @param host             Element to mount into. Its contents are replaced.
+ * @param url              Admin URL. The chromeless flag is added here.
+ * @param opts             Mount options.
+ * @param opts.windowId    Fallback for a host that is not inside a window
+ *                         root yet; normally resolved from the DOM.
+ * @param opts.onAdminLink Optional callback for in-iframe admin links that
+ *                         remap to this window. Return true if handled.
  * @return Teardown: removes the listeners, the synthetic-iframe
  *         registration and the iframe itself.
  * @public
@@ -686,7 +745,10 @@ function buildIframeContentRender(
 export function embedAdminPage(
 	host: HTMLElement,
 	url: string,
-	opts: { windowId?: string } = {},
+	opts: {
+		windowId?: string;
+		onAdminLink?: ( linkUrl: string, tab: string ) => boolean;
+	} = {},
 ): () => void {
 	let chromeless: string;
 	try {
@@ -706,9 +768,11 @@ export function embedAdminPage(
 	host.replaceChildren();
 	const cleanups: ( () => void )[] = [];
 	const windowId = resolveMountedWindowId( host, opts.windowId ?? '' );
-	const ready = buildIframeContentRender( { url: chromeless }, cleanups, windowId )(
-		host,
-	);
+	const ready = buildIframeContentRender(
+		{ url: chromeless, onAdminLink: opts.onAdminLink },
+		cleanups,
+		windowId,
+	)( host );
 
 	// Styled inline, the way the iframe above is: a class of ours in
 	// someone else's body is a selector they never agreed to. The
@@ -1061,7 +1125,7 @@ interface NativeWindowGlobals {
 	openStationNativeWindows?: Record< string, RenderCallback | undefined >;
 	/**
 	 * Deprecated legacy registry bag. Extension bundles built before
-	 * the rename (cron-manager, code-editor, phpMyAdmin) register
+	 * the rename (cron-manager, code-editor) register
 	 * their render callbacks here; the shell merges it at read time
 	 * so those windows stay interactive. New code must register on
 	 * `openStationNativeWindows`.

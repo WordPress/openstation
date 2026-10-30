@@ -6,9 +6,10 @@ onto the **Posts** dock tile. Both go through
 `POST /desktop-mode/v1/notes/:id/convert`, which:
 
 1. spawns a **draft `post`** authored by the note owner, titled from
-   the note's first line, with the body wrapped in `wp:paragraph`
-   blocks (blank lines split paragraphs, single newlines become
-   `<br>`);
+   the note's first line (Markdown markers dropped), with the note's
+   Markdown converted to blocks — paragraphs, headings (`#` → `h2`),
+   lists, checklists (list items opening with ☐ / ☑), quotes, code
+   and separators — rather than its source pasted in;
 2. **trashes the note** and links it to the draft, so the standard
    restore route (the Undo toast) reverses both sides — the note comes
    back and the draft is discarded;

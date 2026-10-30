@@ -584,8 +584,13 @@ function openstation_agents_ability_update_post( $args ) {
 /**
  * `desktop-mode/update-post` permission callback.
  *
- * Publishing needs `publish_posts` on top of `edit_post` — the same
- * split wp-admin enforces on a human editor.
+ * Publishing needs the post type's `publish_posts` capability on top of
+ * `edit_post` — the same split wp-admin enforces on a human editor. A
+ * `private` status needs it too: Core's REST posts controller
+ * (`handle_status_param()`) treats making a post private as publishing
+ * it, so a Contributor cannot skip review by filing a draft as private.
+ * The capability is the TYPE's, not the generic `publish_posts`: a
+ * page asks `publish_pages`, a custom type whatever it mapped.
  *
  * @param array $args Input args.
  * @return bool
@@ -596,8 +601,15 @@ function openstation_agents_ability_update_post_can( $args ) {
 	if ( $post_id <= 0 || ! current_user_can( 'edit_post', $post_id ) ) {
 		return false;
 	}
-	if ( isset( $args['status'] ) && 'publish' === $args['status'] && ! current_user_can( 'publish_posts' ) ) {
-		return false;
+	if ( isset( $args['status'] ) && in_array( $args['status'], array( 'publish', 'private' ), true ) ) {
+		$post      = get_post( $post_id );
+		$post_type = $post instanceof WP_Post ? get_post_type_object( $post->post_type ) : null;
+		$cap       = $post_type instanceof WP_Post_Type && ! empty( $post_type->cap->publish_posts )
+			? $post_type->cap->publish_posts
+			: 'publish_posts';
+		if ( ! current_user_can( $cap ) ) {
+			return false;
+		}
 	}
 	return true;
 }

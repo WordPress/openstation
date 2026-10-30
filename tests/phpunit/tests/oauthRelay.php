@@ -25,6 +25,11 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		wp_set_current_user( self::$admin_id );
+		// The callback is a top-level navigation in the browser that
+		// started the flow, so it carries that account's `logged_in`
+		// cookie; without one the callback refuses (`session_mismatch`,
+		// see securityCore.php).
+		$_COOKIE[ LOGGED_IN_COOKIE ] = wp_generate_auth_cookie( self::$admin_id, time() + HOUR_IN_SECONDS, 'logged_in' );
 		// Clean transients between tests so a leaked state doesn't
 		// leak into the next assertion.
 		global $wpdb;
@@ -34,6 +39,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
+		unset( $_COOKIE[ LOGGED_IN_COOKIE ] );
 		openstation_unregister_oauth_relay( 'tumblrlike' );
 		openstation_unregister_oauth_relay( 'denied' );
 		remove_all_filters( 'pre_http_request' );

@@ -2,17 +2,21 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: OpenStation 1.1.15\n"
+"Project-Id-Version: OpenStation 1.1.17\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-16T15:38:25+00:00\n"
+"POT-Creation-Date: 2026-10-23T14:14:32+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: desktop-mode\n"
+
+#: src/admin-bar-notes.ts:157
+msgid "Notifications"
+msgstr ""
 
 #: src/agent-run-window.ts:132
 msgid "Yesterday"
@@ -36,6 +40,7 @@ msgid "Cannot be undone."
 msgstr ""
 
 #: src/agent-run-window.ts:317
+#: apps/plugins/parts/action-links.php:62
 msgid "Delete"
 msgstr ""
 
@@ -144,7 +149,7 @@ msgstr ""
 #: includes/my-wordpress/window.php:185
 #: includes/recycle-bin/store.php:614
 #: includes/welcome-dialog.php:586
-#: includes/window-links.php:755
+#: includes/window-links.php:798
 msgid "Media"
 msgstr ""
 
@@ -345,7 +350,7 @@ msgid "Untitled"
 msgstr ""
 
 #: src/ai-assistant/impl.ts:2035
-#: src/desktop.ts:3763
+#: src/desktop.ts:3783
 msgid "Site assistant"
 msgstr ""
 
@@ -386,67 +391,75 @@ msgstr ""
 msgid "Request failed (HTTP %s)."
 msgstr ""
 
-#: src/bug-report/index.ts:56
-msgid "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit."
+#: src/bug-report/index.ts:67
+msgid "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit. Questions go to the WordPress.org support forum."
 msgstr ""
 
-#: src/bug-report/index.ts:62
+#: src/bug-report/index.ts:73
 msgid "Title"
 msgstr ""
 
-#: src/bug-report/index.ts:63
+#: src/bug-report/index.ts:74
 msgid "A short summary"
 msgstr ""
 
-#: src/bug-report/index.ts:66
+#: src/bug-report/index.ts:77
 msgid "What happened? What did you expect?"
 msgstr ""
 
-#: src/bug-report/index.ts:67
+#: src/bug-report/index.ts:78
 msgid "Describe the issue or the feature you have in mind."
 msgstr ""
 
-#: src/bug-report/index.ts:71
+#: src/bug-report/index.ts:82
 msgid "Steps to reproduce (bug only)"
 msgstr ""
 
-#: src/bug-report/index.ts:72
+#: src/bug-report/index.ts:83
 msgid "One step per line"
 msgstr ""
 
-#: src/bug-report/index.ts:85
+#: src/bug-report/index.ts:108
+msgid "Ask on the WordPress.org support forum"
+msgstr ""
+
+#: src/bug-report/index.ts:109
+msgid "Your question is copied, ready to paste into a new topic."
+msgstr ""
+
+#: src/bug-report/index.ts:111
 msgid "Open issue on GitHub"
 msgstr ""
 
-#: src/bug-report/index.ts:90
+#: src/bug-report/index.ts:112
 msgid "You will review and submit on GitHub."
 msgstr ""
 
-#: src/bug-report/index.ts:103
+#: src/bug-report/index.ts:126
 msgid "Title and description are both required."
 msgstr ""
 
-#: src/bug-report/index.ts:123
+#: src/bug-report/index.ts:153
 #: src/content-graph/panel.ts:894
 #: src/plugins/my-wordpress-woocommerce/index.ts:750
-#: apps/my-wordpress/parts/lists.php:497
+#: apps/my-wordpress/parts/lists.php:569
 #: includes/agents/identity.php:233
 msgid "Type"
 msgstr ""
 
-#: src/bug-report/index.ts:131
+#: src/bug-report/index.ts:161
 msgid "Bug"
 msgstr ""
 
-#: src/bug-report/index.ts:132
+#: src/bug-report/index.ts:162
 msgid "Feature request"
 msgstr ""
 
-#: src/bug-report/index.ts:133
+#: src/bug-report/index.ts:163
 msgid "Question"
 msgstr ""
 
-#: src/bug-report/index.ts:221
+#: src/bug-report/index.ts:251
 msgid "Environment included with the report"
 msgstr ""
 
@@ -542,8 +555,8 @@ msgid "Back to post"
 msgstr ""
 
 #: src/content-graph/panel.ts:408
-#: apps/my-wordpress/parts/dossiers.php:85
-#: apps/my-wordpress/parts/dossiers.php:173
+#: apps/my-wordpress/parts/dossiers.php:109
+#: apps/my-wordpress/parts/dossiers.php:199
 msgid "Contributors"
 msgstr ""
 
@@ -552,11 +565,11 @@ msgstr ""
 #: src/desktop-files/preview.ts:471
 #: src/plugins/pulse-monitor/sources.ts:111
 #: apps/comments/comments.os.php:37
-#: apps/my-wordpress/parts/dossiers.php:92
-#: apps/my-wordpress/parts/dossiers.php:181
+#: apps/my-wordpress/parts/dossiers.php:116
+#: apps/my-wordpress/parts/dossiers.php:207
 #: includes/ai-copilot/search.php:111
-#: includes/window-links.php:675
-#: includes/window-links.php:676
+#: includes/window-links.php:705
+#: includes/window-links.php:706
 msgid "Comments"
 msgstr ""
 
@@ -566,28 +579,28 @@ msgstr ""
 
 #: src/content-graph/panel.ts:412
 #: src/revisions/index.ts:199
-#: apps/my-wordpress/parts/dossiers.php:121
-#: apps/my-wordpress/parts/dossiers.php:240
+#: apps/my-wordpress/parts/dossiers.php:145
+#: apps/my-wordpress/parts/dossiers.php:274
 msgid "Revisions"
 msgstr ""
 
 #: src/content-graph/panel.ts:426
 #: src/content-graph/panel.ts:570
 #: src/content-graph/satellites.ts:334
-#: apps/my-wordpress/parts/dossiers.php:78
-#: apps/my-wordpress/parts/dossiers.php:169
-#: apps/my-wordpress/parts/lists.php:527
+#: apps/my-wordpress/parts/dossiers.php:102
+#: apps/my-wordpress/parts/dossiers.php:195
+#: apps/my-wordpress/parts/lists.php:601
 msgid "Author"
 msgstr ""
 
 #: src/content-graph/panel.ts:450
-#: apps/my-wordpress/parts/lists.php:528
+#: apps/my-wordpress/parts/lists.php:602
 #: apps/station-home/parts/snapshot.php:366
 msgid "Published"
 msgstr ""
 
 #: src/content-graph/panel.ts:457
-#: apps/my-wordpress/parts/lists.php:529
+#: apps/my-wordpress/parts/lists.php:603
 msgid "Modified"
 msgstr ""
 
@@ -597,7 +610,7 @@ msgid "Open in %s"
 msgstr ""
 
 #: src/content-graph/panel.ts:514
-#: includes/helpers.php:204
+#: includes/helpers.php:224
 msgid "WordPress"
 msgstr ""
 
@@ -633,7 +646,7 @@ msgstr ""
 #: src/content-graph/panel.ts:725
 #: src/desktop-files/preview.ts:390
 #: src/desktop-files/preview.ts:465
-#: src/desktop.ts:5282
+#: src/desktop.ts:5317
 #: apps/my-wordpress/parts/sections.php:42
 #: apps/posts/posts.os.php:39
 #: includes/my-wordpress/window.php:162
@@ -723,7 +736,7 @@ msgstr ""
 #: src/content-graph/panel.ts:818
 #: src/plugins/my-wordpress-woocommerce/index.ts:821
 #: src/plugins/my-wordpress-woocommerce/index.ts:875
-#: apps/my-wordpress/parts/lists.php:526
+#: apps/my-wordpress/parts/lists.php:600
 msgid "Status"
 msgstr ""
 
@@ -734,7 +747,7 @@ msgid "Revision"
 msgstr ""
 
 #: src/content-graph/panel.ts:936
-#: src/window/index.ts:4205
+#: src/window/index.ts:4235
 msgid "Saved"
 msgstr ""
 
@@ -777,7 +790,7 @@ msgid "Untagged"
 msgstr ""
 
 #: src/content-graph/scene.ts:1361
-#: apps/my-wordpress/parts/dossiers.php:290
+#: apps/my-wordpress/parts/dossiers.php:326
 msgid "Unknown author"
 msgstr ""
 
@@ -1017,8 +1030,8 @@ msgid "Open in editor"
 msgstr ""
 
 #: src/desktop-files/recycle-bin-targets.ts:142
-#: src/notes/layer.ts:668
-#: src/notes/layer.ts:1000
+#: src/notes/layer.ts:692
+#: src/notes/layer.ts:1119
 #: src/plugins/drafts-widget/index.ts:717
 #: src/plugins/drafts-widget/index.ts:767
 msgid "Move to Trash"
@@ -1031,8 +1044,8 @@ msgstr ""
 #. %d is the number of pending items in a desktop-icon badge.
 #. %d is the number of pending items in a dock badge.
 #: src/desktop-icons.ts:539
-#: src/dock.ts:2924
-#: src/dock.ts:2937
+#: src/dock.ts:2948
+#: src/dock.ts:2961
 msgid "%d notification"
 msgid_plural "%d notifications"
 msgstr[0] ""
@@ -1048,12 +1061,12 @@ msgid "Retry"
 msgstr ""
 
 #. %1$s is the workspace name, %2$d the windows kept, %3$d the windows on the desk.
-#: src/desktop.ts:2878
+#: src/desktop.ts:2886
 msgid "%1$s will open like this — the top %2$d of %3$d windows, where they are."
 msgstr ""
 
 #. %1$s is the workspace name, %2$d a number of windows.
-#: src/desktop.ts:2886
+#: src/desktop.ts:2894
 msgid "%1$s will open like this — %2$d windows, where they are."
 msgstr ""
 
@@ -1123,7 +1136,7 @@ msgid "Start"
 msgstr ""
 
 #. %d is the number of pending updates / items.
-#: src/dock.ts:1405
+#: src/dock.ts:1428
 msgid "%d update"
 msgid_plural "%d updates"
 msgstr[0] ""
@@ -1326,7 +1339,7 @@ msgstr ""
 #: src/games/alphabet-soup/game.ts:536
 #: src/games/alphabet-soup/index.ts:28
 #: src/games/inkfall/index.ts:28
-#: apps/my-wordpress/parts/lists.php:530
+#: apps/my-wordpress/parts/lists.php:604
 #: includes/games/alphabet-soup.php:86
 #: includes/games/inkfall.php:74
 msgid "Words"
@@ -1478,7 +1491,7 @@ msgid "Mode"
 msgstr ""
 
 #: src/games/alphabet-soup/index.ts:27
-#: apps/my-wordpress/parts/lists.php:498
+#: apps/my-wordpress/parts/lists.php:570
 #: includes/games/alphabet-soup.php:81
 msgid "Size"
 msgstr ""
@@ -1504,7 +1517,7 @@ msgid "Find a player…"
 msgstr ""
 
 #: src/games/challenge-dialog.ts:93
-#: src/item-visibility-menu.ts:426
+#: src/item-visibility-menu.ts:506
 #: src/usage-feedback/form.ts:138
 #: src/workspaces/wizard.ts:1024
 msgid "Cancel"
@@ -1757,8 +1770,8 @@ msgid "Previous"
 msgstr ""
 
 #: src/games/scoreboard.ts:184
-#: src/shell-tour/index.ts:354
-#: src/shell-tour/index.ts:370
+#: src/shell-tour/index.ts:357
+#: src/shell-tour/index.ts:373
 #: src/workspaces/wizard.ts:1046
 msgid "Next"
 msgstr ""
@@ -1785,91 +1798,108 @@ msgstr ""
 msgid "Oldest first"
 msgstr ""
 
-#: src/item-visibility-menu.ts:68
+#: src/item-visibility-menu.ts:69
 msgid "sidebar"
 msgstr ""
 
-#: src/item-visibility-menu.ts:68
+#: src/item-visibility-menu.ts:69
 msgid "dock"
 msgstr ""
 
-#: src/item-visibility-menu.ts:182
+#: src/item-visibility-menu.ts:77
+msgid "Customize sidebar…"
+msgstr ""
+
+#: src/item-visibility-menu.ts:77
+msgid "Customize dock…"
+msgstr ""
+
+#: src/item-visibility-menu.ts:205
+msgid "Sidebar behavior…"
+msgstr ""
+
+#: src/item-visibility-menu.ts:206
+msgid "Dock position and behavior…"
+msgstr ""
+
+#: src/item-visibility-menu.ts:244
 msgid "Hide MIO on wallpaper"
 msgstr ""
 
-#: src/item-visibility-menu.ts:182
+#: src/item-visibility-menu.ts:244
 #: src/mio/style-panel.ts:338
 msgid "Show MIO on wallpaper"
 msgstr ""
 
 #. %s: "dock" or "sidebar".
-#: src/item-visibility-menu.ts:193
+#: src/item-visibility-menu.ts:255
 msgid "Hide from %s"
 msgstr ""
 
 #. %s: "dock" or "sidebar".
-#: src/item-visibility-menu.ts:204
+#: src/item-visibility-menu.ts:266
 msgid "Keep in %s"
 msgstr ""
 
-#: src/item-visibility-menu.ts:212
+#: src/item-visibility-menu.ts:274
 msgid "Also show on desktop"
 msgstr ""
 
-#: src/item-visibility-menu.ts:220
+#: src/item-visibility-menu.ts:282
 msgid "Hide from desktop"
 msgstr ""
 
 #. %s: "dock" or "sidebar".
-#: src/item-visibility-menu.ts:228
+#: src/item-visibility-menu.ts:290
 msgid "Also show on %s"
 msgstr ""
 
-#: src/item-visibility-menu.ts:240
+#: src/item-visibility-menu.ts:302
 msgid "Hide everywhere"
 msgstr ""
 
-#: src/item-visibility-menu.ts:249
-msgid "Navigation settings…"
+#: src/item-visibility-menu.ts:316
+msgid "Customize desktop icons…"
 msgstr ""
 
 #. %s is the owning plugin's display name.
-#: src/item-visibility-menu.ts:272
+#: src/item-visibility-menu.ts:336
 msgid "Deactivate %s…"
 msgstr ""
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:421
+#: src/item-visibility-menu.ts:501
 msgid "Deactivate %s?"
 msgstr ""
 
-#: src/item-visibility-menu.ts:422
+#: src/item-visibility-menu.ts:502
 msgid "This plugin will stop running on the site. You can re-activate it later from the Plugins screen."
 msgstr ""
 
-#: src/item-visibility-menu.ts:425
+#: src/item-visibility-menu.ts:505
+#: apps/plugins/parts/action-links.php:57
 msgid "Deactivate"
 msgstr ""
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:482
+#: src/item-visibility-menu.ts:562
 msgid "Could not deactivate %s"
 msgstr ""
 
 #. %s: plugin title.
-#: src/item-visibility-menu.ts:484
+#: src/item-visibility-menu.ts:564
 msgid "Could not deactivate %s."
 msgstr ""
 
 #. 1: plugin title. 2: number of windows that were closed.
-#: src/item-visibility-menu.ts:506
+#: src/item-visibility-menu.ts:586
 msgid "%1$s deactivated. Closed %2$d window(s)."
 msgstr ""
 
 #. %s: plugin title.
 #. translators: %s: plugin name
-#: src/item-visibility-menu.ts:512
-#: apps/plugins/plugins.os.php:175
+#: src/item-visibility-menu.ts:592
+#: apps/plugins/plugins.os.php:176
 #, php-format
 msgid "%s deactivated."
 msgstr ""
@@ -2158,7 +2188,7 @@ msgstr ""
 
 #: src/mio/style-panel.ts:669
 #: src/plugins/pulse-monitor/widget.ts:91
-#: src/shell-tour/index.ts:505
+#: src/shell-tour/index.ts:508
 msgid "Done"
 msgstr ""
 
@@ -2306,6 +2336,14 @@ msgstr ""
 msgid "Opens in a new tab:"
 msgstr ""
 
+#: src/notes/body.ts:94
+msgid "Note text. Press Enter to edit."
+msgstr ""
+
+#: src/notes/body.ts:96
+msgid "Empty note. Click to write."
+msgstr ""
+
 #: src/notes/convert.ts:129
 msgid "Edit draft"
 msgstr ""
@@ -2315,7 +2353,7 @@ msgid "The site sent an unreadable reply while converting the note. Check Posts 
 msgstr ""
 
 #: src/notes/convert.ts:163
-#: includes/notes/rest.php:586
+#: includes/notes/rest.php:607
 msgid "Could not convert the note to a post."
 msgstr ""
 
@@ -2334,106 +2372,114 @@ msgstr ""
 
 #: src/notes/convert.ts:234
 #: src/notes/trash.ts:66
-#: includes/notes/rest.php:477
+#: includes/notes/rest.php:523
 msgid "Could not restore the note."
 msgstr ""
 
-#: src/notes/layer.ts:342
-#: src/plugins/notes-widget/index.ts:422
+#: src/notes/layer.ts:347
+#: src/plugins/notes-widget/index.ts:417
 msgid "Could not pin the note. Please try again."
 msgstr ""
 
-#: src/notes/layer.ts:471
+#: src/notes/layer.ts:476
 msgid "Pinned notes"
 msgstr ""
 
-#: src/notes/layer.ts:556
+#: src/notes/layer.ts:567
 msgid "Pinned note"
 msgstr ""
 
 #. %s: note author display name.
-#: src/notes/layer.ts:559
+#: src/notes/layer.ts:570
 msgid "Note by %s"
 msgstr ""
 
-#: src/notes/layer.ts:575
+#: src/notes/layer.ts:586
 msgid "Move note. Drag the pin, or press Enter then use the arrow keys."
 msgstr ""
 
 #: src/notes/layer.ts:654
+msgid "Edit note"
+msgstr ""
+
+#: src/notes/layer.ts:678
 msgid "Convert to a draft post"
 msgstr ""
 
-#: src/notes/layer.ts:676
+#: src/notes/layer.ts:700
 msgid "Note text"
 msgstr ""
 
+#: src/notes/layer.ts:707
+msgid "Write in Markdown: **bold**, # heading, - [ ] to-do"
+msgstr ""
+
 #. %s: note author display name.
-#: src/notes/layer.ts:713
+#: src/notes/layer.ts:826
 msgid "Pinned by %s"
 msgstr ""
 
 #. %s: next paper color name.
-#: src/notes/layer.ts:745
+#: src/notes/layer.ts:858
 msgid "Change paper color (next: %s)"
 msgstr ""
 
-#: src/notes/layer.ts:764
+#: src/notes/layer.ts:877
 msgid "Public note — everyone can see it. Click to make private."
 msgstr ""
 
-#: src/notes/layer.ts:765
+#: src/notes/layer.ts:878
 msgid "Private note. Click to share with every desktop user."
 msgstr ""
 
-#: src/notes/layer.ts:983
+#: src/notes/layer.ts:1102
 msgid "Note is now public."
 msgstr ""
 
-#: src/notes/layer.ts:984
+#: src/notes/layer.ts:1103
 msgid "Note is now private."
 msgstr ""
 
-#: src/notes/layer.ts:998
+#: src/notes/layer.ts:1117
 msgid "Move note to the Trash?"
 msgstr ""
 
-#: src/notes/layer.ts:999
+#: src/notes/layer.ts:1118
 msgid "You can restore it from the Trash later."
 msgstr ""
 
-#: src/notes/layer.ts:1049
+#: src/notes/layer.ts:1168
 msgid "This note was changed in another session — showing the latest version."
 msgstr ""
 
-#: src/notes/layer.ts:1059
+#: src/notes/layer.ts:1178
 msgid "Could not save the note."
 msgstr ""
 
-#: src/notes/layer.ts:1103
-#: src/plugins/notes-widget/index.ts:335
+#: src/notes/layer.ts:1222
+#: src/plugins/notes-widget/index.ts:331
 msgid "Drop on the desktop to pin"
 msgstr ""
 
-#: src/notes/layer.ts:1104
-#: src/plugins/notes-widget/index.ts:336
+#: src/notes/layer.ts:1223
+#: src/plugins/notes-widget/index.ts:332
 msgid "Pin here"
 msgstr ""
 
-#: src/notes/layer.ts:1105
-#: src/plugins/notes-widget/index.ts:337
+#: src/notes/layer.ts:1224
+#: src/plugins/notes-widget/index.ts:333
 msgid "Can’t pin here"
 msgstr ""
 
-#: src/notes/layer.ts:1295
+#: src/notes/layer.ts:1414
 msgid "Moving note. Arrow keys to move, Enter to place, Escape to cancel, Delete to move to the Trash."
 msgstr ""
 
-#: src/notes/layer.ts:1311
+#: src/notes/layer.ts:1430
 msgid "Note placed."
 msgstr ""
 
-#: src/notes/layer.ts:1349
+#: src/notes/layer.ts:1468
 msgid "Move cancelled."
 msgstr ""
 
@@ -2536,8 +2582,8 @@ msgid "Excerpt updated."
 msgstr ""
 
 #: src/plugins/drafts-widget/index.ts:469
-#: apps/my-wordpress/parts/dossiers.php:108
-#: apps/my-wordpress/parts/dossiers.php:202
+#: apps/my-wordpress/parts/dossiers.php:132
+#: apps/my-wordpress/parts/dossiers.php:236
 #: apps/posts/posts.os.php:88
 #: includes/ai-copilot/search.php:87
 msgid "Tags"
@@ -2550,8 +2596,8 @@ msgstr ""
 #: src/plugins/drafts-widget/index.ts:486
 #: src/plugins/my-wordpress-woocommerce/index.ts:752
 #: src/plugins/my-wordpress-woocommerce/index.ts:915
-#: apps/my-wordpress/parts/dossiers.php:100
-#: apps/my-wordpress/parts/dossiers.php:202
+#: apps/my-wordpress/parts/dossiers.php:124
+#: apps/my-wordpress/parts/dossiers.php:236
 #: apps/posts/posts.os.php:84
 #: includes/ai-copilot/search.php:81
 msgid "Categories"
@@ -2581,10 +2627,10 @@ msgid "%dd ago"
 msgstr ""
 
 #: src/plugins/drafts-widget/index.ts:590
-#: apps/my-wordpress/parts/dossiers.php:128
-#: apps/my-wordpress/parts/lists.php:197
-#: apps/my-wordpress/parts/lists.php:422
-#: apps/my-wordpress/parts/lists.php:474
+#: apps/my-wordpress/parts/dossiers.php:152
+#: apps/my-wordpress/parts/lists.php:253
+#: apps/my-wordpress/parts/lists.php:482
+#: apps/my-wordpress/parts/lists.php:546
 #: apps/user-edit/parts/insights.php:246
 #: apps/user-edit/parts/insights.php:271
 #: includes/desktop-files/types/class-openstation-post-file.php:53
@@ -2814,7 +2860,7 @@ msgstr ""
 #. 1: times used, 2: usage limit.
 #. 1: the current step, 2: the number of steps.
 #: src/plugins/my-wordpress-woocommerce/index.ts:857
-#: src/shell-tour/index.ts:525
+#: src/shell-tour/index.ts:528
 msgid "%1$d of %2$d"
 msgstr ""
 
@@ -2989,7 +3035,7 @@ msgid "Location"
 msgstr ""
 
 #: src/plugins/my-wordpress-woocommerce/index.ts:1057
-#: apps/my-wordpress/parts/lists.php:459
+#: apps/my-wordpress/parts/lists.php:524
 msgid "Email"
 msgstr ""
 
@@ -3082,7 +3128,7 @@ msgstr ""
 
 #: src/plugins/my-wordpress-woocommerce/index.ts:1718
 #: includes/my-wordpress/integrations/woocommerce.php:301
-#: includes/my-wordpress/integrations/woocommerce.php:1350
+#: includes/my-wordpress/integrations/woocommerce.php:1360
 msgid "Out of stock"
 msgstr ""
 
@@ -3197,7 +3243,7 @@ msgid "Drag to pin"
 msgstr ""
 
 #: src/plugins/notes-widget/index.ts:124
-msgid "Write a note…"
+msgid "Write a note… Markdown works, and - [ ] makes a to-do."
 msgstr ""
 
 #: src/plugins/notes-widget/index.ts:142
@@ -3949,65 +3995,69 @@ msgstr ""
 msgid "Every WordPress admin menu lives on this rail. Hover a tile for its name; the ones with submenus fan them out."
 msgstr ""
 
-#: src/shell-tour/index.ts:355
-#: src/shell-tour/index.ts:371
-#: src/shell-tour/index.ts:428
-#: src/shell-tour/index.ts:455
-#: src/shell-tour/index.ts:487
+#: src/shell-tour/index.ts:353
+msgid "Drag a tile to reorder the rail. Right-click it to hide it or to choose what the rail shows."
+msgstr ""
+
+#: src/shell-tour/index.ts:358
+#: src/shell-tour/index.ts:374
+#: src/shell-tour/index.ts:431
+#: src/shell-tour/index.ts:458
+#: src/shell-tour/index.ts:490
 msgid "Skip tour"
 msgstr ""
 
-#: src/shell-tour/index.ts:361
+#: src/shell-tour/index.ts:364
 msgid "Configure the layout as you wish"
 msgstr ""
 
-#: src/shell-tour/index.ts:364
+#: src/shell-tour/index.ts:367
 msgid "The rail can move to another edge, split in two, or park itself out of the way."
 msgstr ""
 
-#: src/shell-tour/index.ts:366
+#: src/shell-tour/index.ts:369
 msgid "OpenStation Preferences → Appearance → Desktop layout."
 msgstr ""
 
-#: src/shell-tour/index.ts:370
+#: src/shell-tour/index.ts:373
 msgid "Show me"
 msgstr ""
 
-#: src/shell-tour/index.ts:421
+#: src/shell-tour/index.ts:424
 msgid "Open a window"
 msgstr ""
 
-#: src/shell-tour/index.ts:424
+#: src/shell-tour/index.ts:427
 msgid "Click a dock tile. Every admin screen opens as a window you can move, resize and keep beside another."
 msgstr ""
 
-#: src/shell-tour/index.ts:427
-#: src/shell-tour/index.ts:454
-#: src/shell-tour/index.ts:486
+#: src/shell-tour/index.ts:430
+#: src/shell-tour/index.ts:457
+#: src/shell-tour/index.ts:489
 msgid "Do it for me"
 msgstr ""
 
-#: src/shell-tour/index.ts:448
+#: src/shell-tour/index.ts:451
 msgid "Snap it to the side"
 msgstr ""
 
-#: src/shell-tour/index.ts:451
+#: src/shell-tour/index.ts:454
 msgid "Drag the window to the left edge until the preview appears, then let go. It takes half the screen; another window can take the other half."
 msgstr ""
 
-#: src/shell-tour/index.ts:466
+#: src/shell-tour/index.ts:469
 msgid "Find anything"
 msgstr ""
 
-#: src/shell-tour/index.ts:470
+#: src/shell-tour/index.ts:473
 msgid "Press %s to search screens, commands and content, or ask the assistant."
 msgstr ""
 
-#: src/shell-tour/index.ts:499
+#: src/shell-tour/index.ts:502
 msgid "You are set"
 msgstr ""
 
-#: src/shell-tour/index.ts:502
+#: src/shell-tour/index.ts:505
 msgid "Windows, snapping and search: that is the station. Everything else is in OpenStation Preferences, and this tour is there too whenever you want it back."
 msgstr ""
 
@@ -4185,7 +4235,7 @@ msgid "Maximize"
 msgstr ""
 
 #: src/window-chrome/controls/built-ins.ts:63
-#: src/window/index.ts:2882
+#: src/window/index.ts:2912
 msgid "Enter fullscreen"
 msgstr ""
 
@@ -4241,25 +4291,25 @@ msgstr ""
 msgid "Close window"
 msgstr ""
 
-#: src/window/iframe-bridge.ts:627
+#: src/window/iframe-bridge.ts:628
 msgid "Request failed."
 msgstr ""
 
 #. %d: HTTP status code of the failed request.
-#: src/window/iframe-bridge.ts:630
+#: src/window/iframe-bridge.ts:631
 msgid "Request failed (HTTP %d)."
 msgstr ""
 
-#: src/window/index.ts:2882
+#: src/window/index.ts:2912
 msgid "Exit fullscreen"
 msgstr ""
 
-#: src/window/index.ts:4208
+#: src/window/index.ts:4238
 msgid "Not saved."
 msgstr ""
 
 #. %s: error message explaining why the change could not be saved.
-#: src/window/index.ts:4211
+#: src/window/index.ts:4241
 msgid "Not saved. %s"
 msgstr ""
 
@@ -4824,44 +4874,44 @@ msgstr ""
 msgid "Edit failed."
 msgstr ""
 
-#: apps/comments/parts/fields.php:90
+#: apps/comments/parts/fields.php:96
 msgid "Title of the post the comment is attached to."
 msgstr ""
 
-#: apps/comments/parts/fields.php:102
+#: apps/comments/parts/fields.php:108
 msgid "Permalink of the post the comment is attached to."
 msgstr ""
 
-#: apps/comments/parts/fields.php:115
+#: apps/comments/parts/fields.php:121
 msgid "Spam confidence score, 0–100."
 msgstr ""
 
-#: apps/comments/parts/fields.php:135
+#: apps/comments/parts/fields.php:141
 msgid "Number of links in the comment."
 msgstr ""
 
-#: apps/comments/parts/fields.php:147
+#: apps/comments/parts/fields.php:153
 msgid "Whether the requester can edit this comment."
 msgstr ""
 
-#: apps/comments/parts/fields.php:158
+#: apps/comments/parts/fields.php:164
 msgid "Whether the requester can moderate comments globally."
 msgstr ""
 
-#: apps/comments/parts/fields.php:179
+#: apps/comments/parts/fields.php:185
 msgid "Direct-reply count for this comment."
 msgstr ""
 
-#: apps/comments/parts/fields.php:204
+#: apps/comments/parts/fields.php:210
 msgid "AI moderation verdict for this comment, when analyzed (null otherwise)."
 msgstr ""
 
-#: apps/comments/parts/fields.php:221
+#: apps/comments/parts/fields.php:227
 msgid "Akismet verdict if the plugin is installed (null otherwise)."
 msgstr ""
 
 #: apps/comments/parts/rest.php:82
-#: apps/plugins/plugins.os.php:204
+#: apps/plugins/plugins.os.php:205
 msgid "Unknown bulk action."
 msgstr ""
 
@@ -4874,14 +4924,18 @@ msgid "You are not allowed to reply to comments on this post."
 msgstr ""
 
 #: apps/comments/parts/rest.php:169
+msgid "You cannot reply to a comment in spam or trash."
+msgstr ""
+
+#: apps/comments/parts/rest.php:177
 msgid "Reply cannot be empty."
 msgstr ""
 
-#: apps/comments/parts/rest.php:178
+#: apps/comments/parts/rest.php:186
 msgid "You must be logged in to reply."
 msgstr ""
 
-#: apps/comments/parts/rest.php:224
+#: apps/comments/parts/rest.php:232
 msgid "Invalid author email."
 msgstr ""
 
@@ -4907,24 +4961,25 @@ msgstr ""
 msgid "Moved to the Trash."
 msgstr ""
 
-#: apps/my-wordpress/parts/actions.php:469
+#: apps/my-wordpress/parts/actions.php:441
+#: apps/my-wordpress/parts/actions.php:488
 msgid "Nothing could be updated."
 msgstr ""
 
 #. translators: %s: updated count.
-#: apps/my-wordpress/parts/actions.php:475
+#: apps/my-wordpress/parts/actions.php:494
 #, php-format
 msgid "%s entry updated."
 msgid_plural "%s entries updated."
 msgstr[0] ""
 msgstr[1] ""
 
-#: apps/my-wordpress/parts/actions.php:505
+#: apps/my-wordpress/parts/actions.php:524
 msgid "Nothing could be trashed."
 msgstr ""
 
 #. translators: %s: trashed count.
-#: apps/my-wordpress/parts/actions.php:511
+#: apps/my-wordpress/parts/actions.php:530
 #, php-format
 msgid "Moved %s item to the Trash."
 msgid_plural "Moved %s items to the Trash."
@@ -4953,13 +5008,13 @@ msgstr ""
 msgid "Agent saved."
 msgstr ""
 
-#: apps/my-wordpress/parts/dossiers.php:115
-#: apps/my-wordpress/parts/dossiers.php:221
+#: apps/my-wordpress/parts/dossiers.php:139
+#: apps/my-wordpress/parts/dossiers.php:255
 msgid "Attached media"
 msgstr ""
 
 #. translators: %s: entry count.
-#: apps/my-wordpress/parts/dossiers.php:210
+#: apps/my-wordpress/parts/dossiers.php:244
 #, php-format
 msgid "%s entry"
 msgid_plural "%s entries"
@@ -4967,45 +5022,45 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: how long ago, e.g. "2 days ago".
-#: apps/my-wordpress/parts/dossiers.php:253
+#: apps/my-wordpress/parts/dossiers.php:289
 #, php-format
 msgid "%s · Autosave"
 msgstr ""
 
 #. translators: %s: human-readable time difference, e.g. "2 days".
-#: apps/my-wordpress/parts/dossiers.php:292
+#: apps/my-wordpress/parts/dossiers.php:328
 #, php-format
 msgid "%s ago"
 msgstr ""
 
 #. translators: 1: author name, 2: how long ago, 3: exact date.
-#: apps/my-wordpress/parts/dossiers.php:399
+#: apps/my-wordpress/parts/dossiers.php:459
 #, php-format
 msgid "%1$s, %2$s (%3$s)"
 msgstr ""
 
 #. translators: 1: author display name, 2: date.
 #. translators: 1: customer name, 2: date.
-#: apps/my-wordpress/parts/lists.php:202
+#: apps/my-wordpress/parts/lists.php:258
 #: apps/my-wordpress/parts/woocommerce.php:250
 #, php-format
 msgid "%1$s — %2$s"
 msgstr ""
 
-#: apps/my-wordpress/parts/lists.php:460
+#: apps/my-wordpress/parts/lists.php:525
 #: includes/agents/privacy.php:67
 msgid "Role"
 msgstr ""
 
-#: apps/my-wordpress/parts/lists.php:461
+#: apps/my-wordpress/parts/lists.php:526
 msgid "Registered"
 msgstr ""
 
-#: apps/my-wordpress/parts/lists.php:500
+#: apps/my-wordpress/parts/lists.php:572
 msgid "Dimensions"
 msgstr ""
 
-#: apps/my-wordpress/parts/lists.php:503
+#: apps/my-wordpress/parts/lists.php:575
 msgid "Uploaded"
 msgstr ""
 
@@ -5121,14 +5176,14 @@ msgstr ""
 #: apps/my-wordpress/parts/woocommerce.php:244
 #: includes/my-wordpress/integrations/woocommerce-relations.php:836
 #: includes/my-wordpress/integrations/woocommerce-relations.php:1037
-#: includes/my-wordpress/integrations/woocommerce.php:1047
+#: includes/my-wordpress/integrations/woocommerce.php:1057
 #, php-format
 msgid "#%1$s · %2$s"
 msgstr ""
 
 #: apps/my-wordpress/parts/woocommerce.php:251
 #: apps/my-wordpress/parts/woocommerce.php:268
-#: includes/my-wordpress/integrations/woocommerce.php:1453
+#: includes/my-wordpress/integrations/woocommerce.php:1463
 msgid "Guest"
 msgstr ""
 
@@ -5349,17 +5404,25 @@ msgstr ""
 msgid "Total non-trashed comments on this page."
 msgstr ""
 
+#: apps/plugins/parts/action-links.php:53
+msgid "Network Active"
+msgstr ""
+
+#: apps/plugins/parts/action-links.php:61
+msgid "Activate"
+msgstr ""
+
 #: apps/plugins/parts/ajax.php:48
 msgid "Security check failed. Refresh the window and try again."
 msgstr ""
 
 #: apps/plugins/parts/ajax.php:63
-#: apps/plugins/plugins.os.php:126
+#: apps/plugins/plugins.os.php:127
 msgid "Plugins are managed from the network admin on this site."
 msgstr ""
 
 #: apps/plugins/parts/ajax.php:70
-#: apps/plugins/plugins.os.php:127
+#: apps/plugins/plugins.os.php:128
 #: includes/feedback/rest.php:72
 #: includes/feedback/usage.php:249
 #: includes/seen-intros.php:276
@@ -5432,65 +5495,65 @@ msgstr ""
 msgid "Choose Cards or Table."
 msgstr ""
 
-#: apps/plugins/plugins.os.php:155
+#: apps/plugins/plugins.os.php:156
 msgid "Missing plugin."
 msgstr ""
 
 #. translators: %s: error message
-#: apps/plugins/plugins.os.php:162
+#: apps/plugins/plugins.os.php:163
 #, php-format
 msgid "Activation failed: %s"
 msgstr ""
 
 #. translators: %s: error message
-#: apps/plugins/plugins.os.php:164
+#: apps/plugins/plugins.os.php:165
 #, php-format
 msgid "Deactivation failed: %s"
 msgstr ""
 
 #. translators: %s: error message
-#: apps/plugins/plugins.os.php:166
+#: apps/plugins/plugins.os.php:167
 #, php-format
 msgid "Delete failed: %s"
 msgstr ""
 
 #. translators: %s: plugin name
-#: apps/plugins/plugins.os.php:173
+#: apps/plugins/plugins.os.php:174
 #, php-format
 msgid "%s activated."
 msgstr ""
 
 #. translators: %s: plugin name
-#: apps/plugins/plugins.os.php:177
+#: apps/plugins/plugins.os.php:178
 #, php-format
 msgid "%s deleted."
 msgstr ""
 
-#: apps/plugins/plugins.os.php:235
+#: apps/plugins/plugins.os.php:236
 msgid "activated"
 msgstr ""
 
-#: apps/plugins/plugins.os.php:236
+#: apps/plugins/plugins.os.php:237
 msgid "deactivated"
 msgstr ""
 
-#: apps/plugins/plugins.os.php:237
+#: apps/plugins/plugins.os.php:238
 msgid "deleted"
 msgstr ""
 
 #. translators: 1: count, 2: action verb (activated, deactivated, deleted)
-#: apps/plugins/plugins.os.php:241
+#: apps/plugins/plugins.os.php:242
 #, php-format
 msgid "%1$d plugin(s) %2$s."
 msgstr ""
 
 #. translators: 1: success count, 2: failure count, 3: action verb
-#: apps/plugins/plugins.os.php:244
+#: apps/plugins/plugins.os.php:245
 #, php-format
 msgid "%1$d %3$s, %2$d failed."
 msgstr ""
 
-#: apps/plugins/plugins.os.php:250
+#: apps/plugins/plugins.os.php:251
 #: includes/ai-copilot/search.php:141
 #: includes/core-notices.php:177
 #: includes/core-notices.php:206
@@ -5498,15 +5561,15 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
-#: apps/plugins/plugins.os.php:315
+#: apps/plugins/plugins.os.php:316
 msgid "Installed"
 msgstr ""
 
-#: apps/plugins/plugins.os.php:321
+#: apps/plugins/plugins.os.php:322
 msgid "Add Plugin"
 msgstr ""
 
-#: apps/plugins/plugins.os.php:324
+#: apps/plugins/plugins.os.php:325
 msgid "OpenStation plugins"
 msgstr ""
 
@@ -5587,7 +5650,7 @@ msgstr ""
 #. translators: %s: update count.
 #. translators: %s: number of pending updates.
 #: apps/station-home/parts/snapshot.php:295
-#: includes/core/payload.php:1739
+#: includes/core/payload.php:1755
 #, php-format
 msgid "%s update available"
 msgid_plural "%s updates available"
@@ -5734,15 +5797,15 @@ msgstr ""
 msgid "Trash"
 msgstr ""
 
-#: apps/user-edit/parts/account.php:146
+#: apps/user-edit/parts/account.php:152
 msgid "Session manager unavailable."
 msgstr ""
 
-#: apps/user-edit/parts/account.php:175
+#: apps/user-edit/parts/account.php:181
 msgid "Application passwords are not available for this user."
 msgstr ""
 
-#: apps/user-edit/parts/account.php:211
+#: apps/user-edit/parts/account.php:217
 msgid "Application password name is required."
 msgstr ""
 
@@ -6098,7 +6161,7 @@ msgstr ""
 
 #: includes/agents/abilities.php:275
 #: includes/agents/abilities.php:553
-#: includes/content-graph/rest.php:213
+#: includes/content-graph/rest.php:276
 #: includes/desktop-files/media-library.php:420
 #: includes/widgets/widget-drafts.php:313
 #: includes/widgets/widget-drafts.php:539
@@ -6851,7 +6914,7 @@ msgstr ""
 msgid "Attribute \"%1$s\" on <%2$s> received a non-scalar value (array/object). Only the `style` attribute accepts an array; other attributes must be strings, booleans, or null. The attribute was skipped."
 msgstr ""
 
-#: includes/content-graph/rest.php:220
+#: includes/content-graph/rest.php:292
 msgid "Insufficient permissions."
 msgstr ""
 
@@ -6919,7 +6982,7 @@ msgid "Go to Themes"
 msgstr ""
 
 #. translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle.
-#: includes/core/payload.php:2519
+#: includes/core/payload.php:2535
 #, php-format
 msgid "%1$s script handle \"%2$s\" could not be resolved: no `wp_register_script( '%2$s', … )` call had run by the time the shell harvested its payload. Register the handle on `admin_enqueue_scripts` at priority 5 or earlier — the harvest itself runs at priority 10, and a handle registered alongside it may or may not exist yet depending on plugin load order. Until then the script will not load."
 msgstr ""
@@ -7077,23 +7140,23 @@ msgstr ""
 #: includes/desktop-files/file-shares.php:266
 #: includes/desktop-files/file-shares.php:368
 #: includes/desktop-files/file-shares.php:592
-#: includes/desktop-files/rest.php:981
-#: includes/desktop-files/shares-store.php:495
-#: includes/desktop-files/shares-store.php:562
-#: includes/desktop-files/shares-store.php:686
-#: includes/desktop-files/shares-store.php:750
+#: includes/desktop-files/rest.php:988
+#: includes/desktop-files/shares-store.php:498
+#: includes/desktop-files/shares-store.php:566
+#: includes/desktop-files/shares-store.php:690
+#: includes/desktop-files/shares-store.php:754
 msgid "Share not found."
 msgstr ""
 
 #: includes/desktop-files/file-shares.php:208
 #: includes/desktop-files/file-shares.php:269
-#: includes/desktop-files/shares-store.php:689
-#: includes/desktop-files/shares-store.php:753
+#: includes/desktop-files/shares-store.php:693
+#: includes/desktop-files/shares-store.php:757
 msgid "This invite is not for you."
 msgstr ""
 
 #: includes/desktop-files/file-shares.php:220
-#: includes/desktop-files/shares-store.php:696
+#: includes/desktop-files/shares-store.php:700
 msgid "This invite was denied."
 msgstr ""
 
@@ -7132,11 +7195,13 @@ msgstr ""
 
 #: includes/desktop-files/folders-store.php:119
 #: includes/desktop-files/folders-store.php:288
-#: includes/desktop-files/rest.php:613
-#: includes/desktop-files/rest.php:927
-#: includes/desktop-files/shares-store.php:822
-#: includes/desktop-files/trash.php:634
-#: includes/desktop-files/trash.php:774
+#: includes/desktop-files/rest.php:620
+#: includes/desktop-files/rest.php:934
+#: includes/desktop-files/shares-store.php:826
+#: includes/desktop-files/store.php:84
+#: includes/desktop-files/store.php:308
+#: includes/desktop-files/trash.php:662
+#: includes/desktop-files/trash.php:802
 msgid "Folder not found."
 msgstr ""
 
@@ -7183,7 +7248,7 @@ msgstr ""
 #: includes/desktop-files/media-library.php:427
 #: includes/widgets/widget-drafts.php:151
 #: includes/widgets/widget-drafts.php:520
-#: includes/window-links.php:917
+#: includes/window-links.php:967
 msgid "You are not allowed to edit this post."
 msgstr ""
 
@@ -7195,7 +7260,7 @@ msgstr ""
 msgid "No files to add."
 msgstr ""
 
-#: includes/desktop-files/media-library.php:539
+#: includes/desktop-files/media-library.php:548
 msgid "You are not allowed to add files to the Media Library."
 msgstr ""
 
@@ -7289,52 +7354,56 @@ msgstr ""
 msgid "That folder tree is nested too deeply."
 msgstr ""
 
-#: includes/desktop-files/rest.php:59
+#: includes/desktop-files/rest.php:63
 #: includes/games/rest.php:34
-#: includes/notes/rest.php:40
+#: includes/notes/rest.php:46
 msgid "You must be logged in."
 msgstr ""
 
-#: includes/desktop-files/rest.php:62
+#: includes/desktop-files/rest.php:66
 #: includes/games/rest.php:37
-#: includes/notes/rest.php:43
-#: includes/recycle-bin/rest.php:151
+#: includes/notes/rest.php:49
+#: includes/recycle-bin/rest.php:152
 msgid "OpenStation is not enabled for this user."
 msgstr ""
 
-#: includes/desktop-files/rest.php:86
+#: includes/desktop-files/rest.php:69
+msgid "Sorry, you are not allowed to use files on this site."
+msgstr ""
+
+#: includes/desktop-files/rest.php:93
 msgid "No route was found matching the URL and request method."
 msgstr ""
 
-#: includes/desktop-files/rest.php:103
+#: includes/desktop-files/rest.php:110
 msgid "You do not have permission to perform this action."
 msgstr ""
 
-#: includes/desktop-files/rest.php:523
-#: includes/desktop-files/store.php:236
-#: includes/desktop-files/store.php:389
-#: includes/desktop-files/trash.php:363
-#: includes/desktop-files/trash.php:451
+#: includes/desktop-files/rest.php:530
+#: includes/desktop-files/store.php:246
+#: includes/desktop-files/store.php:459
+#: includes/desktop-files/trash.php:367
+#: includes/desktop-files/trash.php:455
 msgid "Placement not found."
 msgstr ""
 
-#: includes/desktop-files/rest.php:707
+#: includes/desktop-files/rest.php:714
 msgid "Restricted item"
 msgstr ""
 
-#: includes/desktop-files/rest.php:865
+#: includes/desktop-files/rest.php:872
 msgid "This row was changed by another session."
 msgstr ""
 
-#: includes/desktop-files/rest.php:923
+#: includes/desktop-files/rest.php:930
 msgid "You cannot view shares for this folder."
 msgstr ""
 
-#: includes/desktop-files/rest.php:988
+#: includes/desktop-files/rest.php:999
 msgid "Share not found in this folder."
 msgstr ""
 
-#: includes/desktop-files/rest.php:1168
+#: includes/desktop-files/rest.php:1179
 msgid "You cannot search users."
 msgstr ""
 
@@ -7343,13 +7412,13 @@ msgid "Invalid principal type."
 msgstr ""
 
 #: includes/desktop-files/shares-store.php:375
-#: includes/desktop-files/shares-store.php:558
+#: includes/desktop-files/shares-store.php:561
 msgid "Invalid capability."
 msgstr ""
 
 #: includes/desktop-files/shares-store.php:378
-#: includes/desktop-files/shares-store.php:498
-#: includes/desktop-files/shares-store.php:565
+#: includes/desktop-files/shares-store.php:501
+#: includes/desktop-files/shares-store.php:569
 msgid "You cannot manage shares for this folder."
 msgstr ""
 
@@ -7361,16 +7430,16 @@ msgstr ""
 msgid "This role is not eligible."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:818
-#: includes/desktop-files/store.php:231
+#: includes/desktop-files/shares-store.php:822
+#: includes/desktop-files/store.php:241
 msgid "Invalid arguments."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:825
+#: includes/desktop-files/shares-store.php:829
 msgid "Owners cannot leave their own folder."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:879
+#: includes/desktop-files/shares-store.php:883
 msgid "You do not have access to this folder."
 msgstr ""
 
@@ -7382,41 +7451,54 @@ msgstr ""
 msgid "You are not allowed to place this file."
 msgstr ""
 
-#: includes/desktop-files/store.php:83
-#: includes/desktop-files/store.php:292
+#: includes/desktop-files/store.php:93
+#: includes/desktop-files/store.php:317
 msgid "You only have read access to that folder."
 msgstr ""
 
-#: includes/desktop-files/store.php:163
+#: includes/desktop-files/store.php:173
 msgid "Failed to write placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:264
-#: includes/desktop-files/store.php:272
-msgid "You only have read access to this folder."
-msgstr ""
-
-#: includes/desktop-files/store.php:279
+#: includes/desktop-files/store.php:274
+#: includes/desktop-files/store.php:299
 msgid "You cannot edit this placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:318
+#: includes/desktop-files/store.php:284
+#: includes/desktop-files/store.php:292
+msgid "You only have read access to this folder."
+msgstr ""
+
+#: includes/desktop-files/store.php:335
+msgid "You cannot move this item into that folder."
+msgstr ""
+
+#: includes/desktop-files/store.php:353
+msgid "You cannot move this folder into that folder."
+msgstr ""
+
+#: includes/desktop-files/store.php:364
+msgid "You cannot move this item out of the shared folder."
+msgstr ""
+
+#: includes/desktop-files/store.php:388
 msgid "A folder cannot be placed inside itself or one of its descendants."
 msgstr ""
 
-#: includes/desktop-files/store.php:358
+#: includes/desktop-files/store.php:428
 msgid "Failed to update placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:408
+#: includes/desktop-files/store.php:478
 msgid "You cannot remove this placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:414
+#: includes/desktop-files/store.php:484
 msgid "Failed to remove placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:460
+#: includes/desktop-files/store.php:530
 msgid "Only the file’s owner can move or delete an uploaded file."
 msgstr ""
 
@@ -7441,61 +7523,61 @@ msgstr ""
 msgid "A file name is required."
 msgstr ""
 
-#: includes/desktop-files/trash.php:373
+#: includes/desktop-files/trash.php:377
 msgid "You do not have permission to trash this item."
 msgstr ""
 
-#: includes/desktop-files/trash.php:412
+#: includes/desktop-files/trash.php:416
 msgid "Failed to write trash row."
 msgstr ""
 
-#: includes/desktop-files/trash.php:461
+#: includes/desktop-files/trash.php:465
 msgid "You do not have permission to restore this item."
 msgstr ""
 
-#: includes/desktop-files/trash.php:566
+#: includes/desktop-files/trash.php:594
 msgid "You do not have permission to delete this item."
 msgstr ""
 
-#: includes/desktop-files/trash.php:644
+#: includes/desktop-files/trash.php:672
 msgid "You do not have permission to trash this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:692
+#: includes/desktop-files/trash.php:720
 msgid "Failed to trash folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:784
+#: includes/desktop-files/trash.php:812
 msgid "You do not have permission to restore this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:939
+#: includes/desktop-files/trash.php:967
 msgid "You do not have permission to delete this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:1137
+#: includes/desktop-files/trash.php:1165
 msgid "Desktop shortcut"
 msgstr ""
 
 #. translators: %s: file-type slug like 'post', 'attachment'.
-#: includes/desktop-files/trash.php:1140
+#: includes/desktop-files/trash.php:1168
 #, php-format
 msgid "%s on desktop"
 msgstr ""
 
-#: includes/desktop-files/trash.php:1165
+#: includes/desktop-files/trash.php:1193
 msgid "URL"
 msgstr ""
 
 #. translators: %d: number of items inside the trashed folder.
-#: includes/desktop-files/trash.php:1195
+#: includes/desktop-files/trash.php:1223
 #, php-format
 msgid "Folder · %d item inside"
 msgid_plural "Folder · %d items inside"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/desktop-files/trash.php:1198
+#: includes/desktop-files/trash.php:1226
 msgid "Folder · empty"
 msgstr ""
 
@@ -7552,107 +7634,110 @@ msgstr ""
 msgid "The look Desktop Mode had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own."
 msgstr ""
 
-#: includes/desktop-themes/install.php:116
+#: includes/desktop-themes/install.php:135
 msgid "This server has no ZipArchive support, so theme uploads are unavailable."
 msgstr ""
 
-#: includes/desktop-themes/install.php:125
+#: includes/desktop-themes/install.php:144
 msgid "That file could not be read as a ZIP archive."
 msgstr ""
 
-#: includes/desktop-themes/install.php:142
+#: includes/desktop-themes/install.php:161
 msgid "That archive contains an unreadable entry."
 msgstr ""
 
-#: includes/desktop-themes/install.php:153
+#: includes/desktop-themes/install.php:172
 msgid "That archive contains an unsafe file path."
 msgstr ""
 
-#: includes/desktop-themes/install.php:161
+#: includes/desktop-themes/install.php:180
 msgid "That archive contains an absolute file path."
 msgstr ""
 
-#: includes/desktop-themes/install.php:170
+#: includes/desktop-themes/install.php:189
 msgid "That archive tries to write outside its own folder."
 msgstr ""
 
-#: includes/desktop-themes/install.php:189
-msgid "That theme archive contains too many files."
-msgstr ""
-
 #. translators: %s: file name inside the archive.
-#: includes/desktop-themes/install.php:201
-#, php-format
-msgid "\"%s\" is larger than a theme asset is allowed to be."
-msgstr ""
-
-#: includes/desktop-themes/install.php:212
-msgid "That theme archive unpacks to more data than is allowed."
-msgstr ""
-
-#. translators: %s: file name inside the archive.
-#: includes/desktop-themes/install.php:224
+#: includes/desktop-themes/install.php:206
+#: includes/desktop-themes/install.php:269
 #, php-format
 msgid "\"%s\" is not a file type a desktop theme may contain."
 msgstr ""
 
+#: includes/desktop-themes/install.php:218
+#: includes/desktop-themes/install.php:257
+msgid "That theme archive unpacks to more data than is allowed."
+msgstr ""
+
+#: includes/desktop-themes/install.php:234
+msgid "That theme archive contains too many files."
+msgstr ""
+
+#. translators: %s: file name inside the archive.
 #: includes/desktop-themes/install.php:246
+#, php-format
+msgid "\"%s\" is larger than a theme asset is allowed to be."
+msgstr ""
+
+#: includes/desktop-themes/install.php:291
 msgid "A theme archive must contain exactly one theme.json, at its root or in a single top-level folder."
 msgstr ""
 
-#: includes/desktop-themes/install.php:273
+#: includes/desktop-themes/install.php:318
 msgid "This server cannot sanitize SVG files, so SVG icons are not accepted here."
 msgstr ""
 
-#: includes/desktop-themes/install.php:283
+#: includes/desktop-themes/install.php:328
 msgid "An SVG in that theme is empty."
 msgstr ""
 
-#: includes/desktop-themes/install.php:292
+#: includes/desktop-themes/install.php:339
+#: includes/desktop-themes/install.php:357
 msgid "An SVG in that theme declares a DOCTYPE or entities, which is not allowed."
 msgstr ""
 
-#: includes/desktop-themes/install.php:306
+#: includes/desktop-themes/install.php:365
 msgid "An SVG in that theme could not be parsed."
 msgstr ""
 
-#: includes/desktop-themes/install.php:373
+#: includes/desktop-themes/install.php:438
 msgid "An SVG in that theme could not be re-serialized after sanitization."
 msgstr ""
 
-#: includes/desktop-themes/install.php:457
+#: includes/desktop-themes/install.php:522
 msgid "Could not create a staging directory for the upload."
 msgstr ""
 
-#: includes/desktop-themes/install.php:467
+#: includes/desktop-themes/install.php:532
 msgid "WordPress could not access the filesystem to unpack the theme."
 msgstr ""
 
-#: includes/desktop-themes/install.php:495
+#: includes/desktop-themes/install.php:560
 msgid "The archive unpacked without a theme.json."
 msgstr ""
 
-#: includes/desktop-themes/install.php:506
+#: includes/desktop-themes/install.php:571
 msgid "theme.json is not valid JSON."
 msgstr ""
 
-#: includes/desktop-themes/install.php:571
+#: includes/desktop-themes/install.php:636
 msgid "Could not create the theme directory."
 msgstr ""
 
-#: includes/desktop-themes/install.php:584
+#: includes/desktop-themes/install.php:649
 msgid "Could not create a theme asset directory."
 msgstr ""
 
-#: includes/desktop-themes/install.php:601
+#: includes/desktop-themes/install.php:666
 msgid "Could not move a theme asset into place."
 msgstr ""
 
-#: includes/desktop-themes/install.php:634
+#: includes/desktop-themes/install.php:699
 msgid "Could not write the compiled theme stylesheet."
 msgstr ""
 
-#: includes/desktop-themes/install.php:680
+#: includes/desktop-themes/install.php:745
 msgid "That desktop theme is not installed."
 msgstr ""
 
@@ -7736,7 +7821,7 @@ msgid "Dock rail renderer script registration requires a non-empty script handle
 msgstr ""
 
 #: includes/feedback/rest.php:65
-#: includes/helpers.php:112
+#: includes/helpers.php:124
 #: includes/seen-intros.php:269
 msgid "Authentication required."
 msgstr ""
@@ -7905,8 +7990,12 @@ msgstr ""
 msgid "Games"
 msgstr ""
 
-#: includes/helpers.php:120
+#: includes/helpers.php:132
 msgid "OpenStation is not enabled for your account."
+msgstr ""
+
+#: includes/helpers.php:140
+msgid "Sorry, you are not allowed to do that."
 msgstr ""
 
 #: includes/living-tree/wallpaper.php:26
@@ -8048,7 +8137,7 @@ msgid "Cancelled & refunded"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:308
-#: includes/my-wordpress/integrations/woocommerce.php:1351
+#: includes/my-wordpress/integrations/woocommerce.php:1361
 msgid "On backorder"
 msgstr ""
 
@@ -8057,7 +8146,7 @@ msgid "Uncategorised"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:343
-#: includes/my-wordpress/integrations/woocommerce.php:1349
+#: includes/my-wordpress/integrations/woocommerce.php:1359
 msgid "In stock"
 msgstr ""
 
@@ -8066,12 +8155,12 @@ msgid "Expiring soon"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:736
-#: includes/my-wordpress/integrations/woocommerce.php:1589
+#: includes/my-wordpress/integrations/woocommerce.php:1599
 msgid "Usage limit reached"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:742
-#: includes/my-wordpress/integrations/woocommerce.php:1588
+#: includes/my-wordpress/integrations/woocommerce.php:1598
 msgid "Expired"
 msgstr ""
 
@@ -8079,44 +8168,44 @@ msgstr ""
 msgid "Coupon band used by the site window tiles."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:971
+#: includes/my-wordpress/integrations/woocommerce.php:981
 msgid "Stock and category facts used by the site window tiles."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1018
+#: includes/my-wordpress/integrations/woocommerce.php:1028
 msgid "Sorry, you are not allowed to view orders."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1306
-#: includes/my-wordpress/integrations/woocommerce.php:1395
+#: includes/my-wordpress/integrations/woocommerce.php:1316
+#: includes/my-wordpress/integrations/woocommerce.php:1405
 msgid "Order not found."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1341
+#: includes/my-wordpress/integrations/woocommerce.php:1351
 msgid "Product not found."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1523
+#: includes/my-wordpress/integrations/woocommerce.php:1533
 msgid "Coupon not found."
 msgstr ""
 
 #. translators: %s: percentage off.
-#: includes/my-wordpress/integrations/woocommerce.php:1541
+#: includes/my-wordpress/integrations/woocommerce.php:1551
 #, php-format
 msgid "%s%% off"
 msgstr ""
 
 #. translators: %s: formatted discount amount.
-#: includes/my-wordpress/integrations/woocommerce.php:1546
+#: includes/my-wordpress/integrations/woocommerce.php:1556
 #, php-format
 msgid "%s off"
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1663
+#: includes/my-wordpress/integrations/woocommerce.php:1673
 msgid "Unknown summary type."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1730
+#: includes/my-wordpress/integrations/woocommerce.php:1740
 msgid "Sorry, you are not allowed to view this item."
 msgstr ""
 
@@ -8264,32 +8353,36 @@ msgid "Desktop Notes"
 msgstr ""
 
 #: includes/notes/recycle-bin.php:89
-#: includes/notes/rest.php:230
+#: includes/notes/rest.php:272
 msgid "Note"
 msgstr ""
 
-#: includes/notes/rest.php:149
-#: includes/notes/rest.php:153
+#: includes/notes/rest.php:52
+msgid "You cannot use notes on this site."
+msgstr ""
+
+#: includes/notes/rest.php:158
+#: includes/notes/rest.php:162
 msgid "Note not found."
 msgstr ""
 
-#: includes/notes/rest.php:170
+#: includes/notes/rest.php:179
 msgid "Only the note owner can change it."
 msgstr ""
 
-#: includes/notes/rest.php:300
+#: includes/notes/rest.php:342
 msgid "You are not allowed to create notes."
 msgstr ""
 
-#: includes/notes/rest.php:385
+#: includes/notes/rest.php:429
 msgid "The note was changed by another session."
 msgstr ""
 
-#: includes/notes/rest.php:446
+#: includes/notes/rest.php:492
 msgid "Could not move the note to the trash."
 msgstr ""
 
-#: includes/notes/rest.php:544
+#: includes/notes/rest.php:565
 msgid "You are not allowed to create posts."
 msgstr ""
 
@@ -8323,21 +8416,25 @@ msgstr ""
 msgid "OAuth state nonce missing, expired, or already used."
 msgstr ""
 
-#: includes/oauth-relay.php:384
+#: includes/oauth-relay.php:385
+msgid "This authorization was started by a different account."
+msgstr ""
+
+#: includes/oauth-relay.php:407
 msgid "OAuth relay is no longer registered for that service."
 msgstr ""
 
-#: includes/oauth-relay.php:395
+#: includes/oauth-relay.php:418
 msgid "OAuth callback did not return an authorization code."
 msgstr ""
 
 #. translators: %d: HTTP status code.
-#: includes/oauth-relay.php:435
+#: includes/oauth-relay.php:458
 #, php-format
 msgid "Token exchange failed with HTTP %d."
 msgstr ""
 
-#: includes/oauth-relay.php:607
+#: includes/oauth-relay.php:630
 msgid "You must be logged in to start an OAuth flow."
 msgstr ""
 
@@ -8367,7 +8464,7 @@ msgid "Could not read presence."
 msgstr ""
 
 #: includes/presence.php:148
-#: includes/presence.php:535
+#: includes/presence.php:539
 msgid "Could not save presence."
 msgstr ""
 
@@ -8381,8 +8478,12 @@ msgstr ""
 msgid "%s — installed as a desktop app."
 msgstr ""
 
-#: includes/recycle-bin/rest.php:144
+#: includes/recycle-bin/rest.php:145
 msgid "Sorry, you must be logged in."
+msgstr ""
+
+#: includes/recycle-bin/rest.php:159
+msgid "Sorry, you are not allowed to use the recycle bin on this site."
 msgstr ""
 
 #. translators: 1: comment author. 2: parent post title.
@@ -8557,7 +8658,7 @@ msgid "Window tab registration requires a callable `template` that echoes the pa
 msgstr ""
 
 #. translators: 1: parent menu label, 2: submenu label
-#: includes/render/assets.php:1294
+#: includes/render/assets.php:1363
 #, php-format
 msgid "%1$s > %2$s"
 msgstr ""
@@ -8955,30 +9056,30 @@ msgid "Comments on %s"
 msgstr ""
 
 #. translators: %d: attachment ID.
-#: includes/window-links.php:750
+#: includes/window-links.php:793
 #, php-format
 msgid "Media item %d"
 msgstr ""
 
 #. translators: %d: post ID.
-#: includes/window-links.php:784
+#: includes/window-links.php:834
 #, php-format
 msgid "Post %d"
 msgstr ""
 
-#: includes/window-links.php:789
+#: includes/window-links.php:839
 msgid "Linked posts"
 msgstr ""
 
-#: includes/window-links.php:890
+#: includes/window-links.php:940
 msgid "Post ID to recompute the content identity for."
 msgstr ""
 
-#: includes/window-links.php:936
+#: includes/window-links.php:986
 msgid "No content identity for this object."
 msgstr ""
 
-#: includes/window-links.php:1019
+#: includes/window-links.php:1069
 msgid "Window-link renderer script registration requires a non-empty script handle."
 msgstr ""
 

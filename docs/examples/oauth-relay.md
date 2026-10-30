@@ -37,7 +37,7 @@ document.getElementById( 'connect-button' )
             wp.os.showToast( { message: 'Connected!' } );
         } catch ( err ) {
             // err.cause carries the failure payload:
-            //   { ok: false, reason: 'invalid_state' | 'authorize_denied' |
+            //   { ok: false, reason: 'invalid_state' | 'session_mismatch' | 'authorize_denied' |
             //                       'token_exchange_failed' | … , message: '…' }
             wp.os.showToast( { message: err.message } );
         }
@@ -75,6 +75,7 @@ The `payload.reason` discriminator lets your client-side code branch on what wen
 | Reason | When |
 |---|---|
 | `invalid_state` | State nonce missing, expired, or already consumed (replay attempt). |
+| `session_mismatch` | The browser finishing the flow is logged in as a different user than the one who started it, or not logged in at all. The code is not exchanged. |
 | `authorize_denied` | Provider returned `?error=…` — user clicked "deny" on the authorize page. |
 | `unknown_service` | Relay was unregistered between the start and the callback. |
 | `missing_code` | Provider returned a successful redirect without an authorization code (broken provider). |

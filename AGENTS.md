@@ -258,6 +258,8 @@ Two traps: the `<arg name="extensions" value="php"/>` in the ruleset is load-bea
 
 Even small chores (typos, doc tweaks, one-line fixes) go on a feature branch. Open a PR for every change. Wait for the user's green light before running `gh pr create`; once given, run it yourself.
 
+**Write the PR body from `.github/pull_request_template.md`.** Keep its four headings (What it does, Rationale, Implementation, Testing instructions) and follow the guidance in its comments, then delete the comments. A small change can drop a section it doesn't need; don't invent a new layout. Describe what the branch delivers now, not the steps it took to get there, and link the `docs/` page you updated when the change touches a public surface.
+
 ### Use `bin/sync-to-wp-develop.sh` for local sync, not raw rsync
 
 The script is the single source of truth for the include list and runs `npm run build` first. Only fall back to raw `rsync` for files that are genuinely outside the script's scope (and then question why they're outside it).
@@ -440,6 +442,8 @@ npm run env:stop:tests    # before you report results; nothing stops the stack f
 ```
 
 `npm run env:start` is for the manual-QA instance only; it no longer brings up test containers. Nothing stops the tests instance either, and `npm run test:php` does neither on purpose (a start per run would slow every `--filter` iteration; a stop per run would throw the warm stack away). So keep the stack warm while you iterate on a request, and stop it before you report, whether that was the whole suite or one class; a restart costs a few seconds, so never leave it up "in case". Never stop a `wp-env-<dir>-tests-<hash>` project whose `<dir>` is not your checkout: it belongs to another session. A second checkout (a worktree) hits `port is already allocated` on 8891 while the main checkout's stack is up; give it its own port (`WP_ENV_PORT=8895`, or the override file described in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#manual-qa-and-per-worktree-instances-wp-env)) instead of stopping the other stack.
+
+**In a Claude Code cloud container wp-env does not start** (no outside DNS, and its image builds cannot see the egress proxy). Use `bin/cloud-test-env.sh phpunit` (and `WP_MULTISITE=1 …` for the network run, `bin/cloud-test-env.sh lint` for `lint:php`) instead: it runs the same suite in CI's image and layout, so its failures are real. See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#cloud-containers-no-wp-env).
 
 History: an earlier port collision against `wordpress-develop-wordpress-develop-1` (8889) made starting wp-env destructive. The remapped ports remove that hazard, wp-env and the Core checkout can both be up at the same time.
 

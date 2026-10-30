@@ -366,8 +366,12 @@ export function urlReuseKey( url: string ): string {
  *
  * The policy is intentionally strict: discard anything that doesn't
  * parse into a single root `<svg>` element, drop `<script>` / `<style>`
- * / `<foreignObject>` subtrees, strip any attribute whose name starts
- * with `on`, and drop any attribute value containing `javascript:`.
+ * / `<foreignObject>` subtrees and the SMIL animation elements (which
+ * can rewrite an `href` after the sanitiser has looked at it), strip
+ * any attribute whose name starts with `on`, and drop any attribute
+ * value containing `javascript:` — read the way a URL parser reads
+ * it, with whitespace and control characters removed, so
+ * `java&#9;script:` is caught too.
  * Falls back to an empty string when the DOM parser isn't available
  * (SSR, unit tests without jsdom) — callers treat empty as "no SVG,
  * use the dashicon fallback".
@@ -394,7 +398,40 @@ export function sanitizeIconSvg( svg: string ): string {
 		return '';
 	}
 
-	const BANNED_TAGS = new Set( [ 'script', 'style', 'foreignobject', 'iframe', 'object', 'embed' ] );
+	const BANNED_TAGS = new Set( [
+		'script',
+		'style',
+		'foreignobject',
+		'iframe',
+		'object',
+		'embed',
+		// SMIL: `<set to>` / `<animate values>` can swap an anchor's
+		// `href` for a `javascript:` URL once the icon is live.
+		'animate',
+		'animatemotion',
+		'animatetransform',
+		'set',
+	] );
+	// Browsers drop ASCII whitespace and control characters from a URL
+	// before reading its scheme, so `java\tscript:` navigates exactly
+	// like `javascript:`. Compare the value the same way.
+	const isUnsafeAttr = ( attr: Attr ): boolean => {
+		if ( attr.name.toLowerCase().startsWith( 'on' ) ) {
+			return true;
+		}
+		const value = Array.from( attr.value )
+			.filter( ( ch ) => ch.charCodeAt( 0 ) > 0x20 )
+			.join( '' )
+			.toLowerCase();
+		return value.includes( 'javascript:' );
+	};
+	const scrubAttributes = ( el: Element ): void => {
+		for ( const attr of Array.from( el.attributes ) ) {
+			if ( isUnsafeAttr( attr ) ) {
+				el.removeAttribute( attr.name );
+			}
+		}
+	};
 	const walk = ( el: Element ): void => {
 		// Snapshot first — we mutate siblings during traversal.
 		const children = Array.from( el.children );
@@ -404,30 +441,14 @@ export function sanitizeIconSvg( svg: string ): string {
 				continue;
 			}
 			// Strip event-handler attributes and javascript: URLs.
-			for ( const attr of Array.from( child.attributes ) ) {
-				const name = attr.name.toLowerCase();
-				const value = attr.value.trim().toLowerCase();
-				if ( name.startsWith( 'on' ) ) {
-					child.removeAttribute( attr.name );
-					continue;
-				}
-				if ( value.startsWith( 'javascript:' ) ) {
-					child.removeAttribute( attr.name );
-				}
-			}
+			scrubAttributes( child );
 			walk( child );
 		}
 	};
 	walk( root );
 
 	// Root attributes need the same treatment.
-	for ( const attr of Array.from( root.attributes ) ) {
-		const name = attr.name.toLowerCase();
-		const value = attr.value.trim().toLowerCase();
-		if ( name.startsWith( 'on' ) || value.startsWith( 'javascript:' ) ) {
-			root.removeAttribute( attr.name );
-		}
-	}
+	scrubAttributes( root );
 
 	return root.outerHTML;
 }

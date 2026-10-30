@@ -102,6 +102,25 @@ function openstation_desktop_theme_zip_entry_ignored( $name ) {
 }
 
 /**
+ * Whether a ZIP entry is something a web server would run or obey.
+ *
+ * Applied to ignored entries, which bypass the extension allowlist but
+ * are still unpacked into the (web-served) staging directory.
+ *
+ * @internal
+ *
+ * @param string $name Entry name.
+ * @return bool
+ */
+function openstation_desktop_theme_zip_entry_executable( $name ) {
+	$base = strtolower( wp_basename( $name ) );
+	if ( in_array( $base, array( '.htaccess', '.user.ini', 'web.config' ), true ) ) {
+		return true;
+	}
+	return (bool) preg_match( '/\.(php\d*|phtml|phar|pht|phps|cgi|pl|py|sh|shtml|asp|aspx|jsp)$/', $base );
+}
+
+/**
  * Validate an uploaded theme ZIP without writing anything.
  *
  * @param string $zip_path Absolute path of the uploaded archive.
@@ -174,6 +193,32 @@ function openstation_desktop_theme_validate_zip( $zip_path ) {
 		}
 
 		if ( openstation_desktop_theme_zip_entry_ignored( $name ) ) {
+			// Ignored entries are still unpacked into the staging dir,
+			// which sits under uploads, so they skip the extension
+			// allowlist but not these checks: nothing a web server would
+			// execute or obey, and nothing that dodges the size caps.
+			if ( openstation_desktop_theme_zip_entry_executable( $name ) ) {
+				$zip->close();
+				return new WP_Error(
+					'openstation_desktop_theme_bad_extension',
+					sprintf(
+						/* translators: %s: file name inside the archive. */
+						__( '"%s" is not a file type a desktop theme may contain.', 'desktop-mode' ),
+						$name
+					),
+					array( 'status' => 400 )
+				);
+			}
+			$size   = isset( $stat['size'] ) ? (int) $stat['size'] : 0;
+			$total += $size;
+			if ( $size > $caps['max_file'] || $total > $caps['max_uncompressed'] ) {
+				$zip->close();
+				return new WP_Error(
+					'openstation_desktop_theme_archive_too_large',
+					__( 'That theme archive unpacks to more data than is allowed.', 'desktop-mode' ),
+					array( 'status' => 400 )
+				);
+			}
 			continue;
 		}
 		// Directory entry.
@@ -286,6 +331,8 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 	}
 	// Refuse doctype / entity declarations before the parser ever
 	// sees them — cheapest possible XXE and billion-laughs defence.
+	// A byte match only sees UTF-8 (and ASCII) input, so the parsed
+	// document is asked again below, whatever its encoding.
 	if ( preg_match( '/<!DOCTYPE|<!ENTITY/i', $markup ) ) {
 		return new WP_Error(
 			'openstation_desktop_theme_bad_svg',
@@ -296,9 +343,21 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 
 	$previous = libxml_use_internal_errors( true );
 	$doc      = new DOMDocument();
-	$loaded   = $doc->loadXML( $markup, LIBXML_NONET | LIBXML_NOENT );
+	// Never LIBXML_NOENT: it substitutes entities, external ones
+	// included, and a UTF-16 document slips past the byte match above
+	// with `<!ENTITY xxe SYSTEM "file:///…">` intact. LIBXML_NONET stops
+	// http, not `file://` or `php://`.
+	$loaded = $doc->loadXML( $markup, LIBXML_NONET );
 	libxml_clear_errors();
 	libxml_use_internal_errors( $previous );
+
+	if ( $loaded && null !== $doc->doctype ) {
+		return new WP_Error(
+			'openstation_desktop_theme_bad_svg',
+			__( 'An SVG in that theme declares a DOCTYPE or entities, which is not allowed.', 'desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
 
 	if ( ! $loaded || ! $doc->documentElement || 'svg' !== strtolower( $doc->documentElement->localName ) ) {
 		return new WP_Error(
@@ -339,6 +398,12 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 				$name  = strtolower( $attribute->nodeName );
 				$local = strtolower( $attribute->localName );
 				$value = (string) $attribute->nodeValue;
+				// Browsers drop ASCII tabs and newlines anywhere in a URL
+				// and control characters and spaces around it, so
+				// `java&#9;script:` (the parser has decoded the entity by
+				// now) still runs. Match against the value as the URL
+				// parser will see it, not as written.
+				$squashed = (string) preg_replace( '/[\x00-\x20\x7f]+/', '', $value );
 
 				if ( 0 === strpos( $name, 'on' ) ) {
 					$child->removeAttributeNode( $attribute );
@@ -356,7 +421,7 @@ function openstation_desktop_theme_sanitize_svg( $file ) {
 					$child->removeAttributeNode( $attribute );
 					continue;
 				}
-				if ( preg_match( '/javascript\s*:/i', $value ) ) {
+				if ( preg_match( '/javascript\s*:/i', $value ) || false !== stripos( $squashed, 'javascript:' ) ) {
 					$child->removeAttributeNode( $attribute );
 				}
 			}

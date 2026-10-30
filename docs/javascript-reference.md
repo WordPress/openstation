@@ -428,6 +428,8 @@ document.addEventListener( 'os-item-menu-opening', ( e ) => {
 
 Named for the intent rather than the input: a menu opened from the keyboard has the same collision, and so does one opened programmatically.
 
+A right-click on the rail's empty space opens the rail's own menu instead, which does not fire this event: it anchors to no tile, so no hover surface is in its way.
+
 ---
 
 ### `os-palette-opened` / `os-palette-closed` — Experimental
@@ -1264,8 +1266,8 @@ interface Window {
 
     // Lifecycle
     close(): void;
-    minimize(): void;
-    restore(): void;
+    minimize( options?: { flightLayer?: boolean } ): void;
+    restore( options?: { flightLayer?: boolean } ): void;
     maximize(): void;
     detach(): void;          // pop into a new browser tab (iframe windows only)
 
@@ -1287,6 +1289,8 @@ const win = wp.os.windowManager.getById( 'edit-php' );
 // first attempt before the predicates landed).
 if ( win && ! win.isMinimized() ) win.minimize();
 ```
+
+While a minimize or restore animation runs, the window flies on the `--os-z-genie` layer, above every other window and just below the dock, so a window focused in its place cannot cover it mid-flight. A fullscreen window keeps its own layer instead. Pass `{ flightLayer: false }` when you minimize or restore several windows at once: they would all share that one layer and lose their stacking order, while without it each keeps its own `z-index` for the whole animation. The built-in batch paths (Show Desktop and its undo, focused mode, cascade and tile) already do this.
 
 #### `Window.send( channel, payload? )` — Stable
 
@@ -1439,9 +1443,7 @@ if ( ! wp.os.openWindow( 'alcazaba-monitor' ) ) {
 }
 ```
 
-The Code editor ships as the standalone **OpenStation — Code Editor** extension; `wpdc-editor` only resolves when that plugin is active.
-
-For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`os-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
+The Code editor ships as the standalone **OpenStation — Code Editor** plugin from [desktop-mode-official-extensions](https://github.com/AllTerrainDeveloper/desktop-mode-official-extensions); `wpdc-editor` only resolves when that plugin is active.
 
 ---
 
@@ -1470,13 +1472,18 @@ Mount a chromeless admin page **inside an element of a native window's body**, a
 wp.os.embedAdminPage(
     host:  HTMLElement,
     url:   string,
-    opts?: { windowId?: string },
+    opts?: {
+        windowId?: string;
+        onAdminLink?: ( linkUrl: string, tab: string ) => boolean;
+    },
 ): () => void;
 ```
 
 An app's window is its own surface, not an iframe, so an app offering one of wp-admin's own screens had only `open_url()` — which spawns a second window. This is for the case where that reads wrong: the Posts app's tabs are the Posts menu's pages, and its **Add Post** tab swaps the body for the editor the way every tab beside it swaps the body.
 
 The page is registered as that window's **synthetic iframe**, so [`wp.os.connect( windowId )`](#wposconnect-windowid-opts---stable) and `Window.send()` reach it, and `os-bridge-*` traffic and `os-window-publish` route as they do for any window. The chromeless flag is added for you.
+
+When `opts.onAdminLink` is provided, clicks inside the embedded page that remap to this window (such as the block editor's "View Posts" button) invoke `onAdminLink( linkUrl, tab )`. Returning `true` signals that the host app handled the navigation (e.g. by switching tabs via `activateTab()`), bypassing fallback window navigation.
 
 While the page loads, the busy mark is the **host's**, not the window's: an embed occupies one panel of a body the user is still looking at, and the window overlay would black out the tab strip that put them there — including the tab they would use to leave. The helper centres an `<os-spinner>` over the host — the same WordPress mark, at the same size, as a window's own loading overlay — and removes it on load, styling it inline so no selector of the shell's lands in your body.
 
@@ -2622,7 +2629,7 @@ The display is orthogonal to the mode: `standalone` when the document runs as an
 
 Mio: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from its **Mio** tile on the bottom dock, and can hide that tile from OpenStation Preferences → Navigation.
 
-Window registrations add a title-bar MIO toggle automatically. The lease exposes `isEnabled()` and `setEnabled(boolean)`; context `enabled` defaults to true. The dock master switch fades title toggles out/in without losing local choices. Window contexts supply a dynamic prompt, linked Markdown documents and private validated abilities. See [Window-scoped MIO](./mio-window-assistant.md) for `MioWindowContext`, `MioAbility`, lease lifetime, chained actions, memory-only conversation, chat tokens and `/mio/turn`. These actions never enter WordPress’s public Abilities registry. Leases also expose `getOperations()` and `inspectOperation(callId, signal?)` for content-free operation receipts and read-only status reconciliation. Context lifecycle callbacks, revisions, structured validation feedback, effect metadata and history compaction are documented in [Window-scoped MIO](./mio-window-assistant.md#turn-identity-and-operation-lifecycle).
+Window registrations add a title-bar MIO toggle automatically. The lease exposes `isEnabled()` and `setEnabled(boolean)`; context `enabled` defaults to true. The dock master switch fades title toggles out/in without losing local choices. Window contexts supply a dynamic prompt, linked Markdown documents and private validated abilities. See [Window-scoped MIO](./mio-window-assistant.md) for `MioWindowContext`, `MioAbility`, lease lifetime, chained actions, memory-only conversation, chat tokens and `/mio/turn`. These actions never enter WordPress’s public Abilities registry. Leases also expose `getOperations()` and `inspectOperation(callId, signal?)` for content-free operation receipts and read-only status reconciliation; each ledger `MioOperation` carries `source: 'ability' | 'response-action'` (optional in the type; read a missing value as `'ability'`). `responseActionEffects` lists the response-button effects the shell renders (`['read', 'navigate', 'write']`); treat a missing property as `['read', 'navigate']`. Context lifecycle callbacks, revisions, structured validation feedback, effect metadata and history compaction are documented in [Window-scoped MIO](./mio-window-assistant.md#turn-identity-and-operation-lifecycle).
 
 Full documentation — architecture, the simulation, the configuration table, the reason the canvas is never interactive — is in [mio.md](./mio.md).
 
@@ -4252,6 +4259,12 @@ wp.os.openOsSettings( { tabId: 'features' } );
 | Param | Type | Notes |
 |---|---|---|
 | `opts.tabId` | `string` (optional) | Settings tab to activate. On a fresh open, unknown ids fall back to the default tab; passing an unknown id while OpenStation Preferences is already open deselects every tab in the live strip — validate the id first. |
+| `opts.sectionId` | `string` (optional) | Id of a section on that tab to scroll into view once it has painted. The built-in one is `'os-settings-layout'`, Appearance → Desktop layout. Pair it with `tabId`: the section is only looked for on the page that ends up showing, so on its own it works only when Preferences is already on that page. An id that never appears is ignored after a short wait, leaving the tab at its top. |
+
+```js
+// Land on Appearance → Desktop layout, where the rail is placed.
+wp.os.openOsSettings( { tabId: 'appearance', sectionId: 'os-settings-layout' } );
+```
 
 The motivating use case: a custom dock rail renderer in **Classic** layout doesn't see the OpenStation Preferences tile (it lives on the side rail with the core menus, not the primary rail the custom renderer owns). Opening OpenStation Preferences from inside the renderer used to require DOM-scraping `[data-system-id="os-settings"]` and clicking it; this method is the documented portable path.
 
@@ -5071,7 +5084,7 @@ if ( wp.os.isReady() ) {
 
 The desk companion. Full documentation in [mio.md](./mio.md).
 
-Window contexts can supply `responseActions({messageId, summary, operations})` for up to three app-owned read/navigation buttons on a settled reply. `MioResponseAction`, `MioResponseActionContext` and `MioResponseContext` are exported types. `MioChatMessage.id` and `actionIds` are optional opaque references; executable callbacks stay lease-local and are never sent to the provider or revived from storage. See [response buttons](mio-window-assistant.md#assistant-response-buttons) for validation, cancellation and ownership contracts.
+Window contexts can supply `responseActions({messageId, summary, operations})` for up to three app-owned buttons on a settled reply. `MioResponseAction.effect` is `read`, `navigate` or `write` (the exported `MioResponseActionEffect`); optional `group` makes actions on one message a single choice, and optional `description` is plain-text consequence text shown below the row and announced with its button (one per message). A `write` action runs only from a trusted click on the newest assistant message, at most one per message, and returns a `MioOperationOutcome`; its `MioResponseActionContext` adds `callId` and `idempotencyKey`, and it is recorded in the operations ledger. `MioResponseAction`, `MioResponseActionContext`, `MioResponseActionEffect` and `MioResponseContext` are exported types. `MioChatMessage.id` and `actionIds` are optional opaque references; executable callbacks stay lease-local and are never sent to the provider or revived from storage. See [response buttons](mio-window-assistant.md#assistant-response-buttons) for validation, cancellation and ownership contracts, and [response buttons that write](mio-window-assistant.md#response-buttons-that-write) for the write rules.
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
@@ -5863,7 +5876,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `registerWallpaper( def )` | Stable | Add a wallpaper to the registry + re-apply |
 | `registerWidget( def )` | Stable | Add a widget to the registry |
 | `registerSystemTile( item )` | Stable | Add a JS-owned launcher tile to the bottom dock rail, alongside plugin admin menus. Returns nothing; fires `os.dock.item-appended`. See "System tiles" below. |
-| `loadVendorScript( url, extras? )` | Stable | Memoized `<script>` injector. Low-level; most plugins use `needs` instead. Never re-executes something the document already ran — pass `extras.handle` whenever you know the WP script handle, since a Core package delivered inside a `load-scripts.php` concat blob has no `<script src>` of its own to match on. `extras.deps` is an ordered dependency list loaded first; an entry with an empty `url` is a src-less alias whose inline data is replayed in print order, once per document. |
+| `loadVendorScript( url, extras? )` | Stable | Memoized `<script>` injector. Low-level; most plugins use `needs` instead. Never re-executes something the document already ran — pass `extras.handle` whenever you know the WP script handle, since a Core package delivered inside a `load-scripts.php` concat blob has no `<script src>` of its own to match on. A `<script src>` already in the document counts as the same script when origin, path and query match with `ver` ignored, so two bundles served through one endpoint (`admin-ajax.php?action=a_bundle`, `…?action=b_bundle`) load separately. `extras.deps` is an ordered dependency list loaded first; an entry with an empty `url` is a src-less alias whose inline data is replayed in print order, once per document. |
 | `getWallpaperSurfaces()` | Stable | Live `WallpaperSurface[]` for collision-aware wallpapers. See "Wallpaper surfaces" below. |
 | `registerModule( def )` | Stable | Register a shared vendor library under a stable id. |
 | `loadModules( ids )` | Stable | Imperatively load registered modules. Usually unnecessary — canvas wallpapers declare `needs[]` and the shell resolves. |
@@ -6909,7 +6922,9 @@ DOM — `preview-extras` (the `header`/`meta`/`footer` slots),
 `list-tile`, `list-bands`, `tile-context-menu`, `preview-actions`,
 `group-extras`, `hover-card`, `user-activate`, `user-preview-actions`
 and `user-dossier-sections` — and its rows carry the REST-visible fields
-subscribers read (`meta`, per-taxonomy term ids, `openstation_woo`;
+subscribers read (`meta`, per-taxonomy term ids, `openstation_woo` —
+`null` on a `product` row for a logged-out caller or anyone failing
+`openstation_my_wordpress_user_can_use()`;
 the Customers section's rows carry `openstation_woo_customer` — the
 built-in Users folder deliberately ships no money on its rows, and
 the Woo bundle treats the facts' presence as the opt-in outside the

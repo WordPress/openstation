@@ -543,8 +543,15 @@ function openstation_games_rest_search_users( WP_REST_Request $req ) {
 		'fields'  => 'all',
 	);
 	if ( '' !== $q ) {
-		$args['search']         = '*' . $q . '*';
-		$args['search_columns'] = array( 'user_login', 'user_email', 'display_name', 'user_nicename' );
+		$args['search'] = '*' . $q . '*';
+		// The email column only for callers who may list users. A
+		// wildcard search is a substring oracle: any player could
+		// otherwise recover another account's address one character at
+		// a time from which rows come back. Core's users controller
+		// draws the same line for `/wp/v2/users?search=`.
+		$args['search_columns'] = current_user_can( 'list_users' )
+			? array( 'user_login', 'user_email', 'display_name', 'user_nicename' )
+			: array( 'user_login', 'display_name', 'user_nicename' );
 	}
 
 	/**

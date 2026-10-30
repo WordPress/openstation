@@ -75,6 +75,18 @@ export type PluginsTab = 'installed' | 'browse' | 'featured';
 export type PluginStatus = 'active' | 'inactive' | 'network-active';
 
 /**
+ * A link a plugin adds to its own row on `plugins.php` ("Settings",
+ * "Docs", "Go Pro"), from `parts/action-links.php`. `admin` is true
+ * for a page in this site's wp-admin, which opens as a window.
+ */
+export interface PluginActionLink {
+	key: string;
+	label: string;
+	url: string;
+	admin: boolean;
+}
+
+/**
  * A row from Core's `/wp/v2/plugins` list, with our REST-field
  * decorators (`openstation_*`) attached. Optional fields may be absent
  * in older Core versions; every access is guarded.
@@ -239,6 +251,10 @@ export interface PluginsHost {
 	readonly root: HTMLElement;
 	readonly busy: BusyState;
 	readonly caches: WpOrgCaches;
+	/** Each plugin's own row links, keyed by `InstalledPlugin.plugin`; empty until fetched. */
+	readonly actionLinks: Map< string, PluginActionLink[] >;
+	/** Open a row link: an admin page as a window, anything else in a browser tab. */
+	openLink: ( link: PluginActionLink ) => void;
 	/** A server action (a round trip); resolves once its response was applied. */
 	dispatch: Ctx[ 'dispatch' ];
 	/** Re-read `data()` — after an admin-ajax mutation the server did not see. */

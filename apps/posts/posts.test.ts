@@ -220,11 +220,21 @@ function stubFilters() {
  * embed, a count of teardowns, and the undo.
  */
 function stubEmbed() {
-	const embedded: Array< [ HTMLElement, string ] > = [];
+	const embedded: Array<
+		[
+			HTMLElement,
+			string,
+			{ onAdminLink?: ( linkUrl: string, targetTab: string ) => boolean }?,
+		]
+	> = [];
 	let teardowns = 0;
 	const os = ( window as unknown as { wp?: { os?: Record< string, unknown > } } ).wp?.os;
-	os!.embedAdminPage = ( host: HTMLElement, url: string ) => {
-		embedded.push( [ host, url ] );
+	os!.embedAdminPage = (
+		host: HTMLElement,
+		url: string,
+		opts?: { onAdminLink?: ( linkUrl: string, targetTab: string ) => boolean },
+	) => {
+		embedded.push( [ host, url, opts ] );
 		return () => {
 			teardowns++;
 		};
@@ -302,6 +312,23 @@ describe( 'the frame', () => {
 			expect( embed.torn() ).toBe( 1 );
 			tab( root, 'new' );
 			expect( embed.embedded ).toHaveLength( 2 );
+		} finally {
+			embed.restore();
+		}
+	} );
+
+	it( 'embedded editor onAdminLink switches back to the posts tab', () => {
+		const embed = stubEmbed();
+		try {
+			const { root } = mount();
+			const strip = root.querySelector( 'os-tabs' ) as HTMLElement & { value: string };
+			( root.querySelector( '[data-os-posts-new]' ) as HTMLElement ).click();
+			expect( strip.value ).toBe( 'new' );
+
+			const onAdminLink = embed.embedded[ 0 ][ 2 ]?.onAdminLink;
+			expect( typeof onAdminLink ).toBe( 'function' );
+			expect( onAdminLink!( 'http://x.test/wp-admin/edit.php', 'posts' ) ).toBe( true );
+			expect( strip.value ).toBe( 'posts' );
 		} finally {
 			embed.restore();
 		}
@@ -537,6 +564,28 @@ describe( 'the bulk bar', () => {
 		expect( ctx.host.confirm ).toHaveBeenCalledWith( { message: 'Move 2 posts to the trash?', danger: true } );
 		expect( dispatch ).toHaveBeenCalledWith( 'trash', { ids: [ 1, 2 ] } );
 		expect( Array.from( table().selection ?? [] ) ).toEqual( [] );
+	} );
+
+	it( 'stays busy while the trash runs, and a second click sends nothing', async () => {
+		const { ctx, root, dispatch, table } = mount();
+		app.mounted( ctx );
+		let land: ( ok: boolean ) => void = () => undefined;
+		dispatch.mockImplementationOnce( () => new Promise< boolean >( ( resolve ) => {
+			land = resolve;
+		} ) );
+		table().selection = [ 1, 2 ];
+		table().dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
+		const button = () => root.querySelector( '[data-os-posts-bulk-action="trash"]' ) as HTMLElement;
+		button().click();
+		await flush();
+		expect( button().hasAttribute( 'busy' ) ).toBe( true );
+		button().click();
+		await flush();
+		expect( ctx.host.confirm ).toHaveBeenCalledTimes( 1 );
+		expect( dispatch ).toHaveBeenCalledTimes( 1 );
+		land( true );
+		await flush();
+		expect( button().hasAttribute( 'busy' ) ).toBe( false );
 	} );
 
 	it( 'runBulkAction confirms, tolerates a throwing runner, and refreshes unless the runner opts out', async () => {

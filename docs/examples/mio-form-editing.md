@@ -157,3 +157,61 @@ responseActions: ({summary, operations}) => {
 Use the native `openPreviewWindow` directly. A convenience helper that first saves dirty content would make this read/navigation button perform an undeclared write. Preview addresses the latest **saved** definition of the bound form, even after switching the editor to another form. It does not reconstruct the historical revision at the time of the chat message. Refresh its nonced URL through authenticated WordPress on each click; do not bake it into the conversation.
 
 Duplicate clicks share one pending invocation. Once it finishes, a later click can focus the same preview again. Closing chat aborts the read; reopening the same live conversation restores eligible actions. Disposing the editor removes its callbacks. A local fetch/opening failure appears alongside the button, leaves the saved reply intact, and never invokes the provider or automatically retries.
+
+## Choose after a conflict
+
+**Experimental.** When the user edits the form while MIO is working, the save above fails its revision check. Instead of ending the turn in an error, the app can keep MIO's candidate and end the turn with a question the user answers with a button. "Apply" is a [`write` response action](../mio-window-assistant.md#response-buttons-that-write); "Keep" is a `read` action in the same [choice group](../mio-window-assistant.md#choice-groups).
+
+```typescript
+// `lease` is the registration above.
+const supportsWrite = (lease.responseActionEffects ?? ['read', 'navigate']).includes('write');
+const conflicts = new Map<string, { editId: string; patch: string }>(); // keyed by turnId
+
+// Inside saveForm.run, when the server reports a revision conflict and wrote nothing:
+if (result.kind === 'revision-conflict' && supportsWrite) {
+    conflicts.set(operation.turnId, { editId: args.editId as string, patch: args.patch as string });
+    // A completed no-effect result lets the turn finish with the question.
+    return {
+        effect: 'none', status: 'completed',
+        data: { conflict: true, instruction: 'The user changed the form meanwhile. Ask whether to apply your changes over theirs or keep their edits. Buttons will be shown; do not retry the save.' },
+    };
+}
+
+// Add this property to the window registration:
+responseActions: ({summary}) => {
+    const conflict = conflicts.get(summary.turnId);
+    if (!conflict || summary.status !== 'completed') return [];
+    return [
+        {
+            id: 'apply-mio-changes', label: "Apply MIO's changes",
+            effect: 'write', group: 'conflict', emphasis: 'primary',
+            description: 'Applying replaces the edits you made since MIO started.',
+            allowed: () => ctx.root.isConnected && forms.canEdit(),
+            run: async ({signal, turnId, idempotencyKey}): Promise<MioOperationOutcome> => {
+                // The server binds the key to this payload, so a retry after a
+                // retryable rejection cannot apply it twice.
+                const result = await forms.validateAndSave({
+                    ...conflict, baseRevision: forms.currentRevision(), turnId, idempotencyKey, signal,
+                });
+                if (result.kind === 'saved') {
+                    conflicts.delete(turnId);
+                    return { effect: 'write', status: 'confirmed', receipt: result.receipt };
+                }
+                if (result.kind === 'validation-error') {
+                    return { effect: 'none', status: 'rejected', retryable: true, errors: result.errors };
+                }
+                // Timeouts and anything else: let the user check before retrying.
+                return { effect: 'write', status: 'unknown' };
+            },
+        },
+        {
+            id: 'keep-my-edits', label: 'Keep my edits', effect: 'read', group: 'conflict',
+            run: ({turnId}) => { conflicts.delete(turnId); },
+        },
+    ];
+},
+```
+
+Only a real click runs "Apply", and only while its message is the newest in the conversation; asking MIO anything else retires both buttons. Choosing either one retires the other. The click makes no model request. The write is recorded in `getOperations()` as `response:apply-mio-changes` with `source: 'response-action'`, so an unknown outcome reconciles through `forms.operationStatus` like any other save, and the next turn tells the model which button the user chose. Clear `conflicts` when disposing the editor.
+
+Check `responseActionEffects` before returning the conflict result. On an older shell the write button would be dropped, leaving a question with no way to answer it; fall back to the ordinary rejected outcome there.

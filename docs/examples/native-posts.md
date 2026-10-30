@@ -40,10 +40,13 @@ const unsub = wp.os.registerNativeUrlRemap( {
         parsed.pathname.endsWith( '/edit.php' ) &&
         parsed.searchParams.get( 'post_type' ) === 'page',
     enabled: ( settings ) => settings.nativePagesEnabled === true,
+    params: ( _url, parsed ) => ( {
+        tab: 'posts',
+    } ),
 } );
 ```
 
-Returning `false` from `enabled` (or returning `false` from `matches`) lets the click fall through to the iframe path. Returning a `nativeWindowId` that isn't registered for the current user (cap-gated, opt-in-gated) also falls through — `openById()` reports `false` and the registry walks on.
+Returning `false` from `enabled` (or returning `false` from `matches`) lets the click fall through to the iframe path. The `params` hook passes open-time params to the target window — a multi-tab native window uses `{ tab: 'posts' }` so in-window links, dock rows and embedded-editor back buttons land on the right tab. Returning a `nativeWindowId` that isn't registered for the current user (cap-gated, opt-in-gated) also falls through — `openById()` reports `false` and the registry walks on.
 
 > The bundled Posts window consumes this same primitive internally (`src/native-url-remap.ts`); `wp.os.registerNativeUrlRemap` hands the same registry out to plugins.
 

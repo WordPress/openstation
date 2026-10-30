@@ -62,7 +62,7 @@ fi
 tag="v$new"
 
 command -v gh >/dev/null || { echo "error: 'gh' CLI required (for CI polling)" >&2; exit 1; }
-if ! gh auth status >/dev/null 2>&1; then
+if ! gh auth status --hostname github.com >/dev/null 2>&1; then
 	echo "error: gh CLI is not authenticated. Run:  gh auth login" >&2
 	exit 1
 fi
@@ -337,14 +337,21 @@ else
 	# still ends up in the same commit as the bump. If the
 	# language-file diff looks wrong, abort now — nothing has been
 	# committed or pushed yet.
+	#
+	# Stage languages/ explicitly: `build-i18n.sh` writes a JSON for a
+	# handle the first time its sources gain a translation (and removes
+	# one that loses them all), and `git commit -am` below only picks up
+	# files git already tracks, so a new bundle would be left behind
+	# untracked and never ship.
 	if [[ "$skip_i18n" == "0" ]]; then
 		echo "Refreshing translation files (npm run i18n)..."
 		npm run --silent i18n
-		if git diff --quiet -- languages/; then
+		git add -A -- languages/
+		if git diff --cached --quiet -- languages/; then
 			echo "  -> no language-file changes."
 		else
 			echo "  -> languages/ updated:"
-			git diff --stat -- languages/
+			git diff --cached --stat -- languages/
 		fi
 	else
 		echo "Skipping i18n refresh (--skip-i18n)."
@@ -423,7 +430,7 @@ else
 	# and require an explicit yes before the bump commit.
 	confirm_changelog
 
-	if git diff --quiet; then
+	if git diff --quiet && git diff --cached --quiet; then
 		echo "Nothing to commit — versions already in sync and no language churn."
 	else
 		git commit -am "chore: bump to $new"

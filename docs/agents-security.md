@@ -199,6 +199,12 @@ Registering an ability agents can call:
 
 - [ ] Does its `permission_callback` check a capability for the
       **specific object**, not just a blanket `edit_posts`?
+- [ ] If it sets a post **status**, does it ask what Core's REST posts
+      controller asks? `publish` and `private` both need the post
+      type's `cap->publish_posts` (`publish_pages` for a page, whatever
+      a custom type mapped), not the generic `publish_posts`:
+      `handle_status_param()` treats making a post private as
+      publishing it. `desktop-mode/update-post` is the worked example.
 - [ ] If it returns a post body, does it gate the **post password**
       separately from `read_post`? WordPress splits the two on purpose:
       `read_post` decides visibility (published / private / draft),

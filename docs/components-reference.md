@@ -61,7 +61,7 @@ See [app layout recipes](./examples/app-layouts.md) for sizing, scrolling, spans
 | `<os-number-field>` | `OsNumberField` | `os-number-field/os-number-field.ts` | Numeric input with min/max/step. |
 | `<os-color-field>` | `OsColorField` | `os-color-field/os-color-field.ts` | Color picker with swatches. |
 | `<os-range-field>` | `OsRangeField` | `os-range-field/os-range-field.ts` | Slider with live numeric readout. |
-| `<os-checkbox>` | `OsCheckbox` | `os-checkbox/os-checkbox.ts` | Standalone checkbox. |
+| `<os-checkbox>` | `OsCheckbox` | `os-checkbox/os-checkbox.ts` | Standalone checkbox. Slot one element as its child for a label with markup. |
 | `<os-checkbox-label>` | `OsCheckboxLabel` | `os-checkbox-label/os-checkbox-label.ts` | Checkbox + inline label pair. |
 | `<os-switch>` | `OsSwitch` | `os-switch/os-switch.ts` | On/off switch for settings that apply immediately. Tap, drag or keyboard. |
 | `<os-select>` / `<os-option>` | `OsSelect`, `OsOption` | `os-select/os-select.ts` | Combobox trigger with a custom top-layer listbox popup. |
@@ -212,8 +212,9 @@ host. The focusable element is the `<button>` inside the shadow root
 and the host has no role, so a name left on the host alone is inert;
 the component forwards `aria-label` onto that inner button, keeps it
 in sync when you relabel the host, and drops it from the inner button
-when the host has none. `aria-labelledby` / `aria-describedby` are not
-forwarded: an IDREF on the shadow `<button>` resolves inside that
+when the host has none. `aria-description` is forwarded the same way,
+for a consequence the label does not carry. `aria-labelledby` /
+`aria-describedby` are not forwarded: an IDREF on the shadow `<button>` resolves inside that
 shadow root only, so it could never reach an id in your markup.
 
 `<os-window-button disabled>` forwards disabled state to its native button, preventing activation and keyboard focus. Optional `aria-pressed="true|false|mixed"` is forwarded to that same focusable button; `active` controls its visual pressed state.
@@ -274,7 +275,7 @@ you relabel the host, e.g. Maximize ⇄ Restore.
 
 | Tag | Class | Source | Purpose |
 | --- | --- | --- | --- |
-| `<os-table>` | `OsTable` | `os-table/os-table.ts` | Sortable, filterable data table with sub-tables. A cell value shaped `{ slot, text? }` renders a named slot a light-DOM child fills, so a server view can put a control in a row without a `render` function. `stacked` lays every row out as a card — the first column its title, the labelled ones captioned lines, a label-less one the actions row (`column.stack` overrides the role) — for a phone or any width the columns cannot fit; `stack-on-phone.ts` makes that decision from the shell's mode stamp for every list window. |
+| `<os-table>` | `OsTable` | `os-table/os-table.ts` | Sortable, filterable data table with sub-tables. A cell value shaped `{ slot, text? }` renders a named slot a light-DOM child fills, so a server view can put a control in a row without a `render` function. `stacked` lays every row out as a card — the first column its title, the labelled ones captioned lines, a label-less one the actions row (`column.stack` overrides the role) — for a phone or any width the columns cannot fit; `stack-on-phone` makes that decision declaratively from the shell's mode stamp (`stack-on-phone.ts` helper). |
 | `<os-log>` | `OsLog` | `os-log/os-log.ts` | Virtualized streaming log container. |
 | `<os-tile>` | `OsTile` | `os-tile/os-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and WP Explorer). `selectable` switches it from `listitem` to `option` so it can carry `aria-selected` — the selection controller sets it. |
 

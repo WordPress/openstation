@@ -1542,7 +1542,7 @@ export class WindowManager {
 					other.state !== 'minimized' &&
 					( other.config.desktopId || this._activeDesktopId ) === win.config.desktopId
 				) {
-					other.minimize();
+					other.minimize( { flightLayer: false } );
 				}
 			}
 		}
@@ -2035,6 +2035,7 @@ export class WindowManager {
 			// chain folds away without an explicit recursive walk.
 			child.minimize();
 		}
+		this.rankGenieFlights();
 	}
 
 	/**
@@ -2058,6 +2059,31 @@ export class WindowManager {
 			// carries the cascade down to its grandchildren.
 			child.restore();
 		}
+		this.rankGenieFlights();
+	}
+
+	/**
+	 * Keep the stack order among windows flying on the genie layer.
+	 *
+	 * An owner and its children fly together, and the layer is one
+	 * z-index, so on a tie the later element in the DOM paints on top:
+	 * a child created after its sibling would cover it for the whole
+	 * flight even when the user had brought the sibling forward. Each
+	 * flying window gets its distance from the top of the flight as
+	 * `--os-genie-rank`, which the layer subtracts, so the frontmost
+	 * stays at the layer and the rest sit just below it in stack order.
+	 * `Window` drops the property when its flight ends.
+	 */
+	private rankGenieFlights(): void {
+		const flying = this._stack.filter( ( w ) =>
+			w.element.classList.contains( 'os-window--genie-flight' ),
+		);
+		flying.forEach( ( w, i ) => {
+			w.element.style.setProperty(
+				'--os-genie-rank',
+				String( flying.length - 1 - i ),
+			);
+		} );
 	}
 
 	/** Remove a window from the stack and DOM. */
@@ -2482,7 +2508,7 @@ export class WindowManager {
 				continue;
 			}
 			try {
-				win.minimize();
+				win.minimize( { flightLayer: false } );
 				minimized.push( win );
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
@@ -2526,7 +2552,7 @@ export class WindowManager {
 				continue;
 			}
 			try {
-				win.restore();
+				win.restore( { flightLayer: false } );
 			} catch ( err ) {
 				if ( typeof console !== 'undefined' ) {
 					console.error(
@@ -2561,7 +2587,7 @@ export class WindowManager {
 		if ( allMinimized ) {
 			for ( const win of all ) {
 				try {
-					win.restore();
+					win.restore( { flightLayer: false } );
 				} catch {
 					// see notes in restoreFrom.
 				}

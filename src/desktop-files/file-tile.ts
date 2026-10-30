@@ -54,6 +54,55 @@ export function placementLabel( placement: RestPlacementShape ): string {
 	return metaName !== '' ? metaName : resolveFileType( placement.file ).title();
 }
 
+/** A dashicon class and nothing else — no extra classes riding along. */
+const DASHICON_OVERRIDE = /^dashicons-[a-z0-9-]+$/;
+
+/**
+ * The per-placement `meta.iconUrl` override, or `''` when there is
+ * none or it is not one this renderer will paint.
+ *
+ * `meta` is free-form JSON that any write collaborator on a shared
+ * folder can set on every tile in it, and the tile paints for every
+ * member — so the value is untrusted. Accepted: a `data:image/` URI
+ * (what the server's favicon resolver stores, precisely so no tile
+ * makes a third-party request), a same-origin http(s) URL, or a bare
+ * dashicon class. A remote URL is refused: it would turn the tile
+ * into a beacon reporting each member's IP and the moment they opened
+ * the folder to whoever planted it.
+ *
+ * @param placement The placement whose override to read.
+ * @return The override, or `''`.
+ */
+export function placementIconOverride( placement: RestPlacementShape ): string {
+	const raw =
+		placement.meta && typeof ( placement.meta as { iconUrl?: unknown } ).iconUrl === 'string'
+			? ( placement.meta as { iconUrl: string } ).iconUrl.trim()
+			: '';
+	if ( raw === '' ) {
+		return '';
+	}
+	if ( DASHICON_OVERRIDE.test( raw ) || /^data:image\//i.test( raw ) ) {
+		return raw;
+	}
+	// Absolute http(s) or a root-relative path only: anything else
+	// would resolve as a relative path and pass for an image URL.
+	if ( ! /^(https?:\/\/|\/(?!\/))/i.test( raw ) ) {
+		return '';
+	}
+	try {
+		const url = new URL( raw, window.location.href );
+		if (
+			( url.protocol === 'https:' || url.protocol === 'http:' ) &&
+			url.origin === window.location.origin
+		) {
+			return url.href;
+		}
+	} catch {
+		// Unparseable — not an icon.
+	}
+	return '';
+}
+
 /**
  * Convert a placement into the generic spec the unified renderer
  * consumes. Picks up per-placement `meta.iconUrl` / `meta.name`
@@ -68,10 +117,7 @@ function placementToSpec(
 
 	const label = placementLabel( placement );
 
-	const metaIconUrl =
-		placement.meta && typeof ( placement.meta as { iconUrl?: unknown } ).iconUrl === 'string'
-			? ( placement.meta as { iconUrl: string } ).iconUrl.trim()
-			: '';
+	const metaIconUrl = placementIconOverride( placement );
 
 	return {
 		type: placement.file.type,

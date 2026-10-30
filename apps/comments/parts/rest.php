@@ -163,6 +163,14 @@ function openstation_comments_window_create_reply( $parent_id, $content ) {
 		);
 	}
 
+	if ( in_array( wp_get_comment_status( $parent ), array( 'spam', 'trash' ), true ) ) {
+		return new WP_Error(
+			'openstation_comments_quarantined_parent',
+			__( 'You cannot reply to a comment in spam or trash.', 'desktop-mode' ),
+			array( 'status' => 400 )
+		);
+	}
+
 	if ( openstation_comments_window_is_blank( $content ) ) {
 		return new WP_Error(
 			'openstation_comments_empty_reply',
@@ -252,7 +260,10 @@ function openstation_comments_window_author_insights( $email ) {
 		return isset( $rows[0] ) ? (string) $rows[0]->comment_date_gmt : null;
 	};
 
-	$user        = get_user_by( 'email', $email );
+	// Which account an address belongs to is the Users screen's answer,
+	// not a moderator's: without `list_users` this would be the email →
+	// account oracle Core closed on `/wp/v2/users?search=`.
+	$user        = current_user_can( 'list_users' ) ? get_user_by( 'email', $email ) : false;
 	$reliability = 100;
 	if ( $total > 0 ) {
 		$bad         = $counts_by_status['spam'] + $counts_by_status['trash'];

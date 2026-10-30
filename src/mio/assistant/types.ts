@@ -39,7 +39,7 @@ export interface MioWindowContext {
 	onTurnEnd?: ( summary: MioTurnSummary ) => void;
 	onTurnAbort?: ( context: MioTurnContext ) => void;
 	onOperation?: ( operation: MioOperation ) => void;
-	/** App-owned read/navigation buttons, resolved once from the settled turn. */
+	/** App-owned response buttons, resolved once from the settled turn. */
 	responseActions?: ( context: MioResponseContext ) => readonly MioResponseAction[];
 	/** Read-only application endpoint; must never retry a write. */
 	operationStatus?: ( operation: MioOperation, signal: AbortSignal ) => Promise<MioOperationOutcome>;
@@ -69,16 +69,27 @@ export interface MioResponseAction {
 	/** A Dashicon identifier; no markup or URL. */
 	icon?: string;
 	emphasis?: 'primary' | 'secondary';
-	/** Callbacks must not save, submit, publish or otherwise write. */
-	effect: 'read' | 'navigate';
+	/** `read` and `navigate` never save; `write` runs only from a trusted user click. */
+	effect: MioResponseActionEffect;
+	/** Actions sharing a group on one message are a single choice; same rules as `id`. */
+	group?: string;
+	/** Plain-text consequence written by the app, 1–160 characters. One per message. */
+	description?: string;
 	allowed?: () => boolean;
-	run: ( context: MioResponseActionContext ) => void | Promise<void>;
+	/** `write` callbacks must return a MioOperationOutcome. */
+	run: ( context: MioResponseActionContext ) => void | MioOperationOutcome | Promise<void | MioOperationOutcome>;
 }
+
+export type MioResponseActionEffect = 'read' | 'navigate' | 'write';
 
 export interface MioResponseActionContext {
 	signal: AbortSignal;
 	messageId: string;
 	turnId: string;
+	/** Present for `write` only. */
+	callId?: string;
+	/** Present for `write` only. Stable for this action, including retries. */
+	idempotencyKey?: string;
 }
 
 export interface MioResponseContext {
@@ -120,6 +131,8 @@ export interface MioWindowLease {
 	getOperations: () => MioOperation[];
 	/** Reconcile via the caller's read-only endpoint, including after disposal. */
 	inspectOperation: ( callId: string, signal?: AbortSignal ) => Promise<MioOperation>;
+	/** Effects this shell renders for response actions. Absent on older shells: assume read and navigate. */
+	readonly responseActionEffects: readonly MioResponseActionEffect[];
 	/** Release ownership, abort work and erase this context's conversation memory. */
 	dispose: () => void;
 }
@@ -171,7 +184,10 @@ export interface MioOperation {
 	idempotencyKey: string;
 	windowId?: string;
 	revision?: string;
+	/** An ability name, or `response:<action id>` for a response-action write. */
 	ability: string;
+	/** Always set by the ledger; a record without it is an ability call. */
+	source?: 'ability' | 'response-action';
 	effect: 'read' | 'validate' | 'write' | 'none';
 	status: 'running' | 'completed' | 'rejected' | 'confirmed' | 'unknown';
 	receipt?: string;

@@ -1315,6 +1315,34 @@
 		return ( clone.textContent || '' ).replace( /\s+/g, ' ' ).trim();
 	}
 
+	var PENDING_LIST_ACTIONS = [ 'trash', 'untrash', 'delete' ];
+
+	/*
+	 * Whether a row action link is pending.
+	 */
+	function isPendingListAction( url ) {
+		try {
+			var parsed = new URL( url, window.location.href );
+			return PENDING_LIST_ACTIONS.indexOf( parsed.searchParams.get( 'action' ) ) !== -1 &&
+				parsed.searchParams.has( '_wpnonce' );
+		} catch ( err ) {
+			return false;
+		}
+	}
+
+	/*
+	 * Dim the rows the action works on and stop the list taking clicks
+	 * until the next page replaces it.
+	 */
+	function markListActionPending( rows, list ) {
+		for ( var i = 0; i < rows.length; i++ ) {
+			rows[ i ].classList.add( 'os-list-row-pending' );
+		}
+		if ( list ) {
+			list.classList.add( 'os-list-pending' );
+		}
+	}
+
 	document.addEventListener( 'click', function ( e ) {
 		if ( e.defaultPrevented ) {
 			return;
@@ -1595,10 +1623,27 @@
 						 * fires on slug mismatch, which is exactly the
 						 * shape a `_blank` reaches us with.
 						 */
-						newContext: newContext
+						newContext: newContext,
+						/*
+						 * The link is a tab in core's in-page tab strip
+						 * (`.nav-tab-wrapper`). Plugins often give each
+						 * tab its own `page=` slug, which the parent's
+						 * slug rules read as another screen and open in
+						 * a second window; a tab says "show this here",
+						 * so the parent switches this window instead.
+						 */
+						inPageTab: !! link.closest( '.nav-tab-wrapper' )
 					},
 					window.location.origin
 				);
+				var pendingRow = link.closest( '.row-actions' ) ? link.closest( 'tr' ) : null;
+				if ( pendingRow && ! newContext && isPendingListAction( absolute ) ) {
+					markListActionPending( [ pendingRow ], pendingRow.closest( 'form' ) );
+					window.parent.postMessage(
+						{ type: 'os-iframe-activity', phase: 'start', navigation: true },
+						window.location.origin
+					);
+				}
 			} catch ( bridgeErr ) {
 				/* Same-origin postMessage to the same window can only fail in
 				 * a sandbox we don't support — swallow rather than block the
@@ -1720,15 +1765,25 @@
 			if ( e.submitter && 'filter_action' === e.submitter.name ) {
 				return;
 			}
-			var picked = false;
+			var picked = '';
 			var actions = form.querySelectorAll( 'select[name="action"],select[name="action2"]' );
 			for ( var i = 0; i < actions.length; i++ ) {
-				if ( actions[ i ].value && '-1' !== actions[ i ].value ) {
-					picked = true;
+				if ( ! picked && actions[ i ].value && '-1' !== actions[ i ].value ) {
+					picked = actions[ i ].value;
 				}
 			}
 			if ( ! picked ) {
 				return;
+			}
+			if ( PENDING_LIST_ACTIONS.indexOf( picked ) !== -1 ) {
+				var checked = form.querySelectorAll( 'tbody .check-column input[type="checkbox"]:checked' );
+				var checkedRows = [];
+				for ( var j = 0; j < checked.length; j++ ) {
+					if ( checked[ j ].closest( 'tr' ) ) {
+						checkedRows.push( checked[ j ].closest( 'tr' ) );
+					}
+				}
+				markListActionPending( checkedRows, form );
 			}
 		}
 		try {

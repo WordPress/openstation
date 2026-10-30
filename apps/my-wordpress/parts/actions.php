@@ -425,16 +425,35 @@ function quick_edit_action( State $state, Os $os, array $args ) {
 		&& array() === $add_cats && array() === $add_tags ) {
 		return;
 	}
+	$type_object = get_post_type_object( (string) $section['post_type'] );
+	if ( ! $type_object instanceof \WP_Post_Type ) {
+		return;
+	}
+	// Stickiness is a front-page placement: Core offers it only to a
+	// caller holding both `edit_others_posts` and `publish_posts`
+	// (`bulk_edit_posts()`). Anyone else's pick is dropped; the other
+	// picks still apply.
+	if ( ! ( $os->can( $type_object->cap->edit_others_posts ) && $os->can( $type_object->cap->publish_posts ) ) ) {
+		$sticky = '';
+	}
+	if ( '' === $status && '' === $comments && 0 === $author && '' === $sticky
+		&& array() === $add_cats && array() === $add_tags ) {
+		$os->toast( __( 'Nothing could be updated.', 'desktop-mode' ) );
+		return;
+	}
 	$updated = array();
 	foreach ( array_map( 'intval', (array) ( $args['items'] ?? array() ) ) as $id ) {
 		$post = $id > 0 ? get_post( $id ) : null;
 		if ( ! $post || $post->post_type !== $section['post_type'] || ! allowed( $os, $section, $id, 'edit' ) ) {
 			continue;
 		}
-		if ( 'publish' === $status && ! $os->can( 'publish_post', $id ) ) {
+		// Core's rules (`_wp_translate_postdata()`): a private post is a
+		// published one, so both statuses take the type's publish
+		// capability; reassigning the author takes its `edit_others_posts`.
+		if ( in_array( $status, array( 'publish', 'private' ), true ) && ! $os->can( 'publish_post', $id ) ) {
 			continue;
 		}
-		if ( $author > 0 && ! $os->can( 'edit_others_posts' ) ) {
+		if ( $author > 0 && ! $os->can( $type_object->cap->edit_others_posts ) ) {
 			continue;
 		}
 		$fields = array( 'ID' => $id );

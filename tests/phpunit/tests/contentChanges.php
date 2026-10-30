@@ -383,10 +383,32 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Only the shell consumes the log, so a user who has not switched
+	 * OpenStation on, or who has no role on this site, reads nothing.
+	 *
+	 * @covers ::openstation_content_changes_heartbeat_received
+	 */
+	public function test_heartbeat_withholds_the_log_outside_the_shell() {
+		openstation_content_changes_record( 'page', 33, 'updated' );
+		openstation_content_changes_on_shutdown();
+		$data = array( 'openstation_content_changes_seen_ts' => 0 );
+
+		$response = openstation_content_changes_heartbeat_received( array(), $data );
+		$this->assertArrayNotHasKey( 'openstation_content_changes', $response, 'OpenStation off.' );
+
+		$outsider = self::factory()->user->create( array( 'role' => '' ) );
+		update_user_meta( $outsider, 'desktop_mode_mode', '1' );
+		wp_set_current_user( $outsider );
+		$response = openstation_content_changes_heartbeat_received( array(), $data );
+		$this->assertArrayNotHasKey( 'openstation_content_changes', $response, 'No role on this site.' );
+	}
+
+	/**
 	 * @covers ::openstation_content_changes_on_shutdown
 	 * @covers ::openstation_content_changes_heartbeat_received
 	 */
 	public function test_heartbeat_returns_entries_newer_than_seen_ts() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		openstation_content_changes_record( 'page', 33, 'updated' );
 		openstation_content_changes_on_shutdown();
 

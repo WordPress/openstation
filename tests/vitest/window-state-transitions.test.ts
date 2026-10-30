@@ -12,6 +12,8 @@
  * stacks classes, loses the saved floating geometry, or forgets the
  * pre-minimize state surfaces as a hard failure.
  */
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
@@ -609,13 +611,71 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 
 		handle.win.minimize();
 		expect( handle.win.element.classList.contains( 'os-window--minimizing' ) ).toBe( true );
+		expect( handle.win.element.classList.contains( 'os-window--genie-flight' ) ).toBe( true );
 		expect( animateSpy ).toHaveBeenCalledTimes( 1 );
 
 		handle.win.restore();
 		expect( handle.win.element.classList.contains( 'os-window--restoring' ) ).toBe( true );
+		expect( handle.win.element.classList.contains( 'os-window--genie-flight' ) ).toBe( true );
 		expect( animateSpy ).toHaveBeenCalledTimes( 2 );
 
 		dockEl.remove();
+	} );
+
+	test( 'minimize and restore bypass genie flight layer when flightLayer: false is requested', () => {
+		const dockEl = document.createElement( 'div' );
+		dockEl.className = 'os-dock__item';
+		dockEl.setAttribute( 'data-os-window-base-id', 'w1' );
+		dockEl.getBoundingClientRect = vi.fn( () => ( {
+			left: 500,
+			top: 700,
+			right: 548,
+			bottom: 748,
+			width: 48,
+			height: 48,
+			x: 500,
+			y: 700,
+			toJSON: () => {},
+		} ) );
+		document.body.appendChild( dockEl );
+
+		handle.win.element.getBoundingClientRect = vi.fn( () => ( {
+			left: 40,
+			top: 60,
+			right: 840,
+			bottom: 660,
+			width: 800,
+			height: 600,
+			x: 40,
+			y: 60,
+			toJSON: () => {},
+		} ) );
+
+		const animateSpy = vi.fn( () => ( {
+			onfinish: null,
+			oncancel: null,
+			cancel: vi.fn(),
+		} ) );
+		handle.win.element.animate = animateSpy as unknown as typeof handle.win.element.animate;
+
+		handle.win.minimize( { flightLayer: false } );
+		expect( handle.win.element.classList.contains( 'os-window--minimizing' ) ).toBe( true );
+		expect( handle.win.element.classList.contains( 'os-window--genie-flight' ) ).toBe( false );
+
+		handle.win.restore( { flightLayer: false } );
+		expect( handle.win.element.classList.contains( 'os-window--restoring' ) ).toBe( true );
+		expect( handle.win.element.classList.contains( 'os-window--genie-flight' ) ).toBe( false );
+
+		dockEl.remove();
+	} );
+
+	test( 'window-states.css excludes fullscreen windows from genie flight elevation', () => {
+		const css = readFileSync(
+			resolve( __dirname, '../../assets/css/window-states.css' ),
+			'utf8',
+		);
+		expect( css ).toContain( '.os-window--genie-flight:not( .os-window--fullscreen )' );
+		expect( css ).not.toMatch( /^\.os-window--genie-flight\s*\{/m );
 	} );
 
 	test( 'minimize skips WAAPI animation when prefers-reduced-motion is active', () => {

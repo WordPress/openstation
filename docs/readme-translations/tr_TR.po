@@ -1,0 +1,459 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Plugins - OpenStation - Stable Readme (latest release)\n"
+"PO-Revision-Date: 2026-10-19 12:00+0000\n"
+"Last-Translator: OpenStation\n"
+"Language-Team: tr_TR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: tr_TR\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+
+#. Plugin name.
+msgid "OpenStation – Admin Dashboard Notes, Custom Dashboard, AI Assistant &amp; PWA"
+msgstr "OpenStation – Yönetim paneli notları, özel panel, yapay zekâ asistanı ve PWA"
+
+#. Short description.
+msgid "A productivity desktop and custom dashboard for wp-admin: windows, dark mode, dashboard notes, an AI assistant, and a progressive web app (PWA)."
+msgstr "Yönetim paneli için verimlilik masaüstü ve özel panel: pencereler, karanlık mod, panel notları, yapay zekâ asistanı ve PWA."
+
+#. Found in Screenshot description.
+msgid "Real multitasking: your posts, your preferences, and the Trash open side by side as windows."
+msgstr "Gerçek çoklu görev: yazılarınız, tercihleriniz ve Çöp kutusu pencereler halinde yan yana açık."
+
+#. Found in Screenshot description.
+msgid "Make it yours: accent colours, wallpaper presets and animated scenes, and a dock on whichever edge you like."
+msgstr "Kendinize göre ayarlayın: vurgu renkleri, duvar kâğıdı hazır ayarları ve hareketli sahneler, istediğiniz kenarda bir Dock."
+
+#. Found in Screenshot description.
+msgid "Find anything with Cmd+K: the Site Assistant opens admin pages, runs commands, and answers questions about your content."
+msgstr "Cmd+K ile her şeyi bulun: Site Asistanı yönetim sayfalarını açar, komutları çalıştırır ve içeriğinizle ilgili soruları yanıtlar."
+
+#. Found in Screenshot description.
+msgid "Give an AI agent its own instructions and tools, then set it to work on your posts, media, and comments."
+msgstr "Bir yapay zekâ ajanına kendi talimatlarını ve araçlarını verin, ardından onu yazılarınız, ortam dosyalarınız ve yorumlarınız üzerinde çalıştırın."
+
+#. Found in Screenshot description.
+msgid "Live widgets on the wallpaper: post stats, recent comments, drafts, a notepad, and more from your plugins."
+msgstr "Duvar kâğıdında canlı bileşenler: yazı istatistikleri, son yorumlar, taslaklar, bir not defteri ve eklentilerinizden gelen daha fazlası."
+
+#. Found in Screenshot description.
+msgid "Mio, your desk companion, tuned to whatever shape, colour, and mood suits you."
+msgstr "Masa arkadaşınız Mio; istediğiniz şekle, renge ve ruh haline göre ayarlanır."
+
+#. Found in Screenshot description.
+msgid "One desktop per job: keep writing, the store, and moderation on separate Spaces."
+msgstr "Her iş için bir masaüstü: yazıyı, mağazayı ve moderasyonu ayrı sanal masaüstlerinde (Spaces) tutun."
+
+#. Found in Screenshot description.
+msgid "Games built into the desktop, with a scoreboard shared across everyone on your site."
+msgstr "Masaüstüne yerleşik oyunlar ve sitenizdeki herkesin ortak kullandığı bir skor tablosu."
+
+#. Found in Screenshot description.
+msgid "Corkboard: a zoomable map of how your posts and pages link together."
+msgstr "Corkboard: yazılarınızın ve sayfalarınızın birbirine nasıl bağlandığını gösteren, yakınlaştırılabilir bir harita."
+
+#. Found in description header.
+msgid "Work on more than one thing at once"
+msgstr "Aynı anda birden fazla işle çalışın"
+
+#. Found in description header.
+msgid "Never lose your place"
+msgstr "Kaldığınız yeri asla kaybetmeyin"
+
+#. Found in description header.
+msgid "A desk you can actually put things on"
+msgstr "Üzerine gerçekten bir şeyler koyabileceğiniz bir masa"
+
+#. Found in description header.
+msgid "One desktop per job"
+msgstr "Her iş için bir masaüstü"
+
+#. Found in description header.
+msgid "Find anything with Cmd+K"
+msgstr "Cmd+K ile her şeyi bulun"
+
+#. Found in description header.
+msgid "See how your site fits together, orphan pages included"
+msgstr "Sitenizin bütününü görün, yetim sayfalar dahil"
+
+#. Found in description header.
+msgid "Running a store?"
+msgstr "Mağaza mı işletiyorsunuz?"
+
+#. Found in description header.
+msgid "Make it yours"
+msgstr "Kendinize göre ayarlayın"
+
+#. Found in description header.
+msgid "Sticky notes on the admin dashboard"
+msgstr "Yönetim panelinde yapışkan notlar"
+
+#. Found in description header.
+msgid "A multisite dashboard"
+msgstr "Çoklu site yönetim paneli"
+
+#. Found in description header.
+msgid "Works on your phone"
+msgstr "Telefonunuzda da çalışır"
+
+#. Found in description header.
+msgid "For developers"
+msgstr "Geliştiriciler için"
+
+#. Found in description header.
+msgid "External services"
+msgstr "Harici hizmetler"
+
+#. Found in description header.
+msgid "Credits"
+msgstr "Emeği geçenler"
+
+#. Found in description header.
+msgid "Third-party libraries"
+msgstr "Üçüncü taraf kütüphaneler"
+
+#. Found in description header.
+msgid "Data files"
+msgstr "Veri dosyaları"
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the user's prompt, the conversation history for the active session, and tool-call metadata. The plugin's built-in tools (<code>search_posts</code>, <code>search_pages</code>, <code>search_comments</code>) run WordPress's native keyword search and may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to the provider as part of the agentic loop."
+msgstr "<strong>Gönderilenler:</strong> kullanıcının istemi, etkin oturumun konuşma geçmişi ve araç çağrısı üst verileri. Eklentinin yerleşik araçları (<code>search_posts</code>, <code>search_pages</code>, <code>search_comments</code>) WordPress'in yerel anahtar kelime aramasını çalıştırır ve araç sonuçlarına eşleşen yazılardan/sayfalardan/yorumlardan alıntılar ekleyebilir; bu sonuçlar daha sonra ajan döngüsünün bir parçası olarak sağlayıcıya geri gönderilir."
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> on user-initiated AI requests only. Nothing is sent automatically — posts, pages, comments and taxonomy terms are never analyzed in the background."
+msgstr "<strong>Ne zaman gönderilir:</strong> yalnızca kullanıcının başlattığı yapay zekâ isteklerinde. Hiçbir şey otomatik olarak gönderilmez — yazılar, sayfalar, yorumlar ve taksonomi terimleri hiçbir zaman arka planda analiz edilmez."
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to obtain model completions and tool-call decisions that drive the AI Assistant."
+msgstr "<strong>Neden gönderilir:</strong> Yapay Zekâ Asistanını yönlendiren model tamamlamalarını ve araç çağrısı kararlarını almak için."
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> whichever provider you configured in Settings → Connectors. Which provider (and endpoint) receives the data depends entirely on that configuration. Review the chosen provider's own terms and privacy policy (e.g. OpenAI, Anthropic, or Google)."
+msgstr "<strong>Hizmeti kim sağlar:</strong> Ayarlar → Bağlayıcılar bölümünde yapılandırdığınız sağlayıcı. Verileri hangi sağlayıcının (ve hangi uç noktanın) alacağı tamamen bu yapılandırmaya bağlıdır. Seçtiğiniz sağlayıcının kendi kullanım koşullarını ve gizlilik politikasını inceleyin (ör. OpenAI, Anthropic veya Google)."
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> a request for the public RSS feed at <code>https://openstation.blog/feed/</code>. It is made from your WordPress server with WordPress's default user-agent string, which includes your WordPress version and your site's URL, along with the server's IP address and normal HTTP request metadata. Nothing about the user who opened the page is sent."
+msgstr "<strong>Gönderilenler:</strong> <code>https://openstation.blog/feed/</code> adresindeki herkese açık RSS akışı için bir istek. İstek, WordPress sürümünüzü ve sitenizin URL'sini içeren WordPress varsayılan kullanıcı aracısı (user-agent) dizesiyle, sunucunun IP adresi ve olağan HTTP istek üst verileriyle birlikte WordPress sunucunuzdan yapılır. Sayfayı açan kullanıcıyla ilgili hiçbir bilgi gönderilmez."
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when someone opens the About page, and at most once every 30 minutes; in between, the cached copy is shown. Nothing is fetched when nobody visits About."
+msgstr "<strong>Ne zaman gönderilir:</strong> yalnızca biri Hakkında sayfasını açtığında ve en fazla 30 dakikada bir; aradaki sürede önbelleğe alınmış kopya gösterilir. Hakkında sayfasını kimse ziyaret etmediğinde hiçbir şey getirilmez."
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to show the project's latest news next to the version you are running."
+msgstr "<strong>Neden gönderilir:</strong> projenin en son haberlerini, kullandığınız sürümün yanında göstermek için."
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>."
+msgstr "<strong>Hizmeti kim sağlar:</strong> eklentinin kendi sitesi olan ve Automattic tarafından işletilen <a href=\"https://openstation.blog/\">openstation.blog</a>. <a href=\"https://wordpress.com/tos/\">WordPress.com Hizmet Koşulları</a> ile <a href=\"https://automattic.com/privacy/\">Automattic Gizlilik Politikası</a> belgelerini inceleyin."
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the reasons you ticked, the optional details you typed, the OpenStation, WordPress and PHP versions, your site language, whether the site is a network, how long OpenStation was installed, whether anyone on the site had turned it on (how many people, and how many days after install the first one did), whether the person deactivating had it on, the number of active plugins, and where the dialog was shown. Nothing that identifies you or your site: no URL, no site id, no email, no user name, no plugin names, and no IP address is stored. Each submission carries a random id used only to ignore an accidental retry."
+msgstr "<strong>Gönderilenler:</strong> işaretlediğiniz nedenler, isteğe bağlı olarak yazdığınız ayrıntılar, OpenStation, WordPress ve PHP sürümleri, site diliniz, sitenin bir ağ olup olmadığı, OpenStation'ın ne kadar süredir kurulu olduğu, sitede herhangi birinin onu açıp açmadığı (kaç kişinin açtığı ve ilk kişinin kurulumdan kaç gün sonra açtığı), devre dışı bırakan kişinin onu açık tutup tutmadığı, etkin eklenti sayısı ve iletişim kutusunun nerede gösterildiği. Sizi ya da sitenizi tanımlayan hiçbir şey yoktur: URL, site kimliği, e-posta, kullanıcı adı ve eklenti adları bulunmaz, IP adresi de saklanmaz. Her gönderim, yalnızca yanlışlıkla yapılan bir yeniden denemeyi yok saymak için kullanılan rastgele bir kimlik taşır."
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when you click Send in the dialog shown on deactivation. There is no background ping."
+msgstr "<strong>Ne zaman gönderilir:</strong> yalnızca devre dışı bırakma sırasında gösterilen iletişim kutusunda Gönder'e tıkladığınızda. Arka planda hiçbir bildirim (ping) gönderilmez."
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to learn what did not work so it can be fixed."
+msgstr "<strong>Neden gönderilir:</strong> neyin çalışmadığını öğrenip düzeltebilmek için."
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> the request goes from your server to <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>. Site owners can turn the dialog off with the <code>openstation_deactivation_feedback_enabled</code> filter."
+msgstr "<strong>Hizmeti kim sağlar:</strong> istek, sunucunuzdan eklentinin kendi sitesi olan ve Automattic tarafından işletilen <a href=\"https://openstation.blog/\">openstation.blog</a> adresine gider. <a href=\"https://wordpress.com/tos/\">WordPress.com Hizmet Koşulları</a> ile <a href=\"https://automattic.com/privacy/\">Automattic Gizlilik Politikası</a> belgelerini inceleyin. Site sahipleri iletişim kutusunu <code>openstation_deactivation_feedback_enabled</code> süzgeciyle kapatabilir."
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the answers you typed, the email address if you chose to type one (the field starts empty and is never filled in for you), your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on. Nothing that identifies your site: no URL, no site id, no user name, and no IP address is stored. Without an email the submission is anonymous. Each submission carries a random id used only to ignore an accidental retry."
+msgstr "<strong>Gönderilenler:</strong> yazdığınız yanıtlar, yazmayı seçtiyseniz e-posta adresiniz (alan boş başlar ve hiçbir zaman sizin yerinize doldurulmaz), diliniz, OpenStation ve WordPress sürümleri ve OpenStation'ı kaç gündür açık tuttuğunuz. Sitenizi tanımlayan hiçbir şey yoktur: URL, site kimliği ve kullanıcı adı bulunmaz, IP adresi de saklanmaz. E-posta verilmezse gönderim anonimdir. Her gönderim, yalnızca yanlışlıkla yapılan bir yeniden denemeyi yok saymak için kullanılan rastgele bir kimlik taşır."
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when you click Send in the form. There is no background ping."
+msgstr "<strong>Ne zaman gönderilir:</strong> yalnızca formda Gönder'e tıkladığınızda. Arka planda hiçbir bildirim (ping) gönderilmez."
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to learn what works and what gets in the way. An email address, when given, is used only to follow up on the feedback."
+msgstr "<strong>Neden gönderilir:</strong> neyin işe yaradığını ve neyin engel olduğunu öğrenmek için. E-posta adresi verildiğinde yalnızca geri bildirimle ilgili olarak size dönüş yapmak için kullanılır."
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> the request goes from your server to <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>. Site owners can turn the prompt off with the <code>openstation_usage_feedback_enabled</code> filter."
+msgstr "<strong>Hizmeti kim sağlar:</strong> istek, sunucunuzdan eklentinin kendi sitesi olan ve Automattic tarafından işletilen <a href=\"https://openstation.blog/\">openstation.blog</a> adresine gider. <a href=\"https://wordpress.com/tos/\">WordPress.com Hizmet Koşulları</a> ile <a href=\"https://automattic.com/privacy/\">Automattic Gizlilik Politikası</a> belgelerini inceleyin. Site sahipleri bu istemi <code>openstation_usage_feedback_enabled</code> süzgeciyle kapatabilir."
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://pixijs.com/\">PixiJS</a></strong> (MIT License) — used by the <strong>Corkboard</strong> window, built-in canvas wallpapers (e.g. the animated WordPress logo), the <strong>Mio</strong> desk companion, and the <strong>Inkfall</strong> typing game. PixiJS is loaded from the plugin's own <code>assets/vendor/</code> directory; no CDN requests are made."
+msgstr "<strong><a href=\"https://pixijs.com/\">PixiJS</a></strong> (MIT Lisansı) — <strong>Corkboard</strong> penceresi, yerleşik tuval duvar kâğıtları (ör. hareketli WordPress logosu), <strong>Mio</strong> masa arkadaşı ve <strong>Inkfall</strong> yazma oyunu tarafından kullanılır. PixiJS, eklentinin kendi <code>assets/vendor/</code> dizininden yüklenir; hiçbir CDN isteği yapılmaz."
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/hermitdave/FrequencyWords\">FrequencyWords</a></strong> by Hermit Dave (CC-BY-SA 4.0) — English word-frequency ranking derived from the OpenSubtitles corpus."
+msgstr "<strong><a href=\"https://github.com/hermitdave/FrequencyWords\">FrequencyWords</a></strong>, Hermit Dave (CC-BY-SA 4.0) — OpenSubtitles derleminden türetilmiş İngilizce kelime sıklığı sıralaması."
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/dwyl/english-words\">english-words</a></strong> by dwyl (Unlicense) — used as a validity filter."
+msgstr "<strong><a href=\"https://github.com/dwyl/english-words\">english-words</a></strong>, dwyl (Unlicense) — geçerlilik süzgeci olarak kullanılır."
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words\">LDNOOBW English list</a></strong> (CC-BY 4.0) — used as an exclusion filter."
+msgstr "<strong><a href=\"https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words\">LDNOOBW İngilizce listesi</a></strong> (CC-BY 4.0) — dışlama süzgeci olarak kullanılır."
+
+#. Found in description paragraph.
+msgid "<strong>wp-admin forgets. OpenStation doesn't.</strong>"
+msgstr "<strong>wp-admin unutur. OpenStation unutmaz.</strong>"
+
+#. Found in description paragraph.
+msgid "You know the moment. You're deep in a post and you need one image from the Media Library. You click over, find it, click back, and everything you had going is gone. Your scroll position, your half-typed thought, the three other things you had queued up in your head."
+msgstr "O anı bilirsiniz. Bir yazının tam ortasındasınız ve Ortam kütüphanesinden tek bir görsele ihtiyacınız var. Oraya geçer, görseli bulur, geri dönersiniz ve üzerinde çalıştığınız her şey gitmiştir. Kaydırma konumunuz, yarım kalmış düşünceniz, kafanızda sıraya koyduğunuz diğer üç iş."
+
+#. Found in description paragraph.
+msgid "That's not a bug you hit. That's the design. wp-admin shows you one screen at a time, and every navigation throws the last one away. It has worked this way since 2003, like a fridge that empties itself every time you close the door."
+msgstr "Bu, karşılaştığınız bir hata değil. Tasarım bu. wp-admin size her seferinde tek bir ekran gösterir ve her gezinme bir öncekini çöpe atar. 2003'ten beri böyle çalışıyor; kapağını her kapattığınızda kendini boşaltan bir buzdolabı gibi."
+
+#. Found in description paragraph.
+msgid "WordPress has rebuilt almost everything else. The editor, the site editor, the patterns, the styles. The admin's one-screen-at-a-time model is the layer nobody touched."
+msgstr "WordPress neredeyse her şeyi yeniden inşa etti. Düzenleyiciyi, site düzenleyiciyi, desenleri, stilleri. Yönetim panelinin her seferinde tek ekran modeli ise kimsenin dokunmadığı katman olarak kaldı."
+
+#. Found in description paragraph.
+msgid "OpenStation touches it."
+msgstr "OpenStation ona dokunuyor."
+
+#. Found in description paragraph.
+msgid "https://www.youtube.com/watch?v=g5MLB3WMlCc"
+msgstr "https://www.youtube.com/watch?v=g5MLB3WMlCc"
+
+#. Found in description paragraph.
+msgid "Install it and admin screens become draggable, resizable windows. Edit a post while the Media Library sits open next to it. Drag an image from one window straight into the other. Keep comments open in the corner. Reload the browser and your window layout — open pages, positions, sizes, and window states — comes back where you left it."
+msgstr "Kurun, yönetim ekranları sürüklenebilir ve yeniden boyutlandırılabilir pencerelere dönüşsün. Ortam kütüphanesi hemen yanında açıkken bir yazıyı düzenleyin. Bir görseli bir pencereden doğrudan diğerine sürükleyin. Yorumları köşede açık tutun. Tarayıcıyı yeniden yükleyin; pencere düzeniniz — açık sayfalar, konumlar, boyutlar ve pencere durumları — bıraktığınız gibi geri gelir."
+
+#. Found in description paragraph.
+msgid "OpenStation itself is free, GPL, and opt-in per user. One click in the admin bar turns it on for you. One click turns it off. Nobody else on your site sees anything change, and deactivating the plugin restores the classic admin exactly. Prefer the classic admin look while you keep the windows? Switch on the Legacy theme. No Core patches and no lock-in. Optional AI providers may charge for their service."
+msgstr "OpenStation'ın kendisi ücretsizdir, GPL lisanslıdır ve her kullanıcı için isteğe bağlıdır. Araç çubuğunda tek bir tıklama onu sizin için açar. Bir tıklama da kapatır. Sitenizdeki başka hiç kimse bir değişiklik görmez ve eklentiyi devre dışı bırakmak klasik yönetim panelini olduğu gibi geri getirir. Pencereleri korurken klasik yönetim görünümünü mü tercih ediyorsunuz? Legacy temasını açın. Çekirdek (Core) yaması yok, sizi bağlayan hiçbir şey yok. İsteğe bağlı yapay zekâ sağlayıcıları hizmetleri için ücret alabilir."
+
+#. Found in description paragraph.
+msgid "Built and maintained by <a href=\"https://automattic.com\">Automattic</a>, the company behind WordPress.com, Jetpack, WooCommerce, and Tumblr."
+msgstr "WordPress.com, Jetpack, WooCommerce ve Tumblr'ın arkasındaki şirket olan <a href=\"https://automattic.com\">Automattic</a> tarafından geliştirilir ve sürdürülür."
+
+#. Found in description paragraph.
+msgid "Admin pages open as windows, including pages added by most other plugins. Drag them, resize them, snap them, tile them, minimize them to a taskbar. The admin menu becomes a dock of icons. Two editors open at once is one click away."
+msgstr "Diğer eklentilerin çoğunun eklediği sayfalar da dahil olmak üzere yönetim sayfaları pencere olarak açılır. Onları sürükleyin, yeniden boyutlandırın, kenarlara yaslayın, döşeyin, görev çubuğuna küçültün. Yönetim menüsü simgelerden oluşan bir Dock'a dönüşür. Aynı anda iki düzenleyici açmak bir tık uzağınızda."
+
+#. Found in description paragraph.
+msgid "Moving between open windows leaves each page in place. Across reloads, OpenStation remembers your open pages, window positions, sizes and states, virtual desktops, and focus. Closing a window with unsaved changes warns you first."
+msgstr "Açık pencereler arasında geçiş yapmak her sayfayı olduğu yerde bırakır. OpenStation, yeniden yüklemeler arasında açık sayfalarınızı, pencere konumlarını, boyutlarını ve durumlarını, sanal masaüstlerini ve odağı hatırlar. Kaydedilmemiş değişiklikleri olan bir pencereyi kapatırken önce sizi uyarır."
+
+#. Found in description paragraph.
+msgid "Drop posts, media, and links right onto the wallpaper. Sort them into folders. Trash them to a Trash that actually holds things. The stuff you're working on this week can just sit out where you can see it."
+msgstr "Yazıları, ortam dosyalarını ve bağlantıları doğrudan duvar kâğıdına bırakın. Klasörlere ayırın. Gerçekten bir şeyleri saklayan bir Çöp kutusuna atın. Bu hafta üzerinde çalıştığınız şeyler, görebileceğiniz bir yerde öylece durabilir."
+
+#. Found in description paragraph.
+msgid "Virtual desktops, the way your operating system does them. One for writing. One for the store. One for comment triage. One for that redesign you keep poking at. Switch between them without closing anything."
+msgstr "Sanal masaüstleri, tıpkı işletim sisteminizdeki gibi. Biri yazmak için. Biri mağaza için. Biri yorumları ayıklamak için. Biri de sürekli kurcaladığınız o yeniden tasarım için. Hiçbir şeyi kapatmadan aralarında geçiş yapın."
+
+#. Found in description paragraph.
+msgid "The full WordPress command palette, plus slash commands from your plugins, all under one keystroke. Turn on the optional AI assistant and you can ask it things like \"which post had the comment asking for the recipe?\" and it searches your own content to answer. (Requires an AI provider configured in Settings → Connectors on WordPress 7.0+. Details under \"External services\" below.)"
+msgstr "WordPress komut paletinin tamamı ve eklentilerinizden gelen eğik çizgi komutları, hepsi tek bir tuş kombinasyonunda. İsteğe bağlı yapay zekâ asistanını açın; ona \"tarifi soran yorum hangi yazıdaydı?\" gibi sorular sorabilirsiniz, o da yanıtlamak için kendi içeriğinizde arama yapar. (WordPress 7.0+ üzerinde Ayarlar → Bağlayıcılar bölümünde yapılandırılmış bir yapay zekâ sağlayıcısı gerektirir. Ayrıntılar aşağıdaki \"Harici hizmetler\" bölümünde.)"
+
+#. Found in description paragraph.
+msgid "The Corkboard is an interactive, zoomable map of how your posts, pages, and products link to each other. Pan around it. Find orphan pages that nothing links to, and link them in. Find the hubs."
+msgstr "Corkboard, yazılarınızın, sayfalarınızın ve ürünlerinizin birbirine nasıl bağlandığını gösteren etkileşimli, yakınlaştırılabilir bir haritadır. Üzerinde gezinin. Hiçbir yerden bağlantı almayan yetim sayfaları bulun ve onlara bağlantı verin. Merkez sayfaları keşfedin."
+
+#. Found in description paragraph.
+msgid "Orders, Products, Coupons, and Customers become browsable folders with stock and sale ribbons. Open a customer to see their lifetime spend and what they buy most. Follow a product to its buyers, or a coupon to who redeemed it."
+msgstr "Siparişler, Ürünler, Kuponlar ve Müşteriler; stok ve indirim şeritleriyle göz atılabilir klasörlere dönüşür. Bir müşteriyi açarak toplam harcamasını ve en çok ne satın aldığını görün. Bir üründen alıcılarına, bir kupondan onu kullananlara ulaşın."
+
+#. Found in description paragraph.
+msgid "Build the custom dashboard you actually want. Dark mode by default, with a light theme one click away. Wallpapers, from color presets to animated scenes to your own photo. Live dashboard widgets pinned to the desktop: drafts, stats, recent comments, a focus timer. Write dashboard notes in the Note Pad widget, or straight on the wallpaper, and pin them to the desktop. Uploadable desktop themes, including a built-in Legacy theme that brings the classic admin look and the old WordPress blue back in one click. And Mio, a soft-body desk companion that drifts across your wallpaper and gets bumped around by your windows. Off by default. You'll turn it on."
+msgstr "Gerçekten istediğiniz özel paneli oluşturun. Varsayılan olarak karanlık mod, açık tema ise bir tık uzağınızda. Renk hazır ayarlarından hareketli sahnelere ve kendi fotoğrafınıza kadar duvar kâğıtları. Masaüstüne sabitlenmiş canlı panel bileşenleri: taslaklar, istatistikler, son yorumlar, bir odak zamanlayıcısı. Panel notlarınızı Note Pad bileşenine ya da doğrudan duvar kâğıdına yazın ve masaüstüne sabitleyin. Yüklenebilir masaüstü temaları; bunlara klasik yönetim görünümünü ve eski WordPress mavisini tek tıkla geri getiren yerleşik Legacy teması da dahil. Ve Mio: duvar kâğıdınızda süzülen, pencereleriniz tarafından oradan oraya itilen yumuşak gövdeli bir masa arkadaşı. Varsayılan olarak kapalı. Açacaksınız."
+
+#. Found in description paragraph.
+msgid "Write notes in the Note Pad widget or straight on the wallpaper and pin them to the admin dashboard like sticky notes. Keep a note private or share it with everyone who uses OpenStation, and turn a note into a draft post when it grows up."
+msgstr "Notlarınızı Note Pad bileşeninde ya da doğrudan duvar kâğıdının üzerinde yazın ve yapışkan notlar gibi yönetim paneline iliştirin. Bir notu kendinize saklayın ya da OpenStation kullanan herkesle paylaşın; not büyüdüğünde onu taslak bir yazıya dönüştürün."
+
+#. Found in description paragraph.
+msgid "On a multisite network, OpenStation works in the network admin too, keeps a separate desktop for each site, and lists every site in one switcher, so the multisite dashboard is one click from anywhere."
+msgstr "Çoklu site ağında OpenStation ağ yönetiminde de çalışır, her site için ayrı bir masaüstü tutar ve tüm siteleri tek bir değiştiricide listeler; böylece çoklu site kontrol paneli her yerden bir tık uzağınızdadır."
+
+#. Found in description paragraph.
+msgid "On a phone, OpenStation becomes a mobile admin: full-screen apps, an app switcher, and a tab bar. Add it to your home screen and it runs as an installed progressive web app (PWA) that updates itself."
+msgstr "Telefonda OpenStation mobil bir yönetim paneline dönüşür: tam ekran uygulamalar, bir uygulama değiştirici ve bir sekme çubuğu. Ana ekranınıza ekleyin; kendini güncelleyen, yüklü bir aşamalı web uygulaması (PWA) olarak çalışsın."
+
+#. Found in description paragraph.
+msgid "Extend OpenStation through documented PHP and JavaScript APIs. Register windows, icons, wallpapers, widgets, commands, and settings tabs through stable <code>openstation_register_*</code> PHP APIs and a typed JavaScript API; customize dock items through documented hooks; add AI tools with the WordPress Abilities API. Copy-paste examples live in the <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">developer docs on GitHub</a>."
+msgstr "OpenStation'ı belgelenmiş PHP ve JavaScript API'leriyle genişletin. Kararlı <code>openstation_register_*</code> PHP API'leri ve tür tanımlı bir JavaScript API'si aracılığıyla pencereler, simgeler, duvar kâğıtları, bileşenler, komutlar ve ayar sekmeleri kaydedin; Dock öğelerini belgelenmiş kancalarla özelleştirin; WordPress Abilities API ile yapay zekâ araçları ekleyin. Kopyala-yapıştır örnekleri <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">GitHub'daki geliştirici belgelerinde</a> yer alır."
+
+#. Found in description paragraph.
+msgid "No external service is required for OpenStation's desktop interface. The optional AI Assistant, two user-initiated enrichment features, the journal on the About tab, an optional feedback form on deactivation and an optional one-time feedback form for active users make the external requests described below."
+msgstr "OpenStation'ın masaüstü arayüzü için herhangi bir harici hizmet gerekmez. İsteğe bağlı Yapay Zekâ Asistanı, kullanıcı tarafından başlatılan iki zenginleştirme özelliği, Hakkında sekmesindeki günlük, devre dışı bırakma sırasında gösterilen isteğe bağlı bir geri bildirim formu ve etkin kullanıcılara yönelik isteğe bağlı, tek seferlik bir geri bildirim formu aşağıda açıklanan harici istekleri yapar."
+
+#. Found in description paragraph.
+msgid "<strong>AI Assistant</strong>"
+msgstr "<strong>Yapay Zekâ Asistanı</strong>"
+
+#. Found in description paragraph.
+msgid "The optional AI Assistant sends data to the <strong>AI provider you configure in WordPress's Settings → Connectors</strong> (for example OpenAI, Anthropic, or Google). Generation is routed through WordPress 7.0's built-in AI Client, which supplies the credentials stored in Connectors. The plugin never handles an API key itself. With no provider configured in Connectors, no external AI requests are made."
+msgstr "İsteğe bağlı Yapay Zekâ Asistanı, verileri <strong>WordPress'in Ayarlar → Bağlayıcılar bölümünde yapılandırdığınız yapay zekâ sağlayıcısına</strong> (örneğin OpenAI, Anthropic veya Google) gönderir. Üretim, Bağlayıcılar'da saklanan kimlik bilgilerini sağlayan WordPress 7.0'ın yerleşik AI Client'ı (yapay zekâ istemcisi) üzerinden yönlendirilir. Eklenti hiçbir zaman bir API anahtarını kendisi işlemez. Bağlayıcılar'da yapılandırılmış bir sağlayıcı yoksa hiçbir harici yapay zekâ isteği yapılmaz."
+
+#. Found in description paragraph.
+msgid "When the AI Assistant is enabled and a user invokes it (via Cmd+K or the slash-command palette):"
+msgstr "Yapay Zekâ Asistanı etkinleştirildiğinde ve bir kullanıcı onu çağırdığında (Cmd+K veya eğik çizgi komut paleti aracılığıyla):"
+
+#. Found in description paragraph.
+msgid "<strong>URL shortcut favicons</strong>"
+msgstr "<strong>URL kısayolu favicon'ları</strong>"
+
+#. Found in description paragraph.
+msgid "When an authorized user creates a desktop shortcut to an external URL, OpenStation asks that URL for its page HTML and favicon so the shortcut can display the site's icon. The request is made from your WordPress server and sends the requested URL, the server's IP address, an OpenStation user-agent string, and normal HTTP request metadata to the operator of that site. This happens only when a user creates the shortcut. The destination site's terms and privacy policy apply."
+msgstr "Yetkili bir kullanıcı harici bir URL'ye masaüstü kısayolu oluşturduğunda, OpenStation kısayolun sitenin simgesini gösterebilmesi için o URL'den sayfa HTML'sini ve favicon'unu ister. İstek WordPress sunucunuzdan yapılır ve istenen URL'yi, sunucunun IP adresini, bir OpenStation kullanıcı aracısı (user-agent) dizesini ve olağan HTTP istek üst verilerini o sitenin işletmecisine gönderir. Bu yalnızca bir kullanıcı kısayolu oluşturduğunda gerçekleşir. Hedef sitenin kullanım koşulları ve gizlilik politikası geçerlidir."
+
+#. Found in description paragraph.
+msgid "<strong>OpenStation journal (About tab)</strong>"
+msgstr "<strong>OpenStation günlüğü (Hakkında sekmesi)</strong>"
+
+#. Found in description paragraph.
+msgid "When a user opens the About page in OpenStation Preferences, OpenStation shows the latest posts from the OpenStation journal."
+msgstr "Bir kullanıcı OpenStation Tercihleri'nde Hakkında sayfasını açtığında OpenStation, OpenStation günlüğündeki en son yazıları gösterir."
+
+#. Found in description paragraph.
+msgid "<strong>Deactivation feedback</strong>"
+msgstr "<strong>Devre dışı bırakma geri bildirimi</strong>"
+
+#. Found in description paragraph.
+msgid "When an administrator deactivates OpenStation, a dialog asks one optional question about why. Nothing is sent unless you click <strong>Send and deactivate</strong>; <strong>Skip and deactivate</strong> sends nothing, and both deactivate the plugin."
+msgstr "Bir yönetici OpenStation'ı devre dışı bıraktığında, bir iletişim kutusu nedenini soran isteğe bağlı tek bir soru sorar. <strong>Gönder ve devre dışı bırak</strong> düğmesine tıklamadığınız sürece hiçbir şey gönderilmez; <strong>Atla ve devre dışı bırak</strong> hiçbir şey göndermez ve her ikisi de eklentiyi devre dışı bırakır."
+
+#. Found in description paragraph.
+msgid "<strong>Usage feedback</strong>"
+msgstr "<strong>Kullanım geri bildirimi</strong>"
+
+#. Found in description paragraph.
+msgid "After you have had OpenStation on for a week, a small card asks once whether you have two minutes to say how it is going. Answering <strong>No thanks</strong> sends nothing, and it never comes back. Saying yes opens a short form with three optional questions and an optional email field. Nothing is sent unless you click <strong>Send</strong>; <strong>Cancel</strong>, Escape and the close button send nothing."
+msgstr "OpenStation'ı bir hafta boyunca açık tuttuktan sonra küçük bir kart, işlerin nasıl gittiğini anlatmak için iki dakikanız olup olmadığını bir kez sorar. <strong>Hayır, teşekkürler</strong> yanıtı hiçbir şey göndermez ve kart bir daha gösterilmez. Evet demek, isteğe bağlı üç soru ve isteğe bağlı bir e-posta alanı içeren kısa bir form açar. <strong>Gönder</strong> düğmesine tıklamadığınız sürece hiçbir şey gönderilmez; <strong>İptal</strong>, Escape ve kapat düğmesi hiçbir şey göndermez."
+
+#. Found in description paragraph.
+msgid "<strong>WordPress.org plugin information</strong>"
+msgstr "<strong>WordPress.org eklenti bilgileri</strong>"
+
+#. Found in description paragraph.
+msgid "When an authorized user opens or refreshes parts of OpenStation's Plugins window, OpenStation may request public plugin details, update metadata, and review excerpts from WordPress.org. These requests send plugin slugs, the site's locale, and normal HTTP request metadata to WordPress.org. This information is used only to display and manage plugins. Review the <a href=\"https://wordpress.org/about/privacy/\">WordPress.org Privacy Policy</a>."
+msgstr "Yetkili bir kullanıcı OpenStation'ın Eklentiler penceresinin bölümlerini açtığında veya yenilediğinde OpenStation, WordPress.org'dan herkese açık eklenti ayrıntılarını, güncelleme üst verilerini ve değerlendirme alıntılarını isteyebilir. Bu istekler eklenti kısa adlarını (slug), sitenin yerel ayarını ve olağan HTTP istek üst verilerini WordPress.org'a gönderir. Bu bilgiler yalnızca eklentileri görüntülemek ve yönetmek için kullanılır. <a href=\"https://wordpress.org/about/privacy/\">WordPress.org Gizlilik Politikası</a> belgesini inceleyin."
+
+#. Found in description paragraph.
+msgid "OpenStation's OAuth relay does not contact a service by itself. Third-party plugins that configure the relay may contact their own providers and are responsible for disclosing those services."
+msgstr "OpenStation'ın OAuth aktarıcısı (relay) kendi başına hiçbir hizmetle iletişim kurmaz. Aktarıcıyı yapılandıran üçüncü taraf eklentiler kendi sağlayıcılarıyla iletişim kurabilir ve bu hizmetleri açıklamaktan kendileri sorumludur."
+
+#. Found in description paragraph.
+msgid "OpenStation is brought to you by <a href=\"https://automattic.com\">Automattic</a>. The plugin is open source under GPLv2-or-later; contributions are welcome on <a href=\"https://github.com/WordPress/openstation\">GitHub</a>."
+msgstr "OpenStation, <a href=\"https://automattic.com\">Automattic</a> tarafından sunulmaktadır. Eklenti GPLv2 veya üzeri lisansıyla açık kaynaklıdır; katkılarınızı <a href=\"https://github.com/WordPress/openstation\">GitHub</a> üzerinde bekliyoruz."
+
+#. Found in description paragraph.
+msgid "The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:"
+msgstr "Eklenti, aşağıdaki üçüncü taraf JavaScript kütüphanesini içerir; bu kütüphane yalnızca ona ihtiyaç duyan bir özellik kullanımdayken, gerektiğinde yüklenir:"
+
+#. Found in description paragraph.
+msgid "The <strong>Inkfall</strong> game's word list (<code>assets/games/inkfall/words.txt</code>) is generated from the following sources (attribution also ships in the file's header):"
+msgstr "<strong>Inkfall</strong> oyununun kelime listesi (<code>assets/games/inkfall/words.txt</code>) aşağıdaki kaynaklardan oluşturulmuştur (atıf, dosyanın başlığında da yer alır):"
+
+#. Found in installation header.
+msgid "Optional: enable the AI Assistant"
+msgstr "İsteğe bağlı: Yapay Zekâ Asistanını etkinleştirin"
+
+#. Found in installation list item.
+msgid "Install via <strong>Plugins → Add New</strong> (search for \"OpenStation\"), or upload the plugin folder to <code>/wp-content/plugins/</code>."
+msgstr "<strong>Eklentiler → Yeni ekle</strong> üzerinden kurun (\"OpenStation\" diye arayın) ya da eklenti klasörünü <code>/wp-content/plugins/</code> dizinine yükleyin."
+
+#. Found in installation list item.
+msgid "Activate the plugin through the <strong>Plugins</strong> screen."
+msgstr "Eklentiyi <strong>Eklentiler</strong> ekranından etkinleştirin."
+
+#. Found in installation list item.
+msgid "Click the <strong>desktop</strong> icon in the admin bar's top-right corner. The admin reloads inside the desktop shell."
+msgstr "Araç çubuğunun sağ üst köşesindeki <strong>masaüstü</strong> simgesine tıklayın. Yönetim paneli, masaüstü kabuğunun içinde yeniden yüklenir."
+
+#. Found in installation list item.
+msgid "Click the same icon again at any time to return to the classic admin."
+msgstr "Klasik yönetim paneline dönmek için istediğiniz zaman aynı simgeye yeniden tıklayın."
+
+#. Found in installation list item.
+msgid "In <strong>Settings → Connectors</strong>, set up an AI provider (OpenAI, Anthropic, or Google). Requires WordPress 7.0+."
+msgstr "<strong>Ayarlar → Bağlayıcılar</strong> bölümünde bir yapay zekâ sağlayıcısı (OpenAI, Anthropic veya Google) kurun. WordPress 7.0+ gerektirir."
+
+#. Found in installation list item.
+msgid "In OpenStation, open <strong>OpenStation Preferences → Features</strong> and turn on <strong>AI assistant</strong> (it's off by default)."
+msgstr "OpenStation'da <strong>OpenStation Tercihleri → Özellikler</strong> bölümünü açın ve <strong>Yapay zekâ asistanı</strong> seçeneğini etkinleştirin (varsayılan olarak kapalıdır)."
+
+#. Found in installation list item.
+msgid "Press <strong>Cmd+K</strong> (or <strong>Ctrl+K</strong>) anywhere in OpenStation to open the AI assistant."
+msgstr "Yapay zekâ asistanını açmak için OpenStation'ın herhangi bir yerinde <strong>Cmd+K</strong> (veya <strong>Ctrl+K</strong>) tuşlarına basın."
+
+#. Found in faq header.
+msgid "Isn't this just a gimmick?"
+msgstr "Bu sadece bir gösteriş değil mi?"
+
+#. Found in faq header.
+msgid "Will this slow down my site?"
+msgstr "Bu, sitemi yavaşlatır mı?"
+
+#. Found in faq header.
+msgid "Does this change anything for users who don't opt in?"
+msgstr "Bu özelliği açmayan kullanıcılar için bir şey değişiyor mu?"
+
+#. Found in faq header.
+msgid "Does it work with my other plugins?"
+msgstr "Diğer eklentilerimle çalışıyor mu?"
+
+#. Found in faq header.
+msgid "Does the plugin require an external service to function?"
+msgstr "Eklentinin çalışması için harici bir hizmet gerekiyor mu?"
+
+#. Found in faq header.
+msgid "Does it patch WordPress core?"
+msgstr "WordPress çekirdeğine yama yapıyor mu?"
+
+#. Found in faq header.
+msgid "How do I turn OpenStation off for my user?"
+msgstr "OpenStation'ı kendi kullanıcım için nasıl kapatırım?"
+
+#. Found in faq header.
+msgid "Where do I get help?"
+msgstr "Nereden yardım alabilirim?"
+
+#. Found in faq header.
+msgid "Where is the developer documentation?"
+msgstr "Geliştirici belgeleri nerede?"
+
+#. Found in faq paragraph.
+msgid "The desktop look is the visible part, so it's a fair question. But the look is a consequence, and the mechanism underneath is the point: windows hold their state, so switching tasks stops costing you your place. wp-admin is a single-document interface where every navigation destroys the last screen. OpenStation replaces that with the same concurrency model your operating system has used for decades. The research behind it goes back to Henderson and Card's \"Rooms\" paper at Xerox PARC in 1986. The wallpaper is just what that model looks like when you build it."
+msgstr "Masaüstü görünümü işin göze görünen kısmı, bu yüzden haklı bir soru. Ama görünüm bir sonuçtur; asıl mesele altındaki mekanizmadır: pencereler durumlarını korur, böylece görevler arasında geçiş yapmak size kaldığınız yeri kaybettirmez. wp-admin, her gezinmenin bir önceki ekranı yok ettiği tek belgeli bir arayüzdür. OpenStation bunu, işletim sisteminizin onlarca yıldır kullandığı eşzamanlılık modeliyle değiştirir. Arkasındaki araştırma, Henderson ve Card'ın 1986'da Xerox PARC'ta yayımladığı \"Rooms\" makalesine kadar uzanır. Duvar kâğıdı, bu modeli hayata geçirdiğinizde ortaya çıkan görüntüden ibarettir."
+
+#. Found in faq paragraph.
+msgid "OpenStation's desktop interface and browser assets are loaded only inside wp-admin, and only for users who have turned it on. Its PHP integration still participates in normal WordPress request handling where needed, including tracking content changes, but visitors never receive the desktop UI."
+msgstr "OpenStation'ın masaüstü arayüzü ve tarayıcı varlıkları yalnızca wp-admin içinde ve yalnızca onu açmış kullanıcılar için yüklenir. PHP entegrasyonu, içerik değişikliklerinin izlenmesi de dahil olmak üzere, gerektiğinde olağan WordPress istek işleyişine yine katılır; ancak ziyaretçiler masaüstü arayüzünü hiçbir zaman almaz."
+
+#. Found in faq paragraph.
+msgid "No. The classic admin is untouched until a user toggles OpenStation on for themselves. Deactivating the plugin restores vanilla Core exactly."
+msgstr "Hayır. Bir kullanıcı OpenStation'ı kendisi için açana kadar klasik yönetim paneline dokunulmaz. Eklentiyi devre dışı bırakmak, standart WordPress çekirdeğini (Core) olduğu gibi geri getirir."
+
+#. Found in faq paragraph.
+msgid "Most plugin admin pages open as windows without special integration. Plugins that depend on running in the top-level browser context or use unusual navigation may need compatibility work. Plugins can also register their own native windows, widgets, and commands for a deeper integration."
+msgstr "Çoğu eklenti yönetim sayfası, özel bir entegrasyon gerekmeden pencere olarak açılır. Üst düzey tarayıcı bağlamında çalışmaya dayanan veya alışılmadık gezinme yöntemleri kullanan eklentiler uyumluluk çalışması gerektirebilir. Eklentiler daha derin bir entegrasyon için kendi yerel pencerelerini, bileşenlerini ve komutlarını da kaydedebilir."
+
+#. Found in faq paragraph.
+msgid "No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information, fetches the OpenStation journal when you open the About page, offers an optional, one-click feedback form when you deactivate, and once asks active users whether they want to share feedback. See \"External services\" in the description."
+msgstr "Hayır. Masaüstü kabuğu, pencere sistemi, Dock, görev çubuğu, sanal masaüstleri, bileşenler, duvar kâğıtları ve genişletme API'leri harici bir hizmet olmadan çalışır. İsteğe bağlı Yapay Zekâ Asistanı, yapılandırılmış bir yapay zekâ sağlayıcısı gerektirir. OpenStation ayrıca URL kısayolu favicon'larını çözümlemek ve WordPress.org eklenti bilgilerini göstermek için kullanıcı tarafından başlatılan sınırlı istekler yapar, Hakkında sayfasını açtığınızda OpenStation günlüğünü getirir, eklentiyi devre dışı bıraktığınızda isteğe bağlı, tek tıklık bir geri bildirim formu sunar ve etkin kullanıcılara geri bildirim paylaşmak isteyip istemediklerini bir kez sorar. Açıklamadaki \"Harici hizmetler\" bölümüne bakın."
+
+#. Found in faq paragraph.
+msgid "No. Every feature is wired through public WordPress actions and filters."
+msgstr "Hayır. Her özellik, herkese açık WordPress eylemleri ve süzgeçleri aracılığıyla bağlanır."
+
+#. Found in faq paragraph.
+msgid "Click the desktop icon in the admin bar a second time. The plugin can also be deactivated globally from the Plugins screen."
+msgstr "Araç çubuğundaki masaüstü simgesine ikinci kez tıklayın. Eklenti, Eklentiler ekranından tüm site için de devre dışı bırakılabilir."
+
+#. Found in faq paragraph.
+msgid "Ask on the <a href=\"https://wordpress.org/support/plugin/desktop-mode/\">OpenStation support forum</a> here on WordPress.org. From inside OpenStation, open Report a bug from the System dock tile, choose Question, and it takes you there with your question ready to paste. Bug reports and feature requests are welcome on <a href=\"https://github.com/WordPress/openstation/issues\">GitHub</a>."
+msgstr "Sorunuzu WordPress.org'daki <a href=\"https://wordpress.org/support/plugin/desktop-mode/\">OpenStation destek forumunda</a> sorun. OpenStation içinden Dock'taki \"System\" kutucuğundan \"Report a bug\" penceresini açın ve \"Question\" seçeneğini seçin; sorunuz yapıştırılmaya hazır şekilde foruma gidersiniz. Hata bildirimleri ve özellik istekleri <a href=\"https://github.com/WordPress/openstation/issues\">GitHub</a> üzerinde memnuniyetle karşılanır."
+
+#. Found in faq paragraph.
+msgid "In <code>docs/</code> inside the plugin, and on <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">GitHub</a>. The hook reference, JavaScript reference, bridge protocol, and copy-paste examples all live there."
+msgstr "Eklentinin içindeki <code>docs/</code> klasöründe ve <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">GitHub</a> üzerinde. Kanca başvurusu, JavaScript başvurusu, köprü protokolü ve kopyala-yapıştır örneklerinin hepsi orada."

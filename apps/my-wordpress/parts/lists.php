@@ -45,6 +45,52 @@ function allowed( Os $os, array $section, $id, $verb ) {
 }
 
 /**
+ * Whether the acting user may read one post at all. A section's gate
+ * is the type's `edit_posts`, which every Contributor holds, so it
+ * says nothing about another author's private post or draft; the
+ * object's own `read_post` does. A list still shows every draft's
+ * title, as Core's `edit.php` does — what needs this is anything that
+ * reads past the title: the body, the excerpt, the meta.
+ *
+ * @param Os       $os   Host handle.
+ * @param \WP_Post $post Post.
+ * @return bool
+ */
+function can_read( Os $os, \WP_Post $post ) {
+	return $os->can( 'read_post', (int) $post->ID );
+}
+
+/**
+ * Whether the acting user may read a post's BODY: `read_post`, and
+ * `edit_post` while the post is still sealed by a password the caller
+ * has not entered — `read_post` alone passes a password-protected post,
+ * because its status is `publish`.
+ *
+ * @param Os       $os   Host handle.
+ * @param \WP_Post $post Post.
+ * @return bool
+ */
+function can_read_body( Os $os, \WP_Post $post ) {
+	if ( ! can_read( $os, $post ) ) {
+		return false;
+	}
+	return ! post_password_required( $post ) || $os->can( 'edit_post', (int) $post->ID );
+}
+
+/**
+ * Whether the acting user may see a person's account facts — email,
+ * login, roles, registration date. `list_users`, or the person
+ * themselves: the tier `/user-stats/<id>` uses.
+ *
+ * @param Os  $os      Host handle.
+ * @param int $user_id Subject.
+ * @return bool
+ */
+function can_see_account( Os $os, $user_id ) {
+	return (int) $user_id === (int) $os->auth->user_id() || $os->can( 'list_users' );
+}
+
+/**
  * The name of whoever holds the edit lock on a post, '' when free.
  * WP Explorer's lock payload, reused.
  *
@@ -70,12 +116,14 @@ function lock_holder( $post_id ) {
  * shared `os.my-wordpress.*` hook subscribers (band assigners,
  * preview-extras painters) read their facts from.
  *
- * @param \WP_Post $post Post.
+ * @param \WP_Post $post     Post.
+ * @param bool     $readable Whether the caller may read the post's body;
+ *                           the meta values are left out when not.
  * @return array<string,mixed>
  */
-function rest_extras( \WP_Post $post ) {
+function rest_extras( \WP_Post $post, $readable = true ) {
 	$meta = array();
-	foreach ( get_registered_meta_keys( 'post', (string) $post->post_type ) as $key => $args ) {
+	foreach ( $readable ? get_registered_meta_keys( 'post', (string) $post->post_type ) : array() as $key => $args ) {
 		if ( ! empty( $args['show_in_rest'] ) ) {
 			$meta[ $key ] = get_post_meta( $post->ID, $key, true );
 		}
@@ -186,13 +234,21 @@ function fetch( Os $os, array $section, State $state ) {
 		// defined order — each page could resort the set and the
 		// infinite scroll would reshuffle. See the user query above.
 		'orderby'        => tiebroken( $by, $order, 'DESC' ),
+		// Core's `edit.php` query: another author's private post only
+		// reaches a caller holding the type's `read_private_posts`.
+		// Without it `WP_Query` returns every private row it is asked
+		// for, whoever is asking.
+		'perm'           => 'readable',
 	);
 	// Products and Coupons arrive in band order, decided server-side
 	// by the same cached plans that order them for WP Explorer.
 	$posts = new \WP_Query( woo_query_args( $args, $section, $state ) );
 	$items = array();
 	foreach ( $posts->posts as $post ) {
-		$items[] = array(
+		// Another author's draft lists by title (Core's edit.php does
+		// the same); its excerpt, word count and meta are its body.
+		$readable = $is_media || can_read_body( $os, $post );
+		$items[]  = array(
 			'id'        => (int) $post->ID,
 			'title'     => '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ),
 			'subtitle'  => $is_media
@@ -210,7 +266,7 @@ function fetch( Os $os, array $section, State $state ) {
 			// entities (`[&hellip;]` from `excerpt_more`, `&amp;` from
 			// the content), and the client sets it as text, where an
 			// undecoded entity reads literally.
-			'excerpt'   => $is_media
+			'excerpt'   => $is_media || ! $readable
 				? ''
 				: mb_substr(
 					html_entity_decode( wp_strip_all_tags( (string) get_the_excerpt( $post ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
@@ -231,12 +287,12 @@ function fetch( Os $os, array $section, State $state ) {
 		// The list view's columns — the facts a person who thinks in
 		// ids needs at a glance, and the ones that tell a `-2` slug
 		// from the post it shadows.
-		$items[ count( $items ) - 1 ] += $is_media ? media_facts( $post ) : post_facts( $post );
+		$items[ count( $items ) - 1 ] += $is_media ? media_facts( $post ) : post_facts( $post, $readable );
 		if ( ! $is_media ) {
 			// The base keys stay authoritative: an extras key that
 			// collides with one of ours (a taxonomy rest_base named
 			// `status`, say) must not overwrite it.
-			$items[ count( $items ) - 1 ] += rest_extras( $post );
+			$items[ count( $items ) - 1 ] += rest_extras( $post, $readable );
 			// The `openstation_woo` facts the shared band assigner and
 			// stock-ribbon decorator read. Empty without WooCommerce.
 			$items[ count( $items ) - 1 ] += woo_extras( $post );
@@ -251,10 +307,12 @@ function fetch( Os $os, array $section, State $state ) {
  * in the viewer's locale), the comment count, the `?p=` shortlink
  * that survives a permalink change, the parent, and the word count.
  *
- * @param \WP_Post $post Post.
+ * @param \WP_Post $post     Post.
+ * @param bool     $readable Whether the caller may read the post's body;
+ *                           the word count is 0 when not.
  * @return array<string,mixed>
  */
-function post_facts( \WP_Post $post ) {
+function post_facts( \WP_Post $post, $readable = true ) {
 	$parent    = (int) $post->post_parent;
 	$shortlink = (string) wp_get_shortlink( $post->ID );
 	return array(
@@ -267,7 +325,7 @@ function post_facts( \WP_Post $post ) {
 		'shortlink'   => '' !== $shortlink ? esc_url_raw( $shortlink ) : '',
 		'parent'      => $parent,
 		'parentTitle' => $parent > 0 ? openstation_plain_text_title( get_the_title( $parent ) ) : '',
-		'words'       => str_word_count( wp_strip_all_tags( (string) $post->post_content ) ),
+		'words'       => $readable ? str_word_count( wp_strip_all_tags( (string) $post->post_content ) ) : 0,
 	);
 }
 
@@ -361,7 +419,9 @@ function count_of( array $section ) {
 		$counts = count_users();
 		return (int) $counts['total_users'];
 	}
-	$counts = wp_count_posts( (string) $section['post_type'] );
+	// `readable`, like the list it counts: another author's private
+	// posts only count for a caller who may read them.
+	$counts = wp_count_posts( (string) $section['post_type'], 'readable' );
 	if ( 'media' === $section['kind'] ) {
 		return (int) ( $counts->inherit ?? 0 );
 	}
@@ -449,17 +509,23 @@ function detail( Os $os, array $section, $id ) {
 		// WP Explorer's `/user-stats/<id>` route serves (stat tiles,
 		// 12-month activity, milestones, recent posts, top terms),
 		// through the same callback and its filters.
+		// The account facts follow the Users section's own gate: a
+		// dossier reached through a post's Author folder is open to
+		// anyone who may read the post, so it carries no email, role
+		// or registration date unless the caller may list users.
 		return array(
 			'kind'      => 'user',
 			'id'        => $id,
 			'title'     => openstation_plain_text_title( $user->display_name ),
 			'avatar'    => (string) get_avatar_url( $id, array( 'size' => 192 ) ),
 			'facts'     => Os::facts(
-				array(
-					array( __( 'Email', 'desktop-mode' ), (string) $user->user_email, 'bio' ),
-					array( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ), 'bio' ),
-					array( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ), 'bio' ),
-				)
+				can_see_account( $os, $id )
+					? array(
+						array( __( 'Email', 'desktop-mode' ), (string) $user->user_email, 'bio' ),
+						array( __( 'Role', 'desktop-mode' ), implode( ', ', array_map( 'ucfirst', (array) $user->roles ) ), 'bio' ),
+						array( __( 'Registered', 'desktop-mode' ), (string) date_i18n( get_option( 'date_format' ), strtotime( $user->user_registered ) ), 'bio' ),
+					)
+					: array()
 			),
 			'stats'     => stats_payload( 'openstation_my_wordpress_user_stats_callback', array( 'id' => $id ) ),
 			'canEdit'   => allowed( $os, $section, $id, 'edit' ),
@@ -467,8 +533,14 @@ function detail( Os $os, array $section, $id ) {
 		);
 	}
 
-	$post = get_post( $id );
+	$post = $id > 0 ? get_post( $id ) : null;
 	if ( ! $post || $post->post_type !== $section['post_type'] ) {
+		return null;
+	}
+	// `item` rides up with the client's state, so any id reaches
+	// here: another author's private post or draft has no dossier for
+	// a caller who cannot read it.
+	if ( 'media' !== $section['kind'] && ! can_read( $os, $post ) ) {
 		return null;
 	}
 	$title = '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' );
@@ -511,8 +583,10 @@ function detail( Os $os, array $section, $id ) {
 
 	// The rendered body — what WP Explorer's preview pane shows.
 	// Server-rendered, admin-trusted, injected verbatim by the client.
+	// Empty while a password the caller has not entered still seals it.
+	$body = can_read_body( $os, $post );
 	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying Core's own content pipeline (blocks, shortcodes, embeds), not declaring a hook.
-	$content = apply_filters( 'the_content', (string) $post->post_content );
+	$content = $body ? apply_filters( 'the_content', (string) $post->post_content ) : '';
 
 	return array(
 		'kind'      => 'post',
@@ -527,7 +601,7 @@ function detail( Os $os, array $section, $id ) {
 				array( __( 'Author', 'desktop-mode' ), openstation_plain_text_title( get_the_author_meta( 'display_name', (int) $post->post_author ) ) ),
 				array( __( 'Published', 'desktop-mode' ), (string) get_the_date( '', $post ) ),
 				array( __( 'Modified', 'desktop-mode' ), (string) get_the_modified_date( '', $post ) ),
-				array( __( 'Words', 'desktop-mode' ), number_format_i18n( str_word_count( wp_strip_all_tags( (string) $post->post_content ) ) ) ),
+				array( __( 'Words', 'desktop-mode' ), $body ? number_format_i18n( str_word_count( wp_strip_all_tags( (string) $post->post_content ) ) ) : '' ),
 			)
 		),
 		'canEdit'   => allowed( $os, $section, $id, 'edit' ),

@@ -343,6 +343,15 @@ export const libraryStyles = css`
 	overflow-wrap: anywhere;
 }
 
+/* The links a plugin adds to its own row (Settings, Docs), quieter than the verbs. */
+.os-plugins__module-links {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 2px 12px;
+	min-inline-size: 0;
+}
+
 .os-plugins__update-hint {
 	font-size: 11px;
 	color: var( --os-ui-fg-muted, #646970 );

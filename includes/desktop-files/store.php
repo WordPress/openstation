@@ -71,9 +71,19 @@ function openstation_files_place( $user_id, $parent_id, $type, $ref, $args = arr
 	// Write-gate: placing INTO a non-owned folder requires the
 	// folder's `write` cap. Owner / desktop-root placements are
 	// always allowed.
+	//
+	// The lookup includes trashed folders, and a folder id that does
+	// not exist is refused outright. Both used to skip the gate: a
+	// trashed folder resolves to null on the active read path, so
+	// anyone could drop a tile into another user's trashed folder
+	// (it reappears inside it on restore), or into an id nobody had
+	// created yet (it appears inside whichever folder gets that id).
 	if ( (int) $parent_id > 0 ) {
-		$target_folder = openstation_files_get_folder( (int) $parent_id );
-		if ( $target_folder && (int) $target_folder['owner_id'] !== $user_id ) {
+		$target_folder = openstation_files_get_folder( (int) $parent_id, true );
+		if ( ! $target_folder ) {
+			return new WP_Error( 'openstation_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		}
+		if ( (int) $target_folder['owner_id'] !== $user_id ) {
 			$cap = function_exists( 'openstation_folder_share_user_capability' )
 				? openstation_folder_share_user_capability( (int) $parent_id, $user_id )
 				: 'none';
@@ -250,9 +260,19 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 	// gate — anyone with write on the folder can move/rearrange
 	// every icon in it, regardless of which user originally placed
 	// the row (shared-namespace semantics).
+	//
+	// The source lookup includes trashed folders: an active-only
+	// lookup returns null for a trashed parent, and that used to skip
+	// every check below — any user could rewrite the meta / parent of
+	// another user's tile while its folder sat in the recycle bin. A
+	// parent that no longer exists at all leaves the row owner as the
+	// only one who may touch it.
 	$is_row_owner = (int) $row['owner_id'] === $user_id;
 	if ( (int) $row['parent_id'] > 0 ) {
-		$source_folder = openstation_files_get_folder( (int) $row['parent_id'] );
+		$source_folder = openstation_files_get_folder( (int) $row['parent_id'], true );
+		if ( ! $source_folder && ! $is_row_owner ) {
+			return new WP_Error( 'openstation_files_forbidden', __( 'You cannot edit this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
+		}
 		if ( $source_folder ) {
 			$is_folder_owner = (int) $source_folder['owner_id'] === $user_id;
 			$source_cap      = function_exists( 'openstation_folder_share_user_capability' )
@@ -281,8 +301,13 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 	if ( isset( $changes['parent_id'] ) ) {
 		$target_parent = max( 0, (int) $changes['parent_id'] );
 		if ( $target_parent > 0 ) {
-			$target = openstation_files_get_folder( $target_parent );
-			if ( $target && (int) $target['owner_id'] !== $user_id ) {
+			// Same rule as `openstation_files_place()`: trashed targets
+			// are gated, unknown ids are refused.
+			$target = openstation_files_get_folder( $target_parent, true );
+			if ( ! $target ) {
+				return new WP_Error( 'openstation_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+			}
+			if ( (int) $target['owner_id'] !== $user_id ) {
 				$cap = function_exists( 'openstation_folder_share_user_capability' )
 					? openstation_folder_share_user_capability( $target_parent, $user_id )
 					: 'none';
@@ -294,6 +319,51 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 					);
 				}
 			}
+			// Moving SOMEONE ELSE'S tile (shared-namespace write) is
+			// limited to folders its owner can write too. Otherwise a
+			// writer could carry the owner's sub-folder out of the
+			// shared folder into a private folder of their own — the
+			// owner loses it from their tree, and since a folder's
+			// ancestry follows its owner's placement, the writer's
+			// folder would become its ancestor and grant them `write`
+			// on it for good, surviving any later revoke.
+			if ( ! $is_row_owner && function_exists( 'openstation_folder_share_user_capability' ) ) {
+				$row_owner_cap = openstation_folder_share_user_capability( $target_parent, (int) $row['owner_id'] );
+				if ( 'write' !== $row_owner_cap ) {
+					return new WP_Error(
+						'openstation_files_forbidden',
+						__( 'You cannot move this item into that folder.', 'desktop-mode' ),
+						array( 'status' => 403 )
+					);
+				}
+			}
+			// Someone else's FOLDER only moves between folders its owner
+			// owns. The owner's `write` on a writer's folder inside the
+			// shared tree is lent by the share, and a folder's ancestry
+			// follows its owner's placement: parked under the writer's
+			// folder, the owner's folder would take that folder as an
+			// ancestor, and one more move would carry it out of the
+			// shared tree. The cascade no longer trusts such an ancestor
+			// (`openstation_folder_trusted_ancestors()`); this keeps the
+			// owner's tree theirs in the first place.
+			if ( ! $is_row_owner && 'folder' === (string) $row['file_type']
+				&& (int) $target['owner_id'] !== (int) $row['owner_id'] ) {
+				return new WP_Error(
+					'openstation_files_forbidden',
+					__( 'You cannot move this folder into that folder.', 'desktop-mode' ),
+					array( 'status' => 403 )
+				);
+			}
+		} elseif ( ! $is_row_owner ) {
+			// The root is the row owner's own desktop, which nobody else
+			// writes: a writer dragging the owner's tile out of the
+			// shared folder would land it there, out of their own sight
+			// and the owner's folder alike.
+			return new WP_Error(
+				'openstation_files_forbidden',
+				__( 'You cannot move this item out of the shared folder.', 'desktop-mode' ),
+				array( 'status' => 403 )
+			);
 		}
 		// Folder-cycle guard. When the row being moved is itself a
 		// folder placement, the new parent must not be the folder

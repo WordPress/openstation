@@ -244,10 +244,10 @@ function injectScriptTag( url: string, extras?: ScriptExtras ): Promise< void > 
 		// in the symptom points at script loading, which is what made
 		// it expensive to find.
 		//
-		// Matched on pathname rather than href: WordPress appends
-		// `?ver=…` and a caller may hold the same file with a
-		// different (or no) query. Within one document the path IS
-		// the identity of the bundle.
+		// Matched with the `ver` param dropped rather than on href:
+		// WordPress appends `?ver=…` and a caller may hold the same
+		// file with a different (or no) version. Every other param
+		// still counts, so two bundles behind one endpoint stay two.
 		const alreadyInDocument = findScriptByPath( url );
 		if ( alreadyInDocument ) {
 			// Resolved rather than awaited. A tag the document

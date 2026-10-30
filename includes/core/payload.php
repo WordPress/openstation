@@ -1628,22 +1628,18 @@ function openstation_dock_placement( $menu_slug ) {
 }
 
 /**
- * Assemble the menu payload consumed by the shell.
+ * The dock items the shell shows, in dock order.
  *
- * Runs the full dock-builder and returns a single `dockItems` array —
- * core WordPress menus first (Dashboard, Posts, Media, …), then
- * plugin-contributed top-level menus. Items whose `placement` is
- * `'hidden'` are dropped entirely.
+ * Items whose `placement` is `'hidden'` are dropped, and core
+ * WordPress menus (Dashboard, Posts, Media, …) come before
+ * plugin-contributed ones. The `dockItems` key of
+ * {@see openstation_build_menu_payload()}, and the list
+ * {@see openstation_resync_shell_dock_after_admin_head()} re-sends
+ * when a plugin edits the menu on `admin_head`.
  *
- * Extracted out of `includes/render.php` so both the initial PHP
- * localize AND the chromeless bridge's live-refresh emit (including
- * the hidden-iframe probe spawned by `wp.os.refreshMenu()`)
- * read from a single source of truth — any drift would desync the
- * live refresh.
- *
- * @return array{dockItems: array[]} Menu payload.
+ * @return array[] Dock items.
  */
-function openstation_build_menu_payload() {
+function openstation_build_ordered_dock_items() {
 	$all = openstation_build_dock_items();
 
 	// Drop hidden items; preserve the default "core first, plugins
@@ -1673,7 +1669,27 @@ function openstation_build_menu_payload() {
 		}
 	}
 
-	$dock = array_merge( $core, $plugin );
+	return array_merge( $core, $plugin );
+}
+
+/**
+ * Assemble the menu payload consumed by the shell.
+ *
+ * Runs the full dock-builder and returns a single `dockItems` array —
+ * core WordPress menus first (Dashboard, Posts, Media, …), then
+ * plugin-contributed top-level menus. Items whose `placement` is
+ * `'hidden'` are dropped entirely.
+ *
+ * Extracted out of `includes/render.php` so both the initial PHP
+ * localize AND the chromeless bridge's live-refresh emit (including
+ * the hidden-iframe probe spawned by `wp.os.refreshMenu()`)
+ * read from a single source of truth — any drift would desync the
+ * live refresh.
+ *
+ * @return array{dockItems: array[]} Menu payload.
+ */
+function openstation_build_menu_payload() {
+	$dock = openstation_build_ordered_dock_items();
 
 	// One collector call feeds both halves: the slim entry list and
 	// the handle-keyed script data the shell joins them with.

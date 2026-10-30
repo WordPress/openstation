@@ -1,0 +1,459 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Plugins - OpenStation - Stable Readme (latest release)\n"
+"PO-Revision-Date: 2026-10-19 12:00+0000\n"
+"Last-Translator: OpenStation\n"
+"Language-Team: it_IT\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: it_IT\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+#. Plugin name.
+msgid "OpenStation – Admin Dashboard Notes, Custom Dashboard, AI Assistant &amp; PWA"
+msgstr "OpenStation – Note della bacheca e bacheca personalizzata per il pannello di amministrazione, con assistente IA e PWA"
+
+#. Short description.
+msgid "A productivity desktop and custom dashboard for wp-admin: windows, dark mode, dashboard notes, an AI assistant, and a progressive web app (PWA)."
+msgstr "Desktop per la produttività e bacheca personalizzata per il pannello di amministrazione: finestre, modalità scura, note, assistente IA e PWA."
+
+#. Found in Screenshot description.
+msgid "Real multitasking: your posts, your preferences, and the Trash open side by side as windows."
+msgstr "Vero multitasking: i tuoi articoli, le tue preferenze e il Cestino aperti uno accanto all'altro come finestre."
+
+#. Found in Screenshot description.
+msgid "Make it yours: accent colours, wallpaper presets and animated scenes, and a dock on whichever edge you like."
+msgstr "Rendilo tuo: colori di accento, sfondi predefiniti e scene animate, e un dock sul bordo che preferisci."
+
+#. Found in Screenshot description.
+msgid "Find anything with Cmd+K: the Site Assistant opens admin pages, runs commands, and answers questions about your content."
+msgstr "Trova qualsiasi cosa con Cmd+K: l'Assistente del sito apre le pagine di amministrazione, esegue comandi e risponde a domande sui tuoi contenuti."
+
+#. Found in Screenshot description.
+msgid "Give an AI agent its own instructions and tools, then set it to work on your posts, media, and comments."
+msgstr "Dai a un agente IA istruzioni e strumenti tutti suoi, poi mettilo al lavoro su articoli, media e commenti."
+
+#. Found in Screenshot description.
+msgid "Live widgets on the wallpaper: post stats, recent comments, drafts, a notepad, and more from your plugins."
+msgstr "Widget dal vivo sullo sfondo: statistiche degli articoli, commenti recenti, bozze, un blocco note e altro ancora dai tuoi plugin."
+
+#. Found in Screenshot description.
+msgid "Mio, your desk companion, tuned to whatever shape, colour, and mood suits you."
+msgstr "Mio, il tuo compagno di scrivania, regolato sulla forma, il colore e l'umore che preferisci."
+
+#. Found in Screenshot description.
+msgid "One desktop per job: keep writing, the store, and moderation on separate Spaces."
+msgstr "Un desktop per ogni attività: tieni scrittura, negozio e moderazione su Spazi separati."
+
+#. Found in Screenshot description.
+msgid "Games built into the desktop, with a scoreboard shared across everyone on your site."
+msgstr "Giochi integrati nel desktop, con una classifica condivisa tra tutti gli utenti del tuo sito."
+
+#. Found in Screenshot description.
+msgid "Corkboard: a zoomable map of how your posts and pages link together."
+msgstr "Corkboard: una mappa zoomabile di come si collegano tra loro i tuoi articoli e le tue pagine."
+
+#. Found in description header.
+msgid "Work on more than one thing at once"
+msgstr "Lavora su più cose contemporaneamente"
+
+#. Found in description header.
+msgid "Never lose your place"
+msgstr "Non perdere mai il segno"
+
+#. Found in description header.
+msgid "A desk you can actually put things on"
+msgstr "Una scrivania su cui puoi davvero appoggiare le cose"
+
+#. Found in description header.
+msgid "One desktop per job"
+msgstr "Un desktop per ogni attività"
+
+#. Found in description header.
+msgid "Find anything with Cmd+K"
+msgstr "Trova qualsiasi cosa con Cmd+K"
+
+#. Found in description header.
+msgid "See how your site fits together, orphan pages included"
+msgstr "Scopri come si collega il tuo sito, pagine orfane comprese"
+
+#. Found in description header.
+msgid "Running a store?"
+msgstr "Hai un negozio?"
+
+#. Found in description header.
+msgid "Make it yours"
+msgstr "Rendilo tuo"
+
+#. Found in description header.
+msgid "Sticky notes on the admin dashboard"
+msgstr "Note adesive nella bacheca di amministrazione"
+
+#. Found in description header.
+msgid "A multisite dashboard"
+msgstr "Una bacheca multisito"
+
+#. Found in description header.
+msgid "Works on your phone"
+msgstr "Funziona sul tuo telefono"
+
+#. Found in description header.
+msgid "For developers"
+msgstr "Per gli sviluppatori"
+
+#. Found in description header.
+msgid "External services"
+msgstr "Servizi esterni"
+
+#. Found in description header.
+msgid "Credits"
+msgstr "Crediti"
+
+#. Found in description header.
+msgid "Third-party libraries"
+msgstr "Librerie di terze parti"
+
+#. Found in description header.
+msgid "Data files"
+msgstr "File di dati"
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the user's prompt, the conversation history for the active session, and tool-call metadata. The plugin's built-in tools (<code>search_posts</code>, <code>search_pages</code>, <code>search_comments</code>) run WordPress's native keyword search and may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to the provider as part of the agentic loop."
+msgstr "<strong>Cosa viene inviato:</strong> il prompt dell'utente, la cronologia della conversazione della sessione attiva e i metadati delle chiamate agli strumenti. Gli strumenti integrati del plugin (<code>search_posts</code>, <code>search_pages</code>, <code>search_comments</code>) eseguono la ricerca nativa per parole chiave di WordPress e possono includere estratti degli articoli/pagine/commenti corrispondenti nei risultati degli strumenti, che vengono poi rinviati al provider come parte del ciclo agentico."
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> on user-initiated AI requests only. Nothing is sent automatically — posts, pages, comments and taxonomy terms are never analyzed in the background."
+msgstr "<strong>Quando viene inviato:</strong> solo in seguito a richieste IA avviate dall'utente. Nulla viene inviato automaticamente: articoli, pagine, commenti e termini di tassonomia non vengono mai analizzati in background."
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to obtain model completions and tool-call decisions that drive the AI Assistant."
+msgstr "<strong>Perché viene inviato:</strong> per ottenere i completamenti del modello e le decisioni sulle chiamate agli strumenti che fanno funzionare l'Assistente IA."
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> whichever provider you configured in Settings → Connectors. Which provider (and endpoint) receives the data depends entirely on that configuration. Review the chosen provider's own terms and privacy policy (e.g. OpenAI, Anthropic, or Google)."
+msgstr "<strong>Chi fornisce il servizio:</strong> il provider che hai configurato in Impostazioni → Connettori. Quale provider (ed endpoint) riceve i dati dipende interamente da questa configurazione. Consulta i termini e l'informativa sulla privacy del provider scelto (ad es. OpenAI, Anthropic o Google)."
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> a request for the public RSS feed at <code>https://openstation.blog/feed/</code>. It is made from your WordPress server with WordPress's default user-agent string, which includes your WordPress version and your site's URL, along with the server's IP address and normal HTTP request metadata. Nothing about the user who opened the page is sent."
+msgstr "<strong>Cosa viene inviato:</strong> una richiesta per il feed RSS pubblico all'indirizzo <code>https://openstation.blog/feed/</code>. Viene effettuata dal tuo server WordPress con la stringa user-agent predefinita di WordPress, che include la tua versione di WordPress e l'URL del tuo sito, insieme all'indirizzo IP del server e ai normali metadati della richiesta HTTP. Non viene inviato nulla sull'utente che ha aperto la pagina."
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when someone opens the About page, and at most once every 30 minutes; in between, the cached copy is shown. Nothing is fetched when nobody visits About."
+msgstr "<strong>Quando viene inviato:</strong> solo quando qualcuno apre la pagina Informazioni, e al massimo una volta ogni 30 minuti; nel frattempo viene mostrata la copia in cache. Non viene recuperato nulla se nessuno visita Informazioni."
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to show the project's latest news next to the version you are running."
+msgstr "<strong>Perché viene inviato:</strong> per mostrare le ultime novità del progetto accanto alla versione che stai usando."
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>."
+msgstr "<strong>Chi fornisce il servizio:</strong> <a href=\"https://openstation.blog/\">openstation.blog</a>, il sito ufficiale del plugin, gestito da Automattic. Consulta i <a href=\"https://wordpress.com/tos/\">Termini di servizio di WordPress.com</a> e l'<a href=\"https://automattic.com/privacy/\">Informativa sulla privacy di Automattic</a>."
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the reasons you ticked, the optional details you typed, the OpenStation, WordPress and PHP versions, your site language, whether the site is a network, how long OpenStation was installed, whether anyone on the site had turned it on (how many people, and how many days after install the first one did), whether the person deactivating had it on, the number of active plugins, and where the dialog was shown. Nothing that identifies you or your site: no URL, no site id, no email, no user name, no plugin names, and no IP address is stored. Each submission carries a random id used only to ignore an accidental retry."
+msgstr "<strong>Cosa viene inviato:</strong> i motivi che hai selezionato, i dettagli facoltativi che hai scritto, le versioni di OpenStation, WordPress e PHP, la lingua del tuo sito, se il sito è un network, per quanto tempo OpenStation è rimasto installato, se qualcuno sul sito l'aveva attivato (quante persone, e quanti giorni dopo l'installazione l'ha fatto la prima), se la persona che lo sta disattivando lo aveva attivo, il numero di plugin attivi e dove è stata mostrata la finestra di dialogo. Nulla che identifichi te o il tuo sito: nessun URL, nessun ID del sito, nessuna email, nessun nome utente, nessun nome di plugin e nessun indirizzo IP viene memorizzato. Ogni invio include un ID casuale usato solo per ignorare un nuovo tentativo accidentale."
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when you click Send in the dialog shown on deactivation. There is no background ping."
+msgstr "<strong>Quando viene inviato:</strong> solo quando fai clic su Invia nella finestra di dialogo mostrata alla disattivazione. Non c'è alcun ping in background."
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to learn what did not work so it can be fixed."
+msgstr "<strong>Perché viene inviato:</strong> per capire cosa non ha funzionato, così da poterlo correggere."
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> the request goes from your server to <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>. Site owners can turn the dialog off with the <code>openstation_deactivation_feedback_enabled</code> filter."
+msgstr "<strong>Chi fornisce il servizio:</strong> la richiesta parte dal tuo server verso <a href=\"https://openstation.blog/\">openstation.blog</a>, il sito ufficiale del plugin, gestito da Automattic. Consulta i <a href=\"https://wordpress.com/tos/\">Termini di servizio di WordPress.com</a> e l'<a href=\"https://automattic.com/privacy/\">Informativa sulla privacy di Automattic</a>. I proprietari del sito possono disattivare la finestra di dialogo con il filtro <code>openstation_deactivation_feedback_enabled</code>."
+
+#. Found in description list item.
+msgid "<strong>What is sent:</strong> the answers you typed, the email address if you chose to type one (the field starts empty and is never filled in for you), your language, the OpenStation and WordPress versions, and how many days you have had OpenStation on. Nothing that identifies your site: no URL, no site id, no user name, and no IP address is stored. Without an email the submission is anonymous. Each submission carries a random id used only to ignore an accidental retry."
+msgstr "<strong>Cosa viene inviato:</strong> le risposte che hai scritto, l'indirizzo email se hai scelto di inserirne uno (il campo è inizialmente vuoto e non viene mai compilato al posto tuo), la tua lingua, le versioni di OpenStation e WordPress e da quanti giorni hai OpenStation attivo. Nulla che identifichi il tuo sito: nessun URL, nessun ID del sito, nessun nome utente e nessun indirizzo IP viene memorizzato. Senza email l'invio è anonimo. Ogni invio include un ID casuale usato solo per ignorare un nuovo tentativo accidentale."
+
+#. Found in description list item.
+msgid "<strong>When it is sent:</strong> only when you click Send in the form. There is no background ping."
+msgstr "<strong>Quando viene inviato:</strong> solo quando fai clic su Invia nel modulo. Non c'è alcun ping in background."
+
+#. Found in description list item.
+msgid "<strong>Why it is sent:</strong> to learn what works and what gets in the way. An email address, when given, is used only to follow up on the feedback."
+msgstr "<strong>Perché viene inviato:</strong> per capire cosa funziona e cosa è d'intralcio. Un indirizzo email, se fornito, viene usato solo per dare seguito al feedback."
+
+#. Found in description list item.
+msgid "<strong>Who provides the service:</strong> the request goes from your server to <a href=\"https://openstation.blog/\">openstation.blog</a>, the plugin's own site, operated by Automattic. Review the <a href=\"https://wordpress.com/tos/\">WordPress.com Terms of Service</a> and the <a href=\"https://automattic.com/privacy/\">Automattic Privacy Policy</a>. Site owners can turn the prompt off with the <code>openstation_usage_feedback_enabled</code> filter."
+msgstr "<strong>Chi fornisce il servizio:</strong> la richiesta parte dal tuo server verso <a href=\"https://openstation.blog/\">openstation.blog</a>, il sito ufficiale del plugin, gestito da Automattic. Consulta i <a href=\"https://wordpress.com/tos/\">Termini di servizio di WordPress.com</a> e l'<a href=\"https://automattic.com/privacy/\">Informativa sulla privacy di Automattic</a>. I proprietari del sito possono disattivare l'invito con il filtro <code>openstation_usage_feedback_enabled</code>."
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://pixijs.com/\">PixiJS</a></strong> (MIT License) — used by the <strong>Corkboard</strong> window, built-in canvas wallpapers (e.g. the animated WordPress logo), the <strong>Mio</strong> desk companion, and the <strong>Inkfall</strong> typing game. PixiJS is loaded from the plugin's own <code>assets/vendor/</code> directory; no CDN requests are made."
+msgstr "<strong><a href=\"https://pixijs.com/\">PixiJS</a></strong> (licenza MIT) — usata dalla finestra <strong>Corkboard</strong>, dagli sfondi canvas integrati (ad es. il logo animato di WordPress), dal compagno di scrivania <strong>Mio</strong> e dal gioco di dattilografia <strong>Inkfall</strong>. PixiJS viene caricata dalla directory <code>assets/vendor/</code> del plugin stesso; non vengono effettuate richieste a CDN."
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/hermitdave/FrequencyWords\">FrequencyWords</a></strong> by Hermit Dave (CC-BY-SA 4.0) — English word-frequency ranking derived from the OpenSubtitles corpus."
+msgstr "<strong><a href=\"https://github.com/hermitdave/FrequencyWords\">FrequencyWords</a></strong> di Hermit Dave (CC-BY-SA 4.0) — classifica di frequenza delle parole inglesi derivata dal corpus OpenSubtitles."
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/dwyl/english-words\">english-words</a></strong> by dwyl (Unlicense) — used as a validity filter."
+msgstr "<strong><a href=\"https://github.com/dwyl/english-words\">english-words</a></strong> di dwyl (Unlicense) — usato come filtro di validità."
+
+#. Found in description list item.
+msgid "<strong><a href=\"https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words\">LDNOOBW English list</a></strong> (CC-BY 4.0) — used as an exclusion filter."
+msgstr "<strong><a href=\"https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words\">Elenco inglese LDNOOBW</a></strong> (CC-BY 4.0) — usato come filtro di esclusione."
+
+#. Found in description paragraph.
+msgid "<strong>wp-admin forgets. OpenStation doesn't.</strong>"
+msgstr "<strong>wp-admin dimentica. OpenStation no.</strong>"
+
+#. Found in description paragraph.
+msgid "You know the moment. You're deep in a post and you need one image from the Media Library. You click over, find it, click back, and everything you had going is gone. Your scroll position, your half-typed thought, the three other things you had queued up in your head."
+msgstr "Conosci quel momento. Sei immerso in un articolo e ti serve un'immagine dalla Libreria media. Ci vai, la trovi, torni indietro e tutto quello che avevi in corso è sparito. La posizione di scorrimento, il pensiero scritto a metà, le altre tre cose che avevi in coda nella testa."
+
+#. Found in description paragraph.
+msgid "That's not a bug you hit. That's the design. wp-admin shows you one screen at a time, and every navigation throws the last one away. It has worked this way since 2003, like a fridge that empties itself every time you close the door."
+msgstr "Non è un bug in cui inciampi per caso. È il design. wp-admin ti mostra una schermata alla volta e ogni navigazione butta via quella precedente. Funziona così dal 2003, come un frigorifero che si svuota ogni volta che chiudi lo sportello."
+
+#. Found in description paragraph.
+msgid "WordPress has rebuilt almost everything else. The editor, the site editor, the patterns, the styles. The admin's one-screen-at-a-time model is the layer nobody touched."
+msgstr "WordPress ha ricostruito quasi tutto il resto. L'editor, l'editor del sito, i pattern, gli stili. Il modello \"una schermata alla volta\" dell'amministrazione è lo strato che nessuno ha mai toccato."
+
+#. Found in description paragraph.
+msgid "OpenStation touches it."
+msgstr "OpenStation lo tocca."
+
+#. Found in description paragraph.
+msgid "https://www.youtube.com/watch?v=g5MLB3WMlCc"
+msgstr "https://www.youtube.com/watch?v=g5MLB3WMlCc"
+
+#. Found in description paragraph.
+msgid "Install it and admin screens become draggable, resizable windows. Edit a post while the Media Library sits open next to it. Drag an image from one window straight into the other. Keep comments open in the corner. Reload the browser and your window layout — open pages, positions, sizes, and window states — comes back where you left it."
+msgstr "Installalo e le schermate di amministrazione diventano finestre trascinabili e ridimensionabili. Modifica un articolo mentre la Libreria media resta aperta lì accanto. Trascina un'immagine da una finestra direttamente nell'altra. Tieni i commenti aperti in un angolo. Ricarica il browser e la disposizione delle finestre (pagine aperte, posizioni, dimensioni e stati delle finestre) torna esattamente dove l'avevi lasciata."
+
+#. Found in description paragraph.
+msgid "OpenStation itself is free, GPL, and opt-in per user. One click in the admin bar turns it on for you. One click turns it off. Nobody else on your site sees anything change, and deactivating the plugin restores the classic admin exactly. Prefer the classic admin look while you keep the windows? Switch on the Legacy theme. No Core patches and no lock-in. Optional AI providers may charge for their service."
+msgstr "OpenStation è gratuito, con licenza GPL e attivabile da ogni singolo utente. Un clic nella barra di amministrazione lo attiva per te. Un clic lo disattiva. Nessun altro sul tuo sito vede cambiare nulla e, disattivando il plugin, l'amministrazione classica torna esattamente com'era. Preferisci l'aspetto dell'amministrazione classica ma vuoi tenere le finestre? Attiva il tema Legacy. Nessuna patch al Core e nessun vincolo. I provider IA facoltativi potrebbero far pagare il loro servizio."
+
+#. Found in description paragraph.
+msgid "Built and maintained by <a href=\"https://automattic.com\">Automattic</a>, the company behind WordPress.com, Jetpack, WooCommerce, and Tumblr."
+msgstr "Creato e mantenuto da <a href=\"https://automattic.com\">Automattic</a>, l'azienda dietro WordPress.com, Jetpack, WooCommerce e Tumblr."
+
+#. Found in description paragraph.
+msgid "Admin pages open as windows, including pages added by most other plugins. Drag them, resize them, snap them, tile them, minimize them to a taskbar. The admin menu becomes a dock of icons. Two editors open at once is one click away."
+msgstr "Le pagine di amministrazione si aprono come finestre, comprese le pagine aggiunte dalla maggior parte degli altri plugin. Trascinale, ridimensionale, agganciale ai bordi, affiancale, riducile a icona nella barra delle applicazioni. Il menu di amministrazione diventa un dock di icone. Avere due editor aperti contemporaneamente è a un clic di distanza."
+
+#. Found in description paragraph.
+msgid "Moving between open windows leaves each page in place. Across reloads, OpenStation remembers your open pages, window positions, sizes and states, virtual desktops, and focus. Closing a window with unsaved changes warns you first."
+msgstr "Passare da una finestra aperta all'altra lascia ogni pagina al suo posto. Anche dopo un ricaricamento, OpenStation ricorda le pagine aperte, le posizioni, le dimensioni e gli stati delle finestre, i desktop virtuali e il focus. Se chiudi una finestra con modifiche non salvate, ti avvisa prima."
+
+#. Found in description paragraph.
+msgid "Drop posts, media, and links right onto the wallpaper. Sort them into folders. Trash them to a Trash that actually holds things. The stuff you're working on this week can just sit out where you can see it."
+msgstr "Trascina articoli, media e link direttamente sullo sfondo. Ordinali in cartelle. Spostali in un Cestino che conserva davvero le cose. Ciò su cui stai lavorando questa settimana può restare lì, in bella vista."
+
+#. Found in description paragraph.
+msgid "Virtual desktops, the way your operating system does them. One for writing. One for the store. One for comment triage. One for that redesign you keep poking at. Switch between them without closing anything."
+msgstr "Desktop virtuali, proprio come nel tuo sistema operativo. Uno per scrivere. Uno per il negozio. Uno per smistare i commenti. Uno per quel restyling su cui continui a mettere mano. Passa dall'uno all'altro senza chiudere nulla."
+
+#. Found in description paragraph.
+msgid "The full WordPress command palette, plus slash commands from your plugins, all under one keystroke. Turn on the optional AI assistant and you can ask it things like \"which post had the comment asking for the recipe?\" and it searches your own content to answer. (Requires an AI provider configured in Settings → Connectors on WordPress 7.0+. Details under \"External services\" below.)"
+msgstr "La palette dei comandi completa di WordPress, più i comandi slash dei tuoi plugin, tutto sotto un'unica scorciatoia da tastiera. Attiva l'assistente IA facoltativo e potrai chiedergli cose come “quale articolo aveva il commento che chiedeva la ricetta?”: cercherà tra i tuoi contenuti per risponderti. (Richiede un provider IA configurato in Impostazioni → Connettori su WordPress 7.0+. Dettagli in “Servizi esterni” più avanti.)"
+
+#. Found in description paragraph.
+msgid "The Corkboard is an interactive, zoomable map of how your posts, pages, and products link to each other. Pan around it. Find orphan pages that nothing links to, and link them in. Find the hubs."
+msgstr "Il Corkboard è una mappa interattiva e zoomabile di come i tuoi articoli, le tue pagine e i tuoi prodotti si collegano tra loro. Spostati al suo interno. Trova le pagine orfane a cui nessun contenuto rimanda e collegale. Individua i nodi centrali."
+
+#. Found in description paragraph.
+msgid "Orders, Products, Coupons, and Customers become browsable folders with stock and sale ribbons. Open a customer to see their lifetime spend and what they buy most. Follow a product to its buyers, or a coupon to who redeemed it."
+msgstr "Ordini, Prodotti, Coupon e Clienti diventano cartelle sfogliabili con etichette di disponibilità e di offerta. Apri un cliente per vedere la sua spesa totale e cosa acquista più spesso. Segui un prodotto fino ai suoi acquirenti, o un coupon fino a chi lo ha utilizzato."
+
+#. Found in description paragraph.
+msgid "Build the custom dashboard you actually want. Dark mode by default, with a light theme one click away. Wallpapers, from color presets to animated scenes to your own photo. Live dashboard widgets pinned to the desktop: drafts, stats, recent comments, a focus timer. Write dashboard notes in the Note Pad widget, or straight on the wallpaper, and pin them to the desktop. Uploadable desktop themes, including a built-in Legacy theme that brings the classic admin look and the old WordPress blue back in one click. And Mio, a soft-body desk companion that drifts across your wallpaper and gets bumped around by your windows. Off by default. You'll turn it on."
+msgstr "Crea la bacheca personalizzata che desideri davvero. Modalità scura (dark mode) predefinita, con un tema chiaro a un clic di distanza. Sfondi: dai colori predefiniti alle scene animate, fino a una tua foto. Widget della bacheca dal vivo fissati sul desktop: bozze, statistiche, commenti recenti, un timer per la concentrazione. Scrivi note della bacheca nel widget Note Pad, o direttamente sullo sfondo, e fissale sul desktop. Temi del desktop caricabili, incluso un tema Legacy integrato che riporta con un clic l'aspetto dell'amministrazione classica e il vecchio blu di WordPress. E poi Mio, un compagno di scrivania dal corpo morbido che fluttua sullo sfondo e viene spinto qua e là dalle tue finestre. Disattivato per impostazione predefinita. Lo attiverai."
+
+#. Found in description paragraph.
+msgid "Write notes in the Note Pad widget or straight on the wallpaper and pin them to the admin dashboard like sticky notes. Keep a note private or share it with everyone who uses OpenStation, and turn a note into a draft post when it grows up."
+msgstr "Scrivi note nel widget Note Pad o direttamente sullo sfondo e fissale alla bacheca di amministrazione come note adesive. Tieni una nota privata o condividila con chiunque usi OpenStation, e trasformala in una bozza di articolo quando cresce."
+
+#. Found in description paragraph.
+msgid "On a multisite network, OpenStation works in the network admin too, keeps a separate desktop for each site, and lists every site in one switcher, so the multisite dashboard is one click from anywhere."
+msgstr "Su una rete multisito, OpenStation funziona anche nell'amministrazione del network, mantiene un desktop separato per ogni sito ed elenca tutti i siti in un unico selettore, così la bacheca multisito è a un clic da qualsiasi punto."
+
+#. Found in description paragraph.
+msgid "On a phone, OpenStation becomes a mobile admin: full-screen apps, an app switcher, and a tab bar. Add it to your home screen and it runs as an installed progressive web app (PWA) that updates itself."
+msgstr "Su un telefono, OpenStation diventa un'amministrazione mobile: app a schermo intero, un selettore di app e una barra delle schede. Aggiungilo alla schermata Home e funzionerà come una Progressive Web App (PWA) installata che si aggiorna da sola."
+
+#. Found in description paragraph.
+msgid "Extend OpenStation through documented PHP and JavaScript APIs. Register windows, icons, wallpapers, widgets, commands, and settings tabs through stable <code>openstation_register_*</code> PHP APIs and a typed JavaScript API; customize dock items through documented hooks; add AI tools with the WordPress Abilities API. Copy-paste examples live in the <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">developer docs on GitHub</a>."
+msgstr "Estendi OpenStation tramite API PHP e JavaScript documentate. Registra finestre, icone, sfondi, widget, comandi e schede delle impostazioni tramite le API PHP stabili <code>openstation_register_*</code> e un'API JavaScript tipizzata; personalizza gli elementi del dock tramite hook documentati; aggiungi strumenti IA con la Abilities API di WordPress. Esempi pronti da copiare e incollare si trovano nella <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">documentazione per sviluppatori su GitHub</a>."
+
+#. Found in description paragraph.
+msgid "No external service is required for OpenStation's desktop interface. The optional AI Assistant, two user-initiated enrichment features, the journal on the About tab, an optional feedback form on deactivation and an optional one-time feedback form for active users make the external requests described below."
+msgstr "L'interfaccia desktop di OpenStation non richiede alcun servizio esterno. L'Assistente IA facoltativo, due funzionalità di arricchimento avviate dall'utente, il diario nella scheda Informazioni, un modulo di feedback facoltativo alla disattivazione e un modulo di feedback facoltativo, una tantum, per gli utenti attivi effettuano le richieste esterne descritte di seguito."
+
+#. Found in description paragraph.
+msgid "<strong>AI Assistant</strong>"
+msgstr "<strong>Assistente IA</strong>"
+
+#. Found in description paragraph.
+msgid "The optional AI Assistant sends data to the <strong>AI provider you configure in WordPress's Settings → Connectors</strong> (for example OpenAI, Anthropic, or Google). Generation is routed through WordPress 7.0's built-in AI Client, which supplies the credentials stored in Connectors. The plugin never handles an API key itself. With no provider configured in Connectors, no external AI requests are made."
+msgstr "L'Assistente IA facoltativo invia dati al <strong>provider IA che configuri in Impostazioni → Connettori di WordPress</strong> (ad esempio OpenAI, Anthropic o Google). La generazione passa attraverso l'AI Client integrato in WordPress 7.0, che fornisce le credenziali memorizzate in Connettori. Il plugin non gestisce mai direttamente una chiave API. Se in Connettori non è configurato alcun provider, non viene effettuata alcuna richiesta IA esterna."
+
+#. Found in description paragraph.
+msgid "When the AI Assistant is enabled and a user invokes it (via Cmd+K or the slash-command palette):"
+msgstr "Quando l'Assistente IA è abilitato e un utente lo richiama (tramite Cmd+K o la palette dei comandi slash):"
+
+#. Found in description paragraph.
+msgid "<strong>URL shortcut favicons</strong>"
+msgstr "<strong>Favicon delle scorciatoie URL</strong>"
+
+#. Found in description paragraph.
+msgid "When an authorized user creates a desktop shortcut to an external URL, OpenStation asks that URL for its page HTML and favicon so the shortcut can display the site's icon. The request is made from your WordPress server and sends the requested URL, the server's IP address, an OpenStation user-agent string, and normal HTTP request metadata to the operator of that site. This happens only when a user creates the shortcut. The destination site's terms and privacy policy apply."
+msgstr "Quando un utente autorizzato crea una scorciatoia sul desktop verso un URL esterno, OpenStation richiede a quell'URL l'HTML della pagina e la favicon, in modo che la scorciatoia possa mostrare l'icona del sito. La richiesta viene effettuata dal tuo server WordPress e invia al gestore di quel sito l'URL richiesto, l'indirizzo IP del server, una stringa user-agent di OpenStation e i normali metadati della richiesta HTTP. Ciò avviene solo quando un utente crea la scorciatoia. Si applicano i termini e l'informativa sulla privacy del sito di destinazione."
+
+#. Found in description paragraph.
+msgid "<strong>OpenStation journal (About tab)</strong>"
+msgstr "<strong>Diario di OpenStation (scheda Informazioni)</strong>"
+
+#. Found in description paragraph.
+msgid "When a user opens the About page in OpenStation Preferences, OpenStation shows the latest posts from the OpenStation journal."
+msgstr "Quando un utente apre la pagina Informazioni nelle Preferenze di OpenStation, OpenStation mostra gli ultimi articoli del diario di OpenStation."
+
+#. Found in description paragraph.
+msgid "<strong>Deactivation feedback</strong>"
+msgstr "<strong>Feedback alla disattivazione</strong>"
+
+#. Found in description paragraph.
+msgid "When an administrator deactivates OpenStation, a dialog asks one optional question about why. Nothing is sent unless you click <strong>Send and deactivate</strong>; <strong>Skip and deactivate</strong> sends nothing, and both deactivate the plugin."
+msgstr "Quando un amministratore disattiva OpenStation, una finestra di dialogo pone una domanda facoltativa sul motivo. Non viene inviato nulla a meno che tu non faccia clic su <strong>Invia e disattiva</strong>; <strong>Salta e disattiva</strong> non invia nulla, ed entrambi disattivano il plugin."
+
+#. Found in description paragraph.
+msgid "<strong>Usage feedback</strong>"
+msgstr "<strong>Feedback sull'utilizzo</strong>"
+
+#. Found in description paragraph.
+msgid "After you have had OpenStation on for a week, a small card asks once whether you have two minutes to say how it is going. Answering <strong>No thanks</strong> sends nothing, and it never comes back. Saying yes opens a short form with three optional questions and an optional email field. Nothing is sent unless you click <strong>Send</strong>; <strong>Cancel</strong>, Escape and the close button send nothing."
+msgstr "Dopo che hai tenuto OpenStation attivo per una settimana, una piccola scheda ti chiede una sola volta se hai due minuti per dire come sta andando. Rispondendo <strong>No grazie</strong> non viene inviato nulla e la scheda non ricompare più. Rispondendo sì si apre un breve modulo con tre domande facoltative e un campo email facoltativo. Non viene inviato nulla a meno che tu non faccia clic su <strong>Invia</strong>; <strong>Annulla</strong>, il tasto Esc e il pulsante di chiusura non inviano nulla."
+
+#. Found in description paragraph.
+msgid "<strong>WordPress.org plugin information</strong>"
+msgstr "<strong>Informazioni sui plugin da WordPress.org</strong>"
+
+#. Found in description paragraph.
+msgid "When an authorized user opens or refreshes parts of OpenStation's Plugins window, OpenStation may request public plugin details, update metadata, and review excerpts from WordPress.org. These requests send plugin slugs, the site's locale, and normal HTTP request metadata to WordPress.org. This information is used only to display and manage plugins. Review the <a href=\"https://wordpress.org/about/privacy/\">WordPress.org Privacy Policy</a>."
+msgstr "Quando un utente autorizzato apre o aggiorna parti della finestra Plugin di OpenStation, OpenStation può richiedere a WordPress.org dettagli pubblici sui plugin, metadati sugli aggiornamenti ed estratti delle recensioni. Queste richieste inviano a WordPress.org gli slug dei plugin, la lingua (locale) del sito e i normali metadati della richiesta HTTP. Queste informazioni vengono usate solo per mostrare e gestire i plugin. Consulta l'<a href=\"https://wordpress.org/about/privacy/\">Informativa sulla privacy di WordPress.org</a>."
+
+#. Found in description paragraph.
+msgid "OpenStation's OAuth relay does not contact a service by itself. Third-party plugins that configure the relay may contact their own providers and are responsible for disclosing those services."
+msgstr "Il relay OAuth di OpenStation non contatta alcun servizio di per sé. I plugin di terze parti che configurano il relay possono contattare i propri provider e sono responsabili di dichiarare tali servizi."
+
+#. Found in description paragraph.
+msgid "OpenStation is brought to you by <a href=\"https://automattic.com\">Automattic</a>. The plugin is open source under GPLv2-or-later; contributions are welcome on <a href=\"https://github.com/WordPress/openstation\">GitHub</a>."
+msgstr "OpenStation ti è offerto da <a href=\"https://automattic.com\">Automattic</a>. Il plugin è open source con licenza GPLv2 o successiva; i contributi sono benvenuti su <a href=\"https://github.com/WordPress/openstation\">GitHub</a>."
+
+#. Found in description paragraph.
+msgid "The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:"
+msgstr "Il plugin include la seguente libreria JavaScript di terze parti, caricata su richiesta solo quando è in uso una funzionalità che ne ha bisogno:"
+
+#. Found in description paragraph.
+msgid "The <strong>Inkfall</strong> game's word list (<code>assets/games/inkfall/words.txt</code>) is generated from the following sources (attribution also ships in the file's header):"
+msgstr "L'elenco di parole del gioco <strong>Inkfall</strong> (<code>assets/games/inkfall/words.txt</code>) è generato dalle seguenti fonti (l'attribuzione è inclusa anche nell'intestazione del file):"
+
+#. Found in installation header.
+msgid "Optional: enable the AI Assistant"
+msgstr "Facoltativo: abilita l'Assistente IA"
+
+#. Found in installation list item.
+msgid "Install via <strong>Plugins → Add New</strong> (search for \"OpenStation\"), or upload the plugin folder to <code>/wp-content/plugins/</code>."
+msgstr "Installa da <strong>Plugin → Aggiungi nuovo plugin</strong> (cerca \"OpenStation\") oppure carica la cartella del plugin in <code>/wp-content/plugins/</code>."
+
+#. Found in installation list item.
+msgid "Activate the plugin through the <strong>Plugins</strong> screen."
+msgstr "Attiva il plugin dalla schermata <strong>Plugin</strong>."
+
+#. Found in installation list item.
+msgid "Click the <strong>desktop</strong> icon in the admin bar's top-right corner. The admin reloads inside the desktop shell."
+msgstr "Fai clic sull'icona <strong>desktop</strong> nell'angolo in alto a destra della barra di amministrazione. L'amministrazione si ricarica all'interno della shell desktop."
+
+#. Found in installation list item.
+msgid "Click the same icon again at any time to return to the classic admin."
+msgstr "Fai di nuovo clic sulla stessa icona in qualsiasi momento per tornare all'amministrazione classica."
+
+#. Found in installation list item.
+msgid "In <strong>Settings → Connectors</strong>, set up an AI provider (OpenAI, Anthropic, or Google). Requires WordPress 7.0+."
+msgstr "In <strong>Impostazioni → Connettori</strong>, configura un provider IA (OpenAI, Anthropic o Google). Richiede WordPress 7.0+."
+
+#. Found in installation list item.
+msgid "In OpenStation, open <strong>OpenStation Preferences → Features</strong> and turn on <strong>AI assistant</strong> (it's off by default)."
+msgstr "In OpenStation, apri <strong>Preferenze di OpenStation → Funzionalità</strong> e attiva <strong>Assistente IA</strong> (è disattivato per impostazione predefinita)."
+
+#. Found in installation list item.
+msgid "Press <strong>Cmd+K</strong> (or <strong>Ctrl+K</strong>) anywhere in OpenStation to open the AI assistant."
+msgstr "Premi <strong>Cmd+K</strong> (o <strong>Ctrl+K</strong>) in qualsiasi punto di OpenStation per aprire l'assistente IA."
+
+#. Found in faq header.
+msgid "Isn't this just a gimmick?"
+msgstr "Non è solo una trovata estetica?"
+
+#. Found in faq header.
+msgid "Will this slow down my site?"
+msgstr "Rallenterà il mio sito?"
+
+#. Found in faq header.
+msgid "Does this change anything for users who don't opt in?"
+msgstr "Cambia qualcosa per gli utenti che non lo attivano?"
+
+#. Found in faq header.
+msgid "Does it work with my other plugins?"
+msgstr "Funziona con i miei altri plugin?"
+
+#. Found in faq header.
+msgid "Does the plugin require an external service to function?"
+msgstr "Il plugin richiede un servizio esterno per funzionare?"
+
+#. Found in faq header.
+msgid "Does it patch WordPress core?"
+msgstr "Modifica il core di WordPress?"
+
+#. Found in faq header.
+msgid "How do I turn OpenStation off for my user?"
+msgstr "Come disattivo OpenStation per il mio utente?"
+
+#. Found in faq header.
+msgid "Where do I get help?"
+msgstr "Dove trovo aiuto?"
+
+#. Found in faq header.
+msgid "Where is the developer documentation?"
+msgstr "Dov'è la documentazione per sviluppatori?"
+
+#. Found in faq paragraph.
+msgid "The desktop look is the visible part, so it's a fair question. But the look is a consequence, and the mechanism underneath is the point: windows hold their state, so switching tasks stops costing you your place. wp-admin is a single-document interface where every navigation destroys the last screen. OpenStation replaces that with the same concurrency model your operating system has used for decades. The research behind it goes back to Henderson and Card's \"Rooms\" paper at Xerox PARC in 1986. The wallpaper is just what that model looks like when you build it."
+msgstr "L'aspetto desktop è la parte visibile, quindi è una domanda legittima. Ma l'aspetto è una conseguenza: il punto è il meccanismo che c'è sotto. Le finestre mantengono il loro stato, quindi passare da un'attività all'altra non ti fa più perdere il segno. wp-admin è un'interfaccia a documento singolo in cui ogni navigazione distrugge la schermata precedente. OpenStation la sostituisce con lo stesso modello di concorrenza che il tuo sistema operativo usa da decenni. La ricerca alla base risale all'articolo \"Rooms\" di Henderson e Card, presentato allo Xerox PARC nel 1986. Lo sfondo è semplicemente l'aspetto che assume quel modello quando lo costruisci."
+
+#. Found in faq paragraph.
+msgid "OpenStation's desktop interface and browser assets are loaded only inside wp-admin, and only for users who have turned it on. Its PHP integration still participates in normal WordPress request handling where needed, including tracking content changes, but visitors never receive the desktop UI."
+msgstr "L'interfaccia desktop e le risorse per il browser di OpenStation vengono caricate solo all'interno di wp-admin, e solo per gli utenti che l'hanno attivato. La sua integrazione PHP partecipa comunque alla normale gestione delle richieste di WordPress dove necessario, incluso il tracciamento delle modifiche ai contenuti, ma i visitatori non ricevono mai l'interfaccia desktop."
+
+#. Found in faq paragraph.
+msgid "No. The classic admin is untouched until a user toggles OpenStation on for themselves. Deactivating the plugin restores vanilla Core exactly."
+msgstr "No. L'amministrazione classica resta intatta finché un utente non attiva OpenStation per sé. Disattivando il plugin, il Core originale viene ripristinato esattamente com'era."
+
+#. Found in faq paragraph.
+msgid "Most plugin admin pages open as windows without special integration. Plugins that depend on running in the top-level browser context or use unusual navigation may need compatibility work. Plugins can also register their own native windows, widgets, and commands for a deeper integration."
+msgstr "La maggior parte delle pagine di amministrazione dei plugin si apre come finestra senza un'integrazione specifica. I plugin che devono essere eseguiti nel contesto principale del browser o che usano una navigazione insolita potrebbero richiedere interventi di compatibilità. I plugin possono anche registrare finestre native, widget e comandi propri per un'integrazione più profonda."
+
+#. Found in faq paragraph.
+msgid "No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and extension APIs work without an external service. The optional AI Assistant requires a configured AI provider. OpenStation also makes limited, user-initiated requests to resolve URL-shortcut favicons and display WordPress.org plugin information, fetches the OpenStation journal when you open the About page, offers an optional, one-click feedback form when you deactivate, and once asks active users whether they want to share feedback. See \"External services\" in the description."
+msgstr "No. La shell desktop, la gestione delle finestre, il dock, la barra delle applicazioni, i desktop virtuali, i widget, gli sfondi e le API di estensione funzionano senza un servizio esterno. L'Assistente IA facoltativo richiede un provider IA configurato. OpenStation effettua inoltre richieste limitate, avviate dall'utente, per recuperare le favicon delle scorciatoie URL e mostrare le informazioni sui plugin da WordPress.org, recupera il diario di OpenStation quando apri la pagina Informazioni, offre un modulo di feedback facoltativo, a un clic, quando disattivi il plugin, e chiede una sola volta agli utenti attivi se vogliono condividere un feedback. Vedi \"Servizi esterni\" nella descrizione."
+
+#. Found in faq paragraph.
+msgid "No. Every feature is wired through public WordPress actions and filters."
+msgstr "No. Ogni funzionalità è collegata tramite azioni e filtri pubblici di WordPress."
+
+#. Found in faq paragraph.
+msgid "Click the desktop icon in the admin bar a second time. The plugin can also be deactivated globally from the Plugins screen."
+msgstr "Fai clic una seconda volta sull'icona desktop nella barra di amministrazione. Il plugin può anche essere disattivato globalmente dalla schermata Plugin."
+
+#. Found in faq paragraph.
+msgid "Ask on the <a href=\"https://wordpress.org/support/plugin/desktop-mode/\">OpenStation support forum</a> here on WordPress.org. From inside OpenStation, open Report a bug from the System dock tile, choose Question, and it takes you there with your question ready to paste. Bug reports and feature requests are welcome on <a href=\"https://github.com/WordPress/openstation/issues\">GitHub</a>."
+msgstr "Chiedi nel <a href=\"https://wordpress.org/support/plugin/desktop-mode/\">forum di supporto di OpenStation</a> qui su WordPress.org. Da OpenStation, apri «Report a bug» dal riquadro «System» del dock, scegli «Question» e ti porterà lì con la domanda pronta da incollare. Segnalazioni di bug e richieste di funzionalità sono benvenute su <a href=\"https://github.com/WordPress/openstation/issues\">GitHub</a>."
+
+#. Found in faq paragraph.
+msgid "In <code>docs/</code> inside the plugin, and on <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">GitHub</a>. The hook reference, JavaScript reference, bridge protocol, and copy-paste examples all live there."
+msgstr "In <code>docs/</code> all'interno del plugin e su <a href=\"https://github.com/WordPress/openstation/tree/trunk/docs\">GitHub</a>. Il riferimento degli hook, il riferimento JavaScript, il protocollo del bridge e gli esempi pronti da copiare e incollare si trovano tutti lì."

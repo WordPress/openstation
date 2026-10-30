@@ -48,7 +48,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `windowManager` | `WindowManager` instance | Stable |
 | `openWindow` | `( id: string, opts?: { source?: string } ) => boolean` | Stable |
 | `openNewWindow` | `( id: string, opts?: { source?: string } ) => boolean` *(always spawns a new instance)* | Stable |
-| `embedAdminPage` | `( host: HTMLElement, url: string, opts?: { windowId?: string } ) => () => void` *(a wp-admin screen inside a native window's body)* | Stable |
+| `embedAdminPage` | `( host: HTMLElement, url: string, opts?: { windowId?: string, onAdminLink?: ( linkUrl: string, tab: string ) => boolean } ) => () => void` *(a wp-admin screen inside a native window's body)* | Stable |
 | `registerWindow` | `( def: NativeWindowDef ) => Promise<Window>` | Stable *(returns a `Promise`)* |
 | `cloneTemplate` | `( templateOrId: string \| HTMLTemplateElement ) => DocumentFragment` | Stable |
 | `onWindow` | `( id, handlers, opts? ) => () => void` | Stable |
@@ -330,7 +330,6 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 | `os-plugins-changed` | iframe → shell (top window) | Stable |
 | `os-menu-signature` | iframe → shell (top window) | Stable |
 | `os-updates-changed` *(shiny-update completion nudge)* | iframe → shell | Stable |
-| `os-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable |
 | `os-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable |
 | `os-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable |
 | `os-drag-over` / `-leave` / `os-drop` | parent → iframe | Stable |
@@ -352,6 +351,7 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 When a status changes (Experimental → Stable, or anything → removed), update **all three** of: the JSDoc, this table, and the relevant per-doc reference. The doc lint guidance in `AGENTS.md` enforces this rule of thumb: a hook change without a doc update ships a lie.
 
 - **Experimental:** [MIO response buttons](mio-window-assistant.md#assistant-response-buttons) — `MioWindowContext.responseActions`, `MioResponseAction`, `MioResponseActionContext`, `MioResponseContext`, and optional `MioChatMessage.id` / `actionIds`; lease-local read/navigation controls.
+- **Experimental:** [MIO response buttons that write](mio-window-assistant.md#response-buttons-that-write) — `effect: 'write'`, `group` and `description` on `MioResponseAction`, `MioResponseActionEffect`, `MioOperation.source` and `MioWindowLease.responseActionEffects`; a user-clicked save, recorded in the operations ledger.
 
 ## App layout components
 

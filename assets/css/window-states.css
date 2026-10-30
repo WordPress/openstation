@@ -400,6 +400,16 @@
 }
 
 /*
+ * Keep the flying window above ordinary restacks until WAAPI finishes.
+ * Windows that fly together (an owner and its children) carry their
+ * stack order as --os-genie-rank, set by the window manager, so they
+ * do not tie on one z-index and restack by DOM order.
+ */
+.os-window--genie-flight:not( .os-window--fullscreen ) {
+	z-index: calc( var( --os-z-genie, 199 ) - var( --os-genie-rank, 0 ) ) !important;
+}
+
+/*
  * `pointer-events: none` on the window root above is not enough on
  * its own: a number of descendants (most notably `.os-
  * file-tile`, but also other tile renderers) explicitly set

@@ -12,7 +12,7 @@
  * one goes deaf while the actions keep firing on the new one.
  *
  * That question used to have a single answer — a `<script src>` in
- * the document with the same origin and path. It is blind to Core's
+ * the document serving the same file. It is blind to Core's
  * script concatenation, which is ON by default in wp-admin
  * (`script_concat_settings()`; only `SCRIPT_DEBUG`, or
  * `CONCATENATE_SCRIPTS = false`, turns it off, which is why no
@@ -32,7 +32,8 @@
  *
  * A script is therefore in the document when ANY of these holds:
  *
- *   - some `<script src>` serves the same origin + path, or
+ *   - some `<script src>` serves the same origin + path + query
+ *     (minus its `ver`), or
  *   - its handle is listed in a `load-scripts.php` blob, or
  *   - Core printed a tag under the handle's own id — `<handle>-js`
  *     for the file, `<handle>-js-before` / `-after` / `-extra` /
@@ -62,8 +63,42 @@ export interface ScriptRef {
 }
 
 /**
+ * Query params that version a file rather than select one.
+ *
+ * `wp_enqueue_script()` appends `ver`, and nothing else; every other
+ * param in a script URL is part of what the server was asked for.
+ */
+const VERSION_PARAMS = new Set( [ 'ver' ] );
+
+/**
+ * The identity of the file a URL serves: origin, path and every query
+ * param except the version, in a canonical order.
+ *
+ * @param url URL to key, absolute or document-relative.
+ * @return The key, or `null` for an unparsable or path-less URL.
+ */
+function scriptIdentity( url: string ): string | null {
+	let parsed: URL;
+	try {
+		parsed = new URL( url, document.baseURI );
+	} catch {
+		return null;
+	}
+	if ( ! parsed.pathname ) {
+		return null;
+	}
+	const params = Array.from( parsed.searchParams.entries() )
+		.filter( ( [ key ] ) => ! VERSION_PARAMS.has( key ) )
+		.sort( ( [ a, av ], [ b, bv ] ) =>
+			a === b ? av.localeCompare( bv ) : a.localeCompare( b ),
+		);
+	const query = new URLSearchParams( params ).toString();
+	return parsed.origin + parsed.pathname + ( query ? '?' + query : '' );
+}
+
+/**
  * Find a `<script src>` already in the document serving the same
- * file, ignoring the query string.
+ * file, ignoring its version.
  *
  * `wp_enqueue_script()` prints `…/desktop.min.js?ver=0.9.8` while a
  * registry entry may hold the bare path or a different `ver`. Within
@@ -71,42 +106,28 @@ export interface ScriptRef {
  * time evaluates it a second time — which duplicates every hook
  * subscription the bundle registers.
  *
- * Origin is part of the identity, though the query string isn't:
- * `loadVendorScript` is public API and vendor bundles have generic
- * paths, so two CDNs both serving `/dist/index.js` are two different
- * bundles. Matching on pathname alone would silently swallow the
- * second one.
+ * Origin is part of the identity: `loadVendorScript` is public API
+ * and vendor bundles have generic paths, so two CDNs both serving
+ * `/dist/index.js` are two different bundles. So is every query param
+ * but `ver`: a plugin serving its windows through one endpoint
+ * (`admin-ajax.php?action=a_bundle`, `…?action=b_bundle`) has two
+ * bundles behind one path, and matching on the path alone would mark
+ * the second as loaded and leave its window on its loading state.
  *
  * @param url Candidate URL.
  * @return The existing tag, or `null`.
  */
 export function findScriptByPath( url: string ): HTMLScriptElement | null {
-	let origin: string;
-	let path: string;
-	try {
-		const parsed = new URL( url, document.baseURI );
-		origin = parsed.origin;
-		path = parsed.pathname;
-	} catch {
-		return null;
-	}
-	if ( ! path ) {
+	const identity = scriptIdentity( url );
+	if ( ! identity ) {
 		return null;
 	}
 	const tags = document.querySelectorAll< HTMLScriptElement >(
 		'script[src]',
 	);
 	for ( const tag of Array.from( tags ) ) {
-		try {
-			const candidate = new URL( tag.src, document.baseURI );
-			if (
-				candidate.origin === origin &&
-				candidate.pathname === path
-			) {
-				return tag;
-			}
-		} catch {
-			/* A malformed src can't match anything — skip it. */
+		if ( scriptIdentity( tag.src ) === identity ) {
+			return tag;
 		}
 	}
 	return null;

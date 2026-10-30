@@ -55,8 +55,13 @@ class OpenStation_Comment_File extends OpenStation_File {
 	}
 
 	/**
-	 * Approved comments are public; unapproved comments require
-	 * the `moderate_comments` capability.
+	 * Unapproved comments require the `moderate_comments` capability.
+	 * An approved comment is readable only when its PARENT POST is:
+	 * "approved" says nothing about who may see the discussion, and
+	 * the tile carries the comment's author, an excerpt and the post
+	 * id — so an approved comment on a private, draft or
+	 * password-protected post must not read like a public one.
+	 * Mirrors `WP_REST_Comments_Controller::check_read_post_permission()`.
 	 *
 	 * @param int $user_id
 	 * @return bool
@@ -66,12 +71,20 @@ class OpenStation_Comment_File extends OpenStation_File {
 		if ( ! $c ) {
 			return false;
 		}
-		// Approved comments are public; non-approved gated on
-		// moderation cap.
-		if ( '1' === (string) $c->comment_approved ) {
-			return true;
+		if ( '1' !== (string) $c->comment_approved ) {
+			return user_can( $user_id, 'moderate_comments' );
 		}
-		return user_can( $user_id, 'moderate_comments' );
+		// Guard the zero before the fetch: `get_post( 0 )` returns
+		// whatever post is in the globals.
+		$post_id = (int) $c->comment_post_ID;
+		$post    = $post_id > 0 ? get_post( $post_id ) : null;
+		if ( ! $post instanceof WP_Post ) {
+			return user_can( $user_id, 'moderate_comments' );
+		}
+		if ( post_password_required( $post ) && ! user_can( $user_id, 'edit_post', $post->ID ) ) {
+			return false;
+		}
+		return OpenStation_Post_File::user_can_read_post( $user_id, $post );
 	}
 
 	/**

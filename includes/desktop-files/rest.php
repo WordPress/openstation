@@ -52,7 +52,11 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Base permission check shared by the desktop-files REST routes:
- * requires a logged-in user with OpenStation enabled.
+ * requires a logged-in user with OpenStation enabled and `read` on
+ * this site. The opt-in is network-wide user meta, so on multisite
+ * `read` is what keeps a user with no role here out of this site's
+ * desktop, folders and shares — the floor `openstation_rest_require_enabled()`
+ * applies to the shell's other routes.
  */
 function openstation_files_rest_permission() {
 	if ( ! is_user_logged_in() ) {
@@ -60,6 +64,9 @@ function openstation_files_rest_permission() {
 	}
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled( get_current_user_id() ) ) {
 		return new WP_Error( 'openstation_files_disabled', __( 'OpenStation is not enabled for this user.', 'desktop-mode' ), array( 'status' => 403 ) );
+	}
+	if ( ! current_user_can( 'read' ) ) {
+		return new WP_Error( 'openstation_files_forbidden', __( 'Sorry, you are not allowed to use files on this site.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	return true;
 }
@@ -982,7 +989,11 @@ function openstation_files_rest_resolve_share_in_folder( WP_REST_Request $req ) 
 			array( 'status' => 404 )
 		);
 	}
-	if ( (int) $share['folder_id'] !== $folder_id ) {
+	// `folder_id` carries a STORED-FILE id on `target_type='file'`
+	// rows, so a file share whose file id happens to equal a folder id
+	// the caller owns would otherwise pass the owner gate below and
+	// let them revoke or rewrite someone else's file share.
+	if ( 'folder' !== $share['target_type'] || (int) $share['folder_id'] !== $folder_id ) {
 		return new WP_Error(
 			'openstation_files_not_found',
 			__( 'Share not found in this folder.', 'desktop-mode' ),
@@ -1209,8 +1220,14 @@ function openstation_files_rest_search_users( WP_REST_Request $req ) {
 		'fields'     => 'all',
 	);
 	if ( '' !== $q ) {
-		$args['search']         = '*' . $q . '*';
-		$args['search_columns'] = array( 'user_login', 'user_email', 'display_name', 'user_nicename' );
+		$args['search'] = '*' . $q . '*';
+		// Matching on `user_email` is an oracle for addresses the
+		// response never shows ("does anyone's email contain x@?"),
+		// so it is reserved for `list_users`, as in Core's
+		// `/wp/v2/users` search.
+		$args['search_columns'] = current_user_can( 'list_users' )
+			? array( 'user_login', 'user_email', 'display_name', 'user_nicename' )
+			: array( 'user_login', 'display_name', 'user_nicename' );
 	}
 
 	/**

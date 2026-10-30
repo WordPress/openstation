@@ -120,6 +120,11 @@ export const deskStyles = css`
 	padding-inline-start: 18px;
 }
 
+[data-os-posts-bulk-running] .os-posts-desk__story:has( .os-posts-desk__select[checked] ) {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
 .os-posts-desk__story-top {
 	display: flex;
 	align-items: center;

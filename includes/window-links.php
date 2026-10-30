@@ -526,6 +526,29 @@ function openstation_window_related_attach( $identity, $post, $screen ) {
 }
 
 /**
+ * Whether the current user may read a post an href points at.
+ *
+ * `read_post` on a published row resolves to plain `read` for every
+ * post type registered with `map_meta_cap`, a plugin's internal type
+ * (an order, a submission log) included; a type with no readable front
+ * end asks `edit_post` instead, as the content graph does.
+ *
+ * @param int $post_id Post id.
+ * @return bool
+ */
+function openstation_window_links_can_read_post( $post_id ) {
+	$post_id = (int) $post_id;
+	if ( $post_id <= 0 ) {
+		return false;
+	}
+	$type = get_post_type_object( (string) get_post_type( $post_id ) );
+	if ( ! $type || ! is_post_type_viewable( $type ) ) {
+		return current_user_can( 'edit_post', $post_id );
+	}
+	return current_user_can( 'read_post', $post_id );
+}
+
+/**
  * Resolve a post's outbound references for the identity's `links`
  * array — everything this post's window should tie to when a window
  * showing it is open:
@@ -583,6 +606,12 @@ function openstation_window_links_extract_references( $post ) {
 			if ( ! $target_type || 'attachment' === $target_type ) {
 				continue;
 			}
+			// An href names any id the author typed (`?p=123`), not one
+			// they can see: a reference to a post the viewer cannot
+			// read would announce its post type to them.
+			if ( ! openstation_window_links_can_read_post( $target_id ) ) {
+				continue;
+			}
 			$push( sanitize_key( $target_type ), $target_id );
 		}
 	}
@@ -596,13 +625,14 @@ function openstation_window_links_extract_references( $post ) {
 	if ( preg_match_all( '/\bwp-image-(\d+)\b/', (string) $post->post_content, $matches ) ) {
 		foreach ( array_slice( array_unique( $matches[1] ), 0, 32 ) as $media_id ) {
 			$media_id = (int) $media_id;
-			if ( $media_id > 0 && 'attachment' === get_post_type( $media_id ) ) {
+			// Same gate as linked posts: the class names any id.
+			if ( $media_id > 0 && 'attachment' === get_post_type( $media_id ) && current_user_can( 'read_post', $media_id ) ) {
 				$push( 'media', $media_id, 'child' );
 			}
 		}
 	}
 	$thumbnail_id = (int) get_post_thumbnail_id( $post );
-	if ( $thumbnail_id > 0 && 'attachment' === get_post_type( $thumbnail_id ) ) {
+	if ( $thumbnail_id > 0 && 'attachment' === get_post_type( $thumbnail_id ) && current_user_can( 'read_post', $thumbnail_id ) ) {
 		$push( 'media', $thumbnail_id, 'child' );
 	}
 
@@ -740,6 +770,19 @@ function openstation_window_related_entities_for_post( $post ) {
 		}
 	}
 
+	// A `wp-image-{id}` class names any id the author typed, so every
+	// entry asks the viewer's own `read_post` before its title or file
+	// name goes out — an attachment of someone else's private post is
+	// as private as the post. Filtered before the cap, so ids the
+	// viewer may not read cannot crowd out the ones they may.
+	$media_ids = array_values(
+		array_filter(
+			$media_ids,
+			static function ( $media_id ) {
+				return current_user_can( 'read_post', $media_id );
+			}
+		)
+	);
 	foreach ( array_slice( $media_ids, 0, 20 ) as $media_id ) {
 		$label = get_the_title( $media_id );
 		if ( '' === $label ) {
@@ -776,6 +819,13 @@ function openstation_window_related_entities_for_post( $post ) {
 			}
 			$target_type = get_post_type( $target_id );
 			if ( ! $target_type || 'attachment' === $target_type ) {
+				continue;
+			}
+			// The href is the author's to write: `?p=123` resolves to
+			// post 123 whatever its status or owner. A contributor could
+			// otherwise link another author's draft or a private post
+			// from their own draft and read its title back here.
+			if ( ! openstation_window_links_can_read_post( $target_id ) ) {
 				continue;
 			}
 			$label = get_the_title( $target_id );

@@ -491,7 +491,10 @@ function openstation_folder_share_revoke( $share_id, $actor_id ) {
 	$share_id = (int) $share_id;
 	$actor_id = (int) $actor_id;
 	$row      = openstation_files_get_share( $share_id );
-	if ( ! $row ) {
+	// File shares have their own revoke path; `folder_id` holds a
+	// stored-file id on those rows, so the folder-owner gate below
+	// would be asked about the wrong object.
+	if ( ! $row || 'folder' !== $row['target_type'] ) {
 		return new WP_Error( 'openstation_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( ! openstation_files_share_can_manage( $row['folder_id'], $actor_id ) ) {
@@ -558,7 +561,8 @@ function openstation_folder_share_update_capability( $share_id, $actor_id, $capa
 		return new WP_Error( 'openstation_files_invalid_capability', __( 'Invalid capability.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 	$row = openstation_files_get_share( $share_id );
-	if ( ! $row ) {
+	// Folder shares only — see `openstation_folder_share_revoke()`.
+	if ( ! $row || 'folder' !== $row['target_type'] ) {
 		return new WP_Error( 'openstation_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( ! openstation_files_share_can_manage( $row['folder_id'], $actor_id ) ) {
@@ -1047,7 +1051,7 @@ function openstation_folder_share_user_capability( $folder_id, $user_id ) {
  */
 function openstation_folder_share_user_capability_cascade( $folder_id, $user_id ) {
 	$user_id   = (int) $user_id;
-	$ancestors = openstation_folder_ancestors( (int) $folder_id );
+	$ancestors = openstation_folder_trusted_ancestors( (int) $folder_id );
 	if ( empty( $ancestors ) || $user_id <= 0 ) {
 		return 'none';
 	}
@@ -1147,6 +1151,65 @@ function openstation_folder_share_user_capability_cascade( $folder_id, $user_id 
 	}
 
 	return $cap;
+}
+
+/**
+ * The ancestors of a folder that may lend it their shares: the chain
+ * from `openstation_folder_ancestors()`, cut at the first ancestor the
+ * folder's OWNER cannot reach.
+ *
+ * A folder's ancestry follows its owner's placement, and the owner is
+ * not the only one who can move that placement: a writer may move the
+ * owner's tiles between folders of the shared tree, including into a
+ * folder of their own. Were every ancestor trusted, the writer's folder
+ * would then grant them `write` on the owner's folder for good, and
+ * carrying their folder out of the shared tree would keep that grant
+ * after the owner revoked the share (and hand the folder to whoever
+ * they share their own folder with). An ancestor the owner cannot
+ * reach is one the owner never chose to put their folder under, so
+ * nothing above it speaks for them.
+ *
+ * @param int $folder_id Folder whose ancestors to walk.
+ * @return int[] Trusted ancestors, nearest first.
+ */
+function openstation_folder_trusted_ancestors( $folder_id ) {
+	static $walking = array();
+
+	$folder_id = (int) $folder_id;
+	$ancestors = openstation_folder_ancestors( $folder_id );
+	if ( empty( $ancestors ) ) {
+		return array();
+	}
+	$folder = openstation_files_get_folder( $folder_id, true );
+	if ( ! $folder ) {
+		return array();
+	}
+	$owner = (int) $folder['owner_id'];
+
+	// Re-entrancy guard: the owner's reach on an ancestor is asked
+	// through the cascade, which walks that ancestor's own chain. A
+	// cycle in the data would otherwise recurse without end.
+	if ( isset( $walking[ $folder_id ] ) ) {
+		return array();
+	}
+	$walking[ $folder_id ] = true;
+
+	$trusted = array();
+	foreach ( $ancestors as $ancestor_id ) {
+		$ancestor = openstation_files_get_folder( (int) $ancestor_id, true );
+		if ( ! $ancestor ) {
+			break;
+		}
+		if ( (int) $ancestor['owner_id'] !== $owner
+			&& 'none' === openstation_folder_share_user_capability( (int) $ancestor_id, $owner ) ) {
+			break;
+		}
+		$trusted[] = (int) $ancestor_id;
+	}
+
+	unset( $walking[ $folder_id ] );
+
+	return $trusted;
 }
 
 /**

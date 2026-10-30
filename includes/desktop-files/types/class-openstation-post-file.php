@@ -100,6 +100,31 @@ class OpenStation_Post_File extends OpenStation_File {
 		if ( ! $post ) {
 			return false;
 		}
+		return self::user_can_read_post( $user_id, $post );
+	}
+
+	/**
+	 * Whether `$user_id` may see a post's tile metadata (title,
+	 * status, permalink, featured image).
+	 *
+	 * `read_post` alone is not enough: `map_meta_cap()` resolves it on
+	 * any `publish`-status post to the type's `read` capability, which
+	 * every logged-in user holds — so a published row of a post type
+	 * with no readable front end (a plugin's internal log, queue or
+	 * submission CPT) would read like a public post. Those need
+	 * `edit_post`, as in `openstation_my_wordpress_can_read_comment_post()`.
+	 * The post password is not asked: a tile carries no body, and Core
+	 * shows a protected post's title to everyone.
+	 *
+	 * @param int     $user_id User.
+	 * @param WP_Post $post    Post.
+	 * @return bool
+	 */
+	public static function user_can_read_post( int $user_id, WP_Post $post ): bool {
+		$post_type = get_post_type_object( $post->post_type );
+		if ( ! $post_type || ! is_post_type_viewable( $post_type ) ) {
+			return user_can( $user_id, 'edit_post', $post->ID );
+		}
 		return user_can( $user_id, 'read_post', $post->ID );
 	}
 

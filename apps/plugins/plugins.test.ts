@@ -82,6 +82,11 @@ function jsonResponse( body: unknown, status = 200 ): Response {
 const ajaxOk = ( data: unknown ): Response => jsonResponse( { success: true, data } );
 
 const fetchMock = (): ReturnType< typeof vi.fn > => globalThis.fetch as unknown as ReturnType< typeof vi.fn >;
+/** Every request but the row-links read the view makes when its list lands. */
+const requests = (): unknown[][] =>
+	fetchMock().mock.calls.filter(
+		( [ , init ] ) => ( ( init as RequestInit | undefined )?.body as URLSearchParams | undefined )?.get?.( 'action' ) !== 'openstation_plugins_action_links',
+	);
 const restOver = ( cfg = extra() ) => createPluginsRest( () => cfg, ( url, init ) => globalThis.fetch( url, init ) );
 
 /** A host for the parts that never touch the view. */
@@ -97,6 +102,8 @@ function fakeHost( over: Partial< PluginsHost > = {} ): PluginsHost & { toasts: 
 		root: document.body,
 		busy: freshBusy(),
 		caches: { info: new Map(), reviews: new Map() },
+		actionLinks: new Map(),
+		openLink: () => undefined,
 		dispatch: async ( action ) => {
 			dispatched.push( action );
 			return true;
@@ -162,12 +169,40 @@ describe( 'the plugins app view', () => {
 		// A type-only import used to leave the preserved table inert,
 		// exposing its empty slot even when installed rows existed.
 		expect( customElements.get( 'os-table' ) ).toBeDefined();
+		// The detail flyout's host is in the view; un-upgraded, the
+		// details painted inline over the gallery.
+		expect( customElements.get( 'os-flyout' ) ).toBeDefined();
 		const { root } = mount();
 		await Promise.resolve();
 		const card = root.querySelector( '[data-plugin-card]' )!;
 		expect( card.shadowRoot ).not.toBeNull();
 		expect( renderedText( card ) ).toContain( 'Akismet' );
 		expect( root.querySelector( '.os-plugins__library-empty' ) ).toBeNull();
+	} );
+
+	it( 'offers the links a plugin adds to its own row: admin pages as windows, the rest in a tab', async () => {
+		fetchMock().mockImplementation( async ( _url: string, init?: RequestInit ) => {
+			const action = ( init?.body as URLSearchParams | undefined )?.get?.( 'action' );
+			return action === 'openstation_plugins_action_links'
+				? ajaxOk( {
+					'akismet/akismet': [
+						{ key: 'settings', label: 'Settings', url: 'http://example.test/wp-admin/options-general.php?page=akismet', admin: true },
+						{ key: 'docs', label: 'Docs', url: 'https://docs.example.test/', admin: false },
+					],
+				} )
+				: ajaxOk( { plugins: [], info: {} } );
+		} );
+		const openUrl = vi.fn();
+		const open = vi.spyOn( window, 'open' ).mockImplementation( () => null );
+		const { root } = mount( {}, { installed: [ row( { status: 'active' } ) ] }, {}, { openUrl } );
+		await vi.waitFor( () => expect( root.querySelectorAll( '[data-plugin-card] [data-plugin-links] os-button' ) ).toHaveLength( 2 ) );
+
+		const [ settings, docs ] = root.querySelectorAll< HTMLElement >( '[data-plugin-card] [data-plugin-links] os-button' );
+		settings.click();
+		expect( openUrl ).toHaveBeenCalledWith( 'http://example.test/wp-admin/options-general.php?page=akismet', 'Settings', 'dashicons-admin-plugins' );
+		docs.click();
+		expect( open ).toHaveBeenCalledWith( 'https://docs.example.test/', '_blank', expect.any( String ) );
+		expect( openUrl ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	it( 'declares a placeholder: the frame paints before mount with a library loading state', () => {
@@ -269,9 +304,9 @@ describe( 'the plugins app view', () => {
 
 	it( 'does not fetch a gallery until its tab is on screen', () => {
 		mount( { tab: 'installed' } );
-		expect( fetchMock() ).not.toHaveBeenCalled();
+		expect( requests() ).toHaveLength( 0 );
 		mount( { tab: 'featured' } );
-		const actions = fetchMock().mock.calls.map( ( [ , init ] ) => ( ( init as RequestInit ).body as URLSearchParams ).get( 'action' ) );
+		const actions = requests().map( ( [ , init ] ) => ( ( init as RequestInit ).body as URLSearchParams ).get( 'action' ) );
 		expect( actions ).toEqual( [ 'openstation_plugins_featured' ] );
 	} );
 
@@ -794,7 +829,7 @@ describe( 'the installed plugin library', () => {
 		expect( root.querySelector( '[data-plugin-card="sleep/sleep"] .os-plugins__module-icon' ) ).not.toBeNull();
 		expect( root.querySelectorAll( '[data-plugin-card]' ) ).toHaveLength( 1 );
 		expect( root.querySelector( '.os-plugins__selection-count' )?.textContent ).toBe( '1 selected' );
-		expect( fetchMock() ).not.toHaveBeenCalled();
+		expect( requests() ).toHaveLength( 0 );
 	} );
 
 	it( 'always shows compact checkboxes and opens bulk tools only with a selection', async () => {
@@ -819,7 +854,7 @@ describe( 'the installed plugin library', () => {
 		click( root, '[data-shelf="update"] .os-plugins__shelf-heading os-button' );
 		expect( root.querySelector( '.os-plugins__selection-count' )?.textContent ).toBe( '1 selected' );
 		expect( root.querySelector( '.os-plugins__selection-actions' )?.textContent ).toContain( 'Update 1' );
-		expect( fetchMock() ).not.toHaveBeenCalled();
+		expect( requests() ).toHaveLength( 0 );
 	} );
 
 	it( 'adds update candidates without clearing previously selected inactive plugins', () => {
@@ -839,7 +874,7 @@ describe( 'the installed plugin library', () => {
 		expect( rows.map( ( r ) => r.plugin ) ).toEqual( [ 'sleep/sleep', 'network/network', 'update/update' ] );
 		expect( root.querySelector( '[data-plugin-card="sleep/sleep"] .os-plugins__module-actions' )?.textContent ).toContain( 'Activate' );
 		expect( root.querySelector( '[data-plugin-card="update/update"] .os-plugins__module-actions os-button' )?.textContent ).toBe( 'Update' );
-		expect( fetchMock() ).not.toHaveBeenCalled();
+		expect( requests() ).toHaveLength( 0 );
 	} );
 
 	it( 'keeps inspector actions independent, preserves details on repaint, and returns keyboard focus', async () => {
@@ -980,5 +1015,34 @@ describe( 'the installed table and view preference', () => {
 		openDetailFlyout( flyout, 'test', { slug: 'test', name: encoded, version: '1', last_updated: '', tested: '', author: '', short_description: '', rating: 0, num_ratings: 0, active_installs: 0 }, host );
 		expect( flyout.querySelector( '.os-plugins__flyout-hero-title' )?.textContent ).toBe( 'Save & Go <img src=x onerror=alert(1)>' );
 		expect( flyout.querySelector( '.os-plugins__flyout-hero-title img' ) ).toBeNull();
+	} );
+
+	it( 'renders fact cards and chips with <os-icon> inside the inspector shadow root', () => {
+		const { root } = mount( {}, { installed: [ row( { version: '2.10.2', requires_wp: '6.0' } ) ] } );
+		root.querySelector< HTMLElement >( '[data-plugin-details]' )!.click();
+		const shadow = root.querySelector( '.os-plugins__inspector-content' )?.shadowRoot;
+		expect( shadow ).not.toBeNull();
+
+		// Check overview chips use <os-icon>
+		const chipIcon = shadow!.querySelector( 'os-chip os-icon[name="wordpress"]' );
+		expect( chipIcon ).not.toBeNull();
+		expect( chipIcon?.getAttribute( 'size' ) ).toBe( '14' );
+
+		// Switch to Details tab to inspect fact cards.
+		const tabs = shadow!.querySelector( 'os-tabs' )!;
+		tabs.dispatchEvent( new CustomEvent( 'os-tab-change', { detail: { value: 'details' } } ) );
+
+		const tagIcon = shadow!.querySelector( '.os-plugins__detail-fact-head os-icon[name="tag"]' );
+		expect( tagIcon ).not.toBeNull();
+		expect( tagIcon?.getAttribute( 'size' ) ).toBe( '14' );
+
+		const fileIcon = shadow!.querySelector( '.os-plugins__detail-fact-head os-icon[name="media-document"]' );
+		expect( fileIcon ).not.toBeNull();
+		expect( fileIcon?.getAttribute( 'size' ) ).toBe( '14' );
+
+		// Fallback hero icon when plugin has no icon URL.
+		const heroIcon = shadow!.querySelector( '.os-plugins__detail-hero-icon os-icon[name="admin-plugins"]' );
+		expect( heroIcon ).not.toBeNull();
+		expect( heroIcon?.getAttribute( 'size' ) ).toBe( '20' );
 	} );
 } );

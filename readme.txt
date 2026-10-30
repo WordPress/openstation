@@ -1,14 +1,14 @@
-=== OpenStation: Desktop Windows, Dock & Virtual Desktops for WP Admin ===
+=== OpenStation – Admin Dashboard Notes, Custom Dashboard, AI Assistant & PWA ===
 Contributors: automattic, allterraindeveloper, epeicher, mmtr86, nickhamze, nuriapena
-Tags: admin, dashboard, desktop, productivity, ai
+Tags: admin dashboard, notes, sticky notes, dashboard notes, custom dashboard
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.15
+Stable tag: 1.1.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A windowed workspace for wp-admin. Open posts, media, and settings side by side, with a dock, virtual desktops, and a Cmd+K palette.
+A productivity desktop and custom dashboard for wp-admin: windows, dark mode, dashboard notes, an AI assistant, and a progressive web app (PWA).
 
 == Description ==
 
@@ -26,7 +26,7 @@ https://www.youtube.com/watch?v=g5MLB3WMlCc
 
 Install it and admin screens become draggable, resizable windows. Edit a post while the Media Library sits open next to it. Drag an image from one window straight into the other. Keep comments open in the corner. Reload the browser and your window layout — open pages, positions, sizes, and window states — comes back where you left it.
 
-OpenStation itself is free, GPL, and opt-in per user. One click in the admin bar turns it on for you. One click turns it off. Nobody else on your site sees anything change, and deactivating the plugin restores the classic admin exactly. No Core patches and no lock-in. Optional AI providers may charge for their service.
+OpenStation itself is free, GPL, and opt-in per user. One click in the admin bar turns it on for you. One click turns it off. Nobody else on your site sees anything change, and deactivating the plugin restores the classic admin exactly. Prefer the classic admin look while you keep the windows? Switch on the Legacy theme. No Core patches and no lock-in. Optional AI providers may charge for their service.
 
 Built and maintained by [Automattic](https://automattic.com), the company behind WordPress.com, Jetpack, WooCommerce, and Tumblr.
 
@@ -50,9 +50,9 @@ Virtual desktops, the way your operating system does them. One for writing. One 
 
 The full WordPress command palette, plus slash commands from your plugins, all under one keystroke. Turn on the optional AI assistant and you can ask it things like "which post had the comment asking for the recipe?" and it searches your own content to answer. (Requires an AI provider configured in Settings → Connectors on WordPress 7.0+. Details under "External services" below.)
 
-= See how your site fits together =
+= See how your site fits together, orphan pages included =
 
-The Corkboard is an interactive, zoomable map of how your posts, pages, and products link to each other. Pan around it. Find the orphans. Find the hubs.
+The Corkboard is an interactive, zoomable map of how your posts, pages, and products link to each other. Pan around it. Find orphan pages that nothing links to, and link them in. Find the hubs.
 
 = Running a store? =
 
@@ -60,7 +60,19 @@ Orders, Products, Coupons, and Customers become browsable folders with stock and
 
 = Make it yours =
 
-Wallpapers, from color presets to animated scenes to your own photo. Live widgets pinned to the desktop: drafts, stats, recent comments, a focus timer. Uploadable desktop themes, including a built-in Legacy theme that brings the old WordPress blue back in one click. And Mio, a soft-body desk companion that drifts across your wallpaper and gets bumped around by your windows. Off by default. You'll turn it on.
+Build the custom dashboard you actually want. Dark mode by default, with a light theme one click away. Wallpapers, from color presets to animated scenes to your own photo. Live dashboard widgets pinned to the desktop: drafts, stats, recent comments, a focus timer. Write dashboard notes in the Note Pad widget, or straight on the wallpaper, and pin them to the desktop. Uploadable desktop themes, including a built-in Legacy theme that brings the classic admin look and the old WordPress blue back in one click. And Mio, a soft-body desk companion that drifts across your wallpaper and gets bumped around by your windows. Off by default. You'll turn it on.
+
+= Sticky notes on the admin dashboard =
+
+Write notes in the Note Pad widget or straight on the wallpaper and pin them to the admin dashboard like sticky notes. Keep a note private or share it with everyone who uses OpenStation, and turn a note into a draft post when it grows up.
+
+= A multisite dashboard =
+
+On a multisite network, OpenStation works in the network admin too, keeps a separate desktop for each site, and lists every site in one switcher, so the multisite dashboard is one click from anywhere.
+
+= Works on your phone =
+
+On a phone, OpenStation becomes a mobile admin: full-screen apps, an app switcher, and a tab bar. Add it to your home screen and it runs as an installed progressive web app (PWA) that updates itself.
 
 = For developers =
 
@@ -161,6 +173,10 @@ No. Every feature is wired through public WordPress actions and filters.
 
 Click the desktop icon in the admin bar a second time. The plugin can also be deactivated globally from the Plugins screen.
 
+= Where do I get help? =
+
+Ask on the [OpenStation support forum](https://wordpress.org/support/plugin/desktop-mode/) here on WordPress.org. From inside OpenStation, open Report a bug from the System dock tile, choose Question, and it takes you there with your question ready to paste. Bug reports and feature requests are welcome on [GitHub](https://github.com/WordPress/openstation/issues).
+
 = Where is the developer documentation? =
 
 In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/openstation/tree/trunk/docs). The hook reference, JavaScript reference, bridge protocol, and copy-paste examples all live there.
@@ -196,6 +212,25 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.17 =
+* Enforce Core parity for spam and trash row actions.
+* Prevent z-index occlusion during minimize/restore flights
+* Drop menu entries plugins remove on admin_head
+* Dock: Make it easier to find where to customize the menus
+* Show plugins' own row links in the native Plugins window
+* Add a security policy
+* Notes: Render Markdown and checklists on pinned notes
+* Notifications: Show notifications when the admin bar is hidden
+* Extensions: Fix the base library's migration note
+* Bring the README up to date with the code
+* Add AI agent prompts and an openstation-extension skill
+
+= 1.1.16 =
+* Add stack-on-phone attribute to os-table
+* Readme: Refresh the description and point questions to the support forum
+* Trash: Show progress while posts move to the trash
+* Switch to list tab on embedded editor back navigation
 
 = 1.1.15 =
 * Plugin: Point the Plugin URI at openstation.me

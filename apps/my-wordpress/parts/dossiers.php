@@ -45,6 +45,24 @@ function media_ids( \WP_Post $post ) {
 }
 
 /**
+ * Whether the acting user may see a post's comments at all: Core's
+ * `WP_REST_Comments_Controller::check_read_post_permission()`, as
+ * `openstation_my_wordpress_can_read_comment_post()` encodes it — the
+ * password, the type's viewability, then `read_post`. `read_post`
+ * alone passes a published post whatever its password, and a comment
+ * carries the discussion the password seals.
+ *
+ * @param \WP_Post $post Post.
+ * @return bool
+ */
+function can_read_comments( \WP_Post $post ) {
+	if ( function_exists( 'openstation_my_wordpress_can_read_comment_post' ) ) {
+		return (bool) openstation_my_wordpress_can_read_comment_post( $post );
+	}
+	return ! post_password_required( $post ) && current_user_can( 'read_post', (int) $post->ID );
+}
+
+/**
  * The detail FOLDER a post navigates into: the rendered article plus
  * one folder tile per related surface — Author, Contributors,
  * Comments, Categories, Tags, Attached media, Revisions — with live
@@ -56,8 +74,10 @@ function media_ids( \WP_Post $post ) {
  * @return array<string,mixed>|null Null when the post vanished.
  */
 function folder( Os $os, array $section, $id ) {
-	$post = get_post( $id );
-	if ( ! $post || $post->post_type !== $section['post_type'] ) {
+	$post = $id > 0 ? get_post( $id ) : null;
+	// `into` rides up with the client's state: a post the caller may
+	// not read has no folder, whatever the section's gate admitted.
+	if ( ! $post || $post->post_type !== $section['post_type'] || ! can_read( $os, $post ) ) {
 		return null;
 	}
 
@@ -69,8 +89,12 @@ function folder( Os $os, array $section, $id ) {
 	$tags         = get_the_terms( $post, 'post_tag' );
 	$tags         = is_array( $tags ) ? $tags : array();
 	$media_count  = count( media_ids( $post ) );
-	$comments     = (int) get_comments_number( $post );
-	$revisions    = wp_revisions_enabled( $post ) ? count( wp_get_post_revisions( $id, array( 'fields' => 'ids' ) ) ) : 0;
+	// The counts cover what the relation lists: comments follow the
+	// comment-read rule on the post, revisions `edit_post`.
+	$comments     = can_read_comments( $post ) ? (int) get_comments_number( $post ) : 0;
+	$revisions    = wp_revisions_enabled( $post ) && current_user_can( 'edit_post', $id )
+		? count( wp_get_post_revisions( $id, array( 'fields' => 'ids' ) ) )
+		: 0;
 
 	$folders   = array();
 	$folders[] = array(
@@ -127,8 +151,9 @@ function folder( Os $os, array $section, $id ) {
 		'id'      => $id,
 		'title'   => '' !== $post->post_title ? openstation_plain_text_title( $post->post_title ) : __( '(no title)', 'desktop-mode' ),
 		'status'  => (string) $post->post_status,
+		// Empty while a password the caller has not entered still seals it.
 		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Applying Core's own content pipeline, not declaring a hook.
-		'content' => (string) apply_filters( 'the_content', (string) $post->post_content ),
+		'content' => can_read_body( $os, $post ) ? (string) apply_filters( 'the_content', (string) $post->post_content ) : '',
 		'folders' => $folders,
 	);
 }
@@ -144,19 +169,20 @@ function folder( Os $os, array $section, $id ) {
  * @return array{label:string,rows:array[]}|null
  */
 function sub( Os $os, array $section, $id, $relation ) {
-	$post = get_post( $id );
-	if ( ! $post || $post->post_type !== $section['post_type'] ) {
+	$post = $id > 0 ? get_post( $id ) : null;
+	if ( ! $post || $post->post_type !== $section['post_type'] || ! can_read( $os, $post ) ) {
 		return null;
 	}
 	$rows  = array();
 	$label = '';
 
-	$user_row = static function ( $user_id, $name = '', $avatar = '' ) {
+	$user_row = static function ( $user_id, $name = '', $avatar = '' ) use ( $os ) {
 		$user = get_userdata( (int) $user_id );
 		return array(
 			'id'       => (int) $user_id,
 			'title'    => openstation_plain_text_title( '' !== $name ? $name : ( $user ? (string) $user->display_name : sprintf( '#%d', $user_id ) ) ),
-			'subtitle' => $user ? (string) $user->user_email : '',
+			// An author's email is account data, not the post's.
+			'subtitle' => $user && can_see_account( $os, (int) $user_id ) ? (string) $user->user_email : '',
 			'thumb'    => '' !== $avatar ? $avatar : (string) get_avatar_url( (int) $user_id, array( 'size' => 96 ) ),
 			'editUrl'  => current_user_can( 'edit_user', (int) $user_id )
 				? admin_url( 'user-edit.php?user_id=' . (int) $user_id )
@@ -179,12 +205,20 @@ function sub( Os $os, array $section, $id, $relation ) {
 			break;
 		case 'comments':
 			$label = __( 'Comments', 'desktop-mode' );
-			foreach ( get_comments(
+			foreach ( can_read_comments( $post ) ? get_comments(
 				array(
 					'post_id' => $id,
 					'number'  => 100,
 				)
-			) as $comment ) {
+			) : array() as $comment ) {
+				// `get_comments()` answers pending rows too. Core's REST
+				// read rule: an approved comment on a readable post, or
+				// one the caller wrote or may edit.
+				if ( '1' !== (string) $comment->comment_approved
+					&& (int) $comment->user_id !== (int) $os->auth->user_id()
+					&& ! current_user_can( 'edit_comment', (int) $comment->comment_ID ) ) {
+					continue;
+				}
 				$rows[] = array(
 					'id'       => (int) $comment->comment_ID,
 					'title'    => openstation_plain_text_title( $comment->comment_author ),
@@ -238,7 +272,9 @@ function sub( Os $os, array $section, $id, $relation ) {
 			break;
 		case 'revisions':
 			$label = __( 'Revisions', 'desktop-mode' );
-			foreach ( wp_get_post_revisions( $id ) as $revision ) {
+			// A revision is read on `edit_post` of its parent, as the
+			// row's own dossier below and Core's revisions screen ask.
+			foreach ( current_user_can( 'edit_post', $id ) ? wp_get_post_revisions( $id ) : array() as $revision ) {
 				// A grid of identical clock icons, each labelled with
 				// Core's whole "author, 2 days ago (October 6, 2026 @
 				// 09:22:49)" sentence, told revisions apart by nothing
@@ -333,6 +369,13 @@ function stats_payload( $callback, array $params ) {
  * @return array<string,mixed>|null
  */
 function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
+	// The same gate as the folder the row sits in, and the row must be
+	// one that folder lists: `item` rides up with the client's state,
+	// so a bare id would otherwise open any person's or file's dossier.
+	$post = $post_id > 0 ? get_post( $post_id ) : null;
+	if ( ! $post || $post->post_type !== $section['post_type'] || ! can_read( $os, $post ) ) {
+		return null;
+	}
 	switch ( $relation ) {
 		case 'categories':
 		case 'tags':
@@ -350,6 +393,20 @@ function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 
 		case 'author':
 		case 'contributors':
+			$members = 'author' === $relation
+				? array( (int) $post->post_author )
+				: array_map(
+					'intval',
+					wp_list_pluck(
+						function_exists( 'openstation_my_wordpress_post_contributors_payload' )
+							? (array) openstation_my_wordpress_post_contributors_payload( $post_id )
+							: array(),
+						'userId'
+					)
+				);
+			if ( ! in_array( (int) $row_id, $members, true ) ) {
+				return null;
+			}
 			$user_section = array(
 				'kind'      => 'user',
 				'post_type' => '',
@@ -372,6 +429,9 @@ function sub_detail( Os $os, array $section, $post_id, $relation, $row_id ) {
 			) : null;
 
 		case 'media':
+			if ( ! in_array( (int) $row_id, media_ids( $post ), true ) ) {
+				return null;
+			}
 			$media_section = array(
 				'kind'       => 'media',
 				'post_type'  => 'attachment',

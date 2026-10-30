@@ -152,6 +152,18 @@ Plugins (notably WooCommerce's `wc-addons` Extensions row) register `menu_title 
 
 **Fix**: `openstation_build_dock_items()` skips submenu entries whose cleaned title is empty / null / whitespace.
 
+### Menu entries removed on `admin_head`
+
+A second way to keep a page reachable while hiding its row: register it on `admin_menu`, then call `remove_submenu_page()` on `admin_head`. Removing it on `admin_menu` would blank the page's own heading, because Core reads the screen title from the submenu entry at the top of `admin-header.php`. Classic admin prints the menu after `admin_head`, so the row never shows there. The shell config is built on `admin_enqueue_scripts`, before `admin_head`, and the menu-refresh probe exits on `admin_init`. Both shipped the hidden rows to the dock, so a reload brought them back.
+
+**Fix**: `openstation_resync_shell_dock_after_admin_head()` (`admin_head @ PHP_INT_MAX`) compares the menu signature with the one the config was built from. When they differ, it re-sends `dockItems` and `menuSig` through a `before` inline on the footer `openstation` handle, which still has not printed. The probe replays `admin_head` into a discarded buffer before it builds its payload, the same way it already replays `admin_enqueue_scripts`. The chromeless bridge on `plugins.php` and the other pages it covers runs on `admin_footer` and needs neither.
+
+### Row links in the native Plugins window
+
+A plugin that hides its settings page from the menu usually leaves its **Settings** link on its row in the Plugins screen, from `plugin_action_links` / `plugin_action_links_{$plugin_file}`. The native Plugins window reads `/wp/v2/plugins`, which carries no row links, so the page had no way in from there.
+
+**Fix**: `apps/plugins/parts/action-links.php` answers `wp_ajax_openstation_plugins_action_links` with every plugin's row links. It runs both filters the way `WP_Plugins_List_Table::single_row()` does, seeded with Core's own actions for the row (`deactivate` for an active plugin, `activate` and `delete` otherwise), then drops Core's keys and keeps the http(s) links. It runs on admin-ajax rather than as a REST field because many plugins add the filter only behind `is_admin()`, which is false on a REST request. The window shows the links on each card, in the inspector and in the table's row menu. A link into this site's wp-admin opens as a window, through the same remap the dock uses; any other link opens in a browser tab. The window refetches when a plugin is installed, removed, activated or deactivated. **Test**: `tests/phpunit/tests/pluginsWindowActionLinks.php`.
+
 ### Synthetic "Add Theme" tab on the Appearance window
 
 Core does not register `theme-install.php` as a submenu of `themes.php` — classic admin only surfaces it through the in-page "Add Theme" `.page-title-action` button at the top of `themes.php`. Inside chromeless that button scrolls out of view on first paint (the focus-target heuristic on the visible theme grid steals the scroll position), leaving no entry point to the install flow.
@@ -221,6 +233,19 @@ Jetpack mounts its Stats (`admin.php?page=stats`) and Blaze (`?page=advertising`
 **Fix**: `isJetpackAppRoute()` in `src/chromeless-bridge.js` yields exactly the links Jetpack's handler claims: inside `#wpcom`, with an href starting with `/` plus the screen's `page` arg. Any other link in those apps, such as a post permalink, still reaches the shell.
 
 **Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
+
+### WordPress.com / Jetpack notifications under a hidden admin bar
+
+Jetpack's Notifications module, and the WordPress.com masterbar that shares its markup, put a bell in the admin bar: `#wp-admin-bar-notes`, whose `#wpnt-notes-unread-count` carries the unread state, and a panel (`#wpnt-notes-panel2`, or `-panel3` on the v3 opt-in) that Jetpack's own script fills with an iframe and toggles from a click on the bell. The shell hides the bar by default (`adminBarMode: 'hidden'`), so out of the box the bell, its count and its panel never showed, and the only way back to them was the whole bar.
+
+**Fix**, while the mode is `hidden` and only on a site that registers the node:
+
+1. `src/admin-bar-notes.ts` adds a **Notifications** dock tile (`os-notifications`, a `control` tile ahead of Site assistant, placeable in Preferences → Navigation). Its badge mirrors the bell's count, and a click clicks the bell, so the panel, the unread logic and the keyboard handling stay Jetpack's. In `static` and `dynamic` the bell is on the bar and the tile is removed; the mode is read off the `os-admin-bar-<mode>` body class, so it follows the `openstation_admin_bar_mode` filter, and a switch in Preferences lands without a reload.
+2. `desktop.css` keeps the bar laid out instead of `display: none` on those sites, as `visibility: hidden` at zero height, and turns `visibility` back on for the panel alone. Hidden items take no pointer events and no focus, and a zero-height bar publishes no `--os-admin-bar-height`, so the rest of the desktop sees no bar. Third-party CSS or script that reads the bar's `display` sees `block` at zero height on those sites, not `none`. Fullscreen and solo still remove it.
+
+Jetpack closes the panel on a press outside it, and a press on the tile is one. The tile therefore decides between opening and closing from the state the press found, and clicks the bell only after its own click has finished bubbling. A click inside a window's iframe never reaches the shell document, so it does not close the panel; that is true of the bell in `static` mode too. The node is looked up once, when the shell boots: Jetpack renders it server-side, and a bell added to the page later gets no tile.
+
+**Test**: `tests/vitest/admin-bar-notes.test.ts`, against Jetpack's markup and a stand-in for its toggle.
 
 ### Elementor 4's legacy menus
 

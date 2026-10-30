@@ -334,6 +334,9 @@
             "Ask about this window, or tell me what to change.": [
                 ""
             ],
+            "Ask on the WordPress.org support forum": [
+                ""
+            ],
             "Ask the agent to do something…": [
                 ""
             ],
@@ -718,6 +721,15 @@
             "Customize": [
                 ""
             ],
+            "Customize desktop icons…": [
+                ""
+            ],
+            "Customize dock…": [
+                ""
+            ],
+            "Customize sidebar…": [
+                ""
+            ],
             "Cycle the colours": [
                 ""
             ],
@@ -808,6 +820,9 @@
             "Dock %s back to widget column": [
                 ""
             ],
+            "Dock position and behavior…": [
+                ""
+            ],
             "Don't ask again": [
                 ""
             ],
@@ -827,6 +842,9 @@
                 ""
             ],
             "Drafts": [
+                ""
+            ],
+            "Drag a tile to reorder the rail. Right-click it to hide it or to choose what the rail shows.": [
                 ""
             ],
             "Drag the window to the left edge until the preview appears, then let go. It takes half the screen; another window can take the other half.": [
@@ -877,6 +895,9 @@
             "Edit navigation menu": [
                 ""
             ],
+            "Edit note": [
+                ""
+            ],
             "Edit page": [
                 ""
             ],
@@ -902,6 +923,9 @@
                 ""
             ],
             "Email (optional)": [
+                ""
+            ],
+            "Empty note. Click to write.": [
                 ""
             ],
             "Enable MIO in the dock first": [
@@ -1018,7 +1042,7 @@
             "Folds away until reached for": [
                 ""
             ],
-            "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit.": [
+            "Found a bug or have a feature idea? Fill this in and we will open a pre-filled GitHub issue for you to review and submit. Questions go to the WordPress.org support forum.": [
                 ""
             ],
             "Free": [
@@ -1402,9 +1426,6 @@
             "Narrow the dock to the apps this desk is about. Everything else is still there — on your other desks, and the moment you leave this one.": [
                 ""
             ],
-            "Navigation settings…": [
-                ""
-            ],
             "Network Admin": [
                 ""
             ],
@@ -1543,6 +1564,9 @@
             "Note text": [
                 ""
             ],
+            "Note text. Press Enter to edit.": [
+                ""
+            ],
             "Nothing is holding the score down.": [
                 ""
             ],
@@ -1571,6 +1595,9 @@
                 ""
             ],
             "Nothing yet — add an app below.": [
+                ""
+            ],
+            "Notifications": [
                 ""
             ],
             "Notifications and toasts": [
@@ -2099,6 +2126,9 @@
                 ""
             ],
             "Shutter": [
+                ""
+            ],
+            "Sidebar behavior…": [
                 ""
             ],
             "Sinus rhythm with PVCs": [
@@ -2659,7 +2689,10 @@
             "Workspace %d": [
                 ""
             ],
-            "Write a note…": [
+            "Write a note… Markdown works, and - [ ] makes a to-do.": [
+                ""
+            ],
+            "Write in Markdown: **bold**, # heading, - [ ] to-do": [
                 ""
             ],
             "Writing suggestions": [
@@ -2705,6 +2738,9 @@
                 ""
             ],
             "Your login expired. Sign in again to keep working.": [
+                ""
+            ],
+            "Your question is copied, ready to paste into a new topic.": [
                 ""
             ],
             "Your score could not be saved.": [

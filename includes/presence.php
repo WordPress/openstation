@@ -414,7 +414,11 @@ function openstation_presence_heartbeat_received( $response, $data ) {
 	if ( empty( $data['openstation_presence_active'] ) ) {
 		return $response;
 	}
-	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
+	// `read` as well as the opt-in, the floor the REST routes apply:
+	// the opt-in is network-wide user meta, and a multisite user with
+	// no role on this site must neither show up in its presence list
+	// nor read it.
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() || ! current_user_can( 'read' ) ) {
 		return $response;
 	}
 	$user_id     = (int) get_current_user_id();

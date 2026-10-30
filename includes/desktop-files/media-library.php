@@ -485,7 +485,16 @@ function openstation_stored_files_attach_to_post( $post_id, $file_ids, $user_id 
 
 	$featured_image_set = false;
 	foreach ( $attachment_ids as $attachment_id ) {
-		if ( 0 === (int) get_post_field( 'post_parent', $attachment_id ) ) {
+		// The copy is shared per stored file, so the attachment may be
+		// one another user created from a file shared with this one.
+		// Re-parenting it is an edit of THAT attachment (its `inherit`
+		// status follows the new parent — a draft parent would hide
+		// it), so it needs `edit_post` on the attachment itself, as
+		// Core's own attach flow does.
+		if (
+			0 === (int) get_post_field( 'post_parent', $attachment_id )
+			&& user_can( $user_id, 'edit_post', $attachment_id )
+		) {
 			wp_update_post(
 				array(
 					'ID'          => $attachment_id,

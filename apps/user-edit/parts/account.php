@@ -50,7 +50,13 @@ function openstation_user_edit_window_register_meta() {
 				'show_in_rest'      => array(
 					'schema' => array(
 						'type'    => $type,
-						'context' => array( 'view', 'edit' ),
+						// `edit` only. `/wp/v2/users/<id>` answers in `view`
+						// context to anyone, logged out included, for every
+						// author with a published post — a `view` key would
+						// publish each one's contact methods (a plugin's
+						// phone or messenger handle) and personal options.
+						// `context=edit` already requires `edit_user`.
+						'context' => array( 'edit' ),
 					),
 				),
 				'auth_callback'     => static function ( $allowed, $meta_key2, $user_id ) {

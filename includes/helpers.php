@@ -98,12 +98,24 @@ function openstation_is_enabled( $user_id = 0 ) {
  * the conventional 401/403 split so REST clients can tell "log in" from
  * "not allowed".
  *
+ * `read` is still required on top of that, as the floor rather than the
+ * gate. The opt-in is user meta, and user meta is network-wide on a
+ * multisite: a user who switched OpenStation on as a member of one site
+ * is "enabled" on every other site of the network too, including sites
+ * where they hold no role at all. The REST nonce is not site-bound
+ * either, so without this a member of site A could write site B's
+ * shared state (presence, a link offer, …) and read it back.
+ * `current_user_can( 'read' )` is false on a site the user does not
+ * belong to (super admins excepted) and true for every role on a site
+ * they do; the portal and the AJAX toggle already apply it.
+ *
  * This is the canonical gate; `openstation_presence_rest_permission()`
  * pioneered the shape and now delegates here.
  *
  * @return true|WP_Error True when allowed; a `rest_forbidden` WP_Error
  *                       (401 when logged out, 403 when OpenStation is
- *                       not enabled for the account) otherwise.
+ *                       not enabled for the account or the account has
+ *                       no role on this site) otherwise.
  */
 function openstation_rest_require_enabled() {
 	if ( ! is_user_logged_in() ) {
@@ -118,6 +130,14 @@ function openstation_rest_require_enabled() {
 		return new WP_Error(
 			'rest_forbidden',
 			__( 'OpenStation is not enabled for your account.', 'desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
+
+	if ( ! current_user_can( 'read' ) ) {
+		return new WP_Error(
+			'rest_forbidden',
+			__( 'Sorry, you are not allowed to do that.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}

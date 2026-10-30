@@ -132,4 +132,63 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		$this->assertSame( 'openstation_comments_no_parent', $resp->get_error_code() );
 		$this->assertSame( 404, $resp->get_error_data()['status'] );
 	}
+
+	/**
+	 * Replying to a comment marked as spam is rejected with a 400.
+	 *
+	 * @covers ::openstation_comments_window_rest_reply
+	 */
+	public function test_reply_to_spam_parent_rejected_with_400() {
+		wp_set_current_user( self::$admin_id );
+
+		$spam_comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => 'spam',
+			)
+		);
+
+		$resp = openstation_comments_window_rest_reply(
+			$this->build_request(
+				array(
+					'parent'  => $spam_comment_id,
+					'content' => 'Replying to spam.',
+				)
+			)
+		);
+
+		$this->assertWPError( $resp );
+		$this->assertSame( 'openstation_comments_quarantined_parent', $resp->get_error_code() );
+		$this->assertSame( 400, $resp->get_error_data()['status'] );
+	}
+
+	/**
+	 * Replying to a comment in the trash is rejected with a 400.
+	 *
+	 * @covers ::openstation_comments_window_rest_reply
+	 */
+	public function test_reply_to_trash_parent_rejected_with_400() {
+		wp_set_current_user( self::$admin_id );
+
+		$trash_comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => 'trash',
+			)
+		);
+
+		$resp = openstation_comments_window_rest_reply(
+			$this->build_request(
+				array(
+					'parent'  => $trash_comment_id,
+					'content' => 'Replying to trash.',
+				)
+			)
+		);
+
+		$this->assertWPError( $resp );
+		$this->assertSame( 'openstation_comments_quarantined_parent', $resp->get_error_code() );
+		$this->assertSame( 400, $resp->get_error_data()['status'] );
+	}
 }
+
