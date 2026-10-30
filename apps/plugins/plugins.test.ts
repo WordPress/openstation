@@ -1016,4 +1016,33 @@ describe( 'the installed table and view preference', () => {
 		expect( flyout.querySelector( '.os-plugins__flyout-hero-title' )?.textContent ).toBe( 'Save & Go <img src=x onerror=alert(1)>' );
 		expect( flyout.querySelector( '.os-plugins__flyout-hero-title img' ) ).toBeNull();
 	} );
+
+	it( 'renders fact cards and chips with <os-icon> inside the inspector shadow root', () => {
+		const { root } = mount( {}, { installed: [ row( { version: '2.10.2', requires_wp: '6.0' } ) ] } );
+		root.querySelector< HTMLElement >( '[data-plugin-details]' )!.click();
+		const shadow = root.querySelector( '.os-plugins__inspector-content' )?.shadowRoot;
+		expect( shadow ).not.toBeNull();
+
+		// Check overview chips use <os-icon>
+		const chipIcon = shadow!.querySelector( 'os-chip os-icon[name="wordpress"]' );
+		expect( chipIcon ).not.toBeNull();
+		expect( chipIcon?.getAttribute( 'size' ) ).toBe( '14' );
+
+		// Switch to Details tab to inspect fact cards.
+		const tabs = shadow!.querySelector( 'os-tabs' )!;
+		tabs.dispatchEvent( new CustomEvent( 'os-tab-change', { detail: { value: 'details' } } ) );
+
+		const tagIcon = shadow!.querySelector( '.os-plugins__detail-fact-head os-icon[name="tag"]' );
+		expect( tagIcon ).not.toBeNull();
+		expect( tagIcon?.getAttribute( 'size' ) ).toBe( '14' );
+
+		const fileIcon = shadow!.querySelector( '.os-plugins__detail-fact-head os-icon[name="media-document"]' );
+		expect( fileIcon ).not.toBeNull();
+		expect( fileIcon?.getAttribute( 'size' ) ).toBe( '14' );
+
+		// Fallback hero icon when plugin has no icon URL.
+		const heroIcon = shadow!.querySelector( '.os-plugins__detail-hero-icon os-icon[name="admin-plugins"]' );
+		expect( heroIcon ).not.toBeNull();
+		expect( heroIcon?.getAttribute( 'size' ) ).toBe( '20' );
+	} );
 } );
