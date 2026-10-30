@@ -79,6 +79,7 @@ function openstation_profile_sections_setup() {
 	add_action( 'show_user_profile', 'openstation_profile_sections_marker', PHP_INT_MIN );
 	add_action( 'edit_user_profile', 'openstation_profile_sections_marker', PHP_INT_MIN );
 	add_action( 'openstation_chromeless_styles', 'openstation_profile_sections_styles' );
+	add_action( 'admin_head', 'openstation_profile_sections_link_script' );
 	add_filter( 'admin_body_class', 'openstation_profile_sections_body_class' );
 }
 add_action( 'admin_init', 'openstation_profile_sections_setup' );
@@ -141,6 +142,27 @@ function openstation_profile_sections_styles() {
 		. ':not( #os-profile-block-start ~ :not( #os-profile-block-end ~ * ) )'
 		. ':not( table:has( #os-profile-rows-start ) ):not( h2:has( + table #os-profile-rows-start ) ),'
 		. 'body.os-profile-sections #your-profile table:has( #os-profile-rows-start ) tr:not( #os-profile-rows-start ~ tr ) { display: none !important; }'
+	);
+}
+
+/**
+ * Keep a plugin's links to this screen, or to `wp-login.php` for a
+ * re-authentication that returns here, inside the embed. The chromeless
+ * bridge hands every admin link to the shell, which would open the
+ * profile as a window of its own; this listener runs first (on the
+ * window, in the capture phase) and lets the browser follow the link.
+ *
+ * @return void
+ */
+function openstation_profile_sections_link_script() {
+	wp_print_inline_script_tag(
+		'window.addEventListener( "click", function ( e ) {'
+		. 'if ( e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ) { return; }'
+		. 'var a = e.target && e.target.closest ? e.target.closest( "a[href]" ) : null;'
+		. 'if ( ! a || ( a.target && a.target !== "_self" ) || a.hasAttribute( "download" ) ) { return; }'
+		. 'var u; try { u = new URL( a.href, location.href ); } catch ( err ) { return; }'
+		. 'if ( u.origin === location.origin && /\/(profile|user-edit|wp-login)\.php$/.test( u.pathname ) ) { e.stopImmediatePropagation(); }'
+		. '}, true );'
 	);
 }
 

@@ -43,8 +43,6 @@ export interface ProfileHost {
 	config: ProfileConfig;
 	fetch: ( path: string, init?: RequestInit ) => Promise< Response >;
 	toast: ( message: string, kind?: 'success' | 'error' | 'info' ) => void;
-	/** Open an admin URL the way the shell would (the hosting app's `ctx.host.openUrl`). */
-	openUrl?: ( url: string, title: string ) => void;
 }
 
 export interface UserEditRecord {

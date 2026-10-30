@@ -11,9 +11,7 @@
  *     colour schemes, contact methods, the viewer's id);
  *   - `fetch`  — a REST fetch over a relative path (`ctx.fetch`: the
  *     nonce and the window attribution ride along);
- *   - `toast`  — `( message, kind? )`;
- *   - `openUrl`: `( url, title )`, the app's `ctx.host.openUrl`, for
- *     links in the plugin sections below the form.
+ *   - `toast`  — `( message, kind? )`.
  *
  * A bare element with none of them falls back to the shell's REST
  * root, nonce and toast. Set or change `user-id` at any time; the
@@ -35,7 +33,7 @@ import { joinRestUrl } from '../../../src/rest-url';
 import { trackedFetch } from '../../../src/tracked-fetch';
 import { fetchInsights } from './client';
 import { mountProfileFormAt } from './form';
-import { mountPluginSections } from './plugin-sections';
+import { mountPluginSections, type PluginSectionsHandle } from './plugin-sections';
 import { paintActivity, paintAside, paintInsightsError, paintInsightsLoading } from './insights';
 import type { ProfileConfig, ProfileHost } from './types';
 
@@ -62,8 +60,7 @@ export class OsUserProfile extends HTMLElement {
 	private _config: ProfileConfig = {};
 	private _fetch: ProfileHost[ 'fetch' ] | null = null;
 	private _toast: ProfileHost[ 'toast' ] | null = null;
-	private _openUrl: ProfileHost[ 'openUrl' ] | null = null;
-	private _pluginTeardown: ( () => void ) | null = null;
+	private _pluginSections: PluginSectionsHandle | null = null;
 	private _shellReady = false;
 	private _mountedFor: number | null = null;
 	private _generation = 0;
@@ -95,14 +92,6 @@ export class OsUserProfile extends HTMLElement {
 		this._toast = value;
 	}
 
-	/** `( url, title )`: the hosting app's `ctx.host.openUrl`. */
-	get openUrl(): ProfileHost[ 'openUrl' ] | null {
-		return this._openUrl;
-	}
-	set openUrl( value: ProfileHost[ 'openUrl' ] | null ) {
-		this._openUrl = value;
-	}
-
 	connectedCallback(): void {
 		if ( ! this._shellReady ) {
 			this._shellReady = true;
@@ -125,8 +114,8 @@ export class OsUserProfile extends HTMLElement {
 	}
 
 	disconnectedCallback(): void {
-		this._pluginTeardown?.();
-		this._pluginTeardown = null;
+		this._pluginSections?.teardown();
+		this._pluginSections = null;
 	}
 
 	attributeChangedCallback( name: string, oldValue: string | null, newValue: string | null ): void {
@@ -143,7 +132,6 @@ export class OsUserProfile extends HTMLElement {
 			toast: this._toast ?? ( ( message: string ) => {
 				shellToast( { message } );
 			} ),
-			openUrl: this._openUrl ?? undefined,
 		};
 	}
 
@@ -188,8 +176,8 @@ export class OsUserProfile extends HTMLElement {
 				if ( generation === this._generation ) {
 					void this.refreshInsights();
 					// The embedded page posts the core fields it loaded
-					// with; reload it so it never saves stale ones back.
-					this._mountPluginSections();
+					// with: reload it, or save the plugin edits it holds.
+					this._pluginSections?.afterHostSave();
 				}
 			},
 		} ).catch( () => undefined );
@@ -199,11 +187,11 @@ export class OsUserProfile extends HTMLElement {
 
 	/** (Re-)mount the plugin sections for the mounted user. */
 	private _mountPluginSections(): void {
-		this._pluginTeardown?.();
-		this._pluginTeardown = null;
+		this._pluginSections?.teardown();
+		this._pluginSections = null;
 		const section = this.querySelector< HTMLElement >( '[data-os-user-profile-plugins]' );
 		if ( section && this._mountedFor ) {
-			this._pluginTeardown = mountPluginSections( section, this._mountedFor, this.host() );
+			this._pluginSections = mountPluginSections( section, this._mountedFor, this.host() );
 		}
 	}
 
