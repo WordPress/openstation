@@ -29,6 +29,8 @@
  * the host is a custom element with no role, so a name left on the
  * host alone is inert; the component forwards `aria-label` onto the
  * inner button and keeps it in sync when the host is relabelled.
+ * `aria-description` is forwarded the same way, for a consequence the
+ * button's name does not carry.
  *
  * `fill-cell` boolean attribute makes the host fill its parent
  * cell (flex / grid item), growing width AND the inner button
@@ -83,7 +85,7 @@ export class OsButton extends Component {
 	 * that shadow root only, so a copy would name nothing.
 	 */
 	static get observedAttributes(): string[] {
-		return [ ...super.observedAttributes, 'aria-label' ];
+		return [ ...super.observedAttributes, 'aria-label', 'aria-description' ];
 	}
 
 	static help = {
@@ -127,6 +129,12 @@ export class OsButton extends Component {
 				description:
 					'Accessible name for an icon-only button, forwarded onto the shadow <button> that takes focus.',
 			},
+			{
+				name: 'aria-description',
+				type: 'string',
+				description:
+					'Accessible description, forwarded onto the shadow <button> the same way as aria-label.',
+			},
 		],
 		slots: [ { name: '(default)', description: 'Button label.' } ],
 		parts: [ { name: 'button', description: 'Underlying <button> element.' } ],
@@ -168,6 +176,7 @@ export class OsButton extends Component {
 		// composed value is empty, so a host without one leaves the
 		// inner button without one too.
 		const ariaLabel = this.getAttribute( 'aria-label' ) || null;
+		const ariaDescription = this.getAttribute( 'aria-description' ) || null;
 		return html`
 			<button
 				part="button"
@@ -176,6 +185,7 @@ export class OsButton extends Component {
 				?disabled=${ disabled || busy }
 				aria-busy=${ busy ? 'true' : 'false' }
 				aria-label=${ ariaLabel }
+				aria-description=${ ariaDescription }
 			>
 				${ busy
 					? html`<span class="os-button__spinner" aria-hidden="true"></span>`

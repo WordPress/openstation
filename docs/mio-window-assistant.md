@@ -131,7 +131,7 @@ A context may supply these synchronous observers:
 - `onTurnEnd(summary)` once when the asynchronous turn settles, with `status` (`completed`, `failed`, `aborted`), call and validation counts, reads, confirmed writes and unknown write outcomes. If a transport never settles, abort still fires; end awaits settlement.
 - `onOperation(operation)` when an identified call starts or resolves. Observer exceptions do not control execution or cause retries.
 
-`lease.getOperations()` returns defensive copies of up to 64 content-free records: turn/call/idempotency IDs, window/revision, ability, declared effect, status and optional receipt. This memory-only ledger contains neither arguments nor conversation. It remains inspectable through a retained lease after disposal; it is released when the lease/session is garbage collected. Closing the window still clears the chat transcript.
+`lease.getOperations()` returns defensive copies of up to 64 content-free records: turn/call/idempotency IDs, window/revision, ability, `source` (`ability`, or `response-action` for a [response button that writes](#response-buttons-that-write); the ledger always sets it, and the type marks it optional so app-built records stay valid — read a missing value as `ability`), declared effect, status and optional receipt. This memory-only ledger contains neither arguments nor conversation. It remains inspectable through a retained lease after disposal; it is released when the lease/session is garbage collected. Closing the window still clears the chat transcript.
 
 Set `operationStatus: async (operation, signal) => outcome` to call your application's **read-only**, authenticated operation-status endpoint. `lease.inspectOperation(callId, signal?)` uses that resolver to reconcile an unresolved write; it never invokes `run`. A definitive no-effect rejection marks the operation rejected; an authoritative confirmation records its receipt. Repeated inspection of a confirmed operation returns the receipt, and a late cancellation/network failure cannot erase it. Status inspection can work through a retained lease after closing the window. For reconciliation across reloads, the application must retain its own operation identifiers and endpoint; MIO does not persist them.
 
@@ -199,9 +199,11 @@ A `MioResponseAction` descriptor contains:
 | `ariaLabel?` | Optional full accessible name, 1–160 characters. |
 | `icon?` | Dashicon name with optional `dashicons-` prefix, using lowercase letters, digits and hyphens. Invalid names are omitted; unknown kit names show no glyph. No SVG, URLs or HTML. |
 | `emphasis?` | `primary` or `secondary` (default). Only the first primary keeps that emphasis. |
-| `effect` | `read` or `navigate`. The callback must not save, publish, submit or otherwise write. |
-| `allowed?()` | Synchronous current permission/availability check at render and immediately before invocation. Exceptions deny access. |
-| `run({signal, messageId, turnId})` | Frontend callback; no model request. Honor cancellation before fetching or opening a destination. |
+| `effect` | `read`, `navigate` or `write`. A `read` or `navigate` callback must not save, publish, submit or otherwise write. A `write` callback may save, under the rules in [Response buttons that write](#response-buttons-that-write). |
+| `group?` | Actions on the same message with the same `group` are one choice; see [Choice groups](#choice-groups). Same character rules as `id`. |
+| `description?` | Plain-text consequence, 1–160 characters, written by the app rather than the model. One per message: the shell keeps the first and drops any later description. It is rendered below the row while its action can still be chosen, and announced as the accessible description of the button that owns it, whatever its effect. |
+| `allowed?()` | Synchronous current permission/availability check at render and immediately before invocation. Exceptions deny access. It can make an action stricter, never looser. |
+| `run({signal, messageId, turnId, callId?, idempotencyKey?})` | Frontend callback; no model request. Honor cancellation before fetching or opening a destination. `callId` and `idempotencyKey` are present for `write` only, and a `write` callback must return a `MioOperationOutcome`. |
 
 The shell examines at most 100 descriptors, omits invalid entries and duplicate IDs, and retains at most three actions. Controls use `os-button` and existing chat/component tokens, wrap on narrow windows, and expose a “Suggested actions” group and polite per-action progress/error status. Availability is refreshed when rendering and on activation; app permissions still need authoritative server checks. Errors remain beside the button, preserve the assistant message and never enter provider history. Only another deliberate click retries an action. A pending button cannot start another invocation, including after cancellation while an app promise is still settling.
 
@@ -209,6 +211,45 @@ The shell invokes `run` directly in the click handler, preserving the user gestu
 
 `MioChatMessage` gains optional `id` and `actionIds`. These are opaque references, not descriptors. Callbacks, labels, errors, nonce-bearing URLs and resource closures stay in a lease-local registry; the model-facing message history contains only role/text. Closing chat aborts pending button work but retains eligible callbacks for reopening. Disposing the lease removes them permanently. Evicting messages releases their callbacks; the registry retains actions for at most the last 40 messages even with a custom store. Store eviction is reconciled on message writes, render and click. Restoring serialized messages into another session cannot recreate controls. Stable message and button nodes preserve focus and scroll during status changes.
 
-See [Preview a saved form](examples/mio-form-editing.md#preview-a-saved-form) for the consumer adapter. There is no provider/PHP transport change, no model-selected action catalog, and no write/destructive response-button API.
+See [Preview a saved form](examples/mio-form-editing.md#preview-a-saved-form) for the consumer adapter. There is no provider/PHP transport change and no model-selected action catalog.
+
+### Response buttons that write
+
+**Experimental.** A `write` action lets an app end a turn with a question the user answers by saving, for example after a conflict: *"The form changed while I was working. Apply my changes over yours, or keep your edits?"* The rules:
+
+- **Only a person can trigger one.** The row runs a write only for a click whose `event.isTrusted` is `true`. No model output, tool result, render pass, `allowed()` call or synthetic event can invoke it, and nothing runs automatically.
+- **At most one write per message.** The shell keeps the first write descriptor and drops any later one; read and navigate actions are unaffected.
+- **Only the newest assistant message.** A write is available only while its message is the last message in the conversation. Sending a new message retires it with "No longer available.", so a stale draft is never applied after the conversation has moved on. Every other action in its choice group retires with it: a decision the conversation has moved past cannot be answered either way. Actions outside the group are unaffected.
+- **Typed outcome.** `run` returns a `MioOperationOutcome`:
+  - `{effect: 'write', status: 'confirmed', receipt}` — saved. The button shows "Done." and retires.
+  - `{effect: 'write', status: 'unknown'}` — the save may or may not have happened. The button retires with "Could not confirm the result. Check before trying again." Reconcile with `inspectOperation`.
+  - `{effect: 'none', status: 'rejected', errors, retryable}` — nothing was written. The button shows the first error message. When `retryable` is `true`, another deliberate click retries with the **same** `idempotencyKey` and a new `callId`; otherwise the button retires.
+- **A throw, a missing outcome or a malformed outcome counts as `unknown`.** This is the opposite of read actions, where a throw is a local error. A write that fails quietly must never look like "nothing happened".
+- **Cancellation is not rollback.** Closing the chat aborts the signal, but a write that has started keeps its pending entry. Whatever outcome settles is recorded, even after the chat has closed, and shown on reopen. Disposing the lease while a write is pending records it as `unknown`; a later outcome does not change that.
+- **No model round.** A click never starts a provider request and uses none of the turn's round, call or validation budget.
+
+Every write goes through the [operations ledger](#turn-identity-and-operation-lifecycle) like an ability write. On click the shell records a `MioOperation` with `ability: 'response:<action id>'`, `source: 'response-action'`, `effect: 'write'`, `status: 'running'`, the originating `turnId`, the window ID and the current `revision()`, and calls `onOperation`. The settled outcome updates that entry and calls `onOperation` again. `getOperations()`, `inspectOperation(callId)` and `operationStatus` cover these entries exactly as they cover ability writes. Ability entries carry `source: 'ability'`.
+
+Check `lease.responseActionEffects` before telling the model to ask the question. Shells without write support do not have the property and silently drop write descriptors, which would leave a question with no buttons; treat a missing property as `['read', 'navigate']`.
+
+### Choice groups
+
+Actions on one message that share a `group` are alternatives:
+
+- While one is pending, the others are disabled.
+- When one finishes as `confirmed` (a write) or resolves without throwing (a read or navigate action), the choice is final: the chosen action keeps its status and retires, and the others disappear. Nobody can click "Apply" after "Keep my edits".
+- A rejected write, an unknown write, or a read action that throws leaves the group open.
+
+"Keep my edits" is a `read` action in the same group: its callback discards app-held state and returns without writing.
+
+### What the model hears about a choice
+
+When the user settles a write, or any action in a choice group, and then asks MIO something else, the next turn's history includes one shell-authored record per settled action, in `outcomes`:
+
+```json
+{ "source": "response-action", "label": "Apply MIO's changes", "effect": "write", "status": "confirmed" }
+```
+
+`status` is `confirmed`, `unknown` or `rejected` for a write and `completed` for a grouped read. There is one record per action: a write that was rejected and then retried reports only its latest outcome. The record carries no callback, URL, ID or receipt body, is never presented as user text, and is reported once. If the next turn fails or is stopped before the provider has answered (a throwing `prompt`, an over-budget request, Stop), the records go back and the turn after reports them. They pass through `compactHistory` like any other outcome.
 
 The MIO composer starts at one line and wraps up to two visible lines. Longer drafts scroll vertically inside the input. Enter sends; Shift+Enter adds a newline, and IME composition does not send. Sending clears and shrinks the input; resizing its window remeasures wrapping.
