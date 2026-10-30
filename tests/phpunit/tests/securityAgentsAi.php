@@ -455,4 +455,108 @@ class Tests_OpenStation_SecurityAgentsAi extends WP_UnitTestCase {
 		$data = rest_get_server()->dispatch( new WP_REST_Request( 'GET', '/wp/v2/product/' . $product_id ) )->get_data();
 		$this->assertSame( 7, $data['openstation_woo']['stockLevel'] );
 	}
+
+	/**
+	 * The field follows the product type's own capabilities, not only
+	 * the window gate: a Contributor can open WP Explorer but may not
+	 * read inventory counts. Runs without WooCommerce by registering a
+	 * `product` type with Woo's capability shape.
+	 *
+	 * @covers ::openstation_my_wordpress_woo_field_viewer_can_read
+	 */
+	public function test_woo_product_field_gate_asks_the_product_capabilities() {
+		if ( ! function_exists( 'openstation_my_wordpress_woo_field_viewer_can_read' ) ) {
+			$this->markTestSkipped( 'WooCommerce integration not loaded.' );
+		}
+		$registered = false;
+		if ( ! post_type_exists( 'product' ) ) {
+			register_post_type(
+				'product',
+				array(
+					'capability_type' => 'product',
+					'map_meta_cap'    => true,
+				)
+			);
+			$registered = true;
+		}
+
+		wp_set_current_user( self::$contributor_id );
+		$this->assertFalse( openstation_my_wordpress_woo_field_viewer_can_read(), 'The window gate alone is not enough.' );
+
+		$manager = self::factory()->user->create( array( 'role' => 'editor' ) );
+		get_userdata( $manager )->add_cap( 'edit_products' );
+		wp_set_current_user( $manager );
+		$this->assertTrue( openstation_my_wordpress_woo_field_viewer_can_read() );
+
+		if ( $registered ) {
+			unregister_post_type( 'product' );
+		}
+	}
+
+	/*
+	 * ------------------------------------------------------------------
+	 * Agent conversations vs the generic post abilities
+	 * ------------------------------------------------------------------
+	 */
+
+	/**
+	 * A conversation belongs to the human who had it: the module's own
+	 * routes gate on `post_author`. Registered on the default `post`
+	 * capabilities, every row (always `publish`) answered `edit_post`
+	 * for an Editor, so `desktop-mode/get-post` returned any other
+	 * user's transcript and `update-post` rewrote it. The type now maps
+	 * every capability to `do_not_allow`.
+	 *
+	 * @covers ::openstation_agent_conversations_register_post_type
+	 * @covers ::openstation_agents_ability_get_post_can
+	 * @covers ::openstation_agents_ability_update_post_can
+	 */
+	public function test_agent_conversations_are_closed_to_the_generic_post_abilities() {
+		if ( ! function_exists( 'openstation_agents_ability_get_post_can' ) || ! post_type_exists( OPENSTATION_AGENT_CHAT_POST_TYPE ) ) {
+			$this->markTestSkipped( 'Agents module not loaded.' );
+		}
+		$admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$chat_id  = self::factory()->post->create(
+			array(
+				'post_type'    => OPENSTATION_AGENT_CHAT_POST_TYPE,
+				'post_status'  => 'publish',
+				'post_author'  => $admin_id,
+				'post_content' => '[{"role":"user","text":"TRANSCRIPT-MARKER"}]',
+			)
+		);
+		$post_id  = self::factory()->post->create(
+			array(
+				'post_author' => $admin_id,
+				'post_status' => 'publish',
+			)
+		);
+
+		wp_set_current_user( self::$editor_id );
+		$this->assertFalse( current_user_can( 'edit_post', $chat_id ) );
+		$this->assertFalse( current_user_can( 'read_post', $chat_id ) );
+		$this->assertFalse( openstation_agents_ability_get_post_can( array( 'post_id' => $chat_id ) ) );
+		$this->assertFalse(
+			openstation_agents_ability_update_post_can(
+				array(
+					'post_id' => $chat_id,
+					'content' => 'rewritten',
+				)
+			)
+		);
+		// Control: an ordinary published post stays open to an Editor.
+		$this->assertTrue( openstation_agents_ability_get_post_can( array( 'post_id' => $post_id ) ) );
+		$this->assertTrue(
+			openstation_agents_ability_update_post_can(
+				array(
+					'post_id' => $post_id,
+					'content' => 'rewritten',
+				)
+			)
+		);
+
+		// The owner reads it through the module's route, never the abilities.
+		wp_set_current_user( $admin_id );
+		$this->assertFalse( openstation_agents_ability_get_post_can( array( 'post_id' => $chat_id ) ) );
+		$this->assertNotNull( openstation_agent_conversation_get_own( $chat_id ) );
+	}
 }

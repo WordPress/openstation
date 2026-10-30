@@ -514,7 +514,7 @@ function openstation_files_rest_create_placement( WP_REST_Request $req ) {
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
-	$row = openstation_files_get_placement( $id );
+	$row = openstation_files_gate_placement_for_viewer( openstation_files_get_placement( $id ), get_current_user_id() );
 	return rest_ensure_response( openstation_files_shape_placement( $row ) );
 }
 
@@ -549,7 +549,10 @@ function openstation_files_rest_update_placement( WP_REST_Request $req ) {
 	if ( is_wp_error( $ok ) ) {
 		return $ok;
 	}
-	return rest_ensure_response( openstation_files_shape_placement( openstation_files_get_placement( $id ) ) );
+	// The same redaction as the folder listing: a writer may move the
+	// owner's tile, not learn what it points at.
+	$row = openstation_files_gate_placement_for_viewer( openstation_files_get_placement( $id ), get_current_user_id() );
+	return rest_ensure_response( openstation_files_shape_placement( $row ) );
 }
 
 /**

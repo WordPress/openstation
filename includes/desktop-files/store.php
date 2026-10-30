@@ -552,6 +552,34 @@ function openstation_files_get_placement( $placement_id ) {
 }
 
 /**
+ * Mark a single placement row `access_gated` when the viewer cannot
+ * read the entity behind it, the way the folder listing does.
+ *
+ * `openstation_files_shape_placement()` redacts on that flag, and the
+ * listing is where it used to be set. A row read by id for a single-row
+ * response (POST, PATCH, the recycle bin) carried no flag, so the
+ * response named the private post, user or comment the listing had
+ * just shown as "Restricted item": a writer on a shared folder could
+ * PATCH an owner's tile with a no-op change and read it.
+ *
+ * @param array|null $row     Normalized placement row.
+ * @param int        $user_id Viewer.
+ * @return array|null The row, flagged when the viewer lacks read.
+ */
+function openstation_files_gate_placement_for_viewer( $row, $user_id ) {
+	if ( ! is_array( $row ) ) {
+		return $row;
+	}
+	$file = function_exists( 'openstation_resolve_file' )
+		? openstation_resolve_file( $row['file_type'], $row['file_ref'] )
+		: null;
+	if ( $file && ! $file->can_read( (int) $user_id ) ) {
+		$row['access_gated'] = true;
+	}
+	return $row;
+}
+
+/**
  * List placements for a user under a given folder (0 = desktop
  * root). Honors the `openstation_files_query_args` filter and
  * applies the file-type's `can_read()` per row.

@@ -612,4 +612,81 @@ class Tests_OpenStation_SecurityDesktopFiles extends WP_UnitTestCase {
 		openstation_folder_share_revoke( $share, self::$owner_id );
 		$this->assertSame( 'none', openstation_folder_share_user_capability( $sub, self::$writer_id ) );
 	}
+
+	// ---------------------------------------------------------------
+	// Redaction follows the row into every response that shapes it
+	// ---------------------------------------------------------------
+
+	/**
+	 * The folder listing withholds the title, link and status of a
+	 * tile whose entity the viewer cannot read. The single-row PATCH
+	 * response shaped the same row without that check, so a writer on
+	 * a shared folder could PATCH the owner's tile with a no-op change
+	 * and read the private post behind it.
+	 *
+	 * @covers ::openstation_files_rest_update_placement
+	 * @covers ::openstation_files_gate_placement_for_viewer
+	 */
+	public function test_placement_patch_response_redacts_an_entity_the_writer_cannot_read() {
+		list( $shared ) = $this->make_write_shared_folder();
+		$private = self::factory()->post->create(
+			array(
+				'post_status' => 'private',
+				'post_author' => self::$owner_id,
+				'post_title'  => 'Board minutes',
+			)
+		);
+		$tile    = openstation_files_place( self::$owner_id, $shared, 'post', (string) $private );
+		$this->assertIsInt( $tile );
+
+		$patch = static function ( $tile ) {
+			$req = new WP_REST_Request( 'PATCH', '/desktop-mode/v1/files/placements/' . $tile );
+			$req->set_url_params( array( 'id' => $tile ) );
+			$req->set_body_params( array( 'x' => 5 ) );
+			return openstation_files_rest_update_placement( $req );
+		};
+
+		wp_set_current_user( self::$writer_id );
+		$res = $patch( $tile );
+		$this->assertNotWPError( $res );
+		$data = $res->get_data();
+		$this->assertTrue( $data['accessGated'] );
+		$this->assertSame( 'Restricted item', $data['file']['title'] );
+		$this->assertStringNotContainsString( 'Board minutes', wp_json_encode( $data ) );
+
+		wp_set_current_user( self::$owner_id );
+		$data = $patch( $tile )->get_data();
+		$this->assertFalse( $data['accessGated'] );
+		$this->assertStringContainsString( 'Board minutes', $data['file']['title'] );
+	}
+
+	/**
+	 * A trashed placement is the viewer's own, but the post behind it
+	 * may have gone private since; the bin re-asks `can_read()` like
+	 * the active listing does.
+	 *
+	 * @covers ::openstation_files_list_trashed_for_recycle_bin
+	 */
+	public function test_recycle_bin_listing_redacts_an_entity_the_viewer_can_no_longer_read() {
+		$post = self::factory()->post->create(
+			array(
+				'post_status' => 'publish',
+				'post_author' => self::$owner_id,
+				'post_title'  => 'Quarterly numbers',
+			)
+		);
+		$tile = openstation_files_place( self::$writer_id, 0, 'post', (string) $post );
+		$this->assertTrue( openstation_files_trash_placement( self::$writer_id, $tile ) );
+		wp_update_post(
+			array(
+				'ID'          => $post,
+				'post_status' => 'private',
+			)
+		);
+
+		wp_set_current_user( self::$writer_id );
+		$rows = openstation_files_list_trashed_for_recycle_bin( self::$writer_id );
+		$this->assertCount( 1, $rows );
+		$this->assertStringNotContainsString( 'Quarterly numbers', wp_json_encode( $rows ) );
+	}
 }

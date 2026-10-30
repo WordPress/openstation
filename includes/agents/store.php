@@ -1001,6 +1001,37 @@ function openstation_agent_get_agents( $args = array() ) {
 }
 
 /**
+ * Resolve a client-supplied id to an agent OF THIS SITE, or null.
+ *
+ * Users are network-global on multisite, so `openstation_agent_is_agent()`
+ * answers true for an agent registered on any site of the network, and
+ * a handler that stopped there let an `edit_posts` holder on one site
+ * read, rewrite, delete or run another site's agents by id. This is
+ * the one resolver every route and the runner go through, and it asks
+ * what Core's users controller asks before it shows a user:
+ * `is_user_member_of_blog()`. A non-member is indistinguishable from a
+ * missing id, by design: the answer is the same `404`, not a `403`
+ * that would confirm the id exists on some site.
+ *
+ * @param int|WP_User|null $user Agent user id or object.
+ * @return WP_User|null
+ */
+function openstation_agent_get_site_agent( $user ) {
+	$user_id = $user instanceof WP_User ? (int) $user->ID : (int) $user;
+	if ( $user_id <= 0 ) {
+		return null;
+	}
+	$user = get_userdata( $user_id );
+	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
+		return null;
+	}
+	if ( is_multisite() && ! is_user_member_of_blog( $user_id ) ) {
+		return null;
+	}
+	return $user;
+}
+
+/**
  * The agents the current user can hand an entity to with "Send to".
  *
  * Every agent declaring a `send-to` trigger that this user may invoke,
