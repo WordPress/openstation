@@ -4,7 +4,7 @@ Tags: admin dashboard, notes, sticky notes, dashboard notes, custom dashboard
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.17
+Stable tag: 1.1.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -212,6 +212,16 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.18 =
+* Tell apart script URLs that differ only in their query
+* Release: Commit new translation JSONs in the bump commit
+* I18n: Load the WooCommerce window's translations from the plugin
+* MIO: Let response buttons write, for a choice after a conflict
+* Resolve esbuild CSS syntax warnings in drafts widget notices
+* Render inspector fact cards and chips using os-icon inside shadow DOM
+* Users: Show the profile sections other plugins add in the native profile
+* Extensions: Remove the Code Editor and Cron Manager extensions
 
 = 1.1.17 =
 * Enforce Core parity for spam and trash row actions.

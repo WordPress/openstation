@@ -637,6 +637,9 @@
             "Could not complete this action. Try again.": [
                 ""
             ],
+            "Could not confirm the result. Check before trying again.": [
+                ""
+            ],
             "Could not convert the note to a post.": [
                 ""
             ],
@@ -1487,6 +1490,9 @@
                 ""
             ],
             "No live callback for command “%s” — the palette and the command registry are out of step. Reload the page.": [
+                ""
+            ],
+            "No longer available.": [
                 ""
             ],
             "No preview available for this file type.": [

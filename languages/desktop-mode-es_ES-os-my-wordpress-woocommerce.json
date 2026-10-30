@@ -1,0 +1,341 @@
+{
+    "translation-revision-date": "2026-04-19 20:42+0200",
+    "generator": "desktop-mode/build-i18n.sh",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "es_ES",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "#%s": [
+                ""
+            ],
+            "%1$d of %2$d": [
+                ""
+            ],
+            "%1$d · %2$d": [
+                ""
+            ],
+            "%1$s (%2$d)": [
+                ""
+            ],
+            "%1$s over %2$d orders": [
+                ""
+            ],
+            "%1$s · %2$d variations": [
+                ""
+            ],
+            "%1$s ★ (%2$d)": [
+                ""
+            ],
+            "%d (no limit)": [
+                ""
+            ],
+            "%d day ago": [
+                ""
+            ],
+            "%d item": [
+                ""
+            ],
+            "%d left": [
+                ""
+            ],
+            "%d month ago": [
+                ""
+            ],
+            "%d order": [
+                ""
+            ],
+            "%d orders": [
+                ""
+            ],
+            "%d person": [
+                ""
+            ],
+            "%d products": [
+                ""
+            ],
+            "%d units": [
+                ""
+            ],
+            "%d uses": [
+                ""
+            ],
+            "%d year ago": [
+                ""
+            ],
+            "%d×": [
+                ""
+            ],
+            "%s average": [
+                ""
+            ],
+            "Active": [
+                ""
+            ],
+            "Addresses": [
+                ""
+            ],
+            "All orders": [
+                ""
+            ],
+            "All their orders": [
+                ""
+            ],
+            "Allowed emails": [
+                ""
+            ],
+            "Average order": [
+                ""
+            ],
+            "Awaiting action": [
+                ""
+            ],
+            "Backorder": [
+                ""
+            ],
+            "Billing": [
+                ""
+            ],
+            "Buys most": [
+                ""
+            ],
+            "Categories": [
+                ""
+            ],
+            "Could not load WooCommerce details.": [
+                ""
+            ],
+            "Could not show WooCommerce details.": [
+                ""
+            ],
+            "Coupon": [
+                ""
+            ],
+            "Coupons": [
+                ""
+            ],
+            "Created": [
+                ""
+            ],
+            "Customer": [
+                ""
+            ],
+            "Customer since": [
+                ""
+            ],
+            "Customers": [
+                ""
+            ],
+            "Description": [
+                ""
+            ],
+            "Discount": [
+                ""
+            ],
+            "Discount given": [
+                ""
+            ],
+            "Edit": [
+                ""
+            ],
+            "Edit coupon": [
+                ""
+            ],
+            "Edit in WooCommerce": [
+                ""
+            ],
+            "Edit profile": [
+                ""
+            ],
+            "Email": [
+                ""
+            ],
+            "Excludes": [
+                ""
+            ],
+            "Excludes sale items": [
+                ""
+            ],
+            "Expires": [
+                ""
+            ],
+            "First order": [
+                ""
+            ],
+            "Grants free shipping": [
+                ""
+            ],
+            "Guest checkout": [
+                ""
+            ],
+            "Inactive": [
+                ""
+            ],
+            "Individual use only": [
+                ""
+            ],
+            "Items (%d)": [
+                ""
+            ],
+            "Lapsed": [
+                ""
+            ],
+            "Last order": [
+                ""
+            ],
+            "Lifetime spend": [
+                ""
+            ],
+            "Limit to items": [
+                ""
+            ],
+            "Location": [
+                ""
+            ],
+            "Maximum spend": [
+                ""
+            ],
+            "Minimum spend": [
+                ""
+            ],
+            "Never": [
+                ""
+            ],
+            "No customer selected. Open one from the Customers folder.": [
+                ""
+            ],
+            "None": [
+                ""
+            ],
+            "None yet": [
+                ""
+            ],
+            "Not counted on a store this large": [
+                ""
+            ],
+            "Open": [
+                "Abrir"
+            ],
+            "Open customer": [
+                ""
+            ],
+            "Open the orders screen filtered to this customer, in its own window.": [
+                ""
+            ],
+            "Order": [
+                ""
+            ],
+            "Orders": [
+                ""
+            ],
+            "Out of stock": [
+                ""
+            ],
+            "Paid via": [
+                ""
+            ],
+            "Per customer": [
+                ""
+            ],
+            "Placed": [
+                ""
+            ],
+            "Price": [
+                ""
+            ],
+            "Price (on sale)": [
+                ""
+            ],
+            "Product": [
+                ""
+            ],
+            "Products": [
+                ""
+            ],
+            "Rating": [
+                ""
+            ],
+            "Recent orders": [
+                ""
+            ],
+            "Restrictions": [
+                ""
+            ],
+            "Revenue this month": [
+                ""
+            ],
+            "SKU": [
+                ""
+            ],
+            "Sale": [
+                ""
+            ],
+            "Send email": [
+                ""
+            ],
+            "Shipping": [
+                ""
+            ],
+            "Sold": [
+                ""
+            ],
+            "Sold out": [
+                ""
+            ],
+            "Status": [
+                ""
+            ],
+            "Stock": [
+                ""
+            ],
+            "Store": [
+                ""
+            ],
+            "Subtotal": [
+                ""
+            ],
+            "Today": [
+                ""
+            ],
+            "Total": [
+                ""
+            ],
+            "Type": [
+                ""
+            ],
+            "Used": [
+                ""
+            ],
+            "VIP": [
+                ""
+            ],
+            "VIP · lapsed": [
+                ""
+            ],
+            "View in shop": [
+                ""
+            ],
+            "View their orders": [
+                ""
+            ],
+            "WooCommerce data is unavailable.": [
+                ""
+            ],
+            "joined %s": [
+                ""
+            ],
+            "since %s": [
+                ""
+            ],
+            "×%d": [
+                ""
+            ],
+            "×%d bought": [
+                ""
+            ]
+        }
+    }
+}
