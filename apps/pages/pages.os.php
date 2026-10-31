@@ -36,6 +36,11 @@ return App::define( 'desktop-mode-pages' )
 	->icon( 'dashicons-admin-page' )
 	->size( 1100, 720 )
 	->min_size( 720, 480 )
+	// The shared view's host rules (`.os-posts__embed-host`, the terms
+	// host) live in the Posts app's sheet. Registering it under this
+	// app's own handle dresses the window even when the Posts window
+	// was never opened.
+	->style( dirname( __DIR__ ) . '/posts/posts.css' )
 	// The Pages dock tile is WordPress's own; the shell's URL remap
 	// routes `edit.php?post_type=page` here under `nativePagesEnabled`.
 	->placement( 'none' )
