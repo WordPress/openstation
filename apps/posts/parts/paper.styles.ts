@@ -55,6 +55,11 @@ export const paperStyles = css`
 }
 .desktop-mode-pages .os-posts-desk__select { margin-inline-end: 6px; }
 .os-pages-atlas-host { flex: 1; min-block-size: 0; display: flex; position: relative; }
+/* The editor embedded in the "Add New" tab: wp.os.embedAdminPage() puts a
+ * full-size iframe in here, so the host has to be the panel's whole box rather
+ * than shrink to a zero-height child. Lives here, not in posts.css, because the
+ * Pages window loads no stylesheet of its own. */
+.os-posts__embed-host { display: flex; flex: 1 1 auto; min-height: 0; min-width: 0; }
 @container content-desk (max-width: 600px) {
 	.os-posts-desk__hero { padding: 8px 12px; min-block-size: 36px; gap: 8px; }
 	.os-posts-desk__hero h2 { font-size: 17px; margin: 0; letter-spacing: -.03em; }
