@@ -55,16 +55,6 @@ defined( 'ABSPATH' ) || exit;
  * inside chromeless. We've never seen one in the wild, and if a
  * site hits it, the filter below lets them narrow the scan.
  *
- * Core's modal subtree is skipped: any element inside (or being)
- * `.components-modal__screen-overlay`. The overlay is `position: fixed`
- * over the iframe viewport and its full-screen frame (the "Choose a
- * pattern" modal, `.editor-start-page-options__modal` and
- * `.editor-start-template-options__modal`) sizes itself from that, so
- * a `top` of 32px or 46px there is never an admin-bar reservation.
- * `getComputedStyle().top` reports the USED offset, so an absolutely
- * positioned part with `top: auto` can land on 32px by accident, and
- * forcing `top: 0` on it collapses the modal's layout.
- *
  * Scoped via the `os-chromeless` body class. Runs ONE
  * full walk at DOMContentLoaded, then watches for late additions
  * with a `MutationObserver` so React-mounted components are
@@ -132,9 +122,6 @@ function openstation_chromeless_offset_neutralizer_script() {
 	$js .= 'for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}';
 	$js .= 'function fixOne(el){';
 	$js .= 'if(!el||el.nodeType!==1)return;';
-	// Core's modal overlay and everything in it lays itself out against
-	// the iframe viewport, so a `top` there is never an admin-bar offset.
-	$js .= "if(el.closest&&el.closest('.components-modal__screen-overlay'))return;";
 	$js .= 'var cs;';
 	$js .= 'try{cs=getComputedStyle(el);}catch(_e){return;}';
 	$js .= "if(cs.position==='static')return;";
