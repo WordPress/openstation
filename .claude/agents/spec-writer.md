@@ -70,6 +70,14 @@ The approver escalates to a human when one of these is a product decision.
 - Include the doc updates the change needs as requirements: AGENTS.md's doc map
   says which `docs/` page owns each surface, and a change to that surface
   updates it in the same PR.
+- For a bug, the first acceptance criterion is the reproduction: the surface
+  the report shows (`issue.md` quotes it; download its screenshots with
+  `curl -sL -o <scratch>/<n>.png <url>` and Read them, since a window's title
+  bar and tab strip name the window, and a Beta window is not the default one
+  for the same page), the setup it needs (theme, plugin, Preferences toggle),
+  the steps, and what the branch must show instead. Name every surface that
+  reaches the same page and require each to be checked; say that a builder who
+  cannot reproduce the bug writes BLOCKED rather than a fix.
 - Anything a user sees or does gets at least one criterion checked on the
   job's running site: the screen to open, as which role, what to do, and what
   it must show. AGENTS.md's software factory section says how the site runs;

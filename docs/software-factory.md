@@ -48,6 +48,10 @@ Build, gate and review form a loop. Each pass is a **round**, with its own folde
 
 No reviewer runs on a failing gate, and the builder is never resumed mid-round: the orchestrator waits for every reviewer and for CI before deciding.
 
+Two failures cost no round. A gate that fails on its own tooling (a script the branch does not touch, failing as it would on trunk) is not the builder's to fix: the job waits in `gate` while the orchestrator tells the operator what needs merging, then the builder is resumed to merge trunk and run the checks again. And a `build.md` that says `STATUS: READY` while an acceptance criterion is still `[ ]` is sent straight back to the builder, before the gate, to verify it or write `BLOCKED`.
+
+A finding from outside the round goes to the builder the same way. When the operator, or the orchestrator looking at the job's site, sees that the build is wrong while the job is in `gate` or `review`, the orchestrator resumes the builder with the surface, the reproduction and the mechanism; it does not wait for the pipeline to notice, and it does not post the finding as a PR comment, since the PR is the factory's own. `/factory rework` is only for comments a person left on a `needs-human` job.
+
 ### What each agent reads and writes
 
 Every agent writes exactly one file in the job folder and nothing else in the main checkout. The builder is the only agent that changes code, and it does so in the job's worktree.
@@ -56,7 +60,7 @@ Every agent writes exactly one file in the job folder and nothing else in the ma
 |---|---|---|
 | `intake` | `issue.md`, earlier `intake-*.md`, `AGENTS.md`, the code the issue touches | `intake.md`: `DECISION`, `RISK`, `SURFACES`, scope. The body is posted on the issue. |
 | `spec-writer` | `issue.md`, `intake.md` (its Scope wins), the docs for the area, the code | `spec.md` with acceptance criteria |
-| `builder` | `spec.md`, after failures the round's `checks.md`, `checks.log`, `ci.md` and reviews | code on the branch, the draft PR, `build.md` (`STATUS: READY` or `STATUS: BLOCKED`) |
+| `builder` | `spec.md`, the issue's screenshots for a bug, after failures the round's `checks.md`, `checks.log`, `ci.md` and reviews | code on the branch, the draft PR, `build.md` (`STATUS: READY` or `STATUS: BLOCKED`). For a bug it reproduces the report on the job's site first, on the surface the screenshot shows; a bug it cannot reproduce, or a criterion it cannot verify, is `BLOCKED`, never a guess. |
 | `reviewer-*` | `spec.md`, `build.md`, the round's `checks.md`, the diff against trunk, its own previous review | `round-N/review-<r>.md`, first line `VERDICT: PASS` or `VERDICT: CHANGES` |
 | `approver` | everything in the job folder and the diff | `decision.md`, first line `APPROVE` or `ESCALATE` |
 
@@ -175,6 +179,8 @@ The `factory` label is the green light. Labeling an issue is what authorizes the
 State is files, so an interrupted run picks every job up from its stage. Agents from an earlier session cannot be resumed, so the orchestrator spawns fresh ones: a builder told it is resuming an interrupted round, only the reviewers whose files are missing, `job ci` again unless `ci.md` already matches the branch's commit, and the gate again. For intake, spec and approve it reuses the agent's file when it exists and is newer than its inputs.
 
 ### When a job needs you
+
+A job waits in `gate` when the gate fails on its own tooling rather than on the branch; the orchestrator says what needs merging to trunk, and the job resumes once it is there.
 
 A job reaches `needs-human` when the builder is blocked, the rounds run out, CI never settles, the approver escalates, the merge conflicts or fails the re-gate, or an approved PR is handed over because `auto_merge` is off. In every case the reason is in `decision.md` and posted on the PR, and the PR is marked ready. The worktree stays and its site may still be running on the job's port, so you can look at the change where the reviewers did.
 
