@@ -25,8 +25,13 @@
 		(observed: 5,368 errors, none of them in the repo proper), and
 		makes the gate's result depend on what happens to be checked out
 		next to it.
+
+		Relative, so it matches only the `.claude/` at the root being
+		scanned. An absolute match also hit every file of a checkout that
+		itself lives under `.claude/worktrees/`, and phpcs passed having
+		scanned nothing.
 	-->
-	<exclude-pattern>/.claude/</exclude-pattern>
+	<exclude-pattern type="relative">^\.claude/</exclude-pattern>
 	<!-- House sniff sources — PHPCS-convention code, not plugin code. -->
 	<exclude-pattern>/tools/phpcs/</exclude-pattern>
 
