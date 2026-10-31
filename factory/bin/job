@@ -240,7 +240,9 @@ def transcripts_dir():
 
 
 def prompt_text(line):
-    content = json.loads(line)["message"]["content"]
+    # A forked subagent's transcript opens with a `fork-context-ref` entry
+    # that carries no message; it is never a factory agent.
+    content = json.loads(line).get("message", {}).get("content", "")
     if isinstance(content, str):
         return content
     return " ".join(b.get("text", "") for b in content if isinstance(b, dict))
