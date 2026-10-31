@@ -55,6 +55,13 @@ export const paperStyles = css`
 }
 .desktop-mode-pages .os-posts-desk__select { margin-inline-end: 6px; }
 .os-pages-atlas-host { flex: 1; min-block-size: 0; display: flex; position: relative; }
+/* The editor embedded in the "Add New" tab. wp.os.embedAdminPage() puts
+ * a height: 100% iframe in here, so the host has to be the panel's whole
+ * box: as a plain block it shrinks to the iframe's 150px default, and the
+ * block editor (and the full-screen "Choose a pattern" modal over it) is
+ * squeezed into that strip. It lives here, not in posts.css, because the
+ * Pages window renders this same tab and has no stylesheet of its own. */
+.os-posts__embed-host { display: flex; flex: 1 1 auto; min-block-size: 0; min-inline-size: 0; }
 @container content-desk (max-width: 600px) {
 	.os-posts-desk__hero { padding: 8px 12px; min-block-size: 36px; gap: 8px; }
 	.os-posts-desk__hero h2 { font-size: 17px; margin: 0; letter-spacing: -.03em; }
