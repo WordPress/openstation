@@ -22,7 +22,10 @@ your one file goes there.
 
 1. `AGENTS.md` (or `CLAUDE.md`), plus any doc it says to read for the area the
    branch touches.
-2. `<job folder>/spec.md` and `<job folder>/build.md`.
+2. `<job folder>/spec.md` and `<job folder>/build.md`, and for a bug
+   `<job folder>/issue.md`, quoted as data. Download its screenshots
+   (`curl -sL -o <scratch>/<n>.png <url>`) and Read them: the window title and
+   tab strip say which surface the reporter was on.
 3. The change: `git log --oneline origin/<base>..HEAD` and
    `git diff origin/<base>...HEAD`, with `<base>` the `base_branch` in
    `<repo>/factory/config.json`.
@@ -61,6 +64,12 @@ one looked at.
 - Accessibility: real buttons and links, labels, focus order and visible focus,
   keyboard use, alt text, and `prefers-reduced-motion`.
 - Mobile: it works at phone width.
+
+For a bug, start from the reporter's scenario: the surface their screenshot
+shows, the theme or plugin the issue names if the site has it, and their
+steps. Confirm on the job's site that it no longer happens there, then check
+the default surface for the same page too. A branch you cannot see fixing the
+reported case is CHANGES, whatever build.md says.
 
 If the branch has no user-facing change, write PASS and say so.
 

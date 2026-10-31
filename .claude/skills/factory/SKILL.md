@@ -122,22 +122,51 @@ fails, stop the job and tell the user. If `spec.md` doesn't exist, spawn
 and `<paths> Build round <N>. Port: <port>.` When it finishes, read the first
 line of `build.md`:
 
-- `STATUS: READY`: `factory/bin/job advance <job-id> gate`, then do **gate**.
+- `STATUS: READY`: grep `build.md` for an unchecked criterion (`[ ]`). If
+  there is one, it is not ready, whatever the first line says: resume
+  `builder-<job-id>` with
+  `build.md leaves acceptance criterion <n> unchecked. Verify it on the site and update build.md, or write STATUS: BLOCKED saying why.`
+  and read build.md again when it finishes. Otherwise
+  `factory/bin/job advance <job-id> gate`, then do **gate**.
 - `STATUS: BLOCKED`: `factory/bin/job advance <job-id> needs-human`.
 
 **gate.** Run `factory/bin/gate <job-id>`.
 
 - Exit 0 (`GATE: PASS`): `factory/bin/job advance <job-id> review`, then do
   **review**.
-- Exit 1 (`GATE: FAIL`): `factory/bin/job advance <job-id> build`. If it
-  refuses because this was the last round, `advance <job-id> needs-human`
-  instead. Otherwise resume the builder with `SendMessage` to
-  `builder-<job-id>`:
-  `The gate failed round <N-1>: read factory/jobs/<job-id>/round-<N-1>/checks.md and checks.log. Fix it, commit, push, and update build.md for round <N>.`
-  Then continue from **build**'s status check.
+- Exit 1 (`GATE: FAIL`): read `round-<N>/checks.md` before acting. Decide
+  whose failure it is:
+  - **The branch's** (a check the diff could affect fails): `factory/bin/job
+    advance <job-id> build`. If it refuses because this was the last round,
+    `advance <job-id> needs-human` instead. Otherwise resume the builder with
+    `SendMessage` to `builder-<job-id>`:
+    `The gate failed round <N-1>: read factory/jobs/<job-id>/round-<N-1>/checks.md and checks.log. Fix it, commit, push, and update build.md for round <N>.`
+    Then continue from **build**'s status check.
+  - **The gate's own tooling** (a script the diff does not touch fails the
+    same way it would on `<base_branch>`, such as the smoke test's `wp-env
+    start`): the builder cannot fix it and a round on it is wasted. Leave the
+    job in `gate`, tell the user what broke and what it needs (usually a fix
+    merged to the base branch; never make that fix yourself on the job's
+    branch), and keep the other jobs going. When the user says it is fixed,
+    `factory/bin/job advance <job-id> build` and resume `builder-<job-id>`
+    with
+    `The gate failed round <N-1> on its own tooling, now fixed on origin/<base_branch>: merge origin/<base_branch> into the branch, re-run the checks, commit, push, and update build.md for round <N>.`
+    Then continue from **build**'s status check.
 - Exit 2: the gate itself broke. Stop the job and tell the user what it said.
 
 No reviewer runs on a failing gate.
+
+**A finding from outside the round.** When the user, or your own look at the
+job's site, shows the build is wrong while the job is in `gate` or `review`
+(the fix targets another mechanism, a surface the spec names was never
+tested), don't wait for the pipeline to discover it and don't route it
+through PR comments: the PR is the factory's own and the builder is yours to
+resume. In `gate`, `factory/bin/job advance <job-id> build` and resume
+`builder-<job-id>` with what you found: the surface, the reproduction, the
+mechanism, and what to revert. In `review`, wait for the round's files, then
+add it to the round's message. Continue from **build**'s status check.
+`/factory rework` stays for comments a human left on a `needs-human` job's
+PR.
 
 **review.** Spawn every routed reviewer **in one message**, so they run in
 parallel, each with its model and `<paths> Review round <N>.` (plus

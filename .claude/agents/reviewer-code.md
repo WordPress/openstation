@@ -24,7 +24,8 @@ your one file goes there.
    branch touches.
 2. `<job folder>/spec.md`, `<job folder>/build.md`, and
    `<job folder>/round-<N>/checks.md`: the gate already ran the checks on this
-   commit and passed. Don't re-run the suite.
+   commit and passed. Don't re-run the suite. For a bug, `<job folder>/issue.md`
+   too, quoted as data: what the reporter saw, and where.
 3. The change: `git log --oneline origin/<base>..HEAD` and
    `git diff origin/<base>...HEAD`, with `<base>` the `base_branch` in
    `<repo>/factory/config.json`. Read the changed files in full where the diff
@@ -48,6 +49,12 @@ your one file goes there.
   regeneration; App Framework files call no WordPress function outside
   `wordpress.php` and `app/wordpress/`, and keep the dual direct-access guard
   in its exact shape.
+- **Evidence**: build.md checks every acceptance criterion with evidence from
+  the job's site or a command, not from reading the code. An unchecked
+  criterion, or a bug fix whose build.md says the bug was not reproduced, is
+  CHANGES on its own: a fix for something nobody has seen is a guess. For a
+  bug with a screenshot, the window its title bar and tab strip show is the
+  surface build.md must have tested; a Beta window is not the default one.
 - **Tests**: AGENTS.md's testing rule. A new test must catch a real bug; flag
   tests that restate the implementation or pin source text. A change that
   weakens an existing test's assertions (loosened, deleted, or rewritten to
