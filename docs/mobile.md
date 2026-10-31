@@ -14,7 +14,21 @@ This document is the contract: how the mode is decided, what the phone layer doe
 | `tablet` | 768 – 1024 px | the desktop, for now — the value is reported so plugins can prepare; the tablet layout is a later phase |
 | `mobile` | up to 767 px | the phone layer |
 
-The mode is a pure function of the viewport width and the user's preference, `mobileLayout` in OpenStation Preferences → Mobile: `auto` follows the viewport, `desktop` forces the desktop on a phone (the escape hatch), `mobile` forces the phone layer anywhere (how a developer previews it). `resolveMode()` in `src/mode/index.ts` is that function; the PHP head stamp runs the same rule.
+The mode is a pure function of the viewport width and the user's preference, `mobileLayout` in OpenStation Preferences → Mobile: `auto` follows the viewport, `desktop` forces the desktop on a phone (the escape hatch), `mobile` forces the phone layer anywhere (how a developer previews it), and `classic` keeps a phone out of the shell altogether (below). `resolveMode()` in `src/mode/index.ts` is that function; the PHP head stamp runs the same rule.
+
+### Classic wp-admin on a phone
+
+`classic` is the opt-out for someone who wants OpenStation on the desktop and plain wp-admin on their phone. It can't be decided from the viewport the way the other three are: whether OpenStation is on at all has to be known on the server, before the portal redirect on `admin_init` and before the shell screen renders. So the server decides it from the request — `openstation_mode_request_is_phone()`, which is `wp_is_mobile()` behind the `openstation_mode_is_phone_request` filter. When the preference is `classic` and the request looks like a phone, `openstation_mode_keeps_classic()` is true and `openstation_is_enabled()` answers false for the current user on that request. The `desktop_mode_mode` meta isn't touched, so the desktop keeps OpenStation.
+
+`wp_is_mobile()` is a user-agent sniff: it counts Android tablets as phones and misses iPads, which identify as Macs. A site with better detection can replace it through the filter. A request that reaches the shell under `classic` wasn't judged a phone, so the client resolves the mode from the viewport exactly as it does for `auto`.
+
+Three entry points are handled so a phone under `classic` never lands on a dead end:
+
+- **The shell screen** — a bookmarked shell URL, the `/openstation/` portal and the installed app's start URL all end up there — forwards to its `target`, or the Dashboard, before printing anything.
+- **The admin-bar "Switch to OpenStation" button**, pressed on that phone, sets `mobileLayout` back to `auto` before it redirects. Pressing it there means the user wants the shell on this device.
+- **Every other render gate** reads `openstation_is_enabled()`, so classic admin is never redirected into the portal.
+
+Picked from the phone itself, `classic` applies from the next page load. The shell already on screen keeps running until then.
 
 The breakpoints are inclusive at the top of each band and filterable server-side (`openstation_mode_breakpoints`), with the invariant `0 < mobile < tablet` enforced after the filter.
 
@@ -23,7 +37,7 @@ The breakpoints are inclusive at the top of each band and filterable server-side
 ```js
 wp.os.mode.get();            // 'desktop' | 'tablet' | 'mobile'
 wp.os.mode.isMobile();       // boolean
-wp.os.mode.getPreference();  // 'auto' | 'desktop' | 'mobile'
+wp.os.mode.getPreference();  // 'auto' | 'desktop' | 'mobile' | 'classic'
 wp.os.mode.getBreakpoints(); // { mobile: 767, tablet: 1024 }
 
 const stop = wp.os.mode.subscribe( ( { mode, previous, preference } ) => {
@@ -120,7 +134,8 @@ PHP — see [hooks-reference.md](./hooks-reference.md#responsive-mode--experimen
 
 | Hook | What it shapes |
 |---|---|
-| `openstation_mode_preference` | the user's `auto` / `desktop` / `mobile` before it reaches the shell and the head stamp |
+| `openstation_mode_preference` | the user's `auto` / `desktop` / `mobile` / `classic` before it reaches the shell and the head stamp |
+| `openstation_mode_is_phone_request` | whether a request counts as a phone for `classic` (default `wp_is_mobile()`) |
 | `openstation_mode_breakpoints` | `{ mobile, tablet }` in CSS px |
 | `openstation_mobile_tab_bar` | the default pins, as navigation ids |
 

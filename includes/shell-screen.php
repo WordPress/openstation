@@ -310,6 +310,7 @@ function openstation_register_shell_screen() {
 
 	if ( $hook ) {
 		add_action( "load-{$hook}", 'openstation_shell_screen_set_title' );
+		add_action( "load-{$hook}", 'openstation_shell_screen_leave_for_classic' );
 	}
 }
 add_action( 'admin_menu', 'openstation_register_shell_screen' );
@@ -350,6 +351,39 @@ add_action( 'network_admin_menu', 'openstation_register_shell_screen' );
  */
 function openstation_shell_screen_set_title() {
 	$GLOBALS['title'] = __( 'OpenStation', 'desktop-mode' ); // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- naming an admin screen IS writing $title; every core screen does it (options-general.php, edit.php), and admin-header.php reads it moments later.
+}
+
+/**
+ * Sends a phone that keeps classic wp-admin on to the page it asked for.
+ *
+ * A bookmarked shell URL, the `/openstation/` portal and the installed
+ * PWA all land on this screen. For a user whose Mobile layout is
+ * `classic`, on a phone, the shell does not render here, and the
+ * opt-in message {@see openstation_render_shell_screen()} would print
+ * points back at the portal, which comes straight back. So the screen
+ * forwards to the `target` it was given, or the Dashboard, before
+ * anything is printed.
+ */
+function openstation_shell_screen_leave_for_classic() {
+	if ( ! openstation_mode_keeps_classic() ) {
+		return;
+	}
+
+	$admin  = is_network_admin() ? network_admin_url() : admin_url();
+	$target = '';
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing arg, validated below.
+	if ( ! empty( $_GET[ OPENSTATION_SHELL_TARGET_ARG ] ) && is_scalar( $_GET[ OPENSTATION_SHELL_TARGET_ARG ] ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing arg, validated below.
+		$target = openstation_sanitize_portal_target( esc_url_raw( wp_unslash( $_GET[ OPENSTATION_SHELL_TARGET_ARG ] ) ) );
+	}
+
+	// A target naming this screen would bounce here forever.
+	if ( '' === $target || openstation_url_is_shell_screen( $target ) ) {
+		$target = $admin;
+	}
+
+	wp_safe_redirect( $target );
+	exit;
 }
 
 /**

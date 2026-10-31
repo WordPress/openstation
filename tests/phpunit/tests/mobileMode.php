@@ -28,6 +28,8 @@ class Tests_OpenStation_MobileMode extends WP_UnitTestCase {
 		remove_all_filters( 'openstation_mode_preference' );
 		remove_all_filters( 'openstation_mode_breakpoints' );
 		remove_all_filters( 'openstation_mobile_tab_bar' );
+		remove_all_filters( 'openstation_mode_is_phone_request' );
+		delete_user_meta( self::$user_id, 'desktop_mode_mode' );
 		parent::tear_down();
 	}
 
@@ -50,6 +52,9 @@ class Tests_OpenStation_MobileMode extends WP_UnitTestCase {
 	public function test_sanitize_accepts_the_enum_and_rejects_junk() {
 		$clean = openstation_sanitize_os_settings( array( 'mobileLayout' => 'mobile' ) );
 		$this->assertSame( 'mobile', $clean['mobileLayout'] );
+
+		$clean = openstation_sanitize_os_settings( array( 'mobileLayout' => 'classic' ) );
+		$this->assertSame( 'classic', $clean['mobileLayout'] );
 
 		$clean = openstation_sanitize_os_settings( array( 'mobileLayout' => 'phone' ) );
 		$this->assertSame( 'auto', $clean['mobileLayout'] );
@@ -117,6 +122,40 @@ class Tests_OpenStation_MobileMode extends WP_UnitTestCase {
 	public function test_preference_filter_cannot_return_junk() {
 		add_filter( 'openstation_mode_preference', '__return_empty_string' );
 		$this->assertSame( 'auto', openstation_mode_preference( self::$user_id ) );
+	}
+
+	// --------------------------------------------------------------
+	// Classic wp-admin on a phone
+	// --------------------------------------------------------------
+
+	/**
+	 * `classic` turns OpenStation off for the current user on a phone
+	 * request only: the meta stays on, a desktop request keeps the
+	 * shell, and the device says nothing about another user.
+	 *
+	 * @covers ::openstation_mode_keeps_classic
+	 * @covers ::openstation_is_enabled
+	 */
+	public function test_classic_turns_openstation_off_on_a_phone_request_only() {
+		$other = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		foreach ( array( self::$user_id, $other ) as $id ) {
+			update_user_meta( $id, 'desktop_mode_mode', '1' );
+			openstation_save_os_settings( $id, array( 'mobileLayout' => 'classic' ) );
+		}
+
+		add_filter( 'openstation_mode_is_phone_request', '__return_true' );
+		$this->assertTrue( openstation_mode_keeps_classic() );
+		$this->assertFalse( openstation_is_enabled(), 'a phone under classic gets plain wp-admin' );
+		$this->assertSame( '1', get_user_meta( self::$user_id, 'desktop_mode_mode', true ), 'the opt-in is untouched' );
+		$this->assertTrue( openstation_is_enabled( $other ), "this request's device is not another user's" );
+
+		openstation_save_os_settings( self::$user_id, array( 'mobileLayout' => 'auto' ) );
+		$this->assertTrue( openstation_is_enabled(), 'auto keeps the phone layer' );
+
+		openstation_save_os_settings( self::$user_id, array( 'mobileLayout' => 'classic' ) );
+		remove_all_filters( 'openstation_mode_is_phone_request' );
+		add_filter( 'openstation_mode_is_phone_request', '__return_false' );
+		$this->assertTrue( openstation_is_enabled(), 'the desktop keeps OpenStation' );
 	}
 
 	// --------------------------------------------------------------
