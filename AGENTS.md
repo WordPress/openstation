@@ -280,6 +280,17 @@ i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't 
 
 When a change breaks a test, don't just rewrite the assertion to match. Decide whether it caught a real regression or pinned an implementation detail, and delete or rewrite it in the second case.
 
+### Software factory
+
+`/factory run` builds every open GitHub issue labeled `factory` through intake → spec → build → gate → review → approve, one PR per issue. State is in `factory/jobs/` (gitignored); `factory/bin/job` is its only writer. Checks: `factory/checks.sh`. Dashboard: `cd factory && python3 -m http.server`, then open http://localhost:8000/dashboard.html. The agents live in `.claude/agents/`, the orchestrator in `.claude/skills/factory/SKILL.md`.
+
+- **It runs locally, from any checkout** (the main one or a Claude Code worktree), and needs Docker running and the `agent-browser` CLI installed. One `/factory run` drives `concurrency` jobs in parallel, each in its own worktree next to the checkout that runs it. Don't start a second `/factory run` while one is going: each checkout keeps its own `factory/jobs/`, so two runs would both build the same issues.
+- **The `factory` label is the green light** for the factory to push `factory/<job-id>` and open that issue's draft PR. `auto_merge` is off in `factory/config.json`: an approved PR is synced with `trunk`, gated again, marked ready and labeled `factory:needs-human` for a maintainer to merge.
+- **Fresh worktree setup**: `npm ci` and `composer install` (`checks.sh` does both when they're missing or stale).
+- **The gate** (`FACTORY_PORT=<port> bash <repo>/factory/checks.sh` from the worktree) runs `npm run lint`, `typecheck`, `build`, `test:js` and host `phpcs`; then, in the job's own wp-env stacks, `test:php`, `test:php:multisite`, `lint:php`, and `factory/smoke.sh`, which loads the shell on the job's site in a headless browser and fails on a PHP error in `debug.log`, a JavaScript error, or a shell that never boots. `FACTORY_CHECKS=fast` runs only the host part. **CI is a step too**: while the reviewers read, `factory/bin/job ci` waits (up to 45 minutes) for the PR's checks on the round's commit, Plugin Check among them; a red check sends the job back to the builder as a failed round, and no job is approved on anything but green.
+- **Job n's ports**: its site on `<port>` = `8900 + 10n`, PHPUnit on `<port>+1`. Every stack is keyed to the job's worktree, so none touches `:8890`/`:8891`.
+- **The job's site** is that worktree's wp-env QA instance: `cd <worktree> && npm run build && WP_ENV_PORT=<port> npm run env:start`, then `http://localhost:<port>/wp-admin/` as `admin` / `password`. Turn the shell on for that user with `cd <worktree> && npx wp-env run cli wp user meta update admin desktop_mode_mode 1`. If the port already answers, that is this job's site: reuse it. Leave it running for the job's other agents and for the maintainer reviewing the PR; the factory destroys both stacks when the job is merged or abandoned (its PR closed unmerged, or its issue closed).
+
 ---
 
 ## Process reminders

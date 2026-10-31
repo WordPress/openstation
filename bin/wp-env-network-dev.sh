@@ -15,18 +15,26 @@ set -euo pipefail
 WP_ENV_BIN="${WP_ENV_BIN:-./node_modules/.bin/wp-env}"
 # Find the instance directory. `wp-env install-path` answers on newer
 # wp-env; older ones print nothing, so fall back to Docker's own mount
-# table: the container publishing the config's port maps /var/www/html
-# onto the instance's WordPress directory.
+# table: the container publishing the instance's port maps /var/www/html
+# onto the instance's WordPress directory. That port is the one wp-env
+# itself chose, in its own order: WP_ENV_PORT, then the override file,
+# then the config. Reading only the config found whatever instance held
+# its port, so a worktree started on another port shimmed (or failed on)
+# the main checkout's site.
 CONFIG_FILE=".wp-env.json"
 for arg in "$@"; do
 	case "${arg}" in
 		--config=*) CONFIG_FILE="${arg#--config=}" ;;
 	esac
 done
+config_port() {
+	[ -f "$1" ] && grep -o '"port":[[:space:]]*[0-9]*' "$1" | grep -o '[0-9]*$' || true
+}
 INSTALL_PATH="$("${WP_ENV_BIN}" install-path "$@" 2>/dev/null | grep -m1 '\.wp-env/' | tr -d '[:space:]' || true)"
 if [ -z "${INSTALL_PATH}" ]; then
-	PORT="$(grep -o '"port":[[:space:]]*[0-9]*' "${CONFIG_FILE}" | grep -o '[0-9]*$')"
-	CONTAINER="$(docker ps --filter "publish=${PORT}" --format '{{.Names}}' | grep -- '-wordpress-' | head -1)"
+	PORT="${WP_ENV_PORT:-$(config_port "${CONFIG_FILE%.json}.override.json")}"
+	PORT="${PORT:-$(config_port "${CONFIG_FILE}")}"
+	CONTAINER="$(docker ps --filter "publish=${PORT}" --format '{{.Names}}' | grep -- '-wordpress-' | head -1 || true)"
 	if [ -n "${CONTAINER}" ]; then
 		WP_DIR="$(docker inspect "${CONTAINER}" --format '{{range .Mounts}}{{if eq .Destination "/var/www/html"}}{{.Source}}{{end}}{{end}}')"
 		INSTALL_PATH="${WP_DIR%/WordPress}"
