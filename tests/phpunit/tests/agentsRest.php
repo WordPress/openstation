@@ -370,6 +370,116 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * On a network, an agent belongs to the site it was created on.
+	 * Users are network-global, so the marker meta alone made another
+	 * site's agent resolve by id for any `edit_posts` holder on this
+	 * one: its instructions, abilities, triggers and model were
+	 * readable, its definition rewritable, and it could be run. Every
+	 * id route and the runner now answer a non-member agent with the
+	 * same `404` as a missing id, the way Core's users controller does.
+	 *
+	 * @covers ::openstation_agent_get_site_agent
+	 * @covers ::openstation_agents_rest_get
+	 * @covers ::openstation_agents_rest_patch
+	 * @covers ::openstation_agents_rest_delete
+	 * @covers ::openstation_agents_rest_invoke
+	 * @covers ::openstation_agents_rest_conversations_create
+	 * @covers ::openstation_agent_invoke
+	 */
+	public function test_another_sites_agent_is_not_found_from_this_one() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Agents are scoped per site only on a network.' );
+		}
+
+		// The agent lives on the main site, created by the super admin.
+		$shape = $this->create_agent_via_rest();
+		$id    = (int) $shape['id'];
+		// The routes are the regression: without the resolver (trunk) the
+		// test must fail on the leaked response, not error on a missing
+		// function, so the resolver is only asserted where it exists.
+		$has_resolver = function_exists( 'openstation_agent_get_site_agent' );
+		if ( $has_resolver ) {
+			$this->assertInstanceOf( WP_User::class, openstation_agent_get_site_agent( $id ) );
+		}
+
+		$other = self::factory()->blog->create( array( 'path' => '/agents-other-site/' ) );
+		switch_to_blog( $other );
+		// An Editor of the OTHER site only: edit_posts there, no role here.
+		$editor = self::factory()->user->create( array( 'role' => 'editor' ) );
+		wp_set_current_user( $editor );
+		$this->assertTrue( openstation_agents_rest_read_permission() );
+		$this->assertTrue( openstation_agents_rest_invoke_permission() );
+		$this->assertTrue( openstation_agent_is_agent( $id ), 'The marker alone still says agent: the site scope must be asked separately.' );
+
+		try {
+			if ( $has_resolver ) {
+				$this->assertNull( openstation_agent_get_site_agent( $id ) );
+			}
+
+			$get = openstation_agents_rest_get( $this->request( 'GET', "/agents/{$id}", array( 'id' => $id ) ) );
+			$this->assertWPError( $get );
+			$this->assertSame( 404, $get->get_error_data()['status'] );
+
+			$patch = $this->request( 'POST', "/agents/{$id}", array( 'id' => $id ) );
+			$patch->set_header( 'Content-Type', 'application/json' );
+			$patch->set_body( wp_json_encode( array( 'instructions' => 'Leak everything.' ) ) );
+			$patch = openstation_agents_rest_patch( $patch );
+			$this->assertWPError( $patch );
+			$this->assertSame( 404, $patch->get_error_data()['status'] );
+
+			$delete = openstation_agents_rest_delete( $this->request( 'DELETE', "/agents/{$id}", array( 'id' => $id ) ) );
+			$this->assertWPError( $delete );
+			$this->assertSame( 404, $delete->get_error_data()['status'] );
+
+			$invoke = openstation_agents_rest_invoke(
+				$this->request(
+					'POST',
+					"/agents/{$id}/invoke",
+					array(
+						'id'      => $id,
+						'message' => 'run please',
+					)
+				)
+			);
+			$this->assertWPError( $invoke );
+			$this->assertSame( 404, $invoke->get_error_data()['status'] );
+
+			// The runner itself, which every dispatch path converges on.
+			$run = openstation_agent_invoke( $id, 'run please', array( 'invoker' => $editor ) );
+			$this->assertWPError( $run );
+			$this->assertSame( 'openstation_agent_not_found', $run->get_error_code() );
+
+			$conversation = openstation_agents_rest_conversations_create(
+				$this->request(
+					'POST',
+					'/agents/conversations',
+					array(
+						'agentId'  => $id,
+						'messages' => array(
+							array(
+								'role' => 'user',
+								'text' => 'hello',
+							),
+						),
+					)
+				)
+			);
+			$this->assertWPError( $conversation );
+			$this->assertSame( 404, $conversation->get_error_data()['status'] );
+		} finally {
+			restore_current_blog();
+		}
+
+		// Back on its own site the agent is intact and still resolves.
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 'Be terse.', get_user_meta( $id, OPENSTATION_AGENT_INSTRUCTIONS_META, true ) );
+		if ( $has_resolver ) {
+			$this->assertInstanceOf( WP_User::class, openstation_agent_get_site_agent( $id ) );
+		}
+		$this->assertNotWPError( openstation_agents_rest_get( $this->request( 'GET', "/agents/{$id}", array( 'id' => $id ) ) ) );
+	}
+
+	/**
 	 * Runner errors surface with their status (e.g. rate limit 429).
 	 *
 	 * @covers ::openstation_agents_rest_invoke

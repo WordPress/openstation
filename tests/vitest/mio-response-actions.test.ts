@@ -65,7 +65,7 @@ test( 'a failing response callback cannot change an authoritative save into fail
 } );
 
 test( 'invalid descriptors are omitted independently, capped at three with one primary', async () => {
-	const bad: unknown[] = [ null, {}, action( { id: '' } ), action( { label: 'x'.repeat( 41 ) } ), action( { ariaLabel: 'x'.repeat( 161 ) } ), action( { effect: 'write' as never } ), action( { run: 'javascript:evil' as never } ), action( { allowed: true as never } ), action( { emphasis: 'danger' as never } ) ];
+	const bad: unknown[] = [ null, {}, action( { id: '' } ), action( { label: 'x'.repeat( 41 ) } ), action( { ariaLabel: 'x'.repeat( 161 ) } ), action( { effect: 'delete' as never } ), action( { group: '' } ), action( { description: 'x'.repeat( 161 ) } ), action( { run: 'javascript:evil' as never } ), action( { allowed: true as never } ), action( { emphasis: 'danger' as never } ) ];
 	const { session } = setup( () => [ ...bad, action( { emphasis: 'primary', icon: '<svg>' } ), action(), action( { id: 'two', emphasis: 'primary' } ), action( { id: 'three' } ), action( { id: 'four' } ) ] as MioResponseAction[] );
 	await session.ask( 'Help' );
 	const views = session.responseActions.list( last( session ) );

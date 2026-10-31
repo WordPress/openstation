@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: OpenStation 1.1.17\n"
+"Project-Id-Version: OpenStation 1.1.18\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-23T14:14:32+00:00\n"
+"POT-Creation-Date: 2026-10-30T17:40:51+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: desktop-mode\n"
@@ -120,7 +120,8 @@ msgid "The agent finished without a text answer."
 msgstr ""
 
 #: src/agents-dispatch.ts:300
-#: src/mio/assistant/response-actions.ts:146
+#: src/mio/assistant/response-actions.ts:275
+#: src/mio/assistant/response-actions.ts:314
 msgid "Working…"
 msgstr ""
 
@@ -629,7 +630,7 @@ msgid "Contributor"
 msgstr ""
 
 #: src/content-graph/panel.ts:596
-#: apps/users/users.os.php:135
+#: apps/users/users.os.php:136
 msgid "Roles"
 msgstr ""
 
@@ -1914,7 +1915,7 @@ msgid "Close MIO chat"
 msgstr ""
 
 #: src/mio/assistant/chat.ts:44
-#: includes/agents/conversations.php:218
+#: includes/agents/conversations.php:249
 msgid "Conversation"
 msgstr ""
 
@@ -1958,17 +1959,28 @@ msgstr ""
 msgid "Suggested actions"
 msgstr ""
 
-#: src/mio/assistant/response-actions.ts:143
-#: src/mio/assistant/response-actions.ts:152
+#: src/mio/assistant/response-actions.ts:171
+msgid "No longer available."
+msgstr ""
+
+#: src/mio/assistant/response-actions.ts:269
+#: src/mio/assistant/response-actions.ts:281
+#: src/mio/assistant/response-actions.ts:321
 msgid "This action is no longer available."
 msgstr ""
 
-#: src/mio/assistant/response-actions.ts:157
+#: src/mio/assistant/response-actions.ts:286
+#: src/mio/assistant/response-actions.ts:353
 msgid "Done."
 msgstr ""
 
-#: src/mio/assistant/response-actions.ts:159
+#: src/mio/assistant/response-actions.ts:291
+#: src/mio/assistant/response-actions.ts:348
 msgid "Could not complete this action. Try again."
+msgstr ""
+
+#: src/mio/assistant/response-actions.ts:360
+msgid "Could not confirm the result. Check before trying again."
 msgstr ""
 
 #: src/mio/callout.ts:25
@@ -1980,11 +1992,11 @@ msgstr ""
 msgid "Dismiss MIO tip"
 msgstr ""
 
-#: src/mio/residency.ts:114
+#: src/mio/residency.ts:115
 msgid "Ask MIO"
 msgstr ""
 
-#: src/mio/residency.ts:188
+#: src/mio/residency.ts:189
 msgid "MIO could not open."
 msgstr ""
 
@@ -3128,7 +3140,7 @@ msgstr ""
 
 #: src/plugins/my-wordpress-woocommerce/index.ts:1718
 #: includes/my-wordpress/integrations/woocommerce.php:301
-#: includes/my-wordpress/integrations/woocommerce.php:1360
+#: includes/my-wordpress/integrations/woocommerce.php:1381
 msgid "Out of stock"
 msgstr ""
 
@@ -5065,7 +5077,7 @@ msgid "Uploaded"
 msgstr ""
 
 #: apps/my-wordpress/parts/sections.php:75
-#: apps/users/users.os.php:108
+#: apps/users/users.os.php:109
 #: includes/ai-copilot/search.php:153
 #: includes/multisite.php:114
 #: includes/my-wordpress/window.php:178
@@ -5176,14 +5188,14 @@ msgstr ""
 #: apps/my-wordpress/parts/woocommerce.php:244
 #: includes/my-wordpress/integrations/woocommerce-relations.php:836
 #: includes/my-wordpress/integrations/woocommerce-relations.php:1037
-#: includes/my-wordpress/integrations/woocommerce.php:1057
+#: includes/my-wordpress/integrations/woocommerce.php:1078
 #, php-format
 msgid "#%1$s · %2$s"
 msgstr ""
 
 #: apps/my-wordpress/parts/woocommerce.php:251
 #: apps/my-wordpress/parts/woocommerce.php:268
-#: includes/my-wordpress/integrations/woocommerce.php:1463
+#: includes/my-wordpress/integrations/woocommerce.php:1484
 msgid "Guest"
 msgstr ""
 
@@ -5816,7 +5828,7 @@ msgstr ""
 msgid "User not found."
 msgstr ""
 
-#: apps/user-edit/user-edit.os.php:56
+#: apps/user-edit/user-edit.os.php:57
 msgid "Edit user"
 msgstr ""
 
@@ -5877,8 +5889,8 @@ msgid "A reset email was already sent recently. Try again in a minute."
 msgstr ""
 
 #: apps/users/parts/rest.php:184
-#: apps/users/users.os.php:254
-#: apps/users/users.os.php:269
+#: apps/users/users.os.php:255
+#: apps/users/users.os.php:270
 msgid "You are not allowed to email this user."
 msgstr ""
 
@@ -5918,65 +5930,65 @@ msgstr ""
 msgid "Role groups could not be loaded. Please try again."
 msgstr ""
 
-#: apps/users/users.os.php:132
+#: apps/users/users.os.php:133
 msgid "People"
 msgstr ""
 
-#: apps/users/users.os.php:136
+#: apps/users/users.os.php:137
 msgid "Activity"
 msgstr ""
 
-#: apps/users/users.os.php:140
+#: apps/users/users.os.php:141
 msgid "Add new"
 msgstr ""
 
-#: apps/users/users.os.php:145
+#: apps/users/users.os.php:146
 #: includes/core-notices.php:140
 msgid "Profile"
 msgstr ""
 
-#: apps/users/users.os.php:202
+#: apps/users/users.os.php:203
 msgid "You are not allowed to change roles."
 msgstr ""
 
-#: apps/users/users.os.php:213
+#: apps/users/users.os.php:214
 msgid "No users updated."
 msgstr ""
 
 #. translators: %1$d users updated, %2$d failed.
-#: apps/users/users.os.php:216
+#: apps/users/users.os.php:217
 #, php-format
 msgid "Role updated for %1$d user(s) (%2$d skipped)."
 msgstr ""
 
-#: apps/users/users.os.php:228
+#: apps/users/users.os.php:229
 msgid "You are not allowed to delete users."
 msgstr ""
 
 #. translators: %1$d users deleted, %2$d skipped.
-#: apps/users/users.os.php:239
+#: apps/users/users.os.php:240
 #, php-format
 msgid "%1$d user(s) deleted (%2$d skipped)."
 msgstr ""
 
 #. translators: %s is the user's email address.
-#: apps/users/users.os.php:257
+#: apps/users/users.os.php:258
 #, php-format
 msgid "Reset email sent to %s."
 msgstr ""
 
 #. translators: %s is the user's email address.
-#: apps/users/users.os.php:272
+#: apps/users/users.os.php:273
 #, php-format
 msgid "Welcome email resent to %s."
 msgstr ""
 
-#: apps/users/users.os.php:283
+#: apps/users/users.os.php:284
 msgid "You are not allowed to create users."
 msgstr ""
 
 #. translators: %s is the user's email address.
-#: apps/users/users.os.php:304
+#: apps/users/users.os.php:305
 #, php-format
 msgid "User created — welcome email sent to %s."
 msgstr ""
@@ -6178,29 +6190,29 @@ msgstr ""
 msgid "Invalid post status."
 msgstr ""
 
-#: includes/agents/conversations.php:73
+#: includes/agents/conversations.php:101
 msgid "Agent conversations"
 msgstr ""
 
-#: includes/agents/conversations.php:294
+#: includes/agents/conversations.php:325
 msgid "Deleted agent"
 msgstr ""
 
-#: includes/agents/conversations.php:455
+#: includes/agents/conversations.php:486
 msgid "No agent with that id exists."
 msgstr ""
 
-#: includes/agents/conversations.php:464
-#: includes/agents/conversations.php:528
+#: includes/agents/conversations.php:495
+#: includes/agents/conversations.php:559
 msgid "A conversation needs at least one message."
 msgstr ""
 
-#: includes/agents/conversations.php:576
+#: includes/agents/conversations.php:607
 msgid "No conversation with that id exists."
 msgstr ""
 
 #: includes/agents/draft.php:72
-#: includes/agents/runner.php:1063
+#: includes/agents/runner.php:1066
 msgid "The WordPress AI Client is not available on this site."
 msgstr ""
 
@@ -6342,81 +6354,81 @@ msgstr ""
 msgid "Face (JSON)"
 msgstr ""
 
-#: includes/agents/rest.php:258
+#: includes/agents/rest.php:263
 msgid "You do not have permission to read OpenStation agents."
 msgstr ""
 
-#: includes/agents/rest.php:274
+#: includes/agents/rest.php:279
 msgid "You do not have permission to manage OpenStation agents."
 msgstr ""
 
-#: includes/agents/rest.php:290
+#: includes/agents/rest.php:295
 msgid "You do not have permission to invoke OpenStation agents."
 msgstr ""
 
-#: includes/agents/rest.php:333
-#: includes/agents/rest.php:389
-#: includes/agents/rest.php:445
-#: includes/agents/rest.php:475
-#: includes/agents/runner.php:159
-#: includes/agents/store.php:1144
+#: includes/agents/rest.php:338
+#: includes/agents/rest.php:394
+#: includes/agents/rest.php:450
+#: includes/agents/rest.php:480
+#: includes/agents/runner.php:162
+#: includes/agents/store.php:1175
 msgid "Agent not found."
 msgstr ""
 
-#: includes/agents/rest.php:489
+#: includes/agents/rest.php:494
 msgid "You do not have permission to invoke this agent."
 msgstr ""
 
-#: includes/agents/runner.php:165
+#: includes/agents/runner.php:168
 msgid "Message must be a non-empty string."
 msgstr ""
 
-#: includes/agents/runner.php:171
+#: includes/agents/runner.php:174
 msgid "The WordPress AI Client is not available on this site. Configure an AI connector to run agents."
 msgstr ""
 
 #. translators: %d is the hourly per-user invocation cap.
-#: includes/agents/runner.php:390
+#: includes/agents/runner.php:393
 #, php-format
 msgid "You reached your limit of %d agent runs this hour. Try again later."
 msgstr ""
 
 #. translators: %d is the hourly invocation cap.
-#: includes/agents/runner.php:434
+#: includes/agents/runner.php:437
 #, php-format
 msgid "This agent reached its limit of %d runs this hour. Try again later."
 msgstr ""
 
 #. translators: %s is the tool name the model called.
-#: includes/agents/runner.php:627
+#: includes/agents/runner.php:630
 #, php-format
 msgid "Tool \"%s\" is not on this agent's allowlist."
 msgstr ""
 
 #. translators: %d is the number of turns the run made.
-#: includes/agents/runner.php:714
+#: includes/agents/runner.php:717
 #, php-format
 msgid "Agent stopped after %d turns without a final answer."
 msgstr ""
 
-#: includes/agents/runner.php:995
+#: includes/agents/runner.php:998
 msgid "The AI provider returned an empty answer — its safety system most likely declined this request. Rephrase and try again, or switch the provider in Settings → Connectors."
 msgstr ""
 
-#: includes/agents/runner.php:1006
+#: includes/agents/runner.php:1009
 msgid "The reply ran past the output-token limit before it finished, so it was discarded rather than acted on incomplete. Ask for something shorter, or raise max_tokens with the openstation_ai_model_config filter."
 msgstr ""
 
-#: includes/agents/runner.php:1017
+#: includes/agents/runner.php:1020
 msgid "The model ran out of room before writing its answer — it most likely spent the whole output budget reasoning. Try a narrower request, or try again."
 msgstr ""
 
-#: includes/agents/runner.php:1340
+#: includes/agents/runner.php:1343
 msgid "The Abilities API is not available on this site."
 msgstr ""
 
 #. translators: %s is the ability slug.
-#: includes/agents/runner.php:1349
+#: includes/agents/runner.php:1352
 #, php-format
 msgid "Ability \"%s\" is not registered on this site."
 msgstr ""
@@ -6501,12 +6513,12 @@ msgstr ""
 msgid "A new attachment is added."
 msgstr ""
 
-#: includes/agents/store.php:1054
-#: includes/agents/store.php:1181
+#: includes/agents/store.php:1085
+#: includes/agents/store.php:1212
 msgid "Pick a role you are allowed to assign to an agent."
 msgstr ""
 
-#: includes/agents/store.php:1155
+#: includes/agents/store.php:1186
 msgid "Agent name cannot be empty."
 msgstr ""
 
@@ -7140,7 +7152,7 @@ msgstr ""
 #: includes/desktop-files/file-shares.php:266
 #: includes/desktop-files/file-shares.php:368
 #: includes/desktop-files/file-shares.php:592
-#: includes/desktop-files/rest.php:988
+#: includes/desktop-files/rest.php:991
 #: includes/desktop-files/shares-store.php:498
 #: includes/desktop-files/shares-store.php:566
 #: includes/desktop-files/shares-store.php:690
@@ -7195,8 +7207,8 @@ msgstr ""
 
 #: includes/desktop-files/folders-store.php:119
 #: includes/desktop-files/folders-store.php:288
-#: includes/desktop-files/rest.php:620
-#: includes/desktop-files/rest.php:934
+#: includes/desktop-files/rest.php:623
+#: includes/desktop-files/rest.php:937
 #: includes/desktop-files/shares-store.php:826
 #: includes/desktop-files/store.php:84
 #: includes/desktop-files/store.php:308
@@ -7387,23 +7399,24 @@ msgstr ""
 msgid "Placement not found."
 msgstr ""
 
-#: includes/desktop-files/rest.php:714
+#: includes/desktop-files/rest.php:717
+#: includes/desktop-files/trash.php:1156
 msgid "Restricted item"
 msgstr ""
 
-#: includes/desktop-files/rest.php:872
+#: includes/desktop-files/rest.php:875
 msgid "This row was changed by another session."
 msgstr ""
 
-#: includes/desktop-files/rest.php:930
+#: includes/desktop-files/rest.php:933
 msgid "You cannot view shares for this folder."
 msgstr ""
 
-#: includes/desktop-files/rest.php:999
+#: includes/desktop-files/rest.php:1002
 msgid "Share not found in this folder."
 msgstr ""
 
-#: includes/desktop-files/rest.php:1179
+#: includes/desktop-files/rest.php:1182
 msgid "You cannot search users."
 msgstr ""
 
@@ -7555,29 +7568,29 @@ msgstr ""
 msgid "You do not have permission to delete this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:1165
+#: includes/desktop-files/trash.php:1169
 msgid "Desktop shortcut"
 msgstr ""
 
 #. translators: %s: file-type slug like 'post', 'attachment'.
-#: includes/desktop-files/trash.php:1168
+#: includes/desktop-files/trash.php:1172
 #, php-format
 msgid "%s on desktop"
 msgstr ""
 
-#: includes/desktop-files/trash.php:1193
+#: includes/desktop-files/trash.php:1197
 msgid "URL"
 msgstr ""
 
 #. translators: %d: number of items inside the trashed folder.
-#: includes/desktop-files/trash.php:1223
+#: includes/desktop-files/trash.php:1227
 #, php-format
 msgid "Folder · %d item inside"
 msgid_plural "Folder · %d items inside"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/desktop-files/trash.php:1226
+#: includes/desktop-files/trash.php:1230
 msgid "Folder · empty"
 msgstr ""
 
@@ -8137,7 +8150,7 @@ msgid "Cancelled & refunded"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:308
-#: includes/my-wordpress/integrations/woocommerce.php:1361
+#: includes/my-wordpress/integrations/woocommerce.php:1382
 msgid "On backorder"
 msgstr ""
 
@@ -8146,7 +8159,7 @@ msgid "Uncategorised"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:343
-#: includes/my-wordpress/integrations/woocommerce.php:1359
+#: includes/my-wordpress/integrations/woocommerce.php:1380
 msgid "In stock"
 msgstr ""
 
@@ -8155,12 +8168,12 @@ msgid "Expiring soon"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:736
-#: includes/my-wordpress/integrations/woocommerce.php:1599
+#: includes/my-wordpress/integrations/woocommerce.php:1620
 msgid "Usage limit reached"
 msgstr ""
 
 #: includes/my-wordpress/integrations/woocommerce.php:742
-#: includes/my-wordpress/integrations/woocommerce.php:1598
+#: includes/my-wordpress/integrations/woocommerce.php:1619
 msgid "Expired"
 msgstr ""
 
@@ -8168,44 +8181,44 @@ msgstr ""
 msgid "Coupon band used by the site window tiles."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:981
+#: includes/my-wordpress/integrations/woocommerce.php:984
 msgid "Stock and category facts used by the site window tiles."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1028
+#: includes/my-wordpress/integrations/woocommerce.php:1049
 msgid "Sorry, you are not allowed to view orders."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1316
-#: includes/my-wordpress/integrations/woocommerce.php:1405
+#: includes/my-wordpress/integrations/woocommerce.php:1337
+#: includes/my-wordpress/integrations/woocommerce.php:1426
 msgid "Order not found."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1351
+#: includes/my-wordpress/integrations/woocommerce.php:1372
 msgid "Product not found."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1533
+#: includes/my-wordpress/integrations/woocommerce.php:1554
 msgid "Coupon not found."
 msgstr ""
 
 #. translators: %s: percentage off.
-#: includes/my-wordpress/integrations/woocommerce.php:1551
+#: includes/my-wordpress/integrations/woocommerce.php:1572
 #, php-format
 msgid "%s%% off"
 msgstr ""
 
 #. translators: %s: formatted discount amount.
-#: includes/my-wordpress/integrations/woocommerce.php:1556
+#: includes/my-wordpress/integrations/woocommerce.php:1577
 #, php-format
 msgid "%s off"
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1673
+#: includes/my-wordpress/integrations/woocommerce.php:1694
 msgid "Unknown summary type."
 msgstr ""
 
-#: includes/my-wordpress/integrations/woocommerce.php:1740
+#: includes/my-wordpress/integrations/woocommerce.php:1761
 msgid "Sorry, you are not allowed to view this item."
 msgstr ""
 

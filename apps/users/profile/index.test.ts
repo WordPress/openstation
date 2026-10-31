@@ -3,7 +3,7 @@
  * one mount per id with the record and the insights fetched ONCE each,
  * a retarget that re-mounts once, the properties the host feeds, and
  * an aside that refreshes ITSELF after a save (not the first aside in
- * the document).
+ * the document), and the plugin sections embedded below the form.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import '../../../src/ui/components/os-form/os-form';
@@ -17,6 +17,7 @@ import '../../../src/ui/components/os-button/os-button';
 import './index';
 import type { OsUserProfile } from './index';
 import type { ProfileConfig } from './types';
+import { isFormDirty, refreshUntouched, shouldRenarrow, snapshotForm } from './plugin-sections-form';
 import { createSharedStore } from '../../../src/shared-store';
 import { readFootprintTarget } from '../../../src/open-targets/footprint-target';
 
@@ -202,5 +203,93 @@ describe( '<os-user-profile>', () => {
 		door?.click();
 		expect( openWindow ).toHaveBeenCalledWith( 'my-wordpress', expect.objectContaining( { source: expect.any( String ) } ) );
 		expect( readFootprintTarget() ).toMatchObject( { userId: 3, userName: 'Jane Doe' } );
+	} );
+
+	test( 'embeds the plugin sections of the screen the person is edited on, and reloads them after a save', async () => {
+		const urls: string[] = [];
+		const embedAdminPage = vi.fn( ( host: HTMLElement, url: string ) => {
+			urls.push( url );
+			host.replaceChildren( document.createElement( 'iframe' ) );
+			return () => host.replaceChildren();
+		} );
+		( window as unknown as { wp?: unknown } ).wp = { os: { embedAdminPage } };
+		const pluginSections = { own: true, others: false, adminUrl: 'http://example.test/wp-admin/' };
+		const ownUrl = 'http://example.test/wp-admin/profile.php?openstation_profile_sections=1&openstation_chromeless=1';
+
+		const own = mountProfile( 1, { fetch: fakeFetch().fetch, config: { ...config, pluginSections } } );
+		const other = mountProfile( 3, { fetch: fakeFetch().fetch, config: { ...config, pluginSections } } );
+		await wait( 10 );
+		expect( urls ).toEqual( [ ownUrl ] );
+		expect( other.querySelector< HTMLElement >( '[data-os-user-profile-plugins]' )?.hidden ).toBe( true );
+
+		// The embedded page posts the core fields it loaded with: with no
+		// edits in it, a save from the form reloads it.
+		( own.querySelector( 'os-form' ) as HTMLElement & { submit: () => void } ).submit();
+		await wait( 30 );
+		expect( own.querySelector( '[data-os-user-profile-plugins] iframe' )?.getAttribute( 'src' ) ).toBe( ownUrl );
+
+		const editor = mountProfile( 3, { fetch: fakeFetch().fetch, config: { ...config, pluginSections: { ...pluginSections, others: true } } } );
+		await wait( 10 );
+		expect( urls[ 1 ] ).toBe( 'http://example.test/wp-admin/user-edit.php?user_id=3&openstation_profile_sections=1&openstation_chromeless=1' );
+		expect( editor.querySelector< HTMLElement >( '[data-os-user-profile-plugins]' )?.hidden ).toBe( false );
+	} );
+
+	test( 'opens the embedded page’s off-site links in a new tab and leaves admin links to the embed', async () => {
+		( window as unknown as { wp?: unknown } ).wp = {
+			os: {
+				embedAdminPage: ( host: HTMLElement ) => {
+					host.replaceChildren( document.createElement( 'iframe' ) );
+					return () => host.replaceChildren();
+				},
+			},
+		};
+		const open = vi.spyOn( window, 'open' ).mockImplementation( () => null );
+		const el = mountProfile( 1, { fetch: fakeFetch().fetch, config: { ...config, pluginSections: { own: true, adminUrl: 'http://example.test/wp-admin/' } } } );
+		await wait( 10 );
+		const frame = el.querySelector( '[data-os-user-profile-plugins] iframe' ) as HTMLIFrameElement;
+		const post = ( data: unknown ): void => {
+			window.dispatchEvent( new MessageEvent( 'message', { data, origin: window.location.origin, source: frame.contentWindow } ) );
+		};
+
+		post( { type: 'os-iframe-admin-link', url: `${ window.location.origin }/wp-admin/options-general.php`, label: 'Settings' } );
+		expect( open ).not.toHaveBeenCalled();
+		post( { type: 'os-external-link', url: 'https://example.org/docs' } );
+		expect( open ).toHaveBeenCalledWith( 'https://example.org/docs', '_blank', 'noopener' );
+	} );
+} );
+
+describe( 'the embedded profile form', () => {
+	const formIn = ( html: string ): HTMLFormElement => {
+		const doc = document.implementation.createHTMLDocument( '' );
+		doc.body.innerHTML = `<form id="your-profile">${ html }</form>`;
+		return doc.getElementById( 'your-profile' ) as HTMLFormElement;
+	};
+
+	test( 'is narrowed again once, and only when the page is the profile form', () => {
+		const whole = formIn( '<input name="email" />' ).ownerDocument;
+		const narrowed = formIn( '<span id="os-profile-sections-start"></span>' ).ownerDocument;
+		const invalid = document.implementation.createHTMLDocument( '' );
+		invalid.body.textContent = 'Invalid user ID.';
+
+		expect( shouldRenarrow( whole, true, false ) ).toBe( true );
+		expect( shouldRenarrow( whole, true, true ) ).toBe( false );
+		expect( shouldRenarrow( narrowed, true, false ) ).toBe( false );
+		expect( shouldRenarrow( invalid, true, false ) ).toBe( false );
+		expect( shouldRenarrow( whole, false, false ) ).toBe( false );
+	} );
+
+	test( 'keeps the user’s edits and takes fresh values for every field left alone', () => {
+		const live = formIn( '<input name="email" value="old@example.test" /><input type="checkbox" name="opt" /><input name="plugin_field" value="a" />' );
+		const snapshot = snapshotForm( live );
+		expect( isFormDirty( live, snapshot ) ).toBe( false );
+
+		( live.elements.namedItem( 'plugin_field' ) as HTMLInputElement ).value = 'edited';
+		expect( isFormDirty( live, snapshot ) ).toBe( true );
+
+		const fresh = formIn( '<input name="email" value="new@example.test" /><input type="checkbox" name="opt" checked /><input name="plugin_field" value="a" />' );
+		refreshUntouched( live, snapshot, fresh );
+		expect( ( live.elements.namedItem( 'email' ) as HTMLInputElement ).value ).toBe( 'new@example.test' );
+		expect( ( live.elements.namedItem( 'opt' ) as HTMLInputElement ).checked ).toBe( true );
+		expect( ( live.elements.namedItem( 'plugin_field' ) as HTMLInputElement ).value ).toBe( 'edited' );
 	} );
 } );

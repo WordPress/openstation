@@ -1148,10 +1148,14 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		$file  = function_exists( 'openstation_resolve_file' )
 			? openstation_resolve_file( $row['file_type'], $row['file_ref'] )
 			: null;
-		$title = $file
-			? openstation_plain_text_title( $file->title() )
+		// The viewer's own placement, but the entity behind it may have
+		// gone private or draft since; the active listing re-asks
+		// `can_read()` per row, and so does the bin.
+		$readable = $file && $file->can_read( $user_id );
+		$title    = $file
+			? ( $readable ? openstation_plain_text_title( $file->title() ) : __( 'Restricted item', 'desktop-mode' ) )
 			: (string) $row['file_type'];
-		$icon  = $file ? (string) $file->icon() : 'dashicons-no-alt';
+		$icon     = $file ? ( $readable ? (string) $file->icon() : 'dashicons-lock' ) : 'dashicons-no-alt';
 		// Two recycle-bin buckets:
 		// - `shortcut`  → plugin-registered icons (file_type='shortcut')
 		// - `placement` → every other placement (post / page /

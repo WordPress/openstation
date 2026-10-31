@@ -293,7 +293,7 @@ All under `/wp-json/desktop-mode/v1/files`. Permission gate: logged-in + OpenSta
 |---|---|---|
 | `GET` | `/placements?folder=<id>` | List the viewer's placements under `<id>` (0 = desktop root). |
 | `POST` | `/placements` | `{ parentId?, type, ref, x?, y?, sortOrder?, meta? }` |
-| `PATCH` | `/placements/<id>` | `{ parentId?, x?, y?, sortOrder?, meta? }` |
+| `PATCH` | `/placements/<id>` | `{ parentId?, x?, y?, sortOrder?, meta? }`. The response is shaped like a listing row: `accessGated` with a redacted `file` when the caller cannot read the entity (a writer moving the owner's tile). |
 | `DELETE` | `/placements/<id>` | Soft-trash to the recycle bin (restorable). Pass `?force=1` to permanently purge. |
 | `GET` | `/folders` | List folders the viewer owns (Phase 6 expands to shared folders). |
 | `POST` | `/folders` | `{ name, shareMode?, shareMeta? }` |

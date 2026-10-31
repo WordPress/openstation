@@ -225,6 +225,15 @@ presence, notes, content-changes, desktop-files and games Heartbeat
 channels therefore also require `read` on the current site, which
 refuses a user with no role there (super admins excepted).
 
+Agents are users, so they are network-global rows too, but an agent
+belongs to the site it was created on: `openstation_agent_get_site_agent()`
+is the one resolver behind every `/agents/{id}` route, the conversation
+create and the runner, and it asks `is_user_member_of_blog()` the way
+Core's users controller does before showing a user. An agent of another
+site answers the same `404` as a missing id, so a site's `edit_posts`
+holders cannot read, rewrite or run the agents of a site they have no
+role on. The list route is scoped by `get_users()` itself.
+
 The session REST route runs in the main site's blog context whichever
 desktop is saving, so the network screen's `sessionUrl` carries
 `network=1` and the handlers honour it only alongside `manage_network` —

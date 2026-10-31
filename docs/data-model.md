@@ -242,7 +242,7 @@ explains the history. Multisite gets one set of tables per site through
 
 | `post_type` | Module | What it is | Meta on the post |
 |---|---|---|---|
-| `desktop_mode_chat` | Agents | One conversation with an AI agent. The post belongs to the human; the agent is in meta. | `_desktop_mode_agent_chat_agent_id` → `wp_users.ID` of the agent |
+| `desktop_mode_chat` | Agents | One conversation with an AI agent. The post belongs to the human; the agent is in meta. Registered with every capability mapped to `do_not_allow`: only the module's own routes read or write it, gated on `post_author`, so the generic post abilities cannot reach another user's transcript. | `_desktop_mode_agent_chat_agent_id` → `wp_users.ID` of the agent |
 | `wpd_note` | Notes | One sticky note on the desktop. | `_wpd_note_x`, `_wpd_note_y`, `_wpd_note_z`, `_wpd_note_color`, `_wpd_note_seed`, `_wpd_note_converted_post` → `wp_posts.ID` |
 
 ## User meta (`wp_usermeta`)
