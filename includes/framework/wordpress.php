@@ -237,11 +237,37 @@ add_action( 'init', 'openstation_apps_register_assets', 5 );
  * Map an absolute path inside the install to its URL, or '' when the
  * file lives outside anything WordPress serves.
  *
+ * A file of this plugin's own is mapped through `OPENSTATION_URL`
+ * before anything else. `OPENSTATION_DIR` is built from `__FILE__`,
+ * which PHP resolves through symlinks, so a plugin symlinked into
+ * `wp-content/plugins/` (a common dev setup, and what
+ * `bin/cloud-test-env.sh serve` does) has its real path outside
+ * `WP_CONTENT_DIR` and `ABSPATH`. The prefix checks below would answer
+ * '' for every bundled app's client script and stylesheet, and those
+ * windows would open with an empty body. `OPENSTATION_URL` comes from
+ * `plugin_dir_url()`, which honours the symlink mapping WordPress
+ * records with `wp_register_plugin_realpath()`.
+ *
+ * Apps another plugin ships through `openstation_apps_directories`
+ * fall through to the `WP_CONTENT_DIR` / `ABSPATH` prefixes.
+ *
  * @param string $path Absolute file path.
  * @return string URL or ''.
  */
 function openstation_apps_path_to_url( $path ) {
-	$path    = wp_normalize_path( (string) $path );
+	$path = wp_normalize_path( (string) $path );
+
+	$plugin_dirs = array( rtrim( wp_normalize_path( OPENSTATION_DIR ), '/' ) );
+	$plugin_real = realpath( OPENSTATION_DIR );
+	if ( false !== $plugin_real ) {
+		$plugin_dirs[] = rtrim( wp_normalize_path( $plugin_real ), '/' );
+	}
+	foreach ( array_unique( $plugin_dirs ) as $plugin_dir ) {
+		if ( '' !== $plugin_dir && 0 === strpos( $path, $plugin_dir . '/' ) ) {
+			return trailingslashit( OPENSTATION_URL ) . ltrim( substr( $path, strlen( $plugin_dir ) ), '/' );
+		}
+	}
+
 	$content = rtrim( wp_normalize_path( WP_CONTENT_DIR ), '/' );
 	$root    = rtrim( wp_normalize_path( ABSPATH ), '/' );
 	if ( '' !== $content && 0 === strpos( $path, $content . '/' ) ) {
