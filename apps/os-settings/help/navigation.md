@@ -12,7 +12,7 @@ Locked or transient launchers cannot be moved by MIO. Some system tiles are deli
 
 ## Phone layout
 
-`set_mobile_layout` accepts `auto`, `desktop`, or `mobile`. Automatic follows the viewport. Desktop forces the desktop experience, including on a phone. Mobile forces the phone interface, including on a large screen for previewing. Changing modes may alter or hide the current desktop conversation surface; completed settings writes remain in effect.
+`set_mobile_layout` accepts `auto`, `desktop`, `mobile`, or `classic`. Automatic follows the viewport. Desktop forces the desktop experience, including on a phone. Mobile forces the phone interface, including on a large screen for previewing. Classic keeps plain wp-admin on a phone (judged from the browser's user agent when a page loads) and follows the viewport everywhere else; on a phone it applies from the next page load. Changing modes may alter or hide the current desktop conversation surface; completed settings writes remain in effect.
 
 ## Phone tab bar pins
 

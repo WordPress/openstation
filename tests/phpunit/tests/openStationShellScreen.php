@@ -45,6 +45,8 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		delete_user_meta( self::$admin_id, OPENSTATION_DEFAULT_WINDOW_META );
 		delete_user_meta( self::$subscriber_id, 'desktop_mode_mode' );
 		remove_all_filters( 'openstation_shell_dequeue_handles' );
+		remove_all_filters( 'openstation_mode_is_phone_request' );
+		delete_user_meta( self::$admin_id, 'desktop_mode_os_settings' );
 		foreach ( array( 'acme-dashboard-loader', 'acme-editor', 'acme-nag', 'acme-nag-core', 'acme-keep', 'acme-nag-style' ) as $handle ) {
 			wp_dequeue_script( $handle );
 			wp_deregister_script( $handle );
@@ -270,6 +272,51 @@ class Tests_OpenStation_ShellScreen extends WP_UnitTestCase {
 		openstation_render_shell_screen();
 		$out = ob_get_clean();
 		$this->assertStringContainsString( esc_url( openstation_portal_url() ), $out );
+	}
+
+	/**
+	 * A phone that keeps classic wp-admin is forwarded off the screen
+	 * to the page it asked for, never to the portal that sent it here,
+	 * and never back to the screen itself.
+	 *
+	 * @covers ::openstation_shell_screen_leave_for_classic
+	 */
+	public function test_a_phone_under_classic_leaves_the_screen_for_its_target() {
+		openstation_save_os_settings( self::$admin_id, array( 'mobileLayout' => 'classic' ) );
+		add_filter( 'openstation_mode_is_phone_request', '__return_true' );
+
+		$_GET[ OPENSTATION_SHELL_TARGET_ARG ] = '/wp-admin/edit.php?post_type=page';
+		$this->assertSame( admin_url( 'edit.php?post_type=page' ), $this->capture_leave_for_classic() );
+
+		$_GET[ OPENSTATION_SHELL_TARGET_ARG ] = '/wp-admin/admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG;
+		$this->assertSame( admin_url(), $this->capture_leave_for_classic(), 'a target naming the screen would loop' );
+
+		remove_all_filters( 'openstation_mode_is_phone_request' );
+		$this->assertNull( $this->capture_leave_for_classic(), 'the desktop stays on the screen' );
+	}
+
+	/**
+	 * Runs the classic bounce with `wp_redirect` intercepted.
+	 *
+	 * @return string|null The redirect location, or null when none.
+	 */
+	private function capture_leave_for_classic() {
+		$captured = null;
+		$filter   = static function ( $location ) use ( &$captured ) {
+			$captured = $location;
+			throw new RuntimeException( 'openstation_test_redirect_intercepted' );
+		};
+		add_filter( 'wp_redirect', $filter );
+		try {
+			openstation_shell_screen_leave_for_classic();
+		} catch ( RuntimeException $e ) {
+			if ( 'openstation_test_redirect_intercepted' !== $e->getMessage() ) {
+				throw $e;
+			}
+		} finally {
+			remove_filter( 'wp_redirect', $filter );
+		}
+		return $captured;
 	}
 
 	/**

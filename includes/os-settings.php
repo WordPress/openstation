@@ -67,10 +67,12 @@ const OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS = array( 'static', 'dynamic' );
 
 /**
  * `mobileLayout` — which experience the shell renders. `auto`
- * follows the viewport; the other two force it either way.
+ * follows the viewport; `desktop` and `mobile` force it either way;
+ * `classic` keeps plain wp-admin on a phone and follows the viewport
+ * everywhere else (see `openstation_mode_keeps_classic()`).
  * Mirrors `OsModePreference` in `src/mode/index.ts`.
  */
-const OPENSTATION_OS_SETTINGS_MOBILE_LAYOUTS = array( 'auto', 'desktop', 'mobile' );
+const OPENSTATION_OS_SETTINGS_MOBILE_LAYOUTS = array( 'auto', 'desktop', 'mobile', 'classic' );
 
 /** `mobileTabs` — at most this many ids pinned to the phone tab bar. */
 const OPENSTATION_OS_SETTINGS_MOBILE_TABS_MAX = 3;

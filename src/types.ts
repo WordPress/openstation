@@ -2791,7 +2791,7 @@ export interface DesktopConfig {
 	 * used the same values for the first paint.
 	 */
 	mode?: {
-		preference?: 'auto' | 'desktop' | 'mobile';
+		preference?: 'auto' | 'desktop' | 'mobile' | 'classic';
 		breakpoints?: { mobile?: number; tablet?: number };
 		tabBar?: string[];
 	};

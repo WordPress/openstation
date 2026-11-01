@@ -285,7 +285,7 @@ const SANITIZERS: Sanitizers = {
 	navOrder: ( raw, fallback ) =>
 		Array.isArray( raw ) ? sanitizeNavOrder( raw ) : fallback,
 	mobileLayout: ( raw, fallback ) =>
-		raw === 'auto' || raw === 'desktop' || raw === 'mobile' ? raw : fallback,
+		raw === 'auto' || raw === 'desktop' || raw === 'mobile' || raw === 'classic' ? raw : fallback,
 	mobileTabs: ( raw, fallback ) =>
 		Array.isArray( raw ) ? sanitizeNavOrder( raw ).slice( 0, 3 ) : fallback,
 	dockPromotedPositions: ( raw, fallback ) =>
