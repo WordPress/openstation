@@ -77,8 +77,15 @@ describe( 'snap-zones — pure math', async () => {
 		expect( detectSnapZone( 1600 - SNAP_EDGE_THRESHOLD - 1, mockDesktopRect() ) ).toBeNull();
 	} );
 
+	test( 'detectSnapZone returns top near the top edge', async () => {
+		expect( detectSnapZone( 800, mockDesktopRect(), 0 ) ).toBe( 'top' );
+		expect( detectSnapZone( 800, mockDesktopRect(), SNAP_EDGE_THRESHOLD ) ).toBe( 'top' );
+		expect( detectSnapZone( 800, mockDesktopRect(), SNAP_EDGE_THRESHOLD + 1 ) ).toBeNull();
+	} );
+
 	test( 'detectSnapZone returns null in the middle', async () => {
 		expect( detectSnapZone( 800, mockDesktopRect() ) ).toBeNull();
+		expect( detectSnapZone( 800, mockDesktopRect(), 500 ) ).toBeNull();
 		expect( detectSnapZone( 500, mockDesktopRect() ) ).toBeNull();
 	} );
 } );
@@ -108,11 +115,13 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		clearHooksStub();
 	} );
 
-	test( 'snapZoneBounds gives exactly half the desktop area per zone', async () => {
+	test( 'snapZoneBounds gives half area for left/right and full area for top', async () => {
 		const left = snapZoneBounds( manager, 'left' );
 		const right = snapZoneBounds( manager, 'right' );
+		const top = snapZoneBounds( manager, 'top' );
 		expect( left ).toEqual( { x: 0, y: 0, width: 800, height: 900 } );
 		expect( right ).toEqual( { x: 800, y: 0, width: 800, height: 900 } );
+		expect( top ).toEqual( { x: 0, y: 0, width: 1600, height: 900 } );
 	} );
 
 	test( 'updateSnapZoneForDrag fires pending when entering and canceled when leaving', async () => {
@@ -164,6 +173,32 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		expect(
 			( committed!.args[ 0 ] as { zone: string } ).zone,
 		).toBe( 'left' );
+	} );
+
+	test( 'commitSnapIfPending for top zone maximizes window and does not enter split overview', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
+		// Arm the top zone with clientY at top edge.
+		updateSnapZoneForDrag( manager, win, 800, 5 );
+		const log = recordActions( hooks, SNAP_HOOKS );
+
+		const consumed = commitSnapIfPending( manager, win );
+		expect( consumed ).toBe( true );
+
+		expect( win.state ).toBe( 'maximized' );
+		expect( win.element.style.left ).toBe( '0px' );
+		expect( win.element.style.top ).toBe( '0px' );
+		expect( win.element.style.width ).toBe( '1600px' );
+		expect( win.element.style.height ).toBe( '900px' );
+		expect( win.element.classList.contains( 'os-window--maximized' ) ).toBe( true );
+
+		const committed = log.find( ( e ) => e.name === 'os.snap.zone-committed' );
+		expect( committed ).toBeDefined();
+		expect(
+			( committed!.args[ 0 ] as { zone: string } ).zone,
+		).toBe( 'top' );
+
+		// Top snap must NOT enter split overview.
+		expect( manager._splitOverviewActive ).toBe( false );
 	} );
 
 	test( 'snapTo remembers the floating rect, and a snap from a snapped state does not overwrite it', async () => {
