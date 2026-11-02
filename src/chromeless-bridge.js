@@ -1372,20 +1372,19 @@
 		if ( target.closest( 'button, input, select, textarea, label, .check-column, .order-preview, .no-link, .wc_actions' ) ) {
 			return null;
 		}
-		// Scope to WooCommerce HPOS and legacy CPT order tables only.
-		var table = target.closest(
-			'.woocommerce_page_wc-orders table, ' +
-			'.post-type-shop_order table, ' +
-			'table.wc-orders-list-table'
+		var cell = target.closest(
+			'.post-type-shop_order .wp-list-table tbody td, ' +
+			'.post-type-shop_order .wp-list-table tbody th, ' +
+			'.woocommerce_page_wc-orders .wp-list-table tbody td, ' +
+			'.woocommerce_page_wc-orders .wp-list-table tbody th, ' +
+			'table.wc-orders-list-table tbody td, ' +
+			'table.wc-orders-list-table tbody th'
 		);
-		if ( ! table ) {
+		if ( ! cell ) {
 			return null;
 		}
-		var row = target.closest( 'tr' );
-		if ( ! row ) {
-			return null;
-		}
-		return row.querySelector( 'a.order-view, .column-order_number a:not(.order-preview), .column-order_title a:not(.order-preview)' );
+		var row = cell.closest( 'tr' );
+		return row ? row.querySelector( 'a.order-view' ) : null;
 	}
 
 	document.addEventListener( 'click', function ( e ) {
@@ -1395,9 +1394,13 @@
 		if ( e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ) {
 			return;
 		}
+		var isOrderRowClick = false;
 		var link = e.target && e.target.closest ? e.target.closest( 'a[href]' ) : null;
 		if ( ! link ) {
 			link = resolveOrderRowLink( e.target );
+			if ( link ) {
+				isOrderRowClick = true;
+			}
 		}
 		if ( ! link ) {
 			return;
@@ -1640,8 +1643,10 @@
 			 * still works.
 			 */
 			e.preventDefault();
-			e.stopPropagation();
-			e.stopImmediatePropagation();
+			if ( isOrderRowClick ) {
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+			}
 			try {
 				var absolute = new URL( rewritten || href, window.location.href ).toString();
 				/*
@@ -1713,7 +1718,6 @@
 			 * docs/multisite.md.
 			 */
 			e.preventDefault();
-			e.stopPropagation();
 			var other;
 			try {
 				other = new URL( href, window.location.href );
@@ -1745,7 +1749,6 @@
 			 * parent an absolute URL it doesn't have to re-resolve.
 			 */
 			e.preventDefault();
-			e.stopPropagation();
 			// Named apart from the `absolute` in the admin-link branch
 			// above: `var` is function-scoped, so both branches shared
 			// one binding. They are mutually exclusive and each assigns
