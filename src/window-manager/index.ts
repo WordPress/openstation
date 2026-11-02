@@ -67,6 +67,7 @@ import {
 	commitSnapIfPending,
 	installSnapPartnerReflow,
 	snapPartnerMinWidth,
+	type SnapZone,
 	updateSnapZoneForDrag,
 } from './snap-zones';
 import { snapHalfRect } from './geometry';
@@ -390,7 +391,7 @@ export class WindowManager {
 	 * Null when no snap is armed.
 	 * @internal
 	 */
-	public _snapPendingZone: 'left' | 'right' | null = null;
+	public _snapPendingZone: SnapZone | null = null;
 
 	/**
 	 * The translucent preview rectangle shown while a snap is armed.
@@ -1447,7 +1448,7 @@ export class WindowManager {
 				updateGridSnap( this, clientX, clientY );
 				return;
 			}
-			updateSnapZoneForDrag( this, w, clientX );
+			updateSnapZoneForDrag( this, w, clientX, clientY );
 		};
 		win.onDragGesture = ( w, gesture ) => {
 			switch ( gesture.type ) {
