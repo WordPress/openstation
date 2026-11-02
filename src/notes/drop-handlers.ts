@@ -65,9 +65,6 @@ function handleDraftDrop(
 ): void {
 	const data = session.payload.data as unknown as NoteDraftDragData;
 	const text = String( data.text ?? '' );
-	if ( ! text.trim() ) {
-		return;
-	}
 	const { x, y } = normalizedDropPosition( layer, session, ev );
 	// Shared with the wallpaper context menu, which wants everything
 	// but the ghost-offset math above.
@@ -77,6 +74,8 @@ function handleDraftDrop(
 		text,
 		color: String( data.color ?? '' ),
 		isPublic: data.isPublic === true,
+		// A blank sheet was pinned to be written on: open its editor.
+		focus: ! text.trim(),
 	} );
 }
 
@@ -105,8 +104,8 @@ export function installNoteDropHandlers( layer: NotesLayer ): () => void {
 
 	deregisters.push(
 		registerCanvasPayloadHandler( NOTE_DRAFT_PAYLOAD_TYPE, {
-			accept: ( data, ctx ) =>
-				canvasCtxOk( ctx ) && Boolean( String( data.text ?? '' ).trim() ),
+			// A blank sheet pins too; it opens to be written on.
+			accept: ( _data, ctx ) => canvasCtxOk( ctx ),
 			onDrop: ( session, ev ) => handleDraftDrop( layer, session, ev ),
 		} ),
 	);

@@ -317,6 +317,38 @@ body.os-active.os-admin-bar-hidden #wpadminbar {
 }
 
 /*
+ * Hidden, on a site with the WordPress.com / Jetpack notifications
+ * bell. The dock carries a Notifications tile for it
+ * (src/admin-bar-notes.ts), and the tile opens Jetpack's own panel,
+ * which lives INSIDE the bar: under `display: none` it could never
+ * paint. So the bar stays laid out, but invisible and zero-height —
+ * `visibility` rather than `display`, because a descendant can turn
+ * `visibility` back on and the panel below does. Hidden items take no
+ * pointer events and no focus, and a zero-height bar has no box for
+ * `src/admin-bar-height.ts` to publish, so nothing else on the desktop
+ * can tell the bar is there.
+ *
+ * Fullscreen and solo hide the bar for their own reasons, and keep it
+ * gone here too.
+ */
+body.os-active.os-admin-bar-hidden:not(.os-has-fullscreen-window):not(.os-solo) #wpadminbar:has(#wp-admin-bar-notes) {
+	display: block !important;
+	visibility: hidden !important;
+	height: 0 !important;
+	min-height: 0 !important;
+}
+
+/*
+ * The panel itself: visible again, and flush with the top edge, since
+ * the bar it hangs below is not there. Neither is `!important`, so
+ * Jetpack's own closed state, however it spells it, still wins.
+ */
+body.os-active.os-admin-bar-hidden #wpadminbar #wp-admin-bar-notes :is(#wpnt-notes-panel2, #wpnt-notes-panel3) {
+	visibility: visible;
+	inset-block-start: 0;
+}
+
+/*
  * Both non-static modes: the shell owns the whole viewport. Two body
  * classes beat the `.os-shell` base rule AND its <783px
  * media-query variant on specificity, so source order doesn't matter.
@@ -2249,6 +2281,14 @@ os-notice a:active {
 }
 
 .os-mio-chat__action-status {
+	font-size: 12px;
+	color: var(--os-mio-chat-muted, #646970);
+	overflow-wrap: anywhere;
+}
+
+.os-mio-chat__action-description {
+	flex-basis: 100%;
+	margin: 0;
 	font-size: 12px;
 	color: var(--os-mio-chat-muted, #646970);
 	overflow-wrap: anywhere;

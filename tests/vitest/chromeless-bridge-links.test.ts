@@ -147,6 +147,16 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 
 		expect( adminLinkMessages() ).toHaveLength( 1 );
 		expect( adminLinkMessages()[ 0 ].url ).toContain( '/wp-admin/edit.php' );
+		expect( adminLinkMessages()[ 0 ].inPageTab ).toBe( false );
+	} );
+
+	test( 'a link in core’s tab strip is marked as an in-page tab', () => {
+		clickLink(
+			'<nav class="nav-tab-wrapper"><a href="/wp-admin/options-general.php?page=contributor-resume-stats" class="nav-tab">Stats</a></nav>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].inPageTab ).toBe( true );
 	} );
 
 	test( 'core JS buttons are yielded to the script that owns them', () => {

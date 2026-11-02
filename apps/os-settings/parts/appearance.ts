@@ -15,6 +15,7 @@ import {
 	DOCK_PLACEMENTS,
 	DOCK_SIZES,
 	getAccents,
+	OS_SETTINGS_LAYOUT_SECTION_ID,
 } from '../../../src/settings/constants';
 import { listDockRailRenderers } from '../../../src/dock-rail';
 import type {
@@ -292,7 +293,7 @@ export const layoutSection: Section = ( s ) => {
 		<!-- The id is a deep-link target: the shell tour's layout card
 		     scrolls to it, because this section sits below a fourteen-tile
 		     wallpaper grid and landing on the page alone never shows it. -->
-		<os-section id="os-settings-layout" heading=${ __( 'Desktop layout' ) } description=${ __( 'Where the menus live.' ) }>
+		<os-section id=${ OS_SETTINGS_LAYOUT_SECTION_ID } heading=${ __( 'Desktop layout' ) } description=${ __( 'Where the menus live.' ) }>
 			<div class="os-settings__layout-grid" role="radiogroup" aria-label=${ __( 'Desktop layout' ) }>
 				${ DESKTOP_LAYOUTS.map( ( l ) => {
 					const selected = s.desktopLayout === l.id;

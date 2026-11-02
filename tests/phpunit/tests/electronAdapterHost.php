@@ -4,7 +4,7 @@
  *
  * The adapter is a separate plugin under `extensions/`, so this file
  * loads its host module directly — the same pattern the Cron Manager
- * and phpMyAdmin extension tests use.
+ * extension tests use.
  *
  * Covers the record helpers (write / read / expire / clear), the
  * interval and TTL filters, the config blob, and the REST surface the

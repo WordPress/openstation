@@ -25,7 +25,12 @@ function mount( view: 'cards' | 'table' ) {
 	document.body.appendChild( root );
 	const replies = [ deferred<Response>(), deferred<Response>() ];
 	const refreshes = [ deferred<boolean>(), deferred<boolean>() ];
-	const fetch = vi.fn().mockImplementationOnce( () => replies[ 0 ].promise ).mockImplementationOnce( () => replies[ 1 ].promise );
+	const update = vi.fn().mockImplementationOnce( () => replies[ 0 ].promise ).mockImplementationOnce( () => replies[ 1 ].promise );
+	// The row links the window reads on mount are not part of the run.
+	const route = ( url: string, init?: RequestInit ) =>
+		( init?.body as URLSearchParams | undefined )?.get?.( 'action' ) === 'openstation_plugins_action_links'
+			? Promise.resolve( new Response( JSON.stringify( { success: true, data: {} } ), { status: 200 } ) )
+			: update( url, init );
 	let read = 0;
 	const ctx = mockViewContext<AppState, AppData>( {
 		root,
@@ -35,7 +40,7 @@ function mount( view: 'cards' | 'table' ) {
 			ajaxUrl: 'https://example.test/wp-admin/admin-ajax.php', ajaxNonce: 'nonce', updatesNonce: 'updates',
 			caps: { activate: true, delete: true, install: false, upload: false, update: true },
 		},
-		fetch,
+		fetch: route,
 	} );
 	ctx.dispatch = vi.fn( async ( action ) => {
 		expect( action ).toBe( 'refresh' );
@@ -64,9 +69,9 @@ function mount( view: 'cards' | 'table' ) {
 			table.select( 'beta/beta' );
 		}
 		root.querySelector<HTMLElement>( '.os-plugins__selection-actions os-button' )!.click();
-		await vi.waitFor( () => expect( fetch ).toHaveBeenCalledTimes( 1 ) );
+		await vi.waitFor( () => expect( update ).toHaveBeenCalledTimes( 1 ) );
 	};
-	return { root, ctx, replies, refreshes, fetch, surface, start };
+	return { root, ctx, replies, refreshes, fetch: update, surface, start };
 }
 
 function response( success: boolean ): Response {

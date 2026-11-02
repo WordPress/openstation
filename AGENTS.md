@@ -258,6 +258,8 @@ Two traps: the `<arg name="extensions" value="php"/>` in the ruleset is load-bea
 
 Even small chores (typos, doc tweaks, one-line fixes) go on a feature branch. Open a PR for every change. Wait for the user's green light before running `gh pr create`; once given, run it yourself.
 
+**Write the PR body from `.github/pull_request_template.md`.** Keep its four headings (What it does, Rationale, Implementation, Testing instructions) and follow the guidance in its comments, then delete the comments. A small change can drop a section it doesn't need; don't invent a new layout. Describe what the branch delivers now, not the steps it took to get there, and link the `docs/` page you updated when the change touches a public surface.
+
 ### Use `bin/sync-to-wp-develop.sh` for local sync, not raw rsync
 
 The script is the single source of truth for the include list and runs `npm run build` first. Only fall back to raw `rsync` for files that are genuinely outside the script's scope (and then question why they're outside it).
@@ -277,6 +279,17 @@ i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't 
 - **A regression test is for a bug that could plausibly come back**, not a one-off slip.
 
 When a change breaks a test, don't just rewrite the assertion to match. Decide whether it caught a real regression or pinned an implementation detail, and delete or rewrite it in the second case.
+
+### Software factory
+
+`/factory run` builds every open GitHub issue labeled `factory` through intake → spec → build → gate → review → approve, one PR per issue. [`docs/software-factory.md`](docs/software-factory.md) explains the pipeline, the stage machine and the scripts. State is in `factory/jobs/` (gitignored); `factory/bin/job` is its only writer. Checks: `factory/checks.sh`. Dashboard: `cd factory && python3 -m http.server`, then open http://localhost:8000/dashboard.html. The agents live in `.claude/agents/`, the orchestrator in `.claude/skills/factory/SKILL.md`.
+
+- **It runs locally, from any checkout** (the main one or a Claude Code worktree), and needs Docker running and the `agent-browser` CLI installed. One `/factory run` drives `concurrency` jobs in parallel, each in its own worktree next to the checkout that runs it. Don't start a second `/factory run` while one is going: each checkout keeps its own `factory/jobs/`, so two runs would both build the same issues.
+- **The `factory` label is the green light** for the factory to push `factory/<job-id>` and open that issue's draft PR. `auto_merge` is off in `factory/config.json`: an approved PR is synced with `trunk`, gated again, marked ready and labeled `factory:needs-human` for a maintainer to merge.
+- **Fresh worktree setup**: `npm ci` and `composer install` (`checks.sh` does both when they're missing or stale).
+- **The gate** (`FACTORY_PORT=<port> bash <repo>/factory/checks.sh` from the worktree) runs `npm run lint`, `typecheck`, `build`, `test:js` and host `phpcs`; then, in the job's own wp-env stacks, `test:php`, `test:php:multisite`, `lint:php`, and `factory/smoke.sh`, which loads the shell on the job's site in a headless browser and fails on a PHP error in `debug.log`, a JavaScript error, or a shell that never boots. `FACTORY_CHECKS=fast` runs only the host part. **CI is a step too**: while the reviewers read, `factory/bin/job ci` waits (up to 45 minutes) for the PR's checks on the round's commit, Plugin Check among them; a red check sends the job back to the builder as a failed round, and no job is approved on anything but green.
+- **Job n's ports**: its site on `<port>` = `8900 + 10n`, PHPUnit on `<port>+1`. Every stack is keyed to the job's worktree, so none touches `:8890`/`:8891`.
+- **The job's site** is that worktree's wp-env QA instance: `cd <worktree> && npm run build && WP_ENV_PORT=<port> npm run env:start`, then `http://localhost:<port>/wp-admin/` as `admin` / `password`. Turn the shell on for that user with `cd <worktree> && npx wp-env run cli wp user meta update admin desktop_mode_mode 1`. If the port already answers, that is this job's site: reuse it. Leave it running for the job's other agents and for the maintainer reviewing the PR; the factory destroys both stacks when the job is merged or abandoned (its PR closed unmerged, or its issue closed).
 
 ---
 
@@ -440,6 +453,8 @@ npm run env:stop:tests    # before you report results; nothing stops the stack f
 ```
 
 `npm run env:start` is for the manual-QA instance only; it no longer brings up test containers. Nothing stops the tests instance either, and `npm run test:php` does neither on purpose (a start per run would slow every `--filter` iteration; a stop per run would throw the warm stack away). So keep the stack warm while you iterate on a request, and stop it before you report, whether that was the whole suite or one class; a restart costs a few seconds, so never leave it up "in case". Never stop a `wp-env-<dir>-tests-<hash>` project whose `<dir>` is not your checkout: it belongs to another session. A second checkout (a worktree) hits `port is already allocated` on 8891 while the main checkout's stack is up; give it its own port (`WP_ENV_PORT=8895`, or the override file described in [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#manual-qa-and-per-worktree-instances-wp-env)) instead of stopping the other stack.
+
+**In a Claude Code cloud container wp-env does not start** (no outside DNS, and its image builds cannot see the egress proxy). Use `bin/cloud-test-env.sh phpunit` (and `WP_MULTISITE=1 …` for the network run, `bin/cloud-test-env.sh lint` for `lint:php`) instead: it runs the same suite in CI's image and layout, so its failures are real. See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md#cloud-containers-no-wp-env).
 
 History: an earlier port collision against `wordpress-develop-wordpress-develop-1` (8889) made starting wp-env destructive. The remapped ports remove that hazard, wp-env and the Core checkout can both be up at the same time.
 

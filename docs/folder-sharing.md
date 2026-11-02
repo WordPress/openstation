@@ -89,6 +89,14 @@ happens to be placed. That's true in both directions:
   access via the canonical (owner-side) ancestor chain. Moving a
   sub-folder OUT of a shared folder revokes the recipient's
   cascade access to it; moving one IN grants it.
+- **An ancestor the folder's owner cannot reach lends nothing.** The
+  chain is cut at the first ancestor the folder's owner neither owns
+  nor holds a share on (`openstation_folder_trusted_ancestors()`). A
+  writer's own folder inside the shared tree is such an ancestor the
+  moment it leaves that tree, so carrying it out, with the owner's
+  rows inside, grants the writer nothing and survives no revoke. On
+  the write side, someone else's folder only moves into a folder its
+  owner owns, and nobody moves someone else's tile to the root.
 
 ## Folder rename
 
@@ -365,8 +373,9 @@ installed). Share-management mutations (POST/PATCH/DELETE on
 `/shares`) are gated by `openstation_files_share_can_manage`
 (owner-only by default). `/leave` is open to any logged-in user
 who is currently a recipient of the folder. `/users/search`
-requires `edit_posts`, and returns only users who could be invited
-(see above). The table-purge route is a destructive
+requires `edit_posts`, returns only users who could be invited
+(see above), and matches the query against email addresses only for a
+`list_users` holder. The table-purge route is a destructive
 site-admin cleanup (drops the folder-sharing tables) and requires
 `manage_options`.
 

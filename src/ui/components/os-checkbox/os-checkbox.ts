@@ -19,6 +19,16 @@
  * <os-checkbox id="only-hd" value="hd"></os-checkbox>
  * ```
  *
+ * Or with a rich label — children are slotted inside the `<label>`,
+ * so they name the box and clicking them toggles it (a link inside
+ * still follows the link). Wrap them in ONE element: the label row is
+ * a flex box, and loose text and inline nodes would each become an
+ * item with the gap between them.
+ *
+ * ```html
+ * <os-checkbox value="3"><span>Buy <strong>oat</strong> milk</span></os-checkbox>
+ * ```
+ *
  * Emits `os-checkbox-change` with `{ checked, value }` on user
  * toggles — same event name `<os-checkbox-label>` uses so callers
  * can listen at a common ancestor and treat both identically.
@@ -50,7 +60,7 @@ export class OsCheckbox extends Component {
 			{
 				name: 'label',
 				type: 'string',
-				description: 'Optional inline label rendered to the right of the box.',
+				description: 'Optional inline label rendered to the right of the box. For a label with markup, slot ONE wrapping element as the child instead.',
 			},
 			{
 				name: 'disabled',
@@ -100,6 +110,7 @@ export class OsCheckbox extends Component {
 					@change=${ ( e: Event ) => this._onChange( e ) }
 				/>
 				<span class="os-checkbox__label">${ label }</span>
+				<slot></slot>
 			</label>
 		`;
 	}

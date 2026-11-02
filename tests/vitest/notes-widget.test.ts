@@ -125,10 +125,11 @@ describe( 'note pad widget', () => {
 		expect( under1.dataset.noteColor ).toBe( 'blush' );
 	} );
 
-	test( 'empty draft never lifts — the drag manager is not started', () => {
+	test( 'a blank sheet tears off too, to be written on once pinned', () => {
 		const peel = container.querySelector( '.dm-notes-pad__peel' ) as HTMLElement;
 		pointerDown( peel );
-		expect( dragStart ).not.toHaveBeenCalled();
+		expect( dragStart ).toHaveBeenCalledTimes( 1 );
+		expect( ( dragStart.mock.calls[ 0 ][ 0 ] as StartOpts ).payload.data ).toMatchObject( { text: '' } );
 	} );
 
 	test( 'tear-off drag carries the note-draft payload with the pin-tip offset', () => {
@@ -162,9 +163,9 @@ describe( 'note pad widget', () => {
 		opts.onCommit?.( { id: 'x', element: document.createElement( 'div' ), accept: () => true, onDrop: () => undefined } );
 		const editor = container.querySelector( '.dm-notes-pad__editor' ) as HTMLElement;
 		expect( editor.getAttribute( 'value' ) ).toBe( '' );
-		// A second drag with no new text must not lift.
+		// The next sheet torn off is blank, not the pinned text again.
 		pointerDown( peel );
-		expect( dragStart ).toHaveBeenCalledTimes( 1 );
+		expect( ( dragStart.mock.calls[ 1 ][ 0 ] as StartOpts ).payload.data ).toMatchObject( { text: '' } );
 	} );
 
 	test( 'pointerdown inside the textarea does not start a drag', () => {

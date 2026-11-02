@@ -6,7 +6,7 @@ import type { OsTable, OsTableColumn } from '../../../src/ui/components/os-table
 import { installedTableStyles } from './installed-table.styles';
 import { stripHtml } from './html';
 import { adoptStyles } from './styles';
-import { isActiveStatus, type InstalledPlugin, type PluginsHost } from './types';
+import { isActiveStatus, type InstalledPlugin, type PluginActionLink, type PluginsHost } from './types';
 
 export interface InstalledTableState {
 	element: OsTable< InstalledPlugin > | null;
@@ -22,6 +22,8 @@ export interface InstalledTableOptions {
 	open: ( row: InstalledPlugin ) => void;
 	icon: ( row: InstalledPlugin ) => HTMLElement;
 	actions: ( row: InstalledPlugin ) => HTMLElement[];
+	/** The plugin's own row links, offered in the row's menu. */
+	links: ( row: InstalledPlugin ) => PluginActionLink[];
 }
 
 function line( text: string, className = '' ): TemplateResult {
@@ -70,6 +72,7 @@ function columns( opts: InstalledTableOptions ): OsTableColumn< InstalledPlugin 
 			key: 'actions', label: __( 'Actions', 'desktop-mode' ), width: '186px', align: 'end',
 			render: ( _value, row ) => {
 				const actions = opts.actions( row ).filter( ( el ) => el.tagName === 'OS-BUTTON' );
+				const links = opts.links( row );
 				const name = stripHtml( row.name ) || row.plugin;
 				return html`<div class="os-plugins__table-actions" data-noclick>${ actions[ 0 ] ?? '' }
 					<os-action-menu data-plugin-actions=${ row.plugin } text="⋯" label=${ sprintf( /* translators: %s: plugin name */ __( 'Actions for %s', 'desktop-mode' ), name ) }
@@ -77,6 +80,11 @@ function columns( opts: InstalledTableOptions ): OsTableColumn< InstalledPlugin 
 							const value = ( ev as CustomEvent< { value: string } > ).detail.value;
 							if ( value === 'details' ) {
 								opts.open( row );
+							} else if ( value.startsWith( 'link:' ) ) {
+								const link = links[ Number( value.slice( 5 ) ) ];
+								if ( link ) {
+									opts.host.openLink( link );
+								}
 							} else {
 								const action = actions[ Number( value ) ];
 								if ( action && ! action.hasAttribute( 'disabled' ) ) {
@@ -85,6 +93,8 @@ function columns( opts: InstalledTableOptions ): OsTableColumn< InstalledPlugin 
 							}
 						} }>
 						<os-context-menu-option value="details">${ __( 'Plugin details', 'desktop-mode' ) }</os-context-menu-option>
+						${ links.map( ( link, index ) => html`<os-context-menu-option value=${ `link:${ index }` }
+							>${ link.label }${ link.admin ? '' : ' ↗' }</os-context-menu-option>` ) }
 						${ actions.slice( 1 ).map( ( action, index ) => html`<os-context-menu-option value=${ String( index + 1 ) }
 							?disabled=${ action.hasAttribute( 'disabled' ) }>${ action.textContent }</os-context-menu-option>` ) }
 					</os-action-menu></div>`;
@@ -114,7 +124,7 @@ export function syncInstalledTable( state: InstalledTableState, opts: InstalledT
 			}
 		} );
 	}
-	const key = JSON.stringify( [ opts.rows, opts.host.extra.caps, [ ...opts.host.busy.updating ], [ ...opts.host.busy.optimistic ] ] );
+	const key = JSON.stringify( [ opts.rows, opts.host.extra.caps, [ ...opts.host.busy.updating ], [ ...opts.host.busy.optimistic ], [ ...opts.host.actionLinks ] ] );
 	if ( state.key !== key ) {
 		state.key = key;
 		table.data = opts.rows;

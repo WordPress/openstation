@@ -74,6 +74,12 @@ function openstation_comments_window_register_rest_fields() {
 			$extra
 		);
 	};
+	// The moderation signals (spam score, Akismet's verdict, the AI
+	// verdict and summary) are a moderator's read, never the public's:
+	// `/wp/v2/comments` answers in `view` context to anyone, logged out
+	// included, while `context=edit` already requires
+	// `moderate_comments` — the context the Comments window asks in.
+	$moderation = array( 'context' => array( 'edit' ) );
 
 	register_rest_field(
 		'comment',
@@ -117,7 +123,7 @@ function openstation_comments_window_register_rest_fields() {
 				array(
 					'minimum' => 0,
 					'maximum' => 100,
-				)
+				) + $moderation
 			),
 		)
 	);
@@ -201,7 +207,7 @@ function openstation_comments_window_register_rest_fields() {
 					'analyzedAt' => isset( $meta['analyzed_at'] ) ? (int) $meta['analyzed_at'] : 0,
 				);
 			},
-			'schema'       => $readonly( __( 'AI moderation verdict for this comment, when analyzed (null otherwise).', 'desktop-mode' ), array( 'object', 'null' ) ),
+			'schema'       => $readonly( __( 'AI moderation verdict for this comment, when analyzed (null otherwise).', 'desktop-mode' ), array( 'object', 'null' ), $moderation ),
 		)
 	);
 
@@ -218,7 +224,7 @@ function openstation_comments_window_register_rest_fields() {
 				$result = (string) get_comment_meta( $id, 'akismet_result', true );
 				return '' === $result ? null : $result;
 			},
-			'schema'       => $readonly( __( 'Akismet verdict if the plugin is installed (null otherwise).', 'desktop-mode' ), array( 'string', 'null' ) ),
+			'schema'       => $readonly( __( 'Akismet verdict if the plugin is installed (null otherwise).', 'desktop-mode' ), array( 'string', 'null' ), $moderation ),
 		)
 	);
 }

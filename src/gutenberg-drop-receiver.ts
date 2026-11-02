@@ -129,9 +129,16 @@ function escapeHtml( s: string ): string {
  * is the first line of defence, but defence-in-depth here is cheap.
  * Accepts http(s), absolute paths, hash + query fragments, and any
  * other scheme that isn't on the deny list.
+ *
+ * Browsers strip ASCII whitespace and control characters from a URL
+ * before reading its scheme, so `java\tscript:` runs exactly like
+ * `javascript:`. The scheme is read the same way here.
  */
 function isSafeUrl( raw: string ): boolean {
-	const lower = raw.trimStart().toLowerCase();
+	const lower = Array.from( raw )
+		.filter( ( ch ) => ch.charCodeAt( 0 ) > 0x20 )
+		.join( '' )
+		.toLowerCase();
 	if ( lower.startsWith( 'javascript:' ) ) {
 		return false;
 	}

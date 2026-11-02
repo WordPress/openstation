@@ -57,6 +57,9 @@ function openstation_users_profile_facts() {
 		'defaultRole'      => (string) get_option( 'default_role', 'subscriber' ),
 		'contactMethods'   => (array) wp_get_user_contact_methods(),
 		'colorSchemes'     => openstation_user_edit_window_color_schemes(),
+		// Sections other plugins print on the classic profile screens,
+		// which the element embeds below its own form.
+		'pluginSections'   => openstation_users_profile_plugin_sections(),
 	);
 	return $cache[ $viewer_id ];
 }

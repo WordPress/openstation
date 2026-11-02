@@ -430,6 +430,7 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 				linkLabel,
 				deps,
 				data.newContext === true,
+				data.inPageTab === true,
 			);
 		}
 	}
@@ -926,6 +927,7 @@ function handleCrossPageAdminLink(
 	linkLabel: string,
 	deps: AdminLinkDispatchDeps,
 	newContext = false,
+	inPageTab = false,
 ): void {
 	let url: URL;
 	try {
@@ -949,7 +951,12 @@ function handleCrossPageAdminLink(
 
 	const absolute = url.toString();
 	const targetSlug = deps.deriveSlug( absolute );
-	const samePage = isSamePageSlug( win, targetSlug, deps );
+	// A tab in the page's own `.nav-tab-wrapper` strip switches the
+	// window it was clicked in, whatever slug the target derives to:
+	// plugins commonly give each settings tab its own `page=`, and a
+	// window per tab is not what a tab strip asks for. Like the live
+	// slug, the flag only widens the in-place set.
+	const samePage = inPageTab || isSamePageSlug( win, targetSlug, deps );
 
 	// Destructive row actions (Trash, Untrash, Delete on posts;
 	// spam / approve / trash on comments) navigate the SOURCE iframe

@@ -10,6 +10,11 @@
  * Read-only public notes (other users') render with a steel pin
  * that is *scenery, not a handle* — no drag, no edit, an always-
  * visible author chip.
+ *
+ * A note's text is Markdown. Pinned, it is rendered (`./body`); the
+ * owner clicks it to edit the plain source and leaves the editor to
+ * see it rendered again. `- [ ]` items render as boxes, and ticking
+ * one on your own note writes `[x]` back into the text.
  */
 
 import { toastRestFailure } from '../core/rest-failure';
@@ -21,6 +26,7 @@ import '../ui/components/os-textarea/os-textarea';
 import '../ui/components/os-window-button/os-window-button';
 import { osConfirm } from '../os-confirm';
 import { osIconSvg } from '../ui/icons';
+import { setTaskChecked } from '../markdown';
 import { DRAG_EVENTS } from '../drag';
 import type { DragManagerApi } from '../drag';
 import { NOTE_COLORS, nextNoteColor, sanitizeNoteColorSlug } from './colors';
@@ -35,6 +41,7 @@ import {
 	type PendulumHandle,
 } from './motion';
 import { buildPinImage, PIN_TIP_X, PIN_TIP_Y } from './pin';
+import { NoteBody } from './body';
 import {
 	createNote,
 	isNotesConflict,
@@ -46,6 +53,7 @@ import { startNotesHeartbeat } from './heartbeat';
 import { trashNoteWithUndo } from './trash';
 import { convertNoteToPost } from './convert';
 import { getReservedInsets, subscribeWorkArea, workAreaRectOf } from '../work-area';
+import { NOTE_MIN_MAX_HEIGHT, fitEditorRows, paperMaxHeight } from './fit';
 import {
 	NOTE_PAYLOAD_TYPE,
 	type Note,
@@ -81,18 +89,6 @@ function jitterSeed( note: Note ): number {
 }
 
 /**
- * Flag a read-only note body whose text runs past the paper, so
- * notes.css can fade the last line into "keep scrolling". The
- * editable side gets the same flag from `<os-textarea auto-grow>`.
- */
-function syncMoreBelow( body: HTMLElement ): void {
-	body.toggleAttribute(
-		'data-more-below',
-		body.scrollTop + body.clientHeight < body.scrollHeight - 1,
-	);
-}
-
-/**
  * The `post` glyph from `@wordpress/icons`, inlined. Marks the
  * "Convert to post" affordance. `fill` inherits from the button's ink
  * color (see notes.css).
@@ -106,6 +102,9 @@ const ICON_POST = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" w
 
 /** Delete a note. Core's trash, from the set. */
 const ICON_TRASH = osIconSvg( 'trash', { size: 20 } );
+
+/** Edit the note's source. From the set. */
+const ICON_EDIT = osIconSvg( 'edit', { size: 20 } );
 
 export interface NotesLayerOptions {
 	host: HTMLElement;
@@ -264,6 +263,12 @@ export class NotesLayer {
 			x: Math.min( maxX, Math.max( minX, x ) ),
 			y: Math.min( maxY, Math.max( minY, y ) ),
 		};
+	}
+
+	/** Pixels between a note whose top sits at `y` and the work area's bottom. */
+	spaceBelow( y: number ): number {
+		const area = workAreaRectOf( this.host );
+		return area.y + area.height - y * this.hostSize().height;
 	}
 
 	/** Normalized 0–1 top-left for a viewport point. */
@@ -494,6 +499,12 @@ export class NoteController {
 	private paperEl: HTMLElement;
 	private pinEl: HTMLElement;
 	private editor: OsTextareaElement | null = null;
+	private body: NoteBody | null = null;
+	private editBtn: HTMLElement | null = null;
+	/** Owner only: the source editor is showing instead of the render. */
+	private editing = false;
+	/** The paper's current max-height, from where the note is pinned. */
+	private maxHeight = NOTE_MIN_MAX_HEIGHT;
 	private statusEl: HTMLElement | null = null;
 	private colorDot: HTMLButtonElement | null = null;
 	private visibilityBtn: HTMLElement | null = null;
@@ -634,6 +645,19 @@ export class NoteController {
 		const actions = document.createElement( 'div' );
 		actions.className = 'os-pinned-note__actions';
 
+		// The keyboard way into the editor; a click on the text is the
+		// pointer way. Hidden while editing — leaving the editor (Escape,
+		// or focus moving anywhere else) is what shows the render again.
+		const edit = document.createElement( 'os-window-button' );
+		edit.className = 'os-pinned-note__edit';
+		edit.innerHTML = ICON_EDIT;
+		const editLabel = __( 'Edit note', 'desktop-mode' );
+		edit.setAttribute( 'title', editLabel );
+		edit.setAttribute( 'aria-label', editLabel );
+		edit.addEventListener( 'os-button-activate', () => this.enterEditMode() );
+		this.editBtn = edit;
+		actions.appendChild( edit );
+
 		const visibility = document.createElement( 'os-window-button' );
 		visibility.className = 'os-pinned-note__visibility';
 		this.visibilityBtn = visibility;
@@ -678,10 +702,35 @@ export class NoteController {
 		editor.setAttribute( 'auto-grow', '' );
 		editor.setAttribute( 'max-rows', '10' );
 		editor.setAttribute( 'value', this.note.text );
+		editor.setAttribute(
+			'placeholder',
+			__( 'Write in Markdown: **bold**, # heading, - [ ] to-do', 'desktop-mode' ),
+		);
+		editor.hidden = true;
 		// Shell-level shortcuts (Alt+Tab window cycling, Show Desktop)
 		// must not fire while typing on paper.
 		[ 'keydown', 'keypress', 'keyup' ].forEach( ( eventName ) => {
 			editor.addEventListener( eventName, ( event ) => event.stopPropagation() );
+		} );
+		editor.addEventListener( 'keydown', ( event ) => {
+			if ( ( event as KeyboardEvent ).key === 'Escape' ) {
+				event.preventDefault();
+				this.exitEditMode();
+				this.body?.element.focus();
+			}
+		} );
+		// Focus leaving the editor, for anywhere else, ends the edit.
+		editor.addEventListener( 'focusout', ( event ) => {
+			const next = ( event as FocusEvent ).relatedTarget;
+			if ( next instanceof Node && editor.contains( next ) ) {
+				return;
+			}
+			// Switching tabs or apps blurs the page too; the owner comes
+			// back to the caret, not to a render they must reopen.
+			if ( ! document.hasFocus() ) {
+				return;
+			}
+			this.exitEditMode();
 		} );
 		editor.addEventListener( 'os-input-change', ( event ) => {
 			const detail = ( event as CustomEvent< { value: string } > ).detail;
@@ -692,19 +741,83 @@ export class NoteController {
 		editor.addEventListener( 'os-input-commit', () => this.flushSave() );
 		this.editor = editor;
 
+		this.body = new NoteBody( {
+			onEdit: () => this.enterEditMode(),
+			onToggleTask: ( lineIndex, checked ) => this.toggleTask( lineIndex, checked ),
+		} );
+		this.body.render( this.note.text );
+
 		const footer = document.createElement( 'div' );
 		footer.className = 'os-pinned-note__footer';
 		footer.appendChild( actions );
 
-		this.paperEl.append( meta, editor, footer );
+		this.paperEl.append( meta, this.body.element, editor, footer );
+	}
+
+	/** The text as the owner last typed it, saved or not. */
+	private currentText(): string {
+		return this.pendingText ?? this.note.text;
+	}
+
+	/** Owner only: swap the render for the source editor. */
+	private enterEditMode(): void {
+		if ( ! this.note.canEdit || ! this.editor || ! this.body ) {
+			return;
+		}
+		if ( ! this.editing ) {
+			this.editing = true;
+			this.element.classList.add( 'is-editing' );
+			this.body.element.hidden = true;
+			this.editor.hidden = false;
+			if ( this.editBtn ) {
+				this.editBtn.hidden = true;
+			}
+			this.fitEditor();
+		}
+		this.editor.focusInput?.();
+	}
+
+	/** Owner only: save what was typed and show it rendered again. */
+	private exitEditMode(): void {
+		if ( ! this.editing || ! this.editor || ! this.body ) {
+			return;
+		}
+		this.editing = false;
+		this.flushSave();
+		this.element.classList.remove( 'is-editing' );
+		this.editor.hidden = true;
+		this.body.element.hidden = false;
+		if ( this.editBtn ) {
+			this.editBtn.hidden = false;
+		}
+		this.body.render( this.currentText() );
+	}
+
+	/**
+	 * A box on the owner's render was ticked: write it into the source
+	 * and save straight away — a tick is a finished edit, not typing.
+	 */
+	private toggleTask( lineIndex: number, checked: boolean ): void {
+		if ( ! this.note.canEdit || ! Number.isInteger( lineIndex ) ) {
+			return;
+		}
+		const next = setTaskChecked( this.currentText(), lineIndex, checked );
+		if ( next === null ) {
+			// The text moved under the box; show what it says now.
+			this.body?.repaint( this.currentText() );
+			return;
+		}
+		this.pendingText = next;
+		// The box already shows the new state; don't rebuild it.
+		this.body?.adopt( next );
+		this.editor?.setAttribute( 'value', next );
+		this.setPhase( 'pending' );
+		this.flushSave();
 	}
 
 	private paintViewerPaper(): void {
-		const body = document.createElement( 'div' );
-		body.className = 'os-pinned-note__body';
-		body.textContent = this.note.text;
-		body.addEventListener( 'scroll', () => syncMoreBelow( body ), { passive: true } );
-		window.requestAnimationFrame( () => syncMoreBelow( body ) );
+		this.body = new NoteBody();
+		this.body.render( this.note.text );
 
 		const chip = document.createElement( 'div' );
 		chip.className = 'os-pinned-note__attribution';
@@ -724,7 +837,7 @@ export class NoteController {
 		name.textContent = this.note.ownerName;
 		chip.append( avatar, name );
 
-		this.paperEl.append( body, chip );
+		this.paperEl.append( this.body.element, chip );
 	}
 
 	private refreshColorDot(): void {
@@ -807,14 +920,10 @@ export class NoteController {
 				this.editor?.setAttribute( 'value', note.text );
 			}
 			this.refreshVisibility();
-		} else {
-			const body = this.paperEl.querySelector(
-				'.os-pinned-note__body',
-			) as HTMLElement | null;
-			if ( body ) {
-				body.textContent = note.text;
-				syncMoreBelow( body );
-			}
+		}
+		// The owner's body is repainted when the editor closes.
+		if ( ! this.editing ) {
+			this.body?.render( this.currentText() );
 		}
 	}
 
@@ -861,6 +970,16 @@ export class NoteController {
 		}
 		this.element.style.left = `${ ( x * 100 ).toFixed( 3 ) }%`;
 		this.element.style.top = `${ ( y * 100 ).toFixed( 3 ) }%`;
+		this.maxHeight = paperMaxHeight( this.layer.spaceBelow( y ) );
+		this.paperEl.style.maxHeight = `${ this.maxHeight }px`;
+		this.fitEditor();
+	}
+
+	/** While editing, let the editor grow as far as the paper may. */
+	private fitEditor(): void {
+		if ( this.editing && this.editor ) {
+			fitEditorRows( this.paperEl, this.editor, this.maxHeight );
+		}
 	}
 
 	/** Optimistically move + persist. Used by drop handler and keyboard. */
@@ -885,7 +1004,7 @@ export class NoteController {
 	}
 
 	focusEditor(): void {
-		window.setTimeout( () => this.editor?.focusInput?.(), 0 );
+		window.setTimeout( () => this.enterEditMode(), 0 );
 	}
 
 	dispose(): void {

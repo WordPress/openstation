@@ -319,7 +319,7 @@ body.os-active .dm-drafts__link {
 	border-inline-start: 4px solid var( --os-ui-notice-accent );
 }
 
-.dm-drafts__notice[ tone='success' ] {
+.dm-drafts__notice[tone='success'] {
 	--os-ui-notice-accent: var( --os-ui-notice-success );
 	--os-ui-notice-bg: var(
 		--os-ui-notice-success-bg,
@@ -331,7 +331,7 @@ body.os-active .dm-drafts__link {
 	);
 }
 
-.dm-drafts__notice[ tone='warning' ] {
+.dm-drafts__notice[tone='warning'] {
 	--os-ui-notice-accent: var( --os-ui-notice-warning );
 	--os-ui-notice-bg: var(
 		--os-ui-notice-warning-bg,
@@ -343,8 +343,8 @@ body.os-active .dm-drafts__link {
 	);
 }
 
-.dm-drafts__notice[ tone='error' ],
-.dm-drafts__notice[ tone='danger' ] {
+.dm-drafts__notice[tone='error'],
+.dm-drafts__notice[tone='danger'] {
 	--os-ui-notice-accent: var( --os-ui-notice-error );
 	--os-ui-notice-bg: var(
 		--os-ui-notice-error-bg,

@@ -488,6 +488,12 @@ function openstation_posts_window_term_is_default( $term ) {
  * the term except trashed + auto-draft (mirrors what users
  * conceptually mean by "posts in this category").
  *
+ * The draft / pending / private rows are counted only for a caller
+ * holding the Posts window's gate (`edit_posts`). The field rides every
+ * `category` / `post_tag` response, logged-out ones included, and to
+ * anyone else it would answer "does an unpublished post sit in this
+ * term?" — they get Core's own published-only `count` instead.
+ *
  * @param array $term Term array as serialized by core's REST term controller.
  * @return int
  */
@@ -495,7 +501,11 @@ function openstation_posts_window_term_count_any( $term ) {
 	global $wpdb;
 	$taxonomy = isset( $term['taxonomy'] ) ? (string) $term['taxonomy'] : '';
 	$term_id  = isset( $term['id'] ) ? (int) $term['id'] : 0;
-	$tt_id    = isset( $term['term_taxonomy_id'] ) ? (int) $term['term_taxonomy_id'] : 0;
+	if ( ! openstation_posts_window_rest_permission() ) {
+		$public = $term_id > 0 && '' !== $taxonomy ? get_term( $term_id, $taxonomy ) : null;
+		return $public instanceof WP_Term ? (int) $public->count : 0;
+	}
+	$tt_id = isset( $term['term_taxonomy_id'] ) ? (int) $term['term_taxonomy_id'] : 0;
 	if ( $tt_id <= 0 && $term_id > 0 && '' !== $taxonomy ) {
 		$tt_id = (int) $wpdb->get_var(
 			$wpdb->prepare(

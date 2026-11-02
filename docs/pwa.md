@@ -337,8 +337,9 @@ REST routes:
 - `POST /wp-json/desktop-mode/v1/pwa-state` → merge partial state. Body: `{ installHintDismissed?: bool, notificationsEnabled?: bool }`.
 
 Both routes require a logged-in user with OpenStation enabled for
-their account (`openstation_rest_require_enabled()` — 401 when logged
-out, 403 when OpenStation is off) and a valid `X-WP-Nonce`.
+their account and `read` on the site (`openstation_rest_require_enabled()`
+— 401 when logged out, 403 when OpenStation is off or the account has no
+role on the site) and a valid `X-WP-Nonce`.
 
 ## JS surface
 

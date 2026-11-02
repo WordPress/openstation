@@ -33,6 +33,7 @@ import { joinRestUrl } from '../../../src/rest-url';
 import { trackedFetch } from '../../../src/tracked-fetch';
 import { fetchInsights } from './client';
 import { mountProfileFormAt } from './form';
+import { mountPluginSections, type PluginSectionsHandle } from './plugin-sections';
 import { paintActivity, paintAside, paintInsightsError, paintInsightsLoading } from './insights';
 import type { ProfileConfig, ProfileHost } from './types';
 
@@ -59,6 +60,7 @@ export class OsUserProfile extends HTMLElement {
 	private _config: ProfileConfig = {};
 	private _fetch: ProfileHost[ 'fetch' ] | null = null;
 	private _toast: ProfileHost[ 'toast' ] | null = null;
+	private _pluginSections: PluginSectionsHandle | null = null;
 	private _shellReady = false;
 	private _mountedFor: number | null = null;
 	private _generation = 0;
@@ -99,12 +101,21 @@ export class OsUserProfile extends HTMLElement {
 					<aside class="os-users__edit-aside" data-os-user-profile-aside></aside>
 					<main class="os-users__edit-main">
 						<div data-os-user-profile-form></div>
+						<section data-os-user-profile-plugins hidden></section>
 						<div class="os-users__edit-activity" data-os-user-profile-activity></div>
 					</main>
 				</div>
 			`;
 		}
+		if ( this._mountedFor ) {
+			this._mountPluginSections();
+		}
 		this._schedule();
+	}
+
+	disconnectedCallback(): void {
+		this._pluginSections?.teardown();
+		this._pluginSections = null;
 	}
 
 	attributeChangedCallback( name: string, oldValue: string | null, newValue: string | null ): void {
@@ -164,10 +175,24 @@ export class OsUserProfile extends HTMLElement {
 			onSaved: () => {
 				if ( generation === this._generation ) {
 					void this.refreshInsights();
+					// The embedded page posts the core fields it loaded
+					// with: reload it, or save the plugin edits it holds.
+					this._pluginSections?.afterHostSave();
 				}
 			},
 		} ).catch( () => undefined );
+		this._mountPluginSections();
 		void this._loadInsights( generation, false );
+	}
+
+	/** (Re-)mount the plugin sections for the mounted user. */
+	private _mountPluginSections(): void {
+		this._pluginSections?.teardown();
+		this._pluginSections = null;
+		const section = this.querySelector< HTMLElement >( '[data-os-user-profile-plugins]' );
+		if ( section && this._mountedFor ) {
+			this._pluginSections = mountPluginSections( section, this._mountedFor, this.host() );
+		}
 	}
 
 	private async _loadInsights( generation: number, fresh: boolean ): Promise< void > {

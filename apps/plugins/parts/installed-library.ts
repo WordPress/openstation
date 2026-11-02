@@ -127,6 +127,33 @@ function actionsFor( host: PluginsHost, ui: InstalledUi, row: InstalledPlugin, s
 	return cached.actions;
 }
 
+/**
+ * The links the plugin adds to its own row on `plugins.php` (Settings,
+ * Docs, …). For a plugin that hides its settings page from the admin
+ * menu, this is the only way in. An outside page carries the ↗ the
+ * window's other new-tab links do.
+ */
+function rowLinks( host: PluginsHost, row: InstalledPlugin, className: string ): TemplateResult | string {
+	const links = host.actionLinks.get( row.plugin ) ?? [];
+	if ( links.length === 0 ) {
+		return '';
+	}
+	return html`<div class=${ className } data-plugin-links>
+		${ links.map(
+			( link ) => html`<os-button
+				variant="link"
+				size="small"
+				data-noclick
+				@click=${ ( ev: Event ) => {
+					ev.stopPropagation();
+					host.openLink( link );
+				} }
+				>${ link.label }${ link.admin ? '' : html`<span aria-hidden="true"> ↗</span>` }</os-button
+			>`,
+		) }
+	</div>`;
+}
+
 /** Close the inspector and return keyboard focus to its library control. */
 function closeDetail( ctx: Ctx, ui: InstalledUi ): void {
 	const plugin = ui.focused;
@@ -196,6 +223,7 @@ function pluginCard( ctx: Ctx, host: PluginsHost, ui: InstalledUi, row: Installe
 		<p class="os-plugins__module-description">
 			${ stripHtml( description ) || __( 'No description provided.', 'desktop-mode' ) }
 		</p>
+		${ rowLinks( host, row, 'os-plugins__module-links' ) }
 		<div class="os-plugins__module-meta">
 			<span class="os-plugins__state" data-active=${ active ? 'true' : 'false' }> ${ status } </span>
 			<span
@@ -257,7 +285,9 @@ function detailPanel( ctx: Ctx, host: PluginsHost, ui: InstalledUi ): TemplateRe
 			</os-button>
 			<span>${ stripHtml( row.name ) || row.plugin }</span>
 		</header>
-		<div class="os-plugins__module-actions">${ actionsFor( host, ui, row, 'inspector' ) }</div>
+		<div class="os-plugins__module-actions">
+			${ actionsFor( host, ui, row, 'inspector' ) }${ rowLinks( host, row, 'os-plugins__module-links' ) }
+		</div>
 		${ host.extra.autoUpdatesEnabled
 			? html`<div class="os-plugins__inspector-updates">
 					<span>${ __( 'Automatic updates', 'desktop-mode' ) }</span>${ ui.autoUpdate.node }
@@ -646,6 +676,7 @@ export function syncLibraryTable( ctx: Ctx, host: PluginsHost, ui: InstalledUi )
 		},
 		icon: ( row ) => pluginIcon( ui, row ),
 		actions: ( row ) => actionsFor( host, ui, row, 'table' ),
+		links: ( row ) => host.actionLinks.get( row.plugin ) ?? [],
 		open: ( row ) => {
 			ui.focused = row.plugin;
 			ctx.repaint();

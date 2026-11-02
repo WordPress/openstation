@@ -22,7 +22,7 @@ import { applyIconMask } from './desktop-themes/paint-tinted-icon';
 import { slotForTileId } from './desktop-themes/slots';
 import { attachDockPeek } from './dock-peek';
 import { tryOpenExternalUrl } from './external-url';
-import { openItemVisibilityMenu } from './item-visibility-menu-loader';
+import { openItemVisibilityMenu, openRailMenu } from './item-visibility-menu-loader';
 import {
 	resolveNativeUrlRemap,
 	resolveNativeUrlRemapTarget,
@@ -473,6 +473,28 @@ export class Dock {
 	 */
 	private boundRefresh: () => void = () => undefined;
 
+	/**
+	 * Right-click on the rail itself: its empty space, a divider, or a
+	 * tile with no menu of its own (Exit). A tile that has one already
+	 * called `preventDefault()` on the way up, which is the signal to
+	 * stay out. Kept as a field so `destroy()` can detach it: the
+	 * container is reused across rebuilds, and a second listener would
+	 * open the menu twice.
+	 */
+	private readonly onRailContextMenu = ( ev: MouseEvent ): void => {
+		if ( ev.defaultPrevented ) {
+			return;
+		}
+		ev.preventDefault();
+		openRailMenu( {
+			x: ev.clientX,
+			y: ev.clientY,
+			// The split layout's core rail is the sidebar; every other
+			// rail is the dock.
+			rail: 'os-side-dock' === this.container.id ? 'sidebar' : 'dock',
+		} );
+	};
+
 	/** Unique hooks-bus namespace per instance for clean teardown. */
 	private hooksNamespace: string;
 
@@ -587,6 +609,7 @@ export class Dock {
 		this.zones = this.zonesFromMenu( items, [] );
 		this.render();
 		this.bindWindowEvents();
+		this.container.addEventListener( 'contextmenu', this.onRailContextMenu );
 	}
 
 	/**
@@ -2689,6 +2712,7 @@ export class Dock {
 	 * Idempotent: calling twice is safe.
 	 */
 	public destroy(): void {
+		this.container.removeEventListener( 'contextmenu', this.onRailContextMenu );
 		document.removeEventListener(
 			'os-window-opened',
 			this.boundRefresh,

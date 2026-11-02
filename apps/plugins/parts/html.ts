@@ -130,6 +130,11 @@ export function externalLink( href: string, text: string, className = '' ): HTML
 	return a;
 }
 
+/** Open `href` in a new browser tab, with no handle back to this one. */
+export function openInNewTab( href: string ): void {
+	window.open( href, '_blank', LINK_REL.replace( ' ', ',' ) );
+}
+
 /** An `<os-button>` that opens `href` in a new tab. */
 export function linkButton( variant: string, label: string, href: string, size?: string ): HTMLElement {
 	const btn = document.createElement( 'os-button' );
@@ -139,9 +144,7 @@ export function linkButton( variant: string, label: string, href: string, size?:
 	}
 	btn.textContent = label;
 	btn.setAttribute( 'data-noclick', '' );
-	btn.addEventListener( 'click', () => {
-		window.open( href, '_blank', LINK_REL.replace( ' ', ',' ) );
-	} );
+	btn.addEventListener( 'click', () => openInNewTab( href ) );
 	return btn;
 }
 

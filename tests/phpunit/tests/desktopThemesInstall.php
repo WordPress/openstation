@@ -413,6 +413,44 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 		$this->assertIsArray( $entry, is_wp_error( $entry ) ? $entry->get_error_message() : '' );
 	}
 
+	/**
+	 * Ignored entries are still unpacked into the staging dir under
+	 * uploads, so a server-executable or server-config file hidden
+	 * behind a dot segment rejects the archive instead.
+	 *
+	 * @covers ::openstation_desktop_theme_validate_zip
+	 * @covers ::openstation_desktop_theme_zip_entry_executable
+	 */
+	public function test_executable_dotfiles_reject_the_archive() {
+		foreach ( array( '.x/shell.php', '.htaccess', '__MACOSX/run.phtml', 'icons/.user.ini' ) as $name ) {
+			$result = openstation_desktop_theme_validate_zip( $this->make_zip( array(
+				'theme.json' => $this->manifest_json(),
+				$name        => '<?php echo 1;',
+			) ) );
+			$this->assertWPError( $result, $name );
+			$this->assertSame( 'openstation_desktop_theme_bad_extension', $result->get_error_code(), $name );
+		}
+	}
+
+	/**
+	 * Ignored entries count toward the uncompressed-size cap, so they
+	 * cannot smuggle a ZIP bomb past it.
+	 *
+	 * @covers ::openstation_desktop_theme_validate_zip
+	 */
+	public function test_ignored_entries_count_toward_the_size_cap() {
+		add_filter( 'openstation_desktop_theme_zip_caps', static function ( $caps ) {
+			$caps['max_uncompressed'] = 1024;
+			return $caps;
+		} );
+		$result = openstation_desktop_theme_validate_zip( $this->make_zip( array(
+			'theme.json'        => $this->manifest_json(),
+			'__MACOSX/._big'    => str_repeat( 'a', 4096 ),
+		) ) );
+		$this->assertWPError( $result );
+		$this->assertSame( 'openstation_desktop_theme_archive_too_large', $result->get_error_code() );
+	}
+
 	// ------------------------------------------------------------------
 	// SVG sanitization.
 	// ------------------------------------------------------------------

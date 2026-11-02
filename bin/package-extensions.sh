@@ -11,8 +11,8 @@
 # Round-tripping through `tar` + `zip` lands the entries at the tools'
 # defaults (0644 / 0755), which is what WordPress expects.
 #
-# Vendored content (e.g. extensions/desktop-mode-phpmyadmin/assets/
-# vendor/phpmyadmin/) is gitignored — `git archive` skips it. After
+# Vendored content (extensions/<slug>/assets/vendor/, when an
+# extension ships any) is gitignored — `git archive` skips it. After
 # extraction this script splices any working-tree assets/vendor/*
 # back in for each extension, so end users get a single zip that "just
 # works" on activation.
@@ -118,19 +118,6 @@ for ext_dir in "${extensions[@]}"; do
 			cp -R "$sub" "$dest"
 			echo "  spliced vendor: assets/vendor/$sub_name"
 		done
-	fi
-
-	# Sanity check for the phpmyadmin extension specifically — the
-	# vendor dir is mandatory; without it the plugin gates closed and
-	# the icon never appears. Fail loudly here rather than ship a dead
-	# zip. Should be unreachable now that fetchers run automatically,
-	# but kept as a defense against a fetcher silently producing the
-	# wrong layout.
-	if [[ "$slug" == "desktop-mode-phpmyadmin" \
-		&& ! -f "$stage/$slug/assets/vendor/phpmyadmin/index.php" ]]; then
-		echo "error: $slug is missing assets/vendor/phpmyadmin/ after fetch." >&2
-		echo "       Inspect extensions/$slug/bin/fetch-phpmyadmin.sh output above." >&2
-		exit 1
 	fi
 
 	out="$out_dir/$slug.zip"

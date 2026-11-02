@@ -260,7 +260,10 @@ function openstation_comments_window_author_insights( $email ) {
 		return isset( $rows[0] ) ? (string) $rows[0]->comment_date_gmt : null;
 	};
 
-	$user        = get_user_by( 'email', $email );
+	// Which account an address belongs to is the Users screen's answer,
+	// not a moderator's: without `list_users` this would be the email →
+	// account oracle Core closed on `/wp/v2/users?search=`.
+	$user        = current_user_can( 'list_users' ) ? get_user_by( 'email', $email ) : false;
 	$reliability = 100;
 	if ( $total > 0 ) {
 		$bad         = $counts_by_status['spam'] + $counts_by_status['trash'];

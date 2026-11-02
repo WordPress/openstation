@@ -69,7 +69,6 @@ defined( 'ABSPATH' ) || exit;
 - [Native windows — overview + render-callback contract](./native-windows.md)
 - [Native window with bundle-bound config (REST URLs, nonces)](./window-with-config.md)
 - [The render `ctx` — `signal`, `onResize`, `onHide`, `onShow`, `markLoading`/`markReady`](./render-ctx.md)
-- [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)
 - [Extend the Trash](./recycle-bin.md)
 - [Content changes — live-refresh every window listing your type](./content-changes.md)

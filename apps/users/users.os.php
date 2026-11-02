@@ -36,6 +36,7 @@ require_once __DIR__ . '/parts/color-schemes.php';
 require_once __DIR__ . '/parts/fields.php';
 require_once __DIR__ . '/parts/roles-summary.php';
 require_once __DIR__ . '/parts/activity-summary.php';
+require_once __DIR__ . '/parts/plugin-sections.php';
 require_once __DIR__ . '/parts/facts.php';
 require_once __DIR__ . '/parts/rest.php';
 require_once __DIR__ . '/parts/profile-script.php';

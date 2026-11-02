@@ -16,10 +16,11 @@
  * copy compiled here can't drift from the main bundle.
  */
 
-import { openItemVisibilityMenu } from './item-visibility-menu';
+import { openItemVisibilityMenu, openRailMenu } from './item-visibility-menu';
 
 ( window as unknown as {
 	openStationItemVisibilityMenu?: {
 		openItemVisibilityMenu: typeof openItemVisibilityMenu;
+		openRailMenu: typeof openRailMenu;
 	};
-} ).openStationItemVisibilityMenu = { openItemVisibilityMenu };
+} ).openStationItemVisibilityMenu = { openItemVisibilityMenu, openRailMenu };

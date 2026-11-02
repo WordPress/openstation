@@ -26,6 +26,13 @@ export const STORAGE_KEY = 'desktop-mode-os-settings';
  */
 export const OS_SETTINGS_WINDOW_ID = 'desktop-mode-os-settings';
 
+/**
+ * The Desktop layout section on the Appearance page: where the rail
+ * sits and how it behaves. A public `sectionId` for
+ * `wp.os.openOsSettings()`, so it stays stable.
+ */
+export const OS_SETTINGS_LAYOUT_SECTION_ID = 'os-settings-layout';
+
 /** Minimum resolution considered "HD" for the wallpaper picker filter. */
 export const HD_MIN_WIDTH = 1920;
 export const HD_MIN_HEIGHT = 1080;

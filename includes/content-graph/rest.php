@@ -146,7 +146,9 @@ function openstation_content_graph_rest_nodes( WP_REST_Request $request ) {
  * post's revisions only behind `edit_post`), so each node's
  * `contributor_ids` — distinct revision authors — are emptied for
  * posts the user cannot `edit_post`. Authors-catalog entries that
- * were referenced only via stripped contributor ids are removed too.
+ * were referenced only via stripped contributor ids are removed too,
+ * and edges read out of a password-protected body the user may not see
+ * are dropped (see `openstation_content_graph_filter_sealed_edges()`).
  * This runs at response time, not build time, because the cached
  * payload is shared across users of the same privilege tier.
  *
@@ -195,6 +197,67 @@ function openstation_content_graph_filter_payload_for_user( array $payload ) {
 		$payload['groups']['authors'] = array_intersect_key( $payload['groups']['authors'], $referenced );
 	}
 
+	$payload = openstation_content_graph_filter_sealed_edges( $payload );
+
+	return $payload;
+}
+
+/**
+ * Drop the edges read out of a body the current user may not see.
+ *
+ * Every edge is a link found in its source post's `post_content`, so
+ * the edges leaving a password-protected post describe that post's
+ * sealed body. The graph lists such a post as a node — its title is
+ * public, as in Core — but its links go out only to a caller for whom
+ * `post_password_required()` is false (they entered the password) or
+ * who can edit the post, the escape hatch Core's REST posts controller
+ * grants. Runs at response time for the same reason the contributor
+ * strip does: the cached payload is shared across a privilege tier.
+ *
+ * @param array $payload Graph payload.
+ * @return array
+ */
+function openstation_content_graph_filter_sealed_edges( array $payload ) {
+	if ( empty( $payload['edges'] ) || ! is_array( $payload['edges'] ) ) {
+		return $payload;
+	}
+
+	$sources = array();
+	foreach ( $payload['edges'] as $edge ) {
+		$from = isset( $edge['from'] ) ? (int) $edge['from'] : 0;
+		if ( $from > 0 ) {
+			$sources[ $from ] = true;
+		}
+	}
+	$sources = array_keys( $sources );
+	if ( ! empty( $sources ) && function_exists( '_prime_post_caches' ) ) {
+		_prime_post_caches( $sources, false, false );
+	}
+
+	$sealed = array();
+	foreach ( $sources as $source_id ) {
+		$source = get_post( $source_id );
+		if ( $source instanceof WP_Post && post_password_required( $source ) && ! current_user_can( 'edit_post', $source_id ) ) {
+			$sealed[ $source_id ] = true;
+		}
+	}
+	if ( empty( $sealed ) ) {
+		return $payload;
+	}
+
+	$edges = array();
+	foreach ( $payload['edges'] as $edge ) {
+		$from = isset( $edge['from'] ) ? (int) $edge['from'] : 0;
+		if ( $from <= 0 || isset( $sealed[ $from ] ) ) {
+			continue;
+		}
+		$edges[] = $edge;
+	}
+	$payload['edges'] = $edges;
+	if ( isset( $payload['stats'] ) && is_array( $payload['stats'] ) ) {
+		$payload['stats']['edges'] = count( $edges );
+	}
+
 	return $payload;
 }
 
@@ -214,7 +277,16 @@ function openstation_content_graph_rest_post_detail( WP_REST_Request $request ) 
 			array( 'status' => 404 )
 		);
 	}
-	if ( ! current_user_can( 'read_post', $id ) ) {
+	// `read_post` alone is not a gate on a published row: map_meta_cap()
+	// resolves it to plain `read` for any `publish` post, so a published
+	// row of a type with no readable front end (an order, a submission
+	// log) would read like a public post. Such a type is read only by a
+	// caller who can edit the row, as `desktop-mode/get-post` does.
+	$post_type = get_post_type_object( $post->post_type );
+	if (
+		! current_user_can( 'read_post', $id )
+		|| ( ( ! $post_type || ! is_post_type_viewable( $post_type ) ) && ! current_user_can( 'edit_post', $id ) )
+	) {
 		return new WP_Error(
 			'openstation_content_graph_forbidden',
 			__( 'Insufficient permissions.', 'desktop-mode' ),
@@ -226,13 +298,20 @@ function openstation_content_graph_rest_post_detail( WP_REST_Request $request ) 
 	// edit-level data in core — wp/v2 only exposes revisions behind
 	// edit_post. Mirror that: readers get comment-author contributors
 	// only, no revision list.
-	$can_edit     = current_user_can( 'edit_post', $post->ID );
-	$author       = openstation_content_graph_format_user( (int) $post->post_author );
-	$contributors = openstation_content_graph_collect_contributors( $post, $can_edit );
-	$comments     = openstation_content_graph_collect_comments( $post );
-	$categories   = openstation_content_graph_collect_terms( $post );
-	$attached     = openstation_content_graph_collect_attached_media( $post );
-	$revisions    = $can_edit ? openstation_content_graph_collect_revisions( $post ) : array();
+	//
+	// The discussion follows the parent's full read gate rather than
+	// `read_post`: Core's comments controller withholds the comments of
+	// a post still sealed by its password from anyone who cannot edit
+	// it, and the comment authors listed as contributors are the same
+	// rows.
+	$can_edit          = current_user_can( 'edit_post', $post->ID );
+	$can_read_comments = openstation_my_wordpress_can_read_comment_post( $post );
+	$author            = openstation_content_graph_format_user( (int) $post->post_author );
+	$contributors      = openstation_content_graph_collect_contributors( $post, $can_edit, $can_read_comments );
+	$comments          = $can_read_comments ? openstation_content_graph_collect_comments( $post ) : array();
+	$categories        = openstation_content_graph_collect_terms( $post );
+	$attached          = openstation_content_graph_collect_attached_media( $post );
+	$revisions         = $can_edit ? openstation_content_graph_collect_revisions( $post ) : array();
 
 	return rest_ensure_response(
 		array(
@@ -290,10 +369,14 @@ function openstation_content_graph_format_user( $user_id ) {
  * @param bool    $include_revision_authors Whether to include revision
  *                authors. Pass false for users who cannot `edit_post`
  *                the post — revision authorship is edit-level data;
- *                approved comment authors are public either way.
+ *                approved comment authors are public wherever the
+ *                post's comments are.
+ * @param bool    $include_comment_authors Whether to include comment
+ *                authors. Pass false when the caller may not read the
+ *                post's comments (a post still sealed by its password).
  * @return array[]
  */
-function openstation_content_graph_collect_contributors( WP_Post $post, $include_revision_authors = true ) {
+function openstation_content_graph_collect_contributors( WP_Post $post, $include_revision_authors = true, $include_comment_authors = true ) {
 	$author_id = (int) $post->post_author;
 	$ids       = array();
 	if ( $include_revision_authors ) {
@@ -311,13 +394,16 @@ function openstation_content_graph_collect_contributors( WP_Post $post, $include
 			}
 		}
 	}
-	$comment_users = get_comments(
-		array(
-			'post_id' => $post->ID,
-			'status'  => 'approve',
-			'fields'  => 'ids',
-		)
-	);
+	$comment_users = array();
+	if ( $include_comment_authors ) {
+		$comment_users = get_comments(
+			array(
+				'post_id' => $post->ID,
+				'status'  => 'approve',
+				'fields'  => 'ids',
+			)
+		);
+	}
 	foreach ( (array) $comment_users as $cid ) {
 		$comment = get_comment( $cid );
 		if ( $comment && (int) $comment->user_id > 0 && (int) $comment->user_id !== $author_id ) {

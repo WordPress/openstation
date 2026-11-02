@@ -367,7 +367,7 @@ apply_filters( 'openstation_files_share_eligible_roles', array $roles ); // [{ s
 apply_filters( 'openstation_files_share_can_manage',     bool $can, int $folder_id, int $user_id, ?array $folder ); // default: owner only
 apply_filters( 'openstation_folder_share_user_capability', string $cap, int $folder_id, int $user_id, array $folder ); // 'none'|'read'|'write'
 apply_filters( 'openstation_files_share_all_default_capability', string $cap, int $folder_id, int $user_id ); // default 'read' for share_mode='all'
-apply_filters( 'openstation_files_share_user_query_args', array $args, array $request_params ); // WP_User_Query args for /files/users/search
+apply_filters( 'openstation_files_share_user_query_args', array $args, array $request_params ); // WP_User_Query args for /files/users/search; default `search_columns` include `user_email` only for `list_users`
 apply_filters( 'openstation_folder_share_accept_default_parent', int $parent_id, int $folder_id, int $user_id, array $share_row ); // where the recipient's placement lands
 apply_filters( 'openstation_files_sharing_enabled_for', bool $enabled, int $user_id ); // per-user kill switch; default reads `foldersSharingEnabled` from OpenStation Preferences
 apply_filters( 'openstation_files_user_can_see_folder', bool $can, array $folder, int $user_id, string[] $roles ); // per-folder visibility decision (owner / share_mode / shares table)
@@ -651,7 +651,7 @@ apply_filters(
 
 `$identity` shape (mirrors the JS `WindowContentRef`): `type` (lowercase object-type slug; namespace yours `vendor/order`), `id` (int|string), optional `label`, optional `root => array( 'type', 'id' )`, optional `links => array( array( 'type', 'id', 'rel'? ), … )`. A ref **without** `root` is itself a root (the post a comment window points back to); a ref **with** `root` joins that root's relation group as a child (an edge pointing at the root — the built-in renderer marks the target end with its larger endpoint dot). `links` declare outbound ties: the default (`rel` omitted) is a `reference` — an edge FROM this window TO the linked object ("my content points at that"); `rel => 'child'` reverses it — the linked object BELONGS TO this content (a post's embedded media), drawn exactly like a root tie. Mutual references merge into one bidirectional edge. One reading everywhere: **the edge points at what its source belongs to or refers to** — relational structure, never navigation history.
 
-Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less;), `revision.php` — the revision browser the ⋯ menu's "View revisions" row opens — (`revisions`, rooted at the post whose history it shows, and keyed by that post rather than by the revision on screen, because Core's slider walks revisions client-side without a reload), `term.php` (`term/{taxonomy}` → root, which assigned posts reference), and `user-edit.php` / `profile.php` (`user` → root, gated on `edit_user` — a person is what a post's author and an order's customer both point at). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
+Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs; a linked post or media id is kept only when the viewer can `read_post` it), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less;), `revision.php` — the revision browser the ⋯ menu's "View revisions" row opens — (`revisions`, rooted at the post whose history it shows, and keyed by that post rather than by the revision on screen, because Core's slider walks revisions client-side without a reload), `term.php` (`term/{taxonomy}` → root, which assigned posts reference), and `user-edit.php` / `profile.php` (`user` → root, gated on `edit_user` — a person is what a post's author and an order's customer both point at). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
 
 ```php
 add_filter( 'openstation_window_content_identity', function ( $identity, $screen ) {
@@ -703,7 +703,7 @@ array(
 )
 ```
 
-Built-in items cover **posts and pages only**: Comments (`edit-comments.php?p={id}`, only when the post type supports comments and at least one approved-or-pending comment exists; the count is the same approved + awaiting-moderation total the opened screen lists), one item per assigned public-taxonomy term (`term.php?taxonomy={tax}&tag_ID={id}`, grouped per taxonomy, budgeted at 32 terms across taxonomies), one item per associated attachment — featured image, `post_parent`-attached uploads, `wp-image-{id}` embeds — deep-linking the Media Library detail (`upload.php?item={id}`, capped at 20), and one **Linked posts** item per internal hyperlink in the content that resolves to another post on this site (group `links`, opening the target's editor, capped at 10; external and cross-site hrefs don't resolve to a post id and are excluded). The client engine hard-caps the final list at **64 items** (built-ins never reach it; filter-added floods are truncated silently). Built-ins attach **only while the filtered identity still refers to the detected post** — an identity filter that rewrites a post's identity to a different `type`/`id` (a gated post remapped to a minimal ref) suppresses them automatically, so nothing about the underlying post leaks through the menu. Other screens contribute via this filter:
+Built-in items cover **posts and pages only**: Comments (`edit-comments.php?p={id}`, only when the post type supports comments and at least one approved-or-pending comment exists; the count is the same approved + awaiting-moderation total the opened screen lists), one item per assigned public-taxonomy term (`term.php?taxonomy={tax}&tag_ID={id}`, grouped per taxonomy, budgeted at 32 terms across taxonomies), one item per associated attachment — featured image, `post_parent`-attached uploads, `wp-image-{id}` embeds — deep-linking the Media Library detail (`upload.php?item={id}`, capped at 20), and one **Linked posts** item per internal hyperlink in the content that resolves to another post on this site (group `links`, opening the target's editor, capped at 10; external and cross-site hrefs don't resolve to a post id and are excluded). Attachment and Linked posts items are kept only when the viewer can `read_post` the target, filtered before the caps so unreadable ids never crowd out readable ones. The client engine hard-caps the final list at **64 items** (built-ins never reach it; filter-added floods are truncated silently). Built-ins attach **only while the filtered identity still refers to the detected post** — an identity filter that rewrites a post's identity to a different `type`/`id` (a gated post remapped to a minimal ref) suppresses them automatically, so nothing about the underlying post leaks through the menu. Other screens contribute via this filter:
 
 ```php
 add_filter( 'openstation_window_related_entities', function ( $related, $identity, $screen ) {
@@ -1749,7 +1749,7 @@ apply_filters( 'openstation_admin_bar_mode', string $mode );
 |---|---|
 | `static` | The bar is pinned above the shell and the shell starts below it. Vanilla behavior. |
 | `dynamic` | The bar parks off the top edge leaving a visible seam (`--os-admin-bar-peek`, `4px`), and slides back in on hover, keyboard focus, or tap. The pointer target is larger than the seam — an invisible reveal zone extends `--os-admin-bar-reveal-zone` (`16px`) below it, so the band to hit is `20px` from the top of the viewport. The shell takes the full viewport. |
-| `hidden` | The bar is not rendered. The shell takes the full viewport. The default: a desktop whose navigation is consolidated into one dock has no second place for navigation to live. |
+| `hidden` | The bar is not rendered. The shell takes the full viewport. The default: a desktop whose navigation is consolidated into one dock has no second place for navigation to live. On a site with the WordPress.com / Jetpack notifications bell, the dock gains a **Notifications** tile in its place; see [the compat note](plugin-compat-layer.md#wordpresscom--jetpack-notifications-under-a-hidden-admin-bar). |
 
 A value outside the three coerces back to `static`. The same three ids are the user-facing setting (`adminBarMode` in `wp.os.getOsSettings()`) and a [theme recommendation key](desktop-themes.md#fields).
 
@@ -1969,7 +1969,8 @@ apply_filters( 'openstation_games_playtime_max_increment', 900, string $game, in
 // 14 for its "last two weeks" figure). Default 30.
 apply_filters( 'openstation_games_playtime_history_days', 30 );
 
-// WP_User_Query args for the opponent-picker autocomplete.
+// WP_User_Query args for the opponent-picker autocomplete. The default
+// `search_columns` include `user_email` only for a `list_users` holder.
 apply_filters( 'openstation_games_user_query_args', array $args, array $request_params );
 
 // Per-tick row cap for the challenges Heartbeat channel. Default 50;
@@ -3121,6 +3122,9 @@ unsaved state to a background refresh.
 | client → server | `openstation_content_changes_seen_ts` | `int` server-ms high-water mark; `0` on the first (handshake) tick. |
 | server → client | `openstation_content_changes` | `{ ts: int, entries: [ { ts, type, action, ids } ] }` — entries newer than the client's seen ts. |
 
+The server answers only a user with OpenStation enabled and `read` on
+the site; anyone else's tick gets no `openstation_content_changes` field.
+
 The shell's first tick is a pure handshake (adopts the server clock,
 broadcasts nothing) so client/server clock skew can never drop
 changes. A change that already arrived via the footer or editor path
@@ -3402,6 +3406,8 @@ Native writing desk that replaces the chromeless `edit.php` iframe. Ruled note c
 Cards use continuous scrolling: the next server batch appends as the bottom approaches, with a retryable Load more control for keyboard access or request failures. Search and sort start a fresh collection. Selection spans the loaded cards; the optional Details table shares those rows and offers the same continuation control. A refresh after scrolling restarts at the first batch so earlier cards cannot retain stale edits. The `data-loaded` event still describes each server batch, while `ctx.table` and the selected-row methods expose the loaded collection. On phones, compact cards keep the actions visible and the additional filters live behind Options.
 
 Word counts read the complete rendered content through Core REST, and comment counts read the approved total from the comment collection header. Metrics load for cards near the viewport, with two cards in flight at most. A denied/unavailable metric stays unknown (`—`); no view counts are inferred without an analytics source.
+
+Category and tag rows carry the `openstation_count` REST field: posts in the term across every status but trash and auto-draft, for a caller who passes the window's `edit_posts` gate. Anyone else, logged-out callers included, gets Core's published-only `count` in that field.
 
 ### `openstation_posts_window_user_can_register` — Stable *(filter)*
 
@@ -3745,6 +3751,8 @@ apply_filters( 'openstation_comments_window_spam_score', int $score, WP_Comment 
 
 Filters the 0–100 spam-confidence score the bundle paints per row. Hook here to plug in an AI-provider fallback when Akismet isn't installed but a OpenStation AI provider is configured. Return value is clamped to `0..100`.
 
+The score ships on `wp/v2/comments` as the `openstation_spam_score` REST field. It and the other moderation signals, `openstation_akismet` and `openstation_ai_verdict`, are registered for the `edit` context only, which Core already limits to `moderate_comments`; a `view`-context response does not carry them.
+
 ### `openstation_comments_window_after_bulk` — Stable *(action)*
 
 ```php
@@ -3836,6 +3844,8 @@ Fires on `wp_login` after the last-login user meta has been written — piggy-ba
 ## Native User Edit window
 
 A native profile-editing window (`desktop-mode-user-edit`) that opens when a row in the native Users window is clicked, or when a chromeless `user-edit.php?user_id=N` navigation is remapped. An [App Framework](./app-framework.md) app — `apps/user-edit/` — whose subject is the window's `userId` open-time param (`wp.os.openWindow( 'desktop-mode-user-edit', { params: { userId } } )`, or `openUserEditWindow()` from `src/open-targets/user-edit-window.ts`): `mount` reads it, falling back to the viewer's own profile (`profile.php`), and a live window retargets through the `reopen` lifecycle. The window is registered for any logged-in user (everyone has a profile to edit); per-target capability is re-checked at REST time — saving uses core's `/wp/v2/users/<id>` PUT, which enforces `edit_user`, and the insights endpoint applies the same check. The registration is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-user-edit'`.
+
+The personal options (`rich_editing`, `syntax_highlighting`, `admin_color`, `comment_shortcuts`, `show_admin_bar_front`) and every `wp_get_user_contact_methods()` key are registered as user meta for the `edit` context only, so they ride `/wp/v2/users/<id>` only under `context=edit`, which Core limits to `edit_user`.
 
 ### `openstation_user_edit_window_user_can_register` — Experimental *(filter)*
 
@@ -4281,7 +4291,7 @@ Rows are already filtered per-row through `current_user_can('read_post', $row['p
 apply_filters( 'openstation_my_wordpress_attached_media', int[] $ids, int $post_id ): int[]
 ```
 
-Attachment ids referenced by a post — featured image plus everything resolved from `post_content` (block-class scan, classic `[caption]` shortcodes, `data-id` / `data-attachment-id`, and raw `<img src>` URL resolution including `-scaled.jpg` ↔ original swaps). Exposed on every public post type as the `openstation_attached_media` REST field (read-only, integer array). Plugins that store attachment references outside `post_content` (ACF image fields, page-builder block storage, post-meta galleries) should append their ids here. Sanitized post-filter — non-positive values and non-arrays are discarded.
+Attachment ids referenced by a post — featured image plus everything resolved from `post_content` (block-class scan, classic `[caption]` shortcodes, `data-id` / `data-attachment-id`, and raw `<img src>` URL resolution including `-scaled.jpg` ↔ original swaps). Exposed on every public post type as the `openstation_attached_media` REST field (read-only, integer array). On a password-protected post the field carries only the featured image unless the caller can `edit_post` it, has entered the password, or passes the matching `password` query parameter; the filter is not consulted in that case. Plugins that store attachment references outside `post_content` (ACF image fields, page-builder block storage, post-meta galleries) should append their ids here. Sanitized post-filter — non-positive values and non-arrays are discarded.
 
 ### `openstation_my_wordpress_media_usage_cache_ttl` — Experimental (filter)
 
@@ -4517,6 +4527,8 @@ Fires after the `clear` action truncates a log file.
 
 The content explorer app — `apps/my-wordpress/my-wordpress.os.php` + `my-wordpress.os.ts`, an [App Framework](./app-framework.md) app in the framework's two halves. The PHP half is the truth: a root folder grid (Posts, Pages, Media, Users, plus every eligible custom post type folded into plugin-group folders), `WP_Query`-backed searchable/sortable lists, per-item dossiers (rendered post preview, media usage scan, user footprint, edit-lock holder), per-item authorization, and the trash / bulk-trash / open-in-editor actions. The client half makes it instant: click / Ctrl / Shift / **marquee selection**, **infinite scroll**, **drag rows out to the desktop** (`wp.os.dragManager`), the per-row context menu, media **zoom**, and the copy-links clipboard action — none of which leaves the tab. Registered as the native window `my-wordpress` behind `edit_posts`, with a desktop icon, and repainted live by `watch( '*' )` whenever any window changes any content.
 
+**What each caller sees.** The section gate (`edit_posts` on the type) admits every Contributor, so object-level reads are checked per item. Lists query with `perm => 'readable'`, and section counts use `wp_count_posts( …, 'readable' )`, so another author's private posts reach only a caller with the type's `read_private_posts`. A row the caller cannot read past the title (another author's draft, or a post sealed by a password they have not entered) lists by title, as on `edit.php`, without its excerpt, word count or meta. Dossiers, folders and relation panes require `read_post`, and the rendered body is withheld while the post is password-sealed for a caller without `edit_post`. A relation row opens only when it belongs to the post (its author, a contributor, an attached media item, one of its revisions). Account facts (email, role, registration date, and an author's email in relation rows) need `list_users` or the person themselves. Comment rows follow Core's REST read rule: approved, or written by the caller, or editable by them. Revisions need `edit_post`. Quick edit treats `private` like `publish` (both need `publish_post`), reassigning the author needs the type's `edit_others_posts`, and stickiness needs both the type's `edit_others_posts` and `publish_posts`; a sticky pick from anyone else is dropped while the rest of the edit still applies.
+
 It discovers custom post types through the **same helpers WP Explorer uses** — `openstation_my_wordpress_eligible_post_types()`, `openstation_my_wordpress_post_type_icon()`, `openstation_my_wordpress_post_type_group()`, `openstation_my_wordpress_collect_groups()` — so the `openstation_my_wordpress_post_types`, `openstation_my_wordpress_post_type_entity` (icon/group only) and `openstation_my_wordpress_post_type_groups` filters above shape both windows. **Preview actions are shared too**: descriptors collected by `openstation_my_wordpress_preview_actions` and refined by the `os.my-wordpress.preview-actions` JS filter appear in this window's pane and context menu exactly as they do in WP Explorer — one registration, two surfaces. It is a sibling of WP Explorer (`desktop-mode-my-wordpress`), not a replacement — WP Explorer keeps its id, icon and every filter.
 
 The app consumes WP Explorer's **JS extension seams** too, unchanged: `os.my-wordpress.preview-extras` fires over the preview article's `header` / `meta` / `footer` slots (post, media and user kinds; the navigate-into article carries a `meta` slot), `os.my-wordpress.list-tile` fires per rendered tile after it is in the DOM, and the `os.my-wordpress.list-bands` filter groups a section's grid into the same banded layout (declared order, tone tints, count chips, unlabelled tail band). List rows carry the REST-visible fields subscribers read — registered `show_in_rest` meta under `meta`, and one term-id array per REST-exposed taxonomy keyed by `rest_base` — so a band assigner or extras painter written for WP Explorer works here without edits.
@@ -4612,7 +4624,8 @@ Framework-level presence tracking. Storage in
 `{$wpdb->prefix}openstation_presence`, one row per user with atomic
 timestamp merges. The legacy option is retained for recovery; see
 [migration and rollback](./migration-presence-storage.md). The WordPress Heartbeat carries the bumps + visibility
-snapshot; the JS API at `wp.os.presence.*` fans out to
+snapshot — answered only for a user with OpenStation enabled and
+`read` on the site, the same floor as the REST routes; the JS API at `wp.os.presence.*` fans out to
 plugin code. See [`examples/presence.md`](./examples/presence.md)
 for a copy-pasteable recipe.
 
@@ -4982,7 +4995,18 @@ and pinned to the desktop with a pushpin. They are backed by the
 (default, owner-only) or `publish` ("public" — read-only on every other
 OpenStation user's wallpaper). Only the owner can edit, move, recolor,
 or delete a note; administrators do not bypass ownership through this
-controller.
+controller. The REST routes and the notes Heartbeat channel both
+require a logged-in user with OpenStation enabled and `read` on the
+site.
+
+A note's text is stored as typed, and read as **Markdown**: the pinned
+note renders it (escaped first, so a public note can carry no markup
+onto anyone else's wallpaper) and the owner edits the plain source.
+`- [ ]` / `- [x]` items are checkboxes the owner can tick on the
+pinned note, which writes the mark back into the text. Headings step
+down from where they appear: `#` paints as an `h3` on the paper (under
+the shell's own headings) and becomes an `h2` in a converted post
+(under the post title).
 
 ### `openstation_notes_user_can_create` — Experimental *(filter)*
 
@@ -5043,9 +5067,13 @@ Filters the arguments passed to `wp_insert_post()` when a note is
 converted to a post via `POST /desktop-mode/v1/notes/:id/convert` (the
 inline "Convert to post" button and the drag-onto-Posts gesture). The
 default spawns a **draft `post`** authored by the note owner, titled
-from the note's first line, with the note body wrapped in
-`wp:paragraph` blocks (blank lines split paragraphs; single newlines
-become `<br>`). Hook here to change the post type/status, assign a
+from the note's first line with its Markdown markers dropped, and
+converts the note's Markdown into blocks: paragraphs (blank lines split
+them; single newlines become `<br>`), headings (`#` becomes an `h2`,
+under the post title), bullet and numbered lists, checklists (a list
+whose items open with ☐ / ☑ — Core has no checklist block), quotes,
+code and separators, with bold, italic, strikethrough, code and
+http(s) links inline. Hook here to change the post type/status, assign a
 category, or rewrite the block markup. The convert route itself is
 gated on the owner + the `edit_posts` capability, which this filter
 does not loosen.
@@ -5108,7 +5136,7 @@ All Experimental.
 | `openstation_stored_files_denied_extensions` | `( string[] $denied ) => string[]` | Hard-denied executable extensions, matched against EVERY dot-segment of the client filename. Narrowing below the shipped set is strongly discouraged. |
 | `openstation_stored_files_upload_overrides` | `( array $overrides, int $user_id ) => array` | `wp_handle_upload()` overrides for the intake. Exists for tests and future resumable layers; never remove `test_form => false`. |
 | `openstation_stored_files_zip_caps` | `( array $caps ) => array` | `{ max_entries, max_bytes }` bounds for folder zips. Default 1000 entries / 500 MB of input. |
-| `openstation_stored_file_can_read` | `( bool $can, int $file_id, int $user_id, array $row ) => bool` | Last-mile read-access override after owner / file-share / folder-capability resolution all said no. |
+| `openstation_stored_file_can_read` | `( bool $can, int $file_id, int $user_id, array $row ) => bool` | Last-mile read-access override after owner / file-share / folder-capability resolution all said no. The folder grant counts only folders holding a live placement **by the file's owner**; a placement someone else filed does not widen who can read the file. |
 | `openstation_stored_files_share_can_manage` | `( bool $can, int $file_id, int $user_id, ?array $file ) => bool` | Who may manage a stored file's shares. Owner-only by default. |
 | `openstation_stored_file_is_media` | `( bool $is_media, array $row ) => bool` | Whether a stored file may be copied into the Media Library — and so whether its tile offers "Add to Media Library" (`file.isMedia`). Default: the MIME type is on the site's upload allow-list. |
 | `openstation_stored_file_media_post_data` | `( array $post_data, array $row, int $user_id ) => array` | Attachment post fields passed to `media_handle_sideload()` when a stored file is copied (`post_title`, `post_excerpt` for the caption, `post_content` for the description, …). Default sets only `post_author`. |
@@ -5953,17 +5981,10 @@ Adapter extension**, not in core. See
 
 ### Other bundled-extension hooks
 
-The extensions under `extensions/` fire their own prefixed hooks, which
-this reference does not enumerate: `openstation_code_editor_*`
-(capability gate, workspace root, extension allowlist, save
-pipeline, PHP indexing, REST limits, template/window/icon args —
-`extensions/desktop-mode-code-editor/includes/`),
-`openstation_cron_manager_*` (capability gate, template/window/icon
-args — `extensions/desktop-mode-cron-manager/includes/`), and
-`openstation_phpmyadmin_user_can_use`
-(`extensions/desktop-mode-phpmyadmin/includes/window.php`). Each hook
-carries a docblock at its call site; the extension source is the
-reference until these graduate into a doc of their own.
+The other extensions under `extensions/` fire their own prefixed hooks,
+which this reference does not enumerate. Each hook carries a docblock
+at its call site; the extension source is the reference until these
+graduate into a doc of their own.
 
 ---
 

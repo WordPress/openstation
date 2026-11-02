@@ -5,6 +5,7 @@ import { registerMioWindowToggle } from './window-toggle';
 import { MioCalloutController } from './callout';
 import { followMioChat } from './chat-placement';
 import { MioSession } from './assistant/session';
+import { MIO_RESPONSE_ACTION_EFFECTS } from './assistant/response-actions';
 import { createMioTransport } from './assistant/transport';
 import type { MioChatHandle } from './assistant/chat';
 import type { MioWindowContext, MioWindowLease } from './assistant/types';
@@ -220,6 +221,7 @@ export class MioResidency {
 			openChat,
 			getOperations: () => resident.session.operations.list(),
 			inspectOperation: ( callId, signal = new AbortController().signal ) => resident.session.operations.inspect( callId, signal ),
+			responseActionEffects: MIO_RESPONSE_ACTION_EFFECTS,
 			dispose,
 		};
 	}

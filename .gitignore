@@ -64,3 +64,8 @@
 !/.claude/
 /.claude/*
 !/.claude/skills
+# The software factory's agents (see AGENTS.md), regular files like the skills.
+!/.claude/agents
+
+# Software factory runtime state: job files, logs, per-job locks.
+/factory/jobs/

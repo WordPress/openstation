@@ -31,6 +31,36 @@ One PHPUnit test reads build output rather than source: an app's client view is 
 
 `npm run env:start` spins up a self-contained WordPress + MariaDB stack with this checkout bind-mounted as the plugin: the manual QA environment on `http://localhost:8890/wp-admin/` (`admin` / `password`). PHPUnit runs in a second, independent instance defined by `.wp-env.tests.json` (port `8891`), started with `npm run env:start:tests`; `npm run test:php:multisite` reuses that instance with `WP_MULTISITE=1`, so the same suite also runs against a network install (the test library reinstalls the database either way — the two runs never taint each other); the `test:php*` scripts target it via wp-env's `--config` flag, so QA state and test runs never share a database. See [Manual QA and per-worktree instances](#manual-qa-and-per-worktree-instances-wp-env) for how the mount works and how to run one instance per git worktree.
 
+## Cloud containers (no wp-env)
+
+wp-env does not start inside a Claude Code cloud container. Two things go wrong:
+
+- It decides it is offline by resolving `WordPress.org` over DNS, and the container has no outside DNS, only an HTTPS proxy.
+- It builds its own images at start-up, and their `apk` / `apt-get` steps cannot see that proxy.
+
+`bin/cloud-test-env.sh` rebuilds, without it, the part of wp-env the suite depends on, so a run here matches CI:
+
+- PHPUnit runs in the image CI's tests run in (`wordpress:cli-php8.3` by default), with the checkout mounted at `wp-content/plugins/desktop-mode` of a pinned WordPress core from wordpress.org;
+- the core gets a `wp-config.php`, and the tests config is that file minus its `wp-settings.php` line, with wp-env's default constants overlaid by `.wp-env.tests.json` — the way wp-env writes both;
+- the test library is the matching `wp-phpunit/wp-phpunit` from Packagist, which `tests/phpunit/bootstrap.php` already reads;
+- MariaDB runs in a container, and Docker pulls go through `mirror.gcr.io` because Docker Hub rate-limits the shared egress;
+- the test container shares the host network, so the few tests that call wordpress.org reach it through the egress proxy, as they reach it directly in CI.
+
+It also installs Node 24 when the host's is older, and builds the app client views when one is missing or their sources changed since the last build (CI builds them for the same reason). Every step checks first and redoes only what is stale (`npm ci` after a `package-lock.json` change, `composer install` after a `composer.lock` change), so it is safe as the environment's setup script and safe to run again, including after a branch switch. If a later session finds `dockerd` gone, running it again restarts it.
+
+```bash
+bin/cloud-test-env.sh                          # prepare only
+bin/cloud-test-env.sh phpunit                  # prepare, then run the suite
+bin/cloud-test-env.sh phpunit --filter Tests_OpenStation_NotesRest
+WP_MULTISITE=1 bin/cloud-test-env.sh phpunit   # the multisite run
+bin/cloud-test-env.sh lint                     # phpcs -n, the PHP lint gate CI runs (npm run lint:php)
+bin/cloud-test-env.sh serve                    # also serves this checkout as a site on :8890 (admin / password), 4 PHP workers
+```
+
+The environment's network allowlist needs `wordpress.org`, `api.wordpress.org` and `downloads.wordpress.org`. `OPENSTATION_TESTS_WP_VERSION` picks the WordPress version, and core and test library always move together; the default is looked up on every run as the newest stable `wp-phpunit` release on Packagist, the latest core that has a test library (CI runs the latest core, which that release can briefly trail). `OPENSTATION_TESTS_PHP_VERSION=8.4` runs CI's other PHP row. `OPENSTATION_TESTS_DB_PORT` moves MariaDB off `3306` (a second checkout, or a port already taken) into a container of its own. The `serve` site listens on `127.0.0.1` only, with `WP_DEBUG` on and a well-known `admin` / `password` login: never forward its port.
+
+A clean run here has no failures, single site and multisite: a failure is a failure, not the environment.
+
 ## Manual QA and per-worktree instances (wp-env)
 
 ### How the instance works

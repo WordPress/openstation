@@ -61,7 +61,7 @@ See [app layout recipes](./examples/app-layouts.md) for sizing, scrolling, spans
 | `<os-number-field>` | `OsNumberField` | `os-number-field/os-number-field.ts` | Numeric input with min/max/step. |
 | `<os-color-field>` | `OsColorField` | `os-color-field/os-color-field.ts` | Color picker with swatches. |
 | `<os-range-field>` | `OsRangeField` | `os-range-field/os-range-field.ts` | Slider with live numeric readout. |
-| `<os-checkbox>` | `OsCheckbox` | `os-checkbox/os-checkbox.ts` | Standalone checkbox. |
+| `<os-checkbox>` | `OsCheckbox` | `os-checkbox/os-checkbox.ts` | Standalone checkbox. Slot one element as its child for a label with markup. |
 | `<os-checkbox-label>` | `OsCheckboxLabel` | `os-checkbox-label/os-checkbox-label.ts` | Checkbox + inline label pair. |
 | `<os-switch>` | `OsSwitch` | `os-switch/os-switch.ts` | On/off switch for settings that apply immediately. Tap, drag or keyboard. |
 | `<os-select>` / `<os-option>` | `OsSelect`, `OsOption` | `os-select/os-select.ts` | Combobox trigger with a custom top-layer listbox popup. |
@@ -212,8 +212,9 @@ host. The focusable element is the `<button>` inside the shadow root
 and the host has no role, so a name left on the host alone is inert;
 the component forwards `aria-label` onto that inner button, keeps it
 in sync when you relabel the host, and drops it from the inner button
-when the host has none. `aria-labelledby` / `aria-describedby` are not
-forwarded: an IDREF on the shadow `<button>` resolves inside that
+when the host has none. `aria-description` is forwarded the same way,
+for a consequence the label does not carry. `aria-labelledby` /
+`aria-describedby` are not forwarded: an IDREF on the shadow `<button>` resolves inside that
 shadow root only, so it could never reach an id in your markup.
 
 `<os-window-button disabled>` forwards disabled state to its native button, preventing activation and keyboard focus. Optional `aria-pressed="true|false|mixed"` is forwarded to that same focusable button; `active` controls its visual pressed state.

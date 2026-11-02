@@ -22,6 +22,7 @@ import type {
 	BrowseFilter,
 	FeaturedPlugin,
 	InstalledPlugin,
+	PluginActionLink,
 	PluginReviewsResponse,
 	PluginsExtra,
 	UpdatePluginResult,
@@ -40,6 +41,8 @@ export interface PluginsRest {
 	} ) => Promise< { plugins: WpOrgBrowsePlugin[]; info: Record< string, unknown > } >;
 	fetchPluginInfo: ( slug: string ) => Promise< WpOrgPluginInfo >;
 	fetchPluginReviews: ( slug: string ) => Promise< PluginReviewsResponse >;
+	/** Every plugin's own row links (`parts/action-links.php`), keyed by row id. */
+	fetchActionLinks: () => Promise< Record< string, PluginActionLink[] > >;
 	fetchFeaturedPlugins: () => Promise< {
 		plugins: FeaturedPlugin[];
 		info: { curated?: number; discovered?: number; results?: number };
@@ -113,6 +116,7 @@ export function createPluginsRest( extra: () => PluginsExtra, fetcher: RestFetch
 		fetchPluginReviews: ( slug ) =>
 			ajaxRequest< PluginReviewsResponse >( 'openstation_plugins_reviews', { slug } ),
 		fetchFeaturedPlugins: () => ajaxRequest( 'openstation_plugins_featured' ),
+		fetchActionLinks: () => ajaxRequest( 'openstation_plugins_action_links' ),
 		// Core's `wp_ajax_install_plugin` — verified against the `updates`
 		// nonce, not our window-scoped one.
 		installPluginBySlug: ( slug ) => ajaxRequest( 'install-plugin', { slug }, 'updates' ),

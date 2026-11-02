@@ -29,7 +29,10 @@ function openstation_notes_heartbeat_received( $response, $data ) {
 	if ( empty( $data['openstation_notes_subscribe'] ) || ! is_array( $data['openstation_notes_subscribe'] ) ) {
 		return $response;
 	}
-	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
+	// `read` as well as the opt-in: the opt-in is network-wide user
+	// meta, and a multisite user with no role on this site must not
+	// read its public notes. Same floor as the REST routes.
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() || ! current_user_can( 'read' ) ) {
 		return $response;
 	}
 

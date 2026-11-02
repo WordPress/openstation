@@ -37,6 +37,7 @@ require_once __DIR__ . '/parts/insights.php';
 require_once dirname( __DIR__ ) . '/users/parts/permissions.php';
 require_once dirname( __DIR__ ) . '/users/parts/color-schemes.php';
 require_once dirname( __DIR__ ) . '/users/parts/fields.php';
+require_once dirname( __DIR__ ) . '/users/parts/plugin-sections.php';
 require_once dirname( __DIR__ ) . '/users/parts/facts.php';
 require_once dirname( __DIR__ ) . '/users/parts/profile-script.php';
 

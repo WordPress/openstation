@@ -1035,4 +1035,59 @@ class Tests_OpenStation_WindowLinks extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'revisionsUrl', $identity );
 		$this->assertSame( 1, $identity['revisionCount'] );
 	}
+
+	/**
+	 * `read_post` on a published row of a type with no front end resolves
+	 * to plain `read`, so an href to a plugin's internal record would
+	 * announce its type to any author; such a target asks `edit_post`.
+	 *
+	 * @covers ::openstation_window_links_can_read_post
+	 * @covers ::openstation_window_links_extract_references
+	 */
+	public function test_reference_extraction_withholds_a_non_viewable_type_from_a_reader() {
+		register_post_type(
+			'os_wl_internal',
+			array(
+				'public'       => false,
+				'show_ui'      => true,
+				'map_meta_cap' => true,
+			)
+		);
+		$target_id      = self::factory()->post->create(
+			array(
+				'post_type'   => 'os_wl_internal',
+				'post_status' => 'publish',
+				'post_title'  => 'Order 4321',
+			)
+		);
+		$contributor_id = self::factory()->user->create( array( 'role' => 'contributor' ) );
+		$draft_id       = self::factory()->post->create(
+			array(
+				'post_author'  => $contributor_id,
+				'post_status'  => 'draft',
+				'post_content' => 'See <a href="' . home_url( '?p=' . $target_id ) . '">this</a>.',
+			)
+		);
+
+		wp_set_current_user( $contributor_id );
+		$this->assertFalse( openstation_window_links_can_read_post( $target_id ) );
+		$this->assertNotContains(
+			array(
+				'type' => 'os_wl_internal',
+				'id'   => $target_id,
+			),
+			openstation_window_links_extract_references( get_post( $draft_id ) )
+		);
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertTrue( openstation_window_links_can_read_post( $target_id ) );
+		$this->assertContains(
+			array(
+				'type' => 'os_wl_internal',
+				'id'   => $target_id,
+			),
+			openstation_window_links_extract_references( get_post( $draft_id ) )
+		);
+		_unregister_post_type( 'os_wl_internal' );
+	}
 }

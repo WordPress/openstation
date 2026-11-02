@@ -275,3 +275,14 @@ test.each( [ 'shrink', 'grow' ] )( 'disposing the current owner during %s cancel
 	expect( layer.parentElement ).toBe( shell ); expect( layer.style.opacity ).toBe( '' );
 	expect( handle.setPosition ).toHaveBeenLastCalledWith( 240, 150 );
 } );
+
+test( 'the lease reports the response-action effects this shell renders, including write', () => {
+	const shell = document.createElement( 'div' ); const layer = document.createElement( 'div' );
+	shell.append( layer ); document.body.append( shell );
+	const handle = { getPosition: () => ( { x: 240, y: 150 } ), setPosition: vi.fn(), setAnimating: vi.fn(), applyConfig: vi.fn(), destroy: vi.fn() };
+	const residency = new MioResidency( { shell, layer: () => layer, focused: () => 'a', handle: () => handle, enabled: () => true, ready: async () => undefined } );
+	const lease = residency.register( 'a', makeWindow( 'a' ) );
+	expect( lease.responseActionEffects ).toEqual( [ 'read', 'navigate', 'write' ] );
+	expect( Object.isFrozen( lease.responseActionEffects ) ).toBe( true );
+	lease.dispose();
+} );

@@ -64,9 +64,37 @@ function openstation_agent_conversation_attachment_kinds() {
  * Register the conversation post type. Private plumbing: no admin UI,
  * no front-end queries, no revisions; rows die with their author.
  *
+ * Every capability maps to `do_not_allow`. Ownership is the whole
+ * access model (`openstation_agent_conversation_get_own()`), and the
+ * module's own routes are the only readers and writers. Left on the
+ * default `post` capabilities, a conversation row (always `publish`)
+ * answered `edit_post` for any holder of `edit_others_posts`, so the
+ * generic `desktop-mode/get-post` and `update-post` abilities, offered
+ * to the Copilot and to every default agent, handed an Editor any
+ * other user's transcript and let them rewrite it.
+ *
  * @return void
  */
 function openstation_agent_conversations_register_post_type() {
+	$closed = array_fill_keys(
+		array(
+			'edit_post',
+			'read_post',
+			'delete_post',
+			'edit_posts',
+			'edit_others_posts',
+			'edit_private_posts',
+			'edit_published_posts',
+			'publish_posts',
+			'read_private_posts',
+			'delete_posts',
+			'delete_private_posts',
+			'delete_published_posts',
+			'delete_others_posts',
+			'create_posts',
+		),
+		'do_not_allow'
+	);
 	register_post_type(
 		OPENSTATION_AGENT_CHAT_POST_TYPE,
 		array(
@@ -80,6 +108,9 @@ function openstation_agent_conversations_register_post_type() {
 			'query_var'           => false,
 			'supports'            => array( 'title', 'author' ),
 			'delete_with_user'    => true,
+			'capability_type'     => OPENSTATION_AGENT_CHAT_POST_TYPE,
+			'map_meta_cap'        => false,
+			'capabilities'        => $closed,
 		)
 	);
 }
@@ -449,7 +480,7 @@ function openstation_agent_conversation_preserve_text( $data, $postarr, $unsanit
  */
 function openstation_agents_rest_conversations_create( WP_REST_Request $request ) {
 	$agent_id = (int) $request['agentId'];
-	if ( ! function_exists( 'openstation_agent_is_agent' ) || ! openstation_agent_is_agent( $agent_id ) ) {
+	if ( ! function_exists( 'openstation_agent_get_site_agent' ) || ! openstation_agent_get_site_agent( $agent_id ) ) {
 		return new WP_Error(
 			'openstation_agent_not_found',
 			__( 'No agent with that id exists.', 'desktop-mode' ),

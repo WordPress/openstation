@@ -23,6 +23,11 @@
  * `edit_users` (agents are real users — managing them is user
  * management). All three are filterable.
  *
+ * Every `(?P<id>\d+)` route resolves its agent through
+ * `openstation_agent_get_site_agent()`: on multisite an agent that is
+ * not a member of the current site answers the same `404` as a missing
+ * id, the way Core's users controller treats a non-member user.
+ *
  * @package OpenStation
  */
 
@@ -326,8 +331,8 @@ function openstation_agents_rest_list() {
  * @return WP_REST_Response|WP_Error
  */
 function openstation_agents_rest_get( WP_REST_Request $request ) {
-	$user = get_userdata( (int) $request['id'] );
-	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
+	$user = openstation_agent_get_site_agent( (int) $request['id'] );
+	if ( ! $user ) {
 		return new WP_Error(
 			'openstation_agents_not_found',
 			__( 'Agent not found.', 'desktop-mode' ),
@@ -382,8 +387,8 @@ function openstation_agents_rest_create( WP_REST_Request $request ) {
  * @return WP_REST_Response|WP_Error
  */
 function openstation_agents_rest_patch( WP_REST_Request $request ) {
-	$user = get_userdata( (int) $request['id'] );
-	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
+	$user = openstation_agent_get_site_agent( (int) $request['id'] );
+	if ( ! $user ) {
 		return new WP_Error(
 			'openstation_agents_not_found',
 			__( 'Agent not found.', 'desktop-mode' ),
@@ -438,8 +443,8 @@ function openstation_agents_rest_patch( WP_REST_Request $request ) {
  */
 function openstation_agents_rest_delete( WP_REST_Request $request ) {
 	$user_id = (int) $request['id'];
-	$user    = get_userdata( $user_id );
-	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
+	$user    = openstation_agent_get_site_agent( $user_id );
+	if ( ! $user ) {
 		return new WP_Error(
 			'openstation_agents_not_found',
 			__( 'Agent not found.', 'desktop-mode' ),
@@ -468,8 +473,8 @@ function openstation_agents_rest_delete( WP_REST_Request $request ) {
  * @return WP_REST_Response|WP_Error
  */
 function openstation_agents_rest_invoke( WP_REST_Request $request ) {
-	$user = get_userdata( (int) $request['id'] );
-	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
+	$user = openstation_agent_get_site_agent( (int) $request['id'] );
+	if ( ! $user ) {
 		return new WP_Error(
 			'openstation_agents_not_found',
 			__( 'Agent not found.', 'desktop-mode' ),

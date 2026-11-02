@@ -121,7 +121,7 @@ const mount = (
 	const editor = document.createElement( 'os-textarea' ) as OsTextareaElement;
 	editor.className = 'dm-notes-pad__editor';
 	editor.setAttribute( 'aria-label', __( 'New note', 'desktop-mode' ) );
-	editor.setAttribute( 'placeholder', __( 'Write a note…', 'desktop-mode' ) );
+	editor.setAttribute( 'placeholder', __( 'Write a note… Markdown works, and - [ ] makes a to-do.', 'desktop-mode' ) );
 	editor.setAttribute( 'rows', '5' );
 	editor.setAttribute( 'auto-grow', '' );
 	editor.setAttribute( 'max-rows', '8' );
@@ -226,7 +226,7 @@ const mount = (
 		editor.setAttribute( 'value', '' );
 	};
 
-	/** A tiny "nothing to pin" shake for empty-draft attempts. */
+	/** A tiny shake: the pin did not take. */
 	const shakeSheet = (): void => {
 		if (
 			typeof window.matchMedia === 'function' &&
@@ -300,10 +300,6 @@ const mount = (
 		// The textarea keeps normal text editing; the corner keeps its
 		// click. Everything else on the sheet is a tear-off handle.
 		if ( target?.closest( 'os-textarea, .dm-notes-pad__corner' ) ) {
-			return;
-		}
-		if ( ! text.trim() ) {
-			shakeSheet();
 			return;
 		}
 		const dragManager = getDragManager();
@@ -386,23 +382,22 @@ const mount = (
 		if ( destroyed || ! canCreate || pinning ) {
 			return;
 		}
-		if ( ! text.trim() ) {
-			shakeSheet();
-			editor.focusInput?.();
-			return;
-		}
 		pinning = true;
 		try {
 			// A gentle cascade keeps repeated keyboard pins from
 			// stacking exactly on top of each other.
 			const slot = Math.floor( Date.now() / 1000 ) % 5;
+			const x = 0.55 + slot * 0.04;
+			const y = 0.12 + slot * 0.05;
 			const note = await createNote( {
 				text,
 				color,
-				x: 0.55 + slot * 0.04,
-				y: 0.12 + slot * 0.05,
+				x,
+				y,
 				public: isPublic,
-				seed: hashNoteSeed( text ),
+				// `hashNoteSeed('')` is a constant: blank notes take
+				// their tilt from where they land instead.
+				seed: hashNoteSeed( text || `${ x },${ y }` ),
 			} );
 			if ( destroyed ) {
 				return;

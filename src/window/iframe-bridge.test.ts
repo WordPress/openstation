@@ -602,6 +602,40 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( win.close ).not.toHaveBeenCalled();
 	} );
 
+	test( 'a tab-strip link to another page= slug switches the window in place', () => {
+		// Contributor Résumé and Insights gives each settings tab its
+		// own `page=`, so its Stats tab derived to a different slug
+		// and opened a second window. The same URL clicked outside a
+		// tab strip still opens one.
+		const { openWindow } = bindFakeDispatcher( {
+			deriveSlug: ( url ) =>
+				'options-general-php-page-' +
+				new URL( url, adminUrl ).searchParams.get( 'page' ),
+		} );
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'options-general-php-page-contributor-resume',
+		} );
+		const target =
+			adminUrl + 'options-general.php?page=contributor-resume-stats';
+
+		postToWindow( win, {
+			type: 'os-iframe-admin-link',
+			url: target,
+			inPageTab: true,
+		} );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+
+		postToWindow( win, { type: 'os-iframe-admin-link', url: target } );
+
+		expect( assignSpy ).toHaveBeenCalledTimes( 1 );
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( openWindow.mock.calls[ 0 ][ 0 ] ).toMatchObject( {
+			id: 'options-general-php-page-contributor-resume-stats',
+		} );
+	} );
+
 	test( 'live slug never narrows the same-page set — baseId still matches', () => {
 		// A window that navigated away from its landing page must still
 		// treat a link BACK to that landing page as in-place.

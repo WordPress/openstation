@@ -111,14 +111,22 @@ describe( 'note drop handlers', () => {
 		expect( canvasPayloadAccepts( payload, folderCtx ) ).toBe( false );
 	} );
 
-	test( 'empty drafts are refused', () => {
+	test( 'a blank draft pins too, with its editor open', () => {
 		const ctx = { folderId: 0, host: layer.host };
-		const payload = makeSession( NOTE_DRAFT_PAYLOAD_TYPE, {
+		const session = makeSession( NOTE_DRAFT_PAYLOAD_TYPE, {
 			text: '   ',
 			color: 'mint',
 			isPublic: false,
-		} ).payload;
-		expect( canvasPayloadAccepts( payload, ctx ) ).toBe( false );
+		} );
+		expect( canvasPayloadAccepts( session.payload, ctx ) ).toBe( true );
+		vi.useFakeTimers();
+		try {
+			expect( canvasPayloadDrop( session, { clientX: 304, clientY: 110 }, ctx ) ).toBe( true );
+			vi.runOnlyPendingTimers();
+		} finally {
+			vi.useRealTimers();
+		}
+		expect( document.querySelector( '.os-pinned-note' )?.classList.contains( 'is-editing' ) ).toBe( true );
 	} );
 
 	test( 'draft drop creates a note at the ghost-adjusted position', async () => {

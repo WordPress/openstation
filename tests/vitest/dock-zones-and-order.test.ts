@@ -18,6 +18,15 @@ import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest';
 import { Dock, type SystemDockItem } from '../../src/dock';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 import type { WindowManager } from '../../src/window-manager';
+import {
+	openItemVisibilityMenu,
+	openRailMenu,
+} from '../../src/item-visibility-menu-loader';
+
+vi.mock( '../../src/item-visibility-menu-loader', () => ( {
+	openItemVisibilityMenu: vi.fn(),
+	openRailMenu: vi.fn(),
+} ) );
 
 function makeManagerStub(): WindowManager {
 	return {
@@ -263,5 +272,49 @@ describe( 'the constellation handshake', () => {
 			'[data-system-id="os-empty"]',
 		);
 		expect( el?.dataset.constellationId ).toBeUndefined();
+	} );
+} );
+
+describe( 'right-click menus', () => {
+	let container: HTMLElement;
+
+	beforeEach( () => {
+		installHooksStub();
+		vi.mocked( openItemVisibilityMenu ).mockClear();
+		vi.mocked( openRailMenu ).mockClear();
+		container = document.createElement( 'nav' );
+		container.className = 'os-dock';
+		document.body.appendChild( container );
+	} );
+
+	afterEach( () => {
+		clearHooksStub();
+		document.body.innerHTML = '';
+	} );
+
+	const rightClick = ( el: Element ): void => {
+		el.dispatchEvent( new MouseEvent( 'contextmenu', { bubbles: true, cancelable: true } ) );
+	};
+
+	test( 'a tile opens its own menu, never the rail’s on top of it', () => {
+		const dock = new Dock( container, makeManagerStub(), [], '/wp-admin/', 'bottom' );
+		dock.appendSystemItem( tile( 'os-a', { navKind: 'control' } ) );
+
+		rightClick( container.querySelector( '.os-dock__item' )! );
+
+		expect( openItemVisibilityMenu ).toHaveBeenCalledTimes( 1 );
+		expect( openRailMenu ).not.toHaveBeenCalled();
+	} );
+
+	test( 'the empty rail opens the rail menu once, even after a rebuild', () => {
+		// The layout dispatcher rebuilds on the same container, so a
+		// listener the old dock left behind would open a second menu.
+		new Dock( container, makeManagerStub(), [], '/wp-admin/', 'bottom' ).destroy();
+		new Dock( container, makeManagerStub(), [], '/wp-admin/', 'bottom' );
+
+		rightClick( container );
+
+		expect( openRailMenu ).toHaveBeenCalledTimes( 1 );
+		expect( vi.mocked( openRailMenu ).mock.calls[ 0 ][ 0 ].rail ).toBe( 'dock' );
 	} );
 } );

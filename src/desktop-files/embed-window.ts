@@ -74,7 +74,9 @@ export function openEmbedWindow(
 	const windowId = placement
 		? `${ ID_PREFIX }${ placement.id }`
 		: `${ ID_PREFIX }anon-${ hash( url ) }`;
-	const customName = meta?.name?.trim() ?? '';
+	// `meta` is collaborator-writable JSON on a shared folder: a
+	// non-string `name` must fall back, not throw on `.trim()`.
+	const customName = typeof meta?.name === 'string' ? meta.name.trim() : '';
 	const title = customName !== '' ? customName : file.title();
 
 	const cfg: Record< string, unknown > = {

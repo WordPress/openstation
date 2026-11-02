@@ -89,7 +89,6 @@ EXCLUDE_PATHS=(
 	"vendor"
 	"packages"
 	"extensions"
-	"desktop-mode-code-editor"
 	"tests"
 	"bin"
 )

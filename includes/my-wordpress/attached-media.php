@@ -44,9 +44,9 @@ function openstation_my_wordpress_register_attached_media_field() {
 			$type,
 			'openstation_attached_media',
 			array(
-				'get_callback' => static function ( $post ) {
+				'get_callback' => static function ( $post, $field_name = '', $request = null ) {
 					$id = isset( $post['id'] ) ? (int) $post['id'] : 0;
-					return openstation_my_wordpress_post_attached_media( $id );
+					return openstation_my_wordpress_rest_attached_media( $id, $request );
 				},
 				'schema'       => array(
 					'description' => __( 'Attachment ids referenced by this post — featured image plus every attachment found in post_content (block-class scan + raw `<img src>` URL resolution).', 'desktop-mode' ),
@@ -60,6 +60,46 @@ function openstation_my_wordpress_register_attached_media_field() {
 	}
 }
 add_action( 'rest_api_init', 'openstation_my_wordpress_register_attached_media_field' );
+
+/**
+ * The `openstation_attached_media` value for one REST row, gated on the
+ * post's password.
+ *
+ * The id list is read out of `post_content`, so on a post still sealed
+ * by its password it is a piece of the sealed body — and the field
+ * rides `wp/v2` rows, which anyone (logged out included) may list.
+ * Core answers such a row with an empty `content.rendered`; this answers
+ * with the featured image alone, which Core exposes on the same row as
+ * `featured_media`. The body's ids go out when the caller can edit the
+ * post, has entered the password (`post_password_required()` is
+ * false), or passed the matching `password` query parameter — the
+ * three ways in that Core's `WP_REST_Posts_Controller` offers.
+ *
+ * @param int                  $post_id Post id.
+ * @param WP_REST_Request|null $request The request the row answers.
+ * @return int[]
+ */
+function openstation_my_wordpress_rest_attached_media( $post_id, $request = null ) {
+	$post_id = (int) $post_id;
+	$post    = $post_id > 0 ? get_post( $post_id ) : null;
+	if ( ! $post instanceof WP_Post ) {
+		return array();
+	}
+
+	if ( post_password_required( $post ) && ! current_user_can( 'edit_post', $post->ID ) ) {
+		$password = '';
+		if ( $request instanceof WP_REST_Request ) {
+			$query    = $request->get_query_params();
+			$password = isset( $query['password'] ) && is_string( $query['password'] ) ? $query['password'] : '';
+		}
+		if ( '' === $password || ! hash_equals( (string) $post->post_password, $password ) ) {
+			$thumb = (int) get_post_thumbnail_id( $post );
+			return $thumb > 0 ? array( $thumb ) : array();
+		}
+	}
+
+	return openstation_my_wordpress_post_attached_media( $post_id );
+}
 
 /**
  * Resolve every attachment referenced by `$post_id`. Featured

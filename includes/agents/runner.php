@@ -152,8 +152,11 @@ function openstation_agent_runner_available() {
  * @return array|WP_Error `{ text: string, callToActions: array, toolCalls: array, turns: int }` on success.
  */
 function openstation_agent_invoke( $agent_user_id, $message, $context = array() ) {
-	$user = get_userdata( (int) $agent_user_id );
-	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
+	// Every dispatch path (the REST invoke route, the async job worker,
+	// "Send to", hook triggers) converges here, so this is where an
+	// agent from another site of the network is refused for all of them.
+	$user = openstation_agent_get_site_agent( (int) $agent_user_id );
+	if ( ! $user ) {
 		return new WP_Error(
 			'openstation_agent_not_found',
 			__( 'Agent not found.', 'desktop-mode' )
