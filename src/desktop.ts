@@ -150,6 +150,7 @@ import { iconsApi, renderDesktopIcons, type IconsApi } from './desktop-icons';
 import type { OsIconSetApi } from './ui/icons';
 import {
 	createLayoutDispatcher,
+	NAV_CHANGED_EVENT,
 	type LayoutDispatcher,
 } from './desktop-layout';
 // `createApplyPayload` is consumed inside `boot/menu-refresh.ts`.
@@ -5027,12 +5028,16 @@ function init(): void {
 					},
 					subscribeNav: ( cb ) => {
 						const unsubscribeSettings = osSettings.subscribeOsSettings( cb );
+						const unsubscribeBadge = activity.subscribe( 'os/badge-changed', () => cb() );
 						document.addEventListener( 'os-layout-changed', cb );
 						document.addEventListener( 'os-registry-changed', cb );
+						document.addEventListener( NAV_CHANGED_EVENT, cb );
 						return () => {
 							unsubscribeSettings();
+							unsubscribeBadge();
 							document.removeEventListener( 'os-layout-changed', cb );
 							document.removeEventListener( 'os-registry-changed', cb );
+							document.removeEventListener( NAV_CHANGED_EVENT, cb );
 						};
 					},
 					wallpaper: {
