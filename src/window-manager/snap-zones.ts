@@ -2,18 +2,22 @@
  * OpenStation — Snap zones.
  *
  * Windows-style edge snapping. While a window is being dragged, the
- * shell watches the cursor for proximity to the left or right edge
- * of the desktop area. When the cursor enters the edge threshold:
+ * shell watches the cursor for proximity to the left, right, or top
+ * edge of the desktop area. When the cursor enters the edge threshold:
  *
- *   1. A translucent preview rectangle appears in the target half so
+ *   1. A translucent preview rectangle appears in the target landing
+ *      area (the target half for left/right, full work area for top) so
  *      the user sees where the window will land before committing.
- *   2. On pointerup inside the zone, the window animates to the
- *      target half via the base window CSS transition, state flips
- *      to `snapped-left` / `snapped-right`, and a hook fires.
- *   3. After the commit animation settles, the shell hands off to
- *      {@link ./split-overview.ts} which shows every OTHER window in
- *      the OPPOSITE half so the user can pick a partner for the
- *      split.
+ *   2. On pointerup inside the zone:
+ *      - Left/right: the window animates to the target half via the base
+ *        window CSS transition, state flips to `snapped-left` /
+ *        `snapped-right`, and a hook fires.
+ *      - Top: the window maximizes to the full work area via
+ *        `win.maximize()`, state flips to `maximized`, and a hook fires.
+ *   3. For left/right snaps, after the commit animation settles, the shell
+ *      hands off to {@link ./split-overview.ts} which shows every OTHER
+ *      window in the OPPOSITE half so the user can pick a partner for the
+ *      split. Top maximize skips split overview.
  *
  * All DOM + state mutation lives on the `WindowManager` instance via
  * the `_` prefixed internal fields. That way pointer.ts (in the
