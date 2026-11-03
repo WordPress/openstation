@@ -144,6 +144,27 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		expect( pendingAfter ).toBe( pendingBefore + 1 );
 	} );
 
+	test( 'updateSnapZoneForDrag fires pending when entering top zone and canceled when leaving', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
+		const log = recordActions( hooks, SNAP_HOOKS );
+
+		// Enter the top zone in the middle of the screen.
+		updateSnapZoneForDrag( manager, win, 800, 10 );
+		const pending = log.find( ( e ) => e.name === 'os.snap.zone-pending' );
+		expect( pending ).toBeDefined();
+		expect( ( pending!.args[ 0 ] as { zone: string } ).zone ).toBe( 'top' );
+
+		// Move down toward the middle of the screen — cancels.
+		updateSnapZoneForDrag( manager, win, 800, 400 );
+		expect( log.some( ( e ) => e.name === 'os.snap.zone-canceled' ) ).toBe( true );
+
+		// Re-enter top zone.
+		const pendingBefore = log.filter( ( e ) => e.name === 'os.snap.zone-pending' ).length;
+		updateSnapZoneForDrag( manager, win, 800, 5 );
+		const pendingAfter = log.filter( ( e ) => e.name === 'os.snap.zone-pending' ).length;
+		expect( pendingAfter ).toBe( pendingBefore + 1 );
+	} );
+
 	test( 'updateSnapZoneForDrag is idempotent within the same zone', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
 		const log = recordActions( hooks, SNAP_HOOKS );
