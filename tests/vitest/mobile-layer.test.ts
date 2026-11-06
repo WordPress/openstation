@@ -360,4 +360,32 @@ describe( 'mountMobileLayer', () => {
 		expect( layer.getState() ).toBe( 'home' );
 		layer.unmount();
 	} );
+
+	test( 'subscribeNav callback repaints tile and tab bar badges when navigation updates', () => {
+		let navSubscriber: ( () => void ) | null = null;
+		let badgeCount = 0;
+		const { d, shell } = deps( [], {
+			getBadge: ( item ) => ( item.id === 'edit.php' ? badgeCount : 0 ),
+			subscribeNav: ( cb ) => {
+				navSubscriber = cb;
+				return () => {
+					navSubscriber = null;
+				};
+			},
+		} );
+		const layer = mountMobileLayer( d );
+
+		expect( shell.querySelector( '.os-mobile-tile[data-nav-id="edit.php"] .os-mobile-tile__badge' ) ).toBeNull();
+		expect( shell.querySelector( '.os-mobile-tabs__item[data-tab="edit.php"] .os-mobile-tabs__badge' ) ).toBeNull();
+
+		badgeCount = 5;
+		navSubscriber?.();
+
+		const tileBadge = shell.querySelector( '.os-mobile-tile[data-nav-id="edit.php"] .os-mobile-tile__badge' );
+		expect( tileBadge?.textContent ).toBe( '5' );
+		const tabBadge = shell.querySelector( '.os-mobile-tabs__item[data-tab="edit.php"] .os-mobile-tabs__badge' );
+		expect( tabBadge?.textContent ).toBe( '5' );
+
+		layer.unmount();
+	} );
 } );

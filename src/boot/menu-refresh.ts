@@ -57,6 +57,94 @@ const MENU_REFRESH_TIMEOUT_MS = 8000;
  */
 const UPDATES_REFRESH_DEBOUNCE_MS = 600;
 
+/**
+ * Least time between two resume-time menu refresh checks.
+ *
+ * Each check is one small request for a hidden menu refresh probe.
+ * Five minutes matches the service-worker resume check
+ * (`SW_RESUME_CHECK_MIN_INTERVAL_MS`), keeping tile badges (e.g.
+ * plugin updates) and admin-bar counts fresh when an installed app
+ * on iOS or Android wakes from the background.
+ */
+export const MENU_RESUME_CHECK_MIN_INTERVAL_MS = 5 * 60_000;
+
+let _unbindResumeMenuCheck: ( () => void ) | null = null;
+let _lastResumeMenuCheckAt = 0;
+
+/** Record that a fresh menu payload was received so resume probes don't duplicate. */
+export function noteMenuRefreshed( at = Date.now() ): void {
+	_lastResumeMenuCheckAt = at;
+}
+
+/**
+ * Check for updated menu/navigation payload whenever the page comes
+ * back to the foreground.
+ *
+ * An installed app on a phone rarely navigates: iOS keeps the page
+ * alive in the background for days and brings the same document back
+ * every time the icon is tapped. Without this check, badge counts
+ * (e.g. pending plugin updates) stay frozen at their boot-time
+ * values.
+ *
+ * Re-checks on `visibilitychange` to visible and `pageshow`
+ * (back-forward cache), throttled to {@link MENU_RESUME_CHECK_MIN_INTERVAL_MS}.
+ */
+export function bindResumeMenuRefresh(
+	refresh: () => Promise< void >,
+	minIntervalMs = MENU_RESUME_CHECK_MIN_INTERVAL_MS,
+): () => void {
+	if ( _unbindResumeMenuCheck ) {
+		return _unbindResumeMenuCheck;
+	}
+	// The boot payload counts as a fresh check.
+	_lastResumeMenuCheckAt = Date.now();
+
+	const check = (): void => {
+		if ( typeof document !== 'undefined' && document.visibilityState === 'hidden' ) {
+			return;
+		}
+		const now = Date.now();
+		if ( now - _lastResumeMenuCheckAt < minIntervalMs ) {
+			return;
+		}
+		_lastResumeMenuCheckAt = now;
+		try {
+			void refresh().catch( () => {
+				/* Offline or timeout; the next return asks again. */
+			} );
+		} catch {
+			/* Shell unmounted or torn down. */
+		}
+	};
+
+	if ( typeof document !== 'undefined' ) {
+		document.addEventListener( 'visibilitychange', check );
+	}
+	if ( typeof window !== 'undefined' ) {
+		window.addEventListener( 'pageshow', check );
+	}
+
+	_unbindResumeMenuCheck = () => {
+		if ( typeof document !== 'undefined' ) {
+			document.removeEventListener( 'visibilitychange', check );
+		}
+		if ( typeof window !== 'undefined' ) {
+			window.removeEventListener( 'pageshow', check );
+		}
+		_unbindResumeMenuCheck = null;
+		_lastResumeMenuCheckAt = 0;
+	};
+
+	return _unbindResumeMenuCheck;
+}
+
+/** Test-only: reset resume menu check state. */
+export function _resetResumeMenuCheck(): void {
+	_unbindResumeMenuCheck?.();
+	_unbindResumeMenuCheck = null;
+	_lastResumeMenuCheckAt = 0;
+}
+
 export interface MenuRefreshDeps {
 	layoutDispatcher: LayoutDispatcher | null;
 	desktopArea: HTMLElement;
@@ -181,8 +269,12 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 	let updatesRefreshTimer: number | null = null;
 	let updatesRefreshInFlight = false;
 	let updatesRefreshQueued = false;
+	let refreshInFlight: Promise< void > | null = null;
 
 	const refresh = (): Promise< void > => {
+		if ( refreshInFlight ) {
+			return refreshInFlight;
+		}
 		if ( ! config.adminUrl ) {
 			return Promise.resolve();
 		}
@@ -200,7 +292,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			return Promise.resolve();
 		}
 
-		return new Promise< void >( ( resolve ) => {
+		refreshInFlight = new Promise< void >( ( resolve ) => {
 			const iframe = document.createElement( 'iframe' );
 			// Off-screen + zero-cost: pulled out of the layout flow
 			// entirely so it can't shift content, and styled small
@@ -249,7 +341,12 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 
 			window.addEventListener( 'message', onMessage );
 			document.body.appendChild( iframe );
+		} ).finally( () => {
+			refreshInFlight = null;
+			noteMenuRefreshed();
 		} );
+
+		return refreshInFlight;
 	};
 
 	const runUpdatesRefresh = (): void => {
@@ -368,6 +465,10 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			}
 		}
 	} );
+
+	// Re-check navigation payload when returning to foreground on a phone
+	// or waking after sleep.
+	bindResumeMenuRefresh( refresh );
 
 	return refresh;
 }
