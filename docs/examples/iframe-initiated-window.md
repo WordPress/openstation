@@ -164,5 +164,4 @@ If `wp.os.send(...)` (or `wp.os.iframe.publish(...)`) does nothing visible:
 ## Related
 
 - [`connect-to-window.md`](./connect-to-window.md) — the inverse topology (parent-initiated).
-- [`code-editor-open.md`](./code-editor-open.md) — sibling-window opens via a different protocol (`os-code-open` postMessage).
 - [`../bridge-protocol.md`](../bridge-protocol.md) — full message catalog.

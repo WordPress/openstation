@@ -22,9 +22,10 @@ import '../../../src/ui/components/os-card/os-card';
 import '../../../src/ui/components/os-chip/os-chip';
 import '../../../src/ui/components/os-cluster/os-cluster';
 import '../../../src/ui/components/os-grid/os-grid';
+import '../../../src/ui/components/os-icon/os-icon';
 import '../../../src/ui/components/os-stack/os-stack';
 import '../../../src/ui/components/os-tabs/os-tabs';
-import { externalLink, fallbackGlyph, htmlBlock, linkButton, stripHtml, wpOrgUrl } from './html';
+import { externalLink, htmlBlock, linkButton, stripHtml, wpOrgUrl } from './html';
 import { attachIconFallback } from './icon-fallback';
 import { buildStarCluster } from './card';
 import { emptyState, loadingLine, renderReviews } from './reviews';
@@ -136,11 +137,11 @@ function buildHero( row: InstalledPlugin ): HTMLElement {
 		img.loading = 'lazy';
 		img.decoding = 'async';
 		img.src = attachIconFallback( img, iconUrl, () => {
-			iconTile.replaceChildren( fallbackGlyph() );
+			iconTile.replaceChildren( detailIcon( 'admin-plugins', 20 ) );
 		} );
 		iconTile.appendChild( img );
 	} else {
-		iconTile.appendChild( fallbackGlyph() );
+		iconTile.appendChild( detailIcon( 'admin-plugins', 20 ) );
 	}
 
 	const titleBlock = document.createElement( 'os-stack' );
@@ -410,9 +411,7 @@ function pushFactCard( parent: HTMLElement, icon: string, label: string, value: 
 	const head = document.createElement( 'div' );
 	head.setAttribute( 'slot', 'header' );
 	head.className = 'os-plugins__detail-fact-head';
-	const ico = document.createElement( 'span' );
-	ico.className = `dashicons dashicons-${ icon }`;
-	ico.setAttribute( 'aria-hidden', 'true' );
+	const ico = detailIcon( icon, 14 );
 	const lab = document.createElement( 'span' );
 	lab.textContent = label;
 	head.append( ico, lab );
@@ -430,14 +429,31 @@ function pushFactCard( parent: HTMLElement, icon: string, label: string, value: 
 
 // ─── Small helpers ─────────────────────────────────────────────────
 
+/**
+ * Create an `<os-icon>` element configured for the inspector.
+ *
+ * Bare Dashicons spans rely on the document-level stylesheet which
+ * cannot penetrate this inspector's shadow DOM boundary. `<os-icon>`
+ * resolves the glyph codepoint at runtime and emits it as text
+ * content so it renders reliably inside any shadow root.
+ *
+ * @param name Dashicon slug or class name.
+ * @param size Icon size in pixels. Defaults to 14.
+ * @return The configured `<os-icon>` element.
+ */
+function detailIcon( name: string, size = 14 ): HTMLElement {
+	const ico = document.createElement( 'os-icon' );
+	ico.setAttribute( 'name', name );
+	ico.setAttribute( 'size', String( size ) );
+	return ico;
+}
+
 function chip( icon: string, label: string ): HTMLElement {
 	const c = document.createElement( 'os-chip' );
 	c.setAttribute( 'label', label );
 	c.setAttribute( 'tone', 'neutral' );
-	const ico = document.createElement( 'span' );
+	const ico = detailIcon( icon, 14 );
 	ico.setAttribute( 'slot', 'icon' );
-	ico.className = `dashicons dashicons-${ icon }`;
-	ico.setAttribute( 'aria-hidden', 'true' );
 	c.appendChild( ico );
 	return c;
 }

@@ -45,7 +45,9 @@ function openstation_games_heartbeat_received( $response, $data ) {
 	if ( empty( $data['openstation_games_subscribe'] ) || ! is_array( $data['openstation_games_subscribe'] ) ) {
 		return $response;
 	}
-	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
+	// `read` on top of the opt-in: user meta is network-wide, the role
+	// is per site. The games REST gate asks the same.
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() || ! current_user_can( 'read' ) ) {
 		return $response;
 	}
 

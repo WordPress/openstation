@@ -31,7 +31,13 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Base permission: logged-in + OpenStation enabled.
+ * Base permission: logged-in + OpenStation enabled + a role on this site.
+ *
+ * `read` is the floor for the multisite case: the OpenStation opt-in is
+ * network-wide user meta and the REST nonce is not site-bound, so
+ * without it a member of one site could pin public notes onto, and
+ * read the public notes of, a site they do not belong to. See
+ * {@see openstation_rest_require_enabled()}.
  *
  * @return true|WP_Error
  */
@@ -41,6 +47,9 @@ function openstation_notes_rest_permission() {
 	}
 	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled( get_current_user_id() ) ) {
 		return new WP_Error( 'openstation_notes_disabled', __( 'OpenStation is not enabled for this user.', 'desktop-mode' ), array( 'status' => 403 ) );
+	}
+	if ( ! current_user_can( 'read' ) ) {
+		return new WP_Error( 'openstation_notes_forbidden', __( 'You cannot use notes on this site.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 	return true;
 }

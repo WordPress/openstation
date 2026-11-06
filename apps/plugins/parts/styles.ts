@@ -18,7 +18,7 @@ const PANEL_STYLES = `
 .os-plugins__detail-hero-inner { display: flex; align-items: center; gap: 14px; padding: 14px 24px; }
 .os-plugins__detail-hero-icon { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; background: var( --os-ui-surface, rgba( 0, 0, 0, 0.04 ) ); box-shadow: 0 0 0 1px var( --os-ui-border, rgba( 0, 0, 0, 0.08 ) ) inset; display: flex; align-items: center; justify-content: center; }
 .os-plugins__detail-hero-icon img { width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
-.os-plugins__detail-hero-icon .dashicons { font-size: 20px; width: 20px; height: 20px; line-height: 20px; color: var( --os-ui-fg-muted, #888 ); }
+.os-plugins__detail-hero-icon os-icon, .os-plugins__detail-hero-icon .dashicons { font-size: 20px; width: 20px; height: 20px; line-height: 20px; color: var( --os-ui-fg-muted, #888 ); }
 .os-plugins__detail-hero-text { flex: 1 1 auto; min-width: 0; }
 .os-plugins__detail-title { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.25; letter-spacing: -0.005em; color: var( --os-ui-fg, inherit ); }
 .os-plugins__detail-byline { margin: 0; font-size: 12.5px; color: var( --os-ui-fg-muted, #666 ); }
@@ -48,7 +48,7 @@ const PANEL_STYLES = `
 .os-plugins__detail-grid { width: 100%; }
 .os-plugins__detail-fact { min-width: 0; }
 .os-plugins__detail-fact-head { display: flex; align-items: center; gap: 8px; color: var( --os-ui-fg-muted, #666 ); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
-.os-plugins__detail-fact-head .dashicons { font-size: 14px; width: 14px; height: 14px; line-height: 14px; }
+.os-plugins__detail-fact-head os-icon, .os-plugins__detail-fact-head .dashicons { font-size: 14px; width: 14px; height: 14px; line-height: 14px; }
 .os-plugins__detail-fact-value { font-size: 14px; color: var( --os-ui-fg, inherit ); word-break: break-word; overflow-wrap: anywhere; font-weight: 500; }
 .os-plugins__detail-fact-value code { font-family: var( --os-ui-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace ); font-size: 12.5px; background: var( --os-ui-surface-sunken, rgba( 0, 0, 0, 0.06 ) ); padding: 2px 7px; border-radius: 4px; font-weight: 400; }
 .os-plugins__detail-fact-value a { color: var( --wp-admin-theme-color, #2271b1 ); text-decoration: none; }

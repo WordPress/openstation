@@ -234,6 +234,29 @@ Jetpack mounts its Stats (`admin.php?page=stats`) and Blaze (`?page=advertising`
 
 **Test**: `tests/vitest/chromeless-bridge-links.test.ts` — both directions, run against the emitted script in jsdom.
 
+### WordPress.com / Jetpack notifications under a hidden admin bar
+
+Jetpack's Notifications module, and the WordPress.com masterbar that shares its markup, put a bell in the admin bar: `#wp-admin-bar-notes`, whose `#wpnt-notes-unread-count` carries the unread state, and a panel (`#wpnt-notes-panel2`, or `-panel3` on the v3 opt-in) that Jetpack's own script fills with an iframe and toggles from a click on the bell. The shell hides the bar by default (`adminBarMode: 'hidden'`), so out of the box the bell, its count and its panel never showed, and the only way back to them was the whole bar.
+
+**Fix**, while the mode is `hidden` and only on a site that registers the node:
+
+1. `src/admin-bar-notes.ts` adds a **Notifications** dock tile (`os-notifications`, a `control` tile ahead of Site assistant, placeable in Preferences → Navigation). Its badge mirrors the bell's count, and a click clicks the bell, so the panel, the unread logic and the keyboard handling stay Jetpack's. In `static` and `dynamic` the bell is on the bar and the tile is removed; the mode is read off the `os-admin-bar-<mode>` body class, so it follows the `openstation_admin_bar_mode` filter, and a switch in Preferences lands without a reload.
+2. `desktop.css` keeps the bar laid out instead of `display: none` on those sites, as `visibility: hidden` at zero height, and turns `visibility` back on for the panel alone. Hidden items take no pointer events and no focus, and a zero-height bar publishes no `--os-admin-bar-height`, so the rest of the desktop sees no bar. Third-party CSS or script that reads the bar's `display` sees `block` at zero height on those sites, not `none`. Fullscreen and solo still remove it.
+
+Jetpack closes the panel on a press outside it, and a press on the tile is one. The tile therefore decides between opening and closing from the state the press found, and clicks the bell only after its own click has finished bubbling. A click inside a window's iframe never reaches the shell document, so it does not close the panel; that is true of the bell in `static` mode too. The node is looked up once, when the shell boots: Jetpack renders it server-side, and a bell added to the page later gets no tile.
+
+**Test**: `tests/vitest/admin-bar-notes.test.ts`, against Jetpack's markup and a stand-in for its toggle.
+
+### WooCommerce order row clicks
+
+WooCommerce's `wc-orders.js` binds a delegated click handler to the body cells of the order list (`tbody td` and `tbody th`, minus `.check-column`), on both the legacy CPT table (`.post-type-shop_order .wp-list-table`, `edit.php?post_type=shop_order`) and the HPOS one (`.woocommerce_page_wc-orders .wp-list-table.orders`, `admin.php?page=wc-orders`). A click that lands on anything but a link, a button or a `.no-link` element (the date, the status badge, the total, the cell's padding) reads the row's `a.order-view` and runs `window.location = href`, so in classic admin the whole row acts as a link. Inside OpenStation that raw in-iframe navigation replaced the Orders list window in place, discarding the list.
+
+**Fix**: `resolveOrderRowLink()` in `src/chromeless-bridge.js` claims those clicks first, in the capture phase. A click inside a body cell (`tbody td` / `tbody th`) of an order table resolves to the row's `a.order-view` and is routed through `os-iframe-admin-link`, so the order opens in its own window beside the list. It yields, and WooCommerce's own handling applies, when text is selected or the click lands on a control: `button`, `input`, `select`, `textarea`, `label`, `.check-column`, `.order-preview`, `.no-link` or `.wc_actions`. Header and footer cells are never claimed, so a click on a column title still sorts. Only a claimed row click calls `stopPropagation()` and `stopImmediatePropagation()`, which keeps WooCommerce's bubble-phase handler from navigating in place as well; ordinary link clicks still reach the page's own listeners.
+
+The match also covers `table.wc-orders-list-table`, the class WooCommerce's HPOS list table gives every order type's list, so the list screens of other HPOS order types (an extension's, such as Subscriptions) get the same claim wherever their rows carry an `a.order-view` link, even though WooCommerce does not make those rows clickable.
+
+**Test**: `tests/vitest/chromeless-bridge-links.test.ts`.
+
 ### Elementor 4's legacy menus
 
 Elementor 4 keeps its old **Elementor** menu and the **Templates** menu registered for their URLs, under the new `elementor-home` menu, and hides both from the classic sidebar with CSS the dock can't see. **Fix**: `includes/compat/elementor.php` hides those two slugs through `openstation_dock_placement` once `elementor-home` exists. The same file prints the navigation ping in Elementor's editor head, which never fires `admin_head`. **Test**: `tests/phpunit/tests/openStationBuildDockItems.php`.

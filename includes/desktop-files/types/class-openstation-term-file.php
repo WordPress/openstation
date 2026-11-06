@@ -65,8 +65,11 @@ class OpenStation_Term_File extends OpenStation_File {
 	}
 
 	/**
-	 * Check whether the user can edit terms in this taxonomy or
-	 * has the base `read` capability.
+	 * Check whether the user can edit terms in this taxonomy, or has
+	 * the base `read` capability and the taxonomy is publicly
+	 * viewable. A term of an internal taxonomy (nav menus, a plugin's
+	 * private labels) has no front end to read it from, so its name
+	 * and count are for the people who manage it.
 	 *
 	 * @param int $user_id
 	 * @return bool
@@ -80,7 +83,10 @@ class OpenStation_Term_File extends OpenStation_File {
 		if ( ! $tax ) {
 			return false;
 		}
-		return user_can( $user_id, $tax->cap->edit_terms ) || user_can( $user_id, 'read' );
+		if ( user_can( $user_id, $tax->cap->edit_terms ) ) {
+			return true;
+		}
+		return is_taxonomy_viewable( $tax ) && user_can( $user_id, 'read' );
 	}
 
 	/**

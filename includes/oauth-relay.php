@@ -364,6 +364,29 @@ function openstation_rest_oauth_callback( WP_REST_Request $request ) {
 	$service = $consumed['service'];
 	$user_id = $consumed['user_id'];
 
+	// The state names who STARTED the flow, not who is finishing it. An
+	// authorize URL is a plain link: a user who starts a flow and hands
+	// theirs to someone else would otherwise have that person's
+	// authorization land on their own account, tokens and all. The
+	// popup is a top-level navigation, so the browser that finishes the
+	// flow sends its `logged_in` cookie (REST cookie auth ignores it
+	// without a nonce, hence the direct read); when it belongs to a
+	// different account, or to none (a browser not logged in here at
+	// all, where a handed-over link most often lands), the flow stops
+	// before the code is exchanged. The starting browser always holds
+	// the cookie: the start request is a REST call from the shell.
+	$browser_user = (int) wp_validate_auth_cookie( '', 'logged_in' );
+	if ( $browser_user <= 0 || $browser_user !== (int) $user_id ) {
+		return openstation_oauth_render_callback_html(
+			array(
+				'ok'      => false,
+				'service' => $service,
+				'reason'  => 'session_mismatch',
+				'message' => __( 'This authorization was started by a different account.', 'desktop-mode' ),
+			)
+		);
+	}
+
 	if ( '' !== $error ) {
 		return openstation_oauth_render_callback_html(
 			array(

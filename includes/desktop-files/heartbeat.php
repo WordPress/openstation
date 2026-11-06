@@ -56,7 +56,10 @@ function openstation_files_heartbeat_received( $response, $data ) {
 	if ( empty( $data['openstation_files_subscribe'] ) || ! is_array( $data['openstation_files_subscribe'] ) ) {
 		return $response;
 	}
-	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
+	// `read` on top of the opt-in: the opt-in is network-wide user meta,
+	// so on a multisite it says nothing about this site. The REST gate
+	// asks the same.
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() || ! current_user_can( 'read' ) ) {
 		return $response;
 	}
 

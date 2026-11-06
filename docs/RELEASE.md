@@ -91,8 +91,8 @@ The zip has the exact contents the workflow uploads.
 
 ## Packaging extensions
 
-Sibling plugins under `extensions/` (e.g. `desktop-mode-cron-manager`,
-`desktop-mode-phpmyadmin`) are packaged separately with:
+Sibling plugins under `extensions/` (e.g. `desktop-mode-popup-siege`,
+`desktop-mode-feed-buddy`) are packaged separately with:
 
 ```bash
 ./bin/package-extensions.sh             # writes to dist/
@@ -106,9 +106,8 @@ The script iterates every directory under `extensions/` that has a
 matching `<slug>.php` plugin file. For each, it:
 
 1. Runs any `bin/fetch-*.sh` scripts the extension ships with — these
-   are idempotent vendor fetchers (e.g. `desktop-mode-phpmyadmin`'s
-   `bin/fetch-phpmyadmin.sh` pulls a SHA-256-pinned phpMyAdmin 5.2.3
-   zip into `assets/vendor/phpmyadmin/`, the directory is gitignored).
+   are idempotent vendor fetchers that fill a gitignored
+   `assets/vendor/` directory).
 2. Stages tracked + untracked-but-not-gitignored files via
    `git ls-files -co --exclude-standard`, so packaging works on
    uncommitted work too. If an extension ships a `.distignore`, matching

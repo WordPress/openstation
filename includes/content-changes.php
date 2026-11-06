@@ -565,6 +565,12 @@ function openstation_content_changes_heartbeat_received( $response, $data ) {
 	if ( ! isset( $data['openstation_content_changes_seen_ts'] ) ) {
 		return $response;
 	}
+	// The same floor as the notes and presence heartbeats: only the
+	// shell consumes this log, and a multisite user with no role on
+	// this site has no business reading what changed on it.
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() || ! current_user_can( 'read' ) ) {
+		return $response;
+	}
 
 	$seen = (int) $data['openstation_content_changes_seen_ts'];
 	$log  = get_option( OPENSTATION_CONTENT_CHANGES_LOG_OPTION, array() );

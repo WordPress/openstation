@@ -132,8 +132,9 @@ add_action( 'rest_api_init', 'openstation_recycle_bin_register_rest_routes' );
  * Route-level permission gate.
  *
  * Per-item capability checks happen inside the store layer; here we
- * only enforce "logged-in user with OpenStation opted in" — same
- * baseline as every other desktop REST surface.
+ * only enforce "logged-in user with OpenStation opted in and `read`
+ * on this site" — same baseline as every other desktop REST surface
+ * (the opt-in is network-wide user meta; `read` is the per-site floor).
  *
  * @return bool|WP_Error
  */
@@ -149,6 +150,13 @@ function openstation_recycle_bin_rest_permission() {
 		return new WP_Error(
 			'rest_forbidden',
 			__( 'OpenStation is not enabled for this user.', 'desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
+	if ( ! current_user_can( 'read' ) ) {
+		return new WP_Error(
+			'rest_forbidden',
+			__( 'Sorry, you are not allowed to use the recycle bin on this site.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
 	}

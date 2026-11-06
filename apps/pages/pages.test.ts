@@ -88,6 +88,18 @@ describe( 'the pages view', () => {
 		expect( ( root.querySelector( 'os-tabs' ) as HTMLElement & { value: string } ).value ).toBe( 'new' );
 	} );
 
+	// The Pages window has no stylesheet of its own, so the Add Page
+	// embed has to be sized by the view's inline styles. As a plain
+	// block it shrinks to the iframe's 150px default and squeezes the
+	// editor and its "Choose a pattern" modal into that strip.
+	it( 'sizes the Add Page editor host to fill its tab panel', () => {
+		const { root } = mount( [] );
+		const host = root.querySelector< HTMLElement >( '[data-os-posts-editor]' )!;
+		const style = getComputedStyle( host );
+		expect( style.display ).toBe( 'flex' );
+		expect( style.flexGrow ).toBe( '1' );
+	} );
+
 	it( 'paints the hierarchical columns, sorted by menu order, and falls back to it when a sort is cleared', () => {
 		const { root, dispatch } = mount( [ row( 1 ), row( 2, { parent: 1 } ) ] );
 		const table = root.querySelector( '[data-os-posts-table]' ) as HTMLElement & {

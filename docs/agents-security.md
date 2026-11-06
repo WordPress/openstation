@@ -122,6 +122,21 @@ a role plugin hands `edit_users` to a shop-manager-shaped role, which
 mints an administrator agent, which then acts with capabilities its
 creator never had.
 
+## An agent belongs to one site
+
+On a network, users are global but agents are not: an agent is a user
+of the site it was created on, and every path that takes an agent id
+from a client (`GET`/`POST`/`DELETE /agents/{id}`, `/agents/{id}/invoke`,
+`POST /agents/conversations`) and the runner itself resolve it through
+`openstation_agent_get_site_agent()`, which asks
+`is_user_member_of_blog()` after the marker meta. Without that question
+the marker alone let an `edit_posts` holder on one site read another
+site's agent definitions (instructions, abilities, triggers, model),
+rewrite them, delete them, and run them. A non-member answers the same
+`404` as a missing id, never a `403`, so the route does not confirm that
+the id exists somewhere on the network. `agentsRest.php` pins it on the
+multisite run.
+
 ## Identity is not a new privilege boundary
 
 An agent carries a **voice** (`vibes`), one short line of character that
@@ -199,6 +214,12 @@ Registering an ability agents can call:
 
 - [ ] Does its `permission_callback` check a capability for the
       **specific object**, not just a blanket `edit_posts`?
+- [ ] If it sets a post **status**, does it ask what Core's REST posts
+      controller asks? `publish` and `private` both need the post
+      type's `cap->publish_posts` (`publish_pages` for a page, whatever
+      a custom type mapped), not the generic `publish_posts`:
+      `handle_status_param()` treats making a post private as
+      publishing it. `desktop-mode/update-post` is the worked example.
 - [ ] If it returns a post body, does it gate the **post password**
       separately from `read_post`? WordPress splits the two on purpose:
       `read_post` decides visibility (published / private / draft),

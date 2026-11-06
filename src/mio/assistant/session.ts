@@ -34,7 +34,7 @@ export class MioSession {
 		public readonly conversation = memoryMioConversation(),
 	) {
 		this.operations = new MioOperations( context );
-		this.responseActions = new MioResponseActions( context, () => ! this.disposed && active(), () => conversation.read() );
+		this.responseActions = new MioResponseActions( context, () => ! this.disposed && active(), () => conversation.read(), this.operations );
 	}
 
 	public subscribeThinking( listener: ( thinking: boolean ) => void ): () => void {
@@ -100,7 +100,7 @@ export class MioSession {
 		};
 		this.pending = controller; this.abortTurn = abort; this.notifyThinking();
 		const messages = [ ...this.conversation.read().slice( -39 ), { role: 'user' as const, text: query, id: crypto.randomUUID() } ];
-		this.conversation.write( messages ); this.responseActions.prune();
+		this.conversation.write( messages ); this.responseActions.prune(); this.responseActions.retireWrites();
 		const finish = ( text: string ): void => {
 			const message: MioChatMessage = { role: 'assistant', text, id: crypto.randomUUID() };
 			const actionIds = this.responseActions.create( Object.freeze( {
@@ -117,7 +117,11 @@ export class MioSession {
 			this.conversation.write( [ ...messages, message ].slice( -40 ) );
 			this.responseActions.prune();
 		};
-		const outcomes: unknown[] = [];
+		// Choices the user made since the previous turn, so the model knows what was applied.
+		// They go back if this turn fails before the provider has answered once.
+		const choices = this.responseActions.drain();
+		let delivered = false;
+		const outcomes: unknown[] = choices.map( ( { entryId: _entryId, ...record } ) => record );
 		const attemptedWrites = new Set<string>();
 		const repeats = new Map<string, number>();
 		const abilities = () => [ ...mioHelpAbilities( this.context.documents ), ...this.context.abilities() ].filter( ( ability ) => ! ability.allowed || ability.allowed() );
@@ -146,7 +150,7 @@ export class MioSession {
 				const history = { messages: messages.slice( -20 ).map( ( { role, text } ) => ( { role, text } ) ), help: searchMioHelp( this.context.documents, query ), outcomes };
 				const request = { prompt, transcript: JSON.stringify( this.context.compactHistory ? this.context.compactHistory( structuredClone( history ), turnContext() ) : history ), tools: offered.map( ( { name, description, parameters, effect } ) => ( { name, description: `[Effect: ${ effect ?? 'write' }] ${ description }`, parameters } ) ) };
 				assertMioRequestBudget( request ); guard();
-				const turn = await this.transport( request, signal ); guard();
+				const turn = await this.transport( request, signal ); delivered = true; guard();
 				if ( ! Array.isArray( turn.calls ) || turn.calls.length > MIO_LIMITS.calls ) {
 					throw new Error( 'Invalid MIO tool response.' );
 				}
@@ -250,6 +254,9 @@ export class MioSession {
 			}
 			throw new Error( 'MIO reached its action limit. Review the changes before continuing.' );
 		} catch ( error ) {
+			if ( ! delivered ) {
+				this.responseActions.restore( choices );
+			}
 			if ( this.pending === controller ) {
 				const detail = error instanceof Error ? error.message : String( error );
 				finish( `${ detail } ${ failureSummary( summary() ) }` );

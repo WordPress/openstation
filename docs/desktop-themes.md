@@ -54,8 +54,11 @@ author-supplied JavaScript, ever. What actually happens on upload:
    other way round.
 4. Every referenced SVG is parsed with DOMDocument and stripped of
    scripts, embedding elements, `on*` handlers, non-fragment `href`s,
-   and `javascript:` / `url()` in style attributes. DTDs and entity
-   declarations reject the upload outright. On a server without
+   and `javascript:` / `url()` in style attributes (a `javascript:`
+   scheme is matched with whitespace and control characters removed,
+   as a URL parser reads it). DTDs and entity
+   declarations reject the upload outright, whatever the document's
+   encoding, and entities are never substituted. On a server without
    DOMDocument, SVGs are **refused** rather than shipped unexamined.
 5. **Only the assets the sanitized manifest actually references** are
    moved into the live directory. Anything else in the ZIP is
@@ -252,8 +255,11 @@ neon-glass.zip
     └── desktop.jpg
 ```
 
-`__MACOSX/` folders and dotfiles are ignored, not rejected. The archive
-must contain **exactly one** `theme.json`.
+`__MACOSX/` folders and dotfiles are ignored, not rejected, but they
+still count toward the size caps, and a file a web server would run or
+obey (`.htaccess`, `.user.ini`, `web.config`, `.php*`, `.phtml`,
+`.phar`, `.cgi`, `.sh`, …) rejects the archive wherever it sits. The
+archive must contain **exactly one** `theme.json`.
 
 **Re-uploading a theme with the same `id` is an update**, not an
 error: the old directory is dropped wholesale so removed assets don't

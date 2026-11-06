@@ -152,6 +152,13 @@ add_action( 'openstation_files_share_accepted', static function ( $share_id, $ro
 }, 10, 2 );
 ```
 
+Who else can read a file is the owner's call:
+`openstation_stored_file_user_can_read()` answers yes for the owner,
+an accepted file share, or read access to a folder holding a live
+placement **by the owner**. A recipient who files the tile into a
+folder of their own does not widen it. Widen it yourself through
+`openstation_stored_file_can_read`.
+
 ## Client-side: observe desktop-sink uploads
 
 The desktop sink fires the same `os.drop.*` chain the

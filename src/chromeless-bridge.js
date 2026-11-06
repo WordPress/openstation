@@ -1343,6 +1343,50 @@
 		}
 	}
 
+	/**
+	 * Find the primary order-view link when clicking on an order list table row.
+	 *
+	 * WooCommerce's `wc-orders.js` binds a row-level click handler on
+	 * `.woocommerce_page_wc-orders` and `.post-type-shop_order` table cells
+	 * that calls `window.location = href` when the user clicks anywhere on
+	 * the row (date, status, total, cell whitespace) rather than on an
+	 * anchor directly.
+	 *
+	 * Inside OpenStation, that raw `window.location` assignment replaces the
+	 * Orders list window's content in place. Intercepting the row click here
+	 * routes the order's edit URL through the parent shell instead, so it
+	 * opens in its own window beside the list.
+	 *
+	 * @param {Element|EventTarget} target The clicked DOM element.
+	 * @return {HTMLAnchorElement|null} The order link, or null if not applicable.
+	 */
+	function resolveOrderRowLink( target ) {
+		if ( ! target || ! target.closest ) {
+			return null;
+		}
+		var doc = target.ownerDocument || document;
+		var defaultView = doc.defaultView;
+		if ( defaultView && defaultView.getSelection && defaultView.getSelection().toString().length > 0 ) {
+			return null;
+		}
+		if ( target.closest( 'button, input, select, textarea, label, .check-column, .order-preview, .no-link, .wc_actions' ) ) {
+			return null;
+		}
+		var cell = target.closest(
+			'.post-type-shop_order .wp-list-table tbody td, ' +
+			'.post-type-shop_order .wp-list-table tbody th, ' +
+			'.woocommerce_page_wc-orders .wp-list-table tbody td, ' +
+			'.woocommerce_page_wc-orders .wp-list-table tbody th, ' +
+			'table.wc-orders-list-table tbody td, ' +
+			'table.wc-orders-list-table tbody th'
+		);
+		if ( ! cell ) {
+			return null;
+		}
+		var row = cell.closest( 'tr' );
+		return row ? row.querySelector( 'a.order-view' ) : null;
+	}
+
 	document.addEventListener( 'click', function ( e ) {
 		if ( e.defaultPrevented ) {
 			return;
@@ -1350,7 +1394,14 @@
 		if ( e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey ) {
 			return;
 		}
+		var isOrderRowClick = false;
 		var link = e.target && e.target.closest ? e.target.closest( 'a[href]' ) : null;
+		if ( ! link ) {
+			link = resolveOrderRowLink( e.target );
+			if ( link ) {
+				isOrderRowClick = true;
+			}
+		}
 		if ( ! link ) {
 			return;
 		}
@@ -1592,6 +1643,10 @@
 			 * still works.
 			 */
 			e.preventDefault();
+			if ( isOrderRowClick ) {
+				e.stopPropagation();
+				e.stopImmediatePropagation();
+			}
 			try {
 				var absolute = new URL( rewritten || href, window.location.href ).toString();
 				/*

@@ -637,6 +637,9 @@
             "Could not complete this action. Try again.": [
                 ""
             ],
+            "Could not confirm the result. Check before trying again.": [
+                ""
+            ],
             "Could not convert the note to a post.": [
                 ""
             ],
@@ -719,6 +722,15 @@
                 "Imagen personalizada"
             ],
             "Customize": [
+                ""
+            ],
+            "Customize desktop icons…": [
+                ""
+            ],
+            "Customize dock…": [
+                ""
+            ],
+            "Customize sidebar…": [
                 ""
             ],
             "Cycle the colours": [
@@ -811,6 +823,9 @@
             "Dock %s back to widget column": [
                 ""
             ],
+            "Dock position and behavior…": [
+                ""
+            ],
             "Don't ask again": [
                 ""
             ],
@@ -830,6 +845,9 @@
                 ""
             ],
             "Drafts": [
+                ""
+            ],
+            "Drag a tile to reorder the rail. Right-click it to hide it or to choose what the rail shows.": [
                 ""
             ],
             "Drag the window to the left edge until the preview appears, then let go. It takes half the screen; another window can take the other half.": [
@@ -880,6 +898,9 @@
             "Edit navigation menu": [
                 ""
             ],
+            "Edit note": [
+                ""
+            ],
             "Edit page": [
                 ""
             ],
@@ -905,6 +926,9 @@
                 ""
             ],
             "Email (optional)": [
+                ""
+            ],
+            "Empty note. Click to write.": [
                 ""
             ],
             "Enable MIO in the dock first": [
@@ -1405,9 +1429,6 @@
             "Narrow the dock to the apps this desk is about. Everything else is still there — on your other desks, and the moment you leave this one.": [
                 ""
             ],
-            "Navigation settings…": [
-                ""
-            ],
             "Network Admin": [
                 ""
             ],
@@ -1469,6 +1490,9 @@
                 ""
             ],
             "No live callback for command “%s” — the palette and the command registry are out of step. Reload the page.": [
+                ""
+            ],
+            "No longer available.": [
                 ""
             ],
             "No preview available for this file type.": [
@@ -1546,6 +1570,9 @@
             "Note text": [
                 ""
             ],
+            "Note text. Press Enter to edit.": [
+                ""
+            ],
             "Nothing is holding the score down.": [
                 ""
             ],
@@ -1574,6 +1601,9 @@
                 ""
             ],
             "Nothing yet — add an app below.": [
+                ""
+            ],
+            "Notifications": [
                 ""
             ],
             "Notifications and toasts": [
@@ -2102,6 +2132,9 @@
                 ""
             ],
             "Shutter": [
+                ""
+            ],
+            "Sidebar behavior…": [
                 ""
             ],
             "Sinus rhythm with PVCs": [
@@ -2662,7 +2695,10 @@
             "Workspace %d": [
                 ""
             ],
-            "Write a note…": [
+            "Write a note… Markdown works, and - [ ] makes a to-do.": [
+                ""
+            ],
+            "Write in Markdown: **bold**, # heading, - [ ] to-do": [
                 ""
             ],
             "Writing suggestions": [

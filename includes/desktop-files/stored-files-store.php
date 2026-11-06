@@ -501,8 +501,9 @@ function openstation_stored_files_upload_capability() {
  *   - The owner always can.
  *   - A user with an accepted `target_type='file'` share can.
  *   - A user with at least read capability on any folder that
- *     contains a live placement of the file can (shared-folder
- *     contents are visible to the folder's audience).
+ *     contains a live placement of the file BY ITS OWNER can
+ *     (shared-folder contents are visible to the folder's audience;
+ *     a reference someone else filed does not widen it).
  *
  * @param int $file_id Stored-file id.
  * @param int $user_id Viewer.
@@ -530,20 +531,36 @@ function openstation_stored_file_user_can_read( $file_id, $user_id ) {
 		}
 	}
 
-	// Read+ capability on a folder containing a live placement.
+	// Read+ capability on a folder containing a live placement OF THE
+	// OWNER'S. Only the owner decides where their file is shared:
+	// counting anyone's placement let a reader launder access — place
+	// the file (which they could read through a share) into a folder of
+	// their own and every member of that folder could read it too, and
+	// so could they themselves after the owner revoked their share.
+	// Nobody else can move the owner's upload placements (see
+	// `openstation_files_upload_owner_lock()`), so this set is exactly
+	// the owner's intent.
 	$tables  = openstation_files_table_names();
 	$parents = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT DISTINCT parent_id FROM {$tables['placements']}
 			WHERE file_type = %s AND file_ref = %s
+				AND owner_id = %d
 				AND parent_id > 0
 				AND trashed_at_ms IS NULL",
 			'upload',
-			(string) $file_id
+			(string) $file_id,
+			(int) $row['owner_id']
 		)
 	);
 	if ( function_exists( 'openstation_folder_share_user_capability' ) ) {
 		foreach ( (array) $parents as $parent_id ) {
+			// A placement a writer carried into a folder the owner no
+			// longer reaches (the writer's own folder, moved out of the
+			// shared tree) is not the owner's intent any more.
+			if ( 'none' === openstation_folder_share_user_capability( (int) $parent_id, (int) $row['owner_id'] ) ) {
+				continue;
+			}
 			if ( 'none' !== openstation_folder_share_user_capability( (int) $parent_id, $user_id ) ) {
 				return true;
 			}

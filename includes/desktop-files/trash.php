@@ -291,10 +291,14 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 		}
 
 		// Folder is gone — recreate it and place it under the
-		// resolved parent. Owner falls back to the acting user
-		// when the original owner can't be inferred (shared-
-		// folder edge case).
-		$owner_id = (int) ( $entry['folder_owner_id'] ? $entry['folder_owner_id'] : $user_id );
+		// resolved parent. The recreated folder always belongs to
+		// the acting user: recreating it under the snapshot's owner
+		// when that is someone else would let a collaborator restore
+		// their own tile and resurrect a folder the owner had
+		// permanently deleted, straight back into the owner's
+		// account (an owned folder with no placement is auto-placed
+		// on its owner's desktop).
+		$owner_id = $user_id;
 		$new_id   = openstation_files_create_folder(
 			$owner_id,
 			array(
@@ -494,6 +498,30 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 				? $decoded['ancestry']
 				: array();
 			$resolved_parent_id = openstation_files_resurrect_ancestry( $user_id, $ancestry );
+		}
+	}
+
+	// Restoring is writing into the destination folder, so it needs
+	// the same `write` cap a fresh placement there would. Without
+	// this, a collaborator whose share was revoked (the revoke trashes
+	// their tiles inside the folder) could restore every one of them
+	// straight back into the owner's folder. A destination the user
+	// can no longer write lands the tile on their desktop root
+	// instead — restoring at the wrong place beats failing outright,
+	// the same trade the missing-ancestry path makes.
+	if ( $resolved_parent_id > 0 ) {
+		$destination = openstation_files_get_folder( $resolved_parent_id, true );
+		if (
+			! $destination
+			|| (
+				(int) $destination['owner_id'] !== $user_id
+				&& (
+					! function_exists( 'openstation_folder_share_user_capability' )
+					|| 'write' !== openstation_folder_share_user_capability( $resolved_parent_id, $user_id )
+				)
+			)
+		) {
+			$resolved_parent_id = 0;
 		}
 	}
 
@@ -1120,10 +1148,14 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		$file  = function_exists( 'openstation_resolve_file' )
 			? openstation_resolve_file( $row['file_type'], $row['file_ref'] )
 			: null;
-		$title = $file
-			? openstation_plain_text_title( $file->title() )
+		// The viewer's own placement, but the entity behind it may have
+		// gone private or draft since; the active listing re-asks
+		// `can_read()` per row, and so does the bin.
+		$readable = $file && $file->can_read( $user_id );
+		$title    = $file
+			? ( $readable ? openstation_plain_text_title( $file->title() ) : __( 'Restricted item', 'desktop-mode' ) )
 			: (string) $row['file_type'];
-		$icon  = $file ? (string) $file->icon() : 'dashicons-no-alt';
+		$icon     = $file ? ( $readable ? (string) $file->icon() : 'dashicons-lock' ) : 'dashicons-no-alt';
 		// Two recycle-bin buckets:
 		// - `shortcut`  → plugin-registered icons (file_type='shortcut')
 		// - `placement` → every other placement (post / page /
