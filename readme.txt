@@ -4,7 +4,7 @@ Tags: admin dashboard, notes, sticky notes, dashboard notes, custom dashboard
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.18
+Stable tag: 1.1.19
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -212,6 +212,17 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.19 =
+* Mobile: Let a user keep classic wp-admin on their phone
+* Route WooCommerce order row clicks to separate windows.
+* App Framework: Serve bundled app assets when the plugin is symlinked
+* Tooling: Add a software factory that builds factory-labeled issues into PRs
+* Factory: Reproduce a bug before fixing it, and keep a job moving past a tooling gate failure
+* Factory: Skip forked-subagent transcripts when computing a job's cost
+* Pages: Fill the window with the Add Page editor
+* Tooling: Add the pr-writer skill to the project skill library
+* Readme: Record the security fixes of 1.1.17 and 1.1.18 in the changelog
 
 = 1.1.18 =
 * Security: Fix four authorization gaps found after 1.1.17: agent conversations were readable and writable by Editors through the generic post abilities, agents of another site were readable and runnable on multisite, the placement PATCH response and the recycle-bin listing returned the title of content the viewer could not read (the rest of CVE-2026-109592), and the WooCommerce stock field answered any `edit_posts` holder. See [GHSA-2chh-6p94-3c3r](https://github.com/WordPress/openstation/security/advisories/GHSA-2chh-6p94-3c3r). Update now.

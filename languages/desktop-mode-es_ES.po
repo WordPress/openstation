@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OpenStation 0.9.8\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
-"POT-Creation-Date: 2026-10-30T17:40:51+00:00\n"
+"POT-Creation-Date: 2026-11-06T18:40:10+00:00\n"
 "PO-Revision-Date: 2026-04-19 20:42+0200\n"
 "Last-Translator: OpenStation team\n"
 "Language-Team: Español\n"
@@ -147,7 +147,7 @@ msgstr ""
 #: src/content-graph/panel.ts:881 apps/my-wordpress/parts/sections.php:66
 #: includes/desktop-files/built-in-types.php:30
 #: includes/my-wordpress/window.php:185 includes/recycle-bin/store.php:614
-#: includes/welcome-dialog.php:586 includes/window-links.php:798
+#: includes/welcome-dialog.php:591 includes/window-links.php:798
 msgid "Media"
 msgstr ""
 
@@ -600,7 +600,7 @@ msgstr ""
 msgid "Open in %s"
 msgstr ""
 
-#: src/content-graph/panel.ts:514 includes/helpers.php:224
+#: src/content-graph/panel.ts:514 includes/helpers.php:234
 msgid "WordPress"
 msgstr ""
 
@@ -633,7 +633,7 @@ msgstr ""
 #: src/content-graph/panel.ts:725 src/desktop-files/preview.ts:390
 #: src/desktop-files/preview.ts:465 src/desktop.ts:5317
 #: apps/my-wordpress/parts/sections.php:42 apps/posts/posts.os.php:39
-#: includes/my-wordpress/window.php:162 includes/welcome-dialog.php:572
+#: includes/my-wordpress/window.php:162 includes/welcome-dialog.php:577
 msgid "Posts"
 msgstr ""
 
@@ -1398,7 +1398,7 @@ msgid "Replay anyway"
 msgstr ""
 
 #: src/games/alphabet-soup/game.ts:683 includes/first-run/nudge.php:130
-#: includes/welcome-dialog.php:166
+#: includes/welcome-dialog.php:171
 msgid "Not now"
 msgstr ""
 
@@ -4769,7 +4769,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: desktop-mode.php includes/ai-copilot/abilities.php:39
 #: includes/shell-screen.php:304 includes/shell-screen.php:305
-#: includes/shell-screen.php:352 includes/shell-screen.php:373
+#: includes/shell-screen.php:353 includes/shell-screen.php:407
 #: includes/wp-icon-registry.php:90
 msgid "OpenStation"
 msgstr ""
@@ -6046,7 +6046,7 @@ msgstr "Ámbar"
 msgid "Rose"
 msgstr "Rosa"
 
-#: includes/admin-bar.php:48 includes/welcome-dialog.php:167
+#: includes/admin-bar.php:48 includes/welcome-dialog.php:172
 msgid "Switch to OpenStation"
 msgstr ""
 
@@ -7861,7 +7861,7 @@ msgid ""
 "Dock rail renderer script registration requires a non-empty script handle."
 msgstr ""
 
-#: includes/feedback/rest.php:65 includes/helpers.php:124
+#: includes/feedback/rest.php:65 includes/helpers.php:134
 #: includes/seen-intros.php:269
 msgid "Authentication required."
 msgstr ""
@@ -7894,23 +7894,23 @@ msgstr ""
 msgid "Take the tour"
 msgstr ""
 
-#: includes/framework/wordpress.php:763
+#: includes/framework/wordpress.php:789
 msgid "You must be logged in to use this window."
 msgstr ""
 
-#: includes/framework/wordpress.php:769 includes/framework/wordpress.php:785
+#: includes/framework/wordpress.php:795 includes/framework/wordpress.php:811
 msgid "Unknown app."
 msgstr ""
 
-#: includes/framework/wordpress.php:772 includes/framework/wordpress.php:786
+#: includes/framework/wordpress.php:798 includes/framework/wordpress.php:812
 msgid "You are not allowed to use this window."
 msgstr ""
 
-#: includes/framework/wordpress.php:787
+#: includes/framework/wordpress.php:813
 msgid "This window does not know that action."
 msgstr ""
 
-#: includes/framework/wordpress.php:788
+#: includes/framework/wordpress.php:814
 msgid "This window does not have that tab."
 msgstr ""
 
@@ -8030,11 +8030,11 @@ msgstr ""
 msgid "Games"
 msgstr ""
 
-#: includes/helpers.php:132
+#: includes/helpers.php:142
 msgid "OpenStation is not enabled for your account."
 msgstr ""
 
-#: includes/helpers.php:140
+#: includes/helpers.php:150
 msgid "Sorry, you are not allowed to do that."
 msgstr ""
 
@@ -8755,16 +8755,16 @@ msgstr ""
 msgid "Settings tab registration requires a non-empty `label`."
 msgstr ""
 
-#: includes/shell-screen.php:375
+#: includes/shell-screen.php:409
 msgid "OpenStation is not active for your account on this request."
 msgstr ""
 
-#: includes/shell-screen.php:376
+#: includes/shell-screen.php:410
 msgid "Open the desktop"
 msgstr ""
 
 #. translators: 1: script or style handle, 2: script or style
-#: includes/shell-screen.php:598
+#: includes/shell-screen.php:632
 #, php-format
 msgid ""
 "The %2$s handle \"%1$s\" cannot leave the shell screen: something still "
@@ -8952,51 +8952,51 @@ msgid ""
 "choose what it listens to, the colours, the sweep speed and the intensity."
 msgstr ""
 
-#: includes/welcome-dialog.php:164
+#: includes/welcome-dialog.php:169
 msgid "Welcome to OpenStation"
 msgstr ""
 
-#: includes/welcome-dialog.php:165
+#: includes/welcome-dialog.php:170
 msgid ""
 "Your admin, as a desktop. Keep several screens open at once and move between "
 "tasks without losing your place."
 msgstr ""
 
-#: includes/welcome-dialog.php:168
+#: includes/welcome-dialog.php:173
 msgid "Switching…"
 msgstr ""
 
-#: includes/welcome-dialog.php:173
+#: includes/welcome-dialog.php:178
 msgid "Work in windows"
 msgstr ""
 
-#: includes/welcome-dialog.php:174
+#: includes/welcome-dialog.php:179
 msgid "Posts, media and settings side by side."
 msgstr ""
 
-#: includes/welcome-dialog.php:178
+#: includes/welcome-dialog.php:183
 msgid "Apps for everyday tasks"
 msgstr ""
 
-#: includes/welcome-dialog.php:179
+#: includes/welcome-dialog.php:184
 msgid "Fast lists with bulk actions and previews."
 msgstr ""
 
-#: includes/welcome-dialog.php:183
+#: includes/welcome-dialog.php:188
 msgid "A dock for your screens"
 msgstr ""
 
-#: includes/welcome-dialog.php:184
+#: includes/welcome-dialog.php:189
 msgid "Pin what you use most, one click away."
 msgstr ""
 
 #. translators: %s: the keyboard shortcut that opens search, e.g. ⌘K.
-#: includes/welcome-dialog.php:189
+#: includes/welcome-dialog.php:194
 #, php-format
 msgid "Search with %s"
 msgstr ""
 
-#: includes/welcome-dialog.php:190
+#: includes/welcome-dialog.php:195
 msgid "Jump to any screen or run a command."
 msgstr ""
 
