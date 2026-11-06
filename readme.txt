@@ -48,7 +48,7 @@ Virtual desktops, the way your operating system does them. One for writing. One 
 
 = Find anything with Cmd+K =
 
-The full WordPress command palette, plus slash commands from your plugins, all under one keystroke. Turn on the optional AI assistant and you can ask it things like "which post had the comment asking for the recipe?" and it searches your own content to answer. (Requires an AI provider configured in Settings → Connectors on WordPress 7.0+. Details under "External services" below.)
+The full WordPress command palette, plus slash commands from your plugins, all under one keystroke. Turn on the optional AI assistant and you can ask it things like "which post had the comment asking for the recipe?" and it searches your own content to answer. (Requires an AI provider configured in Settings → Connectors on WordPress 7.1+. Details under "External services" below.)
 
 = See how your site fits together, orphan pages included =
 
@@ -139,7 +139,7 @@ OpenStation's OAuth relay does not contact a service by itself. Third-party plug
 
 = Optional: enable the AI Assistant =
 
-1. In **Settings → Connectors**, set up an AI provider (OpenAI, Anthropic, or Google). Requires WordPress 7.0+.
+1. In **Settings → Connectors**, set up an AI provider (OpenAI, Anthropic, or Google). Requires WordPress 7.1+.
 2. In OpenStation, open **OpenStation Preferences → Features** and turn on **AI assistant** (it's off by default).
 3. Press **Cmd+K** (or **Ctrl+K**) anywhere in OpenStation to open the AI assistant.
 

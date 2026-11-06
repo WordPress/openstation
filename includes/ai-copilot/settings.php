@@ -37,9 +37,10 @@ function openstation_ai_get_settings( $user_id ) {
  * Whether the Core AI primitives the Copilot depends on are present.
  *
  * The assistant is built on the AI Client (generation), the Connectors API
- * (credentials) and the Abilities API (tools, adopted in a follow-up). When
- * any of these is missing — e.g. WordPress < 7.0, or AI disabled site-wide
- * via `wp_supports_ai()` — the shell hides the assistant entirely.
+ * (credentials), the Abilities API (tools) and Core's JSON Schema preparation
+ * for tool declarations, which arrived in WordPress 7.1. When any of these is
+ * missing — e.g. WordPress < 7.1, or AI disabled site-wide via
+ * `wp_supports_ai()` — the shell hides the assistant entirely.
  *
  * @return bool
  */
@@ -47,6 +48,7 @@ function openstation_ai_is_available() {
 	return function_exists( 'wp_ai_client_prompt' )
 		&& function_exists( 'wp_get_connectors' )
 		&& function_exists( 'wp_register_ability' )
+		&& function_exists( 'wp_prepare_json_schema_for_client' )
 		&& function_exists( 'wp_supports_ai' )
 		&& wp_supports_ai();
 }

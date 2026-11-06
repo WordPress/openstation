@@ -2388,7 +2388,7 @@ The on/off state is not part of this filter — it is the per-user OS setting `m
 
 The AI assistant (Cmd+K palette) runs an agentic loop server-side and exposes a search REST endpoint. Nothing is analysed automatically: a comment is analysed only when someone asks for it, through the `desktop-mode/analyze-comment` ability. Every decision point is hookable so plugins can adjust model selection, customise prompts, or react to analysis completion.
 
-Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
+Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant needs WordPress 7.1 or later: it is available only when the Connectors and Abilities APIs, `wp_prepare_json_schema_for_client()` and `wp_supports_ai()` are present.
 
 > **Removed.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `openstation_register_ai_provider()` / `openstation_unregister_ai_provider()`, the actions `openstation_ai_register_providers` / `openstation_ai_provider_registered`, and the filters `openstation_ai_active_provider` / `openstation_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. The `/ai/search` extensibility hooks below are unaffected.
 
@@ -5727,7 +5727,7 @@ Pre-filter for one generation turn. Return a non-null
 `{ text, function_calls, message }` array (or a `WP_Error`) to
 short-circuit the Core AI Client — the seam PHPUnit and alternative
 runtimes plug into. When any callback is attached, the runner
-considers itself available even without the WP 7.0 AI Client. On a
+considers itself available even without the WP 7.1 AI baseline. On a
 transient provider failure (a gateway 5xx, a timeout, an empty
 Anthropic `content`, a failed models-list fetch) the loop retries the
 turn once, so the filter can be invoked twice for the same turn.

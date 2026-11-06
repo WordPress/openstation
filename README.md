@@ -94,7 +94,7 @@ Read https://github.com/WordPress/openstation/blob/trunk/skills/openstation-exte
   Wallpaper-layer shortcuts via `openstation_register_icon()` — targets a registered native window or an admin URL.
 
 - **AI Assistant + slash commands**
-  Cmd+K palette backed by an agentic loop on the WordPress AI Client (WordPress 7.0+): provider credentials come from Core's Connectors screen, and the model's tools are read-only abilities (`search_posts` / `search_pages` / `search_comments` run WordPress's native keyword search). No content is analyzed in the background: every AI call is one a user asked for. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
+  Cmd+K palette backed by an agentic loop on the WordPress AI Client (WordPress 7.1+): provider credentials come from Core's Connectors screen, and the model's tools are read-only abilities (`search_posts` / `search_pages` / `search_comments` run WordPress's native keyword search). No content is analyzed in the background: every AI call is one a user asked for. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
 
 - **Palette registry**
   Cmd+K cycles through all registered palettes (`wp.os.registerPalette()`) — the AI assistant is palette 0 by default; additional plugin overlays share the shortcut.

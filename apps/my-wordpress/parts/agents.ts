@@ -293,7 +293,7 @@ export function agentsAiNotice( payload: AgentsPayload ): TemplateResult | '' {
 		'No AI provider is configured — agents cannot run until a connector is set up.',
 	);
 	const noClient = __(
-		'This WordPress does not ship the AI Client (WordPress 7.0+). Agents can be defined but not run.',
+		'This WordPress does not ship the AI Client (WordPress 7.1+). Agents can be defined but not run.',
 	);
 	// The href stays real so middle-click, cmd-click and "copy link"
 	// still behave; only the plain click is claimed for the shell.

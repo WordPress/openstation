@@ -41,7 +41,7 @@
  * Conversation history is kept as neutral rows and converted to SDK
  * message DTOs only at generate time, so the
  * `openstation_agent_runner_generate` pre-filter can service a turn
- * without the WordPress 7.0 AI Client being present (PHPUnit, or an
+ * without the WordPress 7.1 AI baseline being present (PHPUnit, or an
  * alternative runtime shipped by a plugin).
  *
  * DELIBERATE: assistant function-call turns are never replayed to the
