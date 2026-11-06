@@ -1392,13 +1392,15 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 
 		$this->assertSame(
 			array(
-				'get_post'      => 'desktop-mode/get-post',
-				'acme_get_post' => 'acme/get-post',
+				'get_post'                     => 'desktop-mode/get-post',
+				'wpab__desktop-mode__get-post' => 'desktop-mode/get-post',
+				'acme_get_post'                => 'acme/get-post',
+				'wpab__acme__get-post'         => 'acme/get-post',
 			),
 			$slug_by_name
 		);
 		$this->assertSame(
-			array( 'get_post', 'acme_get_post' ),
+			array( 'wpab__desktop-mode__get-post', 'wpab__acme__get-post' ),
 			wp_list_pluck( $tools, 'name' )
 		);
 	}
@@ -1413,5 +1415,101 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 
 		$this->assertSame( array(), $tools );
 		$this->assertSame( array(), $slug_by_name );
+	}
+
+	/**
+	 * An instruction saved before this naming, such as "get_post the source",
+	 * has to keep pointing at the right tool.
+	 *
+	 * @covers ::openstation_agent_invoke
+	 * @covers ::openstation_ai_tool_name_prompt_appendix
+	 */
+	public function test_saved_short_names_are_explained_to_the_model() {
+		$agent = $this->create_agent(
+			array(
+				'abilities'    => array( 'desktop-mode/get-post' ),
+				'instructions' => 'get_post the source.',
+			)
+		);
+
+		$prompt = null;
+		$this->stub_generate(
+			static function ( $generated, $history, $tools, $instructions ) use ( &$prompt ) {
+				$prompt = $instructions;
+				return array(
+					'text'           => 'done',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$this->assertNotWPError( openstation_agent_invoke( $agent->ID, 'go' ) );
+
+		$this->assertStringContainsString( 'get_post the source.', $prompt );
+		$this->assertStringContainsString( '- get_post: wpab__desktop-mode__get-post', $prompt );
+	}
+
+	/**
+	 * Core's name is the one the model is offered, and it routes to the ability.
+	 *
+	 * @covers ::openstation_agent_runner_build_tools
+	 */
+	public function test_core_function_name_dispatches() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_status' => 'publish',
+				'post_title'  => 'Core named',
+			)
+		);
+		$agent   = $this->create_agent( array( 'abilities' => array( 'desktop-mode/get-post' ) ) );
+
+		$turn = 0;
+		$this->stub_generate(
+			static function () use ( &$turn, $post_id ) {
+				++$turn;
+				if ( 1 === $turn ) {
+					return array(
+						'text'           => null,
+						'function_calls' => array(
+							array(
+								'name'      => 'wpab__desktop-mode__get-post',
+								'call_id'   => 'call-1',
+								'arguments' => wp_json_encode( array( 'post_id' => $post_id ) ),
+							),
+						),
+						'message'        => null,
+					);
+				}
+				return array(
+					'text'           => 'fetched',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$result = openstation_agent_invoke( $agent->ID, 'read it' );
+
+		$this->assertNotWPError( $result );
+		$this->assertSame( 'desktop-mode/get-post', $result['toolCalls'][0]['name'] );
+		$this->assertSame( 'Core named', $result['toolCalls'][0]['output']['title'] );
+	}
+
+	/**
+	 * A name over the provider limit would fail the whole request, so that one
+	 * ability keeps its short name and the others are unaffected.
+	 *
+	 * @covers ::openstation_agent_runner_build_tools
+	 * @covers ::openstation_ai_ability_function_name
+	 */
+	public function test_over_long_function_name_keeps_the_short_name() {
+		$ability = 'acme/' . str_repeat( 'a', 60 );
+		$this->register_test_ability( $ability );
+
+		list( $tools, , $function_by_short_name ) = openstation_agent_runner_build_tools( array( $ability ) );
+
+		$this->assertSame( array( str_repeat( 'a', 60 ) ), wp_list_pluck( $tools, 'name' ) );
+		$this->assertSame( array(), $function_by_short_name );
 	}
 }

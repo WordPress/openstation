@@ -245,4 +245,52 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 	private function make_image( $file, $parent = 0 ) {
 		return self::factory()->attachment->create_object( $file, $parent, array( 'post_mime_type' => 'image/jpeg', 'post_title' => $file ) );
 	}
+
+	/**
+	 * Core's query is not the last word: a filter on its result must not be able
+	 * to hand the model a write ability.
+	 *
+	 * @covers ::openstation_ai_search_ability_names
+	 */
+	public function test_read_only_guard_survives_a_filter_on_the_query_result() {
+		$write_ability = wp_get_ability( 'desktop-mode/update-post' );
+		if ( ! $write_ability ) {
+			$this->markTestSkipped( 'The agents module is not loaded.' );
+		}
+		add_filter(
+			'wp_get_abilities_result',
+			static function ( $matched ) use ( $write_ability ) {
+				$matched[] = $write_ability;
+				return $matched;
+			}
+		);
+
+		$this->assertNotContains( 'desktop-mode/update-post', openstation_ai_search_ability_names() );
+	}
+
+	/**
+	 * @covers ::openstation_ai_ability_function_name
+	 */
+	public function test_function_name_comes_from_core() {
+		$this->assertSame(
+			WP_AI_Client_Ability_Function_Resolver::ability_name_to_function_name( 'desktop-mode/search-posts' ),
+			openstation_ai_ability_function_name( 'desktop-mode/search-posts' )
+		);
+	}
+
+	/**
+	 * @covers ::openstation_ai_ability_function_name
+	 */
+	public function test_function_name_over_the_limit_is_refused() {
+		$this->assertSame( '', openstation_ai_ability_function_name( 'acme/' . str_repeat( 'a', 60 ) ) );
+	}
+
+	/**
+	 * Nothing to explain means nothing added to the prompt.
+	 *
+	 * @covers ::openstation_ai_tool_name_prompt_appendix
+	 */
+	public function test_prompt_appendix_is_empty_without_names() {
+		$this->assertSame( '', openstation_ai_tool_name_prompt_appendix( array() ) );
+	}
 }

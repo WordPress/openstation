@@ -2643,6 +2643,10 @@ Pre-filter for one generation turn of the Copilot search loop
 `WP_Error`) to short-circuit the Core AI Client — the seam PHPUnit and
 alternative runtimes plug into. Mirrors `openstation_agent_runner_generate`.
 
+This filter works in short tool names: `$tools` and any `function_calls` you
+return use `search_posts`, not `wpab__desktop-mode__search-posts`. Core's names
+are applied only on the way to the AI Client.
+
 A run that uses all of its tool rounds without answering ends with one
 **wrap-up turn**: a fresh conversation carrying the request and every
 tool result the run gathered, with no tools offered, so the model answers
@@ -2658,7 +2662,7 @@ run falls back to the "couldn't find a clear match" answer.
 
 ### `openstation_ai_tool_called` — Stable
 
-Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`). Agent runs name their tools by the same rule, though their traces and `openstation_agent_tool_result` report the full ability name.
+Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the tool's short name (e.g. `search_posts`), which is the ability slug with its namespace stripped. The model itself is offered Core's function name (`wpab__desktop-mode__search-posts`), and the short name is translated back before this hook fires. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`). Agent runs resolve short names by the same rule, though their traces and `openstation_agent_tool_result` report the full ability name.
 
 ```php
 do_action( 'openstation_ai_tool_called', array $payload );
@@ -2701,7 +2705,7 @@ Only read-only abilities are offered on purpose: a search turn can be steered by
 
 Four abilities (`includes/ai-copilot/abilities-debugging.php`) that give an assistant — or an agent — enough to do what a developer does with a stack trace, plus a system-prompt appendix that turns them into a method. They read through Code Blue's own log model, so the assistant and the window can never disagree about what the log says or whose plugin a file belongs to.
 
-| Ability | Model-facing name | Returns |
+| Ability | Short name | Returns |
 |---|---|---|
 | `desktop-mode/list-log-issues` | `list_log_issues` | The log parsed into **distinct issues** rather than raw lines — a fatal that fired 400 times is one entry with `count: 400`. Each carries `signature` (the id for the next call), severity, message, `file`/`line`, and `origin` (`{ kind, slug, name, version }` — whose plugin, theme or core it is). No traces: the list is triage. |
 | `desktop-mode/get-log-issue` | `get_log_issue` | One issue by `signature`, stack trace included. |
@@ -5727,7 +5731,7 @@ Pre-filter for one generation turn. Return a non-null
 `{ text, function_calls, message }` array (or a `WP_Error`) to
 short-circuit the Core AI Client — the seam PHPUnit and alternative
 runtimes plug into. When any callback is attached, the runner
-considers itself available even without the WP 7.1 AI baseline. On a
+considers itself available even without the WP 7.1 AI baseline. `$tool_defs` carry Core's function names (`wpab__desktop-mode__get-post`), and a call may use either that or the short name (`get_post`). On a
 transient provider failure (a gateway 5xx, a timeout, an empty
 Anthropic `content`, a failed models-list fetch) the loop retries the
 turn once, so the filter can be invoked twice for the same turn.

@@ -1103,11 +1103,11 @@ The message field is always a friendly sentence or two shown directly to the use
 	// Tool assembly — built-in search/navigation abilities + client-supplied
 	// command tools.
 	//
-	// Built-in tools are WordPress Abilities API abilities. Each is advertised
-	// to the model as a function declaration named after the ability (namespace
-	// stripped), and $ability_by_tool maps that name back to the ability so the
-	// agent loop can resolve + execute() it (permission + input/output
-	// validation happen inside execute()).
+	// Built-in tools are WordPress Abilities API abilities. Inside this loop each
+	// goes by its short name (namespace stripped), and $ability_by_tool maps that
+	// back to the ability so the loop can resolve + execute() it (permission +
+	// input/output validation happen inside execute()). The model is offered
+	// Core's function name instead; openstation_ai_search_generate() translates.
 	// -----------------------------------------------------------------------
 	$ability_by_tool = array();
 	$builtin_tools   = array();
@@ -1291,7 +1291,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		'request_id' => $request_id,
 	);
 
-	$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
+	$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context, $ability_by_tool );
 
 	if ( is_wp_error( $turn ) ) {
 		return $turn;
@@ -1507,7 +1507,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			if ( ! in_array( $tool_name, $valid_tools, true ) ) {
 				$tool_outputs[] = array(
 					'call_id'  => $call_id,
-					'name'     => $tool_name,
+					'name'     => $fc['function_name'] ?? $tool_name,
 					'response' => array( 'error' => "Unknown tool '{$tool_name}'." ),
 				);
 				continue;
@@ -1585,7 +1585,7 @@ The message field is always a friendly sentence or two shown directly to the use
 
 			$tool_outputs[] = array(
 				'call_id'  => $call_id,
-				'name'     => $tool_name,
+				'name'     => $fc['function_name'] ?? $tool_name,
 				'response' => $batch,
 			);
 			$gathered[]     = array(
@@ -1602,7 +1602,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		$messages[] = $turn['message'];
 		$messages[] = openstation_ai_tool_result_message( $tool_outputs );
 
-		$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
+		$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context, $ability_by_tool );
 
 		if ( is_wp_error( $turn ) ) {
 			return $turn;
@@ -1707,9 +1707,12 @@ The message field is always a friendly sentence or two shown directly to the use
  * @param array|null $answer_schema JSON Schema for the final answer.
  * @param string     $instructions  System instruction.
  * @param array      $context       `{ source, request_id }`.
- * @return array|WP_Error Same shape as openstation_ai_client_generate().
+ * @param array      $ability_by_tool Short tool name => ability name.
+ * @return array|WP_Error Same shape as openstation_ai_client_generate(), with
+ *                        each ability call's `name` back to its short name and
+ *                        the name the model used in `function_name`.
  */
-function openstation_ai_search_generate( $user_id, array $messages, array $tools, $answer_schema, $instructions, array $context ) {
+function openstation_ai_search_generate( $user_id, array $messages, array $tools, $answer_schema, $instructions, array $context, array $ability_by_tool = array() ) {
 	/**
 	 * Pre-filter one search generation turn. Return a non-null
 	 * `{ text, function_calls, message, usage, model }` array (or a
@@ -1726,7 +1729,75 @@ function openstation_ai_search_generate( $user_id, array $messages, array $tools
 	if ( null !== $generated ) {
 		return $generated;
 	}
-	return openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $context );
+
+	list( $tools, $function_by_tool ) = openstation_ai_tools_with_function_names( $tools, $ability_by_tool );
+
+	$name_guide = openstation_ai_tool_name_prompt_appendix( $function_by_tool );
+	if ( '' !== $name_guide ) {
+		$instructions = (string) $instructions . "\n\n" . $name_guide;
+	}
+
+	$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $context );
+
+	return openstation_ai_turn_with_short_tool_names( $turn, $function_by_tool );
+}
+
+/**
+ * Renames ability tools to Core's function names for one request.
+ *
+ * Tools a plugin added on `openstation_ai_tools` and browser command tools aren't
+ * abilities, so they keep their names.
+ *
+ * @param array $tools           Tool definitions, named by short name.
+ * @param array $ability_by_tool Short tool name => ability name.
+ * @return array{0: array, 1: array<string,string>} The renamed tools, and short
+ *                                                  name => function name.
+ */
+function openstation_ai_tools_with_function_names( array $tools, array $ability_by_tool ) {
+	$function_by_tool = array();
+	foreach ( $tools as $index => $tool ) {
+		$name = is_array( $tool ) && isset( $tool['name'] ) ? (string) $tool['name'] : '';
+		if ( ! isset( $ability_by_tool[ $name ] ) ) {
+			continue;
+		}
+
+		$function_name = openstation_ai_ability_function_name( $ability_by_tool[ $name ] );
+		if ( '' === $function_name ) {
+			continue;
+		}
+
+		$tools[ $index ]['name']   = $function_name;
+		$function_by_tool[ $name ] = $function_name;
+	}
+
+	return array( $tools, $function_by_tool );
+}
+
+/**
+ * Turns a model's ability calls back into short tool names.
+ *
+ * The name the model used is kept in `function_name`, because the tool result
+ * sent back has to match it.
+ *
+ * @param array|WP_Error $turn             A generation turn.
+ * @param array          $function_by_tool Short name => function name.
+ * @return array|WP_Error The turn with its calls renamed.
+ */
+function openstation_ai_turn_with_short_tool_names( $turn, array $function_by_tool ) {
+	if ( ! is_array( $turn ) || empty( $turn['function_calls'] ) ) {
+		return $turn;
+	}
+
+	$tool_by_function = array_flip( $function_by_tool );
+	foreach ( $turn['function_calls'] as $index => $call ) {
+		$function_name = isset( $call['name'] ) ? (string) $call['name'] : '';
+		if ( isset( $tool_by_function[ $function_name ] ) ) {
+			$turn['function_calls'][ $index ]['function_name'] = $function_name;
+			$turn['function_calls'][ $index ]['name']          = $tool_by_function[ $function_name ];
+		}
+	}
+
+	return $turn;
 }
 
 /**
