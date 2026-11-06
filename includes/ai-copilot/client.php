@@ -233,21 +233,30 @@ function openstation_ai_apply_model_config( $builder, array $context ) {
 			'source'     => '',
 			'has_tools'  => false,
 			'has_schema' => false,
+			'model'      => '',
 		),
 		$context
 	);
 
+	// A caller's model override, such as an agent's stored one. It is a
+	// preference: the AI Client falls back when no provider offers it.
+	$defaults = array();
+	if ( is_string( $context['model'] ) && '' !== trim( $context['model'] ) ) {
+		$defaults['model'] = trim( $context['model'] );
+	}
+
 	/**
 	 * Filters the model config for one AI turn.
 	 *
-	 * Defaults to empty; the only value OpenStation fills in afterwards is
+	 * Starts empty unless the caller asked for a model, as an agent with a
+	 * stored override does. The only value OpenStation fills in afterwards is
 	 * `max_tokens` ({@see OPENSTATION_AI_DEFAULT_MAX_TOKENS}), and only
 	 * when the filter left it unset. Recipe: `docs/examples/ai-model-config.md`.
 	 *
 	 * @param array $config  { model?: string|ModelInterface, max_tokens?: int, temperature?: float, custom_options?: array<string, mixed> }.
-	 * @param array $context { user_id, request_id, source, has_tools, has_schema }.
+	 * @param array $context { user_id, request_id, source, has_tools, has_schema, model }.
 	 */
-	$config = apply_filters( 'openstation_ai_model_config', array(), $context );
+	$config = apply_filters( 'openstation_ai_model_config', $defaults, $context );
 	if ( ! is_array( $config ) ) {
 		$config = array();
 	}

@@ -10,9 +10,8 @@
  *   - `_desktop_mode_agent_instructions` system prompt (markdown)
  *   - `_desktop_mode_agent_abilities`    JSON array of ability slugs
  *   - `_desktop_mode_agent_triggers`     JSON array of { kind, config }
- *   - `_desktop_mode_agent_model`        model override (unused by the
- *                                        runner until the Core AI Client
- *                                        exposes model selection)
+ *   - `_desktop_mode_agent_model`        preferred model id, empty for the
+ *                                        AI Client's default
  *   - `_desktop_mode_agent_rate_limit`   invocations/hour, 0 = default
  *   - `_desktop_mode_agent_created_by`   creating user id (audit aid)
  *

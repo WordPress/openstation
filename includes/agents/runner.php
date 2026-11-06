@@ -1085,7 +1085,10 @@ function openstation_agent_runner_generate( $agent_user_id, array $history, arra
 				// calls a function or emits the JSON answer.
 				openstation_agent_answer_schema(),
 				(string) $instructions . "\n\n" . openstation_agent_answer_prompt_appendix(),
-				array( 'source' => 'agents/runner' )
+				array(
+					'source' => 'agents/runner',
+					'model'  => openstation_agent_get_model( $agent_user_id ),
+				)
 			);
 		}
 	);
