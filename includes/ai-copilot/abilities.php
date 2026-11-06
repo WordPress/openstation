@@ -150,6 +150,23 @@ function openstation_ai_unique_ability_tool_names( array $ability_names ) {
 }
 
 /**
+ * Runs an ability for a tool call the model made.
+ *
+ * Abilities with no input schema refuse any non-null input, and a model sends
+ * an empty object when it calls one, so those get null. Everything else gets
+ * the decoded arguments as they are, including an empty array: Core's
+ * `WP_AI_Client_Ability_Function_Resolver` turns that into null, which fails
+ * validation on an object schema with no `default`.
+ *
+ * @param WP_Ability $ability The ability to run.
+ * @param array      $args    Decoded tool-call arguments.
+ * @return mixed|WP_Error The ability's result, or why it did not run.
+ */
+function openstation_ai_execute_ability( WP_Ability $ability, array $args ) {
+	return $ability->execute( empty( $ability->get_input_schema() ) ? null : $args );
+}
+
+/**
  * Permission callback: any logged-in user who can read the site.
  *
  * Mirrors the read-only search/navigation tools, which were ungated beyond the

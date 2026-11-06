@@ -23,6 +23,21 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 	}
 
+	/**
+	 * Abilities registered by the current test.
+	 *
+	 * @var string[]
+	 */
+	private $test_abilities = array();
+
+	public function tear_down() {
+		foreach ( $this->test_abilities as $name ) {
+			WP_Abilities_Registry::get_instance()->unregister( $name );
+		}
+		$this->test_abilities = array();
+		parent::tear_down();
+	}
+
 	private function create_agent( array $overrides = array() ) {
 		$user = openstation_agent_create(
 			array_merge(
@@ -1290,5 +1305,113 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			'The provider response contains no text part.',
 			$human->get_error_data()['detail']
 		);
+	}
+
+	/**
+	 * Registers a throwaway ability for one test.
+	 *
+	 * @param string $name Ability name.
+	 * @param array  $args Overrides for the registration args.
+	 * @return void
+	 */
+	private function register_test_ability( $name, array $args = array() ) {
+		$registered = WP_Abilities_Registry::get_instance()->register(
+			$name,
+			array_merge(
+				array(
+					'label'               => $name,
+					'description'         => 'Test ability.',
+					'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
+					'execute_callback'    => static function () {
+						return 'ran';
+					},
+					'permission_callback' => '__return_true',
+				),
+				$args
+			)
+		);
+		$this->assertNotNull( $registered );
+		$this->test_abilities[] = $name;
+	}
+
+	/**
+	 * A model that calls a schema-less ability still sends an empty argument
+	 * object, and Core refuses any non-null input to such an ability.
+	 *
+	 * @covers ::openstation_agent_runner_dispatch_tool
+	 * @covers ::openstation_ai_execute_ability
+	 */
+	public function test_ability_without_input_schema_runs_from_empty_arguments() {
+		$this->register_test_ability( 'acme/no-input' );
+
+		$this->assertSame(
+			'ran',
+			openstation_agent_runner_dispatch_tool( 'acme/no-input', array() )
+		);
+	}
+
+	/**
+	 * An empty argument object must still reach an ability that does declare
+	 * an object schema. Core's own resolver turns it into null, which fails
+	 * validation when the schema has no `default`.
+	 *
+	 * @covers ::openstation_agent_runner_dispatch_tool
+	 * @covers ::openstation_ai_execute_ability
+	 */
+	public function test_empty_arguments_reach_an_object_schema_ability() {
+		$this->register_test_ability(
+			'acme/optional-input',
+			array(
+				'input_schema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'limit' => array( 'type' => 'integer' ),
+					),
+				),
+			)
+		);
+
+		$this->assertSame(
+			'ran',
+			openstation_agent_runner_dispatch_tool( 'acme/optional-input', array() )
+		);
+	}
+
+	/**
+	 * Abilities from two plugins can share a short name. Both must stay
+	 * callable, and the tool map must route each name to its own ability.
+	 *
+	 * @covers ::openstation_agent_runner_build_tools
+	 */
+	public function test_colliding_abilities_both_stay_callable() {
+		$this->register_test_ability( 'acme/get-post' );
+
+		list( $tools, $slug_by_name ) = openstation_agent_runner_build_tools(
+			array( 'acme/get-post', 'desktop-mode/get-post', 'desktop-mode/get-post' )
+		);
+
+		$this->assertSame(
+			array(
+				'get_post'      => 'desktop-mode/get-post',
+				'acme_get_post' => 'acme/get-post',
+			),
+			$slug_by_name
+		);
+		$this->assertSame(
+			array( 'get_post', 'acme_get_post' ),
+			wp_list_pluck( $tools, 'name' )
+		);
+	}
+
+	/**
+	 * Agents may name abilities a plugin has since removed.
+	 *
+	 * @covers ::openstation_agent_runner_build_tools
+	 */
+	public function test_build_tools_skips_unregistered_abilities() {
+		list( $tools, $slug_by_name ) = openstation_agent_runner_build_tools( array( 'acme/not-registered' ) );
+
+		$this->assertSame( array(), $tools );
+		$this->assertSame( array(), $slug_by_name );
 	}
 }

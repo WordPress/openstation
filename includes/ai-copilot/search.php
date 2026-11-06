@@ -1533,11 +1533,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			// (never a fatal) and report on the observability channel.
 			$ability = isset( $ability_by_tool[ $tool_name ] ) ? wp_get_ability( $ability_by_tool[ $tool_name ] ) : null;
 			if ( $ability instanceof WP_Ability ) {
-				// Abilities that declare no input schema (e.g. Core's
-				// get-*-info) reject any non-null input, so pass null when
-				// there's no schema; otherwise hand over the decoded args.
-				$input  = empty( $ability->get_input_schema() ) ? null : $args;
-				$result = $ability->execute( $input );
+				$result = openstation_ai_execute_ability( $ability, $args );
 			} else {
 				$result = new WP_Error( 'openstation_ai_unknown_ability', sprintf( 'Ability for tool "%s" is unavailable.', $tool_name ) );
 			}

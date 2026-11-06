@@ -460,13 +460,17 @@ function openstation_agent_runner_build_tools( array $ability_slugs ) {
 		return array( array(), array() );
 	}
 
+	$registered = array();
+	foreach ( array_unique( array_map( 'strval', $ability_slugs ) ) as $slug ) {
+		if ( wp_has_ability( $slug ) ) {
+			$registered[] = $slug;
+		}
+	}
+
 	$tools        = array();
 	$slug_by_name = array();
-	foreach ( $ability_slugs as $slug ) {
-		$ability = wp_get_ability( (string) $slug );
-		if ( ! $ability ) {
-			continue;
-		}
+	foreach ( openstation_ai_unique_ability_tool_names( $registered ) as $name => $slug ) {
+		$ability = wp_get_ability( $slug );
 		// Project the ability's schema onto the provider-supported
 		// subset — same reshaping the Copilot applies. Providers
 		// reject the WHOLE request over one tool with a top-level
@@ -474,13 +478,8 @@ function openstation_agent_runner_build_tools( array $ability_slugs ) {
 		// the wild use both. `WP_Ability::execute()` still validates
 		// against the real schema, so nothing loses enforcement.
 		$schema = openstation_ai_normalize_tool_schema( $ability->get_input_schema() );
-		$name   = openstation_ai_ability_tool_name( (string) $slug );
-		if ( isset( $slug_by_name[ $name ] ) ) {
-			// Two namespaces mangling to the same tool name — keep the
-			// first, drop the collision.
-			continue;
-		}
-		$slug_by_name[ $name ] = (string) $slug;
+
+		$slug_by_name[ $name ] = $slug;
 
 		$tools[] = array(
 			'type'        => 'function',
@@ -1356,7 +1355,7 @@ function openstation_agent_runner_dispatch_tool( $slug, array $args ) {
 	}
 	// `execute()` runs the ability's own permission callback + schema
 	// validation; a failed permission check comes back as WP_Error.
-	return $ability->execute( $args );
+	return openstation_ai_execute_ability( $ability, $args );
 }
 
 /**

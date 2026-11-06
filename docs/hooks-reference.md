@@ -2658,7 +2658,7 @@ run falls back to the "couldn't find a clear match" answer.
 
 ### `openstation_ai_tool_called` — Stable
 
-Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`).
+Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`). Agent runs name their tools by the same rule, though their traces and `openstation_agent_tool_result` report the full ability name.
 
 ```php
 do_action( 'openstation_ai_tool_called', array $payload );
