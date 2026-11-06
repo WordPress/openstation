@@ -777,6 +777,9 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 			// request time, not here — see `sentSnapshot`.
 			_lastConfirmedState = sentSnapshot;
 			_emitSaveLifecycle( 'saved', undefined, undefined, sentSnapshot );
+			if ( res.headers?.get( KEEPS_CLASSIC_HEADER ) === '1' ) {
+				leaveForClassic();
+			}
 		} )
 		.catch( ( err ) => {
 			/* Save failed — REVERT both localStorage and the
@@ -836,6 +839,28 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
 
 /** Set by the catch above so `finally` can tell how the save ended. */
 let _saveFailed = false;
+
+/**
+ * Set on a settings save that leaves this device on classic wp-admin:
+ * the `classic` Mobile layout, saved from a request the server counts
+ * as a phone (`openstation_rest_save_os_settings()`). Every later
+ * shell request is refused from then on, so the shell leaves instead
+ * of staying up unable to save anything, including the way back.
+ */
+const KEEPS_CLASSIC_HEADER = 'X-OpenStation-Keeps-Classic';
+
+/**
+ * Replace the shell with classic admin, on the URL the admin-bar
+ * config publishes (it knows a network admin from a site's).
+ */
+function leaveForClassic(): void {
+	const url = window.openStationAdminBar?.classicUrl || '/wp-admin/';
+	try {
+		( window.top ?? window ).location.replace( url );
+	} catch {
+		window.location.replace( url );
+	}
+}
 
 /**
  * Save lifecycle phases:

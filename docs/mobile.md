@@ -22,13 +22,12 @@ The mode is a pure function of the viewport width and the user's preference, `mo
 
 `wp_is_mobile()` is a user-agent sniff: it counts Android tablets as phones and misses iPads, which identify as Macs. A site with better detection can replace it through the filter. A request that reaches the shell under `classic` wasn't judged a phone, so the client resolves the mode from the viewport exactly as it does for `auto`.
 
-Three entry points are handled so a phone under `classic` never lands on a dead end:
+Four paths are handled so a phone under `classic` never lands on a dead end:
 
 - **The shell screen** — a bookmarked shell URL, the `/openstation/` portal and the installed app's start URL all end up there — forwards to its `target`, or the Dashboard, before printing anything.
 - **The admin-bar "Switch to OpenStation" button**, pressed on that phone, sets `mobileLayout` back to `auto` before it redirects. Pressing it there means the user wants the shell on this device.
 - **Every other render gate** reads `openstation_is_enabled()`, so classic admin is never redirected into the portal.
-
-Picked from the phone itself, `classic` applies from the next page load. The shell already on screen keeps running until then.
+- **Picking `classic` from inside the phone shell.** From the next request on the server refuses every shell route, the save that would undo the choice included, so the shell must not stay up. The settings save that stored it answers with an `X-OpenStation-Keeps-Classic: 1` header when the server counts the request as a phone, and the settings store replaces the shell with classic admin (the admin-bar config's `classicUrl`). The server decides because the phone test is its own, and filterable. A desktop save never carries the header.
 
 The breakpoints are inclusive at the top of each band and filterable server-side (`openstation_mode_breakpoints`), with the invariant `0 < mobile < tablet` enforced after the filter.
 
