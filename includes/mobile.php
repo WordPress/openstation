@@ -6,7 +6,10 @@
  * (reported, rendered as desktop for now) or `mobile`, the phone
  * layer. The mode is a pure function of the viewport width and the
  * user's `mobileLayout` preference, computed in `src/mode/index.ts`.
- * PHP cannot see the viewport, so its job is three things:
+ * The one exception is the `classic` preference, which keeps a phone
+ * out of the shell altogether and so has to be decided here, from the
+ * user agent ({@see openstation_mode_keeps_classic()}). Otherwise PHP
+ * cannot see the viewport, so its job is three things:
  *
  *   1. Ship the inputs — the preference (filterable), the breakpoints
  *      (filterable) and the default tab-bar pins (filterable) — in
@@ -30,7 +33,7 @@ const OPENSTATION_MODE_MOBILE_MAX_WIDTH = 767;
 const OPENSTATION_MODE_TABLET_MAX_WIDTH = 1024;
 
 /**
- * The user's mode preference: `auto`, `desktop` or `mobile`.
+ * The user's mode preference: `auto`, `desktop`, `mobile` or `classic`.
  *
  * @param int|null $user_id User id; defaults to the current user.
  * @return string One of `OPENSTATION_OS_SETTINGS_MOBILE_LAYOUTS`.
@@ -43,10 +46,11 @@ function openstation_mode_preference( $user_id = null ) {
 	/**
 	 * Filters the user's mode preference before it reaches the shell.
 	 *
-	 * Lets a plugin force the phone layer for a role, or keep a kiosk
-	 * user on the desktop whatever their device. Returning anything
-	 * other than `auto`, `desktop` or `mobile` falls back to the
-	 * saved value.
+	 * Lets a plugin force the phone layer for a role, keep a kiosk
+	 * user on the desktop whatever their device, or keep a role on
+	 * plain wp-admin on their phone (`classic`). Returning anything
+	 * other than `auto`, `desktop`, `mobile` or `classic` falls back
+	 * to the saved value.
 	 *
 	 * @param string $preference The saved preference.
 	 * @param int    $user_id    The user it applies to.
@@ -183,19 +187,82 @@ function openstation_mode_hint_is_mobile( $user_id = null ) {
 }
 
 /**
+ * Whether the current request comes from a phone, as far as the
+ * server can tell.
+ *
+ * The one place the server decides on a device rather than hinting at
+ * one: the `classic` Mobile layout has to be settled before the shell
+ * screen renders and before the portal redirect runs on `admin_init`,
+ * long before any script can measure the viewport. The default is
+ * `wp_is_mobile()`, a user-agent sniff — it counts Android tablets as
+ * phones and misses iPads, which identify as Macs — so it is
+ * filterable for a site with better detection.
+ *
+ * @param int|null $user_id User id; defaults to the current user.
+ * @return bool
+ */
+function openstation_mode_request_is_phone( $user_id = null ) {
+	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
+
+	/**
+	 * Filters whether the current request comes from a phone.
+	 *
+	 * Read only for a user whose Mobile layout is `classic`: a `true`
+	 * answer keeps them on plain wp-admin for this request.
+	 *
+	 * @param bool $is_phone Default `wp_is_mobile()`.
+	 * @param int  $user_id  The user the request belongs to.
+	 */
+	return (bool) apply_filters(
+		'openstation_mode_is_phone_request',
+		function_exists( 'wp_is_mobile' ) && wp_is_mobile(),
+		$user_id
+	);
+}
+
+/**
+ * Whether the user keeps classic wp-admin on this request.
+ *
+ * True when their Mobile layout is `classic` and the request comes
+ * from a phone ({@see openstation_mode_request_is_phone()}).
+ * `openstation_is_enabled()` answers false for them on this request
+ * only; the `desktop_mode_mode` meta is untouched, so the desktop
+ * keeps OpenStation.
+ *
+ * @param int|null $user_id User id; defaults to the current user.
+ * @return bool
+ */
+function openstation_mode_keeps_classic( $user_id = null ) {
+	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
+	if ( $user_id <= 0 ) {
+		return false;
+	}
+
+	/*
+	 * The device first: it is a string match on a header, while the
+	 * preference sanitizes the whole settings blob, and a desktop
+	 * never needs the second answer.
+	 */
+	return openstation_mode_request_is_phone( $user_id )
+		&& 'classic' === openstation_mode_preference( $user_id );
+}
+
+/**
  * The inline script that stamps `data-os-mode` and `data-os-display`
  * on `<html>`.
  *
  * Mirrors `resolveMode()` and `resolveDisplay()` in
  * `src/mode/index.ts`: a forced preference wins; otherwise the width
- * is compared with the two breakpoints. The display is `standalone`
+ * is compared with the two breakpoints (`classic` included: a request
+ * that reaches the shell under it was not judged a phone, so it
+ * follows the viewport). The display is `standalone`
  * when the document runs as an installed app — the `display-mode`
  * media query matches, or Safari's `navigator.standalone` says the
  * page was launched from the home screen — and `browser` otherwise.
  * Kept to one statement with no dependencies so it can run before
  * anything else in the document.
  *
- * @param string $preference  `auto`, `desktop` or `mobile`.
+ * @param string $preference  `auto`, `desktop`, `mobile` or `classic`.
  * @param array  $breakpoints { mobile: int, tablet: int }.
  * @return string JavaScript source.
  */

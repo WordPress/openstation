@@ -44,7 +44,9 @@ const OPENSTATION_WELCOME_INTRO_SLUG = 'activation-welcome';
  *    re-renders there the moment the user clicks "Switch to
  *    OpenStation", which reads as a duplicate dialog because the
  *    fire-and-forget seen-intro POST races the redirect into the shell
- *    and often loses.
+ *    and often loses. A user keeping classic wp-admin on this device
+ *    (the `classic` Mobile layout on a phone) is not enabled here, but
+ *    they already opted in and then chose classic: no promo either.
  * 5. The user is the one who activated the plugin
  *    ({@see openstation_record_activator()}). Dismissal is per user, so
  *    without this every other account on the site would get the dialog
@@ -69,6 +71,9 @@ function openstation_should_show_welcome_dialog() {
 		return false;
 	}
 	if ( function_exists( 'openstation_is_enabled' ) && openstation_is_enabled() ) {
+		return false;
+	}
+	if ( function_exists( 'openstation_mode_keeps_classic' ) && openstation_mode_keeps_classic() ) {
 		return false;
 	}
 	$user_id = get_current_user_id();

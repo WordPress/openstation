@@ -11,7 +11,7 @@
  *                 switcher and a bottom tab bar.
  *
  * The mode is a pure function of the viewport width and the user's
- * preference (`'auto' | 'desktop' | 'mobile'`, Preferences → Mobile).
+ * preference (`'auto' | 'desktop' | 'mobile' | 'classic'`, Preferences → Mobile).
  * `resolveMode()` is that function, exported alone so tests and the
  * PHP-printed first-paint stamp (`openstation_print_mode_stamp()`)
  * can agree on it without booting anything.
@@ -70,13 +70,19 @@ function displayFor( queryMatches: boolean, nav: { standalone?: boolean } | unde
 	return queryMatches || nav?.standalone === true ? 'standalone' : 'browser';
 }
 
-/** The user's override. `'auto'` follows the viewport. */
-export type OsModePreference = 'auto' | 'desktop' | 'mobile';
+/**
+ * The user's override. `'auto'` follows the viewport. `'classic'`
+ * keeps a phone on plain wp-admin; the server decides that from the
+ * user agent before the shell loads, so a shell running under it was
+ * not judged a phone and follows the viewport exactly like `'auto'`.
+ */
+export type OsModePreference = 'auto' | 'desktop' | 'mobile' | 'classic';
 
 export const OS_MODE_PREFERENCES: readonly OsModePreference[] = [
 	'auto',
 	'desktop',
 	'mobile',
+	'classic',
 ];
 
 /** Widest viewport (CSS px, inclusive) that is a phone. */
@@ -174,7 +180,7 @@ export function sanitizeBreakpoints( raw: unknown ): OsModeBreakpoints {
  * A forced preference wins regardless of width: `'desktop'` on a
  * phone is the "give me the real thing" escape hatch, `'mobile'` on
  * a desktop is how a developer previews the phone layer without a
- * device.
+ * device. `'classic'` reads the width like `'auto'`.
  */
 export function resolveMode(
 	width: number,

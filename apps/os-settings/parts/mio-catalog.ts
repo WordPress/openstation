@@ -17,7 +17,7 @@ export const MIO_SETTING_CHOICES = {
 	windowRadius: [ 'sharp', 'default', 'round' ],
 	adminBarMode: [ 'static', 'dynamic', 'hidden' ],
 	windowLinkVisibility: [ 'always', 'focus', 'off' ],
-	mobileLayout: [ 'auto', 'desktop', 'mobile' ],
+	mobileLayout: [ 'auto', 'desktop', 'mobile', 'classic' ],
 	heartbeatRate: [ 15, 30, 45, 60 ],
 } as const;
 

@@ -136,6 +136,25 @@ class Tests_OpenStation_OsSettingsRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Saving `classic` from a phone tells the client to leave: every
+	 * later shell request is refused, the save that would undo it
+	 * included. The same save from a desktop says nothing.
+	 *
+	 * @covers ::openstation_rest_save_os_settings
+	 */
+	public function test_saving_classic_from_a_phone_tells_the_shell_to_leave() {
+		$res = $this->post( array( 'mobileLayout' => 'classic' ) );
+		$this->assertArrayNotHasKey( 'X-OpenStation-Keeps-Classic', $res->get_headers(), 'a desktop keeps the shell' );
+
+		add_filter( 'openstation_mode_is_phone_request', '__return_true' );
+		$res = $this->post( array( 'mobileLayout' => 'classic' ) );
+		remove_all_filters( 'openstation_mode_is_phone_request' );
+
+		$this->assertSame( '1', $res->get_headers()['X-OpenStation-Keeps-Classic'] ?? null );
+		$this->assertSame( 'classic', $res->get_data()['mobileLayout'] );
+	}
+
+	/**
 	 * The merge belongs to the REST route, NOT to the saver.
 	 * `openstation_save_os_settings()` is contractually a REPLACE, and
 	 * `includes/migrations.php` depends on it: migration 1 `unset()`s

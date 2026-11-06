@@ -412,9 +412,11 @@ export interface OsSettingsState {
 	 * viewport (phone below the mobile breakpoint, desktop above);
 	 * `'desktop'` forces the desktop on a phone; `'mobile'` forces the
 	 * phone layer anywhere, which is how a developer previews it
-	 * without a device. Per-user.
+	 * without a device; `'classic'` keeps plain wp-admin on a phone
+	 * (decided server-side from the user agent) and follows the
+	 * viewport everywhere else. Per-user.
 	 */
-	mobileLayout: 'auto' | 'desktop' | 'mobile';
+	mobileLayout: 'auto' | 'desktop' | 'mobile' | 'classic';
 	/**
 	 * Navigation item ids pinned to the phone tab bar, in order, at
 	 * most three (Home and the switcher take the other two slots).

@@ -67,10 +67,12 @@ const OPENSTATION_OS_SETTINGS_DOCK_BEHAVIORS = array( 'static', 'dynamic' );
 
 /**
  * `mobileLayout` — which experience the shell renders. `auto`
- * follows the viewport; the other two force it either way.
+ * follows the viewport; `desktop` and `mobile` force it either way;
+ * `classic` keeps plain wp-admin on a phone and follows the viewport
+ * everywhere else (see `openstation_mode_keeps_classic()`).
  * Mirrors `OsModePreference` in `src/mode/index.ts`.
  */
-const OPENSTATION_OS_SETTINGS_MOBILE_LAYOUTS = array( 'auto', 'desktop', 'mobile' );
+const OPENSTATION_OS_SETTINGS_MOBILE_LAYOUTS = array( 'auto', 'desktop', 'mobile', 'classic' );
 
 /** `mobileTabs` — at most this many ids pinned to the phone tab bar. */
 const OPENSTATION_OS_SETTINGS_MOBILE_TABS_MAX = 3;
@@ -1147,6 +1149,15 @@ function openstation_rest_get_os_settings() {
  * whole map — deep-merging them would leave no way to delete an
  * entry.
  *
+ * When the save leaves the caller keeping classic wp-admin on this
+ * device (the `classic` Mobile layout, picked from a phone), the
+ * response carries `X-OpenStation-Keeps-Classic: 1`. From the next
+ * request on, {@see openstation_is_enabled()} says no and every shell
+ * route answers 403, so the client leaves for classic admin rather
+ * than keep a shell it can no longer save from. Only the server can
+ * say: whether a request counts as a phone is its call, and it is
+ * filterable.
+ *
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The saved settings (after sanitization).
  */
@@ -1177,7 +1188,12 @@ function openstation_rest_save_os_settings( WP_REST_Request $request ) {
 		$user_id,
 		array_merge( openstation_get_os_settings( $user_id ), $payload )
 	);
-	return rest_ensure_response( openstation_get_os_settings( $user_id ) );
+
+	$response = rest_ensure_response( openstation_get_os_settings( $user_id ) );
+	if ( openstation_mode_keeps_classic( $user_id ) ) {
+		$response->header( 'X-OpenStation-Keeps-Classic', '1' );
+	}
+	return $response;
 }
 
 /**
