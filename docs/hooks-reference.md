@@ -2388,7 +2388,7 @@ The on/off state is not part of this filter — it is the per-user OS setting `m
 
 The AI assistant (Cmd+K palette) runs an agentic loop server-side and exposes a search REST endpoint. Nothing is analysed automatically: a comment is analysed only when someone asks for it, through the `desktop-mode/analyze-comment` ability. Every decision point is hookable so plugins can adjust model selection, customise prompts, or react to analysis completion.
 
-Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
+Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant needs WordPress 7.1 or later: it is available only when the Connectors and Abilities APIs, `wp_prepare_json_schema_for_client()` and `wp_supports_ai()` are present.
 
 > **Removed.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `openstation_register_ai_provider()` / `openstation_unregister_ai_provider()`, the actions `openstation_ai_register_providers` / `openstation_ai_provider_registered`, and the filters `openstation_ai_active_provider` / `openstation_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. The `/ai/search` extensibility hooks below are unaffected.
 
@@ -2445,14 +2445,14 @@ Model config for one AI turn. Fires on every path that generates: the Copilot se
 ```php
 apply_filters( 'openstation_ai_model_config', array $config, array $context );
 // $config  = { model?: string|ModelInterface, max_tokens?: int, temperature?: float, custom_options?: array<string, mixed> }
-// $context = { user_id, request_id, source, has_tools, has_schema }
+// $context = { user_id, request_id, source, has_tools, has_schema, model }
 ```
 
 `model` takes a model id or an SDK `ModelInterface`; anything else is ignored. `custom_options` keys are **provider-native parameter names**, forwarded verbatim into the request body; nothing there is validated, and a bad key fails the turn as a `WP_Error`. `source` is one of `ai-copilot/search`, `ai-copilot/followup`, `ai-copilot/comment-analysis`, `agents/runner`, `agents/draft`, `widgets/drafts-suggestions`, `mio/window`. The MIO source passes model configuration context only; it does not emit AI search transcript logging hooks.
 
 `custom_options` also feeds model discovery, not just the request body: the AI Client turns each key into a required option when it picks a model, so on a multi-provider connector an option only one model supports narrows the selection to it (or fails to match any).
 
-**Defaults to the output ceiling alone.** OpenStation pins neither provider nor model, since the keys that control reasoning depth are model-family-specific. The one value it fills in when the filter leaves it unset is `max_tokens`, at `OPENSTATION_AI_DEFAULT_MAX_TOKENS` (16384). The three default providers disagree about what "no ceiling" means: the OpenAI and Google providers send none and the model's own maximum applies, while the Anthropic provider must send one and falls back to 4096. That is not enough for a tool call carrying a whole post: the model runs out of room inside the call's JSON, the API returns only the argument pairs that were complete before the cut, and the ability rejects the call for its missing `content`. 16384 is the largest value every current-generation model of the three providers accepts. A filter value, higher or lower, always wins; a site pinning an older model with a smaller output limit must set one.
+**Defaults to the output ceiling alone.** An agent with a stored `model` arrives with that id already in `$config['model']` as a preference, so the AI Client still falls back when no provider offers it, and this filter has the last word. Otherwise OpenStation pins neither provider nor model, since the keys that control reasoning depth are model-family-specific. The one value it fills in when the filter leaves it unset is `max_tokens`, at `OPENSTATION_AI_DEFAULT_MAX_TOKENS` (16384). The three default providers disagree about what "no ceiling" means: the OpenAI and Google providers send none and the model's own maximum applies, while the Anthropic provider must send one and falls back to 4096. That is not enough for a tool call carrying a whole post: the model runs out of room inside the call's JSON, the API returns only the argument pairs that were complete before the cut, and the ability rejects the call for its missing `content`. 16384 is the largest value every current-generation model of the three providers accepts. A filter value, higher or lower, always wins; a site pinning an older model with a smaller output limit must set one.
 
 A turn that still hits the ceiling fails as `openstation_ai_output_truncated` (HTTP 502, `data.detail` carries the provider's reason, `data.completion_tokens` the count reached when known) rather than handing a partial function call or a half-written JSON answer to the caller. The OpenAI provider reports the same condition as an exception, which Core surfaces as `prompt_token_limit_reached`; the client maps it to the same code. The Agents runner turns it into `openstation_agent_output_truncated` with a message that names the remedy. A budget spent entirely inside a reasoning block still surfaces as `openstation_ai_empty_answer`, since nothing was written to truncate.
 
@@ -2643,6 +2643,10 @@ Pre-filter for one generation turn of the Copilot search loop
 `WP_Error`) to short-circuit the Core AI Client — the seam PHPUnit and
 alternative runtimes plug into. Mirrors `openstation_agent_runner_generate`.
 
+This filter works in short tool names: `$tools` and any `function_calls` you
+return use `search_posts`, not `wpab__desktop-mode__search-posts`. Core's names
+are applied only on the way to the AI Client.
+
 A run that uses all of its tool rounds without answering ends with one
 **wrap-up turn**: a fresh conversation carrying the request and every
 tool result the run gathered, with no tools offered, so the model answers
@@ -2658,7 +2662,7 @@ run falls back to the "couldn't find a clear match" answer.
 
 ### `openstation_ai_tool_called` — Stable
 
-Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`).
+Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the tool's short name (e.g. `search_posts`), which is the ability slug with its namespace stripped. The model itself is offered Core's function name (`wpab__desktop-mode__search-posts`), and the short name is translated back before this hook fires. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`). Agent runs resolve short names by the same rule, though their traces and `openstation_agent_tool_result` report the full ability name.
 
 ```php
 do_action( 'openstation_ai_tool_called', array $payload );
@@ -2701,7 +2705,7 @@ Only read-only abilities are offered on purpose: a search turn can be steered by
 
 Four abilities (`includes/ai-copilot/abilities-debugging.php`) that give an assistant — or an agent — enough to do what a developer does with a stack trace, plus a system-prompt appendix that turns them into a method. They read through Code Blue's own log model, so the assistant and the window can never disagree about what the log says or whose plugin a file belongs to.
 
-| Ability | Model-facing name | Returns |
+| Ability | Short name | Returns |
 |---|---|---|
 | `desktop-mode/list-log-issues` | `list_log_issues` | The log parsed into **distinct issues** rather than raw lines — a fatal that fired 400 times is one entry with `count: 400`. Each carries `signature` (the id for the next call), severity, message, `file`/`line`, and `origin` (`{ kind, slug, name, version }` — whose plugin, theme or core it is). No traces: the list is triage. |
 | `desktop-mode/get-log-issue` | `get_log_issue` | One issue by `signature`, stack trace included. |
@@ -5727,7 +5731,7 @@ Pre-filter for one generation turn. Return a non-null
 `{ text, function_calls, message }` array (or a `WP_Error`) to
 short-circuit the Core AI Client — the seam PHPUnit and alternative
 runtimes plug into. When any callback is attached, the runner
-considers itself available even without the WP 7.0 AI Client. On a
+considers itself available even without the WP 7.1 AI baseline. `$tool_defs` carry Core's function names (`wpab__desktop-mode__get-post`), and a call may use either that or the short name (`get_post`). On a
 transient provider failure (a gateway 5xx, a timeout, an empty
 Anthropic `content`, a failed models-list fetch) the loop retries the
 turn once, so the filter can be invoked twice for the same turn.

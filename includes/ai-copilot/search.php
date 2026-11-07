@@ -931,10 +931,13 @@ function openstation_ai_normalize_tool_schema( $schema ) {
 		);
 	}
 
-	// Recursively drop the WordPress-only arg-schema keys
-	// (`sanitize_callback` / `validate_callback` / `arg_options`) —
-	// see the helper's docblock for why this must run at every depth.
-	$schema = openstation_ai_strip_wp_schema_keys( $schema );
+	// Core drops what isn't JSON Schema at every depth, including the
+	// WordPress-only `sanitize_callback` / `validate_callback` / `arg_options`
+	// keys that providers reject outright. The guard is for the runner's
+	// `openstation_agent_runner_generate` seam, which can run below 7.1.
+	if ( function_exists( 'wp_prepare_json_schema_for_client' ) ) {
+		$schema = wp_prepare_json_schema_for_client( $schema );
+	}
 
 	// Top-level tool parameters must be the literal "object", never a union.
 	$schema['type'] = 'object';
@@ -948,73 +951,6 @@ function openstation_ai_normalize_tool_schema( $schema ) {
 	// stripped top-level combinator) gets an empty object for the same reason.
 	if ( ! isset( $schema['properties'] ) || array() === $schema['properties'] ) {
 		$schema['properties'] = (object) array();
-	}
-
-	return $schema;
-}
-
-/**
- * Recursively removes the WordPress-only arg-schema keys from a tool schema.
- *
- * WordPress arg schemas legally extend JSON Schema with PHP-callable keys —
- * `sanitize_callback`, `validate_callback`, and (on meta args) `arg_options`.
- * Abilities registered from REST arg definitions carry them at every property
- * level, and providers that validate tool schemas strictly reject any unknown
- * field ("Invalid JSON payload received. Unknown name \"sanitize_callback\""),
- * 400-ing the whole request over one property.
- *
- * The walk is structure-aware, not a blind key sweep: maps under `properties` /
- * `patternProperties` are keyed by PROPERTY NAME, so a property that happens to
- * be called `sanitize_callback` is preserved — only its schema value is
- * cleaned. Recursion covers every position a subschema can occupy: property
- * values, `items` (single schema or tuple list), array-shaped
- * `additionalProperties`, and nested `oneOf` / `allOf` / `anyOf` branches
- * (which are kept — only the TOP level of the tool schema strips combinators).
- *
- * @param array $schema A tool parameters (sub)schema.
- * @return array The schema without WP-only keys, at any depth.
- */
-function openstation_ai_strip_wp_schema_keys( array $schema ) {
-	unset( $schema['sanitize_callback'], $schema['validate_callback'], $schema['arg_options'] );
-
-	foreach ( array( 'properties', 'patternProperties' ) as $map_key ) {
-		if ( isset( $schema[ $map_key ] ) && is_array( $schema[ $map_key ] ) ) {
-			foreach ( $schema[ $map_key ] as $name => $sub ) {
-				if ( is_array( $sub ) ) {
-					$schema[ $map_key ][ $name ] = openstation_ai_strip_wp_schema_keys( $sub );
-				}
-			}
-		}
-	}
-
-	if ( isset( $schema['items'] ) && is_array( $schema['items'] ) ) {
-		$items   = $schema['items'];
-		$is_list = array_keys( $items ) === range( 0, count( $items ) - 1 );
-		if ( $is_list && array() !== $items ) {
-			// Tuple form — a list of schemas.
-			foreach ( $items as $i => $sub ) {
-				if ( is_array( $sub ) ) {
-					$items[ $i ] = openstation_ai_strip_wp_schema_keys( $sub );
-				}
-			}
-			$schema['items'] = $items;
-		} else {
-			$schema['items'] = openstation_ai_strip_wp_schema_keys( $items );
-		}
-	}
-
-	if ( isset( $schema['additionalProperties'] ) && is_array( $schema['additionalProperties'] ) ) {
-		$schema['additionalProperties'] = openstation_ai_strip_wp_schema_keys( $schema['additionalProperties'] );
-	}
-
-	foreach ( array( 'oneOf', 'allOf', 'anyOf' ) as $combinator ) {
-		if ( isset( $schema[ $combinator ] ) && is_array( $schema[ $combinator ] ) ) {
-			foreach ( $schema[ $combinator ] as $i => $sub ) {
-				if ( is_array( $sub ) ) {
-					$schema[ $combinator ][ $i ] = openstation_ai_strip_wp_schema_keys( $sub );
-				}
-			}
-		}
 	}
 
 	return $schema;
@@ -1167,11 +1103,11 @@ The message field is always a friendly sentence or two shown directly to the use
 	// Tool assembly — built-in search/navigation abilities + client-supplied
 	// command tools.
 	//
-	// Built-in tools are WordPress Abilities API abilities. Each is advertised
-	// to the model as a function declaration named after the ability (namespace
-	// stripped), and $ability_by_tool maps that name back to the ability so the
-	// agent loop can resolve + execute() it (permission + input/output
-	// validation happen inside execute()).
+	// Built-in tools are WordPress Abilities API abilities. Inside this loop each
+	// goes by its short name (namespace stripped), and $ability_by_tool maps that
+	// back to the ability so the loop can resolve + execute() it (permission +
+	// input/output validation happen inside execute()). The model is offered
+	// Core's function name instead; openstation_ai_search_generate() translates.
 	// -----------------------------------------------------------------------
 	$ability_by_tool = array();
 	$builtin_tools   = array();
@@ -1355,7 +1291,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		'request_id' => $request_id,
 	);
 
-	$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
+	$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context, $ability_by_tool );
 
 	if ( is_wp_error( $turn ) ) {
 		return $turn;
@@ -1571,7 +1507,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			if ( ! in_array( $tool_name, $valid_tools, true ) ) {
 				$tool_outputs[] = array(
 					'call_id'  => $call_id,
-					'name'     => $tool_name,
+					'name'     => $fc['function_name'] ?? $tool_name,
 					'response' => array( 'error' => "Unknown tool '{$tool_name}'." ),
 				);
 				continue;
@@ -1597,11 +1533,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			// (never a fatal) and report on the observability channel.
 			$ability = isset( $ability_by_tool[ $tool_name ] ) ? wp_get_ability( $ability_by_tool[ $tool_name ] ) : null;
 			if ( $ability instanceof WP_Ability ) {
-				// Abilities that declare no input schema (e.g. Core's
-				// get-*-info) reject any non-null input, so pass null when
-				// there's no schema; otherwise hand over the decoded args.
-				$input  = empty( $ability->get_input_schema() ) ? null : $args;
-				$result = $ability->execute( $input );
+				$result = openstation_ai_execute_ability( $ability, $args );
 			} else {
 				$result = new WP_Error( 'openstation_ai_unknown_ability', sprintf( 'Ability for tool "%s" is unavailable.', $tool_name ) );
 			}
@@ -1653,7 +1585,7 @@ The message field is always a friendly sentence or two shown directly to the use
 
 			$tool_outputs[] = array(
 				'call_id'  => $call_id,
-				'name'     => $tool_name,
+				'name'     => $fc['function_name'] ?? $tool_name,
 				'response' => $batch,
 			);
 			$gathered[]     = array(
@@ -1670,7 +1602,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		$messages[] = $turn['message'];
 		$messages[] = openstation_ai_tool_result_message( $tool_outputs );
 
-		$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context );
+		$turn = openstation_ai_search_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $generation_context, $ability_by_tool );
 
 		if ( is_wp_error( $turn ) ) {
 			return $turn;
@@ -1775,9 +1707,12 @@ The message field is always a friendly sentence or two shown directly to the use
  * @param array|null $answer_schema JSON Schema for the final answer.
  * @param string     $instructions  System instruction.
  * @param array      $context       `{ source, request_id }`.
- * @return array|WP_Error Same shape as openstation_ai_client_generate().
+ * @param array      $ability_by_tool Short tool name => ability name.
+ * @return array|WP_Error Same shape as openstation_ai_client_generate(), with
+ *                        each ability call's `name` back to its short name and
+ *                        the name the model used in `function_name`.
  */
-function openstation_ai_search_generate( $user_id, array $messages, array $tools, $answer_schema, $instructions, array $context ) {
+function openstation_ai_search_generate( $user_id, array $messages, array $tools, $answer_schema, $instructions, array $context, array $ability_by_tool = array() ) {
 	/**
 	 * Pre-filter one search generation turn. Return a non-null
 	 * `{ text, function_calls, message, usage, model }` array (or a
@@ -1794,7 +1729,75 @@ function openstation_ai_search_generate( $user_id, array $messages, array $tools
 	if ( null !== $generated ) {
 		return $generated;
 	}
-	return openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $context );
+
+	list( $tools, $function_by_tool ) = openstation_ai_tools_with_function_names( $tools, $ability_by_tool );
+
+	$name_guide = openstation_ai_tool_name_prompt_appendix( $function_by_tool );
+	if ( '' !== $name_guide ) {
+		$instructions = (string) $instructions . "\n\n" . $name_guide;
+	}
+
+	$turn = openstation_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions, $context );
+
+	return openstation_ai_turn_with_short_tool_names( $turn, $function_by_tool );
+}
+
+/**
+ * Renames ability tools to Core's function names for one request.
+ *
+ * Tools a plugin added on `openstation_ai_tools` and browser command tools aren't
+ * abilities, so they keep their names.
+ *
+ * @param array $tools           Tool definitions, named by short name.
+ * @param array $ability_by_tool Short tool name => ability name.
+ * @return array{0: array, 1: array<string,string>} The renamed tools, and short
+ *                                                  name => function name.
+ */
+function openstation_ai_tools_with_function_names( array $tools, array $ability_by_tool ) {
+	$function_by_tool = array();
+	foreach ( $tools as $index => $tool ) {
+		$name = is_array( $tool ) && isset( $tool['name'] ) ? (string) $tool['name'] : '';
+		if ( ! isset( $ability_by_tool[ $name ] ) ) {
+			continue;
+		}
+
+		$function_name = openstation_ai_ability_function_name( $ability_by_tool[ $name ] );
+		if ( '' === $function_name ) {
+			continue;
+		}
+
+		$tools[ $index ]['name']   = $function_name;
+		$function_by_tool[ $name ] = $function_name;
+	}
+
+	return array( $tools, $function_by_tool );
+}
+
+/**
+ * Turns a model's ability calls back into short tool names.
+ *
+ * The name the model used is kept in `function_name`, because the tool result
+ * sent back has to match it.
+ *
+ * @param array|WP_Error $turn             A generation turn.
+ * @param array          $function_by_tool Short name => function name.
+ * @return array|WP_Error The turn with its calls renamed.
+ */
+function openstation_ai_turn_with_short_tool_names( $turn, array $function_by_tool ) {
+	if ( ! is_array( $turn ) || empty( $turn['function_calls'] ) ) {
+		return $turn;
+	}
+
+	$tool_by_function = array_flip( $function_by_tool );
+	foreach ( $turn['function_calls'] as $index => $call ) {
+		$function_name = isset( $call['name'] ) ? (string) $call['name'] : '';
+		if ( isset( $tool_by_function[ $function_name ] ) ) {
+			$turn['function_calls'][ $index ]['function_name'] = $function_name;
+			$turn['function_calls'][ $index ]['name']          = $tool_by_function[ $function_name ];
+		}
+	}
+
+	return $turn;
 }
 
 /**

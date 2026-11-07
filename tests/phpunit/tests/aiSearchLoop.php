@@ -199,4 +199,59 @@ class Tests_OpenStation_AiSearchLoop extends WP_UnitTestCase {
 		$this->assertSame( 'Hello!', $result['message'] );
 		$this->assertCount( 1, $this->turns );
 	}
+
+	/**
+	 * Abilities take Core's names. Browser commands and plugin tools aren't
+	 * abilities, so they keep theirs.
+	 *
+	 * @covers ::openstation_ai_tools_with_function_names
+	 */
+	public function test_only_ability_tools_take_core_function_names() {
+		list( $tools, $function_by_tool ) = openstation_ai_tools_with_function_names(
+			array(
+				array( 'name' => 'search_posts' ),
+				array( 'name' => 'command_open-media' ),
+				array( 'name' => 'plugin_tool' ),
+			),
+			array( 'search_posts' => 'desktop-mode/search-posts' )
+		);
+
+		$this->assertSame(
+			array( 'wpab__desktop-mode__search-posts', 'command_open-media', 'plugin_tool' ),
+			wp_list_pluck( $tools, 'name' )
+		);
+		$this->assertSame( array( 'search_posts' => 'wpab__desktop-mode__search-posts' ), $function_by_tool );
+	}
+
+	/**
+	 * Hooks and the loop get the short name; the reply needs the model's name.
+	 *
+	 * @covers ::openstation_ai_turn_with_short_tool_names
+	 */
+	public function test_ability_calls_return_to_short_names() {
+		$turn = openstation_ai_turn_with_short_tool_names(
+			array(
+				'function_calls' => array(
+					array( 'name' => 'wpab__desktop-mode__search-posts' ),
+					array( 'name' => 'command_open-media' ),
+				),
+			),
+			array( 'search_posts' => 'wpab__desktop-mode__search-posts' )
+		);
+
+		$this->assertSame( 'search_posts', $turn['function_calls'][0]['name'] );
+		$this->assertSame( 'wpab__desktop-mode__search-posts', $turn['function_calls'][0]['function_name'] );
+		$this->assertSame( array( 'name' => 'command_open-media' ), $turn['function_calls'][1] );
+	}
+
+	/**
+	 * A failed turn passes through untouched.
+	 *
+	 * @covers ::openstation_ai_turn_with_short_tool_names
+	 */
+	public function test_failed_turn_is_returned_as_is() {
+		$error = new WP_Error( 'nope', 'Nope.' );
+
+		$this->assertSame( $error, openstation_ai_turn_with_short_tool_names( $error, array( 'a' => 'b' ) ) );
+	}
 }

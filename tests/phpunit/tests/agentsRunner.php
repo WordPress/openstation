@@ -23,6 +23,21 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 	}
 
+	/**
+	 * Abilities registered by the current test.
+	 *
+	 * @var string[]
+	 */
+	private $test_abilities = array();
+
+	public function tear_down() {
+		foreach ( $this->test_abilities as $name ) {
+			WP_Abilities_Registry::get_instance()->unregister( $name );
+		}
+		$this->test_abilities = array();
+		parent::tear_down();
+	}
+
 	private function create_agent( array $overrides = array() ) {
 		$user = openstation_agent_create(
 			array_merge(
@@ -1290,5 +1305,211 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			'The provider response contains no text part.',
 			$human->get_error_data()['detail']
 		);
+	}
+
+	/**
+	 * Registers a throwaway ability for one test.
+	 *
+	 * @param string $name Ability name.
+	 * @param array  $args Overrides for the registration args.
+	 * @return void
+	 */
+	private function register_test_ability( $name, array $args = array() ) {
+		$registered = WP_Abilities_Registry::get_instance()->register(
+			$name,
+			array_merge(
+				array(
+					'label'               => $name,
+					'description'         => 'Test ability.',
+					'category'            => OPENSTATION_AI_ABILITY_CATEGORY,
+					'execute_callback'    => static function () {
+						return 'ran';
+					},
+					'permission_callback' => '__return_true',
+				),
+				$args
+			)
+		);
+		$this->assertNotNull( $registered );
+		$this->test_abilities[] = $name;
+	}
+
+	/**
+	 * A model that calls a schema-less ability still sends an empty argument
+	 * object, and Core refuses any non-null input to such an ability.
+	 *
+	 * @covers ::openstation_agent_runner_dispatch_tool
+	 * @covers ::openstation_ai_execute_ability
+	 */
+	public function test_ability_without_input_schema_runs_from_empty_arguments() {
+		$this->register_test_ability( 'acme/no-input' );
+
+		$this->assertSame(
+			'ran',
+			openstation_agent_runner_dispatch_tool( 'acme/no-input', array() )
+		);
+	}
+
+	/**
+	 * An empty argument object must still reach an ability that does declare
+	 * an object schema. Core's own resolver turns it into null, which fails
+	 * validation when the schema has no `default`.
+	 *
+	 * @covers ::openstation_agent_runner_dispatch_tool
+	 * @covers ::openstation_ai_execute_ability
+	 */
+	public function test_empty_arguments_reach_an_object_schema_ability() {
+		$this->register_test_ability(
+			'acme/optional-input',
+			array(
+				'input_schema' => array(
+					'type'       => 'object',
+					'properties' => array(
+						'limit' => array( 'type' => 'integer' ),
+					),
+				),
+			)
+		);
+
+		$this->assertSame(
+			'ran',
+			openstation_agent_runner_dispatch_tool( 'acme/optional-input', array() )
+		);
+	}
+
+	/**
+	 * Abilities from two plugins can share a short name. Both must stay
+	 * callable, and the tool map must route each name to its own ability.
+	 *
+	 * @covers ::openstation_agent_runner_build_tools
+	 */
+	public function test_colliding_abilities_both_stay_callable() {
+		$this->register_test_ability( 'acme/get-post' );
+
+		list( $tools, $slug_by_name ) = openstation_agent_runner_build_tools(
+			array( 'acme/get-post', 'desktop-mode/get-post', 'desktop-mode/get-post' )
+		);
+
+		$this->assertSame(
+			array(
+				'get_post'                     => 'desktop-mode/get-post',
+				'wpab__desktop-mode__get-post' => 'desktop-mode/get-post',
+				'acme_get_post'                => 'acme/get-post',
+				'wpab__acme__get-post'         => 'acme/get-post',
+			),
+			$slug_by_name
+		);
+		$this->assertSame(
+			array( 'wpab__desktop-mode__get-post', 'wpab__acme__get-post' ),
+			wp_list_pluck( $tools, 'name' )
+		);
+	}
+
+	/**
+	 * Agents may name abilities a plugin has since removed.
+	 *
+	 * @covers ::openstation_agent_runner_build_tools
+	 */
+	public function test_build_tools_skips_unregistered_abilities() {
+		list( $tools, $slug_by_name ) = openstation_agent_runner_build_tools( array( 'acme/not-registered' ) );
+
+		$this->assertSame( array(), $tools );
+		$this->assertSame( array(), $slug_by_name );
+	}
+
+	/**
+	 * An instruction saved before this naming, such as "get_post the source",
+	 * has to keep pointing at the right tool.
+	 *
+	 * @covers ::openstation_agent_invoke
+	 * @covers ::openstation_ai_tool_name_prompt_appendix
+	 */
+	public function test_saved_short_names_are_explained_to_the_model() {
+		$agent = $this->create_agent(
+			array(
+				'abilities'    => array( 'desktop-mode/get-post' ),
+				'instructions' => 'get_post the source.',
+			)
+		);
+
+		$prompt = null;
+		$this->stub_generate(
+			static function ( $generated, $history, $tools, $instructions ) use ( &$prompt ) {
+				$prompt = $instructions;
+				return array(
+					'text'           => 'done',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$this->assertNotWPError( openstation_agent_invoke( $agent->ID, 'go' ) );
+
+		$this->assertStringContainsString( 'get_post the source.', $prompt );
+		$this->assertStringContainsString( '- get_post: wpab__desktop-mode__get-post', $prompt );
+	}
+
+	/**
+	 * Core's name is the one the model is offered, and it routes to the ability.
+	 *
+	 * @covers ::openstation_agent_runner_build_tools
+	 */
+	public function test_core_function_name_dispatches() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_status' => 'publish',
+				'post_title'  => 'Core named',
+			)
+		);
+		$agent   = $this->create_agent( array( 'abilities' => array( 'desktop-mode/get-post' ) ) );
+
+		$turn = 0;
+		$this->stub_generate(
+			static function () use ( &$turn, $post_id ) {
+				++$turn;
+				if ( 1 === $turn ) {
+					return array(
+						'text'           => null,
+						'function_calls' => array(
+							array(
+								'name'      => 'wpab__desktop-mode__get-post',
+								'call_id'   => 'call-1',
+								'arguments' => wp_json_encode( array( 'post_id' => $post_id ) ),
+							),
+						),
+						'message'        => null,
+					);
+				}
+				return array(
+					'text'           => 'fetched',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$result = openstation_agent_invoke( $agent->ID, 'read it' );
+
+		$this->assertNotWPError( $result );
+		$this->assertSame( 'desktop-mode/get-post', $result['toolCalls'][0]['name'] );
+		$this->assertSame( 'Core named', $result['toolCalls'][0]['output']['title'] );
+	}
+
+	/**
+	 * A name over the provider limit would fail the whole request, so that one
+	 * ability keeps its short name and the others are unaffected.
+	 *
+	 * @covers ::openstation_agent_runner_build_tools
+	 * @covers ::openstation_ai_ability_function_name
+	 */
+	public function test_over_long_function_name_keeps_the_short_name() {
+		$ability = 'acme/' . str_repeat( 'a', 60 );
+		$this->register_test_ability( $ability );
+
+		list( $tools, , $function_by_short_name ) = openstation_agent_runner_build_tools( array( $ability ) );
+
+		$this->assertSame( array( str_repeat( 'a', 60 ) ), wp_list_pluck( $tools, 'name' ) );
+		$this->assertSame( array(), $function_by_short_name );
 	}
 }

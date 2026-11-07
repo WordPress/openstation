@@ -41,7 +41,7 @@
  * Conversation history is kept as neutral rows and converted to SDK
  * message DTOs only at generate time, so the
  * `openstation_agent_runner_generate` pre-filter can service a turn
- * without the WordPress 7.0 AI Client being present (PHPUnit, or an
+ * without the WordPress 7.1 AI baseline being present (PHPUnit, or an
  * alternative runtime shipped by a plugin).
  *
  * DELIBERATE: assistant function-call turns are never replayed to the
@@ -196,7 +196,14 @@ function openstation_agent_invoke( $agent_user_id, $message, $context = array() 
 	$instructions = openstation_agent_apply_vibes( $instructions, (int) $user->ID );
 	$abilities    = openstation_agent_get_abilities( $user->ID );
 
-	list( $tool_defs, $slug_by_name ) = openstation_agent_runner_build_tools( $abilities );
+	list( $tool_defs, $slug_by_name, $function_by_short_name ) = openstation_agent_runner_build_tools( $abilities );
+
+	// Saved instructions name tools by short name ("get_post the source"), and
+	// they're stored per agent, so tell the model what those names refer to.
+	$name_guide = openstation_ai_tool_name_prompt_appendix( $function_by_short_name );
+	if ( '' !== $name_guide ) {
+		$instructions .= "\n\n" . $name_guide;
+	}
 
 	// Switch into the agent's identity so every ability's
 	// `permission_callback` evaluates against the agent's role, not
@@ -453,20 +460,27 @@ function openstation_agent_runner_check_rate_limit( $agent_user_id ) {
  * one plugin deactivated.
  *
  * @param string[] $ability_slugs Allowlisted ability slugs.
- * @return array{0: array, 1: array<string,string>} Tool definitions + name map.
+ * @return array{0: array, 1: array<string,string>, 2: array<string,string>} Tool
+ *         definitions named with Core's function names, tool name => ability
+ *         slug (short names included), and short name => function name.
  */
 function openstation_agent_runner_build_tools( array $ability_slugs ) {
 	if ( ! function_exists( 'wp_get_ability' ) ) {
-		return array( array(), array() );
+		return array( array(), array(), array() );
+	}
+
+	$registered = array();
+	foreach ( array_unique( array_map( 'strval', $ability_slugs ) ) as $slug ) {
+		if ( wp_has_ability( $slug ) ) {
+			$registered[] = $slug;
+		}
 	}
 
 	$tools        = array();
 	$slug_by_name = array();
-	foreach ( $ability_slugs as $slug ) {
-		$ability = wp_get_ability( (string) $slug );
-		if ( ! $ability ) {
-			continue;
-		}
+	$function_by_short_name = array();
+	foreach ( openstation_ai_unique_ability_tool_names( $registered ) as $short_name => $slug ) {
+		$ability = wp_get_ability( $slug );
 		// Project the ability's schema onto the provider-supported
 		// subset — same reshaping the Copilot applies. Providers
 		// reject the WHOLE request over one tool with a top-level
@@ -474,13 +488,17 @@ function openstation_agent_runner_build_tools( array $ability_slugs ) {
 		// the wild use both. `WP_Ability::execute()` still validates
 		// against the real schema, so nothing loses enforcement.
 		$schema = openstation_ai_normalize_tool_schema( $ability->get_input_schema() );
-		$name   = openstation_ai_ability_tool_name( (string) $slug );
-		if ( isset( $slug_by_name[ $name ] ) ) {
-			// Two namespaces mangling to the same tool name — keep the
-			// first, drop the collision.
-			continue;
+
+		$function_name = openstation_ai_ability_function_name( $slug );
+		$name          = '' !== $function_name ? $function_name : $short_name;
+
+		// The short name stays callable: it's still the same allowlisted
+		// ability, and saved instructions may lead a model to use it.
+		$slug_by_name[ $short_name ] = $slug;
+		$slug_by_name[ $name ]       = $slug;
+		if ( $name !== $short_name ) {
+			$function_by_short_name[ $short_name ] = $name;
 		}
-		$slug_by_name[ $name ] = (string) $slug;
 
 		$tools[] = array(
 			'type'        => 'function',
@@ -489,7 +507,7 @@ function openstation_agent_runner_build_tools( array $ability_slugs ) {
 			'parameters'  => $schema,
 		);
 	}
-	return array( $tools, $slug_by_name );
+	return array( $tools, $slug_by_name, $function_by_short_name );
 }
 
 /**
@@ -1086,7 +1104,10 @@ function openstation_agent_runner_generate( $agent_user_id, array $history, arra
 				// calls a function or emits the JSON answer.
 				openstation_agent_answer_schema(),
 				(string) $instructions . "\n\n" . openstation_agent_answer_prompt_appendix(),
-				array( 'source' => 'agents/runner' )
+				array(
+					'source' => 'agents/runner',
+					'model'  => openstation_agent_get_model( $agent_user_id ),
+				)
 			);
 		}
 	);
@@ -1356,7 +1377,7 @@ function openstation_agent_runner_dispatch_tool( $slug, array $args ) {
 	}
 	// `execute()` runs the ability's own permission callback + schema
 	// validation; a failed permission check comes back as WP_Error.
-	return $ability->execute( $args );
+	return openstation_ai_execute_ability( $ability, $args );
 }
 
 /**

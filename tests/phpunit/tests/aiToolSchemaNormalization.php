@@ -195,7 +195,7 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * received. Unknown name \"sanitize_callback\"") and 400 the whole
 	 * request over one property.
 	 *
-	 * @covers ::openstation_ai_strip_wp_schema_keys
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_wp_callback_keys_are_stripped_recursively() {
 		$out = openstation_ai_normalize_tool_schema( array(
@@ -250,7 +250,7 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 	 * the walk is structure-aware, so only schema-level keys are
 	 * stripped, never property names.
 	 *
-	 * @covers ::openstation_ai_strip_wp_schema_keys
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_property_named_like_a_callback_key_is_preserved() {
 		$out = openstation_ai_normalize_tool_schema( array(
@@ -274,7 +274,7 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 	/**
 	 * Tuple-form `items` (a list of schemas) is cleaned per entry.
 	 *
-	 * @covers ::openstation_ai_strip_wp_schema_keys
+	 * @covers ::openstation_ai_normalize_tool_schema
 	 */
 	public function test_tuple_items_are_cleaned_per_entry() {
 		$out = openstation_ai_normalize_tool_schema( array(
@@ -301,5 +301,38 @@ class Tests_OpenStation_AiToolSchemaNormalization extends WP_UnitTestCase {
 		$this->assertSame( 'string', $items[1]['type'] );
 		$this->assertStringNotContainsString( 'sanitize_callback', wp_json_encode( $items ) );
 		$this->assertStringNotContainsString( 'validate_callback', wp_json_encode( $items ) );
+	}
+
+	/**
+	 * Core's preparation also lifts a draft-03 per-property `required: true`
+	 * into the draft-04 list providers understand.
+	 *
+	 * @covers ::openstation_ai_normalize_tool_schema
+	 */
+	public function test_per_property_required_flag_becomes_a_required_list() {
+		$out = openstation_ai_normalize_tool_schema( array(
+			'type'       => 'object',
+			'properties' => array(
+				'title' => array(
+					'type'     => 'string',
+					'required' => true,
+				),
+				'slug'  => array( 'type' => 'string' ),
+			),
+		) );
+
+		$this->assertSame( array( 'title' ), $out['required'] );
+		$this->assertArrayNotHasKey( 'required', $out['properties']['title'] );
+	}
+
+	/**
+	 * The assistant depends on Core's schema preparation, so its availability
+	 * and the helper it needs must agree.
+	 *
+	 * @covers ::openstation_ai_is_available
+	 */
+	public function test_availability_requires_core_schema_preparation() {
+		$this->assertTrue( function_exists( 'wp_prepare_json_schema_for_client' ) );
+		$this->assertTrue( openstation_ai_is_available() );
 	}
 }

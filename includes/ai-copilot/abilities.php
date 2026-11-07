@@ -44,6 +44,11 @@ function openstation_ai_register_ability_category() {
 add_action( 'wp_abilities_api_categories_init', 'openstation_ai_register_ability_category' );
 
 /**
+ * The longest tool name offered to a model. The limit providers commonly apply.
+ */
+const OPENSTATION_AI_MAX_TOOL_NAME_LENGTH = 64;
+
+/**
  * The ability names the Copilot offers the model as tools.
  *
  * Every registered ability marked read-only (`meta.annotations.readonly`) is
@@ -64,8 +69,22 @@ function openstation_ai_search_ability_names() {
 		return array();
 	}
 
+	// The check inside the loop stays even though Core's query asks for the same
+	// thing. This list is the only thing keeping write abilities away from a model
+	// reading untrusted text, and `wp_get_abilities_result` can still reshape what
+	// the query returns.
+	$read_only = wp_get_abilities(
+		array(
+			'meta' => array(
+				'annotations' => array(
+					'readonly' => true,
+				),
+			),
+		)
+	);
+
 	$names = array();
-	foreach ( wp_get_abilities() as $ability ) {
+	foreach ( $read_only as $ability ) {
 		if ( ! $ability instanceof WP_Ability ) {
 			continue;
 		}
@@ -81,11 +100,14 @@ function openstation_ai_search_ability_names() {
 }
 
 /**
- * The model-facing tool name for an ability — the ability name with its
- * namespace stripped and dashes turned into underscores. By design this
- * reproduces the Copilot's historical tool names (`desktop-mode/search-posts`
- * → `search_posts`), so progress labels, the system prompt, and the answer
- * schema keep referring to the same names across the abilities migration.
+ * The short name for an ability — the ability name with its namespace stripped
+ * and dashes turned into underscores (`desktop-mode/search-posts` →
+ * `search_posts`).
+ *
+ * The model is offered Core's function name for the ability; see
+ * {@see openstation_ai_ability_function_name()}. The short name remains what
+ * progress labels, system prompts, saved agent instructions and the Copilot's
+ * hooks use, so those keep working unchanged.
  *
  * @param string $ability_name Fully-namespaced ability name.
  * @return string
@@ -96,17 +118,57 @@ function openstation_ai_ability_tool_name( $ability_name ) {
 	if ( false !== $pos ) {
 		$slug = substr( $slug, $pos + 1 );
 	}
-	// This becomes the model-facing function name; most function-calling
-	// providers only accept [a-z0-9_], so normalize anything else (a
-	// third-party ability may carry extra slashes or mixed case).
+	// A third-party ability may carry extra slashes or mixed case.
 	$slug = strtolower( str_replace( '-', '_', $slug ) );
 	$slug = preg_replace( '/[^a-z0-9_]+/', '_', $slug );
 	return trim( (string) $slug, '_' );
 }
 
 /**
- * Maps abilities to model-facing tool names that are unique within one
- * request.
+ * The function name Core's AI Client uses for an ability, for offering it to
+ * the model (`desktop-mode/search-posts` →
+ * `wpab__desktop-mode__search-posts`).
+ *
+ * Core doesn't limit the length of these names, and a provider rejects the
+ * whole request over one name that is too long, so a name over the limit comes
+ * back empty and the caller keeps the ability's short name.
+ *
+ * @param string $ability_name Fully-namespaced ability name.
+ * @return string The function name, or an empty string when it can't be used.
+ */
+function openstation_ai_ability_function_name( $ability_name ) {
+	if ( ! class_exists( 'WP_AI_Client_Ability_Function_Resolver' ) ) {
+		return '';
+	}
+
+	$function_name = WP_AI_Client_Ability_Function_Resolver::ability_name_to_function_name( (string) $ability_name );
+
+	return strlen( $function_name ) <= OPENSTATION_AI_MAX_TOOL_NAME_LENGTH ? $function_name : '';
+}
+
+/**
+ * Tells the model which tool each short name refers to.
+ *
+ * Saved agent instructions, system prompts and third-party prompt filters name
+ * tools by their short names, so the mapping travels with the prompt.
+ *
+ * @param array<string,string> $function_by_short_name Short name => function name.
+ * @return string Prompt text, or an empty string when there is nothing to map.
+ */
+function openstation_ai_tool_name_prompt_appendix( array $function_by_short_name ) {
+	$lines = array();
+	foreach ( $function_by_short_name as $short_name => $function_name ) {
+		$lines[] = '- ' . $short_name . ': ' . $function_name;
+	}
+	if ( empty( $lines ) ) {
+		return '';
+	}
+
+	return "These instructions may call a tool by a short name. Use the tool's full name when you call it:\n" . implode( "\n", $lines );
+}
+
+/**
+ * Maps abilities to short names that are unique within one request.
  *
  * Stripping the namespace means two plugins can land on the same name
  * (`desktop-mode/get-site-context` and `acme/get-site-context`), and
@@ -147,6 +209,23 @@ function openstation_ai_unique_ability_tool_names( array $ability_names ) {
 	}
 
 	return $map;
+}
+
+/**
+ * Runs an ability for a tool call the model made.
+ *
+ * Abilities with no input schema refuse any non-null input, and a model sends
+ * an empty object when it calls one, so those get null. Everything else gets
+ * the decoded arguments as they are, including an empty array: Core's
+ * `WP_AI_Client_Ability_Function_Resolver` turns that into null, which fails
+ * validation on an object schema with no `default`.
+ *
+ * @param WP_Ability $ability The ability to run.
+ * @param array      $args    Decoded tool-call arguments.
+ * @return mixed|WP_Error The ability's result, or why it did not run.
+ */
+function openstation_ai_execute_ability( WP_Ability $ability, array $args ) {
+	return $ability->execute( empty( $ability->get_input_schema() ) ? null : $args );
 }
 
 /**
