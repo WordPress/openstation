@@ -1289,7 +1289,7 @@ export const HOOKS = {
 	/**
 	 * Action, fires when the drag cursor enters a snap zone and the
 	 * shell shows the target-position preview. Payload
-	 * `{ windowId, zone: 'left' | 'right' }`.
+	 * `{ windowId, zone: 'left' | 'right' | 'top' }`.
 	 */
 	SNAP_ZONE_PENDING: 'os.snap.zone-pending',
 	/**
@@ -1299,7 +1299,7 @@ export const HOOKS = {
 	SNAP_ZONE_CANCELED: 'os.snap.zone-canceled',
 	/**
 	 * Action, fires once the window has animated into its snapped
-	 * bounds. Payload `{ windowId, zone: 'left' | 'right' }`.
+	 * bounds. Payload `{ windowId, zone: 'left' | 'right' | 'top' }`.
 	 */
 	SNAP_ZONE_COMMITTED: 'os.snap.zone-committed',
 	/**

@@ -2,18 +2,22 @@
  * OpenStation — Snap zones.
  *
  * Windows-style edge snapping. While a window is being dragged, the
- * shell watches the cursor for proximity to the left or right edge
- * of the desktop area. When the cursor enters the edge threshold:
+ * shell watches the cursor for proximity to the left, right, or top
+ * edge of the desktop area. When the cursor enters the edge threshold:
  *
- *   1. A translucent preview rectangle appears in the target half so
+ *   1. A translucent preview rectangle appears in the target landing
+ *      area (the target half for left/right, full work area for top) so
  *      the user sees where the window will land before committing.
- *   2. On pointerup inside the zone, the window animates to the
- *      target half via the base window CSS transition, state flips
- *      to `snapped-left` / `snapped-right`, and a hook fires.
- *   3. After the commit animation settles, the shell hands off to
- *      {@link ./split-overview.ts} which shows every OTHER window in
- *      the OPPOSITE half so the user can pick a partner for the
- *      split.
+ *   2. On pointerup inside the zone:
+ *      - Left/right: the window animates to the target half via the base
+ *        window CSS transition, state flips to `snapped-left` /
+ *        `snapped-right`, and a hook fires.
+ *      - Top: the window maximizes to the full work area via
+ *        `win.maximize()`, state flips to `maximized`, and a hook fires.
+ *   3. For left/right snaps, after the commit animation settles, the shell
+ *      hands off to {@link ./split-overview.ts} which shows every OTHER
+ *      window in the OPPOSITE half so the user can pick a partner for the
+ *      split. Top maximize skips split overview.
  *
  * All DOM + state mutation lives on the `WindowManager` instance via
  * the `_` prefixed internal fields. That way pointer.ts (in the
@@ -45,17 +49,18 @@ export const SNAP_EDGE_THRESHOLD = 30;
 /** Animation used by the preview fade + the commit slide. */
 const SNAP_COMMIT_MS = 260;
 
-/** Directions we snap to today. Corners / top come later. */
-export type SnapZone = 'left' | 'right';
+/** Directions we snap to. Corners come later. */
+export type SnapZone = 'left' | 'right' | 'top';
 
 /**
- * Return the snap zone (if any) that `clientX` falls into, measured
+ * Return the snap zone (if any) that the cursor falls into, measured
  * against the desktop area's bounding rect. `null` means "dragging
  * somewhere in the middle — no snap pending."
  */
 export function detectSnapZone(
 	clientX: number,
 	desktopRect: DOMRect,
+	clientY?: number,
 ): SnapZone | null {
 	if ( clientX <= desktopRect.left + SNAP_EDGE_THRESHOLD ) {
 		return 'left';
@@ -63,17 +68,20 @@ export function detectSnapZone(
 	if ( clientX >= desktopRect.right - SNAP_EDGE_THRESHOLD ) {
 		return 'right';
 	}
+	if ( undefined !== clientY && clientY <= desktopRect.top + SNAP_EDGE_THRESHOLD ) {
+		return 'top';
+	}
 	return null;
 }
 
 /**
  * The zone a window is snapped to, or `null` when it is not snapped.
  */
-function snappedZoneOf( win: Window ): SnapZone | null {
-	if ( win.state === 'snapped-left' ) {
+function snappedZoneOf( win: Window ): 'left' | 'right' | null {
+	if ( 'snapped-left' === win.state ) {
 		return 'left';
 	}
-	if ( win.state === 'snapped-right' ) {
+	if ( 'snapped-right' === win.state ) {
 		return 'right';
 	}
 	return null;
@@ -89,7 +97,10 @@ export function snapPartnerMinWidth(
 	win: Window,
 	zone: SnapZone,
 ): number {
-	const opposite: SnapZone = zone === 'left' ? 'right' : 'left';
+	if ( 'top' === zone ) {
+		return 0;
+	}
+	const opposite: 'left' | 'right' = 'left' === zone ? 'right' : 'left';
 	let min = 0;
 	for ( const other of mgr._stack ) {
 		if (
@@ -105,9 +116,9 @@ export function snapPartnerMinWidth(
 
 /**
  * Compute the final bounds (in desktop-area-local coordinates) for a
- * given snap zone. Half the work area's width and its full height,
- * keeping the dock's safe area clear. Rounded to whole pixels so the preview
- * rectangle and the committed window line up pixel-perfectly.
+ * given snap zone. Half the work area's width for left/right, full work
+ * area for top, keeping the dock's safe area clear. Rounded to whole pixels
+ * so the preview rectangle and the committed window line up pixel-perfectly.
  *
  * Pass the window being snapped and the half widens to its minimum
  * width and leaves the other half what the window snapped there needs,
@@ -118,6 +129,15 @@ export function snapZoneBounds(
 	zone: SnapZone,
 	win?: Window,
 ): { x: number; y: number; width: number; height: number } {
+	if ( 'top' === zone ) {
+		const workArea = workAreaRectOf( mgr._desktop );
+		return {
+			x: Math.floor( workArea.x ),
+			y: Math.floor( workArea.y ),
+			width: Math.floor( workArea.width ),
+			height: Math.floor( workArea.height ),
+		};
+	}
 	const rect = snapHalfRect(
 		workAreaRectOf( mgr._desktop ),
 		zone,
@@ -180,7 +200,7 @@ export function relayoutSnappedWindow( mgr: WindowManager, win: Window ): void {
  * Returns the teardown.
  */
 export function installSnapPartnerReflow( mgr: WindowManager ): () => void {
-	let snapshot = new Map< string, { zone: SnapZone; desktopId: string } >();
+	let snapshot = new Map< string, { zone: 'left' | 'right'; desktopId: string } >();
 
 	const sync = (): void => {
 		// Overview owns the geometry while it is up. The snapshot is left
@@ -188,7 +208,7 @@ export function installSnapPartnerReflow( mgr: WindowManager ): () => void {
 		if ( mgr._overviewActive ) {
 			return;
 		}
-		const next = new Map< string, { zone: SnapZone; desktopId: string } >();
+		const next = new Map< string, { zone: 'left' | 'right'; desktopId: string } >();
 		for ( const w of mgr._stack ) {
 			const zone = snappedZoneOf( w );
 			if ( zone ) {
@@ -248,12 +268,12 @@ export function installSnapPartnerReflow( mgr: WindowManager ): () => void {
  */
 export function oppositeHalfRect(
 	mgr: WindowManager,
-	zone: SnapZone,
+	zone: 'left' | 'right',
 ): DOMRect {
 	const rect = mgr._desktop.getBoundingClientRect();
 	const halfW = Math.floor( rect.width / 2 );
 	const height = Math.floor( rect.height );
-	if ( zone === 'left' ) {
+	if ( 'left' === zone ) {
 		return new DOMRect( halfW, 0, halfW, height );
 	}
 	return new DOMRect( 0, 0, halfW, height );
@@ -324,6 +344,7 @@ export function updateSnapZoneForDrag(
 	mgr: WindowManager,
 	win: Window,
 	clientX: number,
+	clientY?: number,
 ): void {
 	if ( mgr._splitOverviewActive ) {
 		// A previous snap already finished and the picker is up. No
@@ -331,7 +352,7 @@ export function updateSnapZoneForDrag(
 		return;
 	}
 	const rect = mgr._desktop.getBoundingClientRect();
-	const zone = detectSnapZone( clientX, rect );
+	const zone = detectSnapZone( clientX, rect, clientY );
 	const previous = mgr._snapPendingZone;
 	if ( zone ) {
 		showSnapPreview( mgr, zone, win );
@@ -363,35 +384,41 @@ export function commitSnapIfPending(
 	}
 	hideSnapPreview( mgr );
 
-	// `snapTo` saves the pre-snap geometry first, so a subsequent drag
-	// from the snapped title bar can shrink the window back to its
-	// earlier floating size (mirrors how maximize saves geometry for
-	// un-maximize), and skips the save when `_savedGeometry` already
-	// represents some prior state — a snap after a maximize would
-	// otherwise overwrite the pre-max bounds with the maximized ones.
-	//
-	// It then animates to the target bounds. The base window CSS
-	// transition covers left/top/width/height transitions for ~250 ms,
-	// so the inline styles written by `applySnap` trigger the slide.
-	// Going through the shared method (not hand-written inline math)
-	// keeps the live snap + session-restore + ResizeObserver paths
-	// pixel-identical — any future tweak to "what does snapped-left
-	// mean" lives in one place.
-	win.snapTo( zone );
+	if ( 'top' === zone ) {
+		win.maximize();
+	} else {
+		// `snapTo` saves the pre-snap geometry first, so a subsequent drag
+		// from the snapped title bar can shrink the window back to its
+		// earlier floating size (mirrors how maximize saves geometry for
+		// un-maximize), and skips the save when `_savedGeometry` already
+		// represents some prior state — a snap after a maximize would
+		// otherwise overwrite the pre-max bounds with the maximized ones.
+		//
+		// It then animates to the target bounds. The base window CSS
+		// transition covers left/top/width/height transitions for ~250 ms,
+		// so the inline styles written by `applySnap` trigger the slide.
+		// Going through the shared method (not hand-written inline math)
+		// keeps the live snap + session-restore + ResizeObserver paths
+		// pixel-identical — any future tweak to "what does snapped-left
+		// mean" lives in one place.
+		win.snapTo( zone );
+	}
 
 	doAction( HOOKS.SNAP_ZONE_COMMITTED, {
 		windowId: win.id,
 		zone,
 	} );
 
-	// Hand off to phase 2: show a split overview of every other
-	// window in the opposite half, so the user can pick a partner.
-	// Defer one frame so the snap-slide animation has already started
-	// — otherwise the overview's own transform on non-selected
-	// windows would race the slide and visually stutter.
-	window.requestAnimationFrame( () => {
-		enterSplitOverview( mgr, win, zone );
-	} );
+	if ( 'top' !== zone ) {
+		// Hand off to phase 2: show a split overview of every other
+		// window in the opposite half, so the user can pick a partner.
+		// Defer one frame so the snap-slide animation has already started
+		// — otherwise the overview's own transform on non-selected
+		// windows would race the slide and visually stutter.
+		window.requestAnimationFrame( () => {
+			enterSplitOverview( mgr, win, zone );
+		} );
+	}
 
 	return true;
 }
