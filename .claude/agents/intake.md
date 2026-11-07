@@ -81,6 +81,7 @@ approver will hand it to a human instead of merging it.
 DECISION: ACCEPT | NEEDS-INFO | REJECT
 RISK: low | medium | high
 SURFACES: none | ui | security | ui, security
+BEHAVIOUR: yes | no
 RESCOPED: yes | no
 
 ## Scope
@@ -97,7 +98,9 @@ in the code you read.
 NEEDS-INFO only: numbered questions for the author. Omit the section otherwise.
 ```
 
-The four header lines come first, exactly in that form, then a blank line.
+The five header lines come first, exactly in that form, then a blank line.
+`BEHAVIOUR: no` only when the change can touch nothing but docs or tests: every
+other change gets a runtime reviewer that uses it on trunk's site and the job's.
 `RESCOPED: yes` when your Scope builds less than, or something different
 from, what the issue asks.
 

@@ -6,22 +6,34 @@
   "auto_merge": false,
   "teardown": ["bash", "-c", "npx wp-env destroy --force; npx wp-env destroy --force --config=.wp-env.tests.json"],
   "ci_timeout_minutes": 45,
+  "env": "wp-env",
+  "pr_changes_limit": 3,
   "labels": {
     "queue": "factory",
     "needs_info": "factory:needs-info",
-    "needs_human": "factory:needs-human"
+    "needs_human": "factory:needs-human",
+    "trusted": "factory:trusted"
   },
   "routing": {
     "low":    { "builder": "sonnet", "code": "haiku" },
     "medium": { "builder": "sonnet", "code": "sonnet" },
     "high":   { "builder": "opus",   "code": "sonnet" }
   },
+  "runtime_reviewer": "sonnet",
   "surface_reviewers": {
     "ui": { "ux": "sonnet", "ui": "haiku" },
     "security": { "security": "opus" }
   },
+  "fork_sensitive_paths": [
+    "package.json",
+    "package-lock.json",
+    "composer.json",
+    "composer.lock",
+    ".github/*",
+    "bin/*"
+  ],
   "protected_paths": [
-    "factory/checks.sh",
+    "factory/*.sh",
     "factory/config.json",
     "factory/bin/*",
     ".claude/agents/*",
@@ -46,7 +58,7 @@
     "tests/phpunit/tests/myWordpressTermStats.php",
     "tests/phpunit/tests/desktopThemesLegacy.php"
   ],
-  "ports": { "base": 8900, "step": 10 },
+  "ports": { "base": 8900, "step": 10, "trunk": 8900 },
   "prices_usd_per_mtok": {
     "claude-fable-5-1":  { "input": 10.0, "output": 50.0, "cache_write_5m": 12.5, "cache_write_1h": 20.0, "cache_read": 0.25 },
     "claude-opus-5-5":   { "input": 4.0,  "output": 20.0, "cache_write_5m": 5.0,  "cache_write_1h": 8.0,  "cache_read": 0.20 },

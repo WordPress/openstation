@@ -38,8 +38,9 @@ APPROVE only if all of these hold:
   you find convincing. Spot-check at least one criterion yourself.
 - The final round's `checks.md` says `GATE: PASS`, its `ci.md` says `CI: PASS`
   (the factory waited for CI on this commit; Plugin Check runs only there),
-  every routed review in it is `VERDICT: PASS`, and no Note in them describes a
-  real problem.
+  and every routed review in it is `VERDICT: PASS`. Read their **Gaps** and
+  **Nits** too: a gap the spec required is a reason to escalate; the rest go
+  under "For the human" for the maintainer to weigh.
 - The change stays inside intake's Scope.
 - `git merge-tree --write-tree origin/<base> HEAD` reports no conflicts.
 
@@ -61,6 +62,10 @@ ESCALATE if any of them fails, or if the change:
 - adds or upgrades a dependency (`package.json`, `composer.json`);
 - rests on a spec Assumption that is really a product decision, such as public
   copy, what a role can see, or a default users will notice.
+
+Check the PR's linked issue with `gh pr view <pr> --json closingIssuesReferences`.
+If it doesn't list the job's issue, the merge won't close it: say so under "For
+the human". It never blocks an approval; a maintainer decides.
 
 ## Write decision.md
 
