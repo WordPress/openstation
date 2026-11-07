@@ -31,15 +31,29 @@ jobs:
         with:
           persist-credentials: false
 
-      # The action installs zizmor from a hash-locked wheel shipped at this
-      # commit, so the SHA pins the tool as well as the wrapper.
-      - uses: zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd # v0.8.1
-        with:
-          version: 1.32.0
-          # Findings fail the job and show as annotations on the PR, without
-          # needing code scanning or a write token on fork PRs.
-          advanced-security: false
-          annotations: true
+      # The wheel is pinned by hash in .github/zizmor-requirements.txt, the
+      # same lock zizmorcore/zizmor-action installs from. Installed directly
+      # rather than through that action: a run using it failed at startup
+      # under this repository's Actions policy.
+      - name: Download zizmor
+        run: |
+          python3 -m pip download \
+            --quiet --no-input --disable-pip-version-check \
+            --only-binary=:all: --no-deps --require-hashes \
+            --dest "$RUNNER_TEMP/zizmor" \
+            --requirement .github/zizmor-requirements.txt
+
+      # Findings fail the job and show as annotations on the PR, without
+      # needing code scanning or a write token on fork PRs.
+      - name: Run zizmor
+        env:
+          GH_TOKEN: ${{ github.token }} # online audits, read-only
+        run: |
+          wheel=$( echo "$RUNNER_TEMP"/zizmor/*.whl )
+          python3 -m zipfile --extract "$wheel" "$RUNNER_TEMP/zizmor/unpacked"
+          zizmor=$( echo "$RUNNER_TEMP"/zizmor/unpacked/zizmor-*.data/scripts/zizmor )
+          chmod +x "$zizmor"
+          "$zizmor" --format=github .github/
 
   actionlint:
     name: actionlint
