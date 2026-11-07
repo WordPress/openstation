@@ -1,6 +1,7 @@
 name: Claude Code
 
 on:
+  # zizmor: ignore[dangerous-triggers] reviewed: the job is gated on the commenter's association and fork PRs run with a read-only token (see below).
   issue_comment:
     types: [created]
   pull_request_review_comment:
@@ -9,6 +10,9 @@ on:
     types: [opened, assigned]
   pull_request_review:
     types: [submitted]
+
+# Deny by default; the job grants what it needs.
+permissions: {}
 
 jobs:
   claude:
@@ -37,9 +41,9 @@ jobs:
       # makes a push from an untrusted working tree impossible. Pull-request
       # and issue writes let Claude keep posting its tracking comment there.
       contents: read
-      pull-requests: write
-      issues: write
-      id-token: write
+      pull-requests: write # tracking comment and reviews on PRs
+      issues: write # tracking comment on issues
+      id-token: write # OIDC exchange for the Claude GitHub App token (same-repo runs)
       actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Resolve pull request origin
@@ -72,6 +76,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
+          # The action strips checkout's credential and installs its own
+          # helper for the token it chooses, so leave nothing behind here.
+          persist-credentials: false
 
       - name: Collect the trusted agent guide
         id: guide

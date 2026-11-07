@@ -21,10 +21,8 @@ on:
       - '.github/workflows/wiki.yml'
   workflow_dispatch:
 
-# contents: write lets the GITHUB_TOKEN push to the wiki repository, which
-# shares the parent repository's permission model.
-permissions:
-  contents: write
+# Deny by default; the job grants what it needs.
+permissions: {}
 
 # Syncs are last-writer-wins over the same wiki; never run two at once, and
 # a queued older sync is useless once a newer docs state exists.
@@ -36,6 +34,10 @@ jobs:
   sync:
     name: Build pages · push to wiki
     runs-on: ubuntu-26.04
+    # contents: write lets the GITHUB_TOKEN push to the wiki repository, which
+    # shares the parent repository's permission model.
+    permissions:
+      contents: write # push to <repo>.wiki.git
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
