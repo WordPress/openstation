@@ -43,7 +43,7 @@ Assets (banners, icons, screenshots) come from `.wordpress-org/`, the action's d
 The deploy job runs in a GitHub Environment named `wordpress-org`, which GitHub creates the first time the job runs. Until a repository admin configures it, it changes nothing: the job reads the repository-level `SVN_USERNAME` / `SVN_PASSWORD` secrets as before. To make it a gate (Settings → Environments → `wordpress-org`):
 
 1. Add `SVN_USERNAME` and `SVN_PASSWORD` as **environment** secrets, then delete the repository-level ones. Any workflow on any branch can read a repository secret, so anyone with write access could otherwise read the SVN password by pushing a workflow that prints it.
-2. Under **Deployment branches and tags**, allow only tags matching `v*`.
+2. Under **Deployment branches and tags**, choose **Selected branches and tags** and add two rules: tags matching `v*`, and the branch `trunk`. The rule is checked against the ref the run started from: a tag push starts from the tag, but a [re-deploy](#re-deploying-a-published-tag) is dispatched from `trunk`, so a tags-only rule would block every re-deploy. Allowing `trunk` opens nothing else, because a push to `trunk` never starts this workflow; only a dispatch does, and that already requires write access.
 3. Optionally add **required reviewers**, so every wp.org deploy waits for a maintainer's approval.
 
 Pair it with a tag ruleset (Settings → Rules) that limits who can create `v*` tags, since pushing one starts a release.
