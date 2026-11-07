@@ -20,21 +20,28 @@ name: PR Preview Publish
 # PR in which it's introduced.
 
 on:
+  # zizmor: ignore[dangerous-triggers] reviewed: never checks out or runs PR code, PR identity comes from the event payload (see above).
   workflow_run:
     workflows: ['PR Preview Build']
     types: [completed]
 
-permissions:
-  contents: write
-  pull-requests: write
-  actions: read
+permissions: {}
 
 jobs:
   publish:
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-26.04
+    permissions:
+      contents: write # upload the preview zip to the ci-artifacts release
+      pull-requests: write # post the preview comment
+      actions: read # download the build run's artifact
     steps:
+      # Only for `.wordpress-org/blueprints/blueprint.json`. The actions below
+      # authenticate through their own token inputs, never git.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .wordpress-org/blueprints
 
       - name: Resolve PR from trusted workflow_run data
         id: meta

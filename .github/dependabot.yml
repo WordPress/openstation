@@ -5,3 +5,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # Never propose a version published less than a week ago: most malicious
+    # releases are detected and pulled within days, and a bump that waits
+    # them out needs no judgment from whoever reviews it. Covers version
+    # updates only; security updates are never delayed.
+    cooldown:
+      default-days: 7

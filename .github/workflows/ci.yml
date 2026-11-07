@@ -7,15 +7,16 @@ on:
     branches: [ trunk ]
 
 # Least privilege: this workflow only reads the repo to lint, build, and test.
-# It never writes commits, comments, or releases, so the token needs no more
-# than read access to repository contents.
-permissions:
-  contents: read
+# It never writes commits, comments, or releases, so every job gets read access
+# to repository contents and nothing else.
+permissions: {}
 
 jobs:
   js:
     name: Lint · Types · Vitest
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -67,7 +68,12 @@ jobs:
           # skipped.
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
         run: |
-          npm --prefix extensions/openstation-electron-adapter ci
+          # `--prefix` makes npm read the adapter's own config, not the
+          # root `.npmrc`, so its `ignore-scripts=true` has to be passed
+          # here: no dependency (or the adapter's own postinstall, which
+          # only brands the local dev app) needs a lifecycle script for
+          # these checks.
+          npm --prefix extensions/openstation-electron-adapter ci --ignore-scripts
           # The package's own `verify`, rather than a sequence spelled
           # out again here. It builds BEFORE it tests, and that order is
           # load-bearing: `connect-bundle.test.ts` asserts against
@@ -81,6 +87,8 @@ jobs:
   php:
     name: PHPUnit · PHP ${{ matrix.php }}
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -172,6 +180,8 @@ jobs:
   php-multisite:
     name: PHPUnit multisite · PHP ${{ matrix.php }}
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -209,6 +219,8 @@ jobs:
   plugin-check:
     name: Plugin Check
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

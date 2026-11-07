@@ -16,7 +16,7 @@ Paste this into your coding agent (Claude Code, Cursor, Codex…):
 
 ```text
 Fork https://github.com/WordPress/openstation and clone my fork. Then:
-1. Make sure Docker is running and Node 20+ is installed.
+1. Make sure Docker is running and Node 24+ with npm 11.10+ is installed.
 2. In the repo, run: npm install && npm run build
 3. Start WordPress with npm run env:start. It uses port 8890; if that port is taken, pick a free one and run WP_ENV_PORT=<port> npm run env:start instead.
 4. Check that http://localhost:<port>/wp-admin loads (admin / password) and that the Desktop Mode plugin is active.

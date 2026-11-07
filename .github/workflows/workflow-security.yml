@@ -1,0 +1,87 @@
+name: Workflow security
+
+# Static checks on the GitHub Actions configuration, run whenever it changes.
+#
+#   zizmor     — security audits: template injection, credential persistence,
+#                over-scoped permissions, cache poisoning, impostor commits
+#                (an online audit, which uses the job's read-only token).
+#   actionlint — schema and expression checks, plus shellcheck on every
+#                `run:` block. Config: .github/actionlint.yaml.
+#
+# A finding that has been reviewed and accepted is silenced where it occurs,
+# with a `# zizmor: ignore[<audit>]` comment that says why.
+
+on:
+  push:
+    branches: [ trunk ]
+    paths: [ '.github/**' ]
+  pull_request:
+    paths: [ '.github/**' ]
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read # check out the workflows
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The wheel is pinned by hash in .github/zizmor-requirements.txt, the
+      # same lock zizmorcore/zizmor-action installs from. Installed directly
+      # rather than through that action: a run using it failed at startup
+      # under this repository's Actions policy.
+      - name: Download zizmor
+        run: |
+          python3 -m pip download \
+            --quiet --no-input --disable-pip-version-check \
+            --only-binary=:all: --no-deps --require-hashes \
+            --dest "$RUNNER_TEMP/zizmor" \
+            --requirement .github/zizmor-requirements.txt
+
+      # Findings fail the job and show as annotations on the PR, without
+      # needing code scanning or a write token on fork PRs.
+      - name: Run zizmor
+        env:
+          GH_TOKEN: ${{ github.token }} # online audits, read-only
+        run: |
+          wheel=$( echo "$RUNNER_TEMP"/zizmor/*.whl )
+          python3 -m zipfile --extract "$wheel" "$RUNNER_TEMP/zizmor/unpacked"
+          zizmor=$( echo "$RUNNER_TEMP"/zizmor/unpacked/zizmor-*.data/scripts/zizmor )
+          chmod +x "$zizmor"
+          "$zizmor" --format=github .github/
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read # check out the workflows
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      # From the release's actionlint_<version>_checksums.txt. Bump both
+      # together.
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Pinned version, checksum we control, and download / verify / run as
+      # separate steps, so a mismatch stops the job instead of being piped
+      # into a shell.
+      - name: Download actionlint
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+
+      - name: Verify actionlint checksum
+        run: echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum -c -
+
+      - name: Run actionlint
+        run: |
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color

@@ -5,7 +5,7 @@ This file is for people working **on** `openstation` — the plugin itself, not 
 ## Dev loop
 
 ```bash
-npm install                # one-time
+npm install                # one-time; needs Node 24+ and npm 11.10+ (devEngines refuses older)
 npm run dev                # watch: rebuilds assets/js/desktop.js on save
 npm run lint               # ESLint — our CI runs this
 npm run test:js            # Vitest — the full JS suite (jsdom)
@@ -46,7 +46,7 @@ wp-env does not start inside a Claude Code cloud container. Two things go wrong:
 - MariaDB runs in a container, and Docker pulls go through `mirror.gcr.io` because Docker Hub rate-limits the shared egress;
 - the test container shares the host network, so the few tests that call wordpress.org reach it through the egress proxy, as they reach it directly in CI.
 
-It also installs Node 24 when the host's is older, and builds the app client views when one is missing or their sources changed since the last build (CI builds them for the same reason). Every step checks first and redoes only what is stale (`npm ci` after a `package-lock.json` change, `composer install` after a `composer.lock` change), so it is safe as the environment's setup script and safe to run again, including after a branch switch. If a later session finds `dockerd` gone, running it again restarts it.
+It also installs Node 24 when the host's is older (or bundles npm older than 11.10, the floor `devEngines` enforces), and builds the app client views when one is missing or their sources changed since the last build (CI builds them for the same reason). Every step checks first and redoes only what is stale (`npm ci` after a `package-lock.json` change, `composer install` after a `composer.lock` change), so it is safe as the environment's setup script and safe to run again, including after a branch switch. If a later session finds `dockerd` gone, running it again restarts it.
 
 ```bash
 bin/cloud-test-env.sh                          # prepare only
@@ -392,6 +392,21 @@ file churn in the release commit:
 ```bash
 ./bin/release.sh 1.1.4 --skip-i18n
 ```
+
+## GitHub Actions workflows
+
+The workflows under `.github/workflows/` follow one set of rules, written for an attacker with no credential for the project who reaches CI through something it accepts from strangers: a pull request, a dependency, a third-party action. `workflow-security.yml` runs [zizmor](https://docs.zizmor.sh/) and [actionlint](https://github.com/rhysd/actionlint) (config: `.github/actionlint.yaml`) on every change under `.github/`, and catches most of them mechanically.
+
+- **Pin every action to a full commit SHA** with the tag as a comment (`uses: actions/checkout@<sha> # v7.0.1`). Dependabot proposes the bumps, after a 7-day cooldown. A SHA pins that action's own files only, not the actions *it* calls, so check a composite action's `uses:` lines before adopting it.
+- **Deny by default.** Each workflow declares `permissions: {}`, and each job grants the minimum, with a comment saying what each write is for.
+- **Never put `${{ }}` inside `run:` or a `github-script` body** when the value is anything a user can set (titles, branch names, comments, dispatch inputs). Pass it through `env:` and read the variable. Write to `$GITHUB_ENV` / `$GITHUB_OUTPUT` only from trusted values.
+- **`persist-credentials: false` on every checkout** whose later steps don't push.
+- **Fork PRs never meet a credential.** `pull_request` jobs build with a read-only token; anything privileged (the Playground preview) runs as a separate `workflow_run` job that takes the PR's identity from the event payload, never from the artifact, and never executes the artifact. No workflow uses `pull_request_target`.
+- **Builds that ship hold no publishing credential.** `release.yml` and `trunk-build.yml` build in a job with `contents: read`, no secrets and `cache-mode: none` (a release never restores the shared Actions cache), then publish from jobs that download the build's artifact, hold one credential each and run no project code. The SVN credentials are requested only by the `wordpress-org` environment job; see [`RELEASE.md`](./RELEASE.md#the-wordpressorg-deploy).
+- **npm installs run no lifecycle scripts and adopt nothing brand new.** The root `.npmrc` sets `ignore-scripts=true` and `min-release-age=2`; `devEngines` requires npm 11.10+, below which `min-release-age` is silently ignored. `npm --prefix <dir>` reads `<dir>`'s config instead of the root `.npmrc`, so CI passes `--ignore-scripts` to those installs explicitly.
+- **No `curl | bash`.** A tool fetched at build time is pinned to a version, verified against a checksum committed in the workflow, and run in a separate step (see the actionlint job).
+
+A zizmor finding that has been reviewed and accepted is silenced on the line it points at, with a reason: `# zizmor: ignore[dangerous-triggers] reviewed: …`. The two that exist are `claude.yml`'s `issue_comment` and `pr-preview-publish.yml`'s `workflow_run`; each file's comments explain why it is safe.
 
 ## Docs → GitHub wiki
 
