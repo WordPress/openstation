@@ -33,7 +33,7 @@ route (script)      → reviewers + models, as above
 update (script)     → merge the latest trunk into the PR and push it; CONFLICT → ask the contributor, wait
 gate (script)       → checks.sh on the merge; a failure is a blocker in the report, not a reason to stop
 reviewers (routed)  → parallel with CI, WAIT FOR ALL, as above
-reporter (opus)     → round-N/report.md: APPROVE | CHANGES | HOLD, a test plan, and the comment posted on the PR
+reporter (opus)     → round-N/verdict.md: APPROVE | CHANGES | HOLD, a test plan, and the comment posted on the PR
 needs-human         → the PR waits for the maintainer to merge, or for the contributor to push (→ update, a new round)
 ```
 
@@ -53,7 +53,7 @@ on `ports.trunk`, which every runtime reviewer compares against.
 | build   | `builder`               | `agents.builder`               | `build.md`, commits, the PR              |
 | review  | `reviewer-<r>`          | `agents.reviewers.<r>`         | `round-<N>/review-<r>.md`                |
 | approve | `approver`              | its own (opus)                 | `decision.md` (issue jobs)               |
-| report  | `reporter`              | its own (opus)                 | `round-<N>/report.md` (PR jobs)          |
+| report  | `reporter`              | its own (opus)                 | `round-<N>/verdict.md` (PR jobs)          |
 
 `agents` is in the job's `job.json`, written by `factory/bin/route`. Pass the
 routed model as the Agent tool's `model`. Only the routed reviewers run.
@@ -81,7 +81,7 @@ session). You stay there; agents work in the job's worktree.
 <repo>/factory/jobs/<job-id>/pr.md, pr.diff     PR jobs: the PR and its threads, quoted, and its diff
 <repo>/factory/jobs/<job-id>/screen.md          PR jobs: what the script holds for a maintainer
 <repo>/factory/jobs/<job-id>/triage.md          PR jobs
-<repo>/factory/jobs/<job-id>/round-<N>/update.md, report.md, runtime/   PR jobs: trunk merge, report; runtime evidence
+<repo>/factory/jobs/<job-id>/round-<N>/update.md, verdict.md, runtime/   PR jobs: trunk merge, report; runtime evidence
 <repo>/../<name>-factory/trunk/                 the shared trunk site's worktree
 ```
 

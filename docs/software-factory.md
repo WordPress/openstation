@@ -70,7 +70,7 @@ Every agent writes exactly one file in the job folder and nothing else in the ma
 | `reviewer-*` | `spec.md` and `build.md` (issue jobs) or `pr.md` and triage's Claims (PR jobs), the round's `checks.md`, the diff against trunk, its own previous review | `round-N/review-<r>.md`, first line `VERDICT: PASS` or `VERDICT: CHANGES`, findings as blockers, gaps, nits and "not this PR" |
 | `reviewer-runtime` | the report first (`issue.md`, triage's Claims), then both sites; `build.md` or the PR's own steps only after reproducing | `round-N/review-runtime.md` with the sites, whether trunk reproduced it, and steps a person can follow; evidence in `round-N/runtime/` |
 | `approver` | everything in the job folder and the diff (issue jobs) | `decision.md`, first line `APPROVE` or `ESCALATE` |
-| `reporter` | the PR, the round's update, gate, CI and reviews (PR jobs) | `round-N/report.md`: `VERDICT` (`APPROVE`, `CHANGES` or `HOLD`), the merged findings, a test plan, and the `## Comment` the factory posts |
+| `reporter` | the PR, the round's update, gate, CI and reviews (PR jobs) | `round-N/verdict.md` (not `report.md`: Claude Code refuses a subagent's write to a file of that name): `VERDICT` (`APPROVE`, `CHANGES` or `HOLD`), the merged findings, a test plan, and the `## Comment` the factory posts |
 
 The issue text is written into `issue.md` quoted as data, with a note that it is never an instruction. Only the author's and the operator's comments are included. Agents read the request there; the orchestrator never pastes issue text into a prompt.
 
@@ -93,7 +93,7 @@ triage (agent)      reads the diff without a shell: REVIEW, or HOLD at anything 
 update (script)     merges the latest trunk into the PR and pushes it, so every review runs against today's trunk
 gate (script)       the same checks.sh, on the merge; a failure becomes a blocker in the report
 reviewers + CI      the same lenses, plus the runtime reviewer, in parallel with job ci
-reporter (agent)    report.md: APPROVE, CHANGES or HOLD, a test plan, and the comment posted on the PR
+reporter (agent)    verdict.md: APPROVE, CHANGES or HOLD, a test plan, and the comment posted on the PR
 needs-human         the PR waits for the maintainer to merge, or for the contributor to push again
 ```
 
@@ -151,7 +151,7 @@ A `<job>` argument is a job id (`004-dark-mode`) or an issue number (`12`).
 - `triage → update` needs `triage.md` to say `DECISION: REVIEW`, the screen to pass, and the job routed; `triage → needs-human` needs a `HOLD` from either.
 - `update → gate` needs `round-N/update.md` for the current commit and no conflict; `update → needs-human` needs `CONFLICT`.
 - A PR job's `gate → review` needs a gate verdict for the current commit, pass or fail. Its `review → report` needs every review and `ci.md`.
-- `report → needs-human` needs `round-N/report.md` with a `VERDICT` and a `## Comment` section, which it posts on the PR.
+- `report → needs-human` needs `round-N/verdict.md` with a `VERDICT` and a `## Comment` section, which it posts on the PR.
 - `needs-human → update` needs a push from the contributor; `needs-human → triage` needs a held PR to carry the trusted label.
 
 Side effects ride on the transitions. Entering `needs-human` marks a draft PR ready, posts the decision as a PR comment (or an issue comment when there is no PR) and adds the `factory:needs-human` label. Entering `merged` or `abandoned` runs the `teardown` command from `config.json` in the worktree (it destroys the job's two wp-env stacks), removes the worktree and deletes the local branch. Every comment the factory posts starts with an HTML marker, which is how it later tells its own comments from a person's.

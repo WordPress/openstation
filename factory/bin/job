@@ -420,7 +420,7 @@ def sync(job):
         job["gate"] = gate
         job["ci"] = header(rd / "ci.md").get("CI") if (rd / "ci.md").exists() else None
         if is_pr_job(job):
-            job["report"] = header(rd / "report.md").get("VERDICT") if (rd / "report.md").exists() else None
+            job["report"] = header(rd / "verdict.md").get("VERDICT") if (rd / "verdict.md").exists() else None
         if job["agents"] and job["stage"] in {"review", "approve", "merging", "merged", "needs-human", "report"}:
             job["reviews"] = {}
             for r in reviewers(job):
@@ -636,15 +636,15 @@ def advance(job, stage):
         check_ci_done(job)
 
     elif old == "report":
-        path = round_dir(job) / "report.md"
+        path = round_dir(job) / "verdict.md"
         verdict = header(path).get("VERDICT") if path.exists() else None
         require(verdict in {"APPROVE", "CHANGES", "HOLD"},
-                f"round-{job['round']}/report.md starts with VERDICT: {verdict}, not APPROVE, CHANGES or HOLD")
+                f"round-{job['round']}/verdict.md starts with VERDICT: {verdict}, not APPROVE, CHANGES or HOLD")
         message = section(path, "Comment")
-        require(message, f"round-{job['round']}/report.md has no ## Comment section to post")
+        require(message, f"round-{job['round']}/verdict.md has no ## Comment section to post")
         job.setdefault("verdicts", []).append(verdict)
         (d / "decision.md").write_text(f"ESCALATE\n\n## Why\nRound {job['round']}'s report says {verdict}. "
-                                       f"See round-{job['round']}/report.md.\n")
+                                       f"See round-{job['round']}/verdict.md.\n")
 
     elif old == "review":
         check_reviews_done(job)
