@@ -12,14 +12,19 @@ name: Trunk Build
 # Fixed names + `--clobber` mean no asset cleanup is ever needed. The
 # zip is uploaded before the json: trunk.json is the announcement, so a
 # consumer that reads it never sees a sha whose zip isn't there yet.
+#
+# Beta sites install trunk.zip, so this is a release channel and gets the
+# release pipeline's split: the build runs dependency code with a read-only
+# token, and the publish job holds the write token, consumes the build as an
+# artifact and runs no project code.
 
 on:
   push:
     branches:
       - trunk
 
-permissions:
-  contents: write
+# Deny by default; each job grants what it needs.
+permissions: {}
 
 # Queue rather than cancel: the publish step uploads trunk.zip before
 # trunk.json, and cancelling a run between the two would leave a manifest
@@ -32,15 +37,21 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-26.04
+    permissions:
+      contents: read # check out the pushed commit
+    # Builds what beta sites install, so it restores nothing from the shared
+    # Actions cache. Enforced by the cache service.
+    cache-mode: none
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+          package-manager-cache: false
 
       - name: Build
         run: |
@@ -48,17 +59,39 @@ jobs:
           npm run build
           npm run package
 
+      - name: Stage trunk.zip and trunk.json
+        run: |
+          mkdir trunk-build
+          cp openstation.zip trunk-build/trunk.zip
+          version=$(node -p "require('./package.json').version")
+          printf '{"sha":"%s","version":"%s","built_at":"%s"}\n' \
+            "$GITHUB_SHA" "$version" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > trunk-build/trunk.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trunk-build
+          path: trunk-build/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write # create the ci-artifacts release and upload to it
+    cache-mode: none
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: trunk-build
+
       - name: Publish trunk build to the ci-artifacts release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           if ! gh release view ci-artifacts --json tagName >/dev/null 2>&1; then
             gh release create ci-artifacts --prerelease --title 'CI artifacts' \
               --notes 'Rolling release hosting CI build artifacts (PR preview + trunk builds). Not a OpenStation release.'
           fi
-          cp openstation.zip trunk.zip
-          version=$(node -p "require('./package.json').version")
-          printf '{"sha":"%s","version":"%s","built_at":"%s"}\n' \
-            "$GITHUB_SHA" "$version" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > trunk.json
           gh release upload ci-artifacts trunk.zip --clobber
           gh release upload ci-artifacts trunk.json --clobber

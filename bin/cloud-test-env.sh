@@ -84,6 +84,9 @@ NODE_DIR="${OPENSTATION_TESTS_NODE_DIR:-$HOME/.local/node24}"
 SERVE_PORT="${OPENSTATION_SERVE_PORT:-8890}"
 SERVE_WORKERS="${OPENSTATION_SERVE_WORKERS:-4}"
 NODE_MAJOR=24
+# package.json's devEngines refuses older npm: min-release-age in .npmrc is
+# ignored silently below this, and early v24.x releases bundle older npm.
+NPM_MIN=11.10.0
 
 # Used only when Packagist cannot be asked and nothing is cached yet.
 FALLBACK_WP_VERSION="7.1.1"
@@ -132,10 +135,20 @@ newer_than() {
 # 1. Node 24, the JS dependencies, the app client views
 # ---------------------------------------------------------------------
 
+npm_new_enough() {
+	local version
+	version="$( cd / && npm --version 2>/dev/null )" || return 1
+	[ "$( printf '%s\n%s\n' "${NPM_MIN}" "${version}" | sort -V | head -n 1 )" = "${NPM_MIN}" ]
+}
+
 ensure_node() {
 	local current=0
 	if command -v node >/dev/null 2>&1; then
 		current="$( node -p 'process.versions.node.split(".")[0]' )"
+		if [ "${current}" -ge "${NODE_MAJOR}" ] && ! npm_new_enough; then
+			log "node $( node --version ) bundles npm older than ${NPM_MIN}; using the latest v${NODE_MAJOR}.x instead"
+			current=0
+		fi
 	fi
 	if [ "${current}" -ge "${NODE_MAJOR}" ]; then
 		log "node $( node --version ) is new enough"

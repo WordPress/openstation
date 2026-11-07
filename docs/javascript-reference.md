@@ -848,7 +848,7 @@ Fires when the responsive mode changes — the viewport crosses a breakpoint, th
 interface OsModeChangedDetail {
     mode: 'desktop' | 'tablet' | 'mobile';      // what the shell now renders
     previous: 'desktop' | 'tablet' | 'mobile';
-    preference: 'auto' | 'desktop' | 'mobile';  // the override that produced it
+    preference: 'auto' | 'desktop' | 'mobile' | 'classic';  // the override that produced it
 }
 ```
 
@@ -2607,7 +2607,7 @@ Which experience the shell is rendering, resolved from the viewport and the user
 ```typescript
 interface OsModeApi {
     get(): 'desktop' | 'tablet' | 'mobile';
-    getPreference(): 'auto' | 'desktop' | 'mobile';
+    getPreference(): 'auto' | 'desktop' | 'mobile' | 'classic';
     getBreakpoints(): { mobile: number; tablet: number };  // widest px of each band, inclusive
     isMobile(): boolean;
     getDisplay(): 'standalone' | 'browser';  // an installed app, or a tab

@@ -257,6 +257,255 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 			history.replaceState( null, '', before );
 		}
 	} );
+
+	// WooCommerce's `wc-orders.js` binds a row-level click handler that
+	// calls `window.location = href` on clicks anywhere on the row
+	// (date, status, total, cell whitespace). In OpenStation, raw
+	// `window.location` wipes out the Orders list window in place. The
+	// bridge intercepts row clicks to route the order's edit URL through
+	// the parent shell into a new window.
+	test( 'WooCommerce order row clicks route to the order in a new window', () => {
+		document.body.innerHTML =
+			'<div class="woocommerce_page_wc-orders">' +
+			'<table class="wp-list-table widefat fixed striped table-view-list orders">' +
+			'<tbody>' +
+			'<tr id="order-1042">' +
+			'<td class="check-column"><input type="checkbox" name="id[]" value="1042"></td>' +
+			'<th class="order_number column-order_number has-row-actions column-primary" data-colname="Order" scope="row">' +
+			'<a href="#" class="order-preview" data-order-id="1042" title="Preview">Preview</a>' +
+			'<a href="/wp-admin/admin.php?page=wc-orders&action=edit&id=1042" class="order-view"><strong>#1042</strong> John Doe</a>' +
+			'<div class="order_date small-screen-only"><time datetime="2026-10-19">Oct 19, 2026</time></div>' +
+			'<div class="order_status small-screen-only"><mark class="order-status status-pending"><span>Pending payment</span></mark></div>' +
+			'<button type="button" class="toggle-row"><span class="screen-reader-text">Show more details</span></button>' +
+			'</th>' +
+			'<td class="order_date column-order_date"><time datetime="2026-10-19">Oct 19, 2026</time></td>' +
+			'<td class="order_status column-order_status"><mark class="order-status status-processing"><span>Processing</span></mark></td>' +
+			'<td class="order_total column-order_total"><span class="woocommerce-Price-amount amount">$99.00</span></td>' +
+			'<td class="wc_actions column-wc_actions"><a class="button wc-action-button" href="#"></a></td>' +
+			'</tr>' +
+			'</tbody>' +
+			'</table>' +
+			'</div>';
+
+		// 1. Click on the Date <time> element (not inside an <a>)
+		const time = document.querySelector( 'time' ) as HTMLElement;
+		time.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].url ).toContain(
+			'/wp-admin/admin.php?page=wc-orders&action=edit&id=1042'
+		);
+		expect( adminLinkMessages()[ 0 ].label ).toBe( '#1042 John Doe' );
+
+		// Clear messages
+		posted = [];
+
+		// 2. Click on the Status <mark> element
+		const status = document.querySelector( 'mark' ) as HTMLElement;
+		status.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].url ).toContain(
+			'/wp-admin/admin.php?page=wc-orders&action=edit&id=1042'
+		);
+
+		// Clear messages
+		posted = [];
+
+		// 3. Click on the Total <span> element
+		const total = document.querySelector( '.order_total span' ) as HTMLElement;
+		total.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+
+		// Clear messages
+		posted = [];
+
+		// 4. Click the checkbox - must NOT trigger navigation
+		const checkbox = document.querySelector( 'input[type="checkbox"]' ) as HTMLElement;
+		checkbox.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+
+		// 5. Click the preview button - must NOT trigger navigation
+		const previewBtn = document.querySelector( '.order-preview' ) as HTMLElement;
+		previewBtn.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+
+		// 5b. Click the action button inside .wc_actions - must NOT trigger navigation to the order
+		const actionBtn = document.querySelector( '.wc-action-button' ) as HTMLElement;
+		actionBtn.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+
+		// Clear messages
+		posted = [];
+
+		// 5c. Click the toggle-row button in the primary th - must NOT trigger navigation
+		const toggleBtn = document.querySelector( '.toggle-row' ) as HTMLElement;
+		toggleBtn.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+
+		// Clear messages
+		posted = [];
+
+		// 5d. Click whitespace in the primary order_number <th> cell - must route to the order
+		const thCell = document.querySelector( 'th.column-order_number' ) as HTMLElement;
+		thCell.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].url ).toContain(
+			'/wp-admin/admin.php?page=wc-orders&action=edit&id=1042'
+		);
+
+		// Clear messages
+		posted = [];
+
+		// 5e. Click small-screen elements inside the primary <th> cell - must route to the order
+		const smallScreenDate = document.querySelector( 'th .order_date time' ) as HTMLElement;
+		smallScreenDate.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].url ).toContain(
+			'/wp-admin/admin.php?page=wc-orders&action=edit&id=1042'
+		);
+
+		// Clear messages
+		posted = [];
+
+		const smallScreenStatus = document.querySelector( 'th .order_status mark' ) as HTMLElement;
+		smallScreenStatus.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].url ).toContain(
+			'/wp-admin/admin.php?page=wc-orders&action=edit&id=1042'
+		);
+
+		// Clear messages
+		posted = [];
+
+		// 6. Realistic HPOS table without .orders or .woocommerce_page_wc-orders on wrapper
+		document.body.innerHTML =
+			'<table class="wp-list-table widefat fixed striped wc-orders-list-table wc-orders-list-table-shop_order">' +
+			'<tbody>' +
+			'<tr id="order-2000">' +
+			'<th class="order_number column-order_number" scope="row"><a href="#" class="order-preview" data-order-id="2000">Preview</a><a href="/wp-admin/admin.php?page=wc-orders&action=edit&id=2000" class="order-view"><strong>#2000</strong> Jane Doe</a></th>' +
+			'<td class="order_date column-order_date">Oct 19, 2026</td>' +
+			'</tr>' +
+			'</tbody>' +
+			'</table>';
+
+		const hposCell = document.querySelector( '.order_date' ) as HTMLElement;
+		hposCell.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( adminLinkMessages()[ 0 ].url ).toContain(
+			'/wp-admin/admin.php?page=wc-orders&action=edit&id=2000'
+		);
+
+		// Clear messages
+		posted = [];
+
+		// 7. Non-order table (e.g. posts list table) must NOT be routed as an order row even if it has an order-number-like cell
+		document.body.innerHTML =
+			'<table class="wp-list-table widefat fixed striped posts">' +
+			'<tbody>' +
+			'<tr id="post-50">' +
+			'<th class="column-order_number"><a href="/wp-admin/post.php?post=50&action=edit">Sample Post</a></th>' +
+			'<td class="title column-title"><a href="/wp-admin/post.php?post=50&action=edit">Sample Post</a></td>' +
+			'<td class="date column-date">Oct 19, 2026</td>' +
+			'</tr>' +
+			'</tbody>' +
+			'</table>';
+
+		const postCell = document.querySelector( '.column-date' ) as HTMLElement;
+		postCell.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+
+		// Clear messages
+		posted = [];
+
+		// 8. Clicking a non-link header cell (e.g. Status) must NOT trigger navigation or re-sort
+		document.body.innerHTML =
+			'<div class="woocommerce_page_wc-orders">' +
+			'<table class="wp-list-table widefat fixed striped table-view-list orders">' +
+			'<thead>' +
+			'<tr>' +
+			'<th class="column-order_number"><a href="/wp-admin/admin.php?page=wc-orders&orderby=order_number">Order</a></th>' +
+			'<th class="column-order_status">Status</th>' +
+			'</tr>' +
+			'</thead>' +
+			'<tbody>' +
+			'<tr id="order-1042">' +
+			'<th class="order_number column-order_number"><a href="/wp-admin/admin.php?page=wc-orders&action=edit&id=1042" class="order-view">#1042</a></th>' +
+			'<td class="order_status column-order_status">Processing</td>' +
+			'</tr>' +
+			'</tbody>' +
+			'</table>' +
+			'</div>';
+
+		const headerStatus = document.querySelector( 'thead .column-order_status' ) as HTMLElement;
+		headerStatus.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+	} );
+
+	test( 'claimed order row navigation stops propagation to in-page listeners, but ordinary admin links do not', () => {
+		document.body.innerHTML =
+			'<div class="woocommerce_page_wc-orders">' +
+			'<table class="wp-list-table">' +
+			'<tbody>' +
+			'<tr>' +
+			'<td class="order_date"><time datetime="2026-10-19">Oct 19, 2026</time></td>' +
+			'<td><a href="/wp-admin/admin.php?page=wc-orders&action=edit&id=1042" class="order-view">#1042</a></td>' +
+			'</tr>' +
+			'</tbody>' +
+			'</table>' +
+			'</div>' +
+			'<p><a href="/wp-admin/index.php" class="dashboard-link">Dashboard</a></p>';
+
+		let inPageListenerFired = false;
+		document.addEventListener( 'click', () => {
+			inPageListenerFired = true;
+		} );
+
+		// 1. Order row click must stop propagation so WooCommerce's handler does not fire
+		const time = document.querySelector( 'time' ) as HTMLElement;
+		time.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( inPageListenerFired ).toBe( false );
+
+		// Clear messages
+		posted = [];
+
+		// 2. Ordinary link click must NOT stop propagation so other in-page plugins can observe clicks
+		const normalLink = document.querySelector( '.dashboard-link' ) as HTMLElement;
+		normalLink.dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, cancelable: true } )
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 1 );
+		expect( inPageListenerFired ).toBe( true );
+	} );
 } );
 
 describe( 'chromeless bridge: the label a link ships to the shell', () => {

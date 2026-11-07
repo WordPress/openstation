@@ -247,6 +247,16 @@ Jetpack closes the panel on a press outside it, and a press on the tile is one. 
 
 **Test**: `tests/vitest/admin-bar-notes.test.ts`, against Jetpack's markup and a stand-in for its toggle.
 
+### WooCommerce order row clicks
+
+WooCommerce's `wc-orders.js` binds a delegated click handler to the body cells of the order list (`tbody td` and `tbody th`, minus `.check-column`), on both the legacy CPT table (`.post-type-shop_order .wp-list-table`, `edit.php?post_type=shop_order`) and the HPOS one (`.woocommerce_page_wc-orders .wp-list-table.orders`, `admin.php?page=wc-orders`). A click that lands on anything but a link, a button or a `.no-link` element (the date, the status badge, the total, the cell's padding) reads the row's `a.order-view` and runs `window.location = href`, so in classic admin the whole row acts as a link. Inside OpenStation that raw in-iframe navigation replaced the Orders list window in place, discarding the list.
+
+**Fix**: `resolveOrderRowLink()` in `src/chromeless-bridge.js` claims those clicks first, in the capture phase. A click inside a body cell (`tbody td` / `tbody th`) of an order table resolves to the row's `a.order-view` and is routed through `os-iframe-admin-link`, so the order opens in its own window beside the list. It yields, and WooCommerce's own handling applies, when text is selected or the click lands on a control: `button`, `input`, `select`, `textarea`, `label`, `.check-column`, `.order-preview`, `.no-link` or `.wc_actions`. Header and footer cells are never claimed, so a click on a column title still sorts. Only a claimed row click calls `stopPropagation()` and `stopImmediatePropagation()`, which keeps WooCommerce's bubble-phase handler from navigating in place as well; ordinary link clicks still reach the page's own listeners.
+
+The match also covers `table.wc-orders-list-table`, the class WooCommerce's HPOS list table gives every order type's list, so the list screens of other HPOS order types (an extension's, such as Subscriptions) get the same claim wherever their rows carry an `a.order-view` link, even though WooCommerce does not make those rows clickable.
+
+**Test**: `tests/vitest/chromeless-bridge-links.test.ts`.
+
 ### Elementor 4's legacy menus
 
 Elementor 4 keeps its old **Elementor** menu and the **Templates** menu registered for their URLs, under the new `elementor-home` menu, and hides both from the classic sidebar with CSS the dock can't see. **Fix**: `includes/compat/elementor.php` hides those two slugs through `openstation_dock_placement` once `elementor-home` exists. The same file prints the navigation ping in Elementor's editor head, which never fires `admin_head`. **Test**: `tests/phpunit/tests/openStationBuildDockItems.php`.
