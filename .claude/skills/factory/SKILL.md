@@ -280,9 +280,9 @@ Then `factory/bin/job advance <job-id> needs-human`: it posts the report's
 
 **needs-human, merged, rejected, abandoned.** Nothing to do. `factory/bin/job queue`
 moves a `needs-human` job to `merged` once its PR is merged on GitHub, and a
-waiting job to `abandoned` once its PR is closed unmerged or its issue is
-closed. Both tear down its stacks and remove its worktree; neither posts
-anything.
+waiting job to `abandoned` once its PR is closed unmerged, its issue is
+closed, or its `factory` label is removed. Both tear down its stacks and remove
+its worktree; neither posts anything.
 
 ### Resuming
 
