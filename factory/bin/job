@@ -477,11 +477,24 @@ def check_ci_done(job):
     return header(path).get("CI")
 
 
-def closed_upstream(job):
-    """True when the job's PR was closed without merging, or (issue jobs) its issue was closed."""
+def labels_on(job):
+    """The labels now on what the job is about: its PR, or for an issue job its issue."""
+    if is_pr_job(job):
+        return {l["name"] for l in gh_json("pr", "view", str(job["pr"]), "--json", "labels")["labels"]}
+    return {l["name"] for l in fetch_issue(job["issue"])["labels"]}
+
+
+def stopped_upstream(job):
+    """True when someone stopped the job on GitHub.
+
+    Its PR closed without merging, its issue closed (issue jobs), or the queue
+    label taken off, which is how a maintainer drops a job without closing anything.
+    """
     if job["pr"] and pr_state(job) == "CLOSED":
         return True
-    return not is_pr_job(job) and fetch_issue(job["issue"])["state"] == "CLOSED"
+    if not is_pr_job(job) and fetch_issue(job["issue"])["state"] == "CLOSED":
+        return True
+    return LABELS["queue"] not in labels_on(job)
 
 
 def contributor_pushed(job):
@@ -517,8 +530,10 @@ def advance(job, stage):
     intake_body = lambda: "\n".join((d / "intake.md").read_text().split("\n\n", 1)[1:]).strip()
 
     if stage == "abandoned":
-        require(closed_upstream(job), f"neither PR #{job['pr']} nor issue #{job['issue']} is closed"
-                if job["pr"] else f"issue #{job['issue']} isn't closed")
+        require(stopped_upstream(job), f"#{number(job)} is open and still labeled {LABELS['queue']}")
+        waiting = labels_on(job) & {LABELS["needs_human"], LABELS["needs_info"]}
+        for name in waiting:
+            label("pr" if is_pr_job(job) else "issue", number(job), remove=name)
 
     elif old == "intake":
         want = {"needs-info": "NEEDS-INFO", "rejected": "REJECT", "spec": "ACCEPT"}[stage]
@@ -874,11 +889,11 @@ def cmd_queue():
     every = all_jobs()
     rows = []
     # A waiting job ends on GitHub: merged once its PR is merged (which also closes the
-    # issue), abandoned once its PR is closed unmerged or (issue jobs) its issue is closed.
+    # issue), abandoned once it's stopped there (closed, or the queue label removed).
     for j in every:
         if j["stage"] == "needs-human" and j["pr"] and pr_state(j) == "MERGED":
             save(advance(sync(j), "merged"))
-        elif j["stage"] in WAITING and closed_upstream(j):
+        elif j["stage"] in WAITING and stopped_upstream(j):
             save(advance(sync(j), "abandoned"))
 
     jobs = {j["issue"]: j for j in every if not is_pr_job(j)}
@@ -903,7 +918,7 @@ def cmd_queue():
         elif j["stage"] == "merged":
             rows.append(("skip", n, j["id"], j["stage"], "merged"))
         elif j["stage"] == "abandoned":
-            rows.append(("skip", n, j["id"], j["stage"], f"PR closed unmerged; delete factory/jobs/{j['id']} to retry"))
+            rows.append(("skip", n, j["id"], j["stage"], f"abandoned; delete factory/jobs/{j['id']} to retry"))
         else:
             rows.append(("resume", n, j["id"], j["stage"], f"round {j['round']}"))
     for n, j in sorted(jobs.items()):
@@ -937,6 +952,8 @@ def cmd_queue():
                             if streak >= limit else ("resume", n, j["id"], j["stage"], "the contributor pushed"))
             else:
                 rows.append(("wait", n, j["id"], j["stage"], "waiting for the contributor, or for you to merge"))
+        elif j["stage"] == "abandoned":
+            rows.append(("skip", n, j["id"], j["stage"], f"abandoned; delete factory/jobs/{j['id']} to retry"))
         elif j["stage"] in TERMINAL:
             rows.append(("skip", n, j["id"], j["stage"], j["stage"]))
         else:

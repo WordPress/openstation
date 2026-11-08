@@ -123,7 +123,7 @@ The deterministic half of the factory is three scripts in `factory/bin/`, writte
 
 | Command | What it does |
 |---|---|
-| `job queue` | Lists every open `factory` issue and PR, and every unfinished job, as `action number job stage note`, where the action is `new`, `resume`, `wait` or `skip`. A waiting PR job resumes when its contributor pushes or, if it was held, when it gets the trusted label. It also finishes waiting jobs whose PR was merged (`merged`) or whose PR or issue was closed (`abandoned`), tearing down their stacks and worktrees. |
+| `job queue` | Lists every open `factory` issue and PR, and every unfinished job, as `action number job stage note`, where the action is `new`, `resume`, `wait` or `skip`. A waiting PR job resumes when its contributor pushes or, if it was held, when it gets the trusted label. It also finishes waiting jobs whose PR was merged (`merged`), and those stopped on GitHub: the PR or issue closed, or the `factory` label removed (`abandoned`). Both tear down the job's stacks and worktree. |
 | `job create <number>` | For an issue: checks it's open and labeled, writes `issue.md`, and creates the job as `NNN-<slug>` in stage `intake`, with branch `factory/<job-id>` and a worktree next to the checkout under `<repo>-factory/<job-id>`. For a PR: checks it's open, labeled, not a draft and not the factory's own, writes `pr.md`, `pr.diff`, the linked issue's `issue.md` and `screen.md`, and creates the job in stage `triage`. |
 | `job update <job>` | PR jobs: puts the worktree on the PR's branch, merges the latest trunk in and pushes it, and writes `round-N/update.md` (`CURRENT`, `MERGED`, `LOCAL` or `CONFLICT`). |
 | `job advance <job> <stage>` | Moves a job to a stage, or refuses. See below. |
@@ -147,7 +147,7 @@ A `<job>` argument is a job id (`004-dark-mode`) or an issue number (`12`).
 - `approve → merging` needs `decision.md` to start with `APPROVE`; `approve → needs-human` needs `ESCALATE`.
 - `merging → merged` and `needs-human → merged` need the PR to be merged on GitHub.
 - `needs-human → build` needs a `rework-k.md` newer than `decision.md`, which is what `job rework` writes.
-- `→ abandoned` needs the PR closed unmerged or (issue jobs) the issue closed.
+- `→ abandoned` needs the PR closed unmerged, the issue closed (issue jobs), or the `factory` label gone. It clears the `factory:needs-human` and `factory:needs-info` labels and posts nothing.
 - `triage → update` needs `triage.md` to say `DECISION: REVIEW`, the screen to pass, and the job routed; `triage → needs-human` needs a `HOLD` from either.
 - `update → gate` needs `round-N/update.md` for the current commit and no conflict; `update → needs-human` needs `CONFLICT`.
 - A PR job's `gate → review` needs a gate verdict for the current commit, pass or fail. Its `review → report` needs every review and `ci.md`.
@@ -221,7 +221,7 @@ Job `n` (from the numeric prefix of its id) gets port `ports.base + ports.step �
 - **`/factory <feature>`** creates the issue (title from the feature, body verbatim, label `factory`) and runs it.
 - **`/factory rework <n>`** is for a `needs-human` job after you have commented on its PR or issue: `job rework` gathers your comments and a fresh builder addresses them.
 
-The `factory` label is the green light. Labeling an issue is what authorizes the factory to push a `factory/<job-id>` branch and open a draft PR for it. Removing the label, or closing the issue or the PR, is how you stop a job: the next `job queue` moves it to `abandoned` and cleans up.
+The `factory` label is the green light. Labeling an issue is what authorizes the factory to push a `factory/<job-id>` branch and open a draft PR for it. Removing the label, or closing the issue or the PR, is how you stop a waiting job: the next `job queue` moves it to `abandoned` and cleans up. An issue job's own PR stays open when only the label is removed; close it if you don't want it.
 
 ### Resuming
 
@@ -233,7 +233,7 @@ A job waits in `gate` when the gate fails on its own tooling rather than on the 
 
 A job reaches `needs-human` when the builder is blocked, the rounds run out, CI never settles, the approver escalates, the merge conflicts or fails the re-gate, or an approved PR is handed over because `auto_merge` is off. In every case the reason is in `decision.md` and posted on the PR, and the PR is marked ready. The worktree stays and its site may still be running on the job's port, so you can look at the change where the reviewers did.
 
-To send it back, comment on the PR and run `/factory rework <n>`. To finish it, merge the PR: the next `job queue` records the merge and tears the job down. To drop it, close the PR or the issue.
+To send it back, comment on the PR and run `/factory rework <n>`. To finish it, merge the PR: the next `job queue` records the merge and tears the job down. To drop it, close the PR or the issue, or remove the `factory` label.
 
 ## Cost and the dashboard
 
