@@ -8,6 +8,13 @@
 # running for the job's agents. Needs the `agent-browser` CLI.
 set -euo pipefail
 
+if [ "${FACTORY_ENV:-wp-env}" = cloud ]; then
+	# bin/cloud-test-env.sh serves one site per container (one site directory,
+	# one database), and a review needs trunk's site next to the job's.
+	echo "smoke: FACTORY_ENV=cloud can't serve the job's site and trunk's side by side yet." >&2
+	exit 2
+fi
+
 port="${FACTORY_PORT:?FACTORY_PORT must be the port of the job}"
 url="http://localhost:$port"
 session="factory-smoke-$port"

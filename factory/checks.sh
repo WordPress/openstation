@@ -12,6 +12,12 @@
 #        touch another checkout's.
 #   fast (the builder's stop hook): the host-only part, no Docker.
 #
+# FACTORY_ENV picks where the WordPress parts run:
+#   wp-env (default): the job's own wp-env stacks, as above.
+#   cloud: a Claude Code cloud container, where wp-env can't start, through
+#        bin/cloud-test-env.sh (CI's image and layout). PHPUnit and phpcs run
+#        there today; the site checks don't yet (see smoke.sh).
+#
 # Plugin Check is not here: it runs in CI on the job's PR, and the factory
 # waits for CI to pass before the approver (`factory/bin/job ci`).
 set -euo pipefail
@@ -37,11 +43,17 @@ vendor/bin/phpcs -n
 
 port="${FACTORY_PORT:?FACTORY_PORT must be the port of the job, as factory/bin/gate sets it}"
 
-WP_ENV_PORT=$(( port + 1 )) npm run env:start:tests
-npm run test:php:install
-npm run test:php
-npm run test:php:multisite
-npm run lint:php
+if [ "${FACTORY_ENV:-wp-env}" = cloud ]; then
+	bin/cloud-test-env.sh phpunit
+	WP_MULTISITE=1 bin/cloud-test-env.sh phpunit
+	bin/cloud-test-env.sh lint
+else
+	WP_ENV_PORT=$(( port + 1 )) npm run env:start:tests
+	npm run test:php:install
+	npm run test:php
+	npm run test:php:multisite
+	npm run lint:php
+fi
 
 # The main checkout's copy, like this script, so a branch can't weaken it.
 bash "$factory/smoke.sh"
