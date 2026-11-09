@@ -43,8 +43,10 @@ and to other jobs.
    network download, a flaky test), say so with the evidence in this round's
    Log, and change nothing for it: the next round's CI settles it.
 5. After a review round, every `review-*.md` in the round folder the message
-   names. Address each finding in a `VERDICT: CHANGES` file. Notes in
-   `VERDICT: PASS` files are optional.
+   names. Fix every **Blocker**. A **Gap** is yours only when the spec asks
+   for it; **Nits** are optional; leave **Not this PR** alone. Answer each
+   blocker in this round's Log, because the next round's reviewers map every
+   one to the commit and line that fixed it.
 6. For a rework, the `rework-*.md` file the prompt names, plus the existing
    `build.md` and every round folder, so you know the history.
 

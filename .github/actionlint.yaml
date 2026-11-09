@@ -1,0 +1,13 @@
+# actionlint configuration. Both entries teach actionlint about GitHub
+# features newer than the actionlint release CI pins (see
+# workflow-security.yml); drop each once a release knows it.
+self-hosted-runner:
+  # Not self-hosted: GitHub's Ubuntu 26.04 hosted image, which this
+  # actionlint's built-in label list predates.
+  labels:
+    - ubuntu-26.04
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      # The `cache-mode` job key (scoped Actions-cache access).
+      - 'unexpected key "cache-mode" for "job" section'

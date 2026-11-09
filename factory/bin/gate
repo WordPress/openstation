@@ -62,7 +62,8 @@ def port(job_id):
 
 def run_checks(worktree, job_id, mode="full"):
     start = time.monotonic()
-    env = {**os.environ, "FACTORY_PORT": str(port(job_id)), "FACTORY_CHECKS": mode}
+    env = {**os.environ, "FACTORY_PORT": str(port(job_id)), "FACTORY_CHECKS": mode,
+           "FACTORY_ENV": os.environ.get("FACTORY_ENV", CONFIG.get("env", "wp-env"))}
     res = subprocess.run(["bash", str(CHECKS)], cwd=worktree, capture_output=True, text=True, env=env)
     return res.returncode, res.stdout + res.stderr, int(time.monotonic() - start)
 
@@ -74,7 +75,9 @@ def gate(job_id, merge):
         die(f"{job_id} hasn't started a build round")
     round_dir = FACTORY / "jobs" / job_id / f"round-{job['round']}"
     commit = git(worktree, "rev-parse", "HEAD").strip()
-    protected = protected_changes(worktree)
+    # A PR job's protected paths were screened before anything ran (screen.md),
+    # and a maintainer's trusted label lets them through.
+    protected = [] if job.get("kind") == "pr" else protected_changes(worktree)
     code, log, seconds = run_checks(worktree, job_id)
     verdict = "PASS" if code == 0 and not protected else "FAIL"
     name = "merge-checks" if merge else "checks"

@@ -60,6 +60,24 @@ class Tests_OpenStation_WelcomeDialog extends WP_UnitTestCase {
 	}
 
 	/**
+	 * On a phone under the `classic` Mobile layout the user is not
+	 * enabled for the request, but they opted in and then chose
+	 * classic. A "switch to OpenStation" pitch has nothing to say.
+	 *
+	 * @covers ::openstation_should_show_welcome_dialog
+	 */
+	public function test_hidden_for_a_phone_that_keeps_classic() {
+		update_user_meta( self::$user_id, 'desktop_mode_mode', '1' );
+		openstation_save_os_settings( self::$user_id, array( 'mobileLayout' => 'classic' ) );
+		add_filter( 'openstation_mode_is_phone_request', '__return_true' );
+
+		$this->assertFalse( openstation_should_show_welcome_dialog() );
+
+		remove_all_filters( 'openstation_mode_is_phone_request' );
+		delete_user_meta( self::$user_id, 'desktop_mode_os_settings' );
+	}
+
+	/**
 	 * @covers ::openstation_should_show_welcome_dialog
 	 */
 	public function test_hidden_after_intro_dismissed() {

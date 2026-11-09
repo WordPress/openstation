@@ -16,19 +16,37 @@ Flags:
 - `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log. The interactive changelog confirmation still runs; only the drafting step is skipped.
 - `--dry-run-changelog` — print the changelog draft that would be inserted into `readme.txt`, then exit without modifying any files or pushing.
 
-The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `openstation.zip` attached, then — for stable tags only — deploys to WordPress.org.
+The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), three jobs in sequence:
+
+| Job | Holds | Does |
+|---|---|---|
+| `build` | a read-only token, no secrets, no Actions cache | checks out the tag, runs the version gate, builds and packages `openstation.zip` and `openstation-beta.zip`, uploads them as the `release-zips` artifact |
+| `github-release` | `contents: write` | creates the GitHub Release with both zips attached (tag pushes only) |
+| `wordpress-org` | the SVN credentials, through the `wordpress-org` environment | deploys stable tags to WordPress.org |
+
+The build runs every dependency and build tool, so it is the job most likely to execute something hostile, and it holds nothing worth stealing. The two publishing jobs download the artifact and run no project code.
 
 Requires the `gh` CLI authenticated on github.com (`gh auth status --hostname github.com`).
 
 ## The WordPress.org deploy
 
-The last step of `release.yml` unpacks the zip and hands `build/desktop-mode/` to [`10up/action-wordpress-plugin-deploy`](https://github.com/10up/action-wordpress-plugin-deploy), which commits it to SVN trunk and tags it. Pre-releases are skipped — the step is gated on the tag having no hyphen.
+The `wordpress-org` job unpacks the zip and hands `build/desktop-mode/` to [`10up/action-wordpress-plugin-deploy`](https://github.com/10up/action-wordpress-plugin-deploy), which commits it to SVN trunk and tags it. Pre-releases are skipped — the job is gated on the tag having no hyphen.
 
-Two of the action's inputs default off a GitHub context that is only correct for a tag push, so the workflow sets both explicitly rather than leaving them implicit — `SLUG` (below) and `VERSION`, which the action derives from `GITHUB_REF` and which would resolve to the *branch* ref on a manual dispatch, producing an SVN tag called `refs/heads/trunk`. `VERSION` is exported from the version-gate step, so the deploy publishes the string that was just verified against all four version locations.
+Two of the action's inputs default off a GitHub context that is only correct for a tag push, so the workflow sets both explicitly rather than leaving them implicit — `SLUG` (below) and `VERSION`, which the action derives from `GITHUB_REF` and which would resolve to the *branch* ref on a manual dispatch, producing an SVN tag called `refs/heads/trunk`. `VERSION` is the `build` job's output from the version gate, so the deploy publishes the string that was just verified against all four version locations.
 
 **`SLUG` is set explicitly to `desktop-mode` and must stay that way.** It is the published plugin's SVN path (`plugins.svn.wordpress.org/desktop-mode/`) and its install directory, so it is frozen for the same reason as every other `desktop_mode_*` value in [AGENTS.md](../AGENTS.md): changing it doesn't migrate anything, it points the deploy at a repository that doesn't exist and orphans every installed copy's update check. The action defaults `SLUG` to the GitHub repository name when unset — that default silently matched while the repo was named `desktop-mode`, and broke the moment it was renamed to `openstation`. Never rely on it.
 
-Assets (banners, icons, screenshots) come from `.wordpress-org/`, the action's default `ASSETS_DIR`.
+Assets (banners, icons, screenshots) come from `.wordpress-org/`, the action's default `ASSETS_DIR`; the job sparse-checks-out that directory at the tag and nothing else.
+
+### The `wordpress-org` environment
+
+The deploy job runs in a GitHub Environment named `wordpress-org`, which GitHub creates the first time the job runs. Until a repository admin configures it, it changes nothing: the job reads the repository-level `SVN_USERNAME` / `SVN_PASSWORD` secrets as before. To make it a gate (Settings → Environments → `wordpress-org`):
+
+1. Add `SVN_USERNAME` and `SVN_PASSWORD` as **environment** secrets, then delete the repository-level ones. Any workflow on any branch can read a repository secret, so anyone with write access could otherwise read the SVN password by pushing a workflow that prints it.
+2. Under **Deployment branches and tags**, choose **Selected branches and tags** and add two rules: tags matching `v*`, and the branch `trunk`. The rule is checked against the ref the run started from: a tag push starts from the tag, but a [re-deploy](#re-deploying-a-published-tag) is dispatched from `trunk`, so a tags-only rule would block every re-deploy. Allowing `trunk` opens nothing else, because a push to `trunk` never starts this workflow; only a dispatch does, and that already requires write access.
+3. Optionally add **required reviewers**, so every wp.org deploy waits for a maintainer's approval.
+
+Pair it with a tag ruleset (Settings → Rules) that limits who can create `v*` tags, since pushing one starts a release.
 
 ### Re-deploying a published tag
 
@@ -38,7 +56,7 @@ A tag push runs the workflow definition **frozen into that tag's commit**, so a 
 gh workflow run release.yml --repo WordPress/openstation --ref trunk -f tag=v1.0.0
 ```
 
-The GitHub Release is left untouched: `gh release create` is not idempotent, so that step is gated on `github.event_name == 'push'` and skipped on dispatch. Everything else — checkout of the tag, the version gate, build, package, deploy — runs identically. The action itself is idempotent against SVN: a version already published is detected and skipped rather than re-committed.
+The GitHub Release is left untouched: `gh release create` is not idempotent, so the `github-release` job is gated on `github.event_name == 'push'` and skipped on dispatch. Everything else — checkout of the tag, the version gate, build, package, deploy — runs identically. The action itself is idempotent against SVN: a version already published is detected and skipped rather than re-committed.
 
 ## Pre-releases
 
@@ -55,7 +73,7 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 | `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `OPENSTATION_VERSION`, `readme.txt` `Stable tag:`, and `packages/openstation-types/package.json`. |
 | `bin/package.sh` | Packages `openstation.zip` from HEAD + current built JS. `npm run package:dev` (`OPENSTATION_BUILD_STAMP=1`) stamps the commit into the version (`1.1.7+4832bd85`, header and `OPENSTATION_VERSION` both) so the plugins list on a test site says which build it runs; releases, CI and the preview builds keep the plain version. The ZIP keeps the internal `desktop-mode/` directory so WordPress.org upgrades and dependent plugins continue to resolve the established plugin slug. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `openstation_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any Vite target is left behind there. |
 | `bin/release.sh <version>` | Full end-to-end release. |
-| `release.yml` — `push: tags: v*` | Build + publish the GitHub Release, then deploy stable tags to WordPress.org. |
+| `release.yml` — `push: tags: v*` | Build (no credentials), publish the GitHub Release, then deploy stable tags to WordPress.org. |
 
 ## Version locations
 
@@ -67,7 +85,7 @@ Five places, kept in sync by `bin/bump-version.sh`:
 - `readme.txt` → `Stable tag:` (wp.org rejects submissions when this drifts from the plugin header `Version:`)
 - `packages/openstation-types/package.json` → `"version"` (via `npm version --prefix`)
 
-The `release` job re-reads all four at tag time and fails with a clear error if any doesn't match the tag. This catches "forgot to bump one".
+The `build` job re-reads all four at tag time and fails with a clear error if any doesn't match the tag. This catches "forgot to bump one".
 
 ## Versioning scheme
 

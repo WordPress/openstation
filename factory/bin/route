@@ -35,6 +35,10 @@ def main(argv):
     risk = CONFIG["routing"].get(intake["risk"]) or die(
         f"risk {intake['risk']!r} isn't in config.json routing ({', '.join(CONFIG['routing'])})")
     reviewers = {k: v for k, v in risk.items() if k != "builder"}
+    # Any change that behaves at runtime is used on the trunk and job sites,
+    # never by a Haiku lens: half the blocking bugs in reviews only showed there.
+    if intake.get("behaviour", True):
+        reviewers["runtime"] = CONFIG["runtime_reviewer"]
     for surface in intake["surfaces"]:
         extra = CONFIG["surface_reviewers"].get(surface)
         if extra is None:

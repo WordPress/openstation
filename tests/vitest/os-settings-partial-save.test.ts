@@ -258,3 +258,41 @@ describe( 'OS Settings — partial saves', () => {
 		expect( cached ).toEqual( state );
 	} );
 } );
+
+describe( 'OS Settings — a save that keeps this device on classic', () => {
+	afterEach( () => {
+		delete ( window as unknown as { openStationAdminBar?: unknown } ).openStationAdminBar;
+		window.location.hash = '';
+	} );
+
+	/*
+	 * After `classic` is saved from a phone the server refuses every
+	 * later shell request, the way back included. It says so on the
+	 * save response, and the shell has to leave rather than stay up
+	 * unable to save. A hash-only URL stands in for classic admin:
+	 * jsdom performs that navigation and nothing else.
+	 */
+	test( 'the shell leaves for classic admin only when the server says so', async () => {
+		( window as unknown as { openStationAdminBar?: unknown } ).openStationAdminBar = {
+			classicUrl: '#classic-admin',
+		};
+		const state = bootedSession();
+
+		state.mobileLayout = 'classic';
+		state_.saveState( state );
+		await flush();
+		expect( window.location.hash ).toBe( '' );
+
+		fetchMock.mockImplementationOnce( () =>
+			Promise.resolve( {
+				ok: true,
+				status: 200,
+				headers: new Headers( { 'X-OpenStation-Keeps-Classic': '1' } ),
+			} as unknown as Response ),
+		);
+		state.accent = 'wp-midnight';
+		state_.saveState( state );
+		await flush();
+		expect( window.location.hash ).toBe( '#classic-admin' );
+	} );
+} );
