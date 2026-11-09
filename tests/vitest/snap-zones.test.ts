@@ -77,8 +77,16 @@ describe( 'snap-zones — pure math', async () => {
 		expect( detectSnapZone( 1600 - SNAP_EDGE_THRESHOLD - 1, mockDesktopRect() ) ).toBeNull();
 	} );
 
+	test( 'detectSnapZone returns top near the top edge', async () => {
+		expect( detectSnapZone( 800, mockDesktopRect(), 0 ) ).toBe( 'top' );
+		expect( detectSnapZone( 800, mockDesktopRect(), SNAP_EDGE_THRESHOLD ) ).toBe( 'top' );
+		expect( detectSnapZone( 800, mockDesktopRect(), SNAP_EDGE_THRESHOLD + 1 ) ).toBeNull();
+		expect( detectSnapZone( 800, mockDesktopRect(), 0, false ) ).toBeNull();
+	} );
+
 	test( 'detectSnapZone returns null in the middle', async () => {
 		expect( detectSnapZone( 800, mockDesktopRect() ) ).toBeNull();
+		expect( detectSnapZone( 800, mockDesktopRect(), 500 ) ).toBeNull();
 		expect( detectSnapZone( 500, mockDesktopRect() ) ).toBeNull();
 	} );
 } );
@@ -108,11 +116,13 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		clearHooksStub();
 	} );
 
-	test( 'snapZoneBounds gives exactly half the desktop area per zone', async () => {
+	test( 'snapZoneBounds gives half area for left/right and full area for top', async () => {
 		const left = snapZoneBounds( manager, 'left' );
 		const right = snapZoneBounds( manager, 'right' );
+		const top = snapZoneBounds( manager, 'top' );
 		expect( left ).toEqual( { x: 0, y: 0, width: 800, height: 900 } );
 		expect( right ).toEqual( { x: 800, y: 0, width: 800, height: 900 } );
+		expect( top ).toEqual( { x: 0, y: 0, width: 1600, height: 900 } );
 	} );
 
 	test( 'updateSnapZoneForDrag fires pending when entering and canceled when leaving', async () => {
@@ -120,27 +130,66 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		const log = recordActions( hooks, SNAP_HOOKS );
 
 		// Enter the left zone.
-		updateSnapZoneForDrag( manager, win, 10 );
+		updateSnapZoneForDrag( manager, win, 10, 200 );
 		expect( log.some( ( e ) => e.name === 'os.snap.zone-pending' ) ).toBe( true );
 
 		// Move to the middle — cancels.
-		updateSnapZoneForDrag( manager, win, 800 );
+		updateSnapZoneForDrag( manager, win, 800, 200 );
 		expect( log.some( ( e ) => e.name === 'os.snap.zone-canceled' ) ).toBe( true );
 
 		// Re-enter — pending fires again. Count rather than truthy so
 		// the hysteresis is obvious if we ever add it.
 		const pendingBefore = log.filter( ( e ) => e.name === 'os.snap.zone-pending' ).length;
-		updateSnapZoneForDrag( manager, win, 10 );
+		updateSnapZoneForDrag( manager, win, 10, 200 );
 		const pendingAfter = log.filter( ( e ) => e.name === 'os.snap.zone-pending' ).length;
 		expect( pendingAfter ).toBe( pendingBefore + 1 );
+	} );
+
+	test( 'updateSnapZoneForDrag fires pending when entering top zone and canceled when leaving', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
+		const log = recordActions( hooks, SNAP_HOOKS );
+
+		// Move below top threshold to arm readiness.
+		updateSnapZoneForDrag( manager, win, 800, 100 );
+		expect( manager._snapTopReady ).toBe( true );
+		expect( manager._snapPendingZone ).toBeNull();
+
+		// Enter the top zone in the middle of the screen.
+		updateSnapZoneForDrag( manager, win, 800, 10 );
+		const pending = log.find( ( e ) => e.name === 'os.snap.zone-pending' );
+		expect( pending ).toBeDefined();
+		expect( ( pending!.args[ 0 ] as { zone: string } ).zone ).toBe( 'top' );
+
+		// Move down toward the middle of the screen — cancels.
+		updateSnapZoneForDrag( manager, win, 800, 400 );
+		expect( log.some( ( e ) => e.name === 'os.snap.zone-canceled' ) ).toBe( true );
+
+		// Re-enter top zone.
+		const pendingBefore = log.filter( ( e ) => e.name === 'os.snap.zone-pending' ).length;
+		updateSnapZoneForDrag( manager, win, 800, 5 );
+		const pendingAfter = log.filter( ( e ) => e.name === 'os.snap.zone-pending' ).length;
+		expect( pendingAfter ).toBe( pendingBefore + 1 );
+	} );
+
+	test( 'drag starting inside top band and moving sideways does not arm top snap', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
+		const log = recordActions( hooks, SNAP_HOOKS );
+
+		// Drag moves sideways within the top band without having dipped below it.
+		updateSnapZoneForDrag( manager, win, 400, 25 );
+		updateSnapZoneForDrag( manager, win, 600, 25 );
+
+		expect( manager._snapTopReady ).toBe( false );
+		expect( manager._snapPendingZone ).toBeNull();
+		expect( log.some( ( e ) => e.name === 'os.snap.zone-pending' ) ).toBe( false );
 	} );
 
 	test( 'updateSnapZoneForDrag is idempotent within the same zone', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
 		const log = recordActions( hooks, SNAP_HOOKS );
-		updateSnapZoneForDrag( manager, win, 5 );
-		updateSnapZoneForDrag( manager, win, 10 );
-		updateSnapZoneForDrag( manager, win, 15 );
+		updateSnapZoneForDrag( manager, win, 5, 200 );
+		updateSnapZoneForDrag( manager, win, 10, 200 );
+		updateSnapZoneForDrag( manager, win, 15, 200 );
 		const pending = log.filter( ( e ) => e.name === 'os.snap.zone-pending' );
 		expect( pending.length ).toBe( 1 );
 	} );
@@ -148,7 +197,7 @@ describe( 'snap-zones — manager lifecycle', async () => {
 	test( 'commitSnapIfPending writes target bounds + flips state + fires committed', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
 		// Arm the left zone.
-		updateSnapZoneForDrag( manager, win, 5 );
+		updateSnapZoneForDrag( manager, win, 5, 200 );
 		const log = recordActions( hooks, SNAP_HOOKS );
 
 		const consumed = commitSnapIfPending( manager, win );
@@ -164,6 +213,53 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		expect(
 			( committed!.args[ 0 ] as { zone: string } ).zone,
 		).toBe( 'left' );
+	} );
+
+	test( 'commitSnapIfPending for top zone maximizes window and does not enter split overview', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
+		// Arm the top zone by moving below threshold and then to the top edge.
+		updateSnapZoneForDrag( manager, win, 800, 100 );
+		updateSnapZoneForDrag( manager, win, 800, 5 );
+		const log = recordActions( hooks, SNAP_HOOKS );
+
+		const consumed = commitSnapIfPending( manager, win );
+		expect( consumed ).toBe( true );
+
+		expect( win.state ).toBe( 'maximized' );
+		expect( win.element.style.left ).toBe( '0px' );
+		expect( win.element.style.top ).toBe( '0px' );
+		expect( win.element.style.width ).toBe( '1600px' );
+		expect( win.element.style.height ).toBe( '900px' );
+		expect( win.element.classList.contains( 'os-window--maximized' ) ).toBe( true );
+
+		const committed = log.find( ( e ) => e.name === 'os.snap.zone-committed' );
+		expect( committed ).toBeDefined();
+		expect(
+			( committed!.args[ 0 ] as { zone: string } ).zone,
+		).toBe( 'top' );
+
+		// Top snap must NOT enter split overview.
+		expect( manager._splitOverviewActive ).toBe( false );
+	} );
+
+	test( 'commitSnapIfPending for top zone restores pre-drag floating rect from _snapDragOrigin', async () => {
+		const win = await manager.open( openConfig( 'a' ) );
+		const origin = { x: 112, y: 237, width: 800, height: 600 };
+		manager._snapDragOrigin = origin;
+
+		// Move below then to top edge.
+		updateSnapZoneForDrag( manager, win, 800, 100 );
+		updateSnapZoneForDrag( manager, win, 800, 5 );
+
+		commitSnapIfPending( manager, win );
+
+		expect( win.state ).toBe( 'maximized' );
+		expect( win._savedGeometry ).toEqual( origin );
+
+		win.toggleMaximize();
+		expect( win.state ).toBe( 'normal' );
+		expect( win.element.style.left ).toBe( '112px' );
+		expect( win.element.style.top ).toBe( '237px' );
 	} );
 
 	test( 'snapTo remembers the floating rect, and a snap from a snapped state does not overwrite it', async () => {
@@ -230,7 +326,7 @@ describe( 'snap-zones — manager lifecycle', async () => {
 		manager._splitOverviewActive = true;
 		const log = recordActions( hooks, SNAP_HOOKS );
 
-		updateSnapZoneForDrag( manager, win, 5 );
+		updateSnapZoneForDrag( manager, win, 5, 200 );
 		expect(
 			log.some( ( e ) => e.name === 'os.snap.zone-pending' ),
 		).toBe( false );
@@ -238,8 +334,8 @@ describe( 'snap-zones — manager lifecycle', async () => {
 
 	test( 'commit picks up zone from the most-recent updateSnapZoneForDrag', async () => {
 		const win = await manager.open( openConfig( 'a' ) );
-		updateSnapZoneForDrag( manager, win, 5 ); // left
-		updateSnapZoneForDrag( manager, win, 1595 ); // right
+		updateSnapZoneForDrag( manager, win, 5, 200 ); // left
+		updateSnapZoneForDrag( manager, win, 1595, 200 ); // right
 		commitSnapIfPending( manager, win );
 		expect( win.state ).toBe( 'snapped-right' );
 		expect( win.element.style.left ).toBe( '800px' );

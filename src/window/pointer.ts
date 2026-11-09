@@ -256,6 +256,16 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		window.addEventListener( 'keydown', onModifierKey );
 		window.addEventListener( 'keyup', onModifierKey );
 
+		const originGeometry = ( needsUnstate && win._savedGeometry )
+			? { ...win._savedGeometry }
+			: {
+				x: newLeft,
+				y: newTop,
+				width: win.element.offsetWidth,
+				height: win.element.offsetHeight,
+			};
+
+		win.onDragStart?.( win, originGeometry );
 		doAction( HOOKS.WINDOW_DRAG_START, { windowId: win.id } );
 	};
 
