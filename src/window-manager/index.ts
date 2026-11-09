@@ -65,6 +65,7 @@ import {
 import {
 	abortSnapIfPending,
 	commitSnapIfPending,
+	type HalfZone,
 	installSnapPartnerReflow,
 	snapPartnerMinWidth,
 	type SnapZone,
@@ -401,6 +402,20 @@ export class WindowManager {
 	public _snapPreviewEl: HTMLElement | null = null;
 
 	/**
+	 * Has this drag's pointer moved below the top edge band yet?
+	 * Gates top-edge maximize snap from arming during a sideways drag.
+	 * @internal
+	 */
+	public _snapTopReady = false;
+
+	/**
+	 * The window's floating geometry when the current drag began.
+	 * Restored when un-maximizing after a top-edge snap.
+	 * @internal
+	 */
+	public _snapDragOrigin: { x: number; y: number; width: number; height: number } | null = null;
+
+	/**
 	 * The grid-snap drag in progress — anchor, cursor, target span and
 	 * overlay. Null for an ordinary drag. See `grid-snap.ts`.
 	 * @internal
@@ -417,7 +432,7 @@ export class WindowManager {
 	/** @internal */
 	public _splitOverviewAnchor: Window | null = null;
 	/** @internal */
-	public _splitOverviewZone: 'left' | 'right' | null = null;
+	public _splitOverviewZone: HalfZone | null = null;
 	/** @internal */
 	public _splitOverviewSnapshot: Map< string, { transform: string; transition: string } > = new Map();
 	/** @internal */
@@ -1437,6 +1452,10 @@ export class WindowManager {
 		win.snapConfigProvider = () => this.getSnapConfig();
 		win.snapPartnerMinWidthProvider = ( zone ) =>
 			snapPartnerMinWidth( this, win, zone );
+		win.onDragStart = ( _w, origin ) => {
+			this._snapDragOrigin = origin;
+			this._snapTopReady = false;
+		};
 		// Edge-snap + split-overview flow. `onDragMove` updates the
 		// snap preview on every pointermove; `onDragEnd` commits the
 		// snap (and returns true, suppressing the pointer layer's
@@ -1473,14 +1492,17 @@ export class WindowManager {
 			}
 		};
 		win.onDragEnd = ( w ) => {
-			if ( this._gridSnap ) {
-				return commitGridSnapIfActive( this, w );
+			try {
+				if ( this._gridSnap ) {
+					return commitGridSnapIfActive( this, w );
+				}
+				if ( this._snapPendingZone ) {
+					return commitSnapIfPending( this, w );
+				}
+				return false;
+			} finally {
+				abortSnapIfPending( this );
 			}
-			if ( this._snapPendingZone ) {
-				return commitSnapIfPending( this, w );
-			}
-			abortSnapIfPending( this );
-			return false;
 		};
 
 		if ( createOpts.prewarm ) {

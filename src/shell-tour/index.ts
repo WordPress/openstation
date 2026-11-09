@@ -697,8 +697,8 @@ export function startShellTour( deps: ShellTourDeps ): ShellTourHandle {
 	addAction< [ { windowId?: string } ] >( HOOKS.WINDOW_REOPENED, NS, ( detail ) =>
 		windowArrived( detail, false ),
 	);
-	addAction( HOOKS.SNAP_ZONE_COMMITTED, NS, () => {
-		if ( 'snap' === steps[ index ]?.id ) {
+	addAction< [ { zone?: string } ] >( HOOKS.SNAP_ZONE_COMMITTED, NS, ( detail ) => {
+		if ( 'snap' === steps[ index ]?.id && 'top' !== detail?.zone ) {
 			advance();
 		}
 	} );

@@ -52,15 +52,24 @@ const SNAP_COMMIT_MS = 260;
 /** Directions we snap to. Corners come later. */
 export type SnapZone = 'left' | 'right' | 'top';
 
+/** Half-screen split zones (excludes top-edge maximize). */
+export type HalfZone = Exclude< SnapZone, 'top' >;
+
 /**
  * Return the snap zone (if any) that the cursor falls into, measured
  * against the desktop area's bounding rect. `null` means "dragging
  * somewhere in the middle — no snap pending."
+ *
+ * Checks horizontal edge proximity first (`clientX`), so left and right
+ * snapping take precedence in the top corners. Top edge proximity is
+ * checked against `clientY` only when `topReady` is true (indicating the
+ * drag has moved below the top edge threshold first).
  */
 export function detectSnapZone(
 	clientX: number,
 	desktopRect: DOMRect,
 	clientY?: number,
+	topReady: boolean = true,
 ): SnapZone | null {
 	if ( clientX <= desktopRect.left + SNAP_EDGE_THRESHOLD ) {
 		return 'left';
@@ -68,7 +77,7 @@ export function detectSnapZone(
 	if ( clientX >= desktopRect.right - SNAP_EDGE_THRESHOLD ) {
 		return 'right';
 	}
-	if ( undefined !== clientY && clientY <= desktopRect.top + SNAP_EDGE_THRESHOLD ) {
+	if ( topReady && undefined !== clientY && clientY <= desktopRect.top + SNAP_EDGE_THRESHOLD ) {
 		return 'top';
 	}
 	return null;
@@ -77,7 +86,7 @@ export function detectSnapZone(
 /**
  * The zone a window is snapped to, or `null` when it is not snapped.
  */
-function snappedZoneOf( win: Window ): 'left' | 'right' | null {
+function snappedZoneOf( win: Window ): HalfZone | null {
 	if ( 'snapped-left' === win.state ) {
 		return 'left';
 	}
@@ -100,7 +109,7 @@ export function snapPartnerMinWidth(
 	if ( 'top' === zone ) {
 		return 0;
 	}
-	const opposite: 'left' | 'right' = 'left' === zone ? 'right' : 'left';
+	const opposite: HalfZone = 'left' === zone ? 'right' : 'left';
 	let min = 0;
 	for ( const other of mgr._stack ) {
 		if (
@@ -200,7 +209,7 @@ export function relayoutSnappedWindow( mgr: WindowManager, win: Window ): void {
  * Returns the teardown.
  */
 export function installSnapPartnerReflow( mgr: WindowManager ): () => void {
-	let snapshot = new Map< string, { zone: 'left' | 'right'; desktopId: string } >();
+	let snapshot = new Map< string, { zone: HalfZone; desktopId: string } >();
 
 	const sync = (): void => {
 		// Overview owns the geometry while it is up. The snapshot is left
@@ -208,7 +217,7 @@ export function installSnapPartnerReflow( mgr: WindowManager ): () => void {
 		if ( mgr._overviewActive ) {
 			return;
 		}
-		const next = new Map< string, { zone: 'left' | 'right'; desktopId: string } >();
+		const next = new Map< string, { zone: HalfZone; desktopId: string } >();
 		for ( const w of mgr._stack ) {
 			const zone = snappedZoneOf( w );
 			if ( zone ) {
@@ -268,7 +277,7 @@ export function installSnapPartnerReflow( mgr: WindowManager ): () => void {
  */
 export function oppositeHalfRect(
 	mgr: WindowManager,
-	zone: 'left' | 'right',
+	zone: HalfZone,
 ): DOMRect {
 	const rect = mgr._desktop.getBoundingClientRect();
 	const halfW = Math.floor( rect.width / 2 );
@@ -344,7 +353,7 @@ export function updateSnapZoneForDrag(
 	mgr: WindowManager,
 	win: Window,
 	clientX: number,
-	clientY?: number,
+	clientY: number,
 ): void {
 	if ( mgr._splitOverviewActive ) {
 		// A previous snap already finished and the picker is up. No
@@ -352,11 +361,14 @@ export function updateSnapZoneForDrag(
 		return;
 	}
 	const rect = mgr._desktop.getBoundingClientRect();
-	const zone = detectSnapZone( clientX, rect, clientY );
+	if ( clientY > rect.top + SNAP_EDGE_THRESHOLD ) {
+		mgr._snapTopReady = true;
+	}
+	const zone = detectSnapZone( clientX, rect, clientY, mgr._snapTopReady );
 	const previous = mgr._snapPendingZone;
 	if ( zone ) {
 		showSnapPreview( mgr, zone, win );
-		if ( previous !== zone ) {
+		if ( zone !== previous ) {
 			doAction( HOOKS.SNAP_ZONE_PENDING, {
 				windowId: win.id,
 				zone,
@@ -385,7 +397,11 @@ export function commitSnapIfPending(
 	hideSnapPreview( mgr );
 
 	if ( 'top' === zone ) {
+		const origin = mgr._snapDragOrigin;
 		win.maximize();
+		if ( origin ) {
+			win._savedGeometry = origin;
+		}
 	} else {
 		// `snapTo` saves the pre-snap geometry first, so a subsequent drag
 		// from the snapped title bar can shrink the window back to its
@@ -432,4 +448,6 @@ export function abortSnapIfPending( mgr: WindowManager ): void {
 	if ( mgr._snapPendingZone ) {
 		hideSnapPreview( mgr );
 	}
+	mgr._snapTopReady = false;
+	mgr._snapDragOrigin = null;
 }

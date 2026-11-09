@@ -18,7 +18,7 @@ import { doAction, HOOKS } from '../hooks';
 import type { Window } from '../window';
 import { computeOverviewLayout } from './geometry';
 import { createOverviewLabel } from './overview';
-import { oppositeHalfRect } from './snap-zones';
+import { oppositeHalfRect, type HalfZone } from './snap-zones';
 import type { WindowManager } from './index';
 
 /**
@@ -29,7 +29,7 @@ import type { WindowManager } from './index';
 export function enterSplitOverview(
 	mgr: WindowManager,
 	anchor: Window,
-	zone: 'left' | 'right',
+	zone: HalfZone,
 ): void {
 	if ( mgr._splitOverviewActive ) {
 		return;
@@ -204,7 +204,7 @@ export function fillOppositeHalfAndExit( mgr: WindowManager, selected: Window ):
 		exitSplitOverview( mgr );
 		return;
 	}
-	const partnerZone: 'left' | 'right' = 'left' === anchorZone ? 'right' : 'left';
+	const partnerZone: HalfZone = 'left' === anchorZone ? 'right' : 'left';
 
 	// Clear the overview transform FIRST so the slide starts from the
 	// thumbnail's current visual position, not from `(0,0)`. The base
