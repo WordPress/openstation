@@ -277,17 +277,17 @@
 <script>
 const POLL_MS = 2000
 const COLUMNS = [
-  { label: 'Intake', who: 'intake · fable', stages: ['intake', 'needs-info'] },
+  { label: 'Intake', who: 'intake · triage', stages: ['intake', 'needs-info', 'triage'] },
   { label: 'Spec', who: 'spec-writer · opus', stages: ['spec'] },
-  { label: 'Build', who: 'builder · gate', stages: ['build', 'gate'] },
+  { label: 'Build', who: 'builder · update · gate', stages: ['build', 'update', 'gate'] },
   { label: 'Review', who: 'routed reviewers', stages: ['review'] },
-  { label: 'Approve', who: 'approver · merge', stages: ['approve', 'merging'] },
+  { label: 'Approve', who: 'approver · reporter', stages: ['approve', 'merging', 'report'] },
   { label: 'Needs human', who: 'you', stages: ['needs-human'], cls: 'human' },
-  { label: 'Done', who: 'merged · rejected', stages: ['merged', 'rejected'], cls: 'merged-col' },
+  { label: 'Done', who: 'merged · rejected · abandoned', stages: ['merged', 'rejected', 'abandoned'], cls: 'merged-col' },
 ]
 const STAGES = new Set(COLUMNS.flatMap((c) => c.stages))
-const LIVE = new Set(['intake', 'spec', 'build', 'gate', 'review', 'approve', 'merging'])
-const SHORT = { code: 'code', ux: 'ux', ui: 'ui', security: 'sec' }
+const LIVE = new Set(['intake', 'spec', 'build', 'gate', 'review', 'approve', 'merging', 'triage', 'update', 'report'])
+const SHORT = { code: 'code', ux: 'ux', ui: 'ui', security: 'sec', runtime: 'run' }
 
 const $ = (id) => document.getElementById(id)
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -357,7 +357,7 @@ function elapsed(job) {
 }
 
 function links(job) {
-  const out = [`<a href="${esc(job.issue_url)}" target="_blank" rel="noopener">issue #${job.issue}</a>`]
+  const out = job.issue ? [`<a href="${esc(job.issue_url)}" target="_blank" rel="noopener">issue #${job.issue}</a>`] : []
   if (job.pr) out.push(`<a href="${esc(job.pr_url)}" target="_blank" rel="noopener">PR #${job.pr}</a>`)
   return out.join('')
 }
@@ -365,15 +365,18 @@ function links(job) {
 function card(job, rounds) {
   const live = LIVE.has(job.stage)
   const human = job.stage === 'needs-human'
-  const done = job.stage === 'merged' || job.stage === 'rejected'
+  const done = ['merged', 'rejected', 'abandoned'].includes(job.stage)
+  const pr = job.kind === 'pr'
   const [num, ...slug] = job.id.split('-')
   const flag = human ? '<span class="flag">your call</span>'
     : job.stage === 'needs-info' ? '<span class="flag wait">asked author</span>'
-    : job.stage === 'rejected' ? '<span class="flag wait">rejected</span>' : ''
+    : job.stage === 'rejected' ? '<span class="flag wait">rejected</span>'
+    : pr ? '<span class="flag wait">review</span>' : ''
   const risk = job.intake?.risk
   const meta = [
     risk ? `<span class="risk-${esc(risk)}">${esc(risk)}</span>` : '',
-    job.agents ? `<span>${esc(job.agents.builder)}</span>` : '',
+    job.agents && !pr ? `<span>${esc(job.agents.builder)}</span>` : '',
+    pr && job.report ? `<span>${esc(job.report)}</span>` : '',
     `<span>$${Number(job.cost_usd).toFixed(2)}</span>`,
     `<span>${elapsed(job)}</span>`,
   ].join('')
@@ -389,7 +392,8 @@ function card(job, rounds) {
       <div class="links">${links(job)}</div>
       ${rounds.length ? `<div class="rounds">${rounds.join('')}</div>` : ''}
       <div class="meta">${meta}</div>
-      ${human ? `<div class="hint">${job.pr ? `merge PR #${job.pr} to approve` : 'comment on the issue'}<br>/factory rework ${job.issue}</div>` : ''}
+      ${human ? `<div class="hint">${pr ? (job.held ? `held: add factory:trusted once you've looked` : `merge PR #${job.pr}, or wait for the contributor`)
+        : `${job.pr ? `merge PR #${job.pr} to approve` : 'comment on the issue'}<br>/factory rework ${job.issue}`}</div>` : ''}
     </article>`
 }
 
