@@ -46,6 +46,10 @@ function openstation_recycle_bin_get_items( $args = array() ) {
 
 	$type     = (string) $args['type'];
 	$per_page = max( 1, (int) $args['per_page'] );
+	$page     = max( 1, (int) $args['page'] );
+
+	// A page of the merged list can draw on any source, so each one is read from its first row.
+	$limit = $page * $per_page;
 
 	// Two trash sources: posts (incl. pages and attachments) and
 	// comments. Each is fetched independently then merged + sorted
@@ -77,9 +81,8 @@ function openstation_recycle_bin_get_items( $args = array() ) {
 		$query_args = array(
 			'post_type'        => $post_types,
 			'post_status'      => 'trash',
-			'posts_per_page'   => $per_page,
-			'paged'            => max( 1, (int) $args['page'] ),
-			'orderby'          => 'modified',
+			'posts_per_page'   => $limit,
+			'orderby'          => 'modified ID',
 			'order'            => 'DESC',
 			'suppress_filters' => false,
 			's'                => (string) $args['search'],
@@ -105,7 +108,7 @@ function openstation_recycle_bin_get_items( $args = array() ) {
 	if ( $wants_comments ) {
 		$comment_args = array(
 			'status'  => 'trash',
-			'number'  => $per_page,
+			'number'  => $limit,
 			'orderby' => 'comment_date_gmt',
 			'order'   => 'DESC',
 		);
@@ -202,7 +205,7 @@ function openstation_recycle_bin_get_items( $args = array() ) {
 	// count can compute it from `count( $items )` itself.
 	$total = openstation_recycle_bin_count();
 
-	$offset = max( 0, ( max( 1, (int) $args['page'] ) - 1 ) * $per_page );
+	$offset = ( $page - 1 ) * $per_page;
 	$sliced = array_slice( $items, $offset, $per_page );
 
 	/**
