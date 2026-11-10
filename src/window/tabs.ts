@@ -33,6 +33,7 @@ import {
 } from './tab-strip';
 import { navigateWithUnsavedGuard } from './unsaved-guard';
 import { tryNativeUrlRemap } from '../native-url-remap';
+import { tryOpenExternalUrl } from '../external-url';
 import type { Window } from './index';
 
 /*
@@ -350,16 +351,17 @@ export function setSubmenuTabs(
  *   5. Start a readiness probe: if the iframe still has no page when it
  *      runs out (the server has not answered), auto-dismiss the tab and
  *      open the URL in a real browser tab with an explanatory toast. A
- *      page that is still loading keeps its tab, and so does a blocked
- *      one: the browser shows its error page *inside* the iframe
- *      (X-Frame-Options, a refused connection), where the user can see
- *      it and hit the detach button themselves.
+ *      page that is still loading keeps its tab. Cross-origin URLs are
+ *      intercepted before reaching the iframe, opening in a real browser tab.
  */
 export function addExternalTab(
 	win: Window,
 	url: string,
 	label: string,
 ): void {
+	if ( tryOpenExternalUrl( url ) ) {
+		return;
+	}
 	if ( ! win.iframe ) {
 		// Native windows don't host iframes — no tab strip exists.
 		return;

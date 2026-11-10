@@ -1170,20 +1170,22 @@
 
 	/*
 	 * Classify a link so we know whether to rewrite it (admin),
-	 * escalate it to the parent shell (external / non-admin), or let
-	 * the browser navigate naturally (mailto, anchor, download, etc.).
+	 * escalate it to the parent shell (external / non-admin), open
+	 * it in a fresh browser tab (offsite), or let the browser navigate
+	 * naturally (mailto, anchor, download, etc.).
 	 *
 	 *   'admin'       — same-origin /wp-admin/ URL we rewrite in place.
 	 *   'other-admin'  — another site, or the network admin. Handed to
 	 *                   the shell, which opens it in that admin's own
 	 *                   Space. (Modifier and middle clicks never get
 	 *                   here — the handler yields them to the browser.)
-	 *   'external'    — http(s) URL we want the parent shell to open
-	 *                   as a sub-tab instead of navigating the iframe
-	 *                   out of wp-admin. Covers both cross-origin
-	 *                   links (plugin author sites, external docs) AND
-	 *                   same-origin non-admin links (the site's own
-	 *                   front-end pages).
+	 *   'external'    — same-origin non-admin http(s) URL (the site's own
+	 *                   front-end pages). Handed to the parent shell to
+	 *                   open as a sub-tab in the window.
+	 *   'offsite'     — cross-origin http(s) URL (plugin author sites,
+	 *                   external docs). Modern websites disallow iframe
+	 *                   embedding via X-Frame-Options / frame-ancestors;
+	 *                   opened directly in a fresh browser tab.
 	 *   'passthrough' — anything else (mailto, tel, javascript, data,
 	 *                   anchors, unparseable). The browser handles it.
 	 */
@@ -1203,13 +1205,13 @@
 		if ( url.protocol !== 'http:' && url.protocol !== 'https:' ) {
 			return 'passthrough';
 		}
-		if (
-			url.origin === window.location.origin &&
-			url.pathname.indexOf( '/wp-admin/' ) !== -1
-		) {
-			return isOtherAdmin( url ) ? 'other-admin' : 'admin';
+		if ( url.origin === window.location.origin ) {
+			if ( url.pathname.indexOf( '/wp-admin/' ) !== -1 ) {
+				return isOtherAdmin( url ) ? 'other-admin' : 'admin';
+			}
+			return 'external';
 		}
-		return 'external';
+		return 'offsite';
 	}
 
 	/*
@@ -1738,12 +1740,12 @@
 		}
 		if ( kind === 'external' ) {
 			/*
-			 * External navigation inside an admin iframe would leave
-			 * the user stranded in a chrome-free version of whatever
-			 * site the link points at. Escalate to the parent shell
-			 * so it opens the URL as a closeable sub-tab (with a
-			 * detach button) alongside the admin tab — the user
-			 * stays inside the desktop shell.
+			 * Same-origin non-admin navigation (the site's own front-end
+			 * pages, like permalinks) inside an admin iframe would leave
+			 * the user stranded in a chrome-free version of that page.
+			 * Escalate to the parent shell so it opens the URL as a
+			 * closeable sub-tab (with a detach button) alongside the
+			 * admin tab — the user stays inside the desktop shell.
 			 *
 			 * Resolving the href against the document base gives the
 			 * parent an absolute URL it doesn't have to re-resolve.
@@ -1771,6 +1773,23 @@
 				},
 				window.location.origin
 			);
+			return;
+		}
+		if ( kind === 'offsite' ) {
+			/*
+			 * Cross-origin links (plugin author sites, external docs)
+			 * cannot be embedded in an iframe because virtually all
+			 * external sites enforce X-Frame-Options: SAMEORIGIN or
+			 * CSP frame-ancestors. Route them straight to a new browser
+			 * tab, matching what classic admin does.
+			 */
+			e.preventDefault();
+			try {
+				var offsiteUrl = new URL( href, window.location.href ).toString();
+				window.open( offsiteUrl, '_blank', 'noopener,noreferrer' );
+			} catch ( err ) {
+				/* URL parse failure */
+			}
 		}
 	}, true );
 
