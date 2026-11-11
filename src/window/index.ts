@@ -683,6 +683,13 @@ export class Window {
 		| null = null;
 
 	/**
+	 * Called by the drag pointer layer when a drag begins, carrying
+	 * the window's pre-drag floating geometry. The window-manager
+	 * uses this to restore floating bounds after a snap-to-top maximize.
+	 */
+	public onDragStart: ( ( win: Window, origin: { x: number; y: number; width: number; height: number } ) => void ) | null = null;
+
+	/**
 	 * Called by the drag pointer-move handler on every frame with
 	 * the current cursor position. The window-manager uses this to
 	 * power edge-snap detection + preview.

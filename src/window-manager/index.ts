@@ -65,8 +65,10 @@ import {
 import {
 	abortSnapIfPending,
 	commitSnapIfPending,
+	type HalfZone,
 	installSnapPartnerReflow,
 	snapPartnerMinWidth,
+	type SnapZone,
 	updateSnapZoneForDrag,
 } from './snap-zones';
 import { snapHalfRect } from './geometry';
@@ -390,7 +392,7 @@ export class WindowManager {
 	 * Null when no snap is armed.
 	 * @internal
 	 */
-	public _snapPendingZone: 'left' | 'right' | null = null;
+	public _snapPendingZone: SnapZone | null = null;
 
 	/**
 	 * The translucent preview rectangle shown while a snap is armed.
@@ -398,6 +400,20 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _snapPreviewEl: HTMLElement | null = null;
+
+	/**
+	 * Has this drag's pointer moved below the top edge band yet?
+	 * Gates top-edge maximize snap from arming during a sideways drag.
+	 * @internal
+	 */
+	public _snapTopReady = false;
+
+	/**
+	 * The window's floating geometry when the current drag began.
+	 * Restored when un-maximizing after a top-edge snap.
+	 * @internal
+	 */
+	public _snapDragOrigin: { x: number; y: number; width: number; height: number } | null = null;
 
 	/**
 	 * The grid-snap drag in progress — anchor, cursor, target span and
@@ -416,7 +432,7 @@ export class WindowManager {
 	/** @internal */
 	public _splitOverviewAnchor: Window | null = null;
 	/** @internal */
-	public _splitOverviewZone: 'left' | 'right' | null = null;
+	public _splitOverviewZone: HalfZone | null = null;
 	/** @internal */
 	public _splitOverviewSnapshot: Map< string, { transform: string; transition: string } > = new Map();
 	/** @internal */
@@ -1436,6 +1452,10 @@ export class WindowManager {
 		win.snapConfigProvider = () => this.getSnapConfig();
 		win.snapPartnerMinWidthProvider = ( zone ) =>
 			snapPartnerMinWidth( this, win, zone );
+		win.onDragStart = ( _w, origin ) => {
+			this._snapDragOrigin = origin;
+			this._snapTopReady = false;
+		};
 		// Edge-snap + split-overview flow. `onDragMove` updates the
 		// snap preview on every pointermove; `onDragEnd` commits the
 		// snap (and returns true, suppressing the pointer layer's
@@ -1447,7 +1467,7 @@ export class WindowManager {
 				updateGridSnap( this, clientX, clientY );
 				return;
 			}
-			updateSnapZoneForDrag( this, w, clientX );
+			updateSnapZoneForDrag( this, w, clientX, clientY );
 		};
 		win.onDragGesture = ( w, gesture ) => {
 			switch ( gesture.type ) {
@@ -1472,14 +1492,17 @@ export class WindowManager {
 			}
 		};
 		win.onDragEnd = ( w ) => {
-			if ( this._gridSnap ) {
-				return commitGridSnapIfActive( this, w );
+			try {
+				if ( this._gridSnap ) {
+					return commitGridSnapIfActive( this, w );
+				}
+				if ( this._snapPendingZone ) {
+					return commitSnapIfPending( this, w );
+				}
+				return false;
+			} finally {
+				abortSnapIfPending( this );
 			}
-			if ( this._snapPendingZone ) {
-				return commitSnapIfPending( this, w );
-			}
-			abortSnapIfPending( this );
-			return false;
 		};
 
 		if ( createOpts.prewarm ) {

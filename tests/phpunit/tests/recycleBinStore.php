@@ -101,6 +101,26 @@ class Tests_OpenStation_RecycleBinStore extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::openstation_recycle_bin_get_items
+	 */
+	public function test_get_items_returns_every_page() {
+		$trashed = $this->trash_n_posts( 5 );
+
+		$seen = array();
+		for ( $page = 1; $page <= 3; $page++ ) {
+			$result = openstation_recycle_bin_get_items(
+				array(
+					'per_page' => 2,
+					'page'     => $page,
+				)
+			);
+			$seen   = array_merge( $seen, wp_list_pluck( $result['items'], 'id' ) );
+		}
+
+		$this->assertEqualSets( $trashed, $seen );
+	}
+
+	/**
 	 * @covers ::openstation_recycle_bin_empty
 	 */
 	public function test_chunk_size_filter_is_honored() {

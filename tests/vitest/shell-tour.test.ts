@@ -371,6 +371,8 @@ describe( 'shell tour', () => {
 		const theirs = fakeWindow( 'theirs' );
 		windows.set( 'theirs', theirs );
 		hooks.doAction( HOOKS.WINDOW_REOPENED, { windowId: 'theirs' } );
+		// Top maximize must NOT advance the half-screen snap step.
+		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, { windowId: 'theirs', zone: 'top' } );
 		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, { windowId: 'theirs', zone: 'left' } );
 		document.dispatchEvent( new CustomEvent( 'os-palette-opened', { detail: { id: 'x' } } ) );
 
