@@ -19,7 +19,7 @@
  * that cache `wp.os.dock` can refresh their reference.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createLayoutDispatcher } from '../../src/desktop-layout';
+import { createLayoutDispatcher, NAV_CHANGED_EVENT } from '../../src/desktop-layout';
 import { type DockItem, type SystemDockItem } from '../../src/dock';
 import {
 	_resetDockRailRenderersForTests,
@@ -341,6 +341,34 @@ describe( 'desktop-layout dispatcher', () => {
 		expect( detail!.layout ).toBe( 'classic' );
 		expect( detail!.primary ).toBe( dispatcher.getPrimary() );
 		expect( detail!.side ).toBe( dispatcher.getSide() );
+	} );
+
+	test( 'applyDockItems: emits os-nav-changed with updated nav model', () => {
+		const { deps } = makeDeps();
+		const dispatcher = createLayoutDispatcher(
+			deps,
+			'unified',
+			[ dashboard ],
+			[],
+		);
+		let detail: { nav: unknown } | null = null;
+		document.addEventListener(
+			NAV_CHANGED_EVENT,
+			( e ) => {
+				detail = ( e as CustomEvent ).detail;
+			},
+			{ once: true },
+		);
+		const updatedPosts = makeItem( {
+			id: 'edit.php',
+			title: 'Posts',
+			url: '/wp-admin/edit.php',
+			badge: 3,
+			isCore: true,
+		} );
+		dispatcher.applyDockItems( [ dashboard, updatedPosts ] );
+		expect( detail ).not.toBeNull();
+		expect( detail!.nav ).toBe( dispatcher.getNav() );
 	} );
 
 	describe( 'one rail groups before it draws', () => {
