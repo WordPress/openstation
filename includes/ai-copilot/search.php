@@ -1468,6 +1468,12 @@ The message field is always a friendly sentence or two shown directly to the use
 	// answered from what it found (see the wrap-up turn after the loop).
 	$gathered = array();
 
+	// Every call already run in this request, keyed by tool name and
+	// arguments. A model that has a result in its history sometimes asks
+	// for it again, and every repeat re-sends the whole conversation.
+	$made_calls   = array();
+	$repeat_noted = false;
+
 	// -----------------------------------------------------------------------
 	// Agentic loop — each iteration either executes tool calls or returns
 	// the final answer. The full ordered conversation (user query, assistant
@@ -1581,6 +1587,29 @@ The message field is always a friendly sentence or two shown directly to the use
 			$args   = is_array( $raw ) ? $raw : array();
 			$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 
+			// A repeat is not run again. The first repeat gets a note pointing
+			// at the earlier result; any repeat after that note ends the loop,
+			// and the wrap-up turn answers from what was gathered.
+			$sorted_args = $args;
+			ksort( $sorted_args );
+			$call_key = $tool_name . ':' . wp_json_encode( $sorted_args );
+			if ( isset( $made_calls[ $call_key ] ) ) {
+				if ( $repeat_noted ) {
+					break 2;
+				}
+				$repeat_noted   = true;
+				$tool_outputs[] = array(
+					'call_id'  => $call_id,
+					'name'     => $tool_name,
+					'response' => array(
+						'repeated' => true,
+						'message'  => 'You already made this call with the same arguments. Its result is earlier in this conversation: use it, call a tool with different arguments, or answer.',
+					),
+				);
+				continue;
+			}
+			$made_calls[ $call_key ] = true;
+
 			do_action(
 				'openstation_ai_tool_called',
 				array(
@@ -1679,7 +1708,8 @@ The message field is always a friendly sentence or two shown directly to the use
 	}
 
 	// -----------------------------------------------------------------------
-	// Budget exhausted before a final answer.
+	// Budget exhausted, or the model kept repeating calls, before a final
+	// answer.
 	// -----------------------------------------------------------------------
 	$continue = null;
 	if ( $last_has_more ) {
@@ -1730,7 +1760,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			: __( 'I couldn\'t find a clear match. Try describing it another way?', 'desktop-mode' ),
 		'entity'      => null,
 		'admin_links' => null,
-		'iterations'  => OPENSTATION_AI_SEARCH_MAX_ITERATIONS,
+		'iterations'  => $iterations,
 		'exhausted'   => ! $last_has_more,
 		'continue'    => $continue,
 		'request_id'  => $request_id,
@@ -1753,7 +1783,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			'user_id'     => $user_id,
 			'request_id'  => $request_id,
 			'answer_type' => 'chat',
-			'iterations'  => OPENSTATION_AI_SEARCH_MAX_ITERATIONS,
+			'iterations'  => $iterations,
 			'usage'       => $total_usage,
 			'model'       => $last_model,
 		)

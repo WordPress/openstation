@@ -2650,6 +2650,11 @@ from what it found. That turn arrives with an empty `$tools` and
 `$context['source'] === 'ai-copilot/search-wrap-up'`. If it fails, the
 run falls back to the "couldn't find a clear match" answer.
 
+A call that repeats one already made in the same request, with the same
+tool and arguments, is not run again: the model gets a short note that
+the result is earlier in the conversation. A repeat after that note ends
+the loop early with the same wrap-up turn.
+
 - **Param** `array|WP_Error|null $generated` — null to proceed with the AI Client.
 - **Param** `array $messages` — ordered conversation (SDK `Message` objects).
 - **Param** `array $tools` — tool definitions; empty on the wrap-up turn.
@@ -2658,7 +2663,7 @@ run falls back to the "couldn't find a clear match" answer.
 
 ### `openstation_ai_tool_called` — Stable
 
-Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`).
+Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. A call that repeats an earlier one in the same request is not run, so neither this action nor `openstation_ai_tool_result` fires for it. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped. When two abilities strip to the same name, OpenStation's own (`desktop-mode/…`) keeps the short name and the other keeps its namespace (`acme/get-site-context` → `acme_get_site_context`).
 
 ```php
 do_action( 'openstation_ai_tool_called', array $payload );
