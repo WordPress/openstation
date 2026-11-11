@@ -643,6 +643,25 @@ describe( 'chromeless bridge: links that name another browsing context', () => {
 		expect( posted ).toHaveLength( 0 );
 	} );
 
+	test( 'a plain off-site link opens a real browser tab without iframing', () => {
+		const open = vi.spyOn( window, 'open' ).mockReturnValue( null );
+
+		try {
+			clickLink(
+				'<a href="https://woocommerce.com/document/google-for-woocommerce/">Documentation</a>'
+			);
+
+			expect( open ).toHaveBeenCalledWith(
+				'https://woocommerce.com/document/google-for-woocommerce/',
+				'_blank',
+				'noopener,noreferrer'
+			);
+			expect( posted ).toHaveLength( 0 );
+		} finally {
+			open.mockRestore();
+		}
+	} );
+
 	test( 'a _top admin link keeps its escape from the shell', () => {
 		// `_top` is a deliberate "replace the whole shell". Hijacking
 		// it into a window would remove the only exit a page has.
