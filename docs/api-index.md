@@ -299,6 +299,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `os-work-area-changed` | Experimental |
 | `os-selection-changed` | Experimental |
 | `os-layout-changed` | Stable |
+| `os-nav-changed` | Experimental |
 | `os-item-menu-opening` | Stable |
 | `os-registry-changed` | Stable |
 | `os.drag.start` / `.move` / `.enter` / `.leave` / `.rejected` / `.commit` / `.cancel` / `.end` | Stable |

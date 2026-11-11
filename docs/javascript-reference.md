@@ -405,6 +405,20 @@ document.addEventListener( 'os-layout-changed', ( e ) => {
 
 ---
 
+### `os-nav-changed` — Experimental
+Fires on `document` whenever the shell repaints its navigation (the dock, the sidebar and the desktop icons): after a menu refresh, a layout switch, a system tile being added or removed, or a window opening or closing an app that has no tile of its own. One menu refresh can fire it more than once, so keep listeners cheap and idempotent.
+
+```javascript
+document.addEventListener( 'os-nav-changed', ( e ) => {
+    const { nav } = e.detail;
+    console.log( 'Navigation repainted', nav );
+} );
+```
+
+**`detail` shape:** `{ nav: NavResult }`, the model `wp.os.getNav()` returns.
+
+---
+
 ### `os-item-menu-opening` — Stable
 Fires on `document` the moment a tile's own menu is asked for, before anything is painted. The detail carries the item id and the surface it was opened from.
 

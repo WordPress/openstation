@@ -5028,7 +5028,14 @@ function init(): void {
 					},
 					subscribeNav: ( cb ) => {
 						const unsubscribeSettings = osSettings.subscribeOsSettings( cb );
-						const unsubscribeBadge = activity.subscribe( 'os/badge-changed', () => cb() );
+						const unsubscribeBadge = activity.subscribe(
+							'os/badge-changed',
+							( { rail } ) => {
+								if ( rail === 'icon' ) {
+									cb();
+								}
+							},
+						);
 						document.addEventListener( 'os-layout-changed', cb );
 						document.addEventListener( 'os-registry-changed', cb );
 						document.addEventListener( NAV_CHANGED_EVENT, cb );

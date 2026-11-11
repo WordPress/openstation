@@ -105,17 +105,17 @@ export interface LayoutDispatcherDeps {
 }
 
 /**
- * Public surface mirrored on the shell so the menu-refresh pipeline
- * and other shell modules don't reach for the underlying `Dock`
- * references directly.
- */
-/**
  * CustomEvent dispatched on `document` whenever the navigation model is
  * recomputed and repainted across surfaces. Carries the new `nav` model
  * in `event.detail.nav`.
  */
 export const NAV_CHANGED_EVENT = 'os-nav-changed';
 
+/**
+ * Public surface mirrored on the shell so the menu-refresh pipeline
+ * and other shell modules don't reach for the underlying `Dock`
+ * references directly.
+ */
 export interface LayoutDispatcher {
 	/** Currently-active layout. Mirrors `state.desktopLayout`. */
 	getLayout(): DesktopLayoutId;

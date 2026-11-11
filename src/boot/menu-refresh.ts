@@ -71,7 +71,10 @@ export const MENU_RESUME_CHECK_MIN_INTERVAL_MS = 5 * 60_000;
 let _unbindResumeMenuCheck: ( () => void ) | null = null;
 let _lastResumeMenuCheckAt = 0;
 
-/** Record that a fresh menu payload was received so resume probes don't duplicate. */
+/**
+ * Record that a menu probe was run (or a fresh payload was received)
+ * so resume probes don't duplicate.
+ */
 export function noteMenuRefreshed( at = Date.now() ): void {
 	_lastResumeMenuCheckAt = at;
 }
@@ -110,7 +113,7 @@ export function bindResumeMenuRefresh(
 		_lastResumeMenuCheckAt = now;
 		try {
 			void refresh().catch( () => {
-				/* Offline or timeout; the next return asks again. */
+				/* Offline or timeout; swallowed so unhandled rejections don't leak. */
 			} );
 		} catch {
 			/* Shell unmounted or torn down. */
