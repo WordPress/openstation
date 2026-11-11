@@ -206,10 +206,7 @@ export function tile( mgr: WindowManager ): void {
 	// cells of a short last row) make room. See `shareRowByMinWidth`.
 	for ( let row = 0; row * cols < eligible.length; row++ ) {
 		const members = eligible.slice( row * cols, row * cols + cols );
-		const mins = Array.from(
-			{ length: cols },
-			( _, col ) => members[ col ]?.config.minWidth || 0,
-		);
+		const mins = members.map( ( w ) => w.config.minWidth || 0 );
 		const spans = shareRowByMinWidth( rect.width - padding * 2, gap, mins );
 		members.forEach( ( w, col ) => {
 			// See cascade: the tile is the placement now.
