@@ -308,6 +308,7 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 				'source'     => 'agents/runner',
 				'has_tools'  => false,
 				'has_schema' => false,
+				'model'      => '',
 			),
 			$seen
 		);
@@ -448,5 +449,55 @@ class Tests_OpenStation_AiModelConfig extends WP_UnitTestCase {
 		$this->assertSame( 502, $error->get_error_data()['status'] );
 		$this->assertSame( 4096, $error->get_error_data()['completion_tokens'] );
 		$this->assertNull( openstation_ai_output_truncated_error( 'x' )->get_error_data()['completion_tokens'] );
+	}
+
+	/**
+	 * A caller's model, such as an agent's stored override, becomes the
+	 * preference the AI Client evaluates first.
+	 *
+	 * @covers ::openstation_ai_apply_model_config
+	 */
+	public function test_context_model_becomes_the_preference() {
+		$builder = $this->builder();
+
+		openstation_ai_apply_model_config( $builder, array( 'model' => ' claude-sonnet-5 ' ) );
+
+		$this->assertSame( array( 'claude-sonnet-5' ), $builder->preference );
+	}
+
+	/**
+	 * The filter sees the caller's model and has the last word on it.
+	 *
+	 * @covers ::openstation_ai_apply_model_config
+	 */
+	public function test_filter_can_override_the_context_model() {
+		$seen = null;
+		add_filter(
+			'openstation_ai_model_config',
+			static function ( $config ) use ( &$seen ) {
+				$seen            = $config;
+				$config['model'] = 'site-wide-model';
+				return $config;
+			}
+		);
+		$builder = $this->builder();
+
+		openstation_ai_apply_model_config( $builder, array( 'model' => 'agent-model' ) );
+
+		$this->assertSame( array( 'model' => 'agent-model' ), $seen );
+		$this->assertSame( array( 'site-wide-model' ), $builder->preference );
+	}
+
+	/**
+	 * An agent with no override must not pin a model.
+	 *
+	 * @covers ::openstation_ai_apply_model_config
+	 */
+	public function test_empty_context_model_pins_nothing() {
+		$builder = $this->builder();
+
+		openstation_ai_apply_model_config( $builder, array( 'model' => '' ) );
+
+		$this->assertNull( $builder->preference );
 	}
 }
