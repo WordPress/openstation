@@ -6,7 +6,8 @@
  *
  * Pins the out-of-rounds behaviour: a run that never answers on its own
  * ends with a toolless wrap-up turn built from everything it found,
- * instead of discarding it for the stock "couldn't find" message.
+ * instead of discarding it for the stock "couldn't find" message. A run
+ * that keeps repeating the same call takes the same exit, early.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -119,7 +120,7 @@ class Tests_OpenStation_AiSearchLoop extends WP_UnitTestCase {
 				if ( empty( $tools ) ) {
 					return self::answer( 'Here is the PlayStation 5 Pro post.' );
 				}
-				return self::search_call( $n, 1 === $n ? 'performance' : 'direct' );
+				return self::search_call( $n, 1 === $n ? 'performance' : 'direct ' . $n );
 			}
 		);
 
@@ -148,7 +149,7 @@ class Tests_OpenStation_AiSearchLoop extends WP_UnitTestCase {
 		$this->script_model(
 			static function ( $n ) {
 				return $n <= OPENSTATION_AI_SEARCH_MAX_ITERATIONS
-					? self::search_call( $n, 'performance' )
+					? self::search_call( $n, 'performance ' . $n )
 					: self::answer( 'Answered on the last turn.' );
 			}
 		);
@@ -157,6 +158,37 @@ class Tests_OpenStation_AiSearchLoop extends WP_UnitTestCase {
 
 		$this->assertSame( 'Answered on the last turn.', $result['message'] );
 		$this->assertCount( OPENSTATION_AI_SEARCH_MAX_ITERATIONS + 1, $this->turns, 'No wrap-up turn was needed.' );
+	}
+
+	/**
+	 * A call repeated with the same arguments is not run again. The first
+	 * repeat gets a note, the next one ends the loop, and the wrap-up turn
+	 * answers from the one result the run gathered.
+	 *
+	 * @covers ::openstation_ai_run_search
+	 */
+	public function test_repeated_call_runs_once_and_ends_the_loop() {
+		$runs = 0;
+		add_action(
+			'openstation_ai_tool_called',
+			static function () use ( &$runs ) {
+				++$runs;
+			}
+		);
+		$this->script_model(
+			static function ( $n, $tools ) {
+				return empty( $tools )
+					? self::answer( 'Here is the PlayStation 5 Pro post.' )
+					: self::search_call( $n, 'performance' );
+			}
+		);
+
+		$result = openstation_ai_run_search( 'find the post about performance please' );
+
+		$this->assertSame( 1, $runs, 'The repeated search ran once.' );
+		$this->assertCount( 4, $this->turns, 'Three search turns, then the wrap-up.' );
+		$this->assertSame( 'ai-copilot/search-wrap-up', end( $this->turns )['source'] );
+		$this->assertSame( 'Here is the PlayStation 5 Pro post.', $result['message'] );
 	}
 
 	/**
