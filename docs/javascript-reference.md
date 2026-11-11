@@ -4775,7 +4775,7 @@ Posted by the chromeless bridge on every pointerdown inside the iframe. The pare
 ```
 
 #### `os-external-link` — Stable
-Posted when a link inside the iframe points off-site; the parent opens an external-tab card inside the window's tab strip.
+Posted when a link inside the iframe points to a same-origin non-admin page (such as a front-end post permalink); the parent opens an external-tab card inside the window's tab strip.
 
 ```typescript
 { type: 'os-external-link'; url: string; label?: string }

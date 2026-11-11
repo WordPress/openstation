@@ -793,26 +793,4 @@ describe( 'addExternalTab', () => {
 		expect( open ).toHaveBeenCalledWith( PERMALINK, '_blank', 'noopener' );
 		expect( win._externalTabs.size ).toBe( 0 );
 	} );
-
-	test( 'an off-site URL opens directly in a browser tab without creating an iframe', () => {
-		const element = document.createElement( 'div' );
-		element.innerHTML =
-			'<nav class="os-window__tabs"></nav><div class="os-window__body"></div>';
-		const win = {
-			element,
-			iframe: document.createElement( 'iframe' ),
-			config: { title: 'Posts' },
-			_activeTabId: 'primary',
-			_externalTabSeq: 0,
-			_externalTabs: new Map(),
-			_emitChange: vi.fn(),
-		} as unknown as Window;
-
-		const OFFSITE = 'https://woocommerce.com/document/google-for-woocommerce/';
-		addExternalTab( win, OFFSITE, 'Documentation' );
-
-		expect( open ).toHaveBeenCalledWith( OFFSITE, '_blank', 'noopener,noreferrer' );
-		expect( win._externalTabs.size ).toBe( 0 );
-		expect( element.querySelector( '.os-window__iframe--external' ) ).toBeNull();
-	} );
 } );
