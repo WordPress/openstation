@@ -193,6 +193,14 @@ describe( 'chromeless bridge: which clicks reach the shell', () => {
 		expect( adminLinkMessages() ).toHaveLength( 0 );
 	} );
 
+	test( 'Thickbox links stay with thickbox.js', () => {
+		clickLink(
+			'<a href="/wp-admin/plugin-install.php?tab=plugin-information&plugin=hello-dolly&TB_iframe=true" class="thickbox open-plugin-details-modal">View details</a>'
+		);
+
+		expect( adminLinkMessages() ).toHaveLength( 0 );
+	} );
+
 	// The Dashboard's welcome panel. dashboard.js binds the dismiss on
 	// the anchor itself, and `?welcome=0` is a no-JS fallback nothing
 	// in core reads any more — routing it opened a second Dashboard

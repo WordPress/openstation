@@ -1538,6 +1538,14 @@
 		 * `theme-install.php`'s Upload Theme is a `<button>`, so it
 		 * never reaches this handler.
 		 */
+		/*
+		 * Thickbox opens `a.thickbox` in a modal from its own bubble-phase
+		 * handler; the href is what the modal loads, not a navigation.
+		 * Routing it opened a second window behind the plugin details modal.
+		 */
+		if ( link.classList.contains( 'thickbox' ) ) {
+			return;
+		}
 		if ( link.classList.contains( 'upload-view-toggle' ) ) {
 			var uploadWrap = link.closest( '.wrap' );
 			if (
