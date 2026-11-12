@@ -132,13 +132,39 @@ function ensureDeps(): FilesRestDeps {
 }
 
 /**
+ * The nonce to send RIGHT NOW. The heartbeat nonce-refresh
+ * (`src/nonce-refresh.ts`) rewrites `window.openStationConfig.restNonce`
+ * in place when the nonce tick rolls over. A nonce captured once at
+ * install time would go stale and 403 every files operation in a
+ * long-lived session. Fall back to the installed value (tests,
+ * headless contexts without the config global).
+ */
+function liveNonce( installed: string ): string {
+	if ( typeof window === 'undefined' ) {
+		return installed;
+	}
+	const cfg = (
+		window as unknown as {
+			openStationConfig?: { restNonce?: unknown };
+		}
+	).openStationConfig;
+	return typeof cfg?.restNonce === 'string' && cfg.restNonce
+		? cfg.restNonce
+		: installed;
+}
+
+/**
  * Read-only view of the installed deps. Used by the desktop-storage
  * upload/download paths, which need the raw base URL + nonce (XHR
  * progress uploads and `_wpnonce`-in-query download navigations
  * can't ride the JSON `call()` wrapper).
+ *
+ * The nonce is resolved at call time so those paths follow a rolled
+ * Heartbeat nonce too, not just the `call()` wrapper below.
  */
 export function getFilesRestDeps(): FilesRestDeps {
-	return ensureDeps();
+	const { baseUrl, nonce } = ensureDeps();
+	return { baseUrl, nonce: liveNonce( nonce ) };
 }
 
 /**
@@ -174,7 +200,7 @@ const call = createFeatureClient( {
 	prefix: '[openstation] files REST',
 	source: 'desktop-mode/files',
 	url: ( path ) => joinRestUrl( ensureDeps().baseUrl, path ),
-	nonce: () => ensureDeps().nonce,
+	nonce: () => liveNonce( ensureDeps().nonce ),
 	conflict: ( body ) => {
 		const data = ( body as { data?: { data?: FilesConflictDetail } } | null )?.data?.data ??
 			( body as { data?: FilesConflictDetail } | null )?.data;
@@ -248,7 +274,7 @@ export async function restoreTrashedItem(
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				'X-WP-Nonce': nonce,
+				'X-WP-Nonce': liveNonce( nonce ),
 			},
 			credentials: 'same-origin',
 			body: JSON.stringify( { items: [ { id, type } ] } ),
@@ -637,7 +663,7 @@ export function ensureUploadPath(
 export function getUploadDownloadUrl( fileId: number ): string {
 	const { baseUrl, nonce } = ensureDeps();
 	const base = joinRestUrl( baseUrl, `/uploads/${ fileId }/download` );
-	return `${ base }${ base.includes( '?' ) ? '&' : '?' }_wpnonce=${ encodeURIComponent( nonce ) }`;
+	return `${ base }${ base.includes( '?' ) ? '&' : '?' }_wpnonce=${ encodeURIComponent( liveNonce( nonce ) ) }`;
 }
 
 /**
@@ -647,5 +673,5 @@ export function getUploadDownloadUrl( fileId: number ): string {
 export function getFolderZipUrl( folderId: number ): string {
 	const { baseUrl, nonce } = ensureDeps();
 	const base = joinRestUrl( baseUrl, `/folders/${ folderId }/download` );
-	return `${ base }${ base.includes( '?' ) ? '&' : '?' }_wpnonce=${ encodeURIComponent( nonce ) }`;
+	return `${ base }${ base.includes( '?' ) ? '&' : '?' }_wpnonce=${ encodeURIComponent( liveNonce( nonce ) ) }`;
 }
