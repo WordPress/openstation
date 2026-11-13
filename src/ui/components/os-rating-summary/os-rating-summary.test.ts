@@ -4,6 +4,7 @@
  * variable wired up for the animated fill.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { styles } from './os-rating-summary.styles';
 import './os-rating-summary';
 import type { OsRatingSummary } from './os-rating-summary';
 
@@ -65,5 +66,16 @@ describe( '<os-rating-summary>', () => {
 		expect( big.trim() ).toBe( '—' );
 		const total = el.shadowRoot!.querySelector( '.total' )!.textContent ?? '';
 		expect( total ).toContain( '0' );
+	} );
+
+	test( 'uses fluid grid tracks and min-width 0 to prevent overflow at narrow widths', () => {
+		expect( styles.cssText ).toContain(
+			'grid-template-columns: auto minmax( 0, 1fr )',
+		);
+		expect( styles.cssText ).toContain(
+			'grid-template-columns: auto minmax( 0, 1fr ) minmax( 42px, max-content )',
+		);
+		expect( styles.cssText ).toContain( 'min-width: 0' );
+		expect( styles.cssText ).toContain( 'white-space: nowrap' );
 	} );
 } );
