@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: OpenStation 0.9.8\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/desktop-mode\n"
-"POT-Creation-Date: 2026-11-06T18:40:10+00:00\n"
+"POT-Creation-Date: 2026-11-13T15:44:34+00:00\n"
 "PO-Revision-Date: 2026-04-19 20:42+0200\n"
 "Last-Translator: OpenStation team\n"
 "Language-Team: Español\n"
@@ -146,7 +146,7 @@ msgstr ""
 #: src/agents-entity-window.ts:68 src/content-graph/panel.ts:411
 #: src/content-graph/panel.ts:881 apps/my-wordpress/parts/sections.php:66
 #: includes/desktop-files/built-in-types.php:30
-#: includes/my-wordpress/window.php:185 includes/recycle-bin/store.php:614
+#: includes/my-wordpress/window.php:185 includes/recycle-bin/store.php:617
 #: includes/welcome-dialog.php:591 includes/window-links.php:798
 msgid "Media"
 msgstr ""
@@ -159,7 +159,7 @@ msgstr ""
 #: src/agents-entity-window.ts:72 src/ai-assistant/impl.ts:1916
 #: src/content-graph/panel.ts:833 src/content-graph/panel.ts:842
 #: src/content-graph/panel.ts:871 includes/desktop-files/built-in-types.php:54
-#: includes/recycle-bin/store.php:486
+#: includes/recycle-bin/store.php:489
 msgid "Comment"
 msgstr ""
 
@@ -342,7 +342,7 @@ msgstr ""
 msgid "Untitled"
 msgstr ""
 
-#: src/ai-assistant/impl.ts:2035 src/desktop.ts:3783
+#: src/ai-assistant/impl.ts:2035 src/desktop.ts:3784
 msgid "Site assistant"
 msgstr ""
 
@@ -631,7 +631,7 @@ msgstr ""
 
 #: src/content-graph/panel.ts:623 src/content-graph/panel.ts:711
 #: src/content-graph/panel.ts:725 src/desktop-files/preview.ts:390
-#: src/desktop-files/preview.ts:465 src/desktop.ts:5317
+#: src/desktop-files/preview.ts:465 src/desktop.ts:5329
 #: apps/my-wordpress/parts/sections.php:42 apps/posts/posts.os.php:39
 #: includes/my-wordpress/window.php:162 includes/welcome-dialog.php:577
 msgid "Posts"
@@ -722,7 +722,7 @@ msgstr ""
 msgid "Revision"
 msgstr ""
 
-#: src/content-graph/panel.ts:936 src/window/index.ts:4235
+#: src/content-graph/panel.ts:936 src/window/index.ts:4242
 msgid "Saved"
 msgstr ""
 
@@ -1034,13 +1034,13 @@ msgid "Retry"
 msgstr ""
 
 #. %1$s is the workspace name, %2$d the windows kept, %3$d the windows on the desk.
-#: src/desktop.ts:2886
+#: src/desktop.ts:2887
 msgid ""
 "%1$s will open like this — the top %2$d of %3$d windows, where they are."
 msgstr ""
 
 #. %1$s is the workspace name, %2$d a number of windows.
-#: src/desktop.ts:2894
+#: src/desktop.ts:2895
 msgid "%1$s will open like this — %2$d windows, where they are."
 msgstr ""
 
@@ -4231,7 +4231,7 @@ msgstr "Minimizar"
 msgid "Maximize"
 msgstr "Maximizar"
 
-#: src/window-chrome/controls/built-ins.ts:63 src/window/index.ts:2912
+#: src/window-chrome/controls/built-ins.ts:63 src/window/index.ts:2919
 msgid "Enter fullscreen"
 msgstr "Entrar en pantalla completa"
 
@@ -4239,7 +4239,7 @@ msgstr "Entrar en pantalla completa"
 msgid "Loading window content"
 msgstr ""
 
-#: src/window/dom.ts:578 src/window/index.ts:1318
+#: src/window/dom.ts:578 src/window/index.ts:1325
 msgid "Window actions"
 msgstr "Acciones de ventana"
 
@@ -4295,16 +4295,16 @@ msgstr ""
 msgid "Request failed (HTTP %d)."
 msgstr ""
 
-#: src/window/index.ts:2912
+#: src/window/index.ts:2919
 msgid "Exit fullscreen"
 msgstr "Salir de pantalla completa"
 
-#: src/window/index.ts:4238
+#: src/window/index.ts:4245
 msgid "Not saved."
 msgstr ""
 
 #. %s: error message explaining why the change could not be saved.
-#: src/window/index.ts:4241
+#: src/window/index.ts:4248
 msgid "Not saved. %s"
 msgstr ""
 
@@ -4761,7 +4761,7 @@ msgid "post"
 msgstr ""
 
 #. 1: a list of menu item names so far, 2: the next name.
-#: src/window/index.ts:1323
+#: src/window/index.ts:1330
 msgctxt "list of menu item names"
 msgid "%1$s, %2$s"
 msgstr ""
@@ -6640,7 +6640,7 @@ msgstr ""
 
 #: includes/ai-copilot/abilities.php:508
 #: includes/my-wordpress/comment-stats.php:167
-#: includes/recycle-bin/store.php:769 includes/recycle-bin/store.php:878
+#: includes/recycle-bin/store.php:772 includes/recycle-bin/store.php:881
 msgid "Comment not found."
 msgstr ""
 
@@ -6899,23 +6899,23 @@ msgstr ""
 msgid "Could not parse structured search answer."
 msgstr ""
 
-#: includes/ai-copilot/search.php:1729
+#: includes/ai-copilot/search.php:1759
 msgid "I couldn't find a clear match yet. Want me to keep looking further?"
 msgstr ""
 
-#: includes/ai-copilot/search.php:1730
+#: includes/ai-copilot/search.php:1760
 msgid "I couldn't find a clear match. Try describing it another way?"
 msgstr ""
 
-#: includes/ai-copilot/search.php:2243
+#: includes/ai-copilot/search.php:2273
 msgid "You must be logged in to use the AI assistant."
 msgstr ""
 
-#: includes/ai-copilot/search.php:2250
+#: includes/ai-copilot/search.php:2280
 msgid "The AI assistant is unavailable on this site."
 msgstr ""
 
-#: includes/ai-copilot/search.php:2260
+#: includes/ai-copilot/search.php:2290
 msgid ""
 "The AI assistant is turned off. Enable it in OpenStation Preferences → "
 "Features."
@@ -7624,7 +7624,7 @@ msgid "(missing comment)"
 msgstr ""
 
 #: includes/desktop-files/types/class-openstation-comment-file.php:43
-#: includes/recycle-bin/store.php:467
+#: includes/recycle-bin/store.php:470
 msgid "Anonymous"
 msgstr ""
 
@@ -8544,52 +8544,52 @@ msgid "Sorry, you are not allowed to use the recycle bin on this site."
 msgstr ""
 
 #. translators: 1: comment author. 2: parent post title.
-#: includes/recycle-bin/store.php:472
+#: includes/recycle-bin/store.php:475
 #, php-format
 msgid "%1$s on %2$s"
 msgstr ""
 
-#: includes/recycle-bin/store.php:723 includes/recycle-bin/store.php:825
+#: includes/recycle-bin/store.php:726 includes/recycle-bin/store.php:828
 msgid "Item not found."
 msgstr ""
 
-#: includes/recycle-bin/store.php:726 includes/recycle-bin/store.php:828
+#: includes/recycle-bin/store.php:729 includes/recycle-bin/store.php:831
 msgid "Item is not in the trash."
 msgstr ""
 
-#: includes/recycle-bin/store.php:729
+#: includes/recycle-bin/store.php:732
 msgid "You are not allowed to restore this item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:742
+#: includes/recycle-bin/store.php:745
 msgid "Failed to restore item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:772 includes/recycle-bin/store.php:881
+#: includes/recycle-bin/store.php:775 includes/recycle-bin/store.php:884
 msgid "Comment is not in the trash."
 msgstr ""
 
-#: includes/recycle-bin/store.php:775
+#: includes/recycle-bin/store.php:778
 msgid "You are not allowed to restore this comment."
 msgstr ""
 
-#: includes/recycle-bin/store.php:788
+#: includes/recycle-bin/store.php:791
 msgid "Failed to restore comment."
 msgstr ""
 
-#: includes/recycle-bin/store.php:831
+#: includes/recycle-bin/store.php:834
 msgid "You are not allowed to permanently delete this item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:853
+#: includes/recycle-bin/store.php:856
 msgid "Failed to permanently delete item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:884
+#: includes/recycle-bin/store.php:887
 msgid "You are not allowed to permanently delete this comment."
 msgstr ""
 
-#: includes/recycle-bin/store.php:898
+#: includes/recycle-bin/store.php:901
 msgid "Failed to permanently delete comment."
 msgstr ""
 

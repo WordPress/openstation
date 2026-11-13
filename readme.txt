@@ -4,7 +4,7 @@ Tags: admin dashboard, notes, sticky notes, dashboard notes, custom dashboard
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.19
+Stable tag: 1.1.20
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -212,6 +212,14 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.20 =
+* Windows: Drag a window to the top edge to maximize it
+* Fix off-site links being blocked in iframe sub-tabs
+* Plugins: Keep plugin details links in their Thickbox modal
+* Recycle Bin: Return every page of the REST list
+* Mobile: Refresh tile badges when the app resumes
+* AI Copilot: Stop re-running a tool call the model already made
 
 = 1.1.19 =
 * Mobile: Let a user keep classic wp-admin on their phone
