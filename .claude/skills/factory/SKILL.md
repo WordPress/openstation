@@ -347,7 +347,11 @@ issue, per labeled PR and per unfinished job: `action number job stage note`.
 - `resume`: do the job's step for its stage.
 - `hold`: no free slot. Leave it; it comes out as `new` or `resume` once a
   running job finishes.
-- `wait`, `skip`: leave it, and list it in the summary with its note.
+- `wait`, `skip`: leave it, and list it in the summary with its note. A
+  `skip` noted `another checkout's job` is an issue or PR GitHub shows the
+  factory working on (a `factory:needs-*` label, or the factory's open PR for
+  the issue) with no job in this checkout: its job is in another checkout.
+  Tell the user, and never create a second job for it.
 
 The script hands out the slots: jobs already in a running stage first, then
 waiting jobs that can restart, then new issues oldest first and new PRs
@@ -364,7 +368,9 @@ PR; `factory/bin/job create` tells which and prints the job id.
 
 - No job yet: `factory/bin/job create <n> --now` (it must be open and labeled,
   and a PR must not be a draft), then do **intake** (an issue) or **triage**
-  (a PR).
+  (a PR). If it refuses because the job looks like another checkout's, stop
+  and tell the user where to run it; `--fresh` starts over and only the user
+  decides that.
 - It has a job: resume it from its stage. Where a move refuses for lack of a
   slot, repeat it with `--now`: `factory/bin/job advance <job-id> <stage> --now`.
 - A PR job waiting after `pr_changes_limit` rounds of CHANGES:
