@@ -15,9 +15,9 @@
     "trusted": "factory:trusted"
   },
   "routing": {
-    "low":    { "builder": "sonnet", "code": "haiku" },
-    "medium": { "builder": "sonnet", "code": "sonnet" },
-    "high":   { "builder": "opus",   "code": "sonnet" }
+    "low":    { "code": "haiku" },
+    "medium": { "code": "sonnet" },
+    "high":   { "code": "sonnet" }
   },
   "runtime_reviewer": "sonnet",
   "surface_reviewers": {
@@ -45,17 +45,11 @@
     "vitest.config.ts",
     "assets/desktop-themes/legacy/theme.json",
     "tests/vitest/brand-palette.test.ts",
-    "tests/vitest/accent-reach.test.ts",
     "tests/vitest/holo-layer.test.ts",
     "tests/vitest/component-token-reachability.test.ts",
     "tests/vitest/css-template-hygiene.test.ts",
     "tests/vitest/claude-workflow-hardening.test.ts",
-    "tests/vitest/work-area.test.ts",
     "tests/vitest/mio-brand-fidelity.test.ts",
-    "tests/phpunit/tests/aiNativeSearch.php",
-    "tests/phpunit/tests/agentsAbilities.php",
-    "tests/phpunit/tests/myWordpressCommentStats.php",
-    "tests/phpunit/tests/myWordpressTermStats.php",
     "tests/phpunit/tests/desktopThemesLegacy.php"
   ],
   "ports": { "base": 8900, "step": 10, "trunk": 8900 },
