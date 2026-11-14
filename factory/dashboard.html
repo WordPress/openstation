@@ -17,7 +17,7 @@
     --active: #8be9fd;
     --pass: #50fa7b;
     --changes: #ffb86c;
-    --human: #ff79c6;
+    --human: #ff5555;
     --merged: #bd93f9;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
@@ -215,6 +215,15 @@
   .verdict.warn { color: var(--changes); background: color-mix(in srgb, var(--changes) 16%, transparent); }
   .verdict.stop { color: var(--human); background: color-mix(in srgb, var(--human) 16%, transparent); }
   .note { color: var(--faint); font-size: 13px; }
+  .md .summary {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 16px 4px; margin: 0 0 22px;
+  }
+  .md .summary h2 {
+    margin: 0 0 6px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted);
+  }
+  .md .summary ul { margin: 0 0 .6em; }
 
   footer {
     padding: 0 32px 32px; font-family: var(--mono); font-size: 11px; color: var(--faint);
@@ -252,8 +261,8 @@
 <main class="board" id="board"></main>
 <footer>
   <span>/factory run</span>
-  <span>/factory issue &lt;n&gt;</span>
-  <span>/factory &lt;feature&gt;</span>
+  <span>/factory run &lt;n&gt;</span>
+  <span>/factory &lt;anything&gt;</span>
   <span>/factory rework &lt;n&gt;</span>
   <span id="totals"></span>
 </footer>
@@ -375,7 +384,6 @@ function card(job, rounds) {
   const risk = job.intake?.risk
   const meta = [
     risk ? `<span class="risk-${esc(risk)}">${esc(risk)}</span>` : '',
-    job.agents && !pr ? `<span>${esc(job.agents.builder)}</span>` : '',
     pr && job.report ? `<span>${esc(job.report)}</span>` : '',
     `<span>$${Number(job.cost_usd).toFixed(2)}</span>`,
     `<span>${elapsed(job)}</span>`,
@@ -393,7 +401,7 @@ function card(job, rounds) {
       ${rounds.length ? `<div class="rounds">${rounds.join('')}</div>` : ''}
       <div class="meta">${meta}</div>
       ${human ? `<div class="hint">${pr ? (job.held ? `held: add factory:trusted once you've looked` : `merge PR #${job.pr}, or wait for the contributor`)
-        : `${job.pr ? `merge PR #${job.pr} to approve` : 'comment on the issue'}<br>/factory rework ${job.issue}`}</div>` : ''}
+        : `${job.pr ? `merge PR #${job.pr} to approve<br>` : ''}or give feedback: /factory &lt;anything&gt;`}</div>` : ''}
     </article>`
 }
 
@@ -467,14 +475,14 @@ async function listFiles(dir) {
   return out
 }
 
-const ORDER = ['issue.md', 'intake.md', 'spec.md', 'build.md', 'decision.md']
+const ORDER = ['issue.md', 'intake.md', 'spec.md', 'build.md', 'decision.md', 'rejection.md']
 const ROUND_ORDER = ['checks', 'review-code', 'review-security', 'review-ux', 'review-ui', 'merge-checks']
 
 function fileRank(path) {
   if (ORDER.includes(path)) return [0, ORDER.indexOf(path), path]
   const round = path.match(/^round-(\d+)\/(.+)\.md$/)
   if (round) return [2, Number(round[1]) * 10 + ROUND_ORDER.indexOf(round[2]), path]
-  return [1, 0, path] // intake-<k>.md, rework-<k>.md
+  return [1, 0, path] // intake-<k>.md, feedback-<k>.md, rework-<k>.md
 }
 
 function sortFiles(files) {
@@ -487,7 +495,7 @@ function sortFiles(files) {
 function tone(first) {
   if (/^(VERDICT:\s*PASS|GATE:\s*PASS|APPROVE|STATUS:\s*READY|DECISION:\s*ACCEPT)$/.test(first)) return 'good'
   if (/^(VERDICT:\s*CHANGES|DECISION:\s*NEEDS-INFO)$/.test(first)) return 'warn'
-  if (/^(ESCALATE|STATUS:\s*BLOCKED|GATE:\s*FAIL|DECISION:\s*REJECT)$/.test(first)) return 'stop'
+  if (/^(ESCALATE|REJECTED|STATUS:\s*BLOCKED|GATE:\s*FAIL|DECISION:\s*REJECT)$/.test(first)) return 'stop'
   return null
 }
 
@@ -581,8 +589,21 @@ function inline(s) {
   return s.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[i]}</code>`)
 }
 
+// Every step's file has a `## Summary` of a few bullets; show it first, in a box.
+function splitSummary(lines) {
+  const start = lines.findIndex((l) => /^##\s+Summary\s*$/.test(l))
+  if (start === -1) return { lines, summary: null }
+  let end = start + 1
+  while (end < lines.length && !/^#{1,2}\s/.test(lines[end])) end++
+  return {
+    lines: [...lines.slice(0, start), ...lines.slice(end)],
+    summary: lines.slice(start + 1, end).join('\n'),
+  }
+}
+
 function markdown(src) {
-  const lines = src.replace(/\r/g, '').split('\n')
+  const split = splitSummary(src.replace(/\r/g, '').split('\n'))
+  const lines = split.lines
   let i = 0
   let html = ''
   const first = (lines[0] || '').trim()
@@ -595,6 +616,7 @@ function markdown(src) {
     while (i < lines.length && /^[A-Z-]+:\s/.test(lines[i])) extra.push(lines[i++])
     if (extra.length) html += `<div class="head">${esc(extra.join('\n'))}</div>`
   }
+  if (split.summary !== null) html += `<section class="summary"><h2>Summary</h2>${markdown(split.summary)}</section>`
 
   const isList = (l) => /^\s*([-*+]|\d+\.)\s+/.test(l)
   const isBlockStart = (l) => /^(#{1,6}\s|```|\s*>|\|)/.test(l) || isList(l)

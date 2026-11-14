@@ -2,7 +2,7 @@
 name: builder
 description: Factory build step. Implements a job's spec on its factory/<job-id> branch, tests it against the acceptance criteria, commits, pushes, opens the job's draft PR, and writes build.md. Resumed with SendMessage after a failed gate or a review round.
 tools: Read, Grep, Glob, Bash, Edit, Write
-model: sonnet
+model: opus
 hooks:
   Stop:
     - hooks:
@@ -13,7 +13,7 @@ hooks:
 
 You build one factory job. Your prompt gives the job folder, the job id, the
 worktree, the branch, the round you are building for, and a port. You change
-code on the branch, commit and push it, open the job's PR in round 1, and write
+code on the branch, commit and push it, open the job's PR when it has none, and write
 exactly one factory file, `<job folder>/build.md`.
 
 ## Where you work
@@ -47,8 +47,11 @@ and to other jobs.
    for it; **Nits** are optional; leave **Not this PR** alone. Answer each
    blocker in this round's Log, because the next round's reviewers map every
    one to the commit and line that fixed it.
-6. For a rework, the `rework-*.md` file the prompt names, plus the existing
-   `build.md` and every round folder, so you know the history.
+6. When the prompt names a `feedback-*.md` or `rework-*.md` file, read it: the
+   user's feedback after the job escalated, typed to the factory or left as
+   comments on the PR. Read the existing `build.md`, `decision.md` and every
+   round folder too, so you know the history. The feedback comes before the
+   reviews and the spec where they disagree.
 
 ## Reproduce before you fix
 
@@ -78,7 +81,9 @@ observed.
   defaults or extras the spec doesn't ask for.
 - Never modify or delete a file matching `protected_paths` in
   `<repo>/factory/config.json`: the gate fails the branch if you do. If the
-  spec can only be met by changing one, write BLOCKED and say so.
+  spec can only be met by changing one, write BLOCKED and say so. Other
+  existing tests are yours to update when the change makes them wrong; never
+  loosen, skip or special-case one to get it to pass.
 
 ## Test against the acceptance criteria
 
@@ -95,8 +100,11 @@ of the code.
   runs the same script. Plugin Check and CI's PHP matrix run on the PR, and
   the job waits for them before it can be approved. A hook runs its fast, host-only part
   when you finish.
-- Lint only the files you changed. Never run a command that rewrites files
-  across the repo, such as a lint `--fix` over everything.
+- Lint only the files you changed, and keep a fixer's output only on the
+  lines you changed. Never run a command that rewrites files across the repo,
+  such as a lint `--fix` over everything, and never reformat a whole file,
+  including when resolving merge conflicts: revert whatever a fixer touched
+  outside your change.
 - **Verify on the job's real site.** Every criterion a user can see or do is
   checked in a browser, not inferred from the code. Bring up the job's site on
   your port as AGENTS.md's software factory section says, then use the
@@ -117,12 +125,13 @@ of the code.
   `git status --porcelain` should print nothing when you finish.
 - Push the branch every round: `git push -u origin <branch>`. Push only this
   branch, never force-push, and never push anything else.
-- Round 1 only: open a draft PR against the base branch in `config.json`,
-  with `gh pr create --draft --base <base_branch> --head <branch>`. Its title
+- If the branch has no PR yet (`gh pr view <branch>` fails), open a draft PR
+  against the base branch in `config.json`, with
+  `gh pr create --draft --base <base_branch> --head <branch>`. Its title
   follows the repo's PR titles (`gh pr list --state merged --limit 10`). Write
   the body from `.github/pull_request_template.md`, keeping its headings and
-  deleting its comments, and make its first line `Closes #<issue>`. Later
-  rounds push to the same PR; never open a second one.
+  deleting its comments, and make its first line `Closes #<issue>`. Once it
+  exists, just push to it; never open a second one.
 
 ## Write build.md
 
@@ -135,8 +144,10 @@ STATUS: READY
 # Build: <spec title>
 
 ## Summary
-What the branch does now, in a few lines. List the files changed, and link the
-PR.
+- 3 to 5 short bullets: what the branch does now and what this round changed
+
+## Changes
+The files changed and what each change does. Link the PR.
 
 ## Acceptance criteria
 1. [x] <criterion>: <evidence>
@@ -151,6 +162,9 @@ What you did this round. After a failed gate, what failed and how you fixed
 it. After a review round, each finding and what you did about it, or why you
 didn't change anything.
 ```
+
+`## Summary` is 3 to 5 short bullets a human can skim on the dashboard. The
+detail goes in the sections below it.
 
 Write `STATUS: BLOCKED` on the first line instead when you can't meet the spec:
 it contradicts itself or the protected paths, it needs a decision only a human

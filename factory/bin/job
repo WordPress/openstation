@@ -12,18 +12,27 @@ merges trunk into it, gates it, reviews it, and posts the round's report on it.
 
 Usage:
   job queue                      what /factory run should do with each labeled issue and PR
-  job create <number>            new job for an open `factory` issue or PR; prints the job id
-  job advance <job> <stage>      move a job to <stage>, or refuse
+  job create <number> [--now]    new job for an open `factory` issue or PR; prints the job id
+  job advance <job> <stage> [--now]
+                                 move a job to <stage>, or refuse
   job update <job>               PR jobs: merge trunk into the PR, push it → round-N/update.md
   job ci <job>                   wait for the PR's CI on the round's commit → round-N/ci.md
   job merge <job>                APPROVE → sync with the base branch, gate, merge the PR
                                  (with auto_merge off: mark it ready and hand it to you)
+  job feedback <job>             needs-human → build, with your feedback (stdin) as feedback-<k>.md
   job rework <job>               needs-human → build, with your PR comments as rework-<k>.md
+  job reject <job>               issue jobs: needs-info or needs-human → rejected, with your
+                                 reason (stdin) as rejection.md
   job agents <job> <json>        record the routed agent set (called by factory/bin/route)
   job sync <job>                 refresh reviews, gate, CI and cost from the job's files
   job summary [<job>...]         table of jobs: issue, stage, PR, cost, time
 
 <job> is a job id (004-dark-mode) or the number of its issue or PR (12).
+
+`concurrency` in config.json is enforced here: every job in a running stage
+holds a slot, and `create` and the moves that restart a waiting job from the
+queue refuse when none is free. `--now` starts the job anyway, for
+/factory run <n>.
 """
 
 import fcntl
@@ -48,14 +57,14 @@ MARKER = "<!-- factory -->"
 
 TRANSITIONS = {
     "intake": {"needs-info", "rejected", "spec"},
-    "needs-info": {"intake", "abandoned"},
+    "needs-info": {"intake", "rejected", "abandoned"},
     "spec": {"build"},
     "build": {"gate", "needs-human"},
     "gate": {"review", "build", "needs-human"},
     "review": {"approve", "build", "needs-human", "report"},
     "approve": {"merging", "needs-human"},
-    "merging": {"merged", "needs-human"},
-    "needs-human": {"build", "merged", "abandoned", "update", "triage"},
+    "merging": {"needs-human"},
+    "needs-human": {"build", "rejected", "abandoned", "update", "triage"},
     # PR jobs.
     "triage": {"update", "needs-human", "abandoned"},
     "update": {"gate", "needs-human"},
@@ -63,7 +72,10 @@ TRANSITIONS = {
 }
 PR_STAGES = {"triage", "update", "report"}
 TERMINAL = {"merged", "rejected", "abandoned"}
+# Any unfinished job can move to merged once its PR is merged on GitHub,
+# whether the factory merged it or a person did mid-round.
 WAITING = {"needs-info", "needs-human"}
+CONCURRENCY = CONFIG["concurrency"]
 
 
 class Refused(Exception):
@@ -137,6 +149,19 @@ def all_jobs():
     if not JOBS.exists():
         return []
     return [load(p.name) for p in sorted(JOBS.iterdir()) if (p / "job.json").exists()]
+
+
+def running(jobs):
+    """Jobs holding a concurrency slot: every job not finished or waiting."""
+    return [j for j in jobs if j["stage"] not in TERMINAL | WAITING]
+
+
+def require_slot(job_id, force=False):
+    if force:
+        return
+    busy = [j["id"] for j in running(all_jobs()) if j["id"] != job_id]
+    require(len(busy) < CONCURRENCY,
+            f"concurrency {CONCURRENCY} reached; running: {', '.join(busy)}")
 
 
 def is_pr_job(job):
@@ -519,9 +544,11 @@ def next_round(job):
 ISSUE_STAGES = {"intake", "needs-info", "spec", "build", "approve", "merging", "rejected"}
 
 
-def advance(job, stage):
+def advance(job, stage, force=False):
+    """Move a job to `stage`. `force` skips the concurrency check (`--now`)."""
     old = job["stage"]
-    require(stage in TRANSITIONS.get(old, set()), f"{job['id']}: {old} → {stage} is not a legal transition")
+    require(stage in TRANSITIONS.get(old, set()) or (stage == "merged" and old not in TERMINAL),
+            f"{job['id']}: {old} → {stage} is not a legal transition")
     require(stage not in (ISSUE_STAGES if is_pr_job(job) else PR_STAGES),
             f"{job['id']}: {'a PR' if is_pr_job(job) else 'an issue'} job never enters {stage}")
     d = job_dir(job["id"])
@@ -529,11 +556,26 @@ def advance(job, stage):
     decision = header(d / "intake.md").get("DECISION") if (d / "intake.md").exists() else None
     intake_body = lambda: "\n".join((d / "intake.md").read_text().split("\n\n", 1)[1:]).strip()
 
-    if stage == "abandoned":
+    if stage == "merged":
+        require(job["pr"] and pr_state(job) == "MERGED", "the PR isn't merged")
+        for name in labels_on(job) & {LABELS["needs_human"], LABELS["needs_info"]}:
+            label("pr" if is_pr_job(job) else "issue", number(job), remove=name)
+
+    elif stage == "abandoned":
         require(stopped_upstream(job), f"#{number(job)} is open and still labeled {LABELS['queue']}")
         waiting = labels_on(job) & {LABELS["needs_human"], LABELS["needs_info"]}
         for name in waiting:
             label("pr" if is_pr_job(job) else "issue", number(job), remove=name)
+
+    elif stage == "rejected" and old in WAITING:
+        require((d / "rejection.md").exists(), "use `job reject` to reject a waiting job")
+        reason = (d / "rejection.md").read_text().split("\n", 1)[1].strip()
+        comment("issue", job["issue"], f"### Factory: rejected\n\n{reason}")
+        for name in labels_on(job) & {LABELS["queue"], LABELS["needs_human"], LABELS["needs_info"]}:
+            label("issue", job["issue"], remove=name)
+        if job["pr"]:
+            gh("pr", "close", str(job["pr"]))
+            run(["git", "push", "origin", "--delete", job["branch"]], check=False)
 
     elif old == "intake":
         want = {"needs-info": "NEEDS-INFO", "rejected": "REJECT", "spec": "ACCEPT"}[stage]
@@ -590,6 +632,7 @@ def advance(job, stage):
             escalate(job, f"The PR conflicts with {BASE}. See round-{job['round']}/update.md.")
 
     elif old == "needs-info":
+        require_slot(job["id"], force)
         k = len(list(d.glob("intake-*.md"))) + 1
         (d / "intake.md").rename(d / f"intake-{k}.md")
         job["intake"] = None
@@ -690,15 +733,11 @@ def advance(job, stage):
         line = first_line(d / "decision.md")
         require(line == want, f"decision.md starts with {line!r}, not {want}")
 
-    elif old == "merging" and stage == "merged":
-        require(pr_state(job) == "MERGED", f"PR #{job['pr']} isn't merged")
-
     elif old == "needs-human":
-        if stage == "merged":
-            require(job["pr"] and pr_state(job) == "MERGED", "the PR isn't merged")
-        elif stage == "triage":
+        if stage == "triage":
             require(job.get("held"), "only a held PR goes back to triage")
             require(trusted(job), f"the PR is held: a maintainer adds the {LABELS['trusted']} label to continue")
+            require_slot(job["id"], force)
             k = len(list(d.glob("triage-*.md"))) + 1
             if (d / "triage.md").exists():
                 (d / "triage.md").rename(d / f"triage-{k}.md")
@@ -710,13 +749,16 @@ def advance(job, stage):
             require(not job.get("held"), f"the PR is held: a maintainer adds the {LABELS['trusted']} label, "
                                          "then it goes back to triage")
             require(contributor_pushed(job), "nothing new: the PR's head is the one the last round reviewed")
+            require_slot(job["id"], force)
             write_pr_md(job)
             next_round(job)
             label("pr", job["pr"], remove=LABELS["needs_human"])
         else:
-            rework = sorted(d.glob("rework-*.md"))
-            require(rework and rework[-1].stat().st_mtime > (d / "decision.md").stat().st_mtime,
-                    "use `job rework` to send a job back to the builder")
+            # The operator sends a job back with their words (feedback) or their
+            # PR comments (rework). It is their call, so it needs no free slot.
+            notes = [p.stat().st_mtime for p in [*d.glob("feedback-*.md"), *d.glob("rework-*.md")]]
+            require(notes and max(notes) > (d / "decision.md").stat().st_mtime,
+                    "use `job feedback` or `job rework` to send a job back to the builder")
             job["round_limit"] = job["round"] + CONFIG["max_rounds"]
             next_round(job)
             label("issue", job["issue"], remove=LABELS["needs_human"])
@@ -735,7 +777,7 @@ def advance(job, stage):
             comment("issue", job["issue"], body)
         label("issue", job["issue"], add=LABELS["needs_human"])
 
-    if stage in {"merged", "abandoned"} and Path(job["worktree"]).exists():
+    if stage in TERMINAL and Path(job["worktree"]).exists():
         if CONFIG.get("teardown"):
             run(CONFIG["teardown"], cwd=job["worktree"], check=False)
         run(["git", "worktree", "remove", "--force", job["worktree"]])
@@ -762,11 +804,12 @@ def next_job_id(title):
     return job_id
 
 
-def cmd_create(arg):
+def cmd_create(arg, force=False):
     n = int(arg)
     existing = [j for j in all_jobs() if number(j) == n]
     if existing:
         die(f"#{n} already has job {existing[0]['id']} ({existing[0]['stage']})")
+    require_slot(None, force)
     if "pull_request" in gh_json("api", f"repos/{repo_name()}/issues/{n}"):
         return cmd_create_pr(n)
     issue = fetch_issue(n)
@@ -863,8 +906,14 @@ def cmd_update(job):
     if pushed:
         job.setdefault("own_shas", []).append(head)
     job["head"] = head if pushed else pr_head  # what GitHub shows as the PR's head now
+    what = {"CURRENT": f"The PR already had the latest {BASE}; nothing to merge",
+            "MERGED": f"Merged the latest {BASE} into the PR and pushed it",
+            "LOCAL": f"Merged the latest {BASE} here, not pushed: {note}",
+            "CONFLICT": f"The PR conflicts with the latest {BASE} in {len(conflicts)} file(s); nothing was tested"}[outcome]
     lines = [f"UPDATE: {outcome}", f"COMMIT: {head}", f"PR_HEAD: {pr_head}", f"TRUNK: {trunk}",
-             f"PUSHED: {'yes' if pushed else 'no'}", ""]
+             f"PUSHED: {'yes' if pushed else 'no'}", "",
+             "## Summary", f"- {what}", f"- PR head {pr_head[:7]}, {BASE} {trunk[:7]}",
+             f"- The round tests commit {head[:7]}", ""]
     if note:
         lines += ["## Note", "", note, ""]
     if conflicts:
@@ -886,16 +935,21 @@ def changes_streak(job):
 
 
 def cmd_queue():
+    """Rows in the order to start them. `resume` and `new` rows fit in the
+    concurrency slots; the rest show as `hold` until a running job finishes."""
     every = all_jobs()
-    rows = []
-    # A waiting job ends on GitHub: merged once its PR is merged (which also closes the
-    # issue), abandoned once it's stopped there (closed, or the queue label removed).
+    # A job ends on GitHub: merged once its PR is merged, at any stage (which also
+    # closes the issue); abandoned once a waiting job is stopped there (closed, or
+    # the queue label removed).
     for j in every:
-        if j["stage"] == "needs-human" and j["pr"] and pr_state(j) == "MERGED":
+        if j["stage"] not in TERMINAL and j["pr"] and pr_state(j) == "MERGED":
             save(advance(sync(j), "merged"))
         elif j["stage"] in WAITING and stopped_upstream(j):
             save(advance(sync(j), "abandoned"))
 
+    # running: already holds a slot. restart: a waiting job the queue can pick up
+    # again. new: no job yet. The last two need a free slot.
+    running_rows, restart_rows, new_rows, other_rows = [], [], [], []
     jobs = {j["issue"]: j for j in every if not is_pr_job(j)}
     issues = gh_json("issue", "list", "--label", LABELS["queue"], "--state", "open",
                      "--limit", "200", "--json", "number,title")
@@ -905,25 +959,27 @@ def cmd_queue():
         open_numbers.add(n)
         j = jobs.get(n)
         if not j:
-            rows.append(("new", n, "-", "-", issue["title"]))
+            new_rows.append(("new", n, "-", "-", issue["title"]))
         elif j["stage"] == "needs-info":
-            ready = replied_since_question(fetch_issue(n))
-            rows.append(("resume" if ready else "wait", n, j["id"], j["stage"],
-                         "author replied" if ready else "waiting for the author"))
+            if replied_since_question(fetch_issue(n)):
+                restart_rows.append(("resume", n, j["id"], j["stage"], "author replied"))
+            else:
+                other_rows.append(("wait", n, j["id"], j["stage"], "waiting for the author"))
         elif j["stage"] == "needs-human":
-            rows.append(("wait", n, j["id"], j["stage"], f"merge PR #{j['pr']} or /factory rework {n}"
-                         if j["pr"] else f"/factory rework {n} once you've commented"))
+            other_rows.append(("wait", n, j["id"], j["stage"],
+                               f"merge PR #{j['pr']}, or give feedback" if j["pr"] else "give feedback"))
         elif j["stage"] == "rejected":
-            rows.append(("skip", n, j["id"], j["stage"], f"rejected; delete factory/jobs/{j['id']} to retry"))
+            other_rows.append(("skip", n, j["id"], j["stage"], f"rejected; delete factory/jobs/{j['id']} to retry"))
         elif j["stage"] == "merged":
-            rows.append(("skip", n, j["id"], j["stage"], "merged"))
+            other_rows.append(("skip", n, j["id"], j["stage"], "merged"))
         elif j["stage"] == "abandoned":
-            rows.append(("skip", n, j["id"], j["stage"], f"abandoned; delete factory/jobs/{j['id']} to retry"))
+            other_rows.append(("skip", n, j["id"], j["stage"], f"abandoned; delete factory/jobs/{j['id']} to retry"))
         else:
-            rows.append(("resume", n, j["id"], j["stage"], f"round {j['round']}"))
+            running_rows.append(("resume", n, j["id"], j["stage"], f"round {j['round']}"))
     for n, j in sorted(jobs.items()):
         if n not in open_numbers and j["stage"] not in TERMINAL | WAITING:
-            rows.append(("skip", n, j["id"], j["stage"], f"issue is closed or no longer labeled {LABELS['queue']}"))
+            other_rows.append(("skip", n, j["id"], j["stage"],
+                               f"issue is closed or no longer labeled {LABELS['queue']}"))
 
     pr_jobs = {j["pr"]: j for j in every if is_pr_job(j)}
     prs = gh_json("pr", "list", "--label", LABELS["queue"], "--state", "open", "--limit", "200",
@@ -935,33 +991,49 @@ def cmd_queue():
         open_prs.add(n)
         j = pr_jobs.get(n)
         if pr["headRefName"].startswith("factory/") and not pr["isCrossRepository"]:
-            rows.append(("skip", n, "-", "-", "the factory's own PR: its issue job covers it"))
+            other_rows.append(("skip", n, "-", "-", "the factory's own PR: its issue job covers it"))
         elif not j:
-            rows.append(("wait", n, "-", "-", "draft: waits until it's marked ready") if pr["isDraft"]
-                        else ("new", n, "-", "-", f"PR: {pr['title']}"))
+            if pr["isDraft"]:
+                other_rows.append(("wait", n, "-", "-", "draft: waits until it's marked ready"))
+            else:
+                new_rows.append(("new", n, "-", "-", f"PR: {pr['title']}"))
         elif j["stage"] == "needs-human":
             if j.get("held"):
-                ok = trusted(j)
-                rows.append(("resume" if ok else "wait", n, j["id"], j["stage"], "trusted: back to triage" if ok
-                             else f"held: add {LABELS['trusted']} once you've looked"))
+                if trusted(j):
+                    restart_rows.append(("resume", n, j["id"], j["stage"], "trusted: back to triage"))
+                else:
+                    other_rows.append(("wait", n, j["id"], j["stage"],
+                                       f"held: add {LABELS['trusted']} once you've looked"))
             elif contributor_pushed(j):
                 streak = changes_streak(j)
-                limit = CONFIG["pr_changes_limit"]
-                rows.append(("wait", n, j["id"], j["stage"],
-                             f"{streak} rounds of CHANGES in a row; /factory pr {n} reviews it again")
-                            if streak >= limit else ("resume", n, j["id"], j["stage"], "the contributor pushed"))
+                if streak >= CONFIG["pr_changes_limit"]:
+                    other_rows.append(("wait", n, j["id"], j["stage"],
+                                       f"{streak} rounds of CHANGES in a row; /factory run {n} reviews it again"))
+                else:
+                    restart_rows.append(("resume", n, j["id"], j["stage"], "the contributor pushed"))
             else:
-                rows.append(("wait", n, j["id"], j["stage"], "waiting for the contributor, or for you to merge"))
+                other_rows.append(("wait", n, j["id"], j["stage"], "waiting for the contributor, or for you to merge"))
         elif j["stage"] == "abandoned":
-            rows.append(("skip", n, j["id"], j["stage"], f"abandoned; delete factory/jobs/{j['id']} to retry"))
+            other_rows.append(("skip", n, j["id"], j["stage"], f"abandoned; delete factory/jobs/{j['id']} to retry"))
         elif j["stage"] in TERMINAL:
-            rows.append(("skip", n, j["id"], j["stage"], j["stage"]))
+            other_rows.append(("skip", n, j["id"], j["stage"], j["stage"]))
         else:
-            rows.append(("resume", n, j["id"], j["stage"], f"round {j['round']}"))
+            running_rows.append(("resume", n, j["id"], j["stage"], f"round {j['round']}"))
     for n, j in sorted(pr_jobs.items()):
         if n not in open_prs and j["stage"] not in TERMINAL | WAITING:
-            rows.append(("skip", n, j["id"], j["stage"], f"PR is closed or no longer labeled {LABELS['queue']}"))
-    for row in rows:
+            other_rows.append(("skip", n, j["id"], j["stage"], f"PR is closed or no longer labeled {LABELS['queue']}"))
+
+    # Jobs already in a running stage hold a slot whether or not an agent is on them.
+    busy = [j["id"] for j in running(every)]
+    slots = CONCURRENCY - len(busy)
+    rows = list(running_rows)
+    for row in restart_rows + new_rows:
+        if slots > 0:
+            rows.append(row)
+            slots -= 1
+        else:
+            rows.append(("hold",) + row[1:4] + (f"concurrency {CONCURRENCY} reached; running: {', '.join(busy)}",))
+    for row in rows + other_rows:
         print("\t".join(str(c) for c in row))
 
 
@@ -1010,7 +1082,14 @@ def cmd_ci(job):
             verdict = "TIMEOUT"
             break
         time.sleep(30)
-    lines = [f"CI: {verdict}", f"COMMIT: {head}", "", f"## Checks on PR #{job['pr']}", ""]
+    red = [name for name, _, done, ok, _ in checks if done and not ok]
+    what = {"PASS": f"All {len(checks)} checks on PR #{job['pr']} finished green",
+            "FAIL": f"{len(red)} of {len(checks)} checks failed: {', '.join(str(n) for n in red)}",
+            "NONE": "No check reported on this commit within ten minutes",
+            "TIMEOUT": f"The checks didn't all finish within {CONFIG['ci_timeout_minutes']} minutes"}[verdict]
+    lines = [f"CI: {verdict}", f"COMMIT: {head}", "",
+             "## Summary", f"- {what}", f"- Commit {head[:7]}, waited {int(waited)}m", "",
+             f"## Checks on PR #{job['pr']}", ""]
     lines += [f"- {result or 'PENDING'}: {name} {url or ''}".rstrip() for name, url, _, _, result in
               sorted(checks, key=lambda c: (c[3], c[0] or ""))] or ["None reported."]
     if verdict == "FAIL":
@@ -1106,6 +1185,35 @@ def cmd_rework(job):
     print(f"{job['id']}: rework-{k}.md, round {job['round']}")
 
 
+def cmd_feedback(job, text):
+    if is_pr_job(job):
+        die(f"{job['id']} reviews someone else's PR; it has no builder to send back")
+    if job["stage"] != "needs-human":
+        die(f"{job['id']} is in {job['stage']}, not needs-human")
+    if not text.strip():
+        die("no feedback on stdin")
+    d = job_dir(job["id"])
+    k = len(list(d.glob("feedback-*.md"))) + 1
+    (d / f"feedback-{k}.md").write_text(
+        f"# Feedback {k}\n\nFrom @{operator()} after the job escalated.\n\n{text.strip()}\n")
+    save(advance(sync(job), "build"))
+    print(f"{job['id']}: feedback-{k}.md, round {job['round']}")
+
+
+def cmd_reject(job, text):
+    if is_pr_job(job):
+        die(f"{job['id']} reviews someone else's PR; close the PR or remove its "
+            f"{LABELS['queue']} label on GitHub and the job is abandoned")
+    if job["stage"] not in WAITING:
+        die(f"{job['id']} is in {job['stage']}, not needs-info or needs-human")
+    if not text.strip():
+        die("no reason on stdin")
+    (job_dir(job["id"]) / "rejection.md").write_text(
+        f"REJECTED\n\nBy @{operator()} while the job was {job['stage']}.\n\n{text.strip()}\n")
+    save(advance(sync(job), "rejected"))
+    print(f"{job['id']}: rejected")
+
+
 def cmd_agents(job, spec):
     want = ("triage", "REVIEW") if is_pr_job(job) else ("intake", "ACCEPT")
     if job["stage"] != want[0] or (job["intake"] or {}).get("decision") != want[1]:
@@ -1138,14 +1246,15 @@ def main(argv):
     if not argv or argv[0] in {"-h", "--help"}:
         print(__doc__.strip())
         return
-    cmd, args = argv[0], argv[1:]
+    cmd, args = argv[0], [a for a in argv[1:] if a != "--now"]
+    now_flag = "--now" in argv[1:]
     try:
         if cmd == "queue" and not args:
             cmd_queue()
         elif cmd == "create" and len(args) == 1 and args[0].isdigit():
-            cmd_create(args[0])
+            cmd_create(args[0], now_flag)
         elif cmd == "advance" and len(args) == 2:
-            job = advance(sync(resolve(args[0])), args[1])
+            job = advance(sync(resolve(args[0])), args[1], now_flag)
             save(sync(job))
             print(f"{job['id']}: {job['stage']} (round {job['round']})")
         elif cmd == "update" and len(args) == 1:
@@ -1154,8 +1263,12 @@ def main(argv):
             cmd_ci(peek(args[0]))
         elif cmd == "merge" and len(args) == 1:
             cmd_merge(resolve(args[0]))
+        elif cmd == "feedback" and len(args) == 1:
+            cmd_feedback(resolve(args[0]), sys.stdin.read())
         elif cmd == "rework" and len(args) == 1:
             cmd_rework(resolve(args[0]))
+        elif cmd == "reject" and len(args) == 1:
+            cmd_reject(resolve(args[0]), sys.stdin.read())
         elif cmd == "agents" and len(args) == 2:
             cmd_agents(sync(resolve(args[0])), args[1])
         elif cmd == "sync" and len(args) == 1:

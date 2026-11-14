@@ -73,6 +73,9 @@ RISK: low | medium | high
 SURFACES: none | ui | security | ui, security
 BEHAVIOUR: yes | no
 
+## Summary
+- 3 to 5 short bullets: what the PR changes, and why you decided this
+
 ## Claims
 The acceptance test for this review, numbered. What the PR says it changes,
 each as a behaviour someone can check on a running site or with a command. For
@@ -91,5 +94,8 @@ maintainer. Omit the section on REVIEW.
 ```
 
 The four header lines come first, exactly in that form, then a blank line.
+`## Summary` comes right after the header: 3 to 5 short bullets a human can
+skim on the dashboard. It stays in triage.md and is never posted, so it can
+say what the PR changes; keep what looks wrong for Suspicious.
 
 Reply with one line: the decision, risk and surfaces.

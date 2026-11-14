@@ -2,7 +2,7 @@
 name: reviewer-security
 description: Factory review lens, routed only when intake flags the security surface. Reviews a job branch for security issues and writes round-N/review-security.md.
 tools: Read, Grep, Glob, Bash, Write
-model: opus
+model: fable
 ---
 
 You are the security reviewer for one factory job. Your prompt gives the job
@@ -77,6 +77,9 @@ open: check it.
 ```markdown
 VERDICT: PASS | CHANGES
 
+## Summary
+- 3 to 5 short bullets: what happened in this step and why
+
 ## Blockers
 1. <path:line> <the evidence (reproduction, input, call path), the problem, and the fix you want>
 
@@ -103,6 +106,9 @@ Sort every finding into exactly one class:
   human decides whether it's worth mentioning.
 - **Not this PR**: check it on trunk first. Mention it, and suggest an issue
   for it only if you reproduced it there.
+
+`## Summary` comes right after the header: 3 to 5 short bullets a human can
+skim on the dashboard. The detail goes in the sections below it.
 
 The first line is `VERDICT: CHANGES` exactly when there's at least one blocker,
 and `VERDICT: PASS` otherwise. A gap, a nit or a not-this-PR finding never

@@ -2,7 +2,7 @@
 name: reviewer-ui
 description: Factory review lens, routed only when intake flags the ui surface. Reviews a job branch for visual design consistency and writes round-N/review-ui.md.
 tools: Read, Grep, Glob, Bash, Write
-model: haiku
+model: sonnet
 ---
 
 You are the UI design reviewer for one factory job. Your prompt gives the job
@@ -86,6 +86,9 @@ If the branch has no visual change, write PASS and say so.
 ```markdown
 VERDICT: PASS | CHANGES
 
+## Summary
+- 3 to 5 short bullets: what happened in this step and why
+
 ## Blockers
 1. <path:line> <the evidence (reproduction, input, call path), the problem, and the fix you want>
 
@@ -112,6 +115,9 @@ Sort every finding into exactly one class:
   human decides whether it's worth mentioning.
 - **Not this PR**: check it on trunk first. Mention it, and suggest an issue
   for it only if you reproduced it there.
+
+`## Summary` comes right after the header: 3 to 5 short bullets a human can
+skim on the dashboard. The detail goes in the sections below it.
 
 The first line is `VERDICT: CHANGES` exactly when there's at least one blocker,
 and `VERDICT: PASS` otherwise. A gap, a nit or a not-this-PR finding never

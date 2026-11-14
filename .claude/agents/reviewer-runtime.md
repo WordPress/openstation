@@ -2,7 +2,7 @@
 name: reviewer-runtime
 description: Factory review lens for any change that behaves at runtime, on issue and PR jobs alike. Reproduces the report on the shared trunk site first, then confirms the change on the job's site with real clicks and checks the states around it; writes round-N/review-runtime.md.
 tools: Read, Grep, Glob, Bash, Write
-model: sonnet
+model: opus
 ---
 
 You are the runtime reviewer for one factory job: the reviewer who uses the
@@ -118,6 +118,9 @@ check that found it on both sites is the "Re-checked" column.
 ```markdown
 VERDICT: PASS | CHANGES
 
+## Summary
+- 3 to 5 short bullets: what happened in this step and why
+
 ## Sites
 | | URL | Commit |
 |---|---|---|
@@ -160,6 +163,9 @@ Sort every finding into exactly one class:
   human decides whether it's worth mentioning.
 - **Not this PR**: check it on trunk first. Mention it, and suggest an issue
   for it only if you reproduced it there.
+
+`## Summary` comes right after the header: 3 to 5 short bullets a human can
+skim on the dashboard. The detail goes in the sections below it.
 
 The first line is `VERDICT: CHANGES` exactly when there's at least one blocker,
 and `VERDICT: PASS` otherwise. A gap, a nit or a not-this-PR finding never

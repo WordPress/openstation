@@ -42,6 +42,9 @@ label so the maintainer knows it's their turn.
 ```markdown
 VERDICT: APPROVE | CHANGES | HOLD
 
+## Summary
+- 3 to 5 short bullets: the verdict, what was verified, and what still blocks
+
 ## Sites
 | | URL | Commit |
 |---|---|---|
@@ -63,6 +66,9 @@ behaviour, each with a trunk / this PR table of what they'll see.
 ## Comment
 The comment for the PR. See below. It's the last section.
 ```
+
+`## Summary` comes right after the header: 3 to 5 short bullets the maintainer
+can skim on the dashboard. It isn't posted; the Comment is.
 
 The first line is exactly `VERDICT: APPROVE`, `VERDICT: CHANGES` or
 `VERDICT: HOLD`. Write "None." under an empty section.

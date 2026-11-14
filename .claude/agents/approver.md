@@ -72,6 +72,9 @@ the human". It never blocks an approval; a maintainer decides.
 ```markdown
 APPROVE | ESCALATE
 
+## Summary
+- 3 to 5 short bullets: what happened in this step and why
+
 ## Why
 Two or three sentences.
 
@@ -82,6 +85,9 @@ Two or three sentences.
 Only when you escalate: the exact decision or check you need from them, and the
 files to look at.
 ```
+
+`## Summary` comes right after the header: 3 to 5 short bullets a human can
+skim on the dashboard. The detail goes in the sections below it.
 
 The first line must be exactly `APPROVE` or `ESCALATE`. Everything after it is
 posted on the PR when you escalate.
