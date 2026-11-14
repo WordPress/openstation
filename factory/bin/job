@@ -12,7 +12,9 @@ merges trunk into it, gates it, reviews it, and posts the round's report on it.
 
 Usage:
   job queue                      what /factory run should do with each labeled issue and PR
-  job create <number> [--now]    new job for an open `factory` issue or PR; prints the job id
+  job create <number> [--now] [--fresh]
+                                 new job for an open `factory` issue or PR; prints the job id.
+                                 Refuses one another checkout has taken, unless --fresh
   job advance <job> <stage> [--now]
                                  move a job to <stage>, or refuse
   job update <job>               PR jobs: merge trunk into the PR, push it → round-N/update.md
@@ -878,13 +880,54 @@ def next_job_id(title):
     return job_id
 
 
-def cmd_create(arg, force=False):
+def factory_prs():
+    """{issue number: PR number} for every open PR the factory built for an issue."""
+    prs = gh_json("pr", "list", "--state", "open", "--limit", "200",
+                  "--json", "number,headRefName,isCrossRepository,closingIssuesReferences")
+    return {i["number"]: p["number"] for p in prs
+            if p["headRefName"].startswith("factory/") and not p["isCrossRepository"]
+            for i in p["closingIssuesReferences"]}
+
+
+def taken_elsewhere(labels, own_pr=None):
+    """Why an issue or PR with no job in this checkout looks like another checkout's job.
+
+    Job state lives in each checkout's factory/jobs, so a run from another one would
+    start a second job for it: triage and review it again, comment again, and take
+    the same ports. GitHub shows a job that is waiting (its needs-* label) or building
+    (the factory's open PR for the issue). A job mid-triage or mid-intake leaves no
+    trace yet; that is the window two concurrent runs would race in.
+    """
+    for name in (LABELS["needs_human"], LABELS["needs_info"]):
+        if name in labels:
+            return f"it's labeled {name}"
+    if own_pr:
+        return f"the factory's PR #{own_pr} is open for it"
+    return None
+
+
+TAKEN_HINT = ("run the factory from the checkout that has its job, or move that job's folder into "
+              "this checkout's factory/jobs/ (with a free job number, which sets its ports)")
+
+
+def cmd_create(arg, force=False, fresh=False):
     n = int(arg)
     existing = [j for j in all_jobs() if number(j) == n]
     if existing:
         die(f"#{n} already has job {existing[0]['id']} ({existing[0]['stage']})")
+    is_pr = "pull_request" in gh_json("api", f"repos/{repo_name()}/issues/{n}")
+    if not fresh:
+        if is_pr:
+            labels = {l["name"] for l in gh_json("pr", "view", str(n), "--json", "labels")["labels"]}
+            why = taken_elsewhere(labels)
+        else:
+            labels = {l["name"] for l in fetch_issue(n)["labels"]}
+            why = taken_elsewhere(labels, factory_prs().get(n))
+        if why:
+            die(f"#{n} looks like another checkout's job ({why}): {TAKEN_HINT}. "
+                f"If that job is gone, `job create {n} --fresh` starts over")
     require_slot(None, force)
-    if "pull_request" in gh_json("api", f"repos/{repo_name()}/issues/{n}"):
+    if is_pr:
         return cmd_create_pr(n)
     issue = fetch_issue(n)
     if issue["state"] != "OPEN":
@@ -1039,13 +1082,16 @@ def cmd_queue():
     running_rows, restart_rows, new_rows, other_rows = [], [], [], []
     jobs = {j["issue"]: j for j in every if not is_pr_job(j)}
     issues = gh_json("issue", "list", "--label", LABELS["queue"], "--state", "open",
-                     "--limit", "200", "--json", "number,title")
+                     "--limit", "200", "--json", "number,title,labels")
+    own_prs = factory_prs() if any(i["number"] not in jobs for i in issues) else {}
     open_numbers = set()
     for issue in sorted(issues, key=lambda i: i["number"]):
         n = issue["number"]
         open_numbers.add(n)
         j = jobs.get(n)
-        if not j:
+        if not j and (why := taken_elsewhere({l["name"] for l in issue["labels"]}, own_prs.get(n))):
+            other_rows.append(("skip", n, "-", "-", f"another checkout's job: {why}"))
+        elif not j:
             new_rows.append(("new", n, "-", "-", issue["title"]))
         elif j["stage"] == "needs-info":
             if replied_since_question(fetch_issue(n)):
@@ -1070,7 +1116,7 @@ def cmd_queue():
 
     pr_jobs = {j["pr"]: j for j in every if is_pr_job(j)}
     prs = gh_json("pr", "list", "--label", LABELS["queue"], "--state", "open", "--limit", "200",
-                  "--json", "number,title,isDraft,headRefName,isCrossRepository,additions,deletions")
+                  "--json", "number,title,isDraft,headRefName,isCrossRepository,additions,deletions,labels")
     open_prs = set()
     # Smaller PRs first; triage reads impact, the queue only knows size.
     for pr in sorted(prs, key=lambda p: (p["additions"] + p["deletions"], p["number"])):
@@ -1079,6 +1125,8 @@ def cmd_queue():
         j = pr_jobs.get(n)
         if pr["headRefName"].startswith("factory/") and not pr["isCrossRepository"]:
             other_rows.append(("skip", n, "-", "-", "the factory's own PR: its issue job covers it"))
+        elif not j and (why := taken_elsewhere({l["name"] for l in pr["labels"]})):
+            other_rows.append(("skip", n, "-", "-", f"another checkout's job: {why}"))
         elif not j:
             if pr["isDraft"]:
                 other_rows.append(("wait", n, "-", "-", "draft: waits until it's marked ready"))
@@ -1334,13 +1382,13 @@ def main(argv):
     if not argv or argv[0] in {"-h", "--help"}:
         print(__doc__.strip())
         return
-    cmd, args = argv[0], [a for a in argv[1:] if a != "--now"]
+    cmd, args = argv[0], [a for a in argv[1:] if a not in {"--now", "--fresh"}]
     now_flag = "--now" in argv[1:]
     try:
         if cmd == "queue" and not args:
             cmd_queue()
         elif cmd == "create" and len(args) == 1 and args[0].isdigit():
-            cmd_create(args[0], now_flag)
+            cmd_create(args[0], now_flag, "--fresh" in argv[1:])
         elif cmd == "advance" and len(args) == 2:
             job = advance(sync(resolve(args[0])), args[1], now_flag)
             save(sync(job))
