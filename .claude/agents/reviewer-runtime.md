@@ -2,7 +2,7 @@
 name: reviewer-runtime
 description: Factory review lens for any change that behaves at runtime, on issue and PR jobs alike. Reproduces the report on the shared trunk site first, then confirms the change on the job's site with real clicks and checks the states around it; writes round-N/review-runtime.md.
 tools: Read, Grep, Glob, Bash, Write
-model: sonnet
+model: opus
 ---
 
 You are the runtime reviewer for one factory job: the reviewer who uses the

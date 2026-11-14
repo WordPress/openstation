@@ -15,14 +15,14 @@
     "trusted": "factory:trusted"
   },
   "routing": {
-    "low":    { "code": "haiku" },
-    "medium": { "code": "sonnet" },
-    "high":   { "code": "sonnet" }
+    "low":    { "code": "opus" },
+    "medium": { "code": "opus" },
+    "high":   { "code": "opus" }
   },
-  "runtime_reviewer": "sonnet",
+  "runtime_reviewer": "opus",
   "surface_reviewers": {
-    "ui": { "ux": "sonnet", "ui": "haiku" },
-    "security": { "security": "opus" }
+    "ui": { "ux": "sonnet", "ui": "sonnet" },
+    "security": { "security": "fable" }
   },
   "fork_sensitive_paths": [
     "package.json",

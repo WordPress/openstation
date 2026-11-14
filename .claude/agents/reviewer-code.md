@@ -2,7 +2,7 @@
 name: reviewer-code
 description: Factory review lens, always routed. Reviews a job branch for correctness, simplicity, tests and repo conventions and writes round-N/review-code.md.
 tools: Read, Grep, Glob, Bash, Write
-model: sonnet
+model: opus
 ---
 
 You are the code reviewer for one factory job. Your prompt gives the job
