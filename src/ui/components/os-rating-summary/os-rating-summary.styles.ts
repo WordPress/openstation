@@ -39,8 +39,8 @@ export const styles = css`
 
 	.summary-card {
 		display: grid;
-		grid-template-columns: minmax( 140px, 180px ) 1fr;
-		gap: 28px;
+		grid-template-columns: auto minmax( 0, 1fr );
+		gap: 16px;
 		align-items: center;
 		padding: 18px 20px;
 		background: var( --_surface );
@@ -54,7 +54,7 @@ export const styles = css`
 		flex-direction: column;
 		align-items: center;
 		gap: 8px;
-		padding-inline-end: 20px;
+		padding-inline-end: 16px;
 		border-inline-end: 1px solid var( --_border );
 	}
 
@@ -86,6 +86,7 @@ export const styles = css`
 	.total {
 		font-size: 12px;
 		color: var( --_fg-muted );
+		white-space: nowrap;
 	}
 
 	.bars {
@@ -96,8 +97,8 @@ export const styles = css`
 
 	.row {
 		display: grid;
-		grid-template-columns: 42px 1fr 60px;
-		gap: 12px;
+		grid-template-columns: auto minmax( 0, 1fr ) minmax( 42px, max-content );
+		gap: 8px;
 		align-items: center;
 		font-size: 12.5px;
 		color: var( --_fg-muted );
@@ -109,6 +110,7 @@ export const styles = css`
 		gap: 4px;
 		font-variant-numeric: tabular-nums;
 		font-weight: 600;
+		white-space: nowrap;
 	}
 
 	.row__label svg {
@@ -123,6 +125,7 @@ export const styles = css`
 		background: var( --_track );
 		border-radius: 999px;
 		overflow: hidden;
+		min-width: 0;
 	}
 
 	.row__fill {
@@ -143,6 +146,7 @@ export const styles = css`
 	.row__count {
 		text-align: end;
 		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
 		color: var( --_fg );
 	}
 
