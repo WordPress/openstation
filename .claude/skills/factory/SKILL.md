@@ -35,13 +35,13 @@ approver (opus)    → APPROVE: job merge (sync, gate, then gh pr merge, or hand
 A **PR job** reviews a pull request someone else wrote and labeled `factory`:
 
 ```
-triage (fable)      → REVIEW | HOLD; screen.md (script) holds fork PRs touching install/CI files and protected paths
+triage (fable)      → REVIEW | HOLD on one pinned head; screen.md (script) holds fork PRs touching install/CI files and protected paths
 route (script)      → reviewers + models, as above
-update (script)     → merge the latest trunk into the PR and push it; CONFLICT → ask the contributor, wait
+update (script)     → merge the latest trunk into the approved head and push it; CONFLICT → ask the contributor, wait; MOVED → triage
 gate (script)       → checks.sh on the merge; a failure is a blocker in the report, not a reason to stop
 reviewers (routed)  → parallel with CI, WAIT FOR ALL, as above
 reporter (opus)     → round-N/verdict.md: APPROVE | CHANGES | HOLD, a test plan, and the comment posted on the PR
-needs-human         → the PR waits for the maintainer to merge, or for the contributor to push (→ update, a new round)
+needs-human         → the PR waits for the maintainer to merge, or for the contributor to push (→ triage, a new round)
 ```
 
 A PR job never commits code to the contributor's branch (the trunk merge is
@@ -88,7 +88,8 @@ session). You stay there; agents work in the job's worktree.
 <repo>/factory/jobs/<job-id>/rejection.md      why the user rejected a waiting job
 <repo>/factory/jobs/<job-id>/round-<N>/checks.md, review-<r>.md, merge-checks.md
 <repo>/factory/jobs/<job-id>/decision.md
-<repo>/factory/jobs/<job-id>/pr.md, pr.diff     PR jobs: the PR and its threads, quoted, and its diff
+<repo>/factory/jobs/<job-id>/pr.md, pr.diff     PR jobs: the PR and its threads, quoted, and its diff at the pinned head
+<repo>/factory/jobs/<job-id>/pr.delta.diff      PR jobs, round 2 on: what the contributor pushed since the last tested head
 <repo>/factory/jobs/<job-id>/screen.md          PR jobs: what the script holds for a maintainer
 <repo>/factory/jobs/<job-id>/triage.md          PR jobs
 <repo>/factory/jobs/<job-id>/round-<N>/update.md, verdict.md, runtime/   PR jobs: trunk merge, report; runtime evidence
@@ -131,7 +132,7 @@ job's next step. Agents reply with one line; read their file for the rest.
 a slot, from `job create` until it reaches `needs-info`, `needs-human`,
 `merged`, `rejected` or `abandoned`. `job create` and the moves that restart a
 waiting job from the queue (`needs-info → intake`, and a PR job's
-`needs-human → update` or `triage`) refuse when no slot is free. Each time a
+`needs-human → triage`) refuse when no slot is free. Each time a
 job stops being active, run `factory/bin/job queue` again and start what it
 now offers.
 
@@ -234,7 +235,8 @@ user. Then:
 - every review `PASS` and `CI: PASS`: `factory/bin/job advance <job-id> approve`,
   then do **approve**.
 - `CI: TIMEOUT` or `CI: NONE`: `factory/bin/job advance <job-id> needs-human`.
-  Never re-run CI yourself.
+  Never re-run CI yourself. (Issue jobs only: a PR job always goes to
+  **report**, and the reporter holds it.)
 - any `CHANGES`, or `CI: FAIL`: `factory/bin/job advance <job-id> build`, or
   `needs-human` when it refuses because the rounds are used up. A red CI counts
   as a failed round. Otherwise resume `builder-<job-id>` with
@@ -255,21 +257,30 @@ Then read the first line of `decision.md`:
 ### PR jobs, step by stage
 
 **triage.** If `triage.md` doesn't exist, spawn `triage` with
-`<paths> PR: #<n>.` (no worktree yet). Then read its header:
+`<paths> PR: #<n>.` (no worktree yet). Triage reads one head: `pr.md`,
+`pr.diff` and `screen.md` all describe the commit the job pinned, and from the
+second round on `pr.delta.diff` holds what the contributor pushed since the
+last one. Then read its header:
 
 - `DECISION: REVIEW`: run `factory/bin/route <job-id>`, then
-  `factory/bin/job advance <job-id> update`. If that refuses because the screen
-  holds the PR, `advance <job-id> needs-human` instead.
+  `factory/bin/job advance <job-id> update`. That approves this head and no
+  other. If it refuses because the screen holds the PR, `advance <job-id>
+  needs-human` instead.
 - `DECISION: HOLD`: `factory/bin/job advance <job-id> needs-human`. It posts
   triage's neutral reason on the PR and labels it; the details stay in
-  triage.md for the user.
+  triage.md for the user. A hold also removes `factory:trusted`: the label
+  vouches for the head the maintainer looked at, and a hold means there is
+  something new to look at.
 
 **update.** `factory/bin/job update <job-id>`: it creates the worktree on the
 PR's branch, merges the latest trunk in, and pushes it when it can (`MERGED`),
 or keeps the merge local (`LOCAL`) and says why. Then
 `factory/bin/job advance <job-id> gate`. On `CONFLICT`,
 `advance <job-id> needs-human`: it asks the contributor to merge trunk, and the
-job waits for their push.
+job waits for their push. On `MOVED` the branch is no longer the head triage
+read (the contributor pushed in between): `factory/bin/job advance <job-id>
+triage` and do **triage** again. Nothing that triage did not read is ever
+built or run.
 
 **gate** (PR job). Run `factory/bin/gate <job-id>`, then
 `factory/bin/job advance <job-id> review` whatever it says: a failing gate is a
@@ -278,8 +289,8 @@ Exit 2 still means the gate itself broke: stop and tell the user.
 
 **review** (PR job). As for an issue job, reviewers in parallel with
 `factory/bin/job ci <job-id>`, WAIT FOR ALL. Then
-`factory/bin/job advance <job-id> report`: a PR job never goes back to a
-builder.
+`factory/bin/job advance <job-id> report`, whatever CI says: a PR job never
+goes back to a builder and never skips its report.
 
 **report.** Spawn `reporter` with
 `<paths> Round: <N>. PR: #<pr>. Port: <port>. Trunk: <ports.trunk> <trunk folder>.`
@@ -288,18 +299,20 @@ Then `factory/bin/job advance <job-id> needs-human`: it posts the report's
 
 **needs-human** (PR job). The PR waits. The queue says `resume` when:
 
-- the contributor pushed: `factory/bin/job advance <job-id> update`, a new
-  round in "were the points addressed?" mode. After `pr_changes_limit` rounds
-  of CHANGES in a row the queue waits for the user instead; `/factory run <n>`
-  reviews it again anyway.
+- the contributor pushed: `factory/bin/job advance <job-id> triage`, then do
+  **triage** on the new head; a new round in "were the points addressed?" mode
+  follows. After `pr_changes_limit` rounds of CHANGES in a row the queue waits
+  for the user instead; `/factory run <n>` reviews it again anyway.
 - a held PR got the trusted label: `factory/bin/job advance <job-id> triage`,
-  then do **triage**.
+  then do **triage**. The label vouches for the head that was held; a later
+  push is screened as usual.
 
 **needs-human, merged, rejected, abandoned.** Nothing to do. `factory/bin/job queue`
-moves any unfinished job to `merged` once its PR is merged on GitHub, and a
-waiting job to `abandoned` once its PR is closed unmerged, its issue is
-closed, or its `factory` label is removed. Both tear down its stacks and remove
-its worktree; neither posts anything.
+moves any unfinished job to `merged` once its PR is merged on GitHub, and
+any unfinished job, running or waiting, to `abandoned` once its PR is closed
+unmerged, its issue is closed, or its `factory` label is removed. Both tear
+down its stacks and remove its worktree; neither posts anything. When the
+queue abandons a job you are running, stop its agents and drop it.
 
 ### Resuming
 
@@ -316,7 +329,8 @@ an earlier session can't be resumed, so:
 - **gate**: run the gate again.
 - **triage**, **report**: like intake, act on the file if it's newer than its
   inputs; otherwise spawn the agent.
-- **update**: run `factory/bin/job update <job-id>` again.
+- **update**: run `factory/bin/job update <job-id>` again (`MOVED` sends it
+  back to triage).
 
 ## /factory run
 
@@ -333,7 +347,11 @@ issue, per labeled PR and per unfinished job: `action number job stage note`.
 - `resume`: do the job's step for its stage.
 - `hold`: no free slot. Leave it; it comes out as `new` or `resume` once a
   running job finishes.
-- `wait`, `skip`: leave it, and list it in the summary with its note.
+- `wait`, `skip`: leave it, and list it in the summary with its note. A
+  `skip` noted `another checkout's job` is an issue or PR GitHub shows the
+  factory working on (a `factory:needs-*` label, or the factory's open PR for
+  the issue) with no job in this checkout: its job is in another checkout.
+  Tell the user, and never create a second job for it.
 
 The script hands out the slots: jobs already in a running stage first, then
 waiting jobs that can restart, then new issues oldest first and new PRs
@@ -350,11 +368,13 @@ PR; `factory/bin/job create` tells which and prints the job id.
 
 - No job yet: `factory/bin/job create <n> --now` (it must be open and labeled,
   and a PR must not be a draft), then do **intake** (an issue) or **triage**
-  (a PR).
+  (a PR). If it refuses because the job looks like another checkout's, stop
+  and tell the user where to run it; `--fresh` starts over and only the user
+  decides that.
 - It has a job: resume it from its stage. Where a move refuses for lack of a
   slot, repeat it with `--now`: `factory/bin/job advance <job-id> <stage> --now`.
 - A PR job waiting after `pr_changes_limit` rounds of CHANGES:
-  `factory/bin/job advance <job-id> update --now`.
+  `factory/bin/job advance <job-id> triage --now`.
 
 For a PR, bring up the trunk site first if it isn't up.
 
