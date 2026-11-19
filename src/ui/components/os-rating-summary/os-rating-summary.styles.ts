@@ -91,14 +91,15 @@ export const styles = css`
 
 	.bars {
 		display: grid;
-		gap: 6px;
+		grid-template-columns: auto minmax( 0, 1fr ) minmax( 42px, max-content );
+		gap: 6px 8px;
 		min-width: 0;
 	}
 
 	.row {
 		display: grid;
-		grid-template-columns: auto minmax( 0, 1fr ) minmax( 42px, max-content );
-		gap: 8px;
+		grid-column: 1 / -1;
+		grid-template-columns: subgrid;
 		align-items: center;
 		font-size: 12.5px;
 		color: var( --_fg-muted );
@@ -125,7 +126,6 @@ export const styles = css`
 		background: var( --_track );
 		border-radius: 999px;
 		overflow: hidden;
-		min-width: 0;
 	}
 
 	.row__fill {
