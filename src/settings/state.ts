@@ -52,6 +52,7 @@ import type {
 } from './types';
 import type { NavPlacement } from '../nav/types';
 import { isHexColor } from './utils';
+import { LIST_WINDOW_VIEWS } from './list-window-views';
 import { sanitizeMioLook } from '../mio/look';
 import { trackedFetch } from '../tracked-fetch';
 
@@ -148,6 +149,12 @@ const oneOf =
 	< T extends string >( list: ReadonlyArray< { id: T } > ): Sanitizer< T > =>
 		( raw, fallback ) =>
 			list.some( ( option ) => option.id === raw ) ? ( raw as T ) : fallback;
+
+/** One of a fixed list of plain values. */
+const inList =
+	< T extends string >( list: readonly T[] ): Sanitizer< T > =>
+		( raw, fallback ) =>
+			( list as readonly unknown[] ).includes( raw ) ? ( raw as T ) : fallback;
 
 /** A string matching a charset. */
 const matching =
@@ -261,6 +268,9 @@ const SANITIZERS: Sanitizers = {
 				.filter( ( v ): v is string => typeof v === 'string' && v !== '' )
 				.slice( 0, 32 )
 			: fallback.slice(),
+	nativePostsView: inList( LIST_WINDOW_VIEWS.nativePostsView ),
+	nativePagesView: inList( LIST_WINDOW_VIEWS.nativePagesView ),
+	nativeUsersView: inList( LIST_WINDOW_VIEWS.nativeUsersView ),
 	nativeUsersEnabled: bool,
 	nativePluginsEnabled: bool,
 	nativeCommentsEnabled: bool,
