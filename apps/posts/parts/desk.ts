@@ -9,9 +9,15 @@ import { authorOf, buildEditPostUrl, featuredMediaOf, STATUS_LABELS, termRecords
 import { tableOf, type Ctx } from './window-context';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import type { PostListItem } from './types';
+import { saveListWindowView, storedListWindowView, toListWindowView, type ListWindowView } from '../../../src/settings/list-window-views';
+
+/** The settings key holding the layout: Posts and Pages share this code, not their choice. */
+export type DeskViewKey = 'nativePostsView' | 'nativePagesView';
 
 export interface DeskState {
-	view: 'desk' | 'table';
+	/** Where {@link view} is read from and saved to. */
+	viewKey: DeskViewKey;
+	view: ListWindowView< DeskViewKey >;
 	filters: boolean;
 	peek: boolean;
 	focused: number | null;
@@ -19,7 +25,12 @@ export interface DeskState {
 	fields: Array< { key: string; label: string; node: unknown } >;
 }
 
-export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [] } );
+/** A desk opening on the layout this user last picked for the window. */
+export const freshDesk = ( viewKey: DeskViewKey ): DeskState => ( {
+	viewKey,
+	view: storedListWindowView( viewKey ),
+	filters: false, peek: false, focused: null, inspectorKey: '', fields: [],
+} );
 
 /** Excerpts are text, never executable markup from content. */
 export function excerptOf( row: PostListItem ): string {
@@ -61,7 +72,12 @@ export function deskTools( ctx: Ctx, ui: DeskState ): TemplateResult {
 	const selected = tableOf( ctx )?.selection ?? new Set();
 	const all = items.length > 0 && items.every( ( row ) => selected.has( row.id ) );
 	const changeView = ( e: Event ): void => {
-		ui.view = ( e as CustomEvent ).detail.value === 'table' ? 'table' : 'desk';
+		const view = toListWindowView( ui.viewKey, ( e as CustomEvent ).detail.value );
+		if ( view === ui.view ) {
+			return;
+		}
+		ui.view = view;
+		saveListWindowView( ui.viewKey, view, ctx.windowId );
 		ctx.repaint();
 	};
 	const sort = ( e: Event ): void => {

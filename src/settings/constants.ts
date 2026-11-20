@@ -14,6 +14,7 @@
 
 import type { AccentColor, DesktopConfig } from '../types';
 import type { OsSettingsState } from './types';
+import { LIST_WINDOW_VIEWS } from './list-window-views';
 
 /** localStorage key under which preferences are serialized. */
 export const STORAGE_KEY = 'desktop-mode-os-settings';
@@ -331,6 +332,11 @@ export const DEFAULTS: OsSettingsState = {
 	// iframe; users opt in to the native Pages window.
 	nativePagesEnabled: false,
 	nativePagesHiddenColumns: [],
+	// The layout each list window opens on, remembered per user;
+	// each list's first layout is its default.
+	nativePostsView: LIST_WINDOW_VIEWS.nativePostsView[ 0 ],
+	nativePagesView: LIST_WINDOW_VIEWS.nativePagesView[ 0 ],
+	nativeUsersView: LIST_WINDOW_VIEWS.nativeUsersView[ 0 ],
 	// Native Users window — same opt-in Beta posture. Capability-gated
 	// server-side (the window is only registered for users with
 	// `list_users`), so this toggle only affects the small set of

@@ -37,7 +37,7 @@ function paint( items: PostListItem[] ): HTMLElement {
 		data: { list: { page: 1, items, total: items.length, pages: 1, perPage: 20, error: '', code: '' } },
 		extra: { mode: 'posts' },
 	} );
-	render( renderDesk( ctx, freshDesk(), env, { authors: [], tags: [] }, new Set() ), root );
+	render( renderDesk( ctx, freshDesk( 'nativePostsView' ), env, { authors: [], tags: [] }, new Set() ), root );
 	return root;
 }
 
