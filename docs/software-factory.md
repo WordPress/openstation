@@ -37,7 +37,7 @@ gate        → review | build | needs-human
 review      → approve | build | needs-human | report
 approve     → merging | needs-human
 merging     → needs-human
-needs-human → build | rejected | abandoned | triage
+needs-human → build | merging | rejected | abandoned | triage
 triage      → update | needs-human | abandoned
 update      → gate | needs-human | triage
 report      → reviewed | needs-human
@@ -142,9 +142,9 @@ The deterministic half of the factory is three scripts in `factory/bin/`, writte
 | `job body <job> <file>` | For an issue job in `build`: replaces the body of the job's own open PR with a file from its worktree. It refuses a body that doesn't open with `Closes #<issue>` or `Related to #<issue>`, a file outside the worktree and a PR that isn't the job's, and it copies the Screenshots and Playground preview blocks from the live body when the new one leaves them out. The builder updates its PR through it instead of running `gh pr edit`. |
 | `job advance <job> <stage> [--now]` | Moves a job to a stage, or refuses. See below. `--now` skips the concurrency check on the moves that have one. |
 | `job ci <job>` | Polls the PR's check rollup every thirty seconds for the round's commit and writes `round-N/ci.md` with `CI: PASS`, `FAIL`, `NONE` (nothing reported in ten minutes) or `TIMEOUT` (`ci_timeout_minutes`). A PR that conflicts with the base branch is a `FAIL` right away, with the reason: GitHub runs no checks on it, and the builder can fix it. The factory never re-runs CI. |
-| `job merge <job>` | After `APPROVE`: merges `origin/trunk` into the branch, runs the gate again as `merge-checks.md`, pushes, marks the PR ready, and either merges it with `merge_method` (`auto_merge` on) or rewrites `decision.md` as an escalation and hands the PR to the maintainer (`auto_merge` off, the shipped default). Any failure lands in `needs-human` with the reason posted on the PR. |
+| `job merge <job>` | After `APPROVE`, or for a `needs-human` job a maintainer approved in a review: merges `origin/trunk` into the branch, runs the gate again as `merge-checks.md`, pushes, marks the PR ready, and either merges it with `merge_method` (`auto_merge` on) or rewrites `decision.md` as an escalation and hands the PR to the maintainer (`auto_merge` off, the shipped default). Any failure lands in `needs-human` with the reason posted on the PR. |
 | `job feedback <job>` | For a `needs-human` issue job: saves the operator's words from stdin as `feedback-k.md`, grants a fresh set of rounds and moves the job to `build`. |
-| `job rework <job>` | For a `needs-human` job: collects the operator's PR comments, review bodies and inline comments (or issue comments, when there is no PR) written since the escalation into `rework-k.md`, grants a fresh set of rounds and moves the job to `build`. Refuses when there is nothing new to say. |
+| `job rework <job>` | For a `needs-human` job: collects the PR comments, review bodies and inline comments (or issue comments, when there is no PR) that people who can push to the repository wrote since the escalation into `rework-k.md`, grants a fresh set of rounds, takes the `factory:answered` label off and moves the job to `build`. Refuses when no maintainer has said anything new. |
 | `job reject <job>` | For an issue job in `needs-info` or `needs-human`: saves the operator's reason from stdin as `rejection.md` and moves the job to `rejected`. Refuses a PR job, whose PR is a contributor's. |
 | `job agents <job> <json>` | Records the routed agent set. Called by `route`. |
 | `job sync <job>` | Rederives the fields that come from files: the intake header, the round's gate and CI verdicts, each reviewer's verdict, and the cost. |
@@ -163,6 +163,7 @@ A `<job>` argument is a job id (`004-dark-mode`) or the number of its issue or P
 - `approve → merging` needs `decision.md` to start with `APPROVE`; `approve → needs-human` needs `ESCALATE`.
 - `→ merged`, from any unfinished stage, needs the PR to be merged on GitHub. It clears the `factory:needs-human` and `factory:needs-info` labels. When the PR did not close the job's issue (its first line is `Related to #<issue>`, because intake built only part of it), it opens one `factory` issue for each entry under `## Follow-ups` in `intake.md` (at most `max_followups`), says so on the original issue and takes that issue's `factory` label off. The original stays open until the follow-ups land, no later run builds the same part again, and the rest of the request is built as PRs of its own. The follow-ups are filed at the merge, not before, because they usually build on the part that just landed.
 - `needs-human → build` needs a `feedback-k.md` or `rework-k.md` newer than `decision.md`, which is what `job feedback` and `job rework` write.
+- `needs-human → merging` (issue jobs) needs a review that approves the PR, submitted after the escalation by someone who can push to the repository, with no maintainer's request for changes still open and no `factory:answered` label. `job merge` makes the move.
 - `needs-info → rejected` and `needs-human → rejected` need `rejection.md`, which is what `job reject` writes. The reason is posted on the issue, the factory labels come off, and the job's PR, if it has one, is closed and its branch deleted. The issue stays open.
 - `needs-info → intake`, `needs-human → triage` and `reviewed → triage` restart a waiting job from the queue, so they need a free concurrency slot.
 - `→ abandoned`, from any unfinished stage, needs the PR closed unmerged, the issue closed (issue jobs), or the `factory` label gone. It clears the `factory:needs-human` and `factory:needs-info` labels and posts nothing.
@@ -243,7 +244,7 @@ Job `n` (from the numeric prefix of its id) gets port `ports.base + ports.step �
 - **`/factory run`** brings up the trunk site, then drains the queue: `job queue`, then every job it offers (`concurrency` at a time, oldest issue first), each stepped by its stage until nothing is `new` or `resume`. It ends with `job summary`.
 - **`/factory run <n>`** runs issue or PR `<n>` now, ignoring `concurrency`. For a PR it also reviews it again after `pr_changes_limit` rounds of `CHANGES`.
 - **`/factory <anything>`** is talking to the factory: ask about a job (status, cost, why it escalated), ask what waits on you, give feedback on a `needs-human` job (`job feedback` saves your words and a fresh builder addresses them), reject a waiting job with a reason (`job reject`), answer a `needs-info` question, or describe a new feature, which becomes a labeled issue (title from the feature, body verbatim) and runs.
-- **`/factory rework <n>`** is for a `needs-human` job after you have commented on its PR or issue: `job rework` gathers your comments and a fresh builder addresses them.
+- **`/factory rework <n>`** is for a `needs-human` job after a maintainer has commented on its PR or issue: `job rework` gathers the maintainers' comments and a fresh builder addresses them. A run does the same on its own once a maintainer requests changes in a review or adds `factory:answered`.
 
 The `factory` label is the green light. Labeling an issue is what authorizes the factory to push a `factory/<job-id>` branch and open a draft PR for it. Removing the label, or closing the issue or the PR, is how you stop a job, waiting or running: the next `job queue` moves it to `abandoned` and cleans up. An issue job's own PR stays open when only the label is removed; close it if you don't want it.
 
@@ -257,7 +258,19 @@ A job waits in `gate` when the gate fails on its own tooling rather than on the 
 
 A job reaches `needs-human` when the builder is blocked, the rounds run out, CI never settles, the approver escalates, the merge conflicts or fails the re-gate, or an approved PR is handed over because `auto_merge` is off. In every case the reason is in `decision.md` and posted on the PR, and the PR is marked ready. The worktree stays and its site may still be running on the job's port, so you can look at the change where the reviewers did.
 
-To send it back, tell the factory what to change with `/factory <your feedback>`, or comment on the PR and run `/factory rework <n>`. To finish it, merge the PR: the next `job queue` records the merge and tears the job down. To drop it, tell the factory to reject it with your reason (issue jobs: the reason goes on the issue and the PR is closed), or close the PR or the issue, or remove the `factory` label.
+**Answering on GitHub.** A maintainer answers an escalated job where they read it, and the next run acts on it:
+
+| What you do | What the factory does |
+|---|---|
+| Merge the PR | Records the merge, tears the job down, files any follow-ups. |
+| Submit a review that **requests changes** | Collects every maintainer's comments, review bodies and inline comments since the escalation into `rework-k.md` and sends the job to a fresh builder, with a fresh set of rounds. |
+| Submit a review that **approves** | Syncs the branch with `trunk`, gates it again, then merges it (`auto_merge` on) or hands it over as ready to merge. |
+| Comment, then add `factory:answered` | The same as requesting changes. GitHub lets nobody approve or request changes on their own PR, and the factory's PRs belong to the operator's account, so this is how the operator answers there. It is also how anyone answers a job that has no PR: comment on the issue, then add the label. |
+| Comment only | Nothing. You may still be writing, and a round costs money. |
+
+The review is the signal because submitting one is the moment a reviewer is done: GitHub sends the inline comments with it. Only reviews and comments from people who can push to the repository count (the factory asks GitHub for each author's permission), so a stranger cannot start a round on a public PR. One maintainer's open request for changes outweighs another's approval. The `factory:needs-human` label is on the PR as well as on the issue, and the factory's comment ends with these instructions.
+
+From the factory's session you can also tell it what to change with `/factory <your feedback>`, or run `/factory rework <n>` after commenting. To finish it, merge the PR: the next `job queue` records the merge and tears the job down. To drop it, tell the factory to reject it with your reason (issue jobs: the reason goes on the issue and the PR is closed), or close the PR or the issue, or remove the `factory` label.
 
 ## Cost and the dashboard
 

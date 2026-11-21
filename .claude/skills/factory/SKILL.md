@@ -14,7 +14,7 @@ it says why; do what it says instead of working around it.
 ```
 /factory run          drain the queue: every open `factory` issue and PR, `concurrency` at a time; also resumes
 /factory run <n>      run issue or PR #<n> now
-/factory rework <n>   send a needs-human job back to the builder with your PR comments
+/factory rework <n>   send a needs-human job back to the builder with the maintainers' PR comments
 /factory <anything>   talk to the factory: ask about jobs, give feedback, reject a job, file a feature
 ```
 
@@ -331,6 +331,20 @@ when:
   then do **triage**. The label vouches for the head that was held; a later
   push is screened as usual.
 
+**needs-human** (issue job). The job waits for a maintainer, who answers on
+GitHub. The queue says `resume` when one has:
+
+- `rework`: a maintainer requested changes in a review of the PR, or the PR or
+  the issue got the `factory:answered` label (how the operator answers on the
+  factory's own PR, which GitHub won't let them review, and how anyone answers
+  a job with no PR). Do **/factory rework** for it.
+- `approve`: a maintainer approved the PR in a review. `factory/bin/job merge
+  <job-id>`: it syncs the branch with the base branch, gates it again, and
+  merges the PR or, with `auto_merge` off, hands it over as ready to merge.
+
+Comments alone move nothing: a maintainer may still be writing. Only people
+who can push to the repository count, so a stranger's review is ignored.
+
 **needs-human, reviewed, merged, rejected, abandoned.** Nothing to do. `factory/bin/job queue`
 moves any unfinished job to `merged` once its PR is merged on GitHub, and
 any unfinished job, running or waiting, to `abandoned` once its PR is closed
@@ -465,10 +479,12 @@ a new feature, ask.
 
 ## /factory rework <n>
 
-For a `needs-human` job whose PR (or issue) the user has commented on.
-`factory/bin/job rework <n>` collects the user's comments since the
-escalation into `rework-<k>.md` and moves the job to `build` for a new round,
-with a fresh set of rounds. Spawn a fresh `builder-<job-id>` with
+For a `needs-human` job that maintainers have answered on its PR (or its
+issue, when it has none): the queue says `resume … rework`, or the user asks.
+`factory/bin/job rework <n>` collects what people who can push to the
+repository wrote there since the escalation (comments, review bodies and
+inline comments) into `rework-<k>.md` and moves the job to `build` for a new
+round, with a fresh set of rounds. It takes the `factory:answered` label off. Spawn a fresh `builder-<job-id>` with
 `<paths> Rework: read rework-<k>.md and address it, then commit, push, and update build.md for round <N>. Port: <port>.`
 and continue from **build**'s status check.
 
@@ -480,7 +496,9 @@ Keep the user posted with one short line per transition, for example
 When a job reaches `needs-human`, say which job, link the PR, and quote the
 first lines of `decision.md` (the question the approver needs answered), or for
 a PR job the report's verdict and its blockers. For an issue job, say they can
-merge the PR, give feedback with `/factory`, or reject it. The worktree stays, and its
+merge the PR, send it back by requesting changes in a review (or, on their own
+PR, by commenting and adding `factory:answered`), give feedback with
+`/factory`, or reject it. The worktree stays, and its
 site may still be running on the job's port, next to the trunk site, for the
 user to follow the report's test plan.
 

@@ -25,9 +25,11 @@ Usage:
   job body <job> <file>          issue jobs in build: replace the job's PR body with a file from its worktree
   job ci <job>                   wait for the PR's CI on the round's commit → round-N/ci.md
   job merge <job>                APPROVE → sync with the base branch, gate, merge the PR
-                                 (with auto_merge off: mark it ready and hand it to you)
+                                 (with auto_merge off: mark it ready and hand it to you).
+                                 Also for a needs-human job a maintainer approved in a review
   job feedback <job>             needs-human → build, with your feedback (stdin) as feedback-<k>.md
-  job rework <job>               needs-human → build, with your PR comments as rework-<k>.md
+  job rework <job>               needs-human → build, with what maintainers wrote on the PR
+                                 (or the issue) since it escalated as rework-<k>.md
   job reject <job>               issue jobs: needs-info or needs-human → rejected, with your
                                  reason (stdin) as rejection.md
   job agents <job> <json>        record the routed agent set (called by factory/bin/route)
@@ -80,7 +82,7 @@ TRANSITIONS = {
     "review": {"approve", "build", "needs-human", "report"},
     "approve": {"merging", "needs-human"},
     "merging": {"needs-human"},
-    "needs-human": {"build", "rejected", "abandoned", "triage"},
+    "needs-human": {"build", "merging", "rejected", "abandoned", "triage"},
     # PR jobs. Every new head of a PR goes through triage before anything of it runs.
     "triage": {"update", "needs-human", "abandoned"},
     "update": {"gate", "needs-human", "triage"},
@@ -317,7 +319,7 @@ def notify(job, text):
 def notify_needs_human(job):
     decision = (job_dir(job["id"]) / "decision.md").read_text()
     if "\n## Merge\n" in decision:
-        return notify(job, "Ready to merge, approved by the factory")
+        return notify(job, f"Ready to merge, approved by {job.get('approved_by') or 'the factory'}")
     if "\n## Summary\n" in decision:
         # The approver's own file: its reasons run to paragraphs, and the PR carries them.
         return notify(job, "Needs a maintainer's decision")
@@ -718,6 +720,71 @@ def trusted(job):
     return LABELS["trusted"] in {l["name"] for l in labels}
 
 
+_writers = {}
+
+
+def can_write(login):
+    """True when the account may push to the repository. Only such a person's word moves a waiting job."""
+    if login not in _writers:
+        try:
+            level = gh_json("api", f"repos/{repo_name()}/collaborators/{login}/permission")["permission"]
+        except Refused:
+            level = "none"
+        _writers[login] = level in {"admin", "maintain", "write"}
+    return _writers[login]
+
+
+def escalated_at(job):
+    return datetime.fromtimestamp((job_dir(job["id"]) / "decision.md").stat().st_mtime, timezone.utc)
+
+
+def after(when, since):
+    return datetime.fromisoformat(when.replace("Z", "+00:00")) > since
+
+
+def waiting_labels(job):
+    """(kind, number, label) for each waiting label on an issue job's issue and on its PR."""
+    names = {LABELS["needs_human"], LABELS["needs_info"], LABELS["answered"]}
+    found = [("issue", job["issue"], n) for n in names & {l["name"] for l in fetch_issue(job["issue"])["labels"]}]
+    if job["pr"]:
+        on_pr = {l["name"] for l in gh_json("pr", "view", str(job["pr"]), "--json", "labels")["labels"]}
+        found += [("pr", job["pr"], n) for n in names & on_pr]
+    return found
+
+
+def clear_waiting(job):
+    for kind, n, name in waiting_labels(job):
+        label(kind, n, remove=name)
+
+
+def hand_back(job):
+    """What a maintainer asked for since an issue job escalated: ("rework" | "approve", who), or None.
+
+    On a PR the signal is a review: one that requests changes sends the job to its
+    builder with what maintainers wrote, one that approves sends it to the merge.
+    GitHub lets nobody review their own PR that way, and the factory's PRs are the
+    operator's, so the `answered` label asks for the same as a request for changes:
+    for the operator, and for a job that has no PR to review.
+    """
+    if any(name == LABELS["answered"] for _, _, name in waiting_labels(job)):
+        return "rework", f"labeled {LABELS['answered']}"
+    if not job["pr"]:
+        return None
+    since, latest = escalated_at(job), {}
+    for r in sorted(gh_json("pr", "view", str(job["pr"]), "--json", "reviews")["reviews"],
+                    key=lambda r: r["submittedAt"] or ""):
+        if r["state"] in {"CHANGES_REQUESTED", "APPROVED"} and after(r["submittedAt"], since):
+            latest[r["author"]["login"]] = r["state"]
+    latest = {who: state for who, state in latest.items() if can_write(who)}
+    # One maintainer's open request for changes outweighs another's approval.
+    for want, action in (("CHANGES_REQUESTED", "rework"), ("APPROVED", "approve")):
+        if who := sorted(w for w, state in latest.items() if state == want):
+            if action == "approve" and "\n## Merge\n" in (job_dir(job["id"]) / "decision.md").read_text():
+                return None  # already handed over as ready to merge
+            return action, f"@{who[0]} {'requested changes' if action == 'rework' else 'approved'}"
+    return None
+
+
 def next_round(job):
     job["round"] += 1
     round_dir(job).mkdir(exist_ok=True)
@@ -757,8 +824,11 @@ def advance(job, stage, force=False):
 
     if stage == "merged":
         require(job["pr"] and pr_state(job) == "MERGED", "the PR isn't merged")
-        for name in labels_on(job) & {LABELS["needs_human"], LABELS["needs_info"]}:
-            label("pr" if is_pr_job(job) else "issue", number(job), remove=name)
+        if is_pr_job(job):
+            for name in labels_on(job) & {LABELS["needs_human"], LABELS["needs_info"]}:
+                label("pr", job["pr"], remove=name)
+        else:
+            clear_waiting(job)
         closes = gh_json("pr", "view", str(job["pr"]), "--json", "closingIssuesReferences")["closingIssuesReferences"]
         if not is_pr_job(job) and job["issue"] not in {i["number"] for i in closes}:
             # The PR referred to the issue without closing it, because intake had narrowed
@@ -776,16 +846,19 @@ def advance(job, stage, force=False):
 
     elif stage == "abandoned":
         require(stopped_upstream(job), f"#{number(job)} is open and still labeled {LABELS['queue']}")
-        waiting = labels_on(job) & {LABELS["needs_human"], LABELS["needs_info"]}
-        for name in waiting:
-            label("pr" if is_pr_job(job) else "issue", number(job), remove=name)
+        if is_pr_job(job):
+            for name in labels_on(job) & {LABELS["needs_human"], LABELS["needs_info"]}:
+                label("pr", job["pr"], remove=name)
+        else:
+            clear_waiting(job)
 
     elif stage == "rejected" and old in WAITING:
         require((d / "rejection.md").exists(), "use `job reject` to reject a waiting job")
         reason = (d / "rejection.md").read_text().split("\n", 1)[1].strip()
         comment("issue", job["issue"], f"### Factory: rejected\n\n{reason}")
-        for name in labels_on(job) & {LABELS["queue"], LABELS["needs_human"], LABELS["needs_info"]}:
-            label("issue", job["issue"], remove=name)
+        clear_waiting(job)
+        if LABELS["queue"] in labels_on(job):
+            label("issue", job["issue"], remove=LABELS["queue"])
         if job["pr"]:
             gh("pr", "close", str(job["pr"]))
             run(["git", "push", "origin", "--delete", job["branch"]], check=False)
@@ -1001,15 +1074,24 @@ def advance(job, stage, force=False):
             # The hold cleared trusted_head, so the screen pins a new label to this head.
             retriage(job)
             label("pr", job["pr"], remove=LABELS["needs_human"])
+        elif stage == "merging":
+            # A maintainer approved an escalated PR in a review: what the approver would
+            # not sign off alone, a person has. The merge syncs and gates it as usual.
+            back = hand_back(job)
+            require(back and back[0] == "approve",
+                    "no maintainer has approved the PR in a review since the job escalated")
+            job["approved_by"] = back[1].split()[0]
+            clear_waiting(job)
         else:
-            # The operator sends a job back with their words (feedback) or their
-            # PR comments (rework). It is their call, so it needs no free slot.
+            # A maintainer sends a job back with the operator's words (feedback) or
+            # with what they wrote on GitHub (rework). It is their call, so it needs no free slot.
             notes = [p.stat().st_mtime for p in [*d.glob("feedback-*.md"), *d.glob("rework-*.md")]]
             require(notes and max(notes) > (d / "decision.md").stat().st_mtime,
                     "use `job feedback` or `job rework` to send a job back to the builder")
             job["round_limit"] = job["round"] + CONFIG["max_rounds"]
             next_round(job)
-            label("issue", job["issue"], remove=LABELS["needs_human"])
+            job.pop("approved_by", None)
+            clear_waiting(job)
 
     if stage == "needs-human" and is_pr_job(job):
         if not posted:
@@ -1019,13 +1101,17 @@ def advance(job, stage, force=False):
     elif stage == "needs-human":
         # A lone "## Why" would sit above the comment's own "###" title; a handover's "## Merge" stays.
         why = (d / "decision.md").read_text().split("\n", 1)[1].strip().removeprefix("## Why\n").strip()
-        body = f"### Factory: needs a human\n\n{why}"
+        body = f"### Factory: needs a human\n\n{why}\n\n---\n"
         if job["pr"]:
             if gh_json("pr", "view", str(job["pr"]), "--json", "isDraft")["isDraft"]:
                 gh("pr", "ready", str(job["pr"]))
-            comment("pr", job["pr"], body)
+            comment("pr", job["pr"], body + "**To answer:** merge this PR to accept it. To send it back to the "
+                    "factory, submit a review that requests changes; the factory's next run builds what you ask. "
+                    f"On a PR you can't review that way (your own), comment and add the `{LABELS['answered']}` label.")
+            label("pr", job["pr"], add=LABELS["needs_human"])
         else:
-            comment("issue", job["issue"], body)
+            comment("issue", job["issue"], body + "**To answer:** reply in a comment here, then add the "
+                    f"`{LABELS['answered']}` label; the factory's next run picks it up.")
         label("issue", job["issue"], add=LABELS["needs_human"])
     # A conflict with trunk is the contributor's to fix; everything else waits for a maintainer.
     if stage == "needs-human" and not (is_pr_job(job) and old == "update"):
@@ -1372,8 +1458,12 @@ def cmd_queue():
             else:
                 other_rows.append(("wait", n, j["id"], j["stage"], "waiting for the author"))
         elif j["stage"] == "needs-human":
-            other_rows.append(("wait", n, j["id"], j["stage"],
-                               f"merge PR #{j['pr']}, or give feedback" if j["pr"] else "give feedback"))
+            if back := hand_back(j):
+                restart_rows.append(("resume", n, j["id"], j["stage"], f"{back[0]}: {back[1]}"))
+            else:
+                other_rows.append(("wait", n, j["id"], j["stage"],
+                                   f"merge PR #{j['pr']}, or request changes in a review" if j["pr"] else
+                                   f"answer on the issue, then label it {LABELS['answered']}"))
         elif j["stage"] == "rejected":
             other_rows.append(("skip", n, j["id"], j["stage"], f"rejected; delete factory/jobs/{j['id']} to retry"))
         elif j["stage"] == "merged":
@@ -1597,7 +1687,7 @@ def cmd_merge(job):
     if is_pr_job(job):
         die(f"{job['id']} reviews someone else's PR; a maintainer merges it")
     sync(job)
-    if job["stage"] == "approve":
+    if job["stage"] in {"approve", "needs-human"}:
         save(advance(job, "merging"))
     if job["stage"] != "merging":
         die(f"{job['id']} is in {job['stage']}, not approve or merging")
@@ -1628,9 +1718,9 @@ def cmd_merge(job):
             # The approver's reasoning stays; only the verdict line changes hands.
             approved = (job_dir(job["id"]) / "decision.md").read_text().split("\n", 1)[1].strip()
             (job_dir(job["id"]) / "decision.md").write_text(
-                "ESCALATE\n\n## Merge\nThe approver approved this PR and it passes the gate after syncing "
-                f"with {BASE}. `auto_merge` is off in factory/config.json, so merging it is yours.\n\n"
-                + approved + "\n")
+                f"ESCALATE\n\n## Merge\n{job.get('approved_by') or 'The approver'} approved this PR and it passes "
+                f"the gate after syncing with {BASE}. `auto_merge` is off in factory/config.json, so merging it "
+                "is yours.\n\n" + approved + "\n")
             save(advance(sync(job), "needs-human"))
             print(f"{job['id']}: approved, PR #{job['pr']} is ready for you to merge")
             return
@@ -1648,7 +1738,7 @@ def cmd_rework(job):
         die(f"{job['id']} reviews someone else's PR; it has no builder to send back")
     if job["stage"] != "needs-human":
         die(f"{job['id']} is in {job['stage']}, not needs-human")
-    since = datetime.fromtimestamp((job_dir(job["id"]) / "decision.md").stat().st_mtime, timezone.utc)
+    since = escalated_at(job)
     notes = []
     if job["pr"]:
         pr = gh_json("pr", "view", str(job["pr"]), "--json", "comments,reviews")
@@ -1663,17 +1753,19 @@ def cmd_rework(job):
     else:
         issue = fetch_issue(job["issue"])
         notes = [(c["createdAt"], c["author"]["login"], None, c["body"]) for c in issue["comments"]]
+    # Anyone can comment on a public PR; only people who can push to the repository
+    # direct the builder.
     notes = [n for n in notes
-             if n[1] == operator() and n[3].strip() and not n[3].startswith(MARKER)
-             and datetime.fromisoformat(n[0].replace("Z", "+00:00")) > since]
+             if n[3].strip() and not n[3].startswith(MARKER) and after(n[0], since) and can_write(n[1])]
     if not notes:
-        die(f"no comments from @{operator()} on {'PR #' + str(job['pr']) if job['pr'] else 'the issue'} "
+        die(f"no comments from a maintainer on {'PR #' + str(job['pr']) if job['pr'] else 'the issue'} "
             "since the job escalated; write your feedback there first")
     d = job_dir(job["id"])
     k = len(list(d.glob("rework-*.md"))) + 1
-    lines = [f"# Rework {k}", "", f"Feedback from @{operator()} after the job escalated.", ""]
-    for when, _, where, body in sorted(notes, key=lambda n: n[0]):
-        lines += [f"## {where or 'General'} ({when})", "", body.strip(), ""]
+    who = ", ".join(f"@{w}" for w in sorted({n[1] for n in notes}))
+    lines = [f"# Rework {k}", "", f"Feedback from {who} after the job escalated.", ""]
+    for when, author, where, body in sorted(notes, key=lambda n: n[0]):
+        lines += [f"## {where or 'General'} (@{author}, {when})", "", body.strip(), ""]
     (d / f"rework-{k}.md").write_text("\n".join(lines))
     save(advance(sync(job), "build"))
     print(f"{job['id']}: rework-{k}.md, round {job['round']}")
