@@ -360,7 +360,10 @@ Then run `factory/bin/job queue`. It prints one tab-separated line per labeled
 issue, per labeled PR and per unfinished job: `action number job stage note`.
 
 - `new`: `factory/bin/job create <number>` prints the job id; then do
-  **intake** (an issue) or **triage** (a PR).
+  **intake** (an issue) or **triage** (a PR). A PR comes out as `new` when it
+  carries the label, or when a labeled issue is closed by it: the factory
+  reviews a PR someone already opened for an issue instead of building its
+  own, and the issue's line says `skip`, naming the PR.
 - `resume`: do the job's step for its stage.
 - `hold`: no free slot. Leave it; it comes out as `new` or `resume` once a
   running job finishes.
@@ -385,7 +388,9 @@ PR; `factory/bin/job create` tells which and prints the job id.
 
 - No job yet: `factory/bin/job create <n> --now` (it must be open and labeled,
   and a PR must not be a draft), then do **intake** (an issue) or **triage**
-  (a PR). If it refuses because the job looks like another checkout's, stop
+  (a PR). For an issue that someone's open PR already closes, it creates that
+  PR's job (`NNN-pr-<pr>-…`) and says so: do **triage**. With several such
+  PRs it refuses and lists them; ask the user which one. If it refuses because the job looks like another checkout's, stop
   and tell the user where to run it; `--fresh` starts over and only the user
   decides that.
 - It has a job: resume it from its stage. Where a move refuses for lack of a
