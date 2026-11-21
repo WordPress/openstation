@@ -59,14 +59,20 @@ import {
 } from './pixi-types';
 import {
 	frameBounds,
-	JOIN_WARMUP_STEPS,
 	randomSeed,
+	runWarmup,
 	seedPositions,
-	warmupStepLimit,
 	type Point,
 } from './layout';
 import { pinchCamera } from './pinch';
-import { ForceSim } from './sim';
+import { EXACT_REPULSION_MAX_NODES, ForceSim } from './sim';
+import {
+	createNodeIcon,
+	createNodeLabel,
+	runSliced,
+	SPRITE_BATCH_BUDGET_MS,
+	type SlicedRun,
+} from './sprite-build';
 import {
 	SatelliteLayer,
 	type SatelliteOnClick,
@@ -266,10 +272,12 @@ interface NodeView {
 	container: PixiContainer;
 	halo: PixiGraphics;
 	disc: PixiGraphics;
-	icon: PixiText;
-	labelBox: PixiContainer;
-	labelBg: PixiGraphics;
-	label: PixiText;
+	/**
+	 * Glyph and label are built the first time they would be visible
+	 * (see `sprite-build.ts`), and reused from then on.
+	 */
+	icon: PixiText | null;
+	labelBox: PixiContainer | null;
 	iconCharCode: string | null;
 	iconName: string;
 	/** Post-type body colour — see {@link TYPE_PALETTE}. */
@@ -375,7 +383,25 @@ export class GraphScene {
 	private readonly fitFollowMaxDurationMs = 3000;
 	private readonly fitFollowVelocityThreshold = 1.0;
 	private nodes: GraphNode[] = [];
+	/**
+	 * Every node of the current board by id, whether or not its sprite
+	 * is built yet. Focus, grouping and their tweens look nodes up here
+	 * rather than in `nodeViews`, so they work while a build is still
+	 * in flight.
+	 */
+	private nodeById = new Map< number, GraphNode >();
 	private edges: GraphEdge[] = [];
+	/** The sprite build in flight for the latest `setData()`, if any. */
+	private build: SlicedRun | null = null;
+	/**
+	 * Something `draw()` paints changed since the last paint. The tick
+	 * skips the edge and node repaint while this is clear, the sim is
+	 * settled, no grouping tween runs and the camera has not moved —
+	 * an idle board costs nothing per frame. See {@link requestDraw}.
+	 */
+	private needsDraw = true;
+	/** Camera at the last paint, to tell an idle frame from a moving one. */
+	private paintedCamera = { x: NaN, y: NaN, scale: NaN };
 	private sim: ForceSim | null = null;
 	private focusedId: number | null = null;
 	private hoveredId: number | null = null;
@@ -416,6 +442,11 @@ export class GraphScene {
 	// A fit asked for while the host had no size yet (window still
 	// laying out). Honoured by the resize observer once it does.
 	private fitPending = false;
+	/**
+	 * Re-frame the board every frame while it is still spreading on
+	 * screen. See {@link followLayout}.
+	 */
+	private followingLayout = false;
 	// Camera target system — wheel + focus + fitToView write here, the
 	// tick loop eases the actual world.x / world.y / world.scale toward
 	// these targets each frame.
@@ -610,7 +641,19 @@ export class GraphScene {
 		app.ticker.add( this.tickerCb );
 	}
 
-	setData( payload: GraphPayload ): void {
+	/**
+	 * Replace the board. Lays the new nodes out (see `runWarmup()`)
+	 * and builds their display objects: in this turn for a small
+	 * board, across animation frames for a large one.
+	 *
+	 * `getNodes()` returns the new board from the moment this is
+	 * called, and focusing a node whose sprite is not built yet is
+	 * safe: it shows as focused once it exists.
+	 *
+	 * @return Resolves `true` once the board is built, `false` when a
+	 *         later `setData()` or `destroy()` dropped the build first.
+	 */
+	setData( payload: GraphPayload ): Promise< boolean > {
 		const prev = new Map< number, GraphNode >();
 		for ( const n of this.nodes ) {
 			prev.set( n.id, n );
@@ -669,9 +712,11 @@ export class GraphScene {
 			n.radius = 8 + Math.min( 8, Math.sqrt( n.degree ) * 2.4 );
 		}
 
+		this.followingLayout = false;
 		this.nodes = nodes;
+		this.nodeById = byId;
 		this.edges = edges;
-		this.rebuildSprites();
+		this.clearSprites();
 		this.sim = new ForceSim( nodes, edges );
 		this.sim.reheat( 0.12, false );
 		// Warm-start: spin the integrator before the first frame so
@@ -684,131 +729,137 @@ export class GraphScene {
 		// here, so the first frame IS the final layout and nothing
 		// drifts out of the frame the camera is about to be given.
 		// Large boards, and any board where nodes are joining a layout
-		// the user is already looking at, keep the short warm-start and
-		// finish settling on screen — settling a joined board here
-		// would snap the nodes the user can see to new positions with
-		// no transition.
-		const warmupSteps = fromScratch
-			? warmupStepLimit( nodes.length )
-			: JOIN_WARMUP_STEPS;
-		for ( let i = 0; i < warmupSteps && ! this.sim.isSettled; i++ ) {
-			this.sim.step( 1 );
-		}
+		// the user is already looking at, keep a short warm-start,
+		// bounded in time as well as steps, and finish settling on
+		// screen — settling a joined board here would snap the nodes
+		// the user can see to new positions with no transition.
+		runWarmup( this.sim, nodes.length, fromScratch );
 		// If a grouping was active before this rebuild (e.g. the post-type
 		// filter changed mid-session), re-derive the assignment against
 		// the new node set so the cluster force keeps working.
 		if ( this.currentGrouping ) {
 			this.setGrouping( this.currentGrouping );
 		}
+		this.requestDraw();
+
+		// Nodes first, so a node picked from the search mid-build shows
+		// up early; then the edges underneath them.
+		const total = nodes.length + edges.length;
+		const buildItem = ( i: number ): void => {
+			if ( i < nodes.length ) {
+				this.buildNodeView( nodes[ i ] );
+			} else {
+				this.buildEdgeView( edges[ i - nodes.length ] );
+			}
+		};
+		if ( nodes.length <= EXACT_REPULSION_MAX_NODES ) {
+			// A small board builds in this turn: batching only pays
+			// where the build is long, and a first frame with half a
+			// board would be a regression for the common case.
+			for ( let i = 0; i < total; i++ ) {
+				buildItem( i );
+			}
+			return Promise.resolve( true );
+		}
+		const build = runSliced( total, buildItem, {
+			onBatch: () => this.requestDraw(),
+		} );
+		this.build = build;
+		return build.done.finally( () => {
+			if ( this.build === build ) {
+				this.build = null;
+			}
+		} );
 	}
 
-	private rebuildSprites(): void {
+	/** Drop the build in flight and every display object of the board. */
+	private clearSprites(): void {
+		this.build?.cancel();
+		this.build = null;
 		this.edgeLayer.removeChildren();
 		this.nodeLayer.removeChildren();
 		this.labelLayer.removeChildren();
 		this.nodeViews.clear();
 		this.edgeViews = [];
+	}
 
-		for ( const e of this.edges ) {
-			const gfx = new this.pixi.Graphics();
-			this.edgeLayer.addChild( gfx );
-			this.edgeViews.push( { edge: e, gfx } );
-		}
+	private buildEdgeView( e: GraphEdge ): void {
+		const gfx = new this.pixi.Graphics();
+		this.edgeLayer.addChild( gfx );
+		this.edgeViews.push( { edge: e, gfx } );
+	}
 
-		for ( const n of this.nodes ) {
-			const container = new this.pixi.Container();
-			container.eventMode = 'static';
-			container.cursor = 'pointer';
-			container.hitArea = new this.pixi.Circle(
-				0,
-				0,
-				Math.max( 18, n.radius + 8 ),
-			);
-			this.bindNodeInput( container, n );
-			this.nodeLayer.addChild( container );
+	private buildNodeView( n: GraphNode ): void {
+		const container = new this.pixi.Container();
+		container.eventMode = 'static';
+		container.cursor = 'pointer';
+		container.hitArea = new this.pixi.Circle(
+			0,
+			0,
+			Math.max( 18, n.radius + 8 ),
+		);
+		this.bindNodeInput( container, n );
+		this.nodeLayer.addChild( container );
 
-			const halo = new this.pixi.Graphics();
-			container.addChild( halo );
+		const halo = new this.pixi.Graphics();
+		container.addChild( halo );
 
-			// Disc sits between the halo and the glyph: the halo is a
-			// soft wash *behind* the body, the glyph is revealed
-			// *inside* it on focus.
-			const disc = new this.pixi.Graphics();
-			container.addChild( disc );
+		// Disc sits between the halo and the glyph: the halo is a
+		// soft wash *behind* the body, the glyph is revealed
+		// *inside* it on focus.
+		const disc = new this.pixi.Graphics();
+		container.addChild( disc );
 
-			const iconName = this.postTypeIcon( n.type );
-			const iconChar = resolveDashicon( iconName );
-			const icon = new this.pixi.Text( {
-				text: iconChar ?? '●', // black circle fallback
-				style: {
-					fontFamily: iconChar ? 'dashicons' : 'sans-serif',
-					fontSize: 2 * n.radius,
-					fill: NODE_FILL,
-				},
-				resolution: RENDER_RESOLUTION,
-				anchor: { x: 0.5, y: 0.5 },
-			} );
-			container.addChild( icon );
+		const iconName = this.postTypeIcon( n.type );
+		this.nodeViews.set( n.id, {
+			node: n,
+			container,
+			halo,
+			disc,
+			icon: null,
+			labelBox: null,
+			iconCharCode: resolveDashicon( iconName ),
+			iconName,
+			typeColor:
+				this.postTypeColor.get( n.type ) ?? TYPE_PALETTE[ 0 ],
+			// Empty so the first `draw()` always paints.
+			discKey: '',
+		} );
+	}
 
-			// Wrap each label in a Container so the backing rect, the
-			// text, and the per-node alpha all transform as one unit
-			// when the camera zooms. The backing keeps labels readable
-			// over busy edge tangles + the dot-grid background;
-			// unbacked labels are hard to read.
-			const labelBox = new this.pixi.Container();
-			this.labelLayer.addChild( labelBox );
+	/** Build the node's glyph, above its disc. */
+	private addIcon( v: NodeView ): PixiText {
+		const icon = createNodeIcon(
+			this.pixi,
+			v.iconCharCode,
+			2 * v.node.radius,
+			NODE_FILL,
+			RENDER_RESOLUTION,
+		);
+		v.container.addChild( icon );
+		v.icon = icon;
+		return icon;
+	}
 
-			const labelBg = new this.pixi.Graphics();
-			labelBox.addChild( labelBg );
+	/** Build the node's label on the label layer. */
+	private addLabel( v: NodeView ): PixiContainer {
+		const box = createNodeLabel(
+			this.pixi,
+			this.truncate( decodeHTML( v.node.title ) || `#${ v.node.id }`, 32 ),
+			RENDER_RESOLUTION,
+		);
+		this.labelLayer.addChild( box );
+		v.labelBox = box;
+		return box;
+	}
 
-			const label = new this.pixi.Text( {
-				text: this.truncate( decodeHTML( n.title ) || `#${ n.id }`, 32 ),
-				style: {
-					fill: 0x1f2937,
-					fontSize: 11,
-					fontFamily:
-						'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-					fontWeight: '500',
-				},
-				resolution: RENDER_RESOLUTION,
-				anchor: { x: 0.5, y: 0 },
-			} );
-			labelBox.addChild( label );
-
-			// Draw the backing once now that the text has measured
-			// itself. Width doesn't change after construction (we
-			// don't mutate label.text after this), so re-painting per
-			// frame would be pure waste.
-			const padX = 5;
-			const padY = 1;
-			const lw = label.width + padX * 2;
-			const lh = label.height + padY * 2;
-			labelBg
-				.roundRect( -lw / 2, -padY, lw, lh, 4 )
-				.fill( { color: 0xffffff, alpha: 0.78 } )
-				.stroke( {
-					color: 0x000000,
-					alpha: 0.06,
-					width: 1,
-				} );
-
-			this.nodeViews.set( n.id, {
-				node: n,
-				container,
-				halo,
-				disc,
-				icon,
-				labelBox,
-				labelBg,
-				label,
-				iconCharCode: iconChar,
-				iconName,
-				typeColor:
-					this.postTypeColor.get( n.type ) ?? TYPE_PALETTE[ 0 ],
-				// Empty so the first `draw()` always paints.
-				discKey: '',
-			} );
-		}
+	/**
+	 * Ask for a repaint on the next frame. Every change to what
+	 * `draw()` paints that the tick cannot see for itself (the sim
+	 * moving, a grouping tween, the camera) comes through here.
+	 */
+	private requestDraw(): void {
+		this.needsDraw = true;
 	}
 
 	private truncate( text: string, max: number ): string {
@@ -837,6 +888,7 @@ export class GraphScene {
 			downAt = { x: e.global.x, y: e.global.y };
 			this.nodeClickActive = true;
 			this.pressedNode = node;
+			this.followingLayout = false;
 			isDragging = false;
 			// Pin so the simulation can't move the node out from
 			// under the user's cursor between down and up. We unpin
@@ -848,12 +900,12 @@ export class GraphScene {
 		} );
 		gfx.on( 'pointerover', () => {
 			this.hoveredId = node.id;
-			this.draw();
+			this.requestDraw();
 		} );
 		gfx.on( 'pointerout', () => {
 			if ( this.hoveredId === node.id ) {
 				this.hoveredId = null;
-				this.draw();
+				this.requestDraw();
 			}
 		} );
 		gfx.on( 'pointerup', ( evt: unknown ) => {
@@ -922,6 +974,7 @@ export class GraphScene {
 			if ( this.sim ) {
 				this.sim.dragOrigin = { x: node.x, y: node.y };
 			}
+			this.requestDraw();
 		} );
 	}
 
@@ -948,6 +1001,7 @@ export class GraphScene {
 			'wheel',
 			( ev: WheelEvent ) => {
 				ev.preventDefault();
+				this.followingLayout = false;
 				// Smooth, exponential zoom with cursor-anchored framing.
 				// Compose against the *target* (not the live world) so
 				// rapid wheel ticks chain correctly while the camera is
@@ -974,6 +1028,8 @@ export class GraphScene {
 		// a node as the cork. Only a pointer on bare cork starts a pan.
 		canvas.addEventListener( 'pointerdown', ( ev: PointerEvent ) => {
 			this.pointers.set( ev.pointerId, this.canvasPoint( canvas, ev ) );
+			// Any press on the board is the user taking the camera.
+			this.followingLayout = false;
 			if ( this.pointers.size === 2 ) {
 				// A second finger turns whatever was happening into a
 				// pinch: the pan stops where it is, and a node the first
@@ -1116,6 +1172,7 @@ export class GraphScene {
 			} catch {
 				return;
 			}
+			this.requestDraw();
 			// Render synchronously so the freshly-resized canvas has
 			// pixels NOW. Without this the WebGL drawingBuffer briefly
 			// composites as white before the next ticker frame paints —
@@ -1174,6 +1231,11 @@ export class GraphScene {
 		if ( ! this.app || ! this.world ) {
 			return;
 		}
+		// Read before stepping: the step that settles the sim still
+		// moved the nodes, and that frame has to be painted.
+		const moving =
+			this.groupingTween !== null ||
+			( this.sim !== null && ! this.sim.isSettled );
 		if ( this.groupingTween ) {
 			// While the grouping tween is active, lerp positions
 			// toward the targets and SKIP the sim integration so the
@@ -1183,6 +1245,13 @@ export class GraphScene {
 			this.advanceGroupingTween();
 		} else {
 			this.sim?.step( delta );
+		}
+		if ( this.followingLayout ) {
+			if ( this.sim && ! this.sim.isSettled ) {
+				this.fitToView( false );
+			} else {
+				this.followingLayout = false;
+			}
 		}
 		// Ease the camera toward its targets each frame. dt-aware so
 		// the feel stays consistent across frame-rate dips. Snap when
@@ -1206,7 +1275,16 @@ export class GraphScene {
 		} else {
 			this.world.y += dyc * k;
 		}
-		this.draw();
+		const camera = this.paintedCamera;
+		if (
+			moving ||
+			this.needsDraw ||
+			this.world.x !== camera.x ||
+			this.world.y !== camera.y ||
+			this.world.scale.x !== camera.scale
+		) {
+			this.draw();
+		}
 		this.drawGroupLabels();
 		this.satellites?.drawLinks();
 		this.advanceFitFollow();
@@ -1432,7 +1510,7 @@ export class GraphScene {
 			let sumY = 0;
 			let count = 0;
 			for ( const id of v.members ) {
-				const node = this.nodeViews.get( id )?.node;
+				const node = this.nodeById.get( id );
 				if ( ! node ) {
 					continue;
 				}
@@ -1463,6 +1541,12 @@ export class GraphScene {
 		if ( this.destroyed ) {
 			return;
 		}
+		this.needsDraw = false;
+		this.paintedCamera = {
+			x: this.world.x,
+			y: this.world.y,
+			scale: this.world.scale.x,
+		};
 		const focusId = this.focusedId;
 		const hoverId = this.hoveredId;
 
@@ -1557,8 +1641,13 @@ export class GraphScene {
 		// pinch-zoom doesn't pop them in/out.
 		const zoomFade = smoothstep( 0.55, 0.95, this.world.scale.x );
 		const discs = this.nodeStyle === 'disc';
+		// Glyphs and labels are built the first time they show, inside
+		// the same per-frame budget as the sprite build; whatever does
+		// not fit asks for the next frame. The focused and hovered node
+		// never wait their turn — they are what the user is looking at.
+		const textDeadline = performance.now() + SPRITE_BATCH_BUDGET_MS;
 		for ( const v of this.nodeViews.values() ) {
-			const { node, container, halo, disc, icon, labelBox } = v;
+			const { node, container, halo, disc } = v;
 			const isFocus = node.id === focusId;
 			const isHover = node.id === hoverId;
 			const isNeighbour =
@@ -1619,26 +1708,30 @@ export class GraphScene {
 			// the reveal on the node the user is pointing at or has
 			// focused, drawn in the ring colour so it reads as cut out
 			// of the disc rather than stacked on top of it.
-			icon.visible = ! discs || isFocus || isHover;
-			icon.style.fill = discs ? DISC_RING : fill;
-			const fontSize = discs ? discRadius * 1.35 : 2 * node.radius;
-			icon.style.fontSize = fontSize;
-			// Nudge the glyph onto the visible disc centre. Without this
-			// the bbox-centred anchor leaves glyphs (notably `admin-post`
-			// — the pushpin head is in the upper-left of its bbox) reading
-			// as top-left of where the user expects them.
-			const nudge = ICON_NUDGE[ v.iconName ];
-			icon.x = ( nudge?.x ?? 0 ) * fontSize;
-			icon.y = ( ( nudge?.y ?? ICON_NUDGE_Y_ASCENT ) ) * fontSize;
+			const showIcon = ! discs || isFocus || isHover;
+			let icon = v.icon;
+			if ( showIcon && ! icon ) {
+				if ( isFocus || isHover || performance.now() < textDeadline ) {
+					icon = this.addIcon( v );
+				} else {
+					this.needsDraw = true;
+				}
+			}
+			if ( icon ) {
+				icon.visible = showIcon;
+				icon.style.fill = discs ? DISC_RING : fill;
+				const fontSize = discs ? discRadius * 1.35 : 2 * node.radius;
+				icon.style.fontSize = fontSize;
+				// Nudge the glyph onto the visible disc centre. Without
+				// this the bbox-centred anchor leaves glyphs (notably
+				// `admin-post` — the pushpin head is in the upper-left of
+				// its bbox) reading as top-left of where the user expects
+				// them.
+				const nudge = ICON_NUDGE[ v.iconName ];
+				icon.x = ( nudge?.x ?? 0 ) * fontSize;
+				icon.y = ( ( nudge?.y ?? ICON_NUDGE_Y_ASCENT ) ) * fontSize;
+			}
 
-			labelBox.x = node.x;
-			// Clear the body, whichever body that is: a focused disc
-			// has grown past `node.radius`, and in icon style the
-			// glyph's visible height is about the same as the disc's
-			// diameter, so the un-scaled radius is the right floor for
-			// both.
-			labelBox.y = node.y + ( discs ? discRadius : node.radius ) + 4;
-			labelBox.scale.set( inverseScale );
 			let baseLabelAlpha: number;
 			if ( isFocus ) {
 				baseLabelAlpha = 1;
@@ -1647,17 +1740,38 @@ export class GraphScene {
 			} else {
 				baseLabelAlpha = 0.32;
 			}
-			labelBox.alpha = baseLabelAlpha * zoomFade;
-			labelBox.visible = labelBox.alpha > 0.01;
+			const labelAlpha = baseLabelAlpha * zoomFade;
+			let labelBox = v.labelBox;
+			if ( labelAlpha > 0.01 && ! labelBox ) {
+				if ( isFocus || isHover || performance.now() < textDeadline ) {
+					labelBox = this.addLabel( v );
+				} else {
+					this.needsDraw = true;
+				}
+			}
+			if ( ! labelBox ) {
+				continue;
+			}
+			labelBox.x = node.x;
+			// Clear the body, whichever body that is: a focused disc
+			// has grown past `node.radius`, and in icon style the
+			// glyph's visible height is about the same as the disc's
+			// diameter, so the un-scaled radius is the right floor for
+			// both.
+			labelBox.y = node.y + ( discs ? discRadius : node.radius ) + 4;
+			labelBox.scale.set( inverseScale );
+			labelBox.alpha = labelAlpha;
+			labelBox.visible = labelAlpha > 0.01;
 		}
 	}
 
 	focusNode( id: number ): void {
+		this.followingLayout = false;
 		// Unpin previous focus (if any) so the cluster can move freely.
 		if ( this.focusedId !== null ) {
-			const prev = this.nodeViews.get( this.focusedId );
+			const prev = this.nodeById.get( this.focusedId );
 			if ( prev ) {
-				prev.node.pinned = false;
+				prev.pinned = false;
 			}
 		}
 		this.focusedId = id;
@@ -1667,18 +1781,20 @@ export class GraphScene {
 		// would visibly jiggle. The reviewer flagged this as "all nodes
 		// move when selecting a node". Camera ease + satellites are
 		// enough animation for the focus moment.
-		const view = this.nodeViews.get( id );
-		if ( view ) {
-			view.node.pinned = true;
-			view.node.vx = 0;
-			view.node.vy = 0;
-			const target = view.node;
+		// Looked up on the board, not among the sprites: a node picked
+		// from the search mid-build has no sprite yet, and is still
+		// focused — it paints as such once its sprite exists.
+		const target = this.nodeById.get( id );
+		if ( target ) {
+			target.pinned = true;
+			target.vx = 0;
+			target.vy = 0;
 			const newScale = Math.max( this.targetScale, 1.6 );
 			this.targetScale = newScale;
 			this.targetX = this.host.clientWidth / 2 - target.x * newScale;
 			this.targetY = this.host.clientHeight / 2 - target.y * newScale;
 		}
-		this.draw();
+		this.requestDraw();
 	}
 
 	setFocusedDetail( detail: PostDetail | null ): void {
@@ -1689,12 +1805,13 @@ export class GraphScene {
 			this.satellites.clear();
 			return;
 		}
-		const node = this.nodeViews.get( this.focusedId )?.node;
+		const node = this.nodeById.get( this.focusedId );
 		if ( ! node ) {
 			this.satellites.clear();
 			return;
 		}
 		this.satellites.setFocused( node, detail );
+		this.requestDraw();
 		// No reheat — satellites have their own entrance animation and
 		// reheating here would shake the whole cluster (see focusNode).
 	}
@@ -1709,6 +1826,8 @@ export class GraphScene {
 	 * destroying / recreating the small `GroupView` containers.
 	 */
 	setGrouping( facet: GroupFacet | null ): void {
+		// The grouping runs its own fit-follow loop.
+		this.followingLayout = false;
 		this.currentGrouping = facet;
 		this.clearGroupViews();
 		if ( ! facet || ! this.sim ) {
@@ -1791,7 +1910,7 @@ export class GraphScene {
 			if ( ! target ) {
 				continue;
 			}
-			const node = this.nodeViews.get( nodeId )?.node;
+			const node = this.nodeById.get( nodeId );
 			if ( ! node || node.pinned ) {
 				continue;
 			}
@@ -1931,7 +2050,7 @@ export class GraphScene {
 		}
 		const starts = new Map< number, { x: number; y: number } >();
 		for ( const nodeId of targets.keys() ) {
-			const node = this.nodeViews.get( nodeId )?.node;
+			const node = this.nodeById.get( nodeId );
 			if ( ! node ) {
 				continue;
 			}
@@ -2049,9 +2168,9 @@ export class GraphScene {
 
 	clearFocus(): void {
 		if ( this.focusedId !== null ) {
-			const view = this.nodeViews.get( this.focusedId );
-			if ( view ) {
-				view.node.pinned = false;
+			const node = this.nodeById.get( this.focusedId );
+			if ( node ) {
+				node.pinned = false;
 			}
 		}
 		this.focusedId = null;
@@ -2060,7 +2179,7 @@ export class GraphScene {
 		// previously-pinned node can ease back to equilibrium without
 		// a global kick that would jiggle the rest of the cluster.
 		this.sim?.reheat( 0.25, false );
-		this.draw();
+		this.requestDraw();
 	}
 
 	/**
@@ -2074,7 +2193,7 @@ export class GraphScene {
 	}
 
 	getNode( id: number ): GraphNode | undefined {
-		return this.nodes.find( ( n ) => n.id === id );
+		return this.nodeById.get( id );
 	}
 
 	getNodes(): GraphNode[] {
@@ -2099,6 +2218,7 @@ export class GraphScene {
 		for ( const v of this.nodeViews.values() ) {
 			v.discKey = '';
 		}
+		this.requestDraw();
 	}
 
 	/** Active node body style. */
@@ -2132,8 +2252,24 @@ export class GraphScene {
 		this.frame( this.nodes );
 	}
 
+	/**
+	 * Keep the board framed while its layout is still spreading on
+	 * screen: frame every node on each frame until the sim settles, or
+	 * until the user takes the camera (wheel, pan, pinch, a press on a
+	 * node, a focus). A large board has only had a short warm-up when
+	 * it first shows and grows to several times that size as it
+	 * settles; without this it outgrows its frame within seconds.
+	 */
+	followLayout(): void {
+		this.followingLayout = this.sim !== null && ! this.sim.isSettled;
+	}
+
 	destroy(): void {
 		this.destroyed = true;
+		// A build in flight would otherwise keep adding sprites to a
+		// torn-down stage on its next frame.
+		this.build?.cancel();
+		this.build = null;
 		// Park the Pixi app's ticker FIRST. The ticker auto-runs an
 		// internal render every frame regardless of our own
 		// `tickerCb`; if we destroy graphics objects (via satellites /

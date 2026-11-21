@@ -8,7 +8,10 @@
  * between centroids.
  */
 import { describe, expect, test } from 'vitest';
-import { ForceSim } from '../../src/content-graph/sim';
+import {
+	EXACT_REPULSION_MAX_NODES,
+	ForceSim,
+} from '../../src/content-graph/sim';
 import type { GraphNode } from '../../src/content-graph/types';
 
 function makeNode( id: number, x: number, y: number ): GraphNode {
@@ -204,5 +207,40 @@ describe( 'ForceSim cluster-attractor', () => {
 
 		expect( a.x ).toBe( ax0 );
 		expect( a.y ).toBe( ay0 );
+	} );
+} );
+
+describe( 'ForceSim on a board above the exact-repulsion threshold', () => {
+	test( 'the approximate repulsion still spreads the board, without NaN', () => {
+		// A tight disc around the origin, as a large board looks before
+		// it has been laid out, plus one co-located pair and one pinned
+		// node, the two cases the exact loop special-cases.
+		const n = EXACT_REPULSION_MAX_NODES + 100;
+		const seedRadius = 20;
+		const nodes: GraphNode[] = [];
+		for ( let i = 0; i < n; i++ ) {
+			const angle = i * 2.399963;
+			const r = seedRadius * Math.sqrt( ( i + 0.5 ) / n );
+			nodes.push( makeNode( i + 1, Math.cos( angle ) * r, Math.sin( angle ) * r ) );
+		}
+		nodes[ 1 ].x = nodes[ 0 ].x;
+		nodes[ 1 ].y = nodes[ 0 ].y;
+		const pinned = nodes[ 10 ];
+		pinned.pinned = true;
+		const pinnedAt = { x: pinned.x, y: pinned.y };
+
+		const rms = () =>
+			Math.sqrt( nodes.reduce( ( s, p ) => s + p.x * p.x + p.y * p.y, 0 ) / n );
+		const before = rms();
+		runTicks( new ForceSim( nodes, [] ), 60 );
+
+		for ( const p of nodes ) {
+			expect( Number.isFinite( p.x ) && Number.isFinite( p.y ) ).toBe( true );
+		}
+		expect( rms() ).toBeGreaterThan( before * 10 );
+		expect( pinned.x ).toBe( pinnedAt.x );
+		expect( pinned.y ).toBe( pinnedAt.y );
+		// The co-located pair was pushed apart.
+		expect( distance( nodes[ 0 ], nodes[ 1 ] ) ).toBeGreaterThan( 1 );
 	} );
 } );
