@@ -40,12 +40,13 @@ merging     → needs-human
 needs-human → build | rejected | abandoned | triage
 triage      → update | needs-human | abandoned
 update      → gate | needs-human | triage
-report      → needs-human
+report      → reviewed | needs-human
+reviewed    → triage
 ```
 
 `triage`, `update` and `report` belong to PR jobs, and `intake`, `needs-info`, `spec`, `build`, `approve` and `merging` to issue jobs: `advance` refuses a stage that isn't the job's kind.
 
-`merged`, `rejected` and `abandoned` are terminal. `needs-info` and `needs-human` are waiting states: the job sits there until a person acts, on GitHub or by talking to the factory. Two moves are outside the table: any unfinished job goes to `merged` once its PR is merged on GitHub, whether the factory merged it or a person did mid-round, and to `abandoned` once someone stops it there, whether it was waiting or running.
+`merged`, `rejected` and `abandoned` are terminal. `needs-info`, `needs-human` and `reviewed` are waiting states: the job sits there until a person acts, on GitHub or by talking to the factory. Two moves are outside the table: any unfinished job goes to `merged` once its PR is merged on GitHub, whether the factory merged it or a person did mid-round, and to `abandoned` once someone stops it there, whether it was waiting or running.
 
 ### Rounds
 
@@ -95,15 +96,20 @@ triage (agent)      reads the diff without a shell: REVIEW, or HOLD at anything 
 update (script)     merges the latest trunk into the head triage approved and pushes it; if the PR moved meanwhile, back to triage
 gate (script)       the same checks.sh, on the merge; a failure becomes a blocker in the report
 reviewers + CI      the same lenses, plus the runtime reviewer, in parallel with job ci
-reporter (agent)    verdict.md: APPROVE, CHANGES or HOLD, a test plan, and the comment posted on the PR
-needs-human         the PR waits for the maintainer to merge, or for the contributor to push again (back to screen and triage)
+reporter (agent)    verdict.md: APPROVE, CHANGES or HOLD, a test plan, and the text posted on the PR
+reviewed            APPROVE or CHANGES, posted as a GitHub review: the PR waits for the maintainer to merge, or for the contributor to push again (back to screen and triage)
+needs-human         HOLD, or `pr_changes_limit` rounds of CHANGES in a row: the PR waits for the maintainer
 ```
 
 Nothing from the PR runs before triage says `REVIEW` and the screen passes, and only the commit they judged runs. `job` fetches the PR's head into `refs/factory/pr-<n>` (fetching objects runs nothing) and writes `pr.md`, `pr.diff` and `screen.md` from that one commit; `triage → update` records it as the approved head, and `job update` refuses to merge or build anything else. Every new head goes through the screen and triage again, the contributor's next push included, with `pr.delta.diff` showing what changed since the last tested head.
 
 A held PR gets a neutral comment and the `factory:needs-human` label; once a maintainer has looked, the `factory:trusted` label sends it back through triage, which holds it again only for something new. The label vouches for the head that was held and no later one: a push after it is screened as usual, and a hold takes the label off, so a stale label can't wave a new head through.
 
-The factory's footprint on someone else's PR is deliberately small. Its one push is the trunk merge (a plain merge commit, never a rebase or a force-push); when the fork doesn't let maintainers push, it tests the merge locally and says so. It posts one plain comment per round, written to the project's `pr-writer` guidelines, never a GitHub review, and it never merges. A contributor's next push starts a new round in "were the points addressed?" mode; after `pr_changes_limit` rounds of `CHANGES` in a row it waits for the maintainer instead. The factory's own pushes don't count as the contributor's: `job` keeps the SHAs it pushed.
+The factory's footprint on someone else's PR is deliberately small. Its one push is the trunk merge (a plain merge commit, never a rebase or a force-push); when the fork doesn't let maintainers push, it tests the merge locally and says so. It posts once per round, written to the project's `pr-writer` guidelines, and it never merges. A report the reporter is sure of goes up as a GitHub review under the operator's name: `APPROVE` approves the PR and `CHANGES` requests changes, and the job waits in `reviewed` with no label. A report with a doubt in it (`HOLD`) goes up as a plain comment with the `factory:needs-human` label, so that label always means a maintainer has something to decide. A contributor's next push starts a new round in "were the points addressed?" mode; after `pr_changes_limit` rounds of `CHANGES` in a row the report is still posted as a request for changes, but the PR is labeled and waits for the maintainer instead.
+
+A review is pinned to the commit the round tested. The script approves only when the gate, CI and every routed review passed and that commit is still the PR's head; if the branch moved meanwhile, the report is posted as a comment and the next round covers the new commits. GitHub takes no review from a PR's own author, so the operator's own PR gets a comment too.
+
+The runtime reviewer's before/after screenshots ride along: `job` uploads each `before-<name>` / `after-<name>` pair from `round-N/runtime/` to GitHub's attachment storage and adds them as a table under the report. On the factory's own PRs the same table goes into a Screenshots section of the PR body when the reviews pass. The factory's own pushes don't count as the contributor's: `job` keeps the SHAs it pushed.
 
 The factory never takes its own PRs (`factory/*` branches, which have an issue job) or a draft (it waits until the draft is marked ready).
 
@@ -130,6 +136,7 @@ The deterministic half of the factory is three scripts in `factory/bin/`, writte
 | `job queue` | Lists every open `factory` issue and PR, and every unfinished job, as `action number job stage note`, where the action is `new`, `resume`, `hold`, `wait` or `skip`. It hands out the `concurrency` slots: jobs already in a running stage keep theirs, and only as many restartable waiting jobs and new issues and PRs as there are free slots come out as `resume` or `new`; the rest are `hold`. A waiting PR job resumes, back to triage, when its contributor pushes or, if it was held, when it gets the trusted label. It also finishes any unfinished job, at whatever stage, whose PR was merged (`merged`) or that was stopped on GitHub: the PR or issue closed, or the `factory` label removed (`abandoned`). Both tear down the job's stacks and worktree. |
 | `job create <number> [--now] [--fresh]` | Refuses when no concurrency slot is free, unless `--now`, and refuses an issue or PR that GitHub shows another checkout working on (see below), unless `--fresh`. For an issue: checks it's open and labeled, writes `issue.md`, and creates the job as `NNN-<slug>` in stage `intake`, with branch `factory/<job-id>` and a worktree next to the checkout under `<repo>-factory/<job-id>`. For a PR: checks it's open, labeled, not a draft and not the factory's own, writes `pr.md`, `pr.diff`, the linked issue's `issue.md` and `screen.md`, and creates the job in stage `triage`. |
 | `job update <job>` | PR jobs: puts the worktree on the PR's branch, merges the latest trunk in and pushes it, and writes `round-N/update.md` (`CURRENT`, `MERGED`, `LOCAL`, `CONFLICT`, or `MOVED` when the PR's head is no longer the one triage approved: nothing is merged or built, and the job goes back to triage). |
+| `job push <job>` | For an issue job in `build`: pushes the job's `factory/<job-id>` branch to `origin` from its worktree, and nothing else. It refuses a PR job and a worktree on any other branch, and it never forces, so a branch that moved on GitHub is refused, not overwritten. The builder pushes through it instead of running `git push`, so every push the factory makes is this script's. |
 | `job advance <job> <stage> [--now]` | Moves a job to a stage, or refuses. See below. `--now` skips the concurrency check on the moves that have one. |
 | `job ci <job>` | Polls the PR's check rollup every thirty seconds for the round's commit and writes `round-N/ci.md` with `CI: PASS`, `FAIL`, `NONE` (nothing reported in ten minutes) or `TIMEOUT` (`ci_timeout_minutes`). The factory never re-runs CI. |
 | `job merge <job>` | After `APPROVE`: merges `origin/trunk` into the branch, runs the gate again as `merge-checks.md`, pushes, marks the PR ready, and either merges it with `merge_method` (`auto_merge` on) or rewrites `decision.md` as an escalation and hands the PR to the maintainer (`auto_merge` off, the shipped default). Any failure lands in `needs-human` with the reason posted on the PR. |
@@ -154,15 +161,16 @@ A `<job>` argument is a job id (`004-dark-mode`) or the number of its issue or P
 - `→ merged`, from any unfinished stage, needs the PR to be merged on GitHub. It clears the `factory:needs-human` and `factory:needs-info` labels.
 - `needs-human → build` needs a `feedback-k.md` or `rework-k.md` newer than `decision.md`, which is what `job feedback` and `job rework` write.
 - `needs-info → rejected` and `needs-human → rejected` need `rejection.md`, which is what `job reject` writes. The reason is posted on the issue, the factory labels come off, and the job's PR, if it has one, is closed and its branch deleted. The issue stays open.
-- `needs-info → intake` and `needs-human → triage` restart a waiting job from the queue, so they need a free concurrency slot.
+- `needs-info → intake`, `needs-human → triage` and `reviewed → triage` restart a waiting job from the queue, so they need a free concurrency slot.
 - `→ abandoned`, from any unfinished stage, needs the PR closed unmerged, the issue closed (issue jobs), or the `factory` label gone. It clears the `factory:needs-human` and `factory:needs-info` labels and posts nothing.
 - `triage → update` needs `triage.md` to say `DECISION: REVIEW`, the screen to pass, and the job routed; `triage → needs-human` needs a `HOLD` from either, and takes the `factory:trusted` label off.
 - `update → gate` needs `round-N/update.md` for the current commit and neither `CONFLICT` nor `MOVED`; `update → needs-human` needs `CONFLICT`; `update → triage` needs `MOVED`.
 - A PR job's `gate → review` needs a gate verdict for the current commit, pass or fail. Its `review → report` needs every review and `ci.md`.
-- `report → needs-human` needs `round-N/verdict.md` with a `VERDICT` and a `## Comment` section, which it posts on the PR.
-- `needs-human → triage` needs a push from the contributor, or a held PR to carry the trusted label. It fetches and screens the new head.
+- `report → reviewed` needs `round-N/verdict.md` to say `APPROVE` or `CHANGES` and to have a `## Comment` section, which it posts on the PR as an approving or change-requesting review, with the round's screenshots. `APPROVE` also needs `GATE: PASS`, `CI: PASS` and every routed review at `PASS`. `report → needs-human` needs `HOLD`, posted as a comment, or `CHANGES` for `pr_changes_limit` rounds in a row, posted as a review; either way the PR is labeled.
+- `review → approve` also adds the round's screenshots to the factory's PR body.
+- `reviewed → triage` needs a push from the contributor. `needs-human → triage` needs that push, or a held PR to carry the trusted label. Both fetch and screen the new head.
 
-Side effects ride on the transitions. Entering `needs-human` marks a draft PR ready, posts the decision as a PR comment (or an issue comment when there is no PR) and adds the `factory:needs-human` label. Entering `merged`, `rejected` or `abandoned` runs the `teardown` command from `config.json` in the worktree (it destroys the job's two wp-env stacks), removes the worktree and deletes the local branch. Every comment the factory posts starts with an HTML marker, which is how it later tells its own comments from a person's.
+Side effects ride on the transitions. Entering `needs-human` marks a draft PR ready, posts the decision as a PR comment (or an issue comment when there is no PR) and adds the `factory:needs-human` label. Entering `merged`, `rejected` or `abandoned` runs the `teardown` command from `config.json` in the worktree (it destroys the job's two wp-env stacks), removes the worktree and deletes the local branch. Every comment and review the factory posts starts with an HTML marker, which is how it later tells its own from a person's.
 
 ### `gate`: the deterministic gate
 
@@ -213,7 +221,7 @@ Job `n` (from the numeric prefix of its id) gets port `ports.base + ports.step �
 | `env` | Where the gate's WordPress parts run: `wp-env` (default) or `cloud`, through `bin/cloud-test-env.sh`, where PHPUnit and phpcs run today and the site checks don't yet. `FACTORY_ENV` overrides it. |
 | `runtime_reviewer` | The runtime reviewer's model. |
 | `fork_sensitive_paths` | Files a fork PR can't touch without a maintainer's look: they can run code at install or in CI. |
-| `pr_changes_limit` | Rounds of `CHANGES` in a row after which a PR job waits for the maintainer instead of re-reviewing the next push. |
+| `pr_changes_limit` | Rounds of `CHANGES` in a row after which a PR job is labeled `factory:needs-human` and waits for the maintainer instead of re-reviewing the next push. |
 | `routing`, `surface_reviewers` | The agent routing tables described above. |
 | `protected_paths` | fnmatch patterns a branch may not modify or delete. |
 | `ports` | `base` and `step` for the per-job ports, and `trunk` for the shared trunk site. |
@@ -223,7 +231,7 @@ Job `n` (from the numeric prefix of its id) gets port `ports.base + ports.step �
 
 **Requirements**: Docker running, the `agent-browser` CLI, `gh` authenticated as the operator, and Python 3. The orchestrator checks Docker and `agent-browser` before starting any job. It runs locally, from the main checkout or from any Claude Code worktree; each checkout keeps its own `factory/jobs/`, so never run two `/factory run`s at once.
 
-**A job belongs to the checkout that created it.** A run from another checkout doesn't see it, so `job queue` and `job create` look at GitHub instead: an issue or PR with no job here that carries `factory:needs-human` or `factory:needs-info`, or an issue with the factory's own PR open for it, is another checkout's job. The queue lists it as `skip` (`another checkout's job`) and `job create` refuses it, rather than triaging and reviewing it again, commenting again and taking the same ports. Run the factory from the checkout that has the job, or move its folder into this checkout's `factory/jobs/` under a free job number (the number sets its ports). If that job is gone for good, `job create <n> --fresh` starts over. A job in intake or triage leaves no trace on GitHub yet, which is why two runs at once still aren't safe.
+**A job belongs to the checkout that created it.** A run from another checkout doesn't see it, so `job queue` and `job create` look at GitHub instead: an issue or PR with no job here that carries `factory:needs-human` or `factory:needs-info`, a PR the factory has already reviewed, or an issue with the factory's own PR open for it, is another checkout's job. The queue lists it as `skip` (`another checkout's job`) and `job create` refuses it, rather than triaging and reviewing it again, commenting again and taking the same ports. Run the factory from the checkout that has the job, or move its folder into this checkout's `factory/jobs/` under a free job number (the number sets its ports). If that job is gone for good, `job create <n> --fresh` starts over. A job in intake or triage leaves no trace on GitHub yet, which is why two runs at once still aren't safe.
 
 - **`/factory run`** brings up the trunk site, then drains the queue: `job queue`, then every job it offers (`concurrency` at a time, oldest issue first), each stepped by its stage until nothing is `new` or `resume`. It ends with `job summary`.
 - **`/factory run <n>`** runs issue or PR `<n>` now, ignoring `concurrency`. For a PR it also reviews it again after `pr_changes_limit` rounds of `CHANGES`.

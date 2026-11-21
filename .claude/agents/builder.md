@@ -26,6 +26,12 @@ job folder is in the main checkout; `build.md` is the only file you write
 there. Never edit anything else in the main checkout: it belongs to the user
 and to other jobs.
 
+Git is the one exception to the `cd`. Run every git command as
+`git -C <worktree> <subcommand> …`, in a Bash command of its own with no `cd`
+anywhere in it: a `cd` into another checkout followed by `git` stops for the
+user's approval, whatever the command is, and the run stalls. Paths you give
+it are relative to the worktree.
+
 ## Read first
 
 1. `AGENTS.md` (or `CLAUDE.md`): the canonical repo instructions, including its
@@ -73,7 +79,7 @@ observed.
 
 ## Build
 
-- Run `cd <worktree> && git branch --show-current` first. It must print the
+- Run `git -C <worktree> branch --show-current` first. It must print the
   branch from your prompt. If it doesn't, stop and write a BLOCKED build.md.
 - Match the surrounding code: its idioms, formatting, naming and imports. Keep
   comment density like the neighbouring code.
@@ -122,9 +128,11 @@ of the code.
   `git log --oneline`. One commit per distinct piece of work. No
   `Co-Authored-By` trailers and no tool attribution in commits or the PR.
 - Stage explicit paths, never `git add -A`. Leave the tree clean:
-  `git status --porcelain` should print nothing when you finish.
-- Push the branch every round: `git push -u origin <branch>`. Push only this
-  branch, never force-push, and never push anything else.
+  `git -C <worktree> status --porcelain` should print nothing when you finish.
+- Push the branch every round with `factory/bin/job push <job-id>`, typed
+  exactly like that and run from the main checkout, with no `cd` in front. It
+  pushes this job's branch and nothing else, and never forces. Never run
+  `git push` yourself: if the script refuses, write BLOCKED with what it said.
 - If the branch has no PR yet (`gh pr view <branch>` fails), open a draft PR
   against the base branch in `config.json`, with
   `gh pr create --draft --base <base_branch> --head <branch>`. Its title

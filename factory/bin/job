@@ -8,7 +8,9 @@ orchestrator never improvises them.
 
 A job is one of two kinds. An issue job builds a `factory` issue into a PR of
 the factory's own. A PR job reviews someone else's `factory` PR: it screens it,
-merges trunk into it, gates it, reviews it, and posts the round's report on it.
+merges trunk into it, gates it, reviews it, and posts the round's report on it:
+an approval or a request for changes when the report is sure, a comment and a
+maintainer's turn when it isn't.
 
 Usage:
   job queue                      what /factory run should do with each labeled issue and PR
@@ -18,6 +20,7 @@ Usage:
   job advance <job> <stage> [--now]
                                  move a job to <stage>, or refuse
   job update <job>               PR jobs: merge trunk into the PR, push it → round-N/update.md
+  job push <job>                 issue jobs in build: push the job's branch for the builder
   job ci <job>                   wait for the PR's CI on the round's commit → round-N/ci.md
   job merge <job>                APPROVE → sync with the base branch, gate, merge the PR
                                  (with auto_merge off: mark it ready and hand it to you)
@@ -40,6 +43,7 @@ queue refuse when none is free. `--now` starts the job anyway, for
 import fcntl
 import fnmatch
 import json
+import mimetypes
 import os
 import re
 import subprocess
@@ -47,6 +51,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlencode
 
 REPO = Path(__file__).resolve().parents[2]
 FACTORY = REPO / "factory"
@@ -70,14 +75,17 @@ TRANSITIONS = {
     # PR jobs. Every new head of a PR goes through triage before anything of it runs.
     "triage": {"update", "needs-human", "abandoned"},
     "update": {"gate", "needs-human", "triage"},
-    "report": {"needs-human"},
+    # A report the reporter is sure of is posted as a review and the PR waits in
+    # `reviewed`; one it has a doubt about goes to a maintainer.
+    "report": {"reviewed", "needs-human"},
+    "reviewed": {"triage"},
 }
-PR_STAGES = {"triage", "update", "report"}
+PR_STAGES = {"triage", "update", "report", "reviewed"}
 TERMINAL = {"merged", "rejected", "abandoned"}
 # Any unfinished job can move to merged once its PR is merged on GitHub, whether
 # the factory merged it or a person did mid-round, and to abandoned once someone
 # stops it there (closes it, or removes the queue label), whatever stage it's in.
-WAITING = {"needs-info", "needs-human"}
+WAITING = {"needs-info", "needs-human", "reviewed"}
 CONCURRENCY = CONFIG["concurrency"]
 
 
@@ -268,6 +276,86 @@ def replied_since_question(issue):
 
 def comment(kind, number, body):
     gh(kind, "comment", str(number), "--body", f"{MARKER}\n{body}")
+
+
+def review(job, verdict, body):
+    """Post a PR job's report as a GitHub review: an approval, or a request for changes.
+
+    The review is pinned to the commit the round tested. An approval is only posted
+    while that commit is still the PR's head, and GitHub takes neither kind of
+    review from a PR's own author, so both of those get a plain comment instead.
+    """
+    pr = gh_json("pr", "view", str(job["pr"]), "--json", "author,headRefOid")
+    if pr["author"]["login"] == operator():
+        return comment("pr", job["pr"], body)
+    if verdict == "APPROVE" and pr["headRefOid"] != job["head"]:
+        return comment("pr", job["pr"], body + f"\n\nThis covers `{job['head'][:7]}`. The branch has moved since, "
+                                               "so the next round looks at the new commits before anything is approved.")
+    gh("api", f"repos/{repo_name()}/pulls/{job['pr']}/reviews", "-f", f"commit_id={job['head']}",
+       "-f", f"event={'APPROVE' if verdict == 'APPROVE' else 'REQUEST_CHANGES'}", "-f", f"body={MARKER}\n{body}")
+
+
+# ---- Before/after screenshots ---------------------------------------------------
+
+SHOT = re.compile(r"(before|after)-(.+)\.(png|jpe?g|gif|webp)", re.I)
+SHOTS_OPEN, SHOTS_CLOSE = "<!-- factory:screenshots -->", "<!-- /factory:screenshots -->"
+
+
+def screenshot_pairs(job):
+    """[(name, before, after)] for the round: runtime/before-<name>.png with its after-<name>.png."""
+    shots = {}
+    for p in sorted((round_dir(job) / "runtime").glob("*")):
+        if m := SHOT.fullmatch(p.name):
+            shots.setdefault(m.group(2), {})[m.group(1).lower()] = p
+    return [(name, s["before"], s["after"]) for name, s in shots.items() if len(s) == 2]
+
+
+def upload(path, repo_id):
+    """Upload an image to GitHub's attachment storage, the way `gh --attach` does, and return its URL."""
+    query = urlencode({"name": path.name, "content_type": mimetypes.guess_type(path.name)[0],
+                       "repository_id": repo_id})
+    return gh("api", "-X", "POST", f"https://uploads.github.com/user-attachments/assets?{query}",
+              "-H", "Accept: application/vnd.github+json", "-H", "Content-Type: application/octet-stream",
+              "--input", str(path), "--jq", ".url").strip()
+
+
+def screenshots(job):
+    """The round's before/after pairs as a Markdown table, or "" when there are none.
+
+    The table is kept in round-N/screenshots.md, so posting twice uploads once. A
+    failed upload costs the round its screenshots, never its report.
+    """
+    path = round_dir(job) / "screenshots.md"
+    if not path.exists():
+        pairs = screenshot_pairs(job)
+        if not pairs:
+            return ""
+        try:
+            repo_id = gh_json("api", f"repos/{repo_name()}")["id"]
+            rows = [f"| {name.replace('-', ' ')} | ![{name}, before]({upload(before, repo_id)}) "
+                    f"| ![{name}, after]({upload(after, repo_id)}) |" for name, before, after in pairs]
+        except Refused as e:
+            print(f"job: {job['id']}: screenshots not attached: {e}", file=sys.stderr)
+            return ""
+        path.write_text("\n".join([f"| | Before (`{BASE}`) | After (this PR) |", "|---|---|---|", *rows]) + "\n")
+    return path.read_text()
+
+
+def put_screenshots_in_pr_body(job):
+    """Show the round's before/after pairs in the factory's own PR, replacing an earlier round's."""
+    table = screenshots(job)
+    if not table:
+        return
+    try:
+        body = gh_json("pr", "view", str(job["pr"]), "--json", "body")["body"]
+        block = f"{SHOTS_OPEN}\n## Screenshots\n\n{table}{SHOTS_CLOSE}"
+        if SHOTS_OPEN in body and SHOTS_CLOSE in body:
+            body = body[:body.index(SHOTS_OPEN)] + block + body[body.index(SHOTS_CLOSE) + len(SHOTS_CLOSE):]
+        else:
+            body = f"{body.rstrip()}\n\n{block}\n"
+        gh("pr", "edit", str(job["pr"]), "--body", body)
+    except Refused as e:
+        print(f"job: {job['id']}: screenshots not added to PR #{job['pr']}: {e}", file=sys.stderr)
 
 
 # ---- PR → pr.md, and the screen -----------------------------------------------
@@ -502,7 +590,7 @@ def sync(job):
         job["ci"] = header(rd / "ci.md").get("CI") if (rd / "ci.md").exists() else None
         if is_pr_job(job):
             job["report"] = header(rd / "verdict.md").get("VERDICT") if (rd / "verdict.md").exists() else None
-        if job["agents"] and job["stage"] in {"review", "approve", "merging", "merged", "needs-human", "report"}:
+        if job["agents"] and job["stage"] in {"review", "approve", "merging", "merged", "needs-human", "report", "reviewed"}:
             job["reviews"] = {}
             for r in reviewers(job):
                 line = first_line(rd / f"review-{r}.md")
@@ -623,6 +711,7 @@ def advance(job, stage, force=False):
             f"{job['id']}: {'a PR' if is_pr_job(job) else 'an issue'} job never enters {stage}")
     d = job_dir(job["id"])
     message = None  # a PR job's comment on entering needs-human, when it isn't decision.md
+    posted = False  # the round's report already went up as a review
     decision = header(d / "intake.md").get("DECISION") if (d / "intake.md").exists() else None
     intake_body = lambda: "\n".join((d / "intake.md").read_text().split("\n\n", 1)[1:]).strip()
 
@@ -787,9 +876,36 @@ def advance(job, stage, force=False):
                 f"round-{job['round']}/verdict.md starts with VERDICT: {verdict}, not APPROVE, CHANGES or HOLD")
         message = section(path, "Comment")
         require(message, f"round-{job['round']}/verdict.md has no ## Comment section to post")
+        if verdict == "APPROVE":
+            # An approval goes up under the operator's name, so the script checks it too.
+            unmet = ([f"the gate is {job['gate']}"] if job["gate"] != "PASS" else []) \
+                + ([f"CI is {job['ci']}"] if job["ci"] != "PASS" else []) \
+                + [f"{r} says {v}" for r, v in job["reviews"].items() if v != "PASS"]
+            require(not unmet, f"verdict.md says APPROVE, but {', '.join(unmet)}: the reporter rewrites it")
+        streak = changes_streak(job) + 1 if verdict == "CHANGES" else 0
+        stuck = streak >= CONFIG["pr_changes_limit"]
+        require((stage == "needs-human") == (verdict == "HOLD" or stuck),
+                f"round {job['round']}'s verdict is {verdict}"
+                + (f", {streak} rounds in a row" if stuck else "")
+                + f": go to {'needs-human' if verdict == 'HOLD' or stuck else 'reviewed'}")
         job.setdefault("verdicts", []).append(verdict)
-        (d / "decision.md").write_text(f"ESCALATE\n\n## Why\nRound {job['round']}'s report says {verdict}. "
-                                       f"See round-{job['round']}/verdict.md.\n")
+        if shots := screenshots(job):
+            message += f"\n\n### Screenshots\n\n{shots}"
+        if stuck:
+            message += (f"\n\nThat's {streak} rounds with open points in a row, so a maintainer "
+                        "will look before the next review.")
+        if verdict != "HOLD":
+            review(job, verdict, message)
+            posted = True
+        if stage == "needs-human":
+            (d / "decision.md").write_text(f"ESCALATE\n\n## Why\nRound {job['round']}'s report says {verdict}"
+                                           + (f", {streak} rounds in a row" if stuck else "")
+                                           + f". See round-{job['round']}/verdict.md.\n")
+
+    elif old == "reviewed":
+        require(contributor_pushed(job), "nothing new: the PR's head is the one the last round judged")
+        require_slot(job["id"], force)
+        retriage(job)
 
     elif old == "review":
         check_reviews_done(job)
@@ -799,6 +915,7 @@ def advance(job, stage, force=False):
         if stage == "approve":
             require(not changes, f"reviews want CHANGES: {', '.join(changes)}")
             require(ci == "PASS", f"CI is {ci}, not PASS: see round-{job['round']}/ci.md")
+            put_screenshots_in_pr_body(job)
         elif stage == "needs-human" and ci in {"TIMEOUT", "NONE"}:
             escalate(job, f"CI didn't settle on round {job['round']}'s commit "
                           f"({'no checks reported' if ci == 'NONE' else 'it timed out'}). "
@@ -840,8 +957,9 @@ def advance(job, stage, force=False):
             label("issue", job["issue"], remove=LABELS["needs_human"])
 
     if stage == "needs-human" and is_pr_job(job):
-        comment("pr", job["pr"], message or "### Factory: needs a maintainer\n\n"
-                + (d / "decision.md").read_text().split("\n", 1)[1].replace("## Why\n", "", 1).strip())
+        if not posted:
+            comment("pr", job["pr"], message or "### Factory: needs a maintainer\n\n"
+                    + (d / "decision.md").read_text().split("\n", 1)[1].replace("## Why\n", "", 1).strip())
         label("pr", job["pr"], add=LABELS["needs_human"])
     elif stage == "needs-human":
         body = f"### Factory: needs a human\n\n{(d / 'decision.md').read_text().split(chr(10), 1)[1].strip()}"
@@ -889,18 +1007,21 @@ def factory_prs():
             for i in p["closingIssuesReferences"]}
 
 
-def taken_elsewhere(labels, own_pr=None):
+def taken_elsewhere(labels, own_pr=None, reviews=()):
     """Why an issue or PR with no job in this checkout looks like another checkout's job.
 
     Job state lives in each checkout's factory/jobs, so a run from another one would
     start a second job for it: triage and review it again, comment again, and take
-    the same ports. GitHub shows a job that is waiting (its needs-* label) or building
-    (the factory's open PR for the issue). A job mid-triage or mid-intake leaves no
-    trace yet; that is the window two concurrent runs would race in.
+    the same ports. GitHub shows a job that is waiting (its needs-* label, or the
+    review the factory left on a PR) or building (the factory's open PR for the
+    issue). A job mid-triage or mid-intake leaves no trace yet; that is the window
+    two concurrent runs would race in.
     """
     for name in (LABELS["needs_human"], LABELS["needs_info"]):
         if name in labels:
             return f"it's labeled {name}"
+    if any(r["body"].startswith(MARKER) for r in reviews):
+        return "the factory has reviewed it"
     if own_pr:
         return f"the factory's PR #{own_pr} is open for it"
     return None
@@ -918,8 +1039,8 @@ def cmd_create(arg, force=False, fresh=False):
     is_pr = "pull_request" in gh_json("api", f"repos/{repo_name()}/issues/{n}")
     if not fresh:
         if is_pr:
-            labels = {l["name"] for l in gh_json("pr", "view", str(n), "--json", "labels")["labels"]}
-            why = taken_elsewhere(labels)
+            pr = gh_json("pr", "view", str(n), "--json", "labels,reviews")
+            why = taken_elsewhere({l["name"] for l in pr["labels"]}, reviews=pr["reviews"])
         else:
             labels = {l["name"] for l in fetch_issue(n)["labels"]}
             why = taken_elsewhere(labels, factory_prs().get(n))
@@ -1116,7 +1237,7 @@ def cmd_queue():
 
     pr_jobs = {j["pr"]: j for j in every if is_pr_job(j)}
     prs = gh_json("pr", "list", "--label", LABELS["queue"], "--state", "open", "--limit", "200",
-                  "--json", "number,title,isDraft,headRefName,isCrossRepository,additions,deletions,labels")
+                  "--json", "number,title,isDraft,headRefName,isCrossRepository,additions,deletions,labels,reviews")
     open_prs = set()
     # Smaller PRs first; triage reads impact, the queue only knows size.
     for pr in sorted(prs, key=lambda p: (p["additions"] + p["deletions"], p["number"])):
@@ -1125,7 +1246,7 @@ def cmd_queue():
         j = pr_jobs.get(n)
         if pr["headRefName"].startswith("factory/") and not pr["isCrossRepository"]:
             other_rows.append(("skip", n, "-", "-", "the factory's own PR: its issue job covers it"))
-        elif not j and (why := taken_elsewhere({l["name"] for l in pr["labels"]})):
+        elif not j and (why := taken_elsewhere({l["name"] for l in pr["labels"]}, reviews=pr["reviews"])):
             other_rows.append(("skip", n, "-", "-", f"another checkout's job: {why}"))
         elif not j:
             if pr["isDraft"]:
@@ -1148,7 +1269,13 @@ def cmd_queue():
                 else:
                     restart_rows.append(("resume", n, j["id"], j["stage"], "back to triage: the contributor pushed"))
             else:
-                other_rows.append(("wait", n, j["id"], j["stage"], "waiting for the contributor, or for you to merge"))
+                other_rows.append(("wait", n, j["id"], j["stage"], "your call, or the contributor pushes again"))
+        elif j["stage"] == "reviewed":
+            if contributor_pushed(j):
+                restart_rows.append(("resume", n, j["id"], j["stage"], "back to triage: the contributor pushed"))
+            else:
+                other_rows.append(("wait", n, j["id"], j["stage"], "approved: yours to merge"
+                                   if j["verdicts"][-1] == "APPROVE" else "changes requested: waiting for the contributor"))
         elif j["stage"] == "abandoned":
             other_rows.append(("skip", n, j["id"], j["stage"], f"abandoned; delete factory/jobs/{j['id']} to retry"))
         elif j["stage"] in TERMINAL:
@@ -1233,6 +1360,27 @@ def cmd_ci(job):
                       "the run id is in its URL."]
     (round_dir(job) / "ci.md").write_text("\n".join(lines) + "\n")
     print(f"{job['id']}: CI {verdict} on {head[:7]} after {int(waited)}m")
+
+
+def cmd_push(job):
+    """Push an issue job's branch to origin, for its builder.
+
+    The builder's only push. It sends the job's own factory/<job-id> branch, as
+    the worktree has it checked out, and nothing else. It never forces, so a
+    branch that moved on GitHub is refused, not overwritten.
+    """
+    if is_pr_job(job):
+        die(f"{job['id']} reviews someone else's PR; `job update` is its only push")
+    if job["stage"] != "build":
+        die(f"{job['id']} is in {job['stage']}, not build")
+    branch = job["branch"]
+    if branch != f"factory/{job['id']}":
+        die(f"{job['id']}: {branch} isn't this job's branch")
+    current = git(job, "branch", "--show-current").stdout.strip()
+    if current != branch:
+        die(f"{job['id']}: the worktree is on {current or 'a detached HEAD'}, not {branch}")
+    git(job, "push", "--set-upstream", "origin", f"refs/heads/{branch}:refs/heads/{branch}")
+    print(f"{job['id']}: pushed {branch} at {git(job, 'rev-parse', '--short', 'HEAD').stdout.strip()}")
 
 
 def cmd_merge(job):
@@ -1395,6 +1543,8 @@ def main(argv):
             print(f"{job['id']}: {job['stage']} (round {job['round']})")
         elif cmd == "update" and len(args) == 1:
             cmd_update(resolve(args[0]))
+        elif cmd == "push" and len(args) == 1:
+            cmd_push(peek(args[0]))
         elif cmd == "ci" and len(args) == 1:
             cmd_ci(peek(args[0]))
         elif cmd == "merge" and len(args) == 1:
