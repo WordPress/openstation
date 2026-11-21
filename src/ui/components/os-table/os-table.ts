@@ -29,7 +29,9 @@
  *   - **Multi-row selection.** `selectable="single"` or
  *     `selectable="multi"` auto-prepends a checkbox column. Read /
  *     write the chosen row ids through `selection`; supply
- *     `getRowId( row, i )` for stable ids across data refreshes.
+ *     `getRowId( row, i )` for stable ids across data refreshes. In
+ *     `multi`, Shift+click on a row checkbox applies the clicked
+ *     state to every visible row from the last toggled one.
  *   - **Sticky columns.** `sticky-columns="N"` pins the first N
  *     columns. Widths are measured after layout, so variable-width
  *     columns work — RTL via `inset-inline-start`.
@@ -66,8 +68,9 @@
  *     `isExpanded(i)`, `expanded` (getter / setter for the full set).
  *   - `clearFilters()`, `filters` (read or pre-seed).
  *   - `sort` (read or set), `clearSort()`.
- *   - `select(id)`, `deselect(id)`, `selectAll()`, `clearSelection()`,
- *     `selection`, `selectedRows`, `getRowId`.
+ *   - `select(id)`, `deselect(id)`, `setSelected(ids, selected)`,
+ *     `selectAll()`, `clearSelection()`, `selection`, `selectedRows`,
+ *     `getRowId`.
  *   - `scrollToRow(i)`.
  *
  * ## Why imperative paint
@@ -310,7 +313,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 				name: 'selectable',
 				type: '"single" | "multi"',
 				description:
-					'Auto-prepend a checkbox column. `multi` puts a select-all checkbox in the header; `single` enforces at-most-one selected.',
+					'Auto-prepend a checkbox column. `multi` puts a select-all checkbox in the header, and Shift+click on a row checkbox applies the clicked state to every visible row from the last toggled one; `single` enforces at-most-one selected.',
 			},
 			{
 				name: 'stacked',
@@ -381,6 +384,8 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 
 	private _sort: OsTableSort = null;
 	private _selection = new Set< OsTableRowId >();
+	/** The row whose checkbox was toggled last: where a Shift+click range starts. */
+	private _anchor: OsTableRowId | null = null;
 	private _getRowId: OsTableGetRowId< T > = ( _row, index ) => index;
 
 	/** Filter input cells, keyed by column key, kept across paints. */
@@ -650,6 +655,34 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		}
 		this._emitSelectionChange();
 		this._syncSelectionDom( [ id ] );
+	}
+
+	/**
+	 * Add (`selected`) or remove every id in `ids` at once (multi-mode
+	 * only), with one `os-table-selection-change` and only when
+	 * membership changed. Ids are taken as given, not filtered by
+	 * visibility: pass the rows the user can see.
+	 */
+	setSelected( ids: Iterable< OsTableRowId >, selected: boolean ): void {
+		if ( this._readSelectable() !== 'multi' ) {
+			return;
+		}
+		const changed: OsTableRowId[] = [];
+		for ( const id of ids ) {
+			if ( this._selection.has( id ) === selected ) {
+				continue;
+			}
+			if ( selected ) {
+				this._selection.add( id );
+			} else {
+				this._selection.delete( id );
+			}
+			changed.push( id );
+		}
+		if ( changed.length ) {
+			this._emitSelectionChange();
+			this._syncSelectionDom( changed );
+		}
 	}
 
 	/** Select every visible row — the rows passing the active client-side filters (multi-mode only). */
@@ -1640,8 +1673,18 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			cb.setAttribute( 'data-noclick', '' );
 			cb.setAttribute( 'aria-label', 'Select row' );
 			cb.checked = this._selection.has( id );
+			// `change` carries no modifier keys; the `click` before it does.
+			let shift = false;
+			cb.addEventListener( 'click', ( e: MouseEvent ) => {
+				shift = e.shiftKey;
+			} );
 			cb.addEventListener( 'change', () => {
-				if ( cb.checked ) {
+				const range = shift ? this._rangeTo( id ) : null;
+				shift = false;
+				this._anchor = id;
+				if ( range ) {
+					this.setSelected( range, cb.checked );
+				} else if ( cb.checked ) {
 					this.select( id );
 				} else {
 					this.deselect( id );
@@ -1823,6 +1866,30 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			sort: this._sort ? { ...this._sort } : null,
 		} );
 		this._schedulePaint();
+	}
+
+	/**
+	 * The painted row ids from the anchor to `id`, both ends included,
+	 * or `null` when there is no range to apply: not multi-mode, no
+	 * anchor, the anchor is `id`, or the anchor is no longer painted.
+	 */
+	private _rangeTo( id: OsTableRowId ): OsTableRowId[] | null {
+		if (
+			this._readSelectable() !== 'multi' ||
+			this._anchor === null ||
+			this._anchor === id
+		) {
+			return null;
+		}
+		const ids = this._sortedRows( this._filteredRows() ).map(
+			( { row, index } ) => this._getRowId( row, index ),
+		);
+		const from = ids.indexOf( this._anchor );
+		const to = ids.indexOf( id );
+		if ( from < 0 || to < 0 ) {
+			return null;
+		}
+		return ids.slice( Math.min( from, to ), Math.max( from, to ) + 1 );
 	}
 
 	private _emitSelectionChange(): void {
