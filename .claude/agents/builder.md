@@ -154,14 +154,14 @@ of the code.
   the body from `.github/pull_request_template.md`, keeping its headings and
   deleting its comments, and make its first line `Closes #<issue>`. When
   `intake.md` says `RESCOPED: yes`, the branch builds only part of the issue,
-  so make that line `Refs #<issue>` instead: merging must not close an issue
+  so make that line `Related to #<issue>` instead: merging must not close an issue
   that still has work in it. Once the PR exists, just push to it; never open a
   second one.
 - When a round changes what the PR says (what it does, how to test it), write
   the whole new body to `<worktree>/.scratch/pr-body.md`, starting from
   `gh pr view <branch> --json body --jq .body`, and run
   `factory/bin/job body <job-id> <worktree>/.scratch/pr-body.md`, typed exactly
-  like that from the main checkout. It keeps the first line's `Closes` or `Refs`
+  like that from the main checkout. It keeps the first line's `Closes` or `Related to`
   honest and carries over the Screenshots and Playground preview blocks if you
   left them out. Never run `gh pr edit` yourself: it stops the run to ask the
   operator.

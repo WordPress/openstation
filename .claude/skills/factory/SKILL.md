@@ -25,7 +25,7 @@ intake (fable)     → ACCEPT (scope possibly changed) | NEEDS-INFO | REJECT, po
 route (script)     → reviewers + models from risk/surfaces via config.json
 worktree           → factory/<job-id> from origin/<base_branch>
 spec-writer (opus) → spec.md
-builder (opus)     → commits; first round pushes + opens draft PR "Closes #<n>" ("Refs #<n>" when intake narrowed the issue:
+builder (opus)     → commits; first round pushes + opens draft PR "Closes #<n>" ("Related to #<n>" when intake narrowed the issue:
                      the rest is queued as issues of its own when that PR merges)
 gate (script)      → checks.sh; FAIL → builder gets the log, no reviewers spawned
 reviewers (routed) → parallel with CI (job ci), WAIT FOR ALL; CHANGES or red CI → builder → gate → … (max rounds)

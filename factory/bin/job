@@ -1071,9 +1071,10 @@ def is_own(pr):
 
 def own_issues(pr):
     """The issues a factory PR was built for: the ones it closes, and the one its first
-    line refers to (`Refs #n`, when intake narrowed the issue and the PR leaves it open)."""
+    line refers to (`Related to #n`, when intake narrowed the issue and the PR leaves it open;
+    `Refs #n` reads the same)."""
     issues = {i["number"] for i in pr["closingIssuesReferences"]}
-    if m := re.match(r"(?:Closes|Refs) #(\d+)", pr.get("body") or ""):
+    if m := re.match(r"(?:Closes|Related to|Refs) #(\d+)", pr.get("body") or ""):
         issues.add(int(m.group(1)))
     return issues
 
@@ -1582,8 +1583,8 @@ def cmd_body(job, file):
         die(f"{job['id']}: PR #{pr['number']} isn't this job's open PR")
     body = path.read_text().strip()
     first = body.split("\n", 1)[0]
-    if not re.fullmatch(rf"(Closes|Refs) #{job['issue']}", first):
-        die(f"{job['id']}: the body must start with `Closes #{job['issue']}` or `Refs #{job['issue']}`, not {first[:60]!r}")
+    if not re.fullmatch(rf"(Closes|Related to|Refs) #{job['issue']}", first):
+        die(f"{job['id']}: the body must start with `Closes #{job['issue']}` or `Related to #{job['issue']}`, not {first[:60]!r}")
     live = pr["body"] or ""
     for start, end in sorted(KEPT_BLOCKS, key=lambda b: live.find(b[0])):
         if start in live and end in live and start not in body:

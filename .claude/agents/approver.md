@@ -64,7 +64,7 @@ ESCALATE if any of them fails, or if the change:
   copy, what a role can see, or a default users will notice.
 
 Check the PR's first line and `gh pr view <pr> --json closingIssuesReferences`
-against `intake.md`. A job intake narrowed (`RESCOPED: yes`) says `Refs
+against `intake.md`. A job intake narrowed (`RESCOPED: yes`) says `Related to
 #<issue>` and closes nothing, so the issue stays open for what is left; any
 other job says `Closes #<issue>` and lists it. Say a mismatch under "For the
 human", with what merging would do to the issue. It never blocks an approval;
