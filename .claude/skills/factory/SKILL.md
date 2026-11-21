@@ -341,6 +341,12 @@ GitHub. The queue says `resume` when one has:
 - `approve`: a maintainer approved the PR in a review. `factory/bin/job merge
   <job-id>`: it syncs the branch with the base branch, gates it again, and
   merges the PR or, with `auto_merge` off, hands it over as ready to merge.
+- `conflict`: nobody asked for anything, but the PR came to conflict with the
+  base branch while it waited (another PR merged), so nobody can merge it.
+  `factory/bin/job resolve <job-id>` writes `rework-<k>.md` naming the files
+  and moves the job to `build`. Spawn a fresh `builder-<job-id>` with the
+  **/factory rework** prompt and continue from **build**'s status check: the
+  round is gated and reviewed like any other, and ends back with a maintainer.
 
 Comments alone move nothing: a maintainer may still be writing. Only people
 who can push to the repository count, so a stranger's review is ignored.
@@ -379,6 +385,13 @@ against it.
 
 Then run `factory/bin/job queue`. It prints one tab-separated line per labeled
 issue, per labeled PR and per unfinished job: `action number job stage note`.
+
+A PR that merges during the run moves trunk on, and the trunk site stays where
+it was. When `job queue` says on stderr that the trunk site is behind, run
+`factory/trunk.sh` again before you start an intake or a review round, so
+intake reads today's code and the runtime reviewer compares against today's
+trunk. Wait for any runtime review already in flight to finish first: the site
+rebuilds under it.
 
 - `new`: `factory/bin/job create <number>` prints the job id; then do
   **intake** (an issue) or **triage** (a PR). A PR comes out as `new` when it
