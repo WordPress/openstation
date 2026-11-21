@@ -152,6 +152,8 @@ export function bootNonceRefresh(): void {
  *      `ajaxNonce` (admin-ajax handlers we own).
  *   - `updates` backs the Plugins app's `updatesNonce`
  *      (Core's wp.updates install/update handlers).
+ *   - `desktop-mode-posts-row-actions` backs the Posts and Pages
+ *      apps' `rowActionsNonce` (their row-links handler).
  *
  * The Plugins app ships both through `App::config()`, so they live
  * under the blob's `extra` (`wp.os.getWindowConfig( id ).extra`) and
@@ -168,6 +170,10 @@ function registerShellAndPluginsWindowTargets(): void {
 	} );
 	registerNonceTarget( 'updates', ( fresh ) => {
 		writeWindowConfigField( 'desktop-mode-plugins', 'updatesNonce', fresh );
+	} );
+	registerNonceTarget( 'desktop-mode-posts-row-actions', ( fresh ) => {
+		writeWindowConfigField( 'desktop-mode-posts', 'rowActionsNonce', fresh );
+		writeWindowConfigField( 'desktop-mode-pages', 'rowActionsNonce', fresh );
 	} );
 }
 

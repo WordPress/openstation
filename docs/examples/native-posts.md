@@ -8,6 +8,8 @@ The Pages window has a per-page **Quick edit**, offered on each card, in the det
 
 > Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
 
+Each row has a `⋯` actions menu (on the card, in the details pane and in the Details table's title cell): Edit, View, Move to trash or Restore, plus the links plugins add to that row on `edit.php` through `page_row_actions` / `post_row_actions`. A plugin that already adds a row link there needs nothing else; see [Row links in the native Posts and Pages windows](../plugin-compat-layer.md#row-links-in-the-native-posts-and-pages-windows) for which links come through.
+
 ## How the swap works
 
 The dock tile that points at `edit.php` is unchanged. Every code path that opens an admin URL (dock click, portal deep-link, `<a href="/wp-admin/edit.php">` anywhere in the shell) consults a central registry — [`src/native-url-remap.ts`](../../src/native-url-remap.ts) — before falling back to the iframe.

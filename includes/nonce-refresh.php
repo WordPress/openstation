@@ -26,6 +26,8 @@
  *      browse/install/upload/reviews handlers.
  *   - `updates` — Core's wp.updates nonce used by
  *      `wp_ajax_install_plugin` / `wp_ajax_update_plugin`.
+ *   - `desktop-mode-posts-row-actions` — admin-ajax nonce for the
+ *      Posts and Pages windows' row links.
  *
  * Plugin authors who need to extend the set can hook
  * `openstation_nonce_refresh_actions` and add their own nonce
@@ -81,6 +83,7 @@ function openstation_nonce_refresh_build_payload() {
 		'wp_rest',
 		'desktop-mode-plugins',
 		'updates',
+		'desktop-mode-posts-row-actions',
 	);
 
 	/**

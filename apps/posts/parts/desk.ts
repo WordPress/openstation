@@ -6,6 +6,7 @@ import '../../../src/ui/components/os-stat/os-stat';
 import '../../../src/ui/components/os-select/os-select';
 import { buildColumns, pluginColumns, type ColumnFilterData } from './columns';
 import { authorOf, buildEditPostUrl, featuredMediaOf, offersQuickEdit, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
+import { rowActionsMenu, type RowActionsMenuCache } from './row-actions';
 import { tableOf, type Ctx } from './window-context';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import type { PostListItem } from './types';
@@ -17,11 +18,18 @@ export interface DeskState {
 	focused: number | null;
 	inspectorKey: string;
 	fields: Array< { key: string; label: string; node: unknown } >;
+	/** The cards' and the details pane's row menus, by place, kept across repaints. */
+	menus: RowActionsMenuCache;
 	/** The card whose checkbox was toggled last: where a Shift+click range starts. */
 	anchor: number | null;
 }
 
-export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [], anchor: null } );
+export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map(), anchor: null } );
+
+/** A row's actions menu on a desk surface, or nothing outside the app. */
+function rowMenu( ui: DeskState, env: CellEnv, slot: string, row: PostListItem ): HTMLElement | string {
+	return env.rowActions ? rowActionsMenu( ui.menus, slot, row, env, env.rowActions ) : '';
+}
 
 /** Excerpts are text, never executable markup from content. */
 export function excerptOf( row: PostListItem ): string {
@@ -170,7 +178,7 @@ function quickEditButton( row: PostListItem, env: CellEnv, variant: 'ghost' | 's
 		: '';
 }
 
-function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
+function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index: number, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
 	const title = titleOf( row ) || __( '(no title)' );
 	const media = featuredMediaOf( row );
@@ -228,6 +236,7 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, focuse
 			<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
 			${ quickEditButton( row, env, 'ghost' ) }
 			<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
+			${ rowMenu( ui, env, `card:${ index }`, row ) }
 		</footer>
 	</article>`;
 }
@@ -277,6 +286,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 		<footer class="os-posts-desk__inspector-actions"><os-button variant="primary" @click=${ () => edit( ctx, row ) }>${ __( 'Open editor' ) }<span aria-hidden="true"> ↗</span></os-button>
 			${ quickEditButton( row, env, 'secondary' ) }
 			${ row.link && row.status === 'publish' ? html`<a href=${ row.link } target="_blank" rel="noopener noreferrer">${ __( 'View on site' ) } ↗</a>` : '' }
+			${ rowMenu( ui, env, 'inspector', row ) }
 		</footer>
 	</aside>`;
 }
@@ -288,9 +298,15 @@ export function renderDesk( ctx: Ctx, ui: DeskState, env: CellEnv, filters: Colu
 	// Resolved once per paint, not per card: the columns filter runs on every
 	// call, and a feed of fifty cards should ask it once.
 	const extras = rows.length ? pluginColumns( env, filters, hidden ) : [];
+	// Cards past the end of the list hold no menu any more.
+	for ( const slot of ui.menus.keys() ) {
+		if ( slot.startsWith( 'card:' ) && Number( slot.slice( 5 ) ) >= rows.length ) {
+			ui.menus.delete( slot );
+		}
+	}
 	return html`<div class="os-posts-desk__workspace ${ ui.focused !== null && focused ? 'has-detail' : '' }" ?hidden=${ ui.view !== 'desk' }>
 		<div class="os-posts-desk__feed" aria-label=${ ctx.extra.mode === 'pages' ? __( 'Page directory' ) : __( 'Stories' ) }>
-			${ rows.length ? rows.map( ( row ) => story( ctx, ui, env, row, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
+			${ rows.length ? rows.map( ( row, index ) => story( ctx, ui, env, row, index, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
 			${ tail ?? '' }
 		</div>
 		${ ui.peek ? inspector( ctx, ui, env, filters, hidden, focused ) : '' }
