@@ -18,15 +18,15 @@ export interface DeskState {
 	focused: number | null;
 	inspectorKey: string;
 	fields: Array< { key: string; label: string; node: unknown } >;
-	/** The card's and the details pane's row menus, kept across repaints. */
+	/** The cards' and the details pane's row menus, by place, kept across repaints. */
 	menus: RowActionsMenuCache;
 }
 
 export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map() } );
 
 /** A row's actions menu on a desk surface, or nothing outside the app. */
-function rowMenu( ui: DeskState, env: CellEnv, surface: string, row: PostListItem ): HTMLElement | string {
-	return env.rowActions ? rowActionsMenu( ui.menus, surface, row, env, env.rowActions ) : '';
+function rowMenu( ui: DeskState, env: CellEnv, slot: string, row: PostListItem ): HTMLElement | string {
+	return env.rowActions ? rowActionsMenu( ui.menus, slot, row, env, env.rowActions ) : '';
 }
 
 /** Excerpts are text, never executable markup from content. */
@@ -145,7 +145,7 @@ function pluginStat( col: OsTableColumn< PostListItem >, row: PostListItem ): Te
 	return html`<div class="os-posts-desk__plugin-stat" data-column=${ col.key }><span class="os-posts-desk__plugin-stat-value">${ node }</span><span class="os-posts-desk__plugin-stat-label">${ col.label || col.key }</span></div>`;
 }
 
-function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
+function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index: number, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
 	const title = titleOf( row ) || __( '(no title)' );
 	const media = featuredMediaOf( row );
@@ -200,7 +200,7 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, focuse
 			<span class="os-posts-desk__byline">${ authorOf( row ).name }<span aria-hidden="true"> · </span><os-relative-time datetime=${ row.modified_gmt || row.date_gmt }></os-relative-time></span>
 			<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
 			<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
-			${ rowMenu( ui, env, 'card', row ) }
+			${ rowMenu( ui, env, `card:${ index }`, row ) }
 		</footer>
 	</article>`;
 }
@@ -261,9 +261,15 @@ export function renderDesk( ctx: Ctx, ui: DeskState, env: CellEnv, filters: Colu
 	// Resolved once per paint, not per card: the columns filter runs on every
 	// call, and a feed of fifty cards should ask it once.
 	const extras = rows.length ? pluginColumns( env, filters, hidden ) : [];
+	// Cards past the end of the list hold no menu any more.
+	for ( const slot of ui.menus.keys() ) {
+		if ( slot.startsWith( 'card:' ) && Number( slot.slice( 5 ) ) >= rows.length ) {
+			ui.menus.delete( slot );
+		}
+	}
 	return html`<div class="os-posts-desk__workspace ${ ui.focused !== null && focused ? 'has-detail' : '' }" ?hidden=${ ui.view !== 'desk' }>
 		<div class="os-posts-desk__feed" aria-label=${ ctx.extra.mode === 'pages' ? __( 'Page directory' ) : __( 'Stories' ) }>
-			${ rows.length ? rows.map( ( row ) => story( ctx, ui, env, row, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
+			${ rows.length ? rows.map( ( row, index ) => story( ctx, ui, env, row, index, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
 			${ tail ?? '' }
 		</div>
 		${ ui.peek ? inspector( ctx, ui, env, filters, hidden, focused ) : '' }

@@ -101,13 +101,14 @@ export function buildRowActionsMenu( row: PostListItem, env: CellEnv, actions: R
 }
 
 /**
- * A row's menu for one surface, rebuilt only when what it shows
- * changed: a repaint that swapped the element would close a menu the
- * user has open.
+ * The menu for one place on a surface, rebuilt only when what it
+ * shows changed: a repaint that swapped the element would close a menu
+ * the user has open. `slot` names the place, not the row (a card's
+ * position in the list): the desk's list is matched by position, so an
+ * element handed to another position would be taken out of its own.
  */
-export function rowActionsMenu( cache: RowActionsMenuCache, surface: string, row: PostListItem, env: CellEnv, actions: RowActions ): HTMLElement {
-	const key = JSON.stringify( [ row.status, row.link, row.title.rendered, actions.links( row.id ) ] );
-	const slot = `${ surface }|${ row.id }`;
+export function rowActionsMenu( cache: RowActionsMenuCache, slot: string, row: PostListItem, env: CellEnv, actions: RowActions ): HTMLElement {
+	const key = JSON.stringify( [ row.id, row.status, row.link, row.title.rendered, actions.links( row.id ) ] );
 	const cached = cache.get( slot );
 	if ( cached && cached.key === key ) {
 		return cached.el;

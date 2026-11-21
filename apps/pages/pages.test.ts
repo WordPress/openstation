@@ -157,6 +157,15 @@ describe( 'the pages view', () => {
 		expect( String( fetch.mock.calls[ 0 ][ 1 ]?.body ) ).toContain( 'ids=1%2C2%2C3' );
 	} );
 
+	it( 'keeps a menu on every card when the list changes under it', () => {
+		const { root, ctx } = mount( [ row( 1 ), row( 2 ), row( 3 ) ] );
+		( ctx as { data: ListData } ).data = { list: { items: [ row( 2 ), row( 3 ) ], total: 2, pages: 1, page: 1, perPage: 20, error: '', code: '' } };
+		app.render( ctx );
+		app.render( ctx );
+		expect( Array.from( root.querySelectorAll( '[data-story-id]' ) ).map( ( card ) => [ card.getAttribute( 'data-story-id' ), !! card.querySelector( 'os-action-menu' ) ] ) )
+			.toEqual( [ [ '2', true ], [ '3', true ] ] );
+	} );
+
 	it( 'says "No pages" when empty', () => {
 		const { root } = mount( [] );
 		expect( root.querySelector( '.os-posts-desk__empty h3' )?.textContent ).toBe( 'No pages found.' );
