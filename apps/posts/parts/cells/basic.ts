@@ -139,10 +139,11 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 	}
 
 	// The row's actions menu, at the end of the title row (no column of
-	// its own), so the menus line up down the column. View is the link
-	// beside it, so the menu leaves it out.
+	// its own), so the menus line up down the column. The title link
+	// edits, and View and Quick edit sit beside it, so the menu leaves
+	// those three out.
 	if ( env.rowActions ) {
-		const menu = buildRowActionsMenu( row, env, env.rowActions, [ 'view' ] );
+		const menu = buildRowActionsMenu( row, env, env.rowActions, [ 'edit', 'quick-edit', 'view' ] );
 		menu.style.marginInlineStart = 'auto';
 		titleRow.appendChild( menu );
 	}

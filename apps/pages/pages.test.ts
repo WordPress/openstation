@@ -148,22 +148,22 @@ describe( 'the pages view', () => {
 		const { root } = mount( rows, { ajaxUrl: 'http://x.test/wp-admin/admin-ajax.php', rowActionsNonce: 'nonce' } );
 		const labels = ( menu: Element | null | undefined ): Array< string | null > =>
 			Array.from( menu?.querySelectorAll( 'os-context-menu-option' ) ?? [] ).map( ( o ) => o.textContent );
-		// The card has its own Edit button, so its menu leaves Edit out.
+		// The card has its own Edit button; Quick edit lives in its menu.
 		const card = ( id: number ): Array< string | null > => labels( root.querySelector( `[data-story-id="${ id }"] [data-os-posts-row-actions]` ) );
-		expect( card( 1 ) ).toEqual( [ 'View ↗', 'Move to trash' ] );
-		await vi.waitFor( () => expect( card( 1 ) ).toEqual( [ 'View ↗', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] ) );
-		expect( card( 2 ) ).toEqual( [ 'Move to trash' ] );
+		expect( card( 1 ) ).toEqual( [ 'Quick edit', 'View ↗', 'Move to trash' ] );
+		await vi.waitFor( () => expect( card( 1 ) ).toEqual( [ 'Quick edit', 'View ↗', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] ) );
+		expect( card( 2 ) ).toEqual( [ 'Quick edit', 'Move to trash' ] );
 		expect( card( 3 ) ).toEqual( [ 'Restore' ] );
 		expect( String( fetch.mock.calls[ 0 ][ 1 ]?.body ) ).toContain( 'ids=1%2C2%2C3' );
 		// The details pane has Open editor and View on site.
 		( root.querySelector( '[data-inspect-id="1"]' ) as HTMLElement ).click();
-		expect( labels( root.querySelector( '.os-posts-desk__inspector-actions [data-os-posts-row-actions]' ) ) ).toEqual( [ 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] );
-		// The table's title cell has the View link.
+		expect( labels( root.querySelector( '.os-posts-desk__inspector-actions [data-os-posts-row-actions]' ) ) ).toEqual( [ 'Quick edit', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] );
+		// The table's title cell: the title link edits, View and Quick edit sit beside it.
 		const title = ( root.querySelector( '[data-os-posts-table]' ) as HTMLElement & { columns: Array< { key: string; render: ( v: unknown, r: unknown, i: number ) => Element } > } )
 			.columns.find( ( col ) => col.key === 'title' )!;
 		const cell = ( item: PostListItem ): Array< string | null > => labels( title.render( item.title, item, 0 ).querySelector( '[data-os-posts-row-actions]' ) );
-		expect( cell( rows[ 0 ] ) ).toEqual( [ 'Edit', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] );
-		expect( cell( rows[ 1 ] ) ).toEqual( [ 'Edit', 'Move to trash' ] );
+		expect( cell( rows[ 0 ] ) ).toEqual( [ 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] );
+		expect( cell( rows[ 1 ] ) ).toEqual( [ 'Move to trash' ] );
 	} );
 
 	it( 'keeps a menu on every card when the list changes under it', () => {

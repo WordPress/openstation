@@ -5,7 +5,7 @@ import '../../../src/ui/components/os-checkbox/os-checkbox';
 import '../../../src/ui/components/os-stat/os-stat';
 import '../../../src/ui/components/os-select/os-select';
 import { buildColumns, pluginColumns, type ColumnFilterData } from './columns';
-import { authorOf, buildEditPostUrl, featuredMediaOf, offersQuickEdit, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
+import { authorOf, buildEditPostUrl, featuredMediaOf, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
 import { rowActionsMenu, type RowActionsMenuCache, type RowActionsShown } from './row-actions';
 import { tableOf, type Ctx } from './window-context';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
@@ -171,13 +171,6 @@ function toggleCard( ctx: Ctx, ui: DeskState, id: number, checked: boolean, shif
 	}
 }
 
-/** "Quick edit" on a card or the details pane, where the row offers it. */
-function quickEditButton( row: PostListItem, env: CellEnv, variant: 'ghost' | 'secondary' ): TemplateResult | '' {
-	return offersQuickEdit( row, env )
-		? html`<os-button variant=${ variant } data-os-pages-quick-edit=${ row.id } @click=${ () => env.quickEdit?.( row ) }>${ __( 'Quick edit' ) }</os-button>`
-		: '';
-}
-
 function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index: number, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
 	const title = titleOf( row ) || __( '(no title)' );
@@ -233,10 +226,11 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index:
 		${ row.openstation_lock ? html`<p class="os-posts-desk__lock"><span class="dashicons dashicons-lock" aria-hidden="true"></span>${ sprintf( /* translators: %s: person editing. */ __( '%s is editing' ), row.openstation_lock.userName ) }</p>` : '' }
 		<footer class="os-posts-desk__story-foot">
 			<span class="os-posts-desk__byline">${ authorOf( row ).name }<span aria-hidden="true"> · </span><os-relative-time datetime=${ row.modified_gmt || row.date_gmt }></os-relative-time></span>
-			<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
-			${ quickEditButton( row, env, 'ghost' ) }
-			<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
-			${ rowMenu( ui, env, `card:${ index }`, row, [ 'edit' ] ) }
+			<span class="os-posts-desk__story-actions">
+				<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
+				<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
+				${ rowMenu( ui, env, `card:${ index }`, row, [ 'edit' ] ) }
+			</span>
 		</footer>
 	</article>`;
 }
@@ -284,7 +278,6 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 			<div class="os-posts-desk__fields">${ ui.fields.map( ( field ) => html`<section data-detail-field=${ field.key }><h3>${ field.label }</h3>${ field.node }</section>` ) }</div>
 		</div>
 		<footer class="os-posts-desk__inspector-actions"><os-button variant="primary" @click=${ () => edit( ctx, row ) }>${ __( 'Open editor' ) }<span aria-hidden="true"> ↗</span></os-button>
-			${ quickEditButton( row, env, 'secondary' ) }
 			${ row.link && row.status === 'publish' ? html`<a href=${ row.link } target="_blank" rel="noopener noreferrer">${ __( 'View on site' ) } ↗</a>` : '' }
 			${ rowMenu( ui, env, 'inspector', row, [ 'edit', 'view' ] ) }
 		</footer>

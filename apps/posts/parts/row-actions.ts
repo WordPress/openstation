@@ -1,12 +1,13 @@
 /**
  * Posts app — a row's actions menu.
  *
- * One `<os-action-menu>` per row: Edit, View, the links plugins add to
- * the row on `edit.php` (`parts/row-actions.php`), then Move to trash or
- * Restore. The Page directory card, the details pane and the Details
- * table's title cell all build it here, so their entries cannot drift.
- * Edit and View are left out where the surface already has its own
- * control for them, so no action shows twice side by side.
+ * One `<os-action-menu>` per row: Edit, Quick edit (Pages), View, the
+ * links plugins add to the row on `edit.php` (`parts/row-actions.php`),
+ * then Move to trash or Restore. The Page directory card, the details
+ * pane and the Details table's title cell all build it here, so their
+ * entries cannot drift. Edit, Quick edit and View are left out where the
+ * surface already has its own control for them, so no action shows twice
+ * side by side.
  * It is an element rather than a template because the table paints its
  * cells inside its own shadow root.
  *
@@ -15,7 +16,7 @@
 
 import { __, _n, sprintf } from '@openstation/app';
 import '../../../src/ui/components/os-action-menu/os-action-menu';
-import { buildEditPostUrl, titleOf, type CellEnv } from './cells/env';
+import { buildEditPostUrl, offersQuickEdit, titleOf, type CellEnv } from './cells/env';
 import type { PostListItem, PostsMode, RowActionLink } from './types';
 
 /** What the menu needs from the app beyond the cell env. */
@@ -28,7 +29,7 @@ export interface RowActions {
 }
 
 /** The window's own entries a surface can already offer as a control of its own. */
-export type RowActionsShown = ReadonlyArray< 'edit' | 'view' >;
+export type RowActionsShown = ReadonlyArray< 'edit' | 'quick-edit' | 'view' >;
 
 /** A built menu, with what it was built from. */
 export type RowActionsMenuCache = Map< string, { key: string; el: HTMLElement } >;
@@ -55,6 +56,12 @@ function option( value: string, label: string ): HTMLElement {
 	return el;
 }
 
+function quickEditOption( row: PostListItem ): HTMLElement {
+	const el = option( 'quick-edit', __( 'Quick edit' ) );
+	el.setAttribute( 'data-os-pages-quick-edit', String( row.id ) );
+	return el;
+}
+
 /** Build a row's actions menu, without the entries in `shown`. */
 export function buildRowActionsMenu( row: PostListItem, env: CellEnv, actions: RowActions, shown: RowActionsShown = [] ): HTMLElement {
 	const mode: PostsMode = env.extra.mode === 'pages' ? 'pages' : 'posts';
@@ -73,6 +80,9 @@ export function buildRowActionsMenu( row: PostListItem, env: CellEnv, actions: R
 	if ( ! trashed && ! shown.includes( 'edit' ) ) {
 		menu.appendChild( option( 'edit', __( 'Edit' ) ) );
 	}
+	if ( offersQuickEdit( row, env ) && ! shown.includes( 'quick-edit' ) ) {
+		menu.appendChild( quickEditOption( row ) );
+	}
 	if ( row.status === 'publish' && row.link && ! shown.includes( 'view' ) ) {
 		menu.appendChild( option( 'view', `${ __( 'View' ) } ↗` ) );
 	}
@@ -83,6 +93,8 @@ export function buildRowActionsMenu( row: PostListItem, env: CellEnv, actions: R
 		const value = ( ev as CustomEvent< { value: string } > ).detail?.value ?? '';
 		if ( value === 'edit' ) {
 			env.openUrl( buildEditPostUrl( env.extra, row.id ), title, icon );
+		} else if ( value === 'quick-edit' ) {
+			env.quickEdit?.( row );
 		} else if ( value === 'view' && row.link ) {
 			window.open( row.link, '_blank', 'noopener,noreferrer' );
 		} else if ( value.startsWith( 'link:' ) ) {
@@ -113,7 +125,7 @@ export function buildRowActionsMenu( row: PostListItem, env: CellEnv, actions: R
  * element handed to another position would be taken out of its own.
  */
 export function rowActionsMenu( cache: RowActionsMenuCache, slot: string, row: PostListItem, env: CellEnv, actions: RowActions, shown: RowActionsShown = [] ): HTMLElement {
-	const key = JSON.stringify( [ row.id, row.status, row.link, row.title.rendered, actions.links( row.id ) ] );
+	const key = JSON.stringify( [ row.id, row.status, row.link, row.title.rendered, offersQuickEdit( row, env ), actions.links( row.id ) ] );
 	const cached = cache.get( slot );
 	if ( cached && cached.key === key ) {
 		return cached.el;
