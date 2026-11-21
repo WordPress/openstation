@@ -142,7 +142,7 @@ That's it. The column appears in every Posts window load and never makes a secon
 
 ## Add a bulk action
 
-The shipped bulk actions are "Move to trash" (`id: 'trash'`, destructive, requires confirmation) and "Restore" (`id: 'restore'`, neutral, instant execution). The bulk bar dynamically displays "Restore" when viewing the Trash status and "Move to trash" in all other views. Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The filter's second argument is `{ mode }`, `'posts'` or `'pages'`: the Posts and Pages windows share the filter, so an action that only makes sense for posts returns `actions` unchanged in pages mode. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
+The shipped bulk actions are "Move to trash" (`id: 'trash'`, destructive, requires confirmation) and "Restore" (`id: 'restore'`, neutral, instant execution). The bulk bar dynamically displays "Restore" when viewing the Trash status and "Move to trash" in all other views. The Pages window also ships "Switch to draft" (`id: 'draft'`, requires confirmation) before "Move to trash", hidden in the Trash and Drafts views. Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The filter's second argument is `{ mode }`, `'posts'` or `'pages'`: the Posts and Pages windows share the filter, so an action that only makes sense for posts returns `actions` unchanged in pages mode. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
 
 ```js
 wp.hooks.addFilter(
@@ -192,7 +192,7 @@ To remove default actions (e.g. for read-only views or custom workflows), filter
 wp.hooks.addFilter(
     'openstation.postsWindow.bulkActions',
     'myplugin/no-trash',
-    ( actions ) => actions.filter( ( a ) => a.id !== 'trash' && a.id !== 'restore' ),
+    ( actions ) => actions.filter( ( a ) => ! [ 'trash', 'restore', 'draft' ].includes( a.id ) ),
 );
 ```
 

@@ -384,3 +384,55 @@ function openstation_posts_app_restore( Os $os, array $args, $type ) {
 		);
 	}
 }
+
+/**
+ * `draft` — switch the selected rows back to draft. Rows of another
+ * type, and rows already in draft, auto-draft or the trash, are
+ * skipped; every id is checked against `edit_post`, the survivors are
+ * announced as one content change (what every window showing the type
+ * repaints on), and failures become a toast.
+ *
+ * @param Os                  $os   Host handle.
+ * @param array<string,mixed> $args `ids`.
+ * @param string              $type Content type switched and announced (`page`).
+ * @return void
+ */
+function openstation_posts_app_draft( Os $os, array $args, $type ) {
+	$ids    = openstation_posts_app_ids( isset( $args['ids'] ) ? $args['ids'] : array() );
+	$ok     = array();
+	$failed = 0;
+	foreach ( $ids as $id ) {
+		$post = get_post( $id );
+		if ( ! $post || $type !== $post->post_type || in_array( $post->post_status, array( 'draft', 'auto-draft', 'trash' ), true ) ) {
+			continue;
+		}
+		if ( ! $os->can( 'edit_post', $id ) ) {
+			++$failed;
+			continue;
+		}
+		$updated = wp_update_post(
+			array(
+				'ID'          => $id,
+				'post_status' => 'draft',
+			),
+			true
+		);
+		if ( is_wp_error( $updated ) ) {
+			++$failed;
+			continue;
+		}
+		$ok[] = $id;
+	}
+	if ( array() !== $ok ) {
+		$os->announce( $type, 'updated', $ok );
+	}
+	if ( $failed > 0 ) {
+		$os->toast(
+			sprintf(
+				/* translators: %d: number of rows that could not be switched to draft. */
+				_n( '%d item could not be switched to draft.', '%d items could not be switched to draft.', $failed, 'desktop-mode' ),
+				$failed
+			)
+		);
+	}
+}
