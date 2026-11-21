@@ -338,6 +338,54 @@ class Tests_OpenStation_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A pending row keeps its job id so a reload can resume the poll —
+	 * only on an agent row, only with a UUID, and only while pending.
+	 *
+	 * @covers ::openstation_agent_conversation_sanitize_messages
+	 */
+	public function test_sanitizer_keeps_a_pending_row_only_with_its_job_id() {
+		$uuid  = '09A66AE0-077A-4000-8000-123456789ABC';
+		$clean = openstation_agent_conversation_sanitize_messages(
+			array(
+				array(
+					'role'    => 'agent',
+					'text'    => 'Queued',
+					'pending' => true,
+					'jobId'   => $uuid,
+				),
+				array(
+					'role'    => 'agent',
+					'text'    => 'Malformed id',
+					'pending' => true,
+					'jobId'   => 'not-a-uuid',
+				),
+				array(
+					'role'    => 'agent',
+					'text'    => 'No id',
+					'pending' => true,
+				),
+				array(
+					'role'    => 'user',
+					'text'    => 'Pending user row',
+					'pending' => true,
+					'jobId'   => $uuid,
+				),
+				array(
+					'role'  => 'agent',
+					'text'  => 'Settled',
+					'jobId' => $uuid,
+				),
+			)
+		);
+
+		$this->assertSame( array( 'Queued', 'Settled' ), wp_list_pluck( $clean, 'text' ) );
+		$this->assertTrue( $clean[0]['pending'] );
+		$this->assertSame( strtolower( $uuid ), $clean[0]['jobId'] );
+		$this->assertArrayNotHasKey( 'pending', $clean[1] );
+		$this->assertArrayNotHasKey( 'jobId', $clean[1] );
+	}
+
+	/**
 	 * @covers ::openstation_agent_conversation_sanitize_messages
 	 */
 	public function test_sanitizer_caps_message_count() {
