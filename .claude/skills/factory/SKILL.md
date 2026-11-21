@@ -477,6 +477,17 @@ merge the PR, give feedback with `/factory`, or reject it. The worktree stays, a
 site may still be running on the job's port, next to the trunk site, for the
 user to follow the report's test plan.
 
+### Slack
+
+When `factory/bin/job` prints a line starting `notify #<channel>:`, a
+maintainer now has something to do: a PR is ready to merge, or a job needs a
+decision. Post the text after the colon to that Slack channel with your Slack
+tool, exactly as printed and as its own message, with link previews on. Find
+the channel by name once per run. Post nothing else to Slack: no progress, no
+summaries, and nothing about a contributor's requested changes, which the
+review already tells them. If you have no Slack tool, or the post fails, carry
+on and list the unsent notices in the Summary.
+
 ### Summary
 
 At the end of the run, print `factory/bin/job summary`: every job with its

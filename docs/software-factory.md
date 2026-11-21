@@ -208,6 +208,8 @@ Job `n` (from the numeric prefix of its id) gets port `ports.base + ports.step Ã
 
 ## Configuration
 
+`factory/local.json` holds this checkout's own settings and is gitignored. Its one key, `slack_channel`, turns on Slack notices: with `{ "slack_channel": "<name>" }`, `job` prints a `notify #<name>: â€¦` line whenever a maintainer has something to do, and the orchestrator posts it to that channel through the session's Slack tool. That is when a job enters `needs-human` (a PR ready to merge, or a decision to make) and when the factory approves a contributor's PR. A request for changes, a question to an issue's author and a conflict with trunk are for the author, who hears about them on GitHub, so they print nothing. A session with no Slack tool lists the unsent notices in its summary.
+
 `factory/config.json`:
 
 | Key | Meaning |

@@ -69,3 +69,5 @@
 
 # Software factory runtime state: job files, logs, per-job locks.
 /factory/jobs/
+# This checkout's own factory settings (see docs/software-factory.md).
+/factory/local.json

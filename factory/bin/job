@@ -62,6 +62,11 @@ CONFIG = json.loads((FACTORY / "config.json").read_text())
 LABELS = CONFIG["labels"]
 BASE = CONFIG["base_branch"]
 MARKER = "<!-- factory -->"
+# This checkout's own settings, never committed. `slack_channel` turns on the
+# notices `job` prints for the orchestrator to post there.
+LOCAL = FACTORY / "local.json"
+SLACK_CHANNEL = (json.loads(LOCAL.read_text()) if LOCAL.exists() else {}).get("slack_channel")
+NOTICES = []
 
 TRANSITIONS = {
     "intake": {"needs-info", "rejected", "spec"},
@@ -285,15 +290,34 @@ def review(job, verdict, body):
     The review is pinned to the commit the round tested. An approval is only posted
     while that commit is still the PR's head, and GitHub takes neither kind of
     review from a PR's own author, so both of those get a plain comment instead.
+    Returns False when the verdict no longer covers the PR's head.
     """
     pr = gh_json("pr", "view", str(job["pr"]), "--json", "author,headRefOid")
-    if pr["author"]["login"] == operator():
-        return comment("pr", job["pr"], body)
     if verdict == "APPROVE" and pr["headRefOid"] != job["head"]:
-        return comment("pr", job["pr"], body + f"\n\nThis covers `{job['head'][:7]}`. The branch has moved since, "
-                                               "so the next round looks at the new commits before anything is approved.")
-    gh("api", f"repos/{repo_name()}/pulls/{job['pr']}/reviews", "-f", f"commit_id={job['head']}",
-       "-f", f"event={'APPROVE' if verdict == 'APPROVE' else 'REQUEST_CHANGES'}", "-f", f"body={MARKER}\n{body}")
+        comment("pr", job["pr"], body + f"\n\nThis covers `{job['head'][:7]}`. The branch has moved since, "
+                                        "so the next round looks at the new commits before anything is approved.")
+        return False
+    if pr["author"]["login"] == operator():
+        comment("pr", job["pr"], body)
+    else:
+        gh("api", f"repos/{repo_name()}/pulls/{job['pr']}/reviews", "-f", f"commit_id={job['head']}",
+           "-f", f"event={'APPROVE' if verdict == 'APPROVE' else 'REQUEST_CHANGES'}", "-f", f"body={MARKER}\n{body}")
+    return True
+
+
+def notify(job, text):
+    """Queue a line for the maintainers' Slack channel. `job` prints it; the orchestrator posts it."""
+    if SLACK_CHANNEL:
+        NOTICES.append(f"{text}: {job['title'].strip()} {job['pr_url'] or job['issue_url']}")
+
+
+def notify_needs_human(job):
+    decision = (job_dir(job["id"]) / "decision.md").read_text()
+    if "\n## Merge\n" in decision:
+        return notify(job, "Ready to merge, approved by the factory")
+    why = [l.strip() for l in decision.splitlines()[1:] if l.strip() and not l.startswith("#")]
+    reason = re.sub(r"\s*See round-\S+$", "", why[0])[:300] if why else ""
+    notify(job, "Needs a maintainer" + (f" ({reason.rstrip('.:')})" if reason else ""))
 
 
 # ---- Before/after screenshots ---------------------------------------------------
@@ -896,7 +920,8 @@ def advance(job, stage, force=False):
             message += (f"\n\nThat's {streak} rounds with open points in a row, so a maintainer "
                         "will look before the next review.")
         if verdict != "HOLD":
-            review(job, verdict, message)
+            if review(job, verdict, message) and verdict == "APPROVE":
+                notify(job, "Ready to merge, approved by the factory")
             posted = True
         if stage == "needs-human":
             (d / "decision.md").write_text(f"ESCALATE\n\n## Why\nRound {job['round']}'s report says {verdict}"
@@ -971,6 +996,9 @@ def advance(job, stage, force=False):
         else:
             comment("issue", job["issue"], body)
         label("issue", job["issue"], add=LABELS["needs_human"])
+    # A conflict with trunk is the contributor's to fix; everything else waits for a maintainer.
+    if stage == "needs-human" and not (is_pr_job(job) and old == "update"):
+        notify_needs_human(job)
 
     if stage in TERMINAL and Path(job["worktree"]).exists():
         if CONFIG.get("teardown"):
@@ -1603,6 +1631,8 @@ def main(argv):
             cmd_summary(args)
         else:
             die(f"bad arguments: {' '.join(argv)}\n\n{__doc__.strip()}")
+        for text in NOTICES:
+            print(f"notify #{SLACK_CHANNEL}: {text}")
     except Refused as e:
         die(str(e))
 
