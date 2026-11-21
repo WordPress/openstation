@@ -375,6 +375,9 @@ to the runner's capability intersection. Cron does not turn a human request
 into a system invocation. Status reads require the original owner even when
 another caller is an administrator; inputs and history never appear in status
 responses. Completed results retain the same sensitivity as chat transcripts.
+A running or failed job's `progress` exposes the tool names the run called, the
+arguments the model chose for them and their error messages, to the job's owner
+only, under the same 404 rule; tool outputs never appear in it.
 
 An atomic claim prevents duplicate execution. A failed or interrupted worker
 is never automatically replayed: tools may already have applied changes. Jobs
