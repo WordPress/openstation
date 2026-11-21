@@ -376,8 +376,9 @@ into a system invocation. Status reads require the original owner even when
 another caller is an administrator; inputs and history never appear in status
 responses. Completed results retain the same sensitivity as chat transcripts.
 A running or failed job's `progress` exposes the tool names the run called, the
-arguments the model chose for them and their error messages, to the job's owner
-only, under the same 404 rule; tool outputs never appear in it. The
+arguments the model chose for them, their error messages, the token counts
+(`usage`) and the model's id and name, to the job's owner only, under the same
+404 rule; tool outputs never appear in it. The
 `openstation_agent_turn_completed` action that feeds it hands every in-process
 listener the round's tool **outputs**, while the agent is still the current
 user: a listener that stores or forwards them must keep them scoped to the run's
