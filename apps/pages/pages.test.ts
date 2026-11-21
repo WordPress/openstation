@@ -267,6 +267,82 @@ describe( 'the pages view', () => {
 		expect( update ).toHaveBeenCalledWith( { nativePagesHiddenColumns: [ 'parent' ] }, { windowId: 'test-window' } );
 	} );
 
+	describe( 'quick edit', () => {
+		const flush = () => new Promise( ( r ) => setTimeout( r, 0 ) );
+		const json = ( body: unknown, status = 200, headers: Record< string, string > = {} ) =>
+			new Response( JSON.stringify( body ), { status, headers: { 'Content-Type': 'application/json', ...headers } } );
+
+		/** Core's answers to the two reads, and `save` for the write. */
+		function stubRest( save: () => Response ) {
+			return vi.spyOn( globalThis, 'fetch' ).mockImplementation( async ( input, init ) => {
+				if ( init?.method === 'POST' ) {
+					return save();
+				}
+				if ( String( input ).startsWith( 'wp/v2/pages/5?' ) ) {
+					return json( {
+						id: 5, title: { raw: 'Scratch' }, slug: 'scratch', status: 'publish', parent: 0,
+						menu_order: 0, template: '', comment_status: 'open', _links: { 'wp:action-publish': [ { href: 'x' } ] },
+					} );
+				}
+				return json( [ { id: 5, title: { rendered: 'Scratch' }, parent: 0, menu_order: 0 } ], 200, { 'X-WP-TotalPages': '1' } );
+			} );
+		}
+
+		async function openOn( root: HTMLElement ): Promise< HTMLElement > {
+			( root.querySelector( '[data-story-id="5"] [data-os-pages-quick-edit]' ) as HTMLElement ).click();
+			await flush();
+			await flush();
+			return root.querySelector( 'os-modal.os-posts-quick-edit' ) as HTMLElement;
+		}
+
+		afterEach( () => vi.restoreAllMocks() );
+
+		it( 'is offered on a published row, and not on a trashed or a locked one', async () => {
+			const lock = { userId: 2, userName: 'Bo', userAvatarUrl: '', time: '2026-01-01T00:00:00Z' };
+			const { root } = mount( [ row( 1 ), row( 2, { status: 'trash' } ), row( 3, { openstation_lock: lock } ) ] );
+			await flush();
+			expect( root.querySelector( '[data-story-id="1"] [data-os-pages-quick-edit="1"]' ) ).not.toBeNull();
+			expect( root.querySelector( '[data-story-id="2"] [data-os-pages-quick-edit]' ) ).toBeNull();
+			expect( root.querySelector( '[data-story-id="3"] [data-os-pages-quick-edit]' ) ).toBeNull();
+			const cells = ( root.querySelector( '[data-os-posts-table]' ) as HTMLElement ).shadowRoot!;
+			expect( Array.from( cells.querySelectorAll( '[data-os-pages-quick-edit]' ) ).map( ( el ) => el.getAttribute( 'data-os-pages-quick-edit' ) ) ).toEqual( [ '1' ] );
+		} );
+
+		it( 'saves only the changed fields to the page, then refreshes the list', async () => {
+			const fetch = stubRest( () => json( { id: 5 } ) );
+			const { root, ctx, dispatch } = mount( [ row( 5 ) ] );
+			ctx.host.announce = vi.fn();
+			const modal = await openOn( root );
+			expect( modal.getAttribute( 'title' ) ).toBe( 'Quick edit' );
+			modal.querySelector( '[data-field="title"]' )!.dispatchEvent( new CustomEvent( 'os-input-change', { detail: { value: 'Scratch v2' } } ) );
+			modal.querySelector( '[data-field="menu_order"]' )!.dispatchEvent( new CustomEvent( 'os-input-change', { detail: { value: 3 } } ) );
+			( modal.querySelector( '[data-os-pages-quick-edit-save]' ) as HTMLElement ).click();
+			await flush();
+			const post = fetch.mock.calls.filter( ( [ , init ] ) => init?.method === 'POST' );
+			expect( post ).toHaveLength( 1 );
+			expect( post[ 0 ][ 0 ] ).toBe( 'wp/v2/pages/5' );
+			expect( JSON.parse( String( post[ 0 ][ 1 ]!.body ) ) ).toEqual( { title: 'Scratch v2', menu_order: 3 } );
+			expect( ctx.host.announce ).toHaveBeenCalledWith( 'page', 'updated', [ 5 ] );
+			expect( dispatch ).toHaveBeenCalledWith( 'refresh' );
+			expect( root.querySelector( 'os-modal.os-posts-quick-edit' ) ).toBeNull();
+		} );
+
+		it( 'keeps the dialog and what was typed when the save is refused, and says why', async () => {
+			stubRest( () => json( { code: 'rest_post_invalid_id', message: 'Invalid post ID.' }, 404 ) );
+			const { root, dispatch } = mount( [ row( 5 ) ] );
+			const modal = await openOn( root );
+			modal.querySelector( '[data-field="title"]' )!.dispatchEvent( new CustomEvent( 'os-input-change', { detail: { value: 'Scratch v2' } } ) );
+			( modal.querySelector( '[data-os-pages-quick-edit-save]' ) as HTMLElement ).click();
+			await flush();
+			expect( root.querySelector( 'os-modal.os-posts-quick-edit' ) ).toBe( modal );
+			expect( modal.querySelector( '[data-field="title"]' )!.getAttribute( 'value' ) ).toBe( 'Scratch v2' );
+			expect( modal.querySelector( 'os-notice[tone="danger"]' )?.textContent ).toBe( 'Invalid post ID.' );
+			const save = modal.querySelector( '[data-os-pages-quick-edit-save]' )!;
+			expect( save.hasAttribute( 'busy' ) || save.hasAttribute( 'disabled' ) ).toBe( false );
+			expect( dispatch ).not.toHaveBeenCalledWith( 'refresh' );
+		} );
+	} );
+
 	it( 'rebuilds page columns when nativePagesHiddenColumns changes elsewhere', () => {
 		let settingsListener: ( () => void ) | null = null;
 		( window as unknown as { wp: { os: { getOsSettings: unknown; subscribeOsSettings: unknown } } } ).wp.os = {

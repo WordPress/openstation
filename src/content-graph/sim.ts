@@ -9,8 +9,9 @@
  *
  * Forces:
  *   - **Repulsion** between every pair of nodes (Coulomb-ish, falls
- *     off as 1/r²). O(n²) — fine up to ~500 nodes; Barnes-Hut can be
- *     dropped in later by replacing only this loop.
+ *     off as 1/r²). O(n²) — fine up to `EXACT_REPULSION_MAX_NODES`;
+ *     above it the Barnes-Hut quadtree in `barnes-hut.ts` stands in
+ *     for this loop with the same law.
  *   - **Spring** along every edge — Hooke's law toward `SPRING_LEN`.
  *   - **Gravity** toward the world origin so disconnected components
  *     don't drift to infinity.
@@ -25,7 +26,16 @@
  * @public
  */
 
+import { applyBarnesHutRepulsion } from './barnes-hut';
 import type { GraphEdge, GraphNode } from './types';
+
+/**
+ * Boards with at most this many nodes get the exact pairwise
+ * repulsion, so they lay out exactly as they always did. Above it the
+ * O(n²) loop is what froze the browser on a large site, and the
+ * Barnes-Hut approximation takes over.
+ */
+export const EXACT_REPULSION_MAX_NODES = 500;
 
 export interface SimOptions {
 	repulsion: number;
@@ -175,29 +185,33 @@ export class ForceSim {
 		const len = nodes.length;
 
 		// Repulsion.
-		for ( let i = 0; i < len; i++ ) {
-			const a = nodes[ i ];
-			for ( let j = i + 1; j < len; j++ ) {
-				const b = nodes[ j ];
-				let dx = a.x - b.x;
-				let dy = a.y - b.y;
-				let d2 = dx * dx + dy * dy;
-				if ( d2 < 0.01 ) {
-					// Co-located, give them a deterministic kick.
-					dx = ( i - j ) * 0.5;
-					dy = ( i + j ) * 0.5;
-					d2 = dx * dx + dy * dy;
+		if ( len > EXACT_REPULSION_MAX_NODES ) {
+			applyBarnesHutRepulsion( nodes, repulsion );
+		} else {
+			for ( let i = 0; i < len; i++ ) {
+				const a = nodes[ i ];
+				for ( let j = i + 1; j < len; j++ ) {
+					const b = nodes[ j ];
+					let dx = a.x - b.x;
+					let dy = a.y - b.y;
+					let d2 = dx * dx + dy * dy;
+					if ( d2 < 0.01 ) {
+						// Co-located, give them a deterministic kick.
+						dx = ( i - j ) * 0.5;
+						dy = ( i + j ) * 0.5;
+						d2 = dx * dx + dy * dy;
+					}
+					const f = repulsion / d2;
+					const d = Math.sqrt( d2 );
+					const fx = ( dx / d ) * f;
+					const fy = ( dy / d ) * f;
+					const wa = a.pinned ? 0 : 1;
+					const wb = b.pinned ? 0 : 1;
+					a.vx += fx * wa;
+					a.vy += fy * wa;
+					b.vx -= fx * wb;
+					b.vy -= fy * wb;
 				}
-				const f = repulsion / d2;
-				const d = Math.sqrt( d2 );
-				const fx = ( dx / d ) * f;
-				const fy = ( dy / d ) * f;
-				const wa = a.pinned ? 0 : 1;
-				const wb = b.pinned ? 0 : 1;
-				a.vx += fx * wa;
-				a.vy += fy * wa;
-				b.vx -= fx * wb;
-				b.vy -= fy * wb;
 			}
 		}
 

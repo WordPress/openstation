@@ -2,8 +2,8 @@
  * Posts app — the REST client for everything the list row and the
  * term canvases mutate on demand: tags and categories (search,
  * create, assign, rename, reparent, delete), the author and tag
- * filter options, and the term-count / co-occurrence routes the
- * canvases read.
+ * filter options, the term-count / co-occurrence routes the
+ * canvases read, and the page a Pages quick edit reads and writes.
  *
  * The list itself no longer lives here — it is the app's `data()`
  * (`parts/query.php`), refreshed by the framework on every dispatch.
@@ -18,6 +18,9 @@ import type {
 	AuthorOption,
 	CategoryTerm,
 	ListExtra,
+	PageEditRecord,
+	PageParentOption,
+	PagePatch,
 	PostsMode,
 	RowActionLink,
 	TagOptionsPage,
@@ -89,6 +92,12 @@ export interface PostsRestClient {
 	): Promise< { items: Array< { id: number; title: string } >; totalPages: number; total: number } >;
 	/** `{ term_id: count }` for a batch of ids — `/desktop-mode/v1/term-counts`. */
 	fetchTermCounts( taxonomy: 'category' | 'post_tag', ids: number[] ): Promise< Record< string, number > >;
+	/** One page in the edit context, with its links: what quick edit opens on. */
+	fetchPageForEdit( id: number ): Promise< PageEditRecord >;
+	/** Every non-trashed page the user can list, 100 per page up to five pages. */
+	fetchPageParentOptions(): Promise< PageParentOption[] >;
+	/** Write the given fields to one page; Core decides who may change what. */
+	updatePage( id: number, patch: PagePatch ): Promise< PageEditRecord >;
 }
 
 /**
@@ -406,6 +415,47 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 				{ method: 'GET' },
 			);
 			return data && typeof data === 'object' ? data : {};
+		},
+
+		async fetchPageForEdit( id ) {
+			const { data } = await request< PageEditRecord >(
+				`wp/v2/pages/${ id }${ qs( {
+					context: 'edit',
+					_fields: 'id,title,slug,status,parent,menu_order,template,comment_status,_links',
+				} ) }`,
+				{ method: 'GET' },
+			);
+			return data;
+		},
+
+		async fetchPageParentOptions() {
+			const all: PageParentOption[] = [];
+			for ( let page = 1; page <= 5; page++ ) {
+				const { data, headers } = await request< Array< { id: number; title?: { rendered?: string }; parent?: number; menu_order?: number } > >(
+					`wp/v2/pages${ qs( { status: 'any', per_page: 100, _fields: 'id,title,parent,menu_order', page } ) }`,
+					{ method: 'GET' },
+				);
+				for ( const p of Array.isArray( data ) ? data : [] ) {
+					all.push( {
+						id: p.id,
+						title: decodeHTML( p.title?.rendered ?? '' ),
+						parent: p.parent ?? 0,
+						menu_order: p.menu_order ?? 0,
+					} );
+				}
+				if ( page >= ( parseInt( headers.get( 'X-WP-TotalPages' ) ?? '0', 10 ) || 0 ) ) {
+					break;
+				}
+			}
+			return all;
+		},
+
+		async updatePage( id, patch ) {
+			const { data } = await request< PageEditRecord >( `wp/v2/pages/${ id }`, {
+				method: 'POST',
+				body: JSON.stringify( patch ),
+			} );
+			return data;
 		},
 	};
 }

@@ -12,8 +12,8 @@ any other file.
 
 ## Where you work
 
-The worktree is a checkout of the job branch outside the main checkout you
-start in. The shell returns to the main checkout after every command, so start
+The worktree is a checkout of the job branch in its own folder, under
+`factory/worktrees/` in the main checkout you start in. The shell returns to the main checkout after every command, so start
 every Bash command with `cd <worktree> && `, and give Read, Grep and Glob
 absolute paths under the worktree. The job folder is in the main checkout;
 your one file goes there.
@@ -92,6 +92,9 @@ VERDICT: PASS | CHANGES
 ## Summary
 - 3 to 5 short bullets: what happened in this step and why
 
+## Looked at
+- <the surface, the viewport width, what you did there and what the screen showed>
+
 ## Blockers
 1. <path:line> <the evidence (reproduction, input, call path), the problem, and the fix you want>
 
@@ -122,6 +125,12 @@ Sort every finding into exactly one class:
 `## Summary` comes right after the header: 3 to 5 short bullets a human can
 skim on the dashboard. The detail goes in the sections below it.
 
+**Looked at** is what you did in the browser, one bullet for each surface and
+width: at least the changed surface at desktop width and at 375px, plus each
+state the previous round's blockers were about. Write it for a PASS too: a
+verdict with nothing looked at is not a review. When the change shows nowhere
+in the shell, say so in one bullet and why.
+
 The first line is `VERDICT: CHANGES` exactly when there's at least one blocker,
 and `VERDICT: PASS` otherwise. A gap, a nit or a not-this-PR finding never
 makes it CHANGES: every `CHANGES` costs a round. Write "None." under an empty
@@ -138,4 +147,6 @@ its merits, and accepting it is fine. Then re-read the docs, code comments and
 PR description the round touched: drift after a rework is a nit. Omit the
 section in round 1.
 
-Reply with one line: your verdict, and how many blockers, gaps and nits.
+Write the file before you reply: the factory reads the file, and a review that
+exists only in your reply counts as no review. Then reply with one line: your
+verdict, and how many blockers, gaps and nits.

@@ -49,6 +49,9 @@ if [ "${FACTORY_ENV:-wp-env}" = cloud ]; then
 	bin/cloud-test-env.sh lint
 else
 	WP_ENV_PORT=$(( port + 1 )) npm run env:start:tests
+	# Only these steps need the PHPUnit stack, so it stops when the checks end,
+	# pass or fail. The job's site is another stack and stays up for the reviewers.
+	trap 'npm run env:stop:tests >/dev/null 2>&1 || true' EXIT
 	npm run test:php:install
 	npm run test:php
 	npm run test:php:multisite

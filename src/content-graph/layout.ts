@@ -7,7 +7,8 @@
  *
  *   - **seeding** — where nodes start before the first simulation
  *     step;
- *   - **settling** — how many steps the sim runs before first paint;
+ *   - **settling** — how many steps the sim runs before first paint,
+ *     and for how long;
  *   - **framing** — the camera transform that fits a set of points.
  *
  * Why a sparse board used to look broken: nodes were seeded at random
@@ -127,8 +128,9 @@ export function seedPositions(
 
 /**
  * The short warm-start: enough synchronous steps to collapse the
- * chaotic opening frames, cheap enough for a board of any size, and
- * short enough that the layout is still visibly settling on screen.
+ * chaotic opening frames, and short enough that the layout is still
+ * visibly settling on screen. A ceiling, not a promise: on a large
+ * board {@link WARMUP_BUDGET_MS} usually ends the warm-up first.
  * Used for large boards, and for every board where nodes are joining
  * a layout the user is already looking at.
  */
@@ -144,6 +146,59 @@ export function warmupStepLimit( count: number ): number {
 		return SETTLE_ON_LOAD_MAX_STEPS;
 	}
 	return JOIN_WARMUP_STEPS;
+}
+
+/**
+ * Time budget, in milliseconds, for the short warm-start. On a site
+ * of a few thousand posts a single step costs several milliseconds
+ * even with the Barnes-Hut repulsion, so 90 of them would hold the
+ * main thread for most of a second before the first paint. The budget
+ * keeps the warm-up a small slice of the load; the layout finishes
+ * settling on screen either way.
+ */
+export const WARMUP_BUDGET_MS = 50;
+
+/** The two things the warm-up needs from a `ForceSim`. */
+export interface WarmupSim {
+	step( dt?: number ): void;
+	readonly isSettled: boolean;
+}
+
+/**
+ * Run the synchronous warm-up before the first paint and return how
+ * many steps it took.
+ *
+ * A small board laid out from scratch runs to rest (up to
+ * {@link SETTLE_ON_LOAD_MAX_STEPS}), whatever it costs, because its
+ * first frame has to be its final layout. Every other warm-up — a
+ * large board, or nodes joining a layout already on screen — stops at
+ * {@link JOIN_WARMUP_STEPS} steps or once {@link WARMUP_BUDGET_MS}
+ * has gone by, whichever comes first. Every warm-up stops early once
+ * the sim settles.
+ *
+ * @param sim         The simulation to step.
+ * @param count       Number of nodes on the board.
+ * @param fromScratch Whether the board is laid out from scratch.
+ * @param now         Clock in milliseconds, injectable for tests.
+ */
+export function runWarmup(
+	sim: WarmupSim,
+	count: number,
+	fromScratch: boolean,
+	now: () => number = () => performance.now(),
+): number {
+	const settleFully = fromScratch && count <= SETTLE_ON_LOAD_MAX_NODES;
+	const limit = fromScratch ? warmupStepLimit( count ) : JOIN_WARMUP_STEPS;
+	const start = now();
+	let steps = 0;
+	while ( steps < limit && ! sim.isSettled ) {
+		sim.step( 1 );
+		steps++;
+		if ( ! settleFully && now() - start >= WARMUP_BUDGET_MS ) {
+			break;
+		}
+	}
+	return steps;
 }
 
 export interface Viewport {

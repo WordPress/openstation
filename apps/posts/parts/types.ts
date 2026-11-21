@@ -146,6 +146,39 @@ export interface PostListItem {
 	[ key: string ]: unknown;
 }
 
+/** One page as the edit-context read returns it: what quick edit fills from. */
+export interface PageEditRecord {
+	id: number;
+	title: { raw: string };
+	slug: string;
+	status: string;
+	parent: number;
+	menu_order: number;
+	template: string;
+	comment_status: 'open' | 'closed';
+	/** Core's links; `wp:action-publish` is there when the user may publish. */
+	_links?: Record< string, unknown >;
+}
+
+/** A page the parent picker can offer. */
+export interface PageParentOption {
+	id: number;
+	title: string;
+	parent: number;
+	menu_order: number;
+}
+
+/** The fields quick edit writes, under their REST names. */
+export interface PagePatch {
+	title?: string;
+	slug?: string;
+	status?: string;
+	parent?: number;
+	menu_order?: number;
+	template?: string;
+	comment_status?: 'open' | 'closed';
+}
+
 /** Snapshot of the outbound query — `PostsWindowContext.getCurrentParams()`. */
 export interface PostsListParams {
 	page?: number;

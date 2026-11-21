@@ -1,7 +1,8 @@
 /**
  * Posts app — the cells both modes render: the title (with its lock,
- * status and reading-page badges, the "View" link and the row's
- * actions menu), the author, the date, and the expanded sub-row.
+ * status and reading-page badges, the "View" link, in Pages "Quick
+ * edit", and the row's actions menu), the author, the date, and the
+ * expanded sub-row.
  *
  * @public
  */
@@ -16,6 +17,7 @@ import {
 	authorOf,
 	buildEditPostUrl,
 	featuredMediaOf,
+	offersQuickEdit,
 	pill,
 	statusBadgeColor,
 	titleOf,
@@ -120,6 +122,20 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 		view.addEventListener( 'click', ( e ) => e.stopPropagation() );
 		underlineOnHover( view );
 		titleRow.appendChild( view );
+	}
+
+	if ( offersQuickEdit( row, env ) ) {
+		const quick = document.createElement( 'os-button' );
+		quick.setAttribute( 'variant', 'ghost' );
+		quick.setAttribute( 'data-noclick', '' );
+		quick.setAttribute( 'data-os-pages-quick-edit', String( row.id ) );
+		quick.textContent = __( 'Quick edit' );
+		quick.style.cssText = '--os-ui-button-padding:2px 8px;font-size:11px;flex-shrink:0;';
+		quick.addEventListener( 'click', ( e ) => {
+			e.stopPropagation();
+			env.quickEdit?.( row );
+		} );
+		titleRow.appendChild( quick );
 	}
 
 	// The row's actions menu, at the end of the title row (no column of
