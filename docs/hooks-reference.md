@@ -4983,7 +4983,7 @@ add_filter( 'openstation_nonce_refresh_actions', function ( $actions ) {
 ```
 
 - **Param** `string[] $actions` — default set: `[ 'wp_rest',
-  'desktop-mode-plugins', 'updates' ]`.
+  'desktop-mode-plugins', 'updates', 'desktop-mode-posts-row-actions' ]`.
 - **Return** `string[]` — non-string / empty entries are
   silently dropped.
 
