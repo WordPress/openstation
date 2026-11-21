@@ -65,7 +65,7 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertSame( array( 'page' ), $manifest['watch'] );
 		// `reopen` is the framework's, declared for every window that
 		// declares a menu so the client dispatches it.
-		$this->assertSame( array( 'filter', 'page', 'sort', 'trash', 'restore', 'reopen' ), $manifest['actions'] );
+		$this->assertSame( array( 'filter', 'page', 'sort', 'trash', 'restore', 'draft', 'reopen' ), $manifest['actions'] );
 		// Pages are usually shallow + ordered by menu_order.
 		$this->assertSame( 'menu_order', $manifest['state']['orderby'] );
 		$this->assertSame( 'asc', $manifest['state']['order'] );
@@ -201,5 +201,52 @@ class Tests_OpenStation_PagesApp extends WP_UnitTestCase {
 		$this->assertNotNull( $announce );
 		$this->assertSame( 'page', $announce['contentType'] );
 		$this->assertSame( array( $page ), $announce['ids'] );
+	}
+
+	/**
+	 * @covers ::openstation_posts_app_draft
+	 */
+	public function test_draft_switches_published_pages_and_checks_each_id() {
+		$published = self::factory()->post->create_many( 2, array( 'post_type' => 'page' ) );
+		$draft     = self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'draft',
+			)
+		);
+		$trashed   = self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'trash',
+			)
+		);
+		$post      = self::factory()->post->create();
+
+		$response = $this->dispatch( 'draft', array(), array( 'ids' => array_merge( $published, array( $draft, $trashed, $post ) ) ) );
+		$this->assertSame( 'draft', get_post_status( $published[0] ) );
+		$this->assertSame( 'draft', get_post_status( $published[1] ) );
+		$this->assertSame( 'draft', get_post_status( $draft ) );
+		$this->assertSame( 'trash', get_post_status( $trashed ), 'A trashed page is skipped.' );
+		$this->assertSame( 'publish', get_post_status( $post ), 'A post is not a page.' );
+		$types    = wp_list_pluck( $response['effects'], 'type' );
+		$announce = array_values( wp_list_filter( $response['effects'], array( 'type' => 'announce' ) ) );
+		$this->assertCount( 1, $announce );
+		$this->assertSame( 'page', $announce[0]['contentType'] );
+		$this->assertSame( 'updated', $announce[0]['action'] );
+		$this->assertSame( $published, $announce[0]['ids'] );
+		$this->assertNotContains( 'toast', $types );
+
+		// `edit_pages` opens the window; it does not let an Author edit
+		// someone else's published page.
+		$page   = self::factory()->post->create( array( 'post_type' => 'page' ) );
+		$author = self::factory()->user->create( array( 'role' => 'author' ) );
+		get_user_by( 'id', $author )->add_cap( 'edit_pages' );
+		wp_set_current_user( $author );
+		$response = $this->dispatch( 'draft', array(), array( 'ids' => array( $page ) ) );
+		$this->assertSame( 'publish', get_post_status( $page ) );
+		$this->assertNotContains( 'announce', wp_list_pluck( $response['effects'], 'type' ) );
+		$toast = array_values( wp_list_filter( $response['effects'], array( 'type' => 'toast' ) ) );
+		$this->assertCount( 1, $toast );
+		$this->assertSame( '1 item could not be switched to draft.', $toast[0]['message'] );
 	}
 }
