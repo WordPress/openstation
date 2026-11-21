@@ -7,7 +7,7 @@
  *   - `list_users`     → REGISTER the window. Cap-only check; the
  *                        opt-in toggle is JS-side.
  *   - `edit_users`     → mutation quick-actions (Send password reset,
- *                        Resend welcome).
+ *                        Resend welcome, Send email).
  *   - `promote_users`  → bulk role-change action; per-target gated
  *                        through {@see openstation_users_window_assignable_roles()}.
  *   - `create_users`   → "Add new user" tab.

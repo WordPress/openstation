@@ -10,7 +10,7 @@
  * re-checks every action.
  */
 
-import { __, copyText, formatDate } from '@openstation/app';
+import { __, copyText, formatDate, sprintf } from '@openstation/app';
 import { isMobileStamped } from '../../../src/mode/stamp';
 import { applyAvatarSrc, pickAvatarUrl } from '../../../src/ui/util/avatar-resolve';
 import { makeRowActionButton } from '../../../src/ui/util/row-action-button';
@@ -110,6 +110,14 @@ const MUTED = 'var( --os-ui-fg-muted, #50575e )';
 const CHIP =
 	'display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:var(--os-ui-badge-info-bg, rgba(34,113,177,0.10));color:var(--os-ui-info-fg, #0a4b78);white-space:nowrap;';
 
+/**
+ * The widest the name and the username may paint. With the 32px avatar
+ * and its 10px gap this stays inside the Name column's 220px floor, so
+ * a long display name ellipsizes instead of widening the column and
+ * pushing the Actions buttons out of the default window.
+ */
+const NAME_MAX = '176px';
+
 function buildIdentityCell( row: UserListItem, actions: RowActions ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'display:flex;align-items:center;gap:10px;min-width:0;';
@@ -136,7 +144,7 @@ function buildIdentityCell( row: UserListItem, actions: RowActions ): HTMLElemen
 	name.title = name.textContent;
 	name.setAttribute( 'data-noclick', '' );
 	name.style.cssText =
-		'appearance:none;background:transparent;border:none;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;';
+		`appearance:none;background:transparent;border:none;padding:0;font:inherit;font-weight:600;color:inherit;cursor:pointer;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${ NAME_MAX };`;
 	name.addEventListener( 'mouseenter', () => {
 		name.style.textDecoration = 'underline';
 	} );
@@ -152,7 +160,7 @@ function buildIdentityCell( row: UserListItem, actions: RowActions ): HTMLElemen
 	if ( row.slug ) {
 		const sub = document.createElement( 'span' );
 		sub.textContent = `@${ row.slug }`;
-		sub.style.cssText = `font-size:11px;color:${ MUTED };white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;`;
+		sub.style.cssText = `font-size:11px;color:${ MUTED };white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${ NAME_MAX };`;
 		text.appendChild( sub );
 	}
 	cell.appendChild( text );
@@ -177,7 +185,8 @@ function buildEmailCell( row: UserListItem, actions: RowActions ): HTMLElement {
 	const email = typeof row.email === 'string' ? row.email : '';
 	cell.textContent = email || '—';
 	cell.disabled = email === '';
-	cell.title = email ? __( 'Click to copy email' ) : '';
+	// The address can ellipsize (see the cap below), so the tooltip carries it whole.
+	cell.title = email ? sprintf( /* translators: %s: the user's email address. */ __( 'Click to copy %s' ), email ) : '';
 	cell.style.cssText = [
 		'appearance:none',
 		'background:transparent',
@@ -189,7 +198,9 @@ function buildEmailCell( row: UserListItem, actions: RowActions ): HTMLElement {
 		'text-align:left',
 		'font-size:13px',
 		'border-radius:4px',
-		'max-width:100%',
+		// A px cap, not 100%: a percentage does not limit the column's
+		// own width, so a long address would widen it past the window.
+		'max-width:220px',
 		'overflow:hidden',
 		'text-overflow:ellipsis',
 		'white-space:nowrap',
@@ -301,6 +312,7 @@ function buildActionsCell( row: UserListItem, cfg: ListConfig, actions: RowActio
 	cell.append(
 		mk( __( 'Send password reset' ), 'email-alt', () => actions.onSendReset( row ) ),
 		mk( __( 'Resend welcome email' ), 'megaphone', () => actions.onResendWelcome( row ) ),
+		mk( __( 'Send email' ), 'welcome-write-blog', () => actions.onSendEmail( row ) ),
 	);
 	return cell;
 }
@@ -318,7 +330,9 @@ export function buildColumns(
 			label: __( 'Name' ),
 			sortable: true,
 			sticky: true,
-			minWidth: '260px',
+			// Leaves the Actions column's three buttons room in the
+			// window's default width; `NAME_MAX` keeps a long name inside it.
+			minWidth: '220px',
 			render: ( _v, row ) => memo( cache, row.id, 'identity', () => buildIdentityCell( row, actions ) ),
 		},
 		{
@@ -367,7 +381,7 @@ export function buildColumns(
 			key: 'actions',
 			label: __( 'Actions' ),
 			stack: 'actions',
-			width: '110px',
+			width: '140px',
 			sortable: false,
 			render: ( _v, row ) => memo( cache, row.id, 'actions', () => buildActionsCell( row, cfg, actions ) ),
 		} );

@@ -51,12 +51,16 @@ function accountMenu( row: UserListItem, cfg: ProfileConfig, actions: RowActions
 		if ( id === 'welcome' ) {
 			actions.onResendWelcome( row );
 		}
+		if ( id === 'email' ) {
+			actions.onSendEmail( row );
+		}
 	} }>
 		<os-context-menu-option data-menu-item-id="profile" icon="dashicons-id">${ __( 'View profile' ) }</os-context-menu-option>
 		${ cfg.canEdit && row.openstation_can_edit ? html`
 			<os-context-menu-option heading>${ __( 'Account emails' ) }</os-context-menu-option>
 			<os-context-menu-option data-menu-item-id="reset" icon="dashicons-lock">${ __( 'Send password reset' ) }</os-context-menu-option>
-			<os-context-menu-option data-menu-item-id="welcome" icon="dashicons-email-alt">${ __( 'Resend welcome' ) }</os-context-menu-option>` : '' }
+			<os-context-menu-option data-menu-item-id="welcome" icon="dashicons-email-alt">${ __( 'Resend welcome' ) }</os-context-menu-option>
+			<os-context-menu-option data-menu-item-id="email" icon="dashicons-welcome-write-blog">${ __( 'Send email' ) }</os-context-menu-option>` : '' }
 	</os-action-menu>`;
 }
 function joined( row: UserListItem ): string {
