@@ -206,12 +206,22 @@ class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 	}
 
 	public function test_progress_is_written_after_each_tool_round_without_outputs() {
-		$id   = $this->submit()->get_data()['jobId'];
-		$seen = array();
-		$this->call_tools( 2, null, static function () use ( $id, &$seen ) {
+		$id    = $this->submit()->get_data()['jobId'];
+		$agent = $this->agent->ID;
+		$seen  = array();
+		$this->call_tools( 2, null, static function () use ( $id, $agent, &$seen ) {
 			$seen[] = openstation_agent_job_get( $id )['progress'] ?? null;
+			// A nested or chained run in the same worker must not write into this job.
+			$foreign = array(
+				'turn'      => 9,
+				'toolCalls' => array( array( 'callId' => 'x', 'name' => 'foreign', 'args' => array(), 'output' => 'secret', 'error' => null ) ),
+			);
+			do_action( 'openstation_agent_turn_completed', $agent + 1, $foreign, array( 'jobId' => $id ) );
+			do_action( 'openstation_agent_turn_completed', $agent, $foreign, array( 'jobId' => wp_generate_uuid4() ) );
+			do_action( 'openstation_agent_turn_completed', $agent, $foreign, array() );
 		} );
 		openstation_agent_job_run( $id );
+		$this->assertSame( array( 'lookup', 'lookup' ), wp_list_pluck( openstation_agent_job_get( $id )['progress']['toolCalls'], 'name' ) );
 		$this->assertNull( $seen[0] );
 		$this->assertSame( 1, $seen[1]['turn'] );
 		$this->assertCount( 1, $seen[1]['toolCalls'] );
