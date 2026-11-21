@@ -16,6 +16,7 @@ Usage:
   job queue                      what /factory run should do with each labeled issue and PR
   job create <number> [--now] [--fresh]
                                  new job for an open `factory` issue or PR; prints the job id.
+                                 An issue someone's open PR already closes gets that PR's job
                                  Refuses one another checkout has taken, unless --fresh
   job advance <job> <stage> [--now]
                                  move a job to <stage>, or refuse
@@ -998,13 +999,26 @@ def next_job_id(title):
     return job_id
 
 
-def factory_prs():
+def fetch_open_prs():
+    return gh_json("pr", "list", "--state", "open", "--limit", "200", "--json",
+                   "number,title,isDraft,headRefName,isCrossRepository,additions,deletions,labels,reviews,"
+                   "closingIssuesReferences")
+
+
+def is_own(pr):
+    """The factory built this PR: it is on a factory/ branch of this repository."""
+    return pr["headRefName"].startswith("factory/") and not pr["isCrossRepository"]
+
+
+def factory_prs(prs):
     """{issue number: PR number} for every open PR the factory built for an issue."""
-    prs = gh_json("pr", "list", "--state", "open", "--limit", "200",
-                  "--json", "number,headRefName,isCrossRepository,closingIssuesReferences")
-    return {i["number"]: p["number"] for p in prs
-            if p["headRefName"].startswith("factory/") and not p["isCrossRepository"]
-            for i in p["closingIssuesReferences"]}
+    return {i["number"]: p["number"] for p in prs if is_own(p) for i in p["closingIssuesReferences"]}
+
+
+def linked_prs(prs, issue):
+    """Open PRs someone else wrote that close `issue`. The factory reviews those
+    instead of building a PR of its own for it."""
+    return [p for p in prs if not is_own(p) and issue in {i["number"] for i in p["closingIssuesReferences"]}]
 
 
 def taken_elsewhere(labels, own_pr=None, reviews=()):
@@ -1037,16 +1051,23 @@ def cmd_create(arg, force=False, fresh=False):
     if existing:
         die(f"#{n} already has job {existing[0]['id']} ({existing[0]['stage']})")
     is_pr = "pull_request" in gh_json("api", f"repos/{repo_name()}/issues/{n}")
+    prs = [] if is_pr else fetch_open_prs()
     if not fresh:
         if is_pr:
             pr = gh_json("pr", "view", str(n), "--json", "labels,reviews")
             why = taken_elsewhere({l["name"] for l in pr["labels"]}, reviews=pr["reviews"])
         else:
             labels = {l["name"] for l in fetch_issue(n)["labels"]}
-            why = taken_elsewhere(labels, factory_prs().get(n))
+            why = taken_elsewhere(labels, factory_prs(prs).get(n))
         if why:
             die(f"#{n} looks like another checkout's job ({why}): {TAKEN_HINT}. "
                 f"If that job is gone, `job create {n} --fresh` starts over")
+    if linked := [p["number"] for p in linked_prs(prs, n)]:
+        if len(linked) > 1:
+            die(f"issue #{n} has {len(linked)} open PRs ({', '.join(f'#{m}' for m in linked)}): "
+                "`job create <pr>` for the one to review")
+        print(f"job: PR #{linked[0]} is open for issue #{n}: reviewing it instead of building one", file=sys.stderr)
+        return cmd_create(str(linked[0]), force, fresh)
     require_slot(None, force)
     if is_pr:
         return cmd_create_pr(n)
@@ -1070,17 +1091,27 @@ def cmd_create(arg, force=False, fresh=False):
     print(job_id)
 
 
+def queued_issue(n):
+    issue = fetch_issue(n)
+    return issue["state"] == "OPEN" and LABELS["queue"] in {l["name"] for l in issue["labels"]}
+
+
 def cmd_create_pr(n):
     pr = fetch_pr(n)
     if pr["state"] != "OPEN":
         die(f"PR #{n} is {pr['state'].lower()}")
-    if LABELS["queue"] not in {l["name"] for l in pr["labels"]}:
-        die(f"PR #{n} isn't labeled {LABELS['queue']}")
+    closes = [i["number"] for i in pr["closingIssuesReferences"]]
+    labeled = LABELS["queue"] in {l["name"] for l in pr["labels"]}
+    if not labeled and not any(queued_issue(i) for i in closes):
+        die(f"PR #{n} isn't labeled {LABELS['queue']}, and closes no open issue that is")
     if pr["isDraft"]:
         die(f"PR #{n} is a draft; it waits until it's marked ready")
-    if pr["headRefName"].startswith("factory/") and not pr["isCrossRepository"]:
+    if is_own(pr):
         die(f"PR #{n} is the factory's own; its issue job covers it")
-    closes = [i["number"] for i in pr["closingIssuesReferences"]]
+    if not labeled:
+        # A queued issue brought this PR in. The label makes it a queue member in
+        # its own right, so taking it off still drops the job.
+        label("pr", n, add=LABELS["queue"])
     job_id = next_job_id(f"pr {n} {pr['title']}")
     job = {
         "id": job_id, "kind": "pr", "pr": n, "pr_url": pr["url"], "title": pr["title"],
@@ -1204,7 +1235,9 @@ def cmd_queue():
     jobs = {j["issue"]: j for j in every if not is_pr_job(j)}
     issues = gh_json("issue", "list", "--label", LABELS["queue"], "--state", "open",
                      "--limit", "200", "--json", "number,title,labels")
-    own_prs = factory_prs() if any(i["number"] not in jobs for i in issues) else {}
+    prs = fetch_open_prs()
+    own_prs = factory_prs(prs)
+    via_issue = {}  # an unlabeled PR in the queue → the labeled issue it closes
     open_numbers = set()
     for issue in sorted(issues, key=lambda i: i["number"]):
         n = issue["number"]
@@ -1212,6 +1245,10 @@ def cmd_queue():
         j = jobs.get(n)
         if not j and (why := taken_elsewhere({l["name"] for l in issue["labels"]}, own_prs.get(n))):
             other_rows.append(("skip", n, "-", "-", f"another checkout's job: {why}"))
+        elif not j and (linked := [p["number"] for p in linked_prs(prs, n)]):
+            via_issue.update({m: n for m in linked})
+            other_rows.append(("skip", n, "-", "-",
+                               f"reviewing PR {', '.join(f'#{m}' for m in linked)}, which closes it, instead of building one"))
         elif not j:
             new_rows.append(("new", n, "-", "-", issue["title"]))
         elif j["stage"] == "needs-info":
@@ -1236,15 +1273,14 @@ def cmd_queue():
                                f"issue is closed or no longer labeled {LABELS['queue']}"))
 
     pr_jobs = {j["pr"]: j for j in every if is_pr_job(j)}
-    prs = gh_json("pr", "list", "--label", LABELS["queue"], "--state", "open", "--limit", "200",
-                  "--json", "number,title,isDraft,headRefName,isCrossRepository,additions,deletions,labels,reviews")
+    prs = [p for p in prs if LABELS["queue"] in {l["name"] for l in p["labels"]} or p["number"] in via_issue]
     open_prs = set()
     # Smaller PRs first; triage reads impact, the queue only knows size.
     for pr in sorted(prs, key=lambda p: (p["additions"] + p["deletions"], p["number"])):
         n = pr["number"]
         open_prs.add(n)
         j = pr_jobs.get(n)
-        if pr["headRefName"].startswith("factory/") and not pr["isCrossRepository"]:
+        if is_own(pr):
             other_rows.append(("skip", n, "-", "-", "the factory's own PR: its issue job covers it"))
         elif not j and (why := taken_elsewhere({l["name"] for l in pr["labels"]}, reviews=pr["reviews"])):
             other_rows.append(("skip", n, "-", "-", f"another checkout's job: {why}"))
@@ -1252,7 +1288,8 @@ def cmd_queue():
             if pr["isDraft"]:
                 other_rows.append(("wait", n, "-", "-", "draft: waits until it's marked ready"))
             else:
-                new_rows.append(("new", n, "-", "-", f"PR: {pr['title']}"))
+                new_rows.append(("new", n, "-", "-", f"PR: {pr['title']}"
+                                 + (f" (closes #{via_issue[n]})" if n in via_issue else "")))
         elif j["stage"] == "needs-human":
             if j.get("held"):
                 if trusted(j) or contributor_pushed(j):
