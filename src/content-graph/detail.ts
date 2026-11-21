@@ -7,7 +7,7 @@
  * renderer.
  *
  * A board of a few thousand posts settles several thousand world units
- * across and only fits the window near zoom 0.1. There a node is under
+ * across and only fits on screen near zoom 0.1. There a node is under
  * a pixel and a link a tenth of one, so far out the board is drawn as
  * dots that keep a minimum size on screen, links are drawn only for
  * the node being pointed at or focused, and every node stays a target
@@ -24,7 +24,7 @@ export const ZOOM_MIN = 0.15;
 
 /**
  * Lowest zoom a fit may choose. Far below {@link ZOOM_MIN} so a board
- * of thousands of posts fits in the window.
+ * of thousands of posts fits on screen.
  */
 export const FIT_ZOOM_MIN = 0.02;
 
