@@ -730,11 +730,17 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			// the inline preset is the one arc that stays legible at
 			// text size (the WordPress mark's rings collapse into a
 			// static disc below 40px, which is what the bubble used to
-			// show), and it tints from the text it sits beside.
+			// show), and it tints from the text it sits beside. The two
+			// share their own line, so a running job's tool calls stack
+			// under them as they do under a finished answer.
+			let textHost: HTMLElement = row;
 			if ( message.pending ) {
+				textHost = document.createElement( 'div' );
+				textHost.className = 'dm-agent-chat__msg-status';
+				row.appendChild( textHost );
 				const spinner = document.createElement( 'os-spinner' );
 				spinner.setAttribute( 'preset', 'inline' );
-				row.appendChild( spinner );
+				textHost.appendChild( spinner );
 			}
 			const text = document.createElement( 'div' );
 			text.className = 'dm-agent-chat__msg-text';
@@ -746,7 +752,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			} else {
 				text.textContent = message.text;
 			}
-			row.appendChild( text );
+			textHost.appendChild( text );
 		}
 		if ( message.toolCalls && message.toolCalls.length > 0 ) {
 			const tools = document.createElement( 'details' );

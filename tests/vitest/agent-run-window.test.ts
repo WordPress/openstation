@@ -184,7 +184,7 @@ describe( 'agent chat window', () => {
 		expect( line ).not.toBeNull();
 		const row = line!.querySelector( '.dm-agent-chat__msg--pending' );
 		expect( row ).not.toBeNull();
-		const [ first, second ] = [ ...row!.children ];
+		const [ first, second ] = [ ...row!.querySelector( '.dm-agent-chat__msg-status' )!.children ];
 		expect( first.tagName.toLowerCase() ).toBe( 'os-spinner' );
 		expect( first.getAttribute( 'preset' ) ).toBe( 'inline' );
 		expect( second.className ).toBe( 'dm-agent-chat__msg-text' );
