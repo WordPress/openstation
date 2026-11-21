@@ -7983,6 +7983,15 @@ A synchronous `POST /agents/{id}/invoke` holds the request open for the whole
 run, so on a site behind a reverse proxy that cuts long requests (Cloudflare
 answers HTTP 524 after about 100 seconds), send `async: true` and poll instead.
 
+A job reads as `failed` with the code `openstation_agent_job_interrupted` when
+its background worker stopped without storing a result. That shows two hours
+after the job was created, or sooner, while it is `running`, once the worker
+has been silent past the stale bound: about seven minutes by default, see
+[`openstation_agent_job_stale_after`](./hooks-reference.md#openstation_agent_job_stale_after--experimental-filter).
+From then on a new submission to the same agent is admitted. A worker that was
+only slow can still store its result later; a later poll of that job reports
+what it stored.
+
 Only one outstanding job per human/agent pair is admitted (409 for a different
 request while busy). The client backs off its sequential polling and uses the
 same UUID when retrying a lost submission. It does not rerun accepted jobs on
