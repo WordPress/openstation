@@ -23,6 +23,8 @@ export interface PixiContainer {
 	addChild( ...children: unknown[] ): void;
 	removeChild( child: unknown ): void;
 	removeChildren(): void;
+	getChildIndex( child: unknown ): number;
+	setChildIndex( child: unknown, index: number ): void;
 	destroy( opts?: unknown ): void;
 	visible: boolean;
 	eventMode: string;
