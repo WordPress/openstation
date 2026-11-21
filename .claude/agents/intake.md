@@ -126,4 +126,10 @@ five. Leave out ideas of your own, anything a maintainer has to decide first
 (new public API, a product call), and anything the code already does: say
 those under "Left out:" in the Scope instead.
 
+When the Scope puts a control on a surface that already has controls (a menu
+in a pane's footer, a button on a card), read that surface's view code first
+and scope each action once per surface: say which actions the new control
+adds there, and leave out the ones the surface already offers. If the new
+control should take an action over, say which existing control goes.
+
 Reply with one line: the decision, risk and surfaces.

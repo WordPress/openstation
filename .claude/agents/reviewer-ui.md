@@ -81,6 +81,28 @@ one looked at.
 - It looks like it belongs: the same type scale, spacing, radii and surfaces as
   the components around it; nothing overflows at phone width; text contrast is
   readable; it still holds under the Legacy desktop theme.
+- **The group still reads as one group.** Judge the whole surface the change
+  landed on (the card, the pane, the row, the toolbar), not the new control in
+  a crop. Controls that act on the same thing sit in one row, on one baseline,
+  at one height, with the gap the group already had, in order of weight: the
+  filled button first, quiet buttons and links after it, an overflow menu
+  ("⋯") last at the trailing end. At the window's default size no control
+  drops alone onto a line of its own, and none sits apart from the group it
+  belongs to. When the row has no room for one more control, the fix is to
+  fold an action into the menu or shorten the row, never to let the last one
+  wrap.
+- **Nothing shows twice.** Open every menu the change adds or changes and
+  screenshot it with the surface around it. An entry that repeats a button or
+  link visible on that same surface ("Edit" in the menu under an "Open editor"
+  button, "View" beside "View on site") is a finding, whatever the two are
+  called.
+
+**The spec is not a defence.** You review what the user sees, not whether the
+builder followed orders. When intake's Scope, the spec or one of its
+Assumptions asked for the layout you object to, it is still a blocker. Quote
+the line that asked for it in the finding and say what the surface should look
+like instead: a blocker overrides the acceptance criterion it contradicts, and
+the builder needs to know which one.
 
 If the branch has no visual change, write PASS and say so.
 
@@ -115,6 +137,9 @@ VERDICT: PASS | CHANGES
 Sort every finding into exactly one class:
 
 - **Blocker**: a visible inconsistency or breakage on the job's site, or a break of the design rules above.
+  A control the change leaves alone on its own line or apart from its group at
+  the window's default size, and a menu entry the change adds that repeats a
+  control visible beside it, are both blockers.
 - **Gap**: something the issue or spec expects that the change doesn't deliver.
   It's a blocker only when it's the bug itself.
 - **Nit**: drift, wording, a description that no longer matches the code. A
@@ -126,8 +151,10 @@ Sort every finding into exactly one class:
 skim on the dashboard. The detail goes in the sections below it.
 
 **Looked at** is what you did in the browser, one bullet for each surface and
-width: at least the changed surface at desktop width and at 375px, plus each
-state the previous round's blockers were about. Write it for a PASS too: a
+width: at least the changed surface at desktop width and at 375px, each menu
+the change adds or changes with the menu open, plus each state the previous
+round's blockers were about. For a group of controls, say which row each one
+landed on. Write it for a PASS too: a
 verdict with nothing looked at is not a review. When the change shows nowhere
 in the shell, say so in one bullet and why.
 
