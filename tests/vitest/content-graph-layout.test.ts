@@ -22,6 +22,14 @@ import {
 	warmupStepLimit,
 	type Point,
 } from '../../src/content-graph/layout';
+import {
+	detailAt,
+	FIT_OPTIONS,
+	FIT_ZOOM_MIN,
+	hitRadius,
+	manualZoomFloor,
+	ZOOM_MIN,
+} from '../../src/content-graph/detail';
 import { ForceSim } from '../../src/content-graph/sim';
 import type { GraphNode } from '../../src/content-graph/types';
 
@@ -293,5 +301,46 @@ describe( 'frameBounds', () => {
 
 	test( 'refuses an empty point set', () => {
 		expect( frameBounds( [], { width: 800, height: 600 }, opts ) ).toBeNull();
+	} );
+} );
+
+describe( 'large boards', () => {
+	test( 'a fit frames a board wider than the manual floor, and the wheel can reach it', () => {
+		const fit = frameBounds(
+			[
+				{ x: -5000, y: 0 },
+				{ x: 5000, y: 0 },
+			],
+			{ width: 1000, height: 600 },
+			FIT_OPTIONS,
+		);
+		expect( fit!.scale ).toBeCloseTo( 1000 / 10200, 6 );
+		expect( fit!.scale ).toBeLessThan( ZOOM_MIN );
+		expect( fit!.scale ).toBeGreaterThanOrEqual( FIT_ZOOM_MIN );
+		expect( manualZoomFloor( fit!.scale ) ).toBe( fit!.scale );
+		expect( manualZoomFloor( 0.5 ) ).toBe( ZOOM_MIN );
+		expect( manualZoomFloor( null ) ).toBe( ZOOM_MIN );
+	} );
+
+	test( 'far out nodes are dots you can point at; from 0.35 in, nothing changes', () => {
+		const far = 0.08;
+		const overview = detailAt( far );
+		expect( overview.dots ).toBe( true );
+		expect( overview.edges ).toBe( false );
+		expect( 8 * overview.dotScale * far ).toBeGreaterThanOrEqual( 2.5 );
+		expect( hitRadius( 8, overview ) * far ).toBeGreaterThanOrEqual( 6 );
+		expect( overview.hotEdgeWidth * far ).toBeGreaterThanOrEqual( 1 );
+
+		const near = detailAt( 0.35 );
+		expect( near ).toEqual( {
+			dots: false,
+			dotScale: 1,
+			minHitRadius: expect.any( Number ),
+			edges: true,
+			edgeWidth: 0.7,
+			hotEdgeWidth: 1.2,
+		} );
+		expect( hitRadius( 8, near ) ).toBe( 18 );
+		expect( hitRadius( 16, near ) ).toBe( 24 );
 	} );
 } );
