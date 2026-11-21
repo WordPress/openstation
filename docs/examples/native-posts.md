@@ -8,7 +8,7 @@ The Pages window has a per-page **Quick edit**, offered on each card, in the det
 
 > Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
 
-Each row has a `⋯` actions menu (on the card, in the details pane and in the Details table's title cell): Edit, View, Move to trash or Restore, plus the links plugins add to that row on `edit.php` through `page_row_actions` / `post_row_actions`. A plugin that already adds a row link there needs nothing else; see [Row links in the native Posts and Pages windows](../plugin-compat-layer.md#row-links-in-the-native-posts-and-pages-windows) for which links come through.
+Each row has a `⋯` actions menu (on the card, in the details pane and in the Details table's title cell): Edit, View, Move to trash or Restore, plus the links plugins add to that row on `edit.php` through `page_row_actions` / `post_row_actions`. Edit and View appear only where the surface has no button or link of its own for them. A plugin that already adds a row link there needs nothing else; see [Row links in the native Posts and Pages windows](../plugin-compat-layer.md#row-links-in-the-native-posts-and-pages-windows) for which links come through.
 
 ## How the swap works
 

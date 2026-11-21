@@ -135,7 +135,7 @@ describe( 'the pages view', () => {
 		expect( root.querySelector( '.os-posts-desk__inspector-actions a' ) ).toBeNull();
 	} );
 
-	it( 'offers each row the actions its status allows, plus the links plugins add to it', async () => {
+	it( 'offers each row the actions its status allows and the links plugins add, never one its surface already shows', async () => {
 		const fetch = vi.fn( async ( _url: unknown, _init?: RequestInit ) => new Response( JSON.stringify( {
 			success: true,
 			data: { 1: [
@@ -144,17 +144,26 @@ describe( 'the pages view', () => {
 			] },
 		} ) ) );
 		vi.stubGlobal( 'fetch', fetch );
-		const { root } = mount(
-			[ row( 1, { link: 'https://x.test/home/' } ), row( 2, { status: 'draft' } ), row( 3, { status: 'trash' } ) ],
-			{ ajaxUrl: 'http://x.test/wp-admin/admin-ajax.php', rowActionsNonce: 'nonce' },
-		);
-		const entries = ( id: number ): Array< string | null > =>
-			Array.from( root.querySelectorAll( `[data-story-id="${ id }"] [data-os-posts-row-actions] os-context-menu-option` ) ).map( ( o ) => o.textContent );
-		expect( entries( 1 ) ).toEqual( [ 'Edit', 'View ↗', 'Move to trash' ] );
-		await vi.waitFor( () => expect( entries( 1 ) ).toEqual( [ 'Edit', 'View ↗', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] ) );
-		expect( entries( 2 ) ).toEqual( [ 'Edit', 'Move to trash' ] );
-		expect( entries( 3 ) ).toEqual( [ 'Restore' ] );
+		const rows = [ row( 1, { link: 'https://x.test/home/' } ), row( 2, { status: 'draft' } ), row( 3, { status: 'trash' } ) ];
+		const { root } = mount( rows, { ajaxUrl: 'http://x.test/wp-admin/admin-ajax.php', rowActionsNonce: 'nonce' } );
+		const labels = ( menu: Element | null | undefined ): Array< string | null > =>
+			Array.from( menu?.querySelectorAll( 'os-context-menu-option' ) ?? [] ).map( ( o ) => o.textContent );
+		// The card has its own Edit button, so its menu leaves Edit out.
+		const card = ( id: number ): Array< string | null > => labels( root.querySelector( `[data-story-id="${ id }"] [data-os-posts-row-actions]` ) );
+		expect( card( 1 ) ).toEqual( [ 'View ↗', 'Move to trash' ] );
+		await vi.waitFor( () => expect( card( 1 ) ).toEqual( [ 'View ↗', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] ) );
+		expect( card( 2 ) ).toEqual( [ 'Move to trash' ] );
+		expect( card( 3 ) ).toEqual( [ 'Restore' ] );
 		expect( String( fetch.mock.calls[ 0 ][ 1 ]?.body ) ).toContain( 'ids=1%2C2%2C3' );
+		// The details pane has Open editor and View on site.
+		( root.querySelector( '[data-inspect-id="1"]' ) as HTMLElement ).click();
+		expect( labels( root.querySelector( '.os-posts-desk__inspector-actions [data-os-posts-row-actions]' ) ) ).toEqual( [ 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] );
+		// The table's title cell has the View link.
+		const title = ( root.querySelector( '[data-os-posts-table]' ) as HTMLElement & { columns: Array< { key: string; render: ( v: unknown, r: unknown, i: number ) => Element } > } )
+			.columns.find( ( col ) => col.key === 'title' )!;
+		const cell = ( item: PostListItem ): Array< string | null > => labels( title.render( item.title, item, 0 ).querySelector( '[data-os-posts-row-actions]' ) );
+		expect( cell( rows[ 0 ] ) ).toEqual( [ 'Edit', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] );
+		expect( cell( rows[ 1 ] ) ).toEqual( [ 'Edit', 'Move to trash' ] );
 	} );
 
 	it( 'keeps a menu on every card when the list changes under it', () => {

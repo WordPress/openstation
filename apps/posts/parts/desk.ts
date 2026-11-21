@@ -6,7 +6,7 @@ import '../../../src/ui/components/os-stat/os-stat';
 import '../../../src/ui/components/os-select/os-select';
 import { buildColumns, pluginColumns, type ColumnFilterData } from './columns';
 import { authorOf, buildEditPostUrl, featuredMediaOf, offersQuickEdit, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
-import { rowActionsMenu, type RowActionsMenuCache } from './row-actions';
+import { rowActionsMenu, type RowActionsMenuCache, type RowActionsShown } from './row-actions';
 import { tableOf, type Ctx } from './window-context';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import type { PostListItem } from './types';
@@ -27,8 +27,8 @@ export interface DeskState {
 export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map(), anchor: null } );
 
 /** A row's actions menu on a desk surface, or nothing outside the app. */
-function rowMenu( ui: DeskState, env: CellEnv, slot: string, row: PostListItem ): HTMLElement | string {
-	return env.rowActions ? rowActionsMenu( ui.menus, slot, row, env, env.rowActions ) : '';
+function rowMenu( ui: DeskState, env: CellEnv, slot: string, row: PostListItem, shown: RowActionsShown ): HTMLElement | string {
+	return env.rowActions ? rowActionsMenu( ui.menus, slot, row, env, env.rowActions, shown ) : '';
 }
 
 /** Excerpts are text, never executable markup from content. */
@@ -236,7 +236,7 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index:
 			<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
 			${ quickEditButton( row, env, 'ghost' ) }
 			<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
-			${ rowMenu( ui, env, `card:${ index }`, row ) }
+			${ rowMenu( ui, env, `card:${ index }`, row, [ 'edit' ] ) }
 		</footer>
 	</article>`;
 }
@@ -286,7 +286,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 		<footer class="os-posts-desk__inspector-actions"><os-button variant="primary" @click=${ () => edit( ctx, row ) }>${ __( 'Open editor' ) }<span aria-hidden="true"> ↗</span></os-button>
 			${ quickEditButton( row, env, 'secondary' ) }
 			${ row.link && row.status === 'publish' ? html`<a href=${ row.link } target="_blank" rel="noopener noreferrer">${ __( 'View on site' ) } ↗</a>` : '' }
-			${ rowMenu( ui, env, 'inspector', row ) }
+			${ rowMenu( ui, env, 'inspector', row, [ 'edit', 'view' ] ) }
 		</footer>
 	</aside>`;
 }
