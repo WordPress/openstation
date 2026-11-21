@@ -59,10 +59,53 @@ off the machine. When you're done, run
 line saying so: the orchestrator stops the job rather than pass a change no
 one looked at.
 
+## Take stock of the surface
+
+The diff shows what was added. The user sees the surface it landed on, and
+that is what you review. For every surface the change adds a control to, moves
+one on or removes one from (a card, a pane or its footer, a table row, a
+toolbar, a dialog), open it on the job's site and list **every action it
+offers**: each button and link, and each entry of each menu, with the menu
+open. Use the state that offers the most (for a list row, a published one).
+The diff tells you which controls are new.
+
+- **One surface** is what a user sees without leaving it. A pane's footer and
+  the menu that opens from that footer are one surface. A card and the details
+  pane it opens are two.
+- **The same action** is the same outcome for the same object, whatever the
+  label says: "Edit" and "Open editor" both open the editor, "View" and "View
+  on site" both open the page.
+
+Then check three things:
+
+- **One action, one control.** A surface offers each action once. An overflow
+  menu ("⋯", "More") holds what has no visible control on that surface; it
+  never repeats the buttons and links beside it. When the change adds a menu
+  next to controls that already do some of its entries, either the menu drops
+  those entries on that surface or the controls go: say which reads better.
+  A row's title that links to its main action, a right-click menu and a
+  keyboard shortcut may repeat a visible control. Nothing else may.
+- **One action, one name.** The same action carries the same label, icon and
+  "opens elsewhere" mark everywhere in the window. Two names for one action
+  read as two actions.
+- **Where it sits.** A new control goes where its kind already goes in the
+  shell. Find the nearest existing use of the same component in a comparable
+  spot (for an overflow menu, `grep -rn 'os-action-menu' apps/ src/`), open
+  that window and compare. The main action comes first. An overflow menu comes
+  last, at the trailing end of the same row as the controls it overflows from.
+  A control on a line of its own under the group it belongs to, or away from
+  the thing it acts on, is misplaced. Check at the window's default size, then
+  narrow the window until the row wraps.
+
+Write the list down as the **Actions** table of your review. A row of that
+table with two controls in it is a finding.
+
 ## What to look for
 
 - The flow does what the spec promises, with no dead ends, in the shell and,
   where it applies, in the classic wp-admin screen it replaces.
+- Every surface the change touches passes the three checks above: one action,
+  one control; one action, one name; each control where its kind sits.
 - Loading, empty and error states exist and say something useful.
 - Each kind of user the change affects gets a sensible path: Administrators,
   Editors and Authors, a Subscriber (whose dock and desktop are nearly empty),
@@ -95,6 +138,10 @@ VERDICT: PASS | CHANGES
 ## Looked at
 - <the surface, the viewport width, what you did there and what the screen showed>
 
+## Actions
+| Surface | Action | Offered by (every control that does it) | New in this change |
+|---|---|---|---|
+
 ## Blockers
 1. <path:line> <the evidence (reproduction, input, call path), the problem, and the fix you want>
 
@@ -115,12 +162,24 @@ VERDICT: PASS | CHANGES
 Sort every finding into exactly one class:
 
 - **Blocker**: a problem a user would actually hit, within the change's scope.
+  An action the change makes a surface offer twice, one action under two
+  names on one surface, and a control the change puts away from its group are
+  all blockers: a person sees them the moment the surface opens.
 - **Gap**: something the issue or spec expects that the change doesn't deliver.
   It's a blocker only when it's the bug itself.
 - **Nit**: drift, wording, a description that no longer matches the code. A
   human decides whether it's worth mentioning.
 - **Not this PR**: check it on trunk first. Mention it, and suggest an issue
-  for it only if you reproduced it there.
+  for it only if you reproduced it there. A repeat or a misplaced control that
+  was there before the change, and that the change didn't add to, goes here.
+
+**The spec is not a defence.** You review what the user gets, not whether the
+builder followed orders. When intake's Scope, the spec or one of its
+Assumptions asked for the thing you object to ("the same menu in the details
+pane", on a pane that already had those buttons), it is still a blocker. Quote
+the line that asked for it in the finding and say what the surface should
+offer instead: a blocker overrides the acceptance criterion it contradicts,
+and the builder needs to know which one.
 
 `## Summary` comes right after the header: 3 to 5 short bullets a human can
 skim on the dashboard. The detail goes in the sections below it.
@@ -130,6 +189,13 @@ width: at least the changed surface at desktop width and at 375px, plus each
 state the previous round's blockers were about. Write it for a PASS too: a
 verdict with nothing looked at is not a review. When the change shows nowhere
 in the shell, say so in one bullet and why.
+
+**Actions** is the list from "Take stock of the surface": one row for each
+action on each surface the change touches, naming every control that does it,
+a menu's entries included, and whether the change added any of them. Fill it
+from the running site, not from the diff. When the change adds, moves or
+removes no control, write "No control added, moved or removed." under the
+heading instead of the table.
 
 The first line is `VERDICT: CHANGES` exactly when there's at least one blocker,
 and `VERDICT: PASS` otherwise. A gap, a nit or a not-this-PR finding never

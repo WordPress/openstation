@@ -73,6 +73,22 @@ skim on the dashboard. The detail goes in the sections below it.
 - Reuse what exists. If the repo already has a pattern for this (an `<os-*>`
   component, a helper, a registry and its server-sync module, a doc
   convention), name it in Context and require it.
+- **Specify the surface, not the addition.** When the change puts a control on
+  a surface that already has controls (a card, a pane's footer, a table row, a
+  toolbar), list in Context every action that surface offers today and the
+  control that does it. Then write the requirements for the surface as it
+  reads afterwards:
+  - each action once per surface. A menu added beside visible buttons carries
+    only what those buttons don't do. If the menu should own an action, the
+    requirement removes the button. "Edit" and "Open editor" are one action;
+  - where the new control sits: which row, after which control, and what the
+    row does when it has no room left (an action folds into the menu; the last
+    control never wraps onto a line of its own).
+
+  Dropping a control the new one makes redundant is part of the change, not a
+  redesign: never put it under Out of scope, and never record a repeat as an
+  Assumption. The UX and UI reviewers block a surface that offers an action
+  twice, whatever the spec says.
 - Include the doc updates the change needs as requirements: AGENTS.md's doc map
   says which `docs/` page owns each surface, and a change to that surface
   updates it in the same PR.

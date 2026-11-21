@@ -35,7 +35,10 @@ your one file goes there.
 APPROVE only if all of these hold:
 
 - Every acceptance criterion in the spec is met, with evidence in build.md that
-  you find convincing. Spot-check at least one criterion yourself.
+  you find convincing. Spot-check at least one criterion yourself. A
+  criterion build.md marks `superseded` is met when what replaced it is in
+  the branch and the review it names, or the final round's UX and UI reviews,
+  passed on it; say what replaced it in your list.
 - The final round's `checks.md` says `GATE: PASS`, its `ci.md` says `CI: PASS`
   (the factory waited for CI on this commit; Plugin Check runs only there),
   and every routed review in it is `VERDICT: PASS`. Read their **Gaps** and
@@ -61,7 +64,8 @@ ESCALATE if any of them fails, or if the change:
   `readme.txt`'s stable tag, the plugin version), `.claude/`, or the factory;
 - adds or upgrades a dependency (`package.json`, `composer.json`);
 - rests on a spec Assumption that is really a product decision, such as public
-  copy, what a role can see, or a default users will notice.
+  copy, what a role can see, a default users will notice, or a control that
+  repeats an action its surface already offers.
 
 Check the PR's first line and `gh pr view <pr> --json closingIssuesReferences`
 against `intake.md`. A job intake narrowed (`RESCOPED: yes`) says `Related to
