@@ -805,6 +805,16 @@ polling. Transcripts remain in browser memory until the existing conversation
 save after completion; reloading the page does not automatically restore an
 outstanding job, though its ID can still retrieve the result.
 
+While the run works, the worker listens to `openstation_agent_turn_completed`
+for its own job only (matched by `jobId` and agent) and, after each tool round,
+saves `progress` on the job option: the tool names, arguments and errors so
+far, the last round number and an `updatedAt` time, never the tool outputs.
+The terminal save and the interrupted-worker shutdown keep that last
+`progress`, and status reads return it for `running` and `failed` jobs, so the
+chat lists what a run called before the answer exists and after it fails. It is
+for display only: nothing resumes or replays a run from it, and the transcript
+is still saved by the client only after the run ends.
+
 The worker ignores browser disconnects and removes PHP's ordinary execution
 limit where allowed. Host-enforced process limits can still terminate it;
 exceptions and shutdown failures become stored errors. Jobs without a terminal

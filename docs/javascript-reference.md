@@ -7958,7 +7958,7 @@ snapshots the transcript before appending the new message.
 ### Async invocation (Experimental)
 
 Add `async: true, requestId: '<uuid>'` to the invocation body to receive HTTP
-202 with `{ jobId, status, createdAt, pollAfter, result, error }`. The in-tree
+202 with `{ jobId, status, createdAt, pollAfter, result, error, progress }`. The in-tree
 chat, Send to, and drag intakes use this path. `requestId` is required in async
 mode; reusing it with identical input returns the same job, while different
 input returns 409. Async messages are limited to 20,000 bytes.
@@ -7967,9 +7967,21 @@ Poll `GET /agents/{id}/jobs/{jobId}` with the same user's REST authentication.
 States are `queued`, `running`, `completed` and `failed`. `result` is null until
 completion, then contains the usual invocation result including confirmation
 buttons. `error` is null or `{ code, message }`. `createdAt` is Unix seconds;
-`pollAfter` is a suggested delay in seconds. Unknown, wrong-agent, and another
+`pollAfter` is a suggested delay in seconds. `progress` is what the run has
+called so far, `{ turn, toolCalls: [ { name, args, error } ], updatedAt }`,
+written after each tool round (`turn` is the last recorded round, `updatedAt`
+Unix seconds). It is set while the job is `running` and kept when it `failed`,
+interrupted ones included; it is `null` before the first round, while `queued`
+and once `completed`, where `result.toolCalls` carries the full trace. It never
+contains tool outputs. The chat shows it as the pending row's "Tool calls"
+list, and a failed run's error row keeps that list and saves it with the
+conversation. Unknown, wrong-agent, and another
 user's job IDs return 404, even for administrators. Responses use
 `Cache-Control: no-store, private`.
+
+A synchronous `POST /agents/{id}/invoke` holds the request open for the whole
+run, so on a site behind a reverse proxy that cuts long requests (Cloudflare
+answers HTTP 524 after about 100 seconds), send `async: true` and poll instead.
 
 Only one outstanding job per human/agent pair is admitted (409 for a different
 request while busy). The client backs off its sequential polling and uses the

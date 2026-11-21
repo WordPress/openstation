@@ -15,7 +15,7 @@
  * @public
  */
 
-import { __ } from '@openstation/app';
+import { __, _n, sprintf } from '@openstation/app';
 import '../../../src/ui/components/os-table/os-table';
 import '../../../src/ui/components/os-multiselect/os-multiselect';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
@@ -347,20 +347,52 @@ export function resolveStatusSegments(): StatusSegment[] {
 }
 
 /**
- * The shipped bulk actions: "Move to trash" and "Restore". `trash` runs the
- * window's server action over the ids not already in the trash (a second
- * delete would remove them for good); `restore` runs over the ids in the
- * trash. Both return `false` — the action's own dispatch already refreshed
- * the list. A selection survives search and filter changes, so an id picked
- * under an earlier query may have no row loaded: it is sent anyway, and the
- * server skips it if it is gone or in the wrong state.
+ * The shipped bulk actions: "Move to trash" and "Restore", plus "Switch to
+ * draft" in the Pages window. `trash` runs the window's server action over
+ * the ids not already in the trash (a second delete would remove them for
+ * good); `restore` runs over the ids in the trash; `draft` runs over the ids
+ * not already in draft or the trash. All return `false` — the action's own
+ * dispatch already refreshed the list. A selection survives search and
+ * filter changes, so an id picked under an earlier query may have no row
+ * loaded: it is sent anyway, and the server skips it if it is gone or in
+ * the wrong state.
  */
 export function defaultBulkActions(
 	mode: 'posts' | 'pages',
 	trash: ( ids: number[] ) => Promise< boolean >,
 	restore?: ( ids: number[] ) => Promise< boolean >,
+	draft?: ( ids: number[] ) => Promise< boolean >,
 ): BulkAction[] {
+	const draftAction: BulkAction = {
+		id: 'draft',
+		label: __( 'Switch to draft' ),
+		icon: 'dashicons-edit',
+		variant: 'secondary',
+		confirm: ( count: number ) =>
+			sprintf(
+				/* translators: %d: row count. */
+				_n(
+					'Switch %d page to draft? If it is published, it will no longer be visible on the site.',
+					'Switch %d pages to draft? Published pages will no longer be visible on the site.',
+					count,
+				),
+				count,
+			),
+		run: async ( ids, ctx ): Promise< false > => {
+			const data = ctx.table.data ?? [];
+			const draftable = ids.filter( ( id ) => {
+				const status = data.find( ( r ) => r.id === id )?.status;
+				return status !== 'draft' && status !== 'trash';
+			} );
+			if ( draftable.length > 0 && draft ) {
+				await draft( draftable );
+			}
+			ctx.table.clearSelection();
+			return false;
+		},
+	};
 	return [
+		...( mode === 'pages' ? [ draftAction ] : [] ),
 		{
 			id: 'trash',
 			label: __( 'Move to trash' ),

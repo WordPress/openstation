@@ -559,6 +559,8 @@ describe( 'the bulk bar', () => {
 		table().dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
 		expect( ( root.querySelector( '[data-os-posts-bulk]' ) as HTMLElement ).hidden ).toBe( false );
 		expect( root.querySelector( '[data-os-posts-count]' )!.textContent ).toBe( '2 selected' );
+		// "Switch to draft" is the Pages window's alone.
+		expect( root.querySelector( '[data-os-posts-bulk-action="draft"]' ) ).toBeNull();
 		( root.querySelector( '[data-os-posts-bulk-action="trash"]' ) as HTMLElement ).click();
 		await flush();
 		expect( ctx.host.confirm ).toHaveBeenCalledWith( { message: 'Move 2 posts to the trash?', danger: true } );
@@ -648,7 +650,7 @@ describe( 'the registries', () => {
 		const [ action ] = defaultBulkActions( 'posts', trash );
 		expect( typeof action.confirm === 'function' && action.confirm( 1 ) ).toBe( 'Move 1 post to the trash?' );
 		expect( typeof action.confirm === 'function' && action.confirm( 3 ) ).toBe( 'Move 3 posts to the trash?' );
-		const [ pages ] = defaultBulkActions( 'pages', trash );
+		const pages = defaultBulkActions( 'pages', trash ).find( ( a ) => a.id === 'trash' )!;
 		expect( typeof pages.confirm === 'function' && pages.confirm( 2 ) ).toBe( 'Move 2 pages to the trash?' );
 		const clearSelection = vi.fn();
 		// Row 3 was selected under an earlier search: not loaded, still sent.
@@ -669,6 +671,21 @@ describe( 'the registries', () => {
 			table: { data: [ row( 1 ), row( 2, { status: 'trash' } ) ], clearSelection } as never,
 		} as never );
 		expect( restore ).toHaveBeenCalledWith( [ 2, 3 ] );
+		expect( clearSelection ).toHaveBeenCalled();
+		expect( result ).toBe( false );
+	} );
+
+	it( 'the draft bulk action ships in pages mode only, confirms in the singular, and skips loaded drafts and trashed rows', async () => {
+		const draft = vi.fn( async () => true );
+		expect( defaultBulkActions( 'posts', vi.fn(), vi.fn(), draft ).map( ( a ) => a.id ) ).toEqual( [ 'trash', 'restore' ] );
+		const [ action ] = defaultBulkActions( 'pages', vi.fn(), vi.fn(), draft );
+		expect( action.id ).toBe( 'draft' );
+		expect( typeof action.confirm === 'function' && action.confirm( 1 ) ).toBe( 'Switch 1 page to draft? If it is published, it will no longer be visible on the site.' );
+		const clearSelection = vi.fn();
+		const result = await action.run( [ 1, 2, 3, 4 ], {
+			table: { data: [ row( 1 ), row( 2, { status: 'draft' } ), row( 3, { status: 'trash' } ) ], clearSelection } as never,
+		} as never );
+		expect( draft ).toHaveBeenCalledWith( [ 1, 4 ] );
 		expect( clearSelection ).toHaveBeenCalled();
 		expect( result ).toBe( false );
 	} );

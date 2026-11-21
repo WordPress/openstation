@@ -19,7 +19,12 @@
  */
 
 import { __, sprintf } from './i18n';
-import { agentRequestId, runAgentJob } from './agents-jobs';
+import {
+	agentRequestId,
+	JobRequestError,
+	runAgentJob,
+	type AgentJobProgress,
+} from './agents-jobs';
 import {
 	agentsChatStore,
 	openAgentChat,
@@ -28,6 +33,7 @@ import {
 	type AgentChatMessage,
 } from './agents-chat-store';
 import { persistAgentTranscript } from './agents-conversations';
+import type { AgentToolCall } from './agents-types';
 
 /** Entity kinds agents understand — mirrors the trigger config enum. */
 export type DroppedEntityKind = 'post' | 'page' | 'media' | 'user' | 'comment';
@@ -255,6 +261,23 @@ export function openAgentChatWindow(
 }
 
 /**
+ * A job's progress as chat tool calls. Progress never carries outputs,
+ * and the renderer and the transcript store already accept a call
+ * without them.
+ */
+function progressToolCalls(
+	progress: AgentJobProgress | null | undefined,
+): AgentToolCall[] {
+	return ( progress?.toolCalls ?? [] ).map( ( call ) => ( {
+		callId: '',
+		name: call.name,
+		args: call.args,
+		output: null,
+		error: call.error,
+	} ) );
+}
+
+/**
  * Run one invocation with the message appended to the agent's chat
  * transcript — the chat window (already subscribed to the store)
  * paints the run live.
@@ -310,13 +333,17 @@ export async function invokeAgentIntoTranscript(
 			{ message, source, history },
 			rest,
 			agentRequestId(),
-			( status ) => {
+			( status, progress ) => {
 				const labels = {
 					queued: __( 'Queued — waiting for a WordPress worker…', 'desktop-mode' ),
 					reconnecting: __( 'Reconnecting to the background job…', 'desktop-mode' ),
 					running: __( 'Working in the background…', 'desktop-mode' ),
 				};
 				pending.text = labels[ status ];
+				const calls = progressToolCalls( progress );
+				if ( calls.length > 0 ) {
+					pending.toolCalls = calls;
+				}
 				agentsChatStore.notify();
 			},
 		);
@@ -336,6 +363,14 @@ export async function invokeAgentIntoTranscript(
 	} catch ( err ) {
 		pending.role = 'error';
 		pending.text = err instanceof Error ? err.message : String( err );
+		// Keep what the run called. Without the failed job's progress
+		// (a client-side timeout), the last progress seen stays on the row.
+		const calls = progressToolCalls(
+			err instanceof JobRequestError ? err.progress : null,
+		);
+		if ( calls.length > 0 ) {
+			pending.toolCalls = calls;
+		}
 	}
 	pending.pending = false;
 	agentsChatStore.notify();
