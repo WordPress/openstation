@@ -40,8 +40,9 @@ route (script)      → reviewers + models, as above
 update (script)     → merge the latest trunk into the approved head and push it; CONFLICT → ask the contributor, wait; MOVED → triage
 gate (script)       → checks.sh on the merge; a failure is a blocker in the report, not a reason to stop
 reviewers (routed)  → parallel with CI, WAIT FOR ALL, as above
-reporter (opus)     → round-N/verdict.md: APPROVE | CHANGES | HOLD, a test plan, and the comment posted on the PR
-needs-human         → the PR waits for the maintainer to merge, or for the contributor to push (→ triage, a new round)
+reporter (opus)     → round-N/verdict.md: APPROVE | CHANGES | HOLD, a test plan, and the text posted on the PR
+reviewed            → APPROVE or CHANGES, posted as a GitHub review; the PR waits for the maintainer to merge, or for the contributor to push (→ triage, a new round)
+needs-human         → HOLD, or too many CHANGES in a row: posted and labeled, the maintainer decides
 ```
 
 A PR job never commits code to the contributor's branch (the trunk merge is
@@ -130,9 +131,10 @@ job's next step. Agents reply with one line; read their file for the rest.
 
 `factory/bin/job` enforces `concurrency`. Every job in a running stage holds
 a slot, from `job create` until it reaches `needs-info`, `needs-human`,
-`merged`, `rejected` or `abandoned`. `job create` and the moves that restart a
-waiting job from the queue (`needs-info → intake`, and a PR job's
-`needs-human → triage`) refuse when no slot is free. Each time a
+`reviewed`, `merged`, `rejected` or `abandoned`. `job create` and the moves
+that restart a waiting job from the queue (`needs-info → intake`, and a PR
+job's `reviewed → triage` and `needs-human → triage`) refuse when no slot is
+free. Each time a
 job stops being active, run `factory/bin/job queue` again and start what it
 now offers.
 
@@ -294,20 +296,35 @@ goes back to a builder and never skips its report.
 
 **report.** Spawn `reporter` with
 `<paths> Round: <N>. PR: #<pr>. Port: <port>. Trunk: <ports.trunk> <trunk folder>.`
-Then `factory/bin/job advance <job-id> needs-human`: it posts the report's
-**Comment** on the PR and labels it `factory:needs-human`.
+Then read the first line of `round-<N>/verdict.md`:
 
-**needs-human** (PR job). The PR waits. The queue says `resume` when:
+- `VERDICT: APPROVE` or `VERDICT: CHANGES`: `factory/bin/job advance <job-id>
+  reviewed`. It posts the report's **Comment**, with the round's before/after
+  screenshots, as a GitHub review that approves the PR or requests changes,
+  and adds no label. If it refuses an APPROVE because the gate, CI or a review
+  didn't pass, resume the reporter with what it said. If it refuses because
+  CHANGES has now come `pr_changes_limit` rounds in a row, `advance <job-id>
+  needs-human` instead: the review is still posted, and the PR is labeled.
+- `VERDICT: HOLD`: `factory/bin/job advance <job-id> needs-human`. It posts
+  the **Comment** as a plain comment and labels the PR `factory:needs-human`.
+
+**reviewed** (PR job). The PR waits for the contributor or for the
+maintainer's merge. The queue says `resume` when the contributor pushed:
+`factory/bin/job advance <job-id> triage`, then do **triage** on the new head;
+a new round in "were the points addressed?" mode follows.
+
+**needs-human** (PR job). The PR waits for the user. The queue says `resume`
+when:
 
 - the contributor pushed: `factory/bin/job advance <job-id> triage`, then do
-  **triage** on the new head; a new round in "were the points addressed?" mode
-  follows. After `pr_changes_limit` rounds of CHANGES in a row the queue waits
-  for the user instead; `/factory run <n>` reviews it again anyway.
+  **triage** on the new head. After `pr_changes_limit` rounds of CHANGES in a
+  row the queue waits for the user instead; `/factory run <n>` reviews it
+  again anyway.
 - a held PR got the trusted label: `factory/bin/job advance <job-id> triage`,
   then do **triage**. The label vouches for the head that was held; a later
   push is screened as usual.
 
-**needs-human, merged, rejected, abandoned.** Nothing to do. `factory/bin/job queue`
+**needs-human, reviewed, merged, rejected, abandoned.** Nothing to do. `factory/bin/job queue`
 moves any unfinished job to `merged` once its PR is merged on GitHub, and
 any unfinished job, running or waiting, to `abandoned` once its PR is closed
 unmerged, its issue is closed, or its `factory` label is removed. Both tear
