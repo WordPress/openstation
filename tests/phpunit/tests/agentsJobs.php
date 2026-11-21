@@ -14,6 +14,7 @@
  * @covers ::openstation_agent_job_finish
  * @covers ::openstation_agent_job_cleanup
  * @covers ::openstation_agents_register_job_routes
+ * @covers ::openstation_agent_runner_loop
  */
 class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 	private $owner;
@@ -48,6 +49,23 @@ class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 
 	private function poll( $id, $agent_id = null ) {
 		return rest_get_server()->dispatch( new WP_REST_Request( 'GET', '/desktop-mode/v1/agents/' . ( $agent_id ? $agent_id : $this->agent->ID ) . '/jobs/' . $id ) );
+	}
+
+	/**
+	 * Make the stubbed model call one tool per round for $rounds rounds, then
+	 * answer with $final (the default answer when null). $observe sees every turn.
+	 */
+	private function call_tools( $rounds, $final = null, $observe = null ) {
+		add_filter( 'openstation_agent_runner_generate', static function ( $result, $history ) use ( $rounds, $final, $observe ) {
+			if ( $observe ) {
+				$observe();
+			}
+			$done = count( wp_list_filter( $history, array( 'type' => 'tool_results' ) ) );
+			if ( $done < $rounds ) {
+				return array( 'text' => '', 'function_calls' => array( array( 'call_id' => 'call-' . $done, 'name' => 'lookup', 'arguments' => array( 'round' => $done + 1 ) ) ), 'message' => null );
+			}
+			return null === $final ? $result : $final;
+		}, 20, 2 );
 	}
 
 	public function test_submission_and_poll_are_short_and_do_not_generate() {
@@ -185,5 +203,85 @@ class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 		$this->assertNull( openstation_agent_job_get( $id ) );
 		openstation_agent_job_run( $id );
 		$this->assertSame( 0, $this->calls );
+	}
+
+	public function test_progress_is_written_after_each_tool_round_without_outputs() {
+		$id    = $this->submit()->get_data()['jobId'];
+		$agent = $this->agent->ID;
+		$seen  = array();
+		$this->call_tools( 2, null, static function () use ( $id, $agent, &$seen ) {
+			$seen[] = openstation_agent_job_get( $id )['progress'] ?? null;
+			// A nested or chained run in the same worker must not write into this job.
+			$foreign = array(
+				'turn'      => 9,
+				'toolCalls' => array( array( 'callId' => 'x', 'name' => 'foreign', 'args' => array(), 'output' => 'secret', 'error' => null ) ),
+			);
+			do_action( 'openstation_agent_turn_completed', $agent + 1, $foreign, array( 'jobId' => $id ) );
+			do_action( 'openstation_agent_turn_completed', $agent, $foreign, array( 'jobId' => wp_generate_uuid4() ) );
+			do_action( 'openstation_agent_turn_completed', $agent, $foreign, array() );
+		} );
+		openstation_agent_job_run( $id );
+		$this->assertSame( array( 'lookup', 'lookup' ), wp_list_pluck( openstation_agent_job_get( $id )['progress']['toolCalls'], 'name' ) );
+		$this->assertNull( $seen[0] );
+		$this->assertSame( 1, $seen[1]['turn'] );
+		$this->assertCount( 1, $seen[1]['toolCalls'] );
+		$this->assertSame( array( 'name', 'args', 'error' ), array_keys( $seen[1]['toolCalls'][0] ) );
+		$this->assertSame( 'lookup', $seen[1]['toolCalls'][0]['name'] );
+		$this->assertSame( array( 'round' => 1 ), $seen[1]['toolCalls'][0]['args'] );
+		$this->assertNotEmpty( $seen[1]['toolCalls'][0]['error'] );
+		$this->assertSame( 2, $seen[2]['turn'] );
+		$this->assertSame( array( array( 'round' => 1 ), array( 'round' => 2 ) ), wp_list_pluck( $seen[2]['toolCalls'], 'args' ) );
+		$this->assertGreaterThan( 0, $seen[2]['updatedAt'] );
+		$status = $this->poll( $id )->get_data();
+		$this->assertSame( 'completed', $status['status'] );
+		$this->assertNull( $status['progress'] );
+		$this->assertCount( 2, $status['result']['toolCalls'] );
+		$this->assertArrayHasKey( 'output', $status['result']['toolCalls'][0] );
+	}
+
+	public function test_failed_and_interrupted_jobs_keep_progress_for_the_owner_only() {
+		$id = $this->submit()->get_data()['jobId'];
+		$this->call_tools( 1, new WP_Error( 'qa_fail', 'QA forced failure' ) );
+		openstation_agent_job_run( $id );
+		$status = $this->poll( $id )->get_data();
+		$this->assertSame( 'failed', $status['status'] );
+		$this->assertSame( 'QA forced failure', $status['error']['message'] );
+		$this->assertSame( 1, $status['progress']['turn'] );
+		$this->assertSame( array( 'lookup' ), wp_list_pluck( $status['progress']['toolCalls'], 'name' ) );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$response = $this->poll( $id );
+		$this->assertSame( 404, $response->get_status() );
+		$this->assertArrayNotHasKey( 'progress', $response->get_data() );
+		wp_set_current_user( $this->owner );
+
+		$stale             = openstation_agent_job_get( $this->submit()->get_data()['jobId'] );
+		$stale['status']   = 'running';
+		$stale['deadline'] = time() - 1;
+		$stale['progress'] = $status['progress'];
+		update_option( 'openstation_agent_job_' . $stale['id'], $stale, false );
+		$status = $this->poll( $stale['id'] )->get_data();
+		$this->assertSame( 'failed', $status['status'] );
+		$this->assertSame( 'openstation_agent_job_interrupted', $status['error']['code'] );
+		$this->assertSame( $stale['progress'], $status['progress'] );
+	}
+
+	public function test_synchronous_invoke_writes_no_job_option() {
+		$written = array();
+		$track   = static function ( $option ) use ( &$written ) {
+			$written[] = $option;
+		};
+		add_action( 'added_option', $track );
+		add_action( 'updated_option', $track );
+		$rounds = 0;
+		add_action( 'openstation_agent_turn_completed', static function () use ( &$rounds ) {
+			++$rounds;
+		} );
+		$this->call_tools( 2 );
+		$result = openstation_agent_invoke( $this->agent->ID, 'Do it now.' );
+		$this->assertSame( 'Finished async.', $result['text'] );
+		$this->assertCount( 2, $result['toolCalls'] );
+		$this->assertSame( 2, $rounds );
+		$this->assertSame( array(), preg_grep( '/^openstation_agent_job_/', $written ) );
 	}
 }

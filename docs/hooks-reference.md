@@ -5654,7 +5654,9 @@ all, and again wherever the enabled state is consulted.
 
 Fires after an async agent job stores a completed or failed result and releases
 its admission slot. Parameters: `string $id` (job UUID), `int $owner` (human
-invoker), `array $status` (the public job snapshot, including result/error).
+invoker), `array $status` (the public job snapshot, including result/error,
+and `progress`: the tool calls a failed job had recorded, `null` on a completed
+one).
 A hard-killed process cannot fire this action. Status reads may report an
 interrupted job from its deadline without dispatching actions or running work.
 
@@ -5705,6 +5707,24 @@ consumes it.
   Copilot. Both are `null` when the provider reported nothing, which is
   what tells "cost nothing" apart from "did not say".
 - **Param** `array $context` — invocation context; convention: `source` names the trigger (`chat`, `send-to`, `hook`, …).
+
+### `openstation_agent_turn_completed` — Experimental *(action)*
+
+Fires after each round in which the agent called tools, once the round's
+results are in the history and before the next generation turn. It never fires
+for the answer turn or for the forced tool-less final turn. The async job
+worker listens to it to record `progress` on the job (see
+[Async invocation](./javascript-reference.md#async-invocation-experimental)),
+and adds `jobId` to `$context` for that. With no listener attached a
+synchronous invoke pays nothing: nothing is stored and the result is unchanged.
+
+- **Param** `int $agent_user_id`
+- **Param** `array $turn` — `{ turn, toolCalls }`: the 1-based round number and
+  that round's trace entries, `{ callId, name, args, output, error }`, the
+  same shape as `toolCalls` in the invocation result. `output` has already
+  been through `openstation_agent_tool_result`.
+- **Param** `array $context` — invocation context passed to
+  `openstation_agent_invoke()`; the async worker adds `jobId` (the job UUID).
 
 ### `openstation_agent_tool_result` — Experimental *(filter)*
 
