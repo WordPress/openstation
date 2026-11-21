@@ -7974,7 +7974,8 @@ Unix seconds). It is set while the job is `running` and kept when it `failed`,
 interrupted ones included; it is `null` before the first round, while `queued`
 and once `completed`, where `result.toolCalls` carries the full trace. It never
 contains tool outputs. The chat shows it as the pending row's "Tool calls"
-list. Unknown, wrong-agent, and another
+list, and a failed run's error row keeps that list and saves it with the
+conversation. Unknown, wrong-agent, and another
 user's job IDs return 404, even for administrators. Responses use
 `Cache-Control: no-store, private`.
 
