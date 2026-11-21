@@ -456,12 +456,15 @@
 	min-width: min( 176px, 100% );
 }
 
-/* Spinner and label on one line, centred. The bubble is a flex column
-   everywhere else; the working row is the one place it reads as an
-   instrument line, arc first, then the word. */
 .dm-agent-chat__line--pending .dm-agent-chat__msg {
 	flex: 1;
-	flex-direction: row;
+}
+
+/* Spinner and label on one line, centred: the working row reads as an
+   instrument line, arc first, then the word. The bubble stays a flex
+   column, so a running job's tool calls sit below that line. */
+.dm-agent-chat__msg-status {
+	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: 8px;

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { agentRequestId, runAgentJob } from '../../src/agents-jobs';
+import { agentRequestId, JobRequestError, runAgentJob } from '../../src/agents-jobs';
 import { dispatchAgentSendTo } from '../../src/agents-dispatch';
 import { agentsChatStore } from '../../src/agents-chat-store';
 
@@ -9,6 +9,8 @@ const id = '09a66ae0-077a-4000-8000-123456789abc';
 const result = { text: 'SEO complete', toolCalls: [], callToActions: [], turns: 4 };
 const job = ( status: string ) => ( { jobId: id, status, pollAfter: 3, result: status === 'completed' ? result : null } );
 const response = ( body: unknown, status = 200 ) => new Response( JSON.stringify( body ), { status } );
+const searched = { name: 'desktop-mode/search-posts', args: { search: 'seo' }, error: null };
+const progress = ( ...toolCalls: Array< typeof searched > ) => ( { turn: toolCalls.length, toolCalls, updatedAt: 1700000000 } );
 
 beforeEach( () => {
 	vi.useFakeTimers();
@@ -40,7 +42,7 @@ describe( 'async agent transport', () => {
 		const status = vi.fn();
 		const pending = runAgentJob( 9, input, rest, id, status );
 		await vi.advanceTimersByTimeAsync( 34000 );
-		expect( status ).toHaveBeenCalledWith( 'running' );
+		expect( status ).toHaveBeenCalledWith( 'running', null );
 		await vi.advanceTimersByTimeAsync( 12000 );
 		await expect( pending ).resolves.toEqual( result );
 		expect( maxActive ).toBe( 1 );
@@ -101,6 +103,50 @@ describe( 'async agent transport', () => {
 		expect( transcript[ 1 ].pending ).toBe( false );
 		expect( transcript[ 1 ].text ).toBe( result.text );
 		expect( transcript[ 1 ].role ).toBe( 'agent' );
+	} );
+
+	test( 'status reads hand progress to onStatus, and a failed job rejects with its progress', async () => {
+		const ran = progress( searched );
+		const fetcher = vi.fn()
+			.mockResolvedValueOnce( response( job( 'queued' ), 202 ) )
+			.mockResolvedValueOnce( response( { ...job( 'running' ), progress: ran } ) )
+			.mockResolvedValueOnce( response( { ...job( 'failed' ), error: { code: 'qa_fail', message: 'QA forced failure' }, progress: ran } ) );
+		vi.stubGlobal( 'fetch', fetcher );
+		const status = vi.fn();
+		const task = runAgentJob( 9, input, rest, id, status ).catch( ( error: unknown ) => error );
+		await vi.advanceTimersByTimeAsync( 30000 );
+		const error = await task;
+		expect( status ).toHaveBeenCalledWith( 'running', ran );
+		expect( error ).toBeInstanceOf( JobRequestError );
+		expect( ( error as JobRequestError ).message ).toBe( 'QA forced failure' );
+		expect( ( error as JobRequestError ).progress ).toEqual( ran );
+	} );
+
+	test( 'Send to shows progress on the pending row and keeps it on the error row', async () => {
+		let requestId = '';
+		let polls = 0;
+		agentsChatStore.state.transcripts = {};
+		const fetcher = vi.fn( async ( url: string, init: RequestInit ) => {
+			if ( url.includes( '/conversations' ) ) return response( { id: 7 } );
+			if ( init.method === 'POST' ) {
+				requestId = JSON.parse( String( init.body ) ).requestId;
+				return response( { ...job( 'queued' ), jobId: requestId }, 202 );
+			}
+			return ++polls === 1
+				? response( { ...job( 'running' ), jobId: requestId, progress: progress( searched ) } )
+				: response( { ...job( 'failed' ), jobId: requestId, error: { code: 'qa_fail', message: 'QA forced failure' }, progress: progress( searched, { ...searched, error: 'Not found.' } ) } );
+		} );
+		vi.stubGlobal( 'fetch', fetcher );
+		const task = dispatchAgentSendTo( { id: 9, name: 'SEO Medic', description: '', avatarUrl: '' }, { kind: 'post', id: 12, title: 'Test post' }, rest );
+		await vi.advanceTimersByTimeAsync( 3100 );
+		const row = agentsChatStore.state.transcripts[ 9 ][ 1 ];
+		expect( row.pending ).toBe( true );
+		expect( row.toolCalls ).toEqual( [ { callId: '', ...searched, output: null } ] );
+		await vi.advanceTimersByTimeAsync( 10000 );
+		await task;
+		expect( row.role ).toBe( 'error' );
+		expect( row.text ).toBe( 'QA forced failure' );
+		expect( row.toolCalls?.map( ( call ) => call.error ) ).toEqual( [ null, 'Not found.' ] );
 	} );
 
 	test( 'an individual hung poll times out and recovers without another POST', async () => {

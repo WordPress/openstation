@@ -4,7 +4,7 @@ import type { UsersData, UsersState, UserListItem } from './types';
 import { PeopleFeed } from './people-feed';
 const batch = ( page: number, ids: number[] ): UsersData => ( { list: { page, items: ids.map( ( id ) => ( { id } as UserListItem ) ), total: 6, pages: 3, perPage: 2, error: '' } } );
 function setup() {
-	const ctx = mockViewContext< UsersState, UsersData >( { root: document.createElement( 'div' ), state: { page: 1, perPage: 2, search: '', role: '', status: '', orderby: 'date', order: 'desc', tab: 'all', createError: '', createField: '', created: 0 }, data: batch( 1, [ 1, 2 ] ) } );
+	const ctx = mockViewContext< UsersState, UsersData >( { root: document.createElement( 'div' ), state: { page: 1, perPage: 2, search: '', role: '', status: '', orderby: 'date', order: 'desc', tab: 'all', createError: '', createField: '', created: 0, emailError: '', emailsSent: 0 }, data: batch( 1, [ 1, 2 ] ) } );
 	const feed = new PeopleFeed(); feed.reconcile( ctx );
 	return { ctx, feed };
 }

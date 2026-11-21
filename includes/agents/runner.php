@@ -141,7 +141,8 @@ function openstation_agent_runner_available() {
  * @param int    $agent_user_id Agent's `wp_users.ID`.
  * @param string $message       Message for the agent.
  * @param array  $context       Optional invocation context — free-form,
- *                              passed through to the completed action.
+ *                              passed through to the per-round and
+ *                              completed actions.
  *                              Conventions: `source` names the trigger
  *                              (`chat`, `send-to`, `hook`, …);
  *                              `history` carries prior conversation
@@ -217,7 +218,8 @@ function openstation_agent_invoke( $agent_user_id, $message, $context = array() 
 			$slug_by_name,
 			openstation_agent_runner_sanitize_history(
 				isset( $context['history'] ) ? $context['history'] : array()
-			)
+			),
+			(array) $context
 		);
 	} finally {
 		if ( is_callable( $release_caps ) ) {
@@ -501,9 +503,11 @@ function openstation_agent_runner_build_tools( array $ability_slugs ) {
  * @param array  $tool_defs     Neutral tool definitions.
  * @param array  $slug_by_name  Tool-name → ability-slug map.
  * @param array  $prior         Sanitized prior conversation turns.
+ * @param array  $context       Invocation context, handed to the
+ *                              per-round action.
  * @return array|WP_Error `{ text, callToActions, toolCalls, turns }`.
  */
-function openstation_agent_runner_loop( $agent_user_id, $instructions, $message, array $tool_defs, array $slug_by_name, array $prior = array() ) {
+function openstation_agent_runner_loop( $agent_user_id, $instructions, $message, array $tool_defs, array $slug_by_name, array $prior = array(), array $context = array() ) {
 	// Neutral history rows:
 	// { type: 'prior'|'user_text'|'assistant'|'tool_results', … }.
 	$history = array();
@@ -608,7 +612,8 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 			'message' => isset( $generated['message'] ) ? $generated['message'] : null,
 		);
 
-		$results = array();
+		$round_start = count( $tool_trace );
+		$results     = array();
 		foreach ( $function_calls as $call ) {
 			$call_id = isset( $call['call_id'] ) ? (string) $call['call_id'] : '';
 			$name    = isset( $call['name'] ) ? (string) $call['name'] : '';
@@ -668,6 +673,32 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 		$history[] = array(
 			'type'    => 'tool_results',
 			'results' => $results,
+		);
+
+		/**
+		 * Fires after each round in which the agent called tools, before
+		 * the model sees the results.
+		 *
+		 * The progress seam: the async job worker records what the run
+		 * has called so far, so a poll can show it before the answer
+		 * exists. Never fires for the answer turn.
+		 *
+		 * @param int   $agent_user_id Agent user id.
+		 * @param array $turn          `{ turn, toolCalls }`: the 1-based
+		 *                             round number and that round's trace
+		 *                             entries (`{ callId, name, args,
+		 *                             output, error }`).
+		 * @param array $context       Invocation context passed to
+		 *                             `openstation_agent_invoke()`.
+		 */
+		do_action(
+			'openstation_agent_turn_completed',
+			(int) $agent_user_id,
+			array(
+				'turn'      => $turn,
+				'toolCalls' => array_slice( $tool_trace, $round_start ),
+			),
+			$context
 		);
 
 		$failure = openstation_agent_runner_failure_signature( $results );
