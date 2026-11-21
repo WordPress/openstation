@@ -22,6 +22,7 @@ Usage:
                                  move a job to <stage>, or refuse
   job update <job>               PR jobs: merge trunk into the PR, push it → round-N/update.md
   job push <job>                 issue jobs in build: push the job's branch for the builder
+  job body <job> <file>          issue jobs in build: replace the job's PR body with a file from its worktree
   job ci <job>                   wait for the PR's CI on the round's commit → round-N/ci.md
   job merge <job>                APPROVE → sync with the base branch, gate, merge the PR
                                  (with auto_merge off: mark it ready and hand it to you)
@@ -57,6 +58,9 @@ from urllib.parse import urlencode
 REPO = Path(__file__).resolve().parents[2]
 FACTORY = REPO / "factory"
 JOBS = FACTORY / "jobs"
+# Job worktrees live inside the checkout that runs the factory: a session confined
+# to its own folder, such as a Claude Code worktree session, can then edit them.
+WORKTREES = FACTORY / "worktrees"
 BIN = FACTORY / "bin"
 CONFIG = json.loads((FACTORY / "config.json").read_text())
 LABELS = CONFIG["labels"]
@@ -314,6 +318,15 @@ def notify_needs_human(job):
     decision = (job_dir(job["id"]) / "decision.md").read_text()
     if "\n## Merge\n" in decision:
         return notify(job, "Ready to merge, approved by the factory")
+    if "\n## Summary\n" in decision:
+        # The approver's own file: its reasons run to paragraphs, and the PR carries them.
+        return notify(job, "Needs a maintainer's decision")
+    verdict = round_dir(job) / "verdict.md"
+    if "report says HOLD" in decision and verdict.exists():
+        # The reporter's first Summary bullet says what it is holding for.
+        first = next((l[2:] for l in (section(verdict, "Summary") or "").splitlines() if l.startswith("- ")), "")
+        if reason := re.sub(r"^HOLD:\s*", "", first).strip()[:300].rstrip(".:"):
+            return notify(job, f"Needs a maintainer ({reason})")
     why = [l.strip() for l in decision.splitlines()[1:] if l.strip() and not l.startswith("#")]
     reason = re.sub(r"\s*See round-\S+$", "", why[0])[:300] if why else ""
     notify(job, "Needs a maintainer" + (f" ({reason.rstrip('.:')})" if reason else ""))
@@ -595,6 +608,9 @@ def cost_usd(job):
 
 def sync(job):
     d = job_dir(job["id"])
+    # A job folder brought here from another checkout, or a worktree moved into this one.
+    if not Path(job["worktree"]).exists() and (WORKTREES / job["id"]).exists():
+        job["worktree"] = str(WORKTREES / job["id"])
     # A PR job's triage.md carries the same header an issue job's intake.md does.
     intake = d / ("triage.md" if is_pr_job(job) else "intake.md")
     if intake.exists():
@@ -743,6 +759,20 @@ def advance(job, stage, force=False):
         require(job["pr"] and pr_state(job) == "MERGED", "the PR isn't merged")
         for name in labels_on(job) & {LABELS["needs_human"], LABELS["needs_info"]}:
             label("pr" if is_pr_job(job) else "issue", number(job), remove=name)
+        closes = gh_json("pr", "view", str(job["pr"]), "--json", "closingIssuesReferences")["closingIssuesReferences"]
+        if not is_pr_job(job) and job["issue"] not in {i["number"] for i in closes}:
+            # The PR referred to the issue without closing it, because intake had narrowed
+            # it. What it left out is queued as issues of its own, and this one stays open
+            # until they land. It leaves the queue: a run with no job for it would
+            # otherwise build the same part again.
+            filed = file_followups(job)
+            rest = (f"The rest is queued as {', '.join(f'#{n}' for n in filed)}, each built as a PR of its own. "
+                    "This issue stays open until they land" if filed else
+                    "The rest is not built, so this issue stays open. To have a remaining item built, open an "
+                    f"issue for it and label it `{LABELS['queue']}`")
+            comment("issue", job["issue"], f"### Factory: merged\n\nPR #{job['pr']} delivers the part of this issue "
+                    f"that the intake comment above scoped. {rest}. It leaves the factory's queue.")
+            label("issue", job["issue"], remove=LABELS["queue"])
 
     elif stage == "abandoned":
         require(stopped_upstream(job), f"#{number(job)} is open and still labeled {LABELS['queue']}")
@@ -987,7 +1017,9 @@ def advance(job, stage, force=False):
                     + (d / "decision.md").read_text().split("\n", 1)[1].replace("## Why\n", "", 1).strip())
         label("pr", job["pr"], add=LABELS["needs_human"])
     elif stage == "needs-human":
-        body = f"### Factory: needs a human\n\n{(d / 'decision.md').read_text().split(chr(10), 1)[1].strip()}"
+        # A lone "## Why" would sit above the comment's own "###" title; a handover's "## Merge" stays.
+        why = (d / "decision.md").read_text().split("\n", 1)[1].strip().removeprefix("## Why\n").strip()
+        body = f"### Factory: needs a human\n\n{why}"
         if job["pr"]:
             if gh_json("pr", "view", str(job["pr"]), "--json", "isDraft")["isDraft"]:
                 gh("pr", "ready", str(job["pr"]))
@@ -1028,7 +1060,7 @@ def next_job_id(title):
 
 def fetch_open_prs():
     return gh_json("pr", "list", "--state", "open", "--limit", "200", "--json",
-                   "number,title,isDraft,headRefName,isCrossRepository,additions,deletions,labels,reviews,"
+                   "number,title,body,isDraft,headRefName,isCrossRepository,additions,deletions,labels,reviews,"
                    "closingIssuesReferences")
 
 
@@ -1037,9 +1069,42 @@ def is_own(pr):
     return pr["headRefName"].startswith("factory/") and not pr["isCrossRepository"]
 
 
+def own_issues(pr):
+    """The issues a factory PR was built for: the ones it closes, and the one its first
+    line refers to (`Refs #n`, when intake narrowed the issue and the PR leaves it open)."""
+    issues = {i["number"] for i in pr["closingIssuesReferences"]}
+    if m := re.match(r"(?:Closes|Refs) #(\d+)", pr.get("body") or ""):
+        issues.add(int(m.group(1)))
+    return issues
+
+
+def followups(job):
+    """[(title, body)] from intake.md's `## Follow-ups`: what the issue asked for that
+    this job leaves undone, one `### <title>` each."""
+    text = section(job_dir(job["id"]) / "intake.md", "Follow-ups") or ""
+    items = [i.split("\n", 1) for i in re.split(r"^### ", text, flags=re.M)[1:]]
+    return [(i[0].strip(), i[1].strip() if len(i) > 1 else "") for i in items][:CONFIG["max_followups"]]
+
+
+def file_followups(job):
+    """Open a queued issue for each follow-up and return their numbers.
+
+    followups.json records each one as it is filed, so a retry never files it twice.
+    """
+    path = job_dir(job["id"]) / "followups.json"
+    filed = json.loads(path.read_text()) if path.exists() else {}
+    for title, body in followups(job):
+        if title not in filed:
+            url = gh("issue", "create", "--title", title, "--label", LABELS["queue"], "--body",
+                     f"Part of #{job['issue']}, which #{job['pr']} delivered in part.\n\n{body}").strip()
+            filed[title] = int(url.rsplit("/", 1)[1])
+            path.write_text(json.dumps(filed, indent=2) + "\n")
+    return list(filed.values())
+
+
 def factory_prs(prs):
     """{issue number: PR number} for every open PR the factory built for an issue."""
-    return {i["number"]: p["number"] for p in prs if is_own(p) for i in p["closingIssuesReferences"]}
+    return {n: p["number"] for p in prs if is_own(p) for n in own_issues(p)}
 
 
 def linked_prs(prs, issue):
@@ -1108,7 +1173,7 @@ def cmd_create(arg, force=False, fresh=False):
         "id": job_id, "kind": "issue", "issue": issue["number"], "title": issue["title"], "issue_url": issue["url"],
         "pr": None, "pr_url": None,
         "branch": f"factory/{job_id}",
-        "worktree": str(REPO.parent / f"{REPO.name}-factory" / job_id),
+        "worktree": str(WORKTREES / job_id),
         "stage": "intake", "round": 0, "round_limit": CONFIG["max_rounds"],
         "intake": None, "agents": None, "gate": None, "ci": None, "reviews": {},
         "cost_usd": 0.0, "started": now(), "ended": None,
@@ -1145,7 +1210,7 @@ def cmd_create_pr(n):
         "issue": closes[0] if closes else None,
         "issue_url": pr["closingIssuesReferences"][0]["url"] if closes else None,
         "branch": f"factory-pr-{n}",
-        "worktree": str(REPO.parent / f"{REPO.name}-factory" / job_id),
+        "worktree": str(WORKTREES / job_id),
         "stage": "triage", "round": 0, "round_limit": CONFIG["max_rounds"],
         "intake": None, "agents": None, "gate": None, "ci": None, "reviews": {}, "report": None,
         "head": None, "own_shas": [], "verdicts": [], "held": False,
@@ -1243,9 +1308,31 @@ def changes_streak(job):
     return streak
 
 
+def stale_agents():
+    """(main checkout, files) for the agent and skill files that differ from this checkout's.
+
+    A session in a worktree loads its agents and the /factory skill from the main
+    checkout's .claude/, so a main checkout left behind runs yesterday's agents
+    against today's scripts.
+    """
+    main = Path(run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"]).stdout.strip()).parent
+    files = []
+    for sub in ("agents", "skills/factory") if main != REPO else ():
+        here, there = REPO / ".claude" / sub, main / ".claude" / sub
+        for f in sorted(here.rglob("*.md")):
+            other = there / f.relative_to(here)
+            if not other.exists() or other.read_bytes() != f.read_bytes():
+                files.append(f.name if sub == "agents" else str(f.relative_to(REPO / ".claude")))
+    return main, files
+
+
 def cmd_queue():
     """Rows in the order to start them. `resume` and `new` rows fit in the
     concurrency slots; the rest show as `hold` until a running job finishes."""
+    main, stale = stale_agents()
+    if stale:
+        print(f"job: agents and the /factory skill load from {main}/.claude, where {len(stale)} differ from "
+              f"this checkout's ({', '.join(stale)}). Bring that checkout up to date before a run.", file=sys.stderr)
     every = all_jobs()
     # A job ends on GitHub, at any stage: merged once its PR is merged (which also
     # closes the issue), abandoned once someone stops it there (closes it, or
@@ -1354,12 +1441,14 @@ def cmd_queue():
     busy = [j["id"] for j in running(every)]
     slots = CONCURRENCY - len(busy)
     rows = list(running_rows)
+    ahead = list(busy)  # what holds the slots: running jobs, then the rows this call hands one to
     for row in restart_rows + new_rows:
         if slots > 0:
             rows.append(row)
             slots -= 1
+            ahead.append(row[2] if row[2] != "-" else f"#{row[1]}")
         else:
-            rows.append(("hold",) + row[1:4] + (f"concurrency {CONCURRENCY} reached; running: {', '.join(busy)}",))
+            rows.append(("hold",) + row[1:4] + (f"concurrency {CONCURRENCY} reached; ahead of it: {', '.join(ahead)}",))
     for row in rows + other_rows:
         print("\t".join(str(c) for c in row))
 
@@ -1387,8 +1476,9 @@ def ci_check(c):
 def cmd_ci(job):
     """Wait for the PR's checks on the round's commit and write round-N/ci.md.
 
-    PASS when every check finishes green, FAIL when any finishes red, NONE when no
-    check reports within ten minutes, TIMEOUT when they don't all finish within
+    PASS when every check finishes green, FAIL when any finishes red or the PR
+    conflicts with its base (GitHub then runs none), NONE when no check reports
+    within ten minutes, TIMEOUT when they don't all finish within
     ci_timeout_minutes. The factory never re-runs CI.
     """
     if job["stage"] != "review":
@@ -1396,9 +1486,14 @@ def cmd_ci(job):
     head = ci_commit(job)
     start = time.monotonic()
     while True:
-        pr = gh_json("pr", "view", str(job["pr"]), "--json", "headRefOid,statusCheckRollup")
+        pr = gh_json("pr", "view", str(job["pr"]), "--json", "headRefOid,statusCheckRollup,mergeable")
         checks = [ci_check(c) for c in pr["statusCheckRollup"]] if pr["headRefOid"] == head else []
         waited = (time.monotonic() - start) / 60
+        conflicting = not checks and pr["mergeable"] == "CONFLICTING"
+        if conflicting:
+            # GitHub runs no checks on a PR that conflicts with its base: waiting would only end in NONE.
+            verdict = "FAIL"
+            break
         if checks and all(done for _, _, done, _, _ in checks):
             verdict = "PASS" if all(ok for _, _, _, ok, _ in checks) else "FAIL"
             break
@@ -1411,7 +1506,9 @@ def cmd_ci(job):
         time.sleep(30)
     red = [name for name, _, done, ok, _ in checks if done and not ok]
     what = {"PASS": f"All {len(checks)} checks on PR #{job['pr']} finished green",
-            "FAIL": f"{len(red)} of {len(checks)} checks failed: {', '.join(str(n) for n in red)}",
+            "FAIL": (f"The PR conflicts with {BASE}, so GitHub runs no checks on it: merge origin/{BASE} into "
+                     "the branch, resolve the conflicts and push" if conflicting else
+                     f"{len(red)} of {len(checks)} checks failed: {', '.join(str(n) for n in red)}"),
             "NONE": "No check reported on this commit within ten minutes",
             "TIMEOUT": f"The checks didn't all finish within {CONFIG['ci_timeout_minutes']} minutes"}[verdict]
     lines = [f"CI: {verdict}", f"COMMIT: {head}", "",
@@ -1419,11 +1516,20 @@ def cmd_ci(job):
              f"## Checks on PR #{job['pr']}", ""]
     lines += [f"- {result or 'PENDING'}: {name} {url or ''}".rstrip() for name, url, _, _, result in
               sorted(checks, key=lambda c: (c[3], c[0] or ""))] or ["None reported."]
-    if verdict == "FAIL":
+    if verdict == "FAIL" and not conflicting:
         lines += ["", "Read a failed GitHub Actions job's log with `gh run view <run-id> --log-failed`; "
                       "the run id is in its URL."]
     (round_dir(job) / "ci.md").write_text("\n".join(lines) + "\n")
     print(f"{job['id']}: CI {verdict} on {head[:7]} after {int(waited)}m")
+
+
+def conflicts(job):
+    """Files where the job's branch conflicts with the latest base branch."""
+    git(job, "fetch", "--quiet", "origin", BASE)
+    res = git(job, "merge-tree", "--write-tree", "--name-only", f"origin/{BASE}", "HEAD", check=False)
+    if res.returncode == 0:
+        return []
+    return res.stdout.split("\n\n", 1)[0].splitlines()[1:] or [f"(git merge-tree failed: {res.stderr.strip()})"]
 
 
 def cmd_push(job):
@@ -1443,8 +1549,47 @@ def cmd_push(job):
     current = git(job, "branch", "--show-current").stdout.strip()
     if current != branch:
         die(f"{job['id']}: the worktree is on {current or 'a detached HEAD'}, not {branch}")
+    if files := conflicts(job):
+        # GitHub runs no checks on a PR that conflicts with its base, so the round would end with no CI.
+        die(f"{job['id']}: the branch conflicts with origin/{BASE} in {', '.join(files)}. "
+            f"Merge origin/{BASE} into it, resolve them, run the checks again, then push")
     git(job, "push", "--set-upstream", "origin", f"refs/heads/{branch}:refs/heads/{branch}")
     print(f"{job['id']}: pushed {branch} at {git(job, 'rev-parse', '--short', 'HEAD').stdout.strip()}")
+
+
+# Blocks in a PR body that someone other than the builder writes: the factory's
+# screenshots and the Playground preview bot's link. `job body` carries them over.
+KEPT_BLOCKS = ((SHOTS_OPEN, SHOTS_CLOSE),
+               ("<!-- wp-playground-preview:start -->", "<!-- wp-playground-preview:end -->"))
+
+
+def cmd_body(job, file):
+    """Replace the body of an issue job's own PR with a file from its worktree, for its builder.
+
+    The builder's only edit to the PR once it is open. The body must still open
+    with the line that ties the PR to the job's issue, and the blocks the builder
+    doesn't write are copied from the live body when the new one leaves them out.
+    """
+    if is_pr_job(job):
+        die(f"{job['id']} reviews someone else's PR; the factory never edits it")
+    if job["stage"] != "build":
+        die(f"{job['id']} is in {job['stage']}, not build")
+    path = Path(file).resolve()
+    if not path.is_file() or not path.is_relative_to(Path(job["worktree"]).resolve()):
+        die(f"{job['id']}: {file} isn't a file in the job's worktree")
+    pr = gh_json("pr", "view", job["branch"], "--json", "number,state,headRefName,isCrossRepository,body")
+    if pr["state"] != "OPEN" or pr["headRefName"] != job["branch"] or pr["isCrossRepository"]:
+        die(f"{job['id']}: PR #{pr['number']} isn't this job's open PR")
+    body = path.read_text().strip()
+    first = body.split("\n", 1)[0]
+    if not re.fullmatch(rf"(Closes|Refs) #{job['issue']}", first):
+        die(f"{job['id']}: the body must start with `Closes #{job['issue']}` or `Refs #{job['issue']}`, not {first[:60]!r}")
+    live = pr["body"] or ""
+    for start, end in sorted(KEPT_BLOCKS, key=lambda b: live.find(b[0])):
+        if start in live and end in live and start not in body:
+            body += "\n\n" + live[live.index(start):live.index(end) + len(end)]
+    gh("pr", "edit", str(pr["number"]), "--body", body + "\n")
+    print(f"{job['id']}: PR #{pr['number']} body updated ({first})")
 
 
 def cmd_merge(job):
@@ -1609,6 +1754,8 @@ def main(argv):
             cmd_update(resolve(args[0]))
         elif cmd == "push" and len(args) == 1:
             cmd_push(peek(args[0]))
+        elif cmd == "body" and len(args) == 2:
+            cmd_body(peek(args[0]), args[1])
         elif cmd == "ci" and len(args) == 1:
             cmd_ci(peek(args[0]))
         elif cmd == "merge" and len(args) == 1:
