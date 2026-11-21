@@ -28,12 +28,12 @@ function row( id: number, over: Partial< PostListItem > = {} ): PostListItem {
 	};
 }
 
-function mount( items: PostListItem[] ) {
+function mount( items: PostListItem[], over: Partial< ListState > = {} ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
 	const dispatch = vi.fn( async () => true );
 	const ctx = mockViewContext< ListState, ListData >( {
-		state: { tab: 'posts', page: 1, perPage: 20, search: '', status: '', orderby: 'menu_order', order: 'asc', author: [], tag: [] },
+		state: { tab: 'posts', page: 1, perPage: 20, search: '', status: '', orderby: 'menu_order', order: 'asc', author: [], tag: [], ...over },
 		data: { list: { items, total: items.length, pages: items.length ? 1 : 0, page: 1, perPage: 20, error: '', code: '' } },
 		root,
 		extra: {
@@ -145,6 +145,32 @@ describe( 'the pages view', () => {
 		const table = root.querySelector( '[data-os-posts-table]' ) as HTMLElement & { selection: ReadonlySet< number > };
 		expect( Array.from( table.selection ).sort() ).toEqual( [ 2, 3, 4, 5 ] );
 		expect( root.querySelector( '[data-os-posts-count]' )?.textContent ).toBe( '4 selected' );
+	} );
+
+	it( 'offers "Switch to draft" before "Move to trash", confirms, and dispatches it over the selection', async () => {
+		const select = ( root: HTMLElement, ids: number[] ): void => {
+			const table = root.querySelector( '[data-os-posts-table]' ) as HTMLElement & { selection: number[] };
+			table.selection = ids;
+			table.dispatchEvent( new CustomEvent( 'os-table-selection-change' ) );
+		};
+		const { root, ctx, dispatch } = mount( [ row( 1 ), row( 2 ) ] );
+		select( root, [ 1, 2 ] );
+		const buttons = Array.from( root.querySelectorAll( '[data-os-posts-bulk-action]' ) ).map( ( b ) => b.getAttribute( 'data-os-posts-bulk-action' ) );
+		expect( buttons ).toEqual( [ 'draft', 'trash' ] );
+		( root.querySelector( '[data-os-posts-bulk-action="draft"]' ) as HTMLElement ).click();
+		await new Promise( ( r ) => setTimeout( r, 0 ) );
+		expect( ctx.host.confirm ).toHaveBeenCalledWith( {
+			message: 'Switch 2 pages to draft? Published pages will no longer be visible on the site.',
+			danger: true,
+		} );
+		expect( dispatch ).toHaveBeenCalledWith( 'draft', { ids: [ 1, 2 ] } );
+		// Nothing to switch in the Trash and Drafts views.
+		for ( const [ status, shown ] of [ [ 'trash', 'restore' ], [ 'draft', 'trash' ] ] ) {
+			document.body.replaceChildren();
+			const view = mount( [ row( 1, { status } ) ], { status } ).root;
+			select( view, [ 1 ] );
+			expect( Array.from( view.querySelectorAll( '[data-os-posts-bulk-action]' ) ).map( ( b ) => b.getAttribute( 'data-os-posts-bulk-action' ) ) ).toEqual( [ shown ] );
+		}
 	} );
 
 	it( 'says "No pages" when empty', () => {
