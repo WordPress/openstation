@@ -90,6 +90,8 @@ function openstation_agent_job_status( array $job ) {
 		'pollAfter' => 3,
 		'result'    => 'completed' === $status ? $job['result'] : null,
 		'error'     => $error,
+		// A completed job carries the full trace in its result instead.
+		'progress'  => in_array( $status, array( 'running', 'failed' ), true ) && isset( $job['progress'] ) ? $job['progress'] : null,
 	);
 }
 
@@ -250,7 +252,8 @@ function openstation_agent_job_finish( array $job, $result ) {
 	 *
 	 * @param string $id     Job UUID.
 	 * @param int    $owner  Requesting human user id.
-	 * @param array  $status Public job status, including result or error.
+	 * @param array  $status Public job status, including result or error,
+	 *                       and the recorded progress of a failed job.
 	 */
 	do_action( 'openstation_agent_job_finished', $job['id'], $job['owner'], openstation_agent_job_status( $job ) );
 }
@@ -273,8 +276,9 @@ function openstation_agent_job_run( $id ) {
 	$job['status'] = 'running';
 	update_option( 'openstation_agent_job_' . $id, $job, false );
 	$finished = false;
+	// By reference: an interrupted finish must keep the last recorded progress.
 	register_shutdown_function(
-		static function () use ( &$finished, $job ) {
+		static function () use ( &$finished, &$job ) {
 			if ( ! $finished ) {
 				openstation_agent_job_finish( $job, new WP_Error( 'openstation_agent_job_interrupted', __( 'The background worker stopped unexpectedly. Some work may already have been applied. Check the site before submitting again.', 'desktop-mode' ) ) );
 			}
@@ -285,11 +289,33 @@ function openstation_agent_job_run( $id ) {
 		set_time_limit( 0 );
 	}
 	$previous = get_current_user_id();
+	// Record each tool round of this run only, never a nested or chained one.
+	// Outputs stay out: a poll shows what was called, not what came back.
+	$record = static function ( $agent_user_id, $turn, $context ) use ( &$job ) {
+		if ( ! isset( $context['jobId'] ) || $job['id'] !== $context['jobId'] || $job['agent'] !== (int) $agent_user_id ) {
+			return;
+		}
+		$calls = isset( $job['progress']['toolCalls'] ) ? $job['progress']['toolCalls'] : array();
+		foreach ( $turn['toolCalls'] as $call ) {
+			$calls[] = array(
+				'name'  => $call['name'],
+				'args'  => $call['args'],
+				'error' => $call['error'],
+			);
+		}
+		$job['progress'] = array(
+			'turn'      => (int) $turn['turn'],
+			'toolCalls' => $calls,
+			'updatedAt' => time(),
+		);
+		update_option( 'openstation_agent_job_' . $job['id'], $job, false );
+	};
 	try {
 		wp_set_current_user( $job['owner'] );
 		if ( ! get_userdata( $job['owner'] ) || ! openstation_agents_enabled() || ! openstation_agents_user_can_invoke() || ! openstation_agent_user_can_invoke_agent( $job['agent'], $job['source'] ) ) {
 			$result = new WP_Error( 'openstation_agents_forbidden', __( 'You no longer have permission to run this agent.', 'desktop-mode' ) );
 		} else {
+			add_action( 'openstation_agent_turn_completed', $record, 10, 3 );
 			$result = openstation_agent_invoke(
 				$job['agent'],
 				$job['message'],
@@ -297,12 +323,14 @@ function openstation_agent_job_run( $id ) {
 					'source'  => $job['source'],
 					'invoker' => $job['owner'],
 					'history' => $job['history'],
+					'jobId'   => $id,
 				)
 			);
 		}
 	} catch ( Throwable $error ) {
 		$result = new WP_Error( 'openstation_agent_job_failed', __( 'The background agent encountered an unexpected error. Check the site before submitting again.', 'desktop-mode' ) );
 	} finally {
+		remove_action( 'openstation_agent_turn_completed', $record, 10 );
 		wp_set_current_user( $previous );
 	}
 	openstation_agent_job_finish( $job, $result );

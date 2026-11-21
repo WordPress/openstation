@@ -11,6 +11,10 @@
  *   - POST /users                         { username, email, role?, … }
  *   - POST /users/bulk-delete             { ids: int[], reassign?: int }
  *
+ * A sixth, sending one user a plain-text email the requester wrote
+ * (`openstation_users_window_send_custom_email()`), has NO route: only
+ * the app's `send-email` action reaches it.
+ *
  * SECURITY POSTURE
  * ================
  *
@@ -130,9 +134,11 @@ function openstation_users_window_email_target( $id, $message ) {
 /**
  * At most one email per (requester, target) pair per minute — stops
  * accidental double-clicks from firing two emails AND closes a small
- * abuse vector where an admin bot account could spam a victim.
+ * abuse vector where an admin bot account could spam a victim. The cap
+ * is per pair, not per requester: one requester can still email many
+ * targets in the same minute.
  *
- * @param string $kind    `pw_reset` | `welcome`.
+ * @param string $kind    `pw_reset` | `welcome` | `custom`.
  * @param int    $id      Target user id.
  * @param string $message The 429 message.
  * @return WP_Error|null
@@ -190,6 +196,57 @@ function openstation_users_window_resend_welcome( $id ) {
 		return $throttled;
 	}
 	wp_new_user_notification( (int) $id, null, 'user' );
+	return array(
+		'ok'    => true,
+		'email' => $user->user_email,
+	);
+}
+
+/**
+ * Email one user a plain-text message the requester wrote, from the
+ * site's normal sender. The draft is validated before the throttle, so
+ * a refused draft does not use up the minute.
+ *
+ * @param int    $id      Target user id.
+ * @param string $subject The subject line.
+ * @param string $message The plain-text body.
+ * @return array{ok:bool,email:string}|WP_Error
+ */
+function openstation_users_window_send_custom_email( $id, $subject, $message ) {
+	$user = openstation_users_window_email_target( $id, __( 'You are not allowed to email this user.', 'desktop-mode' ) );
+	if ( is_wp_error( $user ) ) {
+		return $user;
+	}
+	// Plain text, sent as written: no HTML sanitizer, which would turn
+	// `<` into `&lt;`, drop `<…>` and eat `%xx`. Only what a mail cannot
+	// carry goes. The subject is flattened to one line, so it cannot
+	// carry a header; the body keeps its newlines and tabs.
+	$subject = str_replace( array( "\r", "\n", "\t" ), ' ', wp_check_invalid_utf8( (string) $subject ) );
+	$subject = (string) preg_replace( '/[\x00-\x1F\x7F]/', '', $subject );
+	$message = str_replace( array( "\r\n", "\r" ), "\n", wp_check_invalid_utf8( (string) $message ) );
+	$message = (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $message );
+	$refusal = '';
+	if ( '' === trim( $subject ) ) {
+		$refusal = __( 'Add a subject.', 'desktop-mode' );
+	} elseif ( mb_strlen( $subject ) > 200 ) {
+		$refusal = __( 'The subject can be at most 200 characters.', 'desktop-mode' );
+	} elseif ( '' === trim( $message ) ) {
+		$refusal = __( 'Write a message.', 'desktop-mode' );
+	} elseif ( mb_strlen( $message ) > 5000 ) {
+		$refusal = __( 'The message can be at most 5000 characters.', 'desktop-mode' );
+	} elseif ( ! is_email( $user->user_email ) ) {
+		$refusal = __( 'This user has no valid email address.', 'desktop-mode' );
+	}
+	if ( '' !== $refusal ) {
+		return new WP_Error( 'openstation_users_email_invalid', $refusal, array( 'status' => 400 ) );
+	}
+	$throttled = openstation_users_window_email_throttle( 'custom', $id, __( 'An email was already sent to this user recently. Try again in a minute.', 'desktop-mode' ) );
+	if ( $throttled ) {
+		return $throttled;
+	}
+	if ( ! wp_mail( $user->user_email, $subject, $message ) ) {
+		return new WP_Error( 'openstation_users_email_failed', __( 'The email could not be sent.', 'desktop-mode' ), array( 'status' => 500 ) );
+	}
 	return array(
 		'ok'    => true,
 		'email' => $user->user_email,

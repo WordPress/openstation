@@ -51,6 +51,10 @@ export interface UsersState extends Record< string, unknown > {
 	createError: string;
 	createField: string;
 	created: number;
+	/** The last `send-email` failure's message. */
+	emailError: string;
+	/** Bumped on every successful `send-email`. */
+	emailsSent: number;
 }
 
 export interface UsersData {
@@ -61,6 +65,8 @@ export interface UsersData {
 export interface RowActions {
 	onSendReset: ( row: UserListItem ) => void;
 	onResendWelcome: ( row: UserListItem ) => void;
+	/** Open the compose modal for one user. */
+	onSendEmail: ( row: UserListItem ) => void;
 	/** Say something (a copy failed, a door is missing). */
 	toast: ( message: string ) => void;
 }

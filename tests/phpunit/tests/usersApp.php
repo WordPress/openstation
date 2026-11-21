@@ -107,7 +107,7 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		// `reopen` is the framework's, declared for every window that
 		// declares a menu so the client dispatches it.
 		$this->assertSame(
-			array( 'filter', 'page', 'sort', 'bulk-role', 'bulk-delete', 'send-reset', 'resend-welcome', 'create', 'reopen' ),
+			array( 'filter', 'page', 'sort', 'bulk-role', 'bulk-delete', 'send-reset', 'resend-welcome', 'send-email', 'create', 'reopen' ),
 			$manifest['actions']
 		);
 		$this->assertSame( 1, $manifest['state']['page'] );
@@ -551,6 +551,99 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 		$refused = $this->dispatch( 'resend-welcome', array(), array( 'id' => self::$subscriber_id ) );
 		remove_filter( 'openstation_users_window_user_can_register', '__return_true' );
 		$this->assertStringContainsString( 'not allowed to email', $this->effects( $refused, 'toast' )[0]['message'] );
+	}
+
+	/**
+	 * @covers \OpenStation\App\Runtime::dispatch
+	 * @covers ::openstation_users_window_send_custom_email
+	 */
+	public function test_send_email_sends_the_draft_and_refuses_an_empty_one_or_a_viewer_without_edit_users() {
+		$sent    = array();
+		$capture = static function ( $short, $atts ) use ( &$sent ) {
+			$sent[] = $atts;
+			return true;
+		};
+		add_filter( 'pre_wp_mail', $capture, 10, 2 );
+
+		$no_subject = $this->dispatch(
+			'send-email',
+			array(),
+			array(
+				'id'      => self::$subscriber_id,
+				'subject' => '  ',
+				'message' => 'Hello',
+			)
+		);
+		$this->assertStringContainsString( 'Add a subject', $this->effects( $no_subject, 'toast' )[0]['message'] );
+		$this->assertSame( 0, $no_subject['state']['emailsSent'] );
+		$this->assertNotSame( '', $no_subject['state']['emailError'] );
+
+		$no_message = $this->dispatch(
+			'send-email',
+			array(),
+			array(
+				'id'      => self::$subscriber_id,
+				'subject' => 'Hello',
+				'message' => '',
+			)
+		);
+		$this->assertStringContainsString( 'Write a message', $this->effects( $no_message, 'toast' )[0]['message'] );
+		$this->assertSame( array(), $sent, 'a refused draft sends nothing' );
+
+		$ok = $this->dispatch(
+			'send-email',
+			array(),
+			array(
+				'id'      => self::$subscriber_id,
+				'subject' => 'Hello Sam <3',
+				'message' => "Line one\r\nLine two: a < b, <ABC123>, 15%cash",
+			)
+		);
+		$this->assertCount( 1, $sent );
+		$this->assertSame( get_userdata( self::$subscriber_id )->user_email, $sent[0]['to'] );
+		// Plain text arrives as written: no `&lt;`, no dropped `<…>`, no eaten `%ca`.
+		$this->assertSame( 'Hello Sam <3', $sent[0]['subject'] );
+		$this->assertSame( "Line one\nLine two: a < b, <ABC123>, 15%cash", $sent[0]['message'] );
+		$this->assertEmpty( $sent[0]['headers'] );
+		$this->assertStringContainsString( 'Email sent to', $this->effects( $ok, 'toast' )[0]['message'] );
+		$this->assertSame( 1, $ok['state']['emailsSent'] );
+		$this->assertSame( '', $ok['state']['emailError'] );
+
+		// The per-target gate: `edit_users` alone does not reach a user the
+		// viewer may not edit.
+		$deny_target = static function ( $caps, $cap, $user_id, $args ) {
+			return 'edit_user' === $cap && (int) ( $args[0] ?? 0 ) === self::$editor_id ? array( 'do_not_allow' ) : $caps;
+		};
+		add_filter( 'map_meta_cap', $deny_target, 10, 4 );
+		$not_this_one = $this->dispatch(
+			'send-email',
+			array(),
+			array(
+				'id'      => self::$editor_id,
+				'subject' => 'Hello',
+				'message' => 'Hello',
+			)
+		);
+		remove_filter( 'map_meta_cap', $deny_target, 10 );
+		$this->assertStringContainsString( 'not allowed to email', $this->effects( $not_this_one, 'toast' )[0]['message'] );
+		$this->assertSame( 0, $not_this_one['state']['emailsSent'] );
+		$this->assertCount( 1, $sent );
+
+		wp_set_current_user( self::$editor_id );
+		add_filter( 'openstation_users_window_user_can_register', '__return_true' );
+		$refused = $this->dispatch(
+			'send-email',
+			array(),
+			array(
+				'id'      => self::$subscriber_id,
+				'subject' => 'Hello',
+				'message' => 'Hello',
+			)
+		);
+		remove_filter( 'openstation_users_window_user_can_register', '__return_true' );
+		remove_filter( 'pre_wp_mail', $capture, 10 );
+		$this->assertStringContainsString( 'not allowed to email', $this->effects( $refused, 'toast' )[0]['message'] );
+		$this->assertCount( 1, $sent );
 	}
 
 	/**

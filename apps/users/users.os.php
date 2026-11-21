@@ -172,6 +172,10 @@ return App::define( 'desktop-mode-users' )
 			'createField' => '',
 			// Bumped on every successful create — the form resets on it.
 			'created'     => 0,
+			// The compose modal's last send failure.
+			'emailError'  => '',
+			// Bumped on every successful send — the modal closes on it.
+			'emailsSent'  => 0,
 		)
 	)
 	// A query change replaces the result set — back to the first page.
@@ -273,6 +277,31 @@ return App::define( 'desktop-mode-users' )
 					return sprintf( __( 'Welcome email resent to %s.', 'desktop-mode' ), $result['email'] );
 				}
 			);
+		}
+	)
+	->action(
+		'send-email',
+		static function ( State $state, Os $os, array $args ) {
+			$state->set( 'emailError', '' );
+			$id      = (int) ( $args['id'] ?? 0 );
+			$subject = is_string( $args['subject'] ?? null ) ? $args['subject'] : '';
+			$message = is_string( $args['message'] ?? null ) ? $args['message'] : '';
+			$result  = $os->can( 'edit_users' )
+				? openstation_users_window_send_custom_email( $id, $subject, $message )
+				: new \WP_Error( 'openstation_users_forbidden', __( 'You are not allowed to email this user.', 'desktop-mode' ) );
+			$sent    = report(
+				$os,
+				$result,
+				static function ( array $result ) {
+					// translators: %s is the user's email address.
+					return sprintf( __( 'Email sent to %s.', 'desktop-mode' ), $result['email'] );
+				}
+			);
+			if ( $sent ) {
+				$state->set( 'emailsSent', (int) $state->get( 'emailsSent' ) + 1 );
+			} else {
+				$state->set( 'emailError', $result->get_error_message() );
+			}
 		}
 	)
 	->action(

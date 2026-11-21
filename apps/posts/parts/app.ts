@@ -347,21 +347,26 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 
 	const bulkBar = ( ctx: Ctx, ui: UiState, mode: PostsMode, footer: boolean ): TemplateResult => {
 		// Resolved once, on the first paint: the registry filter sees the
-		// shipped defaults ('trash' and 'restore'), and buttons dispatch
-		// against the live selection at click time. Actions are dynamically
-		// partitioned so 'restore' renders in Trash status and 'trash' in others.
+		// shipped defaults ('trash', 'restore', and 'draft' in the Pages
+		// window), and buttons dispatch against the live selection at click
+		// time. Actions are dynamically partitioned so 'restore' renders in
+		// Trash status, 'trash' in others, and 'draft' outside Trash and Drafts.
 		if ( ! ui.bulkActions ) {
 			ui.bulkActions = resolveBulkActions(
 				defaultBulkActions(
 					mode,
 					( ids ) => ctx.dispatch( 'trash', { ids } ),
 					( ids ) => ctx.dispatch( 'restore', { ids } ),
+					( ids ) => ctx.dispatch( 'draft', { ids } ),
 				),
 				mode,
 			);
 		}
 		const isTrash = ctx.state.status === 'trash';
 		const visibleActions = ui.bulkActions.filter( ( action ) => {
+			if ( action.id === 'draft' ) {
+				return ! isTrash && ctx.state.status !== 'draft';
+			}
 			if ( action.id === 'trash' ) {
 				return ! isTrash;
 			}

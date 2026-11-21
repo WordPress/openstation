@@ -57,7 +57,10 @@ it are relative to the worktree.
    names. Fix every **Blocker**. A **Gap** is yours only when the spec asks
    for it; **Nits** are optional; leave **Not this PR** alone. Answer each
    blocker in this round's Log, because the next round's reviewers map every
-   one to the commit and line that fixed it.
+   one to the commit and line that fixed it. A blocker comes before the spec
+   where they disagree: fix it, and write the acceptance criterion it
+   overrides as `[x] superseded by round-<N>/review-<lens>.md blocker <n>`,
+   with what the branch does instead and the evidence for that.
 6. When the prompt names a `feedback-*.md` or `rework-*.md` file, read it: the
    user's feedback after the job escalated, typed to the factory or left as
    comments on the PR. Read the existing `build.md`, `decision.md` and every
@@ -131,6 +134,16 @@ of the code.
   Leave the site running for the
   reviewers. If `agent-browser` or Docker isn't available, write BLOCKED: the
   job can't be verified.
+- **Look at the whole surface, not only your control.** When you added a
+  control to a surface that already had some (a card, a pane's footer, a table
+  row), screenshot that surface at the window's default size, with every menu
+  on it open, and Read the screenshot. Each action is offered once there: a
+  menu entry never repeats a button or link beside it, whatever the two are
+  called. The new control sits in the row of the controls it belongs with, not
+  alone on a line under them. The UX and UI reviewers block on both, so fix it
+  now. If a criterion asks for the repeat, build the surface without it and
+  write that criterion as
+  `[x] superseded: <the control that already offers the action>`.
 
 ## Commit, push, PR
 

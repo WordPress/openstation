@@ -19,6 +19,8 @@ const state = ( over: Partial< UsersState > = {} ): UsersState => ( {
 	createError: '',
 	createField: '',
 	created: 0,
+	emailError: '',
+	emailsSent: 0,
 	...over,
 } );
 
