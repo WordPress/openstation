@@ -7595,7 +7595,7 @@ otherwise go stale after a day. The server's
 ships a fresh `{ action: nonce }` map on every tick under the
 `desktop_mode_nonces` heartbeat field; the framework overwrites
 its own cached values in place. Defaults cover `wp_rest`,
-`desktop-mode-plugins`, and `updates`.
+`desktop-mode-plugins`, `updates`, and `desktop-mode-posts-row-actions`.
 
 **Out of the box**: the shell-wide `restNonce` and every
 per-window blob's `restNonce` are refreshed automatically — most

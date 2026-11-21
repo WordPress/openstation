@@ -198,6 +198,10 @@ function syncRowLinks( ctx: Ctx, ui: UiState, items: PostListItem[] ): void {
 				}
 			}
 		}
+		// The same links as before (none, on most sites): nothing to repaint.
+		if ( JSON.stringify( [ ...next ] ) === JSON.stringify( [ ...ui.rowLinks ] ) ) {
+			return;
+		}
 		ui.rowLinks = next;
 		++ui.rowLinksVersion;
 		ui.cellCache.clear();

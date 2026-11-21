@@ -122,9 +122,12 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 		titleRow.appendChild( view );
 	}
 
-	// The row's actions menu, last on the title row (no column of its own).
+	// The row's actions menu, at the end of the title row (no column of
+	// its own), so the menus line up down the column.
 	if ( env.rowActions ) {
-		titleRow.appendChild( buildRowActionsMenu( row, env, env.rowActions ) );
+		const menu = buildRowActionsMenu( row, env, env.rowActions );
+		menu.style.marginInlineStart = 'auto';
+		titleRow.appendChild( menu );
 	}
 
 	cell.appendChild( titleRow );
