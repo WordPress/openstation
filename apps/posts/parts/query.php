@@ -94,10 +94,13 @@ function openstation_posts_app_allowed_orderby() {
 }
 
 /**
- * The static facts the client view reads through `ctx.extra`: the
- * mode, the editor URLs and the declared default sort — what the
- * client returns to when a column sort is cleared. The Pages app
- * layers its own facts on top in `openstation_pages_app_config()`.
+ * The facts the client view reads through `ctx.extra`: the mode, the
+ * editor URLs, the declared default sort — what the client returns to
+ * when a column sort is cleared — and the admin-ajax URL and per-viewer
+ * nonce of the row-actions endpoint (`parts/row-actions.php`). The
+ * client reads the nonce at call time: the shell's nonce refresh
+ * rewrites it in place. The Pages app layers its own facts on top in
+ * `openstation_pages_app_config()`.
  *
  * @param string $mode    `posts` | `pages`.
  * @param string $orderby Default sort column.
@@ -113,6 +116,8 @@ function openstation_posts_app_config( $mode, $orderby = 'date', $order = 'desc'
 			: esc_url_raw( admin_url( 'post-new.php' ) ),
 		'defaultOrderby'  => (string) $orderby,
 		'defaultOrder'    => 'asc' === $order ? 'asc' : 'desc',
+		'ajaxUrl'         => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
+		'rowActionsNonce' => wp_create_nonce( OPENSTATION_POSTS_ROW_ACTIONS_NONCE ),
 	);
 }
 
