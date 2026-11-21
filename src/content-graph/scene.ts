@@ -62,8 +62,15 @@ import {
 	randomSeed,
 	runWarmup,
 	seedPositions,
+	type CameraTarget,
 	type Point,
 } from './layout';
+import {
+	detailAt,
+	FIT_OPTIONS,
+	hitRadius,
+	manualZoomFloor,
+} from './detail';
 import { pinchCamera } from './pinch';
 import { EXACT_REPULSION_MAX_NODES, ForceSim } from './sim';
 import {
@@ -237,18 +244,7 @@ const GROUP_LABEL_COLOR: Record< GroupFacet, string > = {
 	year_month: '#ea580c',
 };
 
-const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 4;
-/**
- * Fit never zooms past this, however small the board: a lone node at
- * 4× is a poster, not a board. Wheel zoom still reaches `ZOOM_MAX`.
- */
-const FIT_ZOOM_MAX = 1.5;
-const FIT_OPTIONS = {
-	padding: 100,
-	minScale: ZOOM_MIN,
-	maxScale: FIT_ZOOM_MAX,
-};
 const ZOOM_SENSITIVITY = 0.0008;
 /**
  * How long after the last pinch move a pointer release is still part of
@@ -297,6 +293,8 @@ interface NodeView {
 interface EdgeView {
 	edge: GraphEdge;
 	gfx: PixiGraphics;
+	/** The line holds a stroke; zoomed far out it is cleared once. */
+	painted: boolean;
 }
 
 /**
@@ -423,6 +421,8 @@ export class GraphScene {
 	 */
 	private pointers = new Map< number, Point >();
 	private pinchUntil = 0;
+	/** Zoom floor of the pinch under way, measured as it starts. */
+	private pinchFloor = manualZoomFloor( null );
 	private destroyed = false;
 	private tickerCb: ( ( t: { deltaTime: number } ) => void ) | null = null;
 	private resizeObserver: ResizeObserver | null = null;
@@ -786,7 +786,7 @@ export class GraphScene {
 	private buildEdgeView( e: GraphEdge ): void {
 		const gfx = new this.pixi.Graphics();
 		this.edgeLayer.addChild( gfx );
-		this.edgeViews.push( { edge: e, gfx } );
+		this.edgeViews.push( { edge: e, gfx, painted: false } );
 	}
 
 	private buildNodeView( n: GraphNode ): void {
@@ -796,7 +796,7 @@ export class GraphScene {
 		container.hitArea = new this.pixi.Circle(
 			0,
 			0,
-			Math.max( 18, n.radius + 8 ),
+			hitRadius( n.radius, detailAt( this.world.scale.x ) ),
 		);
 		this.bindNodeInput( container, n );
 		this.nodeLayer.addChild( container );
@@ -1008,7 +1008,7 @@ export class GraphScene {
 				// still easing toward a previous target.
 				const factor = Math.exp( -ev.deltaY * ZOOM_SENSITIVITY );
 				const nextScale = Math.max(
-					ZOOM_MIN,
+					this.zoomFloor(),
 					Math.min( ZOOM_MAX, this.targetScale * factor ),
 				);
 				const rect = canvas.getBoundingClientRect();
@@ -1036,6 +1036,7 @@ export class GraphScene {
 				// finger was about to drag is let go.
 				this.isPanning = false;
 				this.nodeClickActive = false;
+				this.pinchFloor = this.zoomFloor();
 				if ( this.pressedNode ) {
 					this.pressedNode.pinned = this.focusedId === this.pressedNode.id;
 					this.pressedNode = null;
@@ -1133,7 +1134,7 @@ export class GraphScene {
 			{ scale: this.world.scale.x, x: this.world.x, y: this.world.y },
 			{ a: prev, b: other },
 			{ a: moved, b: other },
-			{ min: ZOOM_MIN, max: ZOOM_MAX },
+			{ min: this.pinchFloor, max: ZOOM_MAX },
 		);
 		this.world.scale.set( next.scale );
 		this.world.x = next.x;
@@ -1246,7 +1247,7 @@ export class GraphScene {
 		} else {
 			this.sim?.step( delta );
 		}
-		if ( this.followingLayout ) {
+		if ( this.followingLayout && ! this.fitFollowActive ) {
 			if ( this.sim && ! this.sim.isSettled ) {
 				this.fitToView( false );
 			} else {
@@ -1308,6 +1309,10 @@ export class GraphScene {
 			performance.now() - this.fitFollowStartedAt >
 			this.fitFollowMaxDurationMs
 		) {
+			// A large board is still spreading out from its seeds when
+			// the cap runs out: `followingLayout`, armed by setGrouping(),
+			// keeps it framed until it settles or the user takes the
+			// camera.
 			this.fitFollowActive = false;
 			return;
 		}
@@ -1339,6 +1344,7 @@ export class GraphScene {
 			// cluster force gets a chance to spread members past the
 			// initial fit framing.
 			this.fitFollowActive = false;
+			this.followingLayout = false;
 		}
 	}
 
@@ -1564,6 +1570,13 @@ export class GraphScene {
 		}
 
 		const dimmed = focusId !== null;
+		const detail = detailAt( this.world.scale.x );
+		// Far out the only links drawn are the ones on the node being
+		// pointed at, and they go over the dots, not under a field of them.
+		const edgeIndex = detail.edges ? 0 : 2;
+		if ( this.world.getChildIndex( this.edgeLayer ) !== edgeIndex ) {
+			this.world.setChildIndex( this.edgeLayer, edgeIndex );
+		}
 		// Edges fade in as the user zooms in. At the overview-fit
 		// zoom (~0.45-0.55) the graph reads as a constellation of
 		// nodes; as the user zooms toward 1×, the post-to-post links
@@ -1575,13 +1588,23 @@ export class GraphScene {
 
 		for ( const v of this.edgeViews ) {
 			const { edge, gfx } = v;
-			gfx.clear();
 			const isFocusEdge =
 				focusId !== null &&
 				( edge.from.id === focusId || edge.to.id === focusId );
 			const isHoverEdge =
 				hoverId !== null &&
 				( edge.from.id === hoverId || edge.to.id === hoverId );
+			// Far out, an ordinary link is cleared once and then skipped,
+			// not re-stroked on every frame at a fifth of a pixel.
+			if ( ! detail.edges && ! isFocusEdge && ! isHoverEdge ) {
+				if ( v.painted ) {
+					gfx.clear();
+					v.painted = false;
+				}
+				continue;
+			}
+			gfx.clear();
+			v.painted = true;
 			let alpha: number;
 			if ( dimmed ) {
 				// Focus edges visible at full prominence; non-focus
@@ -1595,8 +1618,14 @@ export class GraphScene {
 			} else {
 				alpha = edgeBaseAlpha;
 			}
-			const color = isFocusEdge || isHoverEdge ? EDGE_HOT : EDGE_BASE;
-			const width = isFocusEdge || isHoverEdge ? 1.2 : 0.7;
+			// Over a field of dots in the post colours, a hot link wears
+			// the keyline white so it does not vanish into them.
+			let color = EDGE_BASE;
+			if ( isFocusEdge || isHoverEdge ) {
+				color = detail.edges ? EDGE_HOT : DISC_RING;
+			}
+			const width =
+				isFocusEdge || isHoverEdge ? detail.hotEdgeWidth : detail.edgeWidth;
 			// Trim either endpoint when it sits on the focused node so
 			// the visible line stops at the halo's outer edge instead
 			// of running into the disc's centre. The halo radius is
@@ -1641,6 +1670,9 @@ export class GraphScene {
 		// pinch-zoom doesn't pop them in/out.
 		const zoomFade = smoothstep( 0.55, 0.95, this.world.scale.x );
 		const discs = this.nodeStyle === 'disc';
+		// Far out every node is a plain dot in either style: a keyline or
+		// a glyph a pixel or two across says nothing.
+		const dots = detail.dots;
 		// Glyphs and labels are built the first time they show, inside
 		// the same per-frame budget as the sprite build; whatever does
 		// not fit asks for the next frame. The focused and hovered node
@@ -1658,6 +1690,8 @@ export class GraphScene {
 			container.x = node.x;
 			container.y = node.y;
 			container.alpha = baseAlpha;
+			const area = container.hitArea as { radius: number };
+			area.radius = hitRadius( node.radius, detail );
 
 			// In icon style the glyph itself carries the state colour
 			// (the original behaviour). In disc style the *body*
@@ -1676,24 +1710,34 @@ export class GraphScene {
 
 			halo.clear();
 			if ( isFocus || isHover ) {
-				halo.circle( 0, 0, node.radius + 8 ).fill( {
-					color: discs ? discFill : fill,
+				halo.circle( 0, 0, ( node.radius + 8 ) * detail.dotScale ).fill( {
+					color: discs || dots ? discFill : fill,
 					alpha: 0.18,
 				} );
 			}
 
-			// Disc body — repainted only when its signature changes.
+			// Disc body — repainted only when its signature changes. The
+			// zoom never enters it: a dot keeps its size on screen through
+			// the disc's scale, so zooming repaints nothing.
 			const discRadius = isFocus
 				? node.radius * FOCUS_DISC_SCALE
 				: node.radius;
 			const ringWidth = isFocus || isHover ? 2.5 : 1.5;
-			const discKey = discs
-				? `${ discFill }|${ discRadius }|${ ringWidth }`
-				: 'off';
+			let discKey = 'off';
+			if ( dots ) {
+				discKey = `dot|${ discFill }|${ discRadius }`;
+			} else if ( discs ) {
+				discKey = `${ discFill }|${ discRadius }|${ ringWidth }`;
+			}
 			if ( v.discKey !== discKey ) {
 				v.discKey = discKey;
 				disc.clear();
-				if ( discs ) {
+				if ( dots ) {
+					disc.circle( 0, 0, discRadius ).fill( {
+						color: discFill,
+						alpha: 0.95,
+					} );
+				} else if ( discs ) {
 					disc.circle( 0, 0, discRadius )
 						.fill( { color: discFill, alpha: 0.95 } )
 						.stroke( {
@@ -1703,12 +1747,13 @@ export class GraphScene {
 						} );
 				}
 			}
+			disc.scale.set( detail.dotScale );
 
 			// The glyph is the node in icon style; in disc style it is
 			// the reveal on the node the user is pointing at or has
 			// focused, drawn in the ring colour so it reads as cut out
 			// of the disc rather than stacked on top of it.
-			const showIcon = ! discs || isFocus || isHover;
+			const showIcon = ! dots && ( ! discs || isFocus || isHover );
 			let icon = v.icon;
 			if ( showIcon && ! icon ) {
 				if ( isFocus || isHover || performance.now() < textDeadline ) {
@@ -1740,7 +1785,9 @@ export class GraphScene {
 			} else {
 				baseLabelAlpha = 0.32;
 			}
-			const labelAlpha = baseLabelAlpha * zoomFade;
+			// The node being pointed at or focused is named at any zoom.
+			const labelAlpha =
+				isFocus || isHover ? baseLabelAlpha : baseLabelAlpha * zoomFade;
 			let labelBox = v.labelBox;
 			if ( labelAlpha > 0.01 && ! labelBox ) {
 				if ( isFocus || isHover || performance.now() < textDeadline ) {
@@ -1757,8 +1804,9 @@ export class GraphScene {
 			// has grown past `node.radius`, and in icon style the
 			// glyph's visible height is about the same as the disc's
 			// diameter, so the un-scaled radius is the right floor for
-			// both.
-			labelBox.y = node.y + ( discs ? discRadius : node.radius ) + 4;
+			// both. A dot is grown on screen, and so is its gap.
+			const body = discs || dots ? discRadius * detail.dotScale : node.radius;
+			labelBox.y = node.y + body + ( dots ? 4 * inverseScale : 4 );
 			labelBox.scale.set( inverseScale );
 			labelBox.alpha = labelAlpha;
 			labelBox.visible = labelAlpha > 0.01;
@@ -1826,7 +1874,8 @@ export class GraphScene {
 	 * destroying / recreating the small `GroupView` containers.
 	 */
 	setGrouping( facet: GroupFacet | null ): void {
-		// The grouping runs its own fit-follow loop.
+		// The grouping runs its own fit-follow loop, and follows the
+		// layout after it (armed below) only when that loop times out.
 		this.followingLayout = false;
 		this.currentGrouping = facet;
 		this.clearGroupViews();
@@ -1888,6 +1937,7 @@ export class GraphScene {
 		this.fitFollowActive = true;
 		this.fitFollowStartedAt = performance.now();
 		this.fitFollowSawMotion = false;
+		this.followLayout();
 	}
 
 	/**
@@ -2100,14 +2150,7 @@ export class GraphScene {
 	 */
 	private frame( points: Iterable< Point > ): void {
 		const inset = this.fitInsets;
-		const target = frameBounds(
-			points,
-			{
-				width: this.host.clientWidth - inset.left - inset.right,
-				height: this.host.clientHeight - inset.top - inset.bottom,
-			},
-			FIT_OPTIONS,
-		);
+		const target = this.fitOf( points );
 		if ( ! target ) {
 			this.fitPending = true;
 			return;
@@ -2116,6 +2159,28 @@ export class GraphScene {
 		this.targetScale = target.scale;
 		this.targetX = inset.left + target.x;
 		this.targetY = inset.top + target.y;
+	}
+
+	/** The fit of `points` in the host's reachable box; see `frame()`. */
+	private fitOf( points: Iterable< Point > ): CameraTarget | null {
+		const inset = this.fitInsets;
+		return frameBounds(
+			points,
+			{
+				width: this.host.clientWidth - inset.left - inset.right,
+				height: this.host.clientHeight - inset.top - inset.bottom,
+			},
+			FIT_OPTIONS,
+		);
+	}
+
+	/**
+	 * How far the wheel and a pinch may zoom out: down to the zoom that
+	 * fits the whole board, so the first notch after a Fit does not
+	 * snap a large board back in.
+	 */
+	private zoomFloor(): number {
+		return manualZoomFloor( this.fitOf( this.nodes )?.scale ?? null );
 	}
 
 	/**
