@@ -62,10 +62,9 @@ CONFIG = json.loads((FACTORY / "config.json").read_text())
 LABELS = CONFIG["labels"]
 BASE = CONFIG["base_branch"]
 MARKER = "<!-- factory -->"
-# This checkout's own settings, never committed. `slack_channel` turns on the
-# notices `job` prints for the orchestrator to post there.
-LOCAL = FACTORY / "local.json"
-SLACK_CHANNEL = (json.loads(LOCAL.read_text()) if LOCAL.exists() else {}).get("slack_channel")
+# Where `job` tells the maintainers a job needs one of them. It prints the
+# notices and the orchestrator posts them; an empty name turns them off.
+SLACK_CHANNEL = CONFIG.get("slack_channel")
 NOTICES = []
 
 TRANSITIONS = {
