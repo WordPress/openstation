@@ -684,10 +684,15 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 		 * exists. Never fires for the answer turn.
 		 *
 		 * @param int   $agent_user_id Agent user id.
-		 * @param array $turn          `{ turn, toolCalls }`: the 1-based
-		 *                             round number and that round's trace
-		 *                             entries (`{ callId, name, args,
-		 *                             output, error }`).
+		 * @param array $turn          `{ turn, toolCalls, usage, model }`:
+		 *                             the 1-based round number, that
+		 *                             round's trace entries (`{ callId,
+		 *                             name, args, output, error }`), the
+		 *                             running `{ prompt, completion, total }`
+		 *                             over every turn so far and the last
+		 *                             `{ id, name }` resolved. `usage` and
+		 *                             `model` are null until a turn
+		 *                             reports them.
 		 * @param array $context       Invocation context passed to
 		 *                             `openstation_agent_invoke()`.
 		 */
@@ -697,6 +702,8 @@ function openstation_agent_runner_loop( $agent_user_id, $instructions, $message,
 			array(
 				'turn'      => $turn,
 				'toolCalls' => array_slice( $tool_trace, $round_start ),
+				'usage'     => $total_usage,
+				'model'     => $last_model,
 			),
 			$context
 		);

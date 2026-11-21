@@ -53,16 +53,17 @@ class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 
 	/**
 	 * Make the stubbed model call one tool per round for $rounds rounds, then
-	 * answer with $final (the default answer when null). $observe sees every turn.
+	 * answer with $final (the default answer when null). $observe sees every turn;
+	 * $spend (`{ usage, model }`) is reported with every tool round.
 	 */
-	private function call_tools( $rounds, $final = null, $observe = null ) {
-		add_filter( 'openstation_agent_runner_generate', static function ( $result, $history ) use ( $rounds, $final, $observe ) {
+	private function call_tools( $rounds, $final = null, $observe = null, $spend = array() ) {
+		add_filter( 'openstation_agent_runner_generate', static function ( $result, $history ) use ( $rounds, $final, $observe, $spend ) {
 			if ( $observe ) {
 				$observe();
 			}
 			$done = count( wp_list_filter( $history, array( 'type' => 'tool_results' ) ) );
 			if ( $done < $rounds ) {
-				return array( 'text' => '', 'function_calls' => array( array( 'call_id' => 'call-' . $done, 'name' => 'lookup', 'arguments' => array( 'round' => $done + 1 ) ) ), 'message' => null );
+				return array( 'text' => '', 'function_calls' => array( array( 'call_id' => 'call-' . $done, 'name' => 'lookup', 'arguments' => array( 'round' => $done + 1 ) ) ), 'message' => null ) + $spend;
 			}
 			return null === $final ? $result : $final;
 		}, 20, 2 );
@@ -232,6 +233,9 @@ class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 		$this->assertSame( 2, $seen[2]['turn'] );
 		$this->assertSame( array( array( 'round' => 1 ), array( 'round' => 2 ) ), wp_list_pluck( $seen[2]['toolCalls'], 'args' ) );
 		$this->assertGreaterThan( 0, $seen[2]['updatedAt'] );
+		// A generator that reports no spend records none, never a zeroed count.
+		$this->assertNull( $seen[2]['usage'] );
+		$this->assertNull( $seen[2]['model'] );
 		$status = $this->poll( $id )->get_data();
 		$this->assertSame( 'completed', $status['status'] );
 		$this->assertNull( $status['progress'] );
@@ -239,15 +243,49 @@ class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'output', $status['result']['toolCalls'][0] );
 	}
 
+	public function test_progress_carries_the_usage_so_far() {
+		$id   = $this->submit()->get_data()['jobId'];
+		$seen = array();
+		$this->call_tools(
+			2,
+			null,
+			static function () use ( $id, &$seen ) {
+				$seen[] = openstation_agent_job_get( $id )['progress'] ?? null;
+			},
+			array(
+				'usage' => array( 'prompt' => 10, 'completion' => 5, 'total' => 15, 'cached' => 7 ),
+				'model' => array( 'id' => 'qa-model', 'name' => 'QA', 'provider' => 'private' ),
+			)
+		);
+		openstation_agent_job_run( $id );
+		$this->assertSame( array( 'prompt' => 10, 'completion' => 5, 'total' => 15 ), $seen[1]['usage'] );
+		$this->assertSame( array( 'prompt' => 20, 'completion' => 10, 'total' => 30 ), $seen[2]['usage'] );
+		$this->assertSame( array( 'id' => 'qa-model', 'name' => 'QA' ), $seen[2]['model'] );
+		$status = $this->poll( $id )->get_data();
+		$this->assertSame( 'completed', $status['status'] );
+		$this->assertNull( $status['progress'] );
+		$this->assertSame( array( 'prompt' => 20, 'completion' => 10, 'total' => 30 ), $status['result']['usage'] );
+	}
+
 	public function test_failed_and_interrupted_jobs_keep_progress_for_the_owner_only() {
 		$id = $this->submit()->get_data()['jobId'];
-		$this->call_tools( 1, new WP_Error( 'qa_fail', 'QA forced failure' ) );
+		$this->call_tools(
+			1,
+			new WP_Error( 'qa_fail', 'QA forced failure' ),
+			null,
+			array(
+				'usage' => array( 'prompt' => 10, 'completion' => 5, 'total' => 15 ),
+				'model' => array( 'id' => 'qa-model', 'name' => 'QA' ),
+			)
+		);
 		openstation_agent_job_run( $id );
 		$status = $this->poll( $id )->get_data();
 		$this->assertSame( 'failed', $status['status'] );
 		$this->assertSame( 'QA forced failure', $status['error']['message'] );
 		$this->assertSame( 1, $status['progress']['turn'] );
 		$this->assertSame( array( 'lookup' ), wp_list_pluck( $status['progress']['toolCalls'], 'name' ) );
+		$this->assertSame( array( 'prompt' => 10, 'completion' => 5, 'total' => 15 ), $status['progress']['usage'] );
+		$this->assertSame( array( 'id' => 'qa-model', 'name' => 'QA' ), $status['progress']['model'] );
 
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 		$response = $this->poll( $id );
