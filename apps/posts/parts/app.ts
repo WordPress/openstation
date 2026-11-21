@@ -5,8 +5,9 @@
  * function of the state the `.os.php` declares and the page `data()`
  * returns: the toolbar (status control, search, bulk bar, plugin
  * extras, Refresh, Add New), the `<os-table>` kept in step through
- * `createListTableSync()`, continuous card browsing, and lazy canvas
- * tabs: Categories / Tags for Posts, Page atlas for Pages.
+ * `createListTableSync()`, continuous card browsing, a page's quick
+ * edit (`quick-edit.ts`, Pages only), and lazy canvas tabs: Categories
+ * / Tags for Posts, Page atlas for Pages.
  *
  * @public
  */
@@ -47,6 +48,7 @@ import {
 	type ColumnFilterData,
 	type HiddenColumnsSettingKey,
 } from './columns';
+import { openQuickEdit, renderQuickEdit, type QuickEditDoors, type QuickEditState } from './quick-edit';
 import { createPostsRestClient, type PostsRestClient } from './rest';
 import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext } from './types';
 import { fireDataLoaded, postsContext, runBulkAction, tableOf, type Ctx } from './window-context';
@@ -114,6 +116,8 @@ interface UiState {
 	tagPage: number;
 	tagTotalPages: number;
 	tagFetching: boolean;
+	quickEdit: QuickEditState | null;
+	quickEditPending: number;
 }
 
 const freshUi = (): UiState => ( {
@@ -141,14 +145,20 @@ const freshUi = (): UiState => ( {
 	tagPage: 0,
 	tagTotalPages: 1,
 	tagFetching: false,
+	quickEdit: null,
+	quickEditPending: 0,
 } );
 
 const modeOf = ( extra: Record< string, unknown > ): PostsMode =>
 	( extra as ListExtra ).mode === 'pages' ? 'pages' : 'posts';
 
-/** Stable key for the page — identical rows skip the table repaint. */
+/**
+ * Stable key for the page — identical rows skip the table repaint. An
+ * edit lock taken or let go repaints the row too: it changes the lock
+ * pill and whether the row offers quick edit.
+ */
 function fingerprint( items: PostListItem[] ): string {
-	return items.map( ( r ) => `${ r.id }:${ r.status }:${ r.modified_gmt }` ).join( '|' );
+	return items.map( ( r ) => `${ r.id }:${ r.status }:${ r.modified_gmt }:${ r.openstation_lock?.userId ?? 0 }` ).join( '|' );
 }
 
 function clientOf( ctx: Ctx, ui: UiState ): PostsRestClient {
@@ -192,11 +202,16 @@ function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {
 			confirm: ( options ) => ctx.host.confirm?.( options ) ?? Promise.resolve( false ),
 			toast: ( title, err ) => toast( ctx, title, err ),
 			announce: ( action, ids ) => ctx.host.announce?.( 'post', action, ids ),
+			quickEdit: modeOf( ctx.extra ) === 'pages' ? ( row ) => void openQuickEdit( ctx, ui, quickEditDoors( ctx, ui ), row ) : undefined,
 			parentTitles: new Map(),
 			categories: { tree: null, pickers: new Set() },
 		};
 	}
 	return ui.env;
+}
+
+function quickEditDoors( ctx: Ctx, ui: UiState ): QuickEditDoors {
+	return { client: clientOf( ctx, ui ), toast: ( title, err ) => toast( ctx, title, err ) };
 }
 
 function canvasEnv( ctx: Ctx, ui: UiState ): CanvasEnv {
@@ -644,6 +659,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			</div>
 			${ ui.desk.view === 'table' ? ui.feed.tail() : '' }
 			${ bulkBar( ctx, ui, mode, true ) }
+			${ renderQuickEdit( ctx, ui, quickEditDoors( ctx, ui ) ) }
 		`;
 	};
 

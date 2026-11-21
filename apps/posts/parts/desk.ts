@@ -5,7 +5,7 @@ import '../../../src/ui/components/os-checkbox/os-checkbox';
 import '../../../src/ui/components/os-stat/os-stat';
 import '../../../src/ui/components/os-select/os-select';
 import { buildColumns, pluginColumns, type ColumnFilterData } from './columns';
-import { authorOf, buildEditPostUrl, featuredMediaOf, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
+import { authorOf, buildEditPostUrl, featuredMediaOf, offersQuickEdit, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
 import { tableOf, type Ctx } from './window-context';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import type { PostListItem } from './types';
@@ -163,7 +163,14 @@ function toggleCard( ctx: Ctx, ui: DeskState, id: number, checked: boolean, shif
 	}
 }
 
-function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
+/** "Quick edit" on a card or the details pane, where the row offers it. */
+function quickEditButton( row: PostListItem, env: CellEnv, variant: 'ghost' | 'secondary' ): TemplateResult | '' {
+	return offersQuickEdit( row, env )
+		? html`<os-button variant=${ variant } data-os-pages-quick-edit=${ row.id } @click=${ () => env.quickEdit?.( row ) }>${ __( 'Quick edit' ) }</os-button>`
+		: '';
+}
+
+function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
 	const title = titleOf( row ) || __( '(no title)' );
 	const media = featuredMediaOf( row );
@@ -219,6 +226,7 @@ function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | un
 		<footer class="os-posts-desk__story-foot">
 			<span class="os-posts-desk__byline">${ authorOf( row ).name }<span aria-hidden="true"> · </span><os-relative-time datetime=${ row.modified_gmt || row.date_gmt }></os-relative-time></span>
 			<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
+			${ quickEditButton( row, env, 'ghost' ) }
 			<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
 		</footer>
 	</article>`;
@@ -267,6 +275,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 			<div class="os-posts-desk__fields">${ ui.fields.map( ( field ) => html`<section data-detail-field=${ field.key }><h3>${ field.label }</h3>${ field.node }</section>` ) }</div>
 		</div>
 		<footer class="os-posts-desk__inspector-actions"><os-button variant="primary" @click=${ () => edit( ctx, row ) }>${ __( 'Open editor' ) }<span aria-hidden="true"> ↗</span></os-button>
+			${ quickEditButton( row, env, 'secondary' ) }
 			${ row.link && row.status === 'publish' ? html`<a href=${ row.link } target="_blank" rel="noopener noreferrer">${ __( 'View on site' ) } ↗</a>` : '' }
 		</footer>
 	</aside>`;
@@ -281,7 +290,7 @@ export function renderDesk( ctx: Ctx, ui: DeskState, env: CellEnv, filters: Colu
 	const extras = rows.length ? pluginColumns( env, filters, hidden ) : [];
 	return html`<div class="os-posts-desk__workspace ${ ui.focused !== null && focused ? 'has-detail' : '' }" ?hidden=${ ui.view !== 'desk' }>
 		<div class="os-posts-desk__feed" aria-label=${ ctx.extra.mode === 'pages' ? __( 'Page directory' ) : __( 'Stories' ) }>
-			${ rows.length ? rows.map( ( row ) => story( ctx, ui, row, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
+			${ rows.length ? rows.map( ( row ) => story( ctx, ui, env, row, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
 			${ tail ?? '' }
 		</div>
 		${ ui.peek ? inspector( ctx, ui, env, filters, hidden, focused ) : '' }

@@ -4,6 +4,8 @@ A `<os-table>`-driven replacement for the chromeless `edit.php` iframe. Server-p
 
 The window is an [App Framework](../app-framework.md) app — `apps/posts/` (and `apps/pages/` for Pages, which reuses its parts). Its list is a `data()` over `openstation_app_rest_page( 'wp/v2/posts', … )`, so every REST field, `_embed` and the query-args filter below reach the rows exactly as they reached the old bundle; paging, filtering and sorting are the app's state; "Move to trash" is a server action. See [`migration-list-apps.md`](../migration-list-apps.md) for what the port removed.
 
+The Pages window has a per-page **Quick edit**, offered on each card, in the details pane and in the Details table's title cell (never on a trashed page or one another user is editing). It changes the title, slug, status, parent, order, template and whether comments are allowed. It reads the page with `GET /wp/v2/pages/<id>?context=edit` and saves with `POST /wp/v2/pages/<id>`, sending only the fields that changed, so Core decides who may edit and publish, and a plugin's REST hooks for pages (for example `rest_pre_insert_page` and `rest_after_insert_page`) apply to it as they do to the block editor. Published and Private are offered only when that read carries Core's `wp:action-publish` link. The Posts window does not offer quick edit.
+
 > Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
 
 ## How the swap works
