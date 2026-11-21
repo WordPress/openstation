@@ -22,6 +22,8 @@ export interface ComposeDraft {
 	sending: boolean;
 	/** The last failed send's reason. */
 	error: string;
+	/** What had focus when the modal opened; it gets focus back on close. */
+	opener: HTMLElement | null;
 }
 
 /** The UI state field the modal reads and writes. */
@@ -32,10 +34,29 @@ export interface ComposeHost {
 const ready = ( draft: ComposeDraft ): boolean =>
 	draft.subject.trim() !== '' && draft.message.trim() !== '';
 
+/** The focused element, through any shadow roots on the way down. */
+function focused( doc: Document ): HTMLElement | null {
+	let el = doc.activeElement as HTMLElement | null;
+	while ( el?.shadowRoot?.activeElement ) {
+		el = el.shadowRoot.activeElement as HTMLElement;
+	}
+	return el && el !== doc.body ? el : null;
+}
+
 /** Open a fresh draft for one user: empty fields, no error. */
 export function openCompose( ctx: Ctx, host: ComposeHost, row: UserListItem ): void {
-	host.compose = { row, subject: '', message: '', sending: false, error: '' };
+	host.compose = { row, subject: '', message: '', sending: false, error: '', opener: focused( ctx.root.ownerDocument ) };
 	ctx.repaint();
+}
+
+/** Close the modal and hand focus back to whatever opened it. */
+function closeCompose( ctx: Ctx, host: ComposeHost ): void {
+	const opener = host.compose?.opener;
+	host.compose = null;
+	ctx.repaint();
+	if ( opener?.isConnected ) {
+		queueMicrotask( () => opener.focus() );
+	}
 }
 
 async function send( ctx: Ctx, host: ComposeHost, draft: ComposeDraft ): Promise< void > {
@@ -50,13 +71,21 @@ async function send( ctx: Ctx, host: ComposeHost, draft: ComposeDraft ): Promise
 		return;
 	}
 	if ( ctx.state.emailsSent > before ) {
-		host.compose = null;
-	} else {
-		draft.sending = false;
-		// A network error has no state answer; its toast already said why.
-		draft.error = ok ? ctx.state.emailError : '';
+		closeCompose( ctx, host );
+		return;
 	}
+	draft.sending = false;
+	// A network error has no state answer; its toast already said why.
+	draft.error = ok ? ctx.state.emailError : '';
 	ctx.repaint();
+	// Disabling Send for the request dropped focus to the body, where
+	// the modal's Escape cannot hear it: put it back on Send.
+	queueMicrotask( () =>
+		ctx.root
+			.querySelector( '[data-os-users-compose-send]' )
+			?.shadowRoot?.querySelector< HTMLButtonElement >( 'button' )
+			?.focus(),
+	);
 }
 
 /** The modal, while a draft is open. */
@@ -65,10 +94,7 @@ export function composeModal( ctx: Ctx, host: ComposeHost ): TemplateResult | ''
 	if ( ! draft ) {
 		return '';
 	}
-	const close = (): void => {
-		host.compose = null;
-		ctx.repaint();
-	};
+	const close = (): void => closeCompose( ctx, host );
 	// Repaint only when Send's availability flips, not on every keystroke.
 	const edit = ( field: 'subject' | 'message' ) => ( e: Event ): void => {
 		const was = ready( draft );
@@ -86,7 +112,6 @@ export function composeModal( ctx: Ctx, host: ComposeHost ): TemplateResult | ''
 				__( 'Email %s' ),
 				draft.row.name,
 			) }
-			data-os-users-compose
 			@os-modal-cancel=${ close }
 		>
 			<div class="os-users__compose">
@@ -110,6 +135,7 @@ export function composeModal( ctx: Ctx, host: ComposeHost ): TemplateResult | ''
 				<os-button variant="ghost" @click=${ close }>${ __( 'Cancel' ) }</os-button>
 				<os-button
 					variant="primary"
+					data-os-users-compose-send
 					?disabled=${ draft.sending || ! ready( draft ) }
 					@click=${ () => void send( ctx, host, draft ) }
 				>${ __( 'Send' ) }</os-button>
