@@ -265,6 +265,10 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	/** The last list load failed: the sidebar says so instead of "no conversations". */
 	let conversationsFailed = false;
 	let seenRev = -1;
+	// Rows whose "Tool calls" list the user opened. Every store change
+	// repaints from scratch, so without this a poll would close the list.
+	// Window memory only: never written onto the row or persisted.
+	const openToolLists = new WeakSet< AgentChatMessage >();
 
 	const refreshConversations = (): void => {
 		const cfg = getRunConfig();
@@ -747,6 +751,14 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		if ( message.toolCalls && message.toolCalls.length > 0 ) {
 			const tools = document.createElement( 'details' );
 			tools.className = 'dm-agent-chat__tools';
+			tools.open = openToolLists.has( message );
+			tools.addEventListener( 'toggle', () => {
+				if ( tools.open ) {
+					openToolLists.add( message );
+				} else {
+					openToolLists.delete( message );
+				}
+			} );
 			const summary = document.createElement( 'summary' );
 			summary.textContent = `${ __( 'Tool calls', 'desktop-mode' ) } (${
 				message.toolCalls.length
