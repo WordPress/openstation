@@ -135,12 +135,15 @@ table.addEventListener( 'os-table-selection-change', ( e ) => {
 // Programmatic API
 table.select( 'alice@a.com' );
 table.deselect( 'alice@a.com' );
+table.setSelected( [ 'alice@a.com', 'bob@b.com' ], true ); // one event; false removes them
 table.selectAll();                          // multi only — selects the VISIBLE rows
 table.clearSelection();
 table.selection = new Set( savedIds );      // bulk replace
 ```
 
 `selectAll()` (and the header select-all checkbox) selects the rows passing the active client-side filters — never rows a filter is currently hiding. The header checkbox tri-state follows the same rule: "checked" means every *visible* row is selected, and unticking it unselects only the visible rows (call `clearSelection()` to empty everything). Tables without client-side filters are unaffected.
+
+In multi mode, Shift+click on a row checkbox works the way wp-admin's list tables do: every row from the last toggled one to the clicked one, both included, takes the clicked box's new state (checked or cleared), and rows outside that range keep theirs. The range runs over the visible rows in their painted order, so rows a client-side filter hides are never swept in. A Shift+click with no earlier toggle, or after the last toggled row was filtered out, is a plain toggle. The table applies the range through `setSelected( ids, selected )`, which adds or removes many ids with one `os-table-selection-change`; a card view or other surface over the same rows can call it the same way.
 
 **Why `getRowId` matters:** when the user reloads `data` from the server, selections survive the refresh because they're keyed by stable id, not array index. Fall back to the default (index) only when rows have no natural identifier.
 
@@ -332,6 +335,7 @@ If editing is the primary use case, request a first-class `column.editor` API �
 | `clearFilters()` | Drop every filter; emits `filter-change`. |
 | `clearSort()` | Drop the active sort; emits `sort-change`. |
 | `select(id)` / `deselect(id)` | Mutate the selection by id. |
+| `setSelected(ids, selected)` | Add (`true`) or remove (`false`) every id at once, with one `selection-change` (none when nothing changed). Multi-mode only. Ids are taken as given: pass only rows the user can see. |
 | `selectAll()` / `clearSelection()` | Bulk operations (multi-mode). `selectAll()` selects only the rows passing the active client-side filters. |
 | `selection` | Get/set the selection set. |
 | `selectedRows` | Resolved row objects matching `selection` (resolves against the full `data` buffer). |

@@ -582,6 +582,49 @@ describe( '<os-table>', () => {
 		expect( Array.from( table.selection ) ).toEqual( [ 'bob@b.com' ] );
 	} );
 
+	test( 'Shift+click on a row checkbox applies the clicked state to the visible range', async () => {
+		host.innerHTML = `<os-table selectable="multi"></os-table>`;
+		await tick();
+		const table = host.querySelector( 'os-table' ) as OsTable< User >;
+		table.columns = sampleColumns;
+		table.getRowId = ( row ) => row.email;
+		table.data = [
+			...sampleData,
+			{ name: 'Dave', email: 'dave@d.com', role: 'admin', logins: 1 },
+		];
+		// Bob (editor) is hidden between Alice and Carol.
+		table.filters = { role: 'admin' };
+		await tick();
+		const box = ( email: string ): HTMLInputElement =>
+			table.shadowRoot!.querySelector(
+				`tr[data-row-id="${ email }"] input.select-row-checkbox`,
+			) as HTMLInputElement;
+		let events = 0;
+		table.addEventListener( 'os-table-selection-change', () => events++ );
+
+		box( 'alice@a.com' ).click();
+		events = 0;
+		box( 'dave@d.com' ).dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, shiftKey: true } ),
+		);
+		expect( events ).toBe( 1 );
+		expect( Array.from( table.selection ).sort() ).toEqual( [
+			'alice@a.com',
+			'carol@c.com',
+			'dave@d.com',
+		] );
+		expect( box( 'carol@c.com' ).checked ).toBe( true );
+
+		// Shift+click a checked row: the range from the new anchor clears.
+		events = 0;
+		box( 'carol@c.com' ).dispatchEvent(
+			new MouseEvent( 'click', { bubbles: true, shiftKey: true } ),
+		);
+		expect( events ).toBe( 1 );
+		expect( Array.from( table.selection ) ).toEqual( [ 'alice@a.com' ] );
+		expect( box( 'dave@d.com' ).checked ).toBe( false );
+	} );
+
 	test( 'selectable=single: enforces at-most-one selected', async () => {
 		host.innerHTML = `<os-table selectable="single"></os-table>`;
 		await tick();
