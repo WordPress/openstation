@@ -250,6 +250,14 @@ function toast( ctx: Ctx, title: string, err: unknown ): void {
 	);
 }
 
+/** A row trashed or restored from its own menu leaves the bulk selection, as the bulk bar's rows do. */
+function deselectOnSuccess( ctx: Ctx, ids: number[], ok: boolean ): boolean {
+	if ( ok ) {
+		ids.forEach( ( id ) => tableOf( ctx )?.deselect( id ) );
+	}
+	return ok;
+}
+
 function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {
 	if ( ! ui.env ) {
 		ui.env = {
@@ -262,8 +270,8 @@ function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {
 			announce: ( action, ids ) => ctx.host.announce?.( 'post', action, ids ),
 			rowActions: {
 				links: ( rowId ) => ui.rowLinks.get( rowId ) ?? [],
-				trash: ( ids ) => ctx.dispatch( 'trash', { ids } ),
-				restore: ( ids ) => ctx.dispatch( 'restore', { ids } ),
+				trash: async ( ids ) => deselectOnSuccess( ctx, ids, await ctx.dispatch( 'trash', { ids } ) ),
+				restore: async ( ids ) => deselectOnSuccess( ctx, ids, await ctx.dispatch( 'restore', { ids } ) ),
 			},
 			quickEdit: modeOf( ctx.extra ) === 'pages' ? ( row ) => void openQuickEdit( ctx, ui, quickEditDoors( ctx, ui ), row ) : undefined,
 			parentTitles: new Map(),

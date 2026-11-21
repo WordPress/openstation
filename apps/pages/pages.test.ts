@@ -166,6 +166,15 @@ describe( 'the pages view', () => {
 		expect( cell( rows[ 1 ] ) ).toEqual( [ 'Move to trash' ] );
 	} );
 
+	it( 'takes a row trashed from its own menu out of the bulk selection', async () => {
+		const { root, dispatch } = mount( [ row( 1 ), row( 2 ) ] );
+		const table = root.querySelector( '[data-os-posts-table]' ) as HTMLElement & { selection: ReadonlySet< number >; setSelected: ( ids: number[], on: boolean ) => void };
+		table.setSelected( [ 1, 2 ], true );
+		( root.querySelector( '[data-story-id="2"] os-context-menu-option[value="trash"]' ) as HTMLElement ).click();
+		await vi.waitFor( () => expect( dispatch ).toHaveBeenCalledWith( 'trash', { ids: [ 2 ] } ) );
+		await vi.waitFor( () => expect( Array.from( table.selection ) ).toEqual( [ 1 ] ) );
+	} );
+
 	it( 'keeps a menu on every card when the list changes under it', () => {
 		const { root, ctx } = mount( [ row( 1 ), row( 2 ), row( 3 ) ] );
 		( ctx as { data: ListData } ).data = { list: { items: [ row( 2 ), row( 3 ) ], total: 2, pages: 1, page: 1, perPage: 20, error: '', code: '' } };
