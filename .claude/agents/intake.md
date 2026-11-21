@@ -84,6 +84,9 @@ SURFACES: none | ui | security | ui, security
 BEHAVIOUR: yes | no
 RESCOPED: yes | no
 
+## Summary
+- 3 to 5 short bullets: what happened in this step and why
+
 ## Scope
 ACCEPT: exactly what to build, as a short list a spec writer can work from,
 naming the files and the existing patterns to use. Then "Left out:" and what
@@ -99,6 +102,8 @@ NEEDS-INFO only: numbered questions for the author. Omit the section otherwise.
 ```
 
 The five header lines come first, exactly in that form, then a blank line.
+`## Summary` comes right after the header: 3 to 5 short bullets a human can
+skim on the dashboard. The detail goes in the sections below it.
 `BEHAVIOUR: no` only when the change can touch nothing but docs or tests: every
 other change gets a runtime reviewer that uses it on trunk's site and the job's.
 `RESCOPED: yes` when your Scope builds less than, or something different

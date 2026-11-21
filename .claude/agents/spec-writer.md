@@ -38,6 +38,9 @@ in the main checkout; your one file goes there.
 
 > Issue #<n>: <the issue title>
 
+## Summary
+- 3 to 5 short bullets: what will be built and the calls you made
+
 ## Context
 Where this lives in the codebase: the files, components and data involved, and
 how they work today. Cite paths.
@@ -59,6 +62,9 @@ everything intake left out.
 Decisions you made where the request was ambiguous, each with a one-line reason.
 The approver escalates to a human when one of these is a product decision.
 ```
+
+`## Summary` comes right after the title: 3 to 5 short bullets a human can
+skim on the dashboard. The detail goes in the sections below it.
 
 ## Rules
 
@@ -84,7 +90,8 @@ The approver escalates to a human when one of these is a product decision.
   write `<port>` for its port.
 - Use the repo's real validation commands from AGENTS.md in the acceptance
   criteria. Ask for a new test only where AGENTS.md's testing rule says it
-  would catch a real bug, and never ask to edit a file listed under
+  would catch a real bug. Existing tests can change when the feature changes
+  what they assert; say which and why. Never ask to edit a file listed under
   `protected_paths` in `factory/config.json`: the gate fails any branch that
   does.
 
