@@ -134,7 +134,9 @@ function openstation_users_window_email_target( $id, $message ) {
 /**
  * At most one email per (requester, target) pair per minute — stops
  * accidental double-clicks from firing two emails AND closes a small
- * abuse vector where an admin bot account could spam a victim.
+ * abuse vector where an admin bot account could spam a victim. The cap
+ * is per pair, not per requester: one requester can still email many
+ * targets in the same minute.
  *
  * @param string $kind    `pw_reset` | `welcome` | `custom`.
  * @param int    $id      Target user id.
@@ -215,9 +217,14 @@ function openstation_users_window_send_custom_email( $id, $subject, $message ) {
 	if ( is_wp_error( $user ) ) {
 		return $user;
 	}
-	// `sanitize_text_field()` strips newlines, so the subject cannot carry a header.
-	$subject = sanitize_text_field( (string) $subject );
-	$message = sanitize_textarea_field( (string) $message );
+	// Plain text, sent as written: no HTML sanitizer, which would turn
+	// `<` into `&lt;`, drop `<…>` and eat `%xx`. Only what a mail cannot
+	// carry goes. The subject is flattened to one line, so it cannot
+	// carry a header; the body keeps its newlines and tabs.
+	$subject = str_replace( array( "\r", "\n", "\t" ), ' ', wp_check_invalid_utf8( (string) $subject ) );
+	$subject = (string) preg_replace( '/[\x00-\x1F\x7F]/', '', $subject );
+	$message = str_replace( array( "\r\n", "\r" ), "\n", wp_check_invalid_utf8( (string) $message ) );
+	$message = (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $message );
 	$refusal = '';
 	if ( '' === trim( $subject ) ) {
 		$refusal = __( 'Add a subject.', 'desktop-mode' );

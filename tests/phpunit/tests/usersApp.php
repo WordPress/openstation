@@ -595,18 +595,39 @@ class Tests_OpenStation_UsersApp extends WP_UnitTestCase {
 			array(),
 			array(
 				'id'      => self::$subscriber_id,
-				'subject' => 'Hello Sam',
-				'message' => "Line one\nLine two",
+				'subject' => 'Hello Sam <3',
+				'message' => "Line one\r\nLine two: a < b, <ABC123>, 15%cash",
 			)
 		);
 		$this->assertCount( 1, $sent );
 		$this->assertSame( get_userdata( self::$subscriber_id )->user_email, $sent[0]['to'] );
-		$this->assertSame( 'Hello Sam', $sent[0]['subject'] );
-		$this->assertSame( "Line one\nLine two", $sent[0]['message'] );
+		// Plain text arrives as written: no `&lt;`, no dropped `<…>`, no eaten `%ca`.
+		$this->assertSame( 'Hello Sam <3', $sent[0]['subject'] );
+		$this->assertSame( "Line one\nLine two: a < b, <ABC123>, 15%cash", $sent[0]['message'] );
 		$this->assertEmpty( $sent[0]['headers'] );
 		$this->assertStringContainsString( 'Email sent to', $this->effects( $ok, 'toast' )[0]['message'] );
 		$this->assertSame( 1, $ok['state']['emailsSent'] );
 		$this->assertSame( '', $ok['state']['emailError'] );
+
+		// The per-target gate: `edit_users` alone does not reach a user the
+		// viewer may not edit.
+		$deny_target = static function ( $caps, $cap, $user_id, $args ) {
+			return 'edit_user' === $cap && (int) ( $args[0] ?? 0 ) === self::$editor_id ? array( 'do_not_allow' ) : $caps;
+		};
+		add_filter( 'map_meta_cap', $deny_target, 10, 4 );
+		$not_this_one = $this->dispatch(
+			'send-email',
+			array(),
+			array(
+				'id'      => self::$editor_id,
+				'subject' => 'Hello',
+				'message' => 'Hello',
+			)
+		);
+		remove_filter( 'map_meta_cap', $deny_target, 10 );
+		$this->assertStringContainsString( 'not allowed to email', $this->effects( $not_this_one, 'toast' )[0]['message'] );
+		$this->assertSame( 0, $not_this_one['state']['emailsSent'] );
+		$this->assertCount( 1, $sent );
 
 		wp_set_current_user( self::$editor_id );
 		add_filter( 'openstation_users_window_user_can_register', '__return_true' );
