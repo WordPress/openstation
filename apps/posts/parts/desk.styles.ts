@@ -579,6 +579,20 @@ export const deskStyles = css`
 	margin-block-end: 4px;
 }
 
+/* Quick edit (Pages): one field per row, each as wide as the dialog. */
+.os-posts-quick-edit__fields {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.os-posts-quick-edit__fields > os-text-field,
+.os-posts-quick-edit__fields > os-number-field,
+.os-posts-quick-edit__fields > os-select {
+	display: block;
+	inline-size: 100%;
+}
+
 html[data-os-mode="mobile"] .desktop-mode-posts .os-app-list__toolbar-left {
 	flex: 1 1 140px;
 }

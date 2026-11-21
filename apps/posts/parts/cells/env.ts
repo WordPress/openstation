@@ -47,6 +47,8 @@ export interface CellEnv {
 	toast: ( title: string, err: unknown ) => void;
 	/** A row changed — the window's own announce (its watch skips the echo). */
 	announce: ( action: string, ids: number[] ) => void;
+	/** Open the quick edit dialog on a row. Set in Pages mode only. */
+	quickEdit?: ( row: PostListItem ) => void;
 	/** In-page parent titles (Pages), refreshed on every data change. */
 	parentTitles: Map< number, string >;
 	/** The category tree, fetched once per window, and every live picker. */
@@ -94,6 +96,15 @@ export function statusBadgeColor( status: string ): { bg: string; fg: string } {
 		default:
 			return { bg: 'var(--os-ui-surface-raised, #f1f1f2)', fg: 'var(--os-ui-fg-muted, #50575e)' };
 	}
+}
+
+/**
+ * Whether a row offers quick edit: only where the window set the door
+ * (Pages), never on a trashed row, and never on a row another user is
+ * editing — wp-admin hides it there too.
+ */
+export function offersQuickEdit( row: PostListItem, env: CellEnv ): boolean {
+	return !! env.quickEdit && row.status !== 'trash' && ! row.openstation_lock;
 }
 
 /** The editor URL for a row — `post.php?post=<id>&action=edit`. */
