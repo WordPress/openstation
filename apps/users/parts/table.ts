@@ -301,6 +301,7 @@ function buildActionsCell( row: UserListItem, cfg: ListConfig, actions: RowActio
 	cell.append(
 		mk( __( 'Send password reset' ), 'email-alt', () => actions.onSendReset( row ) ),
 		mk( __( 'Resend welcome email' ), 'megaphone', () => actions.onResendWelcome( row ) ),
+		mk( __( 'Send email' ), 'welcome-write-blog', () => actions.onSendEmail( row ) ),
 	);
 	return cell;
 }
@@ -318,7 +319,9 @@ export function buildColumns(
 			label: __( 'Name' ),
 			sortable: true,
 			sticky: true,
-			minWidth: '260px',
+			// Leaves the Actions column's three buttons room in the
+			// window's default width.
+			minWidth: '220px',
 			render: ( _v, row ) => memo( cache, row.id, 'identity', () => buildIdentityCell( row, actions ) ),
 		},
 		{
@@ -367,7 +370,7 @@ export function buildColumns(
 			key: 'actions',
 			label: __( 'Actions' ),
 			stack: 'actions',
-			width: '110px',
+			width: '140px',
 			sortable: false,
 			render: ( _v, row ) => memo( cache, row.id, 'actions', () => buildActionsCell( row, cfg, actions ) ),
 		} );

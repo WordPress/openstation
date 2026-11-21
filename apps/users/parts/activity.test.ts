@@ -3,7 +3,7 @@ import { render } from '../../../src/ui/core';
 import { activityView } from './activity';
 import type { ProfileConfig, UserListItem } from './types';
 const cfg = { allRoles: { editor: 'Editor' } } as ProfileConfig;
-const actions = { onSendReset: vi.fn(), onResendWelcome: vi.fn(), toast: vi.fn() };
+const actions = { onSendReset: vi.fn(), onResendWelcome: vi.fn(), onSendEmail: vi.fn(), toast: vi.fn() };
 describe( 'community activity view', () => {
 	it( 'offers distinct empty states and no invented contribution totals', () => {
 		const root = document.createElement( 'div' );

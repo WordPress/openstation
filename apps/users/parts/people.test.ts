@@ -18,7 +18,7 @@ describe( 'people views', () => {
 	} );
 	it( 'keeps unknown counts explicit and hides account actions and selection from read-only viewers', () => {
 		const root = document.createElement( 'div' );
-		render( peopleCards( [ user( 1, [] ) ], { cfg: {} as ProfileConfig, actions: { onSendReset: vi.fn(), onResendWelcome: vi.fn(), toast: vi.fn() }, selected: [], select: vi.fn() }, html``, false ), root );
+		render( peopleCards( [ user( 1, [] ) ], { cfg: {} as ProfileConfig, actions: { onSendReset: vi.fn(), onResendWelcome: vi.fn(), onSendEmail: vi.fn(), toast: vi.fn() }, selected: [], select: vi.fn() }, html``, false ), root );
 		expect( root.querySelector( 'os-stat' )?.getAttribute( 'value' ) ).toBe( '—' );
 		expect( root.textContent ).toContain( 'No sign-in recorded' );
 		expect( root.querySelector( 'os-checkbox' ) ).toBeNull();
@@ -29,7 +29,7 @@ describe( 'people views', () => {
 describe( 'member ID cards', () => {
 	it( 'shows real identity details and dispatches only permitted account actions', () => {
 		const row = { ...user( 42, [ 'editor' ] ), name: 'Ada Dahl', email: 'ada@example.test', registered_date: '2025-01-10T00:00:00', openstation_can_edit: true };
-		const actions = { onSendReset: vi.fn(), onResendWelcome: vi.fn(), toast: vi.fn() };
+		const actions = { onSendReset: vi.fn(), onResendWelcome: vi.fn(), onSendEmail: vi.fn(), toast: vi.fn() };
 		const root = document.createElement( 'div' );
 		const draw = ( canEdit: boolean ) => render( peopleCards( [ row ], { cfg: { canEdit } as ProfileConfig, actions, selected: [], select: vi.fn() }, html``, false ), root );
 		draw( true );
@@ -37,15 +37,17 @@ describe( 'member ID cards', () => {
 		expect( root.textContent ).toContain( 'ada@example.test' );
 		expect( root.querySelector( 'time' )?.getAttribute( 'datetime' ) ).toBe( row.registered_date );
 		expect( root.querySelector( 'os-disclosure' ) ).toBeNull();
-		expect( root.querySelectorAll( 'os-context-menu-option:not([heading])' ) ).toHaveLength( 3 );
+		expect( root.querySelectorAll( 'os-context-menu-option:not([heading])' ) ).toHaveLength( 4 );
 		const pick = ( id: string ) => root.querySelector( 'os-action-menu' )!.dispatchEvent( new CustomEvent( 'os-context-menu-pick', { detail: { id }, bubbles: true } ) );
-		pick( 'reset' ); pick( 'welcome' );
+		pick( 'reset' ); pick( 'welcome' ); pick( 'email' );
 		expect( actions.onSendReset ).toHaveBeenCalledWith( row );
 		expect( actions.onResendWelcome ).toHaveBeenCalledWith( row );
+		expect( actions.onSendEmail ).toHaveBeenCalledWith( row );
 		draw( false );
 		expect( root.querySelectorAll( 'os-context-menu-option' ) ).toHaveLength( 1 );
-		pick( 'reset' );
+		pick( 'reset' ); pick( 'email' );
 		expect( actions.onSendReset ).toHaveBeenCalledTimes( 1 );
+		expect( actions.onSendEmail ).toHaveBeenCalledTimes( 1 );
 		row.openstation_can_edit = false; draw( true );
 		expect( root.querySelectorAll( 'os-context-menu-option' ) ).toHaveLength( 1 );
 		pick( 'welcome' );

@@ -20,6 +20,18 @@
 	padding: var( --os-ui-tabs-padding, 0 18px );
 }
 
+/* The Send email modal's body: the recipient, the failure notice and
+   the two fields. */
+.os-users__compose {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.os-users__compose-to {
+	margin: 0;
+}
+
 /* The Add User tab. Padding lives on the host so the form's own
    footer separator sits flush with the panel edges; the active tab
    fills the remaining height and the inactive one is fully hidden. */

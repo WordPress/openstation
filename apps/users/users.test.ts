@@ -50,7 +50,7 @@ const usersTabs = ( cfg: ProfileConfig ) => [
 	{ id: 'edit', label: 'Profile' },
 ];
 
-const actions: RowActions = { onSendReset: () => undefined, onResendWelcome: () => undefined, toast: () => undefined };
+const actions: RowActions = { onSendReset: () => undefined, onResendWelcome: () => undefined, onSendEmail: () => undefined, toast: () => undefined };
 
 function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = {}, extra: Partial< ProfileConfig > = {}, loading = false ) {
 	const root = document.createElement( 'div' );
@@ -69,6 +69,8 @@ function mount( state: Partial< UsersState > = {}, data: Partial< UsersData > = 
 			createError: '',
 			createField: '',
 			created: 0,
+			emailError: '',
+			emailsSent: 0,
 			...state,
 		},
 		data: { list: { items: [ user() ], total: 1, pages: 1, page: 1, perPage: 20 }, ...data },
@@ -348,7 +350,7 @@ describe( 'the table parts', () => {
 		expect( ( cell( 'email' ) as HTMLButtonElement ).textContent ).toBe( 'ada@example.com' );
 		expect( cell( 'identity' ).querySelector( 'os-avatar' )?.getAttribute( 'presence' ) ).toBe( 'offline' );
 		const buttons = cell( 'actions' ).querySelectorAll( 'button' );
-		expect( buttons.length ).toBe( 2 );
+		expect( buttons.length ).toBe( 3 );
 		// The face resolves through the palette, never an inherited
 		// colour on a white fallback — that painted white glyphs on a
 		// white chip under the dark palette.
