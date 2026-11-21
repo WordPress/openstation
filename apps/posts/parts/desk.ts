@@ -20,9 +20,11 @@ export interface DeskState {
 	fields: Array< { key: string; label: string; node: unknown } >;
 	/** The cards' and the details pane's row menus, by place, kept across repaints. */
 	menus: RowActionsMenuCache;
+	/** The card whose checkbox was toggled last: where a Shift+click range starts. */
+	anchor: number | null;
 }
 
-export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map() } );
+export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map(), anchor: null } );
 
 /** A row's actions menu on a desk surface, or nothing outside the app. */
 function rowMenu( ui: DeskState, env: CellEnv, slot: string, row: PostListItem ): HTMLElement | string {
@@ -145,6 +147,30 @@ function pluginStat( col: OsTableColumn< PostListItem >, row: PostListItem ): Te
 	return html`<div class="os-posts-desk__plugin-stat" data-column=${ col.key }><span class="os-posts-desk__plugin-stat-value">${ node }</span><span class="os-posts-desk__plugin-stat-label">${ col.label || col.key }</span></div>`;
 }
 
+/** The loaded card ids from the anchor to `id`, both ends included, or null without a range. */
+function cardRange( ctx: Ctx, ui: DeskState, id: number ): number[] | null {
+	if ( ui.anchor === null || ui.anchor === id ) {
+		return null;
+	}
+	const ids = ( ctx.data?.list.items ?? [] ).map( ( row ) => row.id );
+	const from = ids.indexOf( ui.anchor );
+	const to = ids.indexOf( id );
+	return from < 0 || to < 0 ? null : ids.slice( Math.min( from, to ), Math.max( from, to ) + 1 );
+}
+
+/** A card checkbox: Shift extends from the last toggled card, the way the table's rows do. */
+function toggleCard( ctx: Ctx, ui: DeskState, id: number, checked: boolean, shift: boolean ): void {
+	const range = shift ? cardRange( ctx, ui, id ) : null;
+	ui.anchor = id;
+	if ( range ) {
+		tableOf( ctx )?.setSelected( range, checked );
+	} else if ( checked ) {
+		tableOf( ctx )?.select( id );
+	} else {
+		tableOf( ctx )?.deselect( id );
+	}
+}
+
 function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index: number, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
 	const title = titleOf( row ) || __( '(no title)' );
@@ -164,6 +190,8 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index:
 		ctx.repaint();
 		focusControl( ctx.root, '[data-os-posts-inspect-close]' );
 	};
+	// `os-checkbox-change` carries no modifier keys; the `click` before it does.
+	let shift = false;
 	return html`<article class="os-posts-desk__story ${ focused === row.id ? 'is-current' : '' }" data-story-id=${ row.id }>
 		<div class="os-posts-desk__story-top">
 			${ status( row ) }
@@ -171,12 +199,12 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index:
 			${ contentId( ctx, row ) }
 			<os-checkbox aria-label=${ sprintf( /* translators: %s: content title. */ __( 'Select %s' ), title ) }
 				class="os-posts-desk__select" ?checked=${ tableOf( ctx )?.selection.has( row.id ) ?? false }
+				@click=${ ( e: MouseEvent ) => {
+ shift = e.shiftKey;
+} }
 				@os-checkbox-change=${ ( e: Event ) => {
- if ( ( e as CustomEvent ).detail.checked ) {
- tableOf( ctx )?.select( row.id );
-} else {
- tableOf( ctx )?.deselect( row.id );
-}
+ toggleCard( ctx, ui, row.id, ( e as CustomEvent ).detail.checked, shift );
+ shift = false;
 } }></os-checkbox>
 		</div>
 		<div class="os-posts-desk__story-content">

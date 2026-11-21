@@ -29,10 +29,18 @@
  * the desk it is about to dress, and an arrow that switched desks or
  * re-entered overview behind it would leave the user configuring a
  * desk they are no longer standing on.
+ *
+ * So does a focused control that uses the arrows itself — a tab strip,
+ * a menu, a list box, a radio group, a select, a slider — or anything
+ * inside one. The listener runs in the capture phase on `document`, so
+ * it sees the key before the control does; without this rule Down on a
+ * Preferences sidebar row moved the row AND minimized every window, and
+ * Right on a tab strip moved the tab AND switched the desk out from
+ * under it. See {@link isArrowKeyControlFocus}.
  */
 
 import { isMobileStamped } from '../mode/stamp';
-import { isTextEntryFocus } from './switcher';
+import { focusedLeaf, isTextEntryFocus } from './switcher';
 import { refreshOverviewTopBar } from './overview';
 import type { WindowManager } from './index';
 
@@ -200,6 +208,68 @@ function isModalOpen(): boolean {
 	);
 }
 
+/** ARIA roles whose keyboard pattern moves through the control with arrows. */
+const ARROW_KEY_ROLES = new Set( [
+	'tab',
+	'tablist',
+	'menu',
+	'menubar',
+	'menuitem',
+	'menuitemcheckbox',
+	'menuitemradio',
+	'listbox',
+	'option',
+	'combobox',
+	'radio',
+	'radiogroup',
+	'slider',
+	'spinbutton',
+	'switch',
+	'tree',
+	'treeitem',
+	'grid',
+] );
+
+function usesArrowKeys( el: Element ): boolean {
+	const role = el.getAttribute( 'role' );
+	if ( role !== null && ARROW_KEY_ROLES.has( role ) ) {
+		return true;
+	}
+	// A static divider takes no keys; a focusable splitter does.
+	if ( role === 'separator' && el.hasAttribute( 'tabindex' ) ) {
+		return true;
+	}
+	if ( el instanceof HTMLSelectElement ) {
+		return true;
+	}
+	return (
+		el instanceof HTMLInputElement &&
+		( el.type === 'range' || el.type === 'radio' )
+	);
+}
+
+/**
+ * Whether the focused element, or anything it sits inside, uses the
+ * arrow keys itself. Walks up from the real focused leaf through each
+ * ancestor, and out of each shadow root to its host, so a button in an
+ * `<os-tab>`'s shadow root answers for the tab and its strip.
+ */
+function isArrowKeyControlFocus( doc: Document ): boolean {
+	let el = focusedLeaf( doc );
+	while ( el ) {
+		if ( usesArrowKeys( el ) ) {
+			return true;
+		}
+		if ( el.parentElement ) {
+			el = el.parentElement;
+			continue;
+		}
+		const root = el.getRootNode();
+		el = root instanceof ShadowRoot ? root.host : null;
+	}
+	return false;
+}
+
 function isShowDesktopActive( mgr: WindowManager ): boolean {
 	const all = mgr.getAll();
 	if ( all.length === 0 ) {
@@ -269,6 +339,9 @@ export function installDesktopArrowShortcuts( mgr: WindowManager ): void {
 				return;
 			}
 			if ( isModalOpen() ) {
+				return;
+			}
+			if ( isArrowKeyControlFocus( document ) ) {
 				return;
 			}
 
