@@ -223,6 +223,7 @@ Job `n` (from the numeric prefix of its id) gets port `ports.base + ports.step Ã
 | `env` | Where the gate's WordPress parts run: `wp-env` (default) or `cloud`, through `bin/cloud-test-env.sh`, where PHPUnit and phpcs run today and the site checks don't yet. `FACTORY_ENV` overrides it. |
 | `runtime_reviewer` | The runtime reviewer's model. |
 | `fork_sensitive_paths` | Files a fork PR can't touch without a maintainer's look: they can run code at install or in CI. |
+| `slack_channel` | The Slack channel the maintainers watch, by name. `job` prints a `notify #<name>: â€¦` line whenever one of them has something to do, and the orchestrator posts it there through the session's Slack tool: when a job enters `needs-human` (a PR ready to merge, or a decision to make) and when the factory approves a contributor's PR. A request for changes, a question to an issue's author and a conflict with trunk are for the author, who hears about them on GitHub, so they print nothing. A session with no Slack tool lists the unsent notices in its summary. An empty name turns the notices off. |
 | `pr_changes_limit` | Rounds of `CHANGES` in a row after which a PR job is labeled `factory:needs-human` and waits for the maintainer instead of re-reviewing the next push. |
 | `routing`, `surface_reviewers` | The agent routing tables described above. |
 | `protected_paths` | fnmatch patterns a branch may not modify or delete. |
