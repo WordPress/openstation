@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The shared trunk site every review compares against: the latest trunk, built,
-# on `ports.trunk` (8900), in its own worktree next to the checkout. Without it
+# on `ports.trunk` (8900), in its own worktree under factory/worktrees/. Without it
 # a reviewer can't tell "fixed" from "never reproduced", or a regression from a
 # bug that was already there.
 #
@@ -14,7 +14,7 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-dir="$(dirname "$repo")/$(basename "$repo")-factory/trunk"
+dir="$repo/factory/worktrees/trunk"
 read -r port base < <(python3 -c 'import json, sys; c = json.load(open(sys.argv[1])); print(c["ports"]["trunk"], c["base_branch"])' "$repo/factory/config.json")
 
 if [ "${1:-}" = destroy ]; then

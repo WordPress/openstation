@@ -13,7 +13,7 @@ job="${1:?usage: factory/seed.sh <job-id> <seed.php>}"
 seed="$(cd "$(dirname "${2:?usage: factory/seed.sh <job-id> <seed.php>}")" && pwd)/$(basename "$2")"
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 worktree="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["worktree"])' "$repo/factory/jobs/$job/job.json")"
-trunk="$(dirname "$repo")/$(basename "$repo")-factory/trunk"
+trunk="$repo/factory/worktrees/trunk"
 
 for site in "$trunk" "$worktree"; do
 	# Each wp-env instance mounts its own checkout as the plugin, so a copy under

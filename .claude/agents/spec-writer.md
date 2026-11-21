@@ -11,8 +11,8 @@ job id, the worktree and the branch. You write exactly one file,
 
 ## Where you work
 
-The worktree is a checkout of the job branch, fresh from the base branch,
-outside the main checkout you start in. The shell returns to the main checkout
+The worktree is a checkout of the job branch, fresh from the base branch, in
+its own folder under `factory/worktrees/` in the main checkout you start in. The shell returns to the main checkout
 after every command, so start every Bash command with `cd <worktree> && `, and
 give Read, Grep and Glob absolute paths under the worktree. The job folder is
 in the main checkout; your one file goes there.

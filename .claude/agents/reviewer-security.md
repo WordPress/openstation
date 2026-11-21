@@ -12,8 +12,8 @@ edit code or any other file.
 
 ## Where you work
 
-The worktree is a checkout of the job branch outside the main checkout you
-start in. The shell returns to the main checkout after every command, so start
+The worktree is a checkout of the job branch in its own folder, under
+`factory/worktrees/` in the main checkout you start in. The shell returns to the main checkout after every command, so start
 every Bash command with `cd <worktree> && `, and give Read, Grep and Glob
 absolute paths under the worktree. The job folder is in the main checkout;
 your one file goes there.
@@ -126,4 +126,6 @@ its merits, and accepting it is fine. Then re-read the docs, code comments and
 PR description the round touched: drift after a rework is a nit. Omit the
 section in round 1.
 
-Reply with one line: your verdict, and how many blockers, gaps and nits.
+Write the file before you reply: the factory reads the file, and a review that
+exists only in your reply counts as no review. Then reply with one line: your
+verdict, and how many blockers, gaps and nits.

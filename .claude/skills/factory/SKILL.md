@@ -25,7 +25,8 @@ intake (fable)     → ACCEPT (scope possibly changed) | NEEDS-INFO | REJECT, po
 route (script)     → reviewers + models from risk/surfaces via config.json
 worktree           → factory/<job-id> from origin/<base_branch>
 spec-writer (opus) → spec.md
-builder (opus)     → commits; first round pushes + opens draft PR "Closes #<n>"
+builder (opus)     → commits; first round pushes + opens draft PR "Closes #<n>" ("Related to #<n>" when intake narrowed the issue:
+                     the rest is queued as issues of its own when that PR merges)
 gate (script)      → checks.sh; FAIL → builder gets the log, no reviewers spawned
 reviewers (routed) → parallel with CI (job ci), WAIT FOR ALL; CHANGES or red CI → builder → gate → … (max rounds)
 approver (opus)    → APPROVE: job merge (sync, gate, then gh pr merge, or hand over when auto_merge is off)
@@ -46,8 +47,9 @@ needs-human         → HOLD, or too many CHANGES in a row: posted and labeled, 
 ```
 
 A PR job never commits code to the contributor's branch (the trunk merge is
-the one push it makes), never approves or requests changes as a GitHub review,
-and never merges.
+the one push it makes) and never merges. Its report goes up under the
+operator's name, as an approval or a request for changes, only when the
+reporter is sure of it.
 
 Both kinds of job share the review, and the same two sites: the job's own, and
 the **trunk site** that `factory/trunk.sh` brings up at the start of every run
@@ -94,7 +96,8 @@ session). You stay there; agents work in the job's worktree.
 <repo>/factory/jobs/<job-id>/screen.md          PR jobs: what the script holds for a maintainer
 <repo>/factory/jobs/<job-id>/triage.md          PR jobs
 <repo>/factory/jobs/<job-id>/round-<N>/update.md, verdict.md, runtime/   PR jobs: trunk merge, report; runtime evidence
-<repo>/../<name>-factory/trunk/                 the shared trunk site's worktree
+<repo>/factory/worktrees/<job-id>/              the job's worktree
+<repo>/factory/worktrees/trunk/                 the shared trunk site's worktree
 ```
 
 Read a job with `cat factory/jobs/<job-id>/job.json`. Its `worktree` and
@@ -151,7 +154,8 @@ that job and tell the user.
 Do the step for the job's `stage`, then the next one.
 
 **intake.** If `intake.md` doesn't exist, spawn `intake` with
-`<paths> Issue: #<n>.` (there is no worktree yet; the paths still name it).
+`<paths> Issue: #<n>. Trunk: <trunk folder>.` (there is no worktree yet; the
+paths still name it, and intake reads the code in the trunk folder).
 Then read its header:
 
 - `DECISION: ACCEPT`: run `factory/bin/route <job-id>`, then
@@ -168,8 +172,11 @@ fails, stop the job and tell the user. If `spec.md` doesn't exist, spawn
 `spec-writer` with `<paths> Write the spec.` Then
 `factory/bin/job advance <job-id> build` (round 1).
 
-**build.** Spawn `builder` **named `builder-<job-id>`** with
-`<paths> Build round <N>. Port: <port>.` When it finishes, read the first
+**build.** Spawn `builder` with
+`<paths> Build round <N>. Port: <port>.` and keep the id the Agent tool gives
+you: below, `builder-<job-id>` stands for that agent, and resuming it means
+`SendMessage` to that id. (Where the Agent tool takes a name, name it
+`builder-<job-id>`.) When it finishes, read the first
 line of `build.md`:
 
 - `STATUS: READY`: grep `build.md` for an unchecked criterion (`[ ]`). If
@@ -259,7 +266,7 @@ Then read the first line of `decision.md`:
 ### PR jobs, step by stage
 
 **triage.** If `triage.md` doesn't exist, spawn `triage` with
-`<paths> PR: #<n>.` (no worktree yet). Triage reads one head: `pr.md`,
+`<paths> PR: #<n>. Trunk: <trunk folder>.` (no worktree yet). Triage reads one head: `pr.md`,
 `pr.diff` and `screen.md` all describe the commit the job pinned, and from the
 second round on `pr.delta.diff` holds what the contributor pushed since the
 last one. Then read its header:
