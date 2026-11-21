@@ -47,8 +47,8 @@ import {
 	type ColumnFilterData,
 	type HiddenColumnsSettingKey,
 } from './columns';
-import { createPostsRestClient, type PostsRestClient } from './rest';
-import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext } from './types';
+import { createPostsRestClient, fetchRowActions, type PostsRestClient } from './rest';
+import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext, RowActionLink } from './types';
 import { fireDataLoaded, postsContext, runBulkAction, tableOf, type Ctx } from './window-context';
 
 import { ContentFeed } from './content-feed';
@@ -114,6 +114,13 @@ interface UiState {
 	tagPage: number;
 	tagTotalPages: number;
 	tagFetching: boolean;
+	/** Each loaded row's plugin links (`parts/row-actions.php`), by post id. */
+	rowLinks: Map< number, RowActionLink[] >;
+	/** Bumped when links land, so the table repaints its title cells. */
+	rowLinksVersion: number;
+	/** The rows the links were last asked for, and the latest ask. */
+	rowLinksRows: string | null;
+	rowLinksTicket: number;
 }
 
 const freshUi = (): UiState => ( {
@@ -141,6 +148,10 @@ const freshUi = (): UiState => ( {
 	tagPage: 0,
 	tagTotalPages: 1,
 	tagFetching: false,
+	rowLinks: new Map(),
+	rowLinksVersion: 0,
+	rowLinksRows: null,
+	rowLinksTicket: 0,
 } );
 
 const modeOf = ( extra: Record< string, unknown > ): PostsMode =>
@@ -149,6 +160,49 @@ const modeOf = ( extra: Record< string, unknown > ): PostsMode =>
 /** Stable key for the page — identical rows skip the table repaint. */
 function fingerprint( items: PostListItem[] ): string {
 	return items.map( ( r ) => `${ r.id }:${ r.status }:${ r.modified_gmt }` ).join( '|' );
+}
+
+/** The most ids one row-actions request answers for. */
+const ROW_ACTIONS_BATCH = 100;
+
+/**
+ * Ask for the loaded rows' plugin links, 100 ids a request. An answer
+ * that lands after a newer ask started is dropped; a failed or refused
+ * batch leaves those rows with the built-in entries only. When the
+ * links land the cells rebuild, so the card, the details pane and the
+ * table's title cells all show them.
+ */
+function syncRowLinks( ctx: Ctx, ui: UiState, items: PostListItem[] ): void {
+	const ticket = ++ui.rowLinksTicket;
+	const extra = ctx.extra as ListExtra;
+	if ( ! extra.ajaxUrl || items.length === 0 ) {
+		return;
+	}
+	const ids = items.map( ( row ) => row.id );
+	const batches: Array< Promise< Record< string, RowActionLink[] > > > = [];
+	for ( let i = 0; i < ids.length; i += ROW_ACTIONS_BATCH ) {
+		batches.push( fetchRowActions( ctx.fetch, extra, modeOf( ctx.extra ), ids.slice( i, i + ROW_ACTIONS_BATCH ) ) );
+	}
+	void Promise.allSettled( batches ).then( ( results ) => {
+		if ( ui.disposed || ticket !== ui.rowLinksTicket ) {
+			return;
+		}
+		const next = new Map< number, RowActionLink[] >();
+		for ( const result of results ) {
+			if ( result.status !== 'fulfilled' ) {
+				continue;
+			}
+			for ( const [ id, links ] of Object.entries( result.value ) ) {
+				if ( Array.isArray( links ) ) {
+					next.set( Number( id ), links );
+				}
+			}
+		}
+		ui.rowLinks = next;
+		++ui.rowLinksVersion;
+		ui.cellCache.clear();
+		ctx.repaint();
+	} );
 }
 
 function clientOf( ctx: Ctx, ui: UiState ): PostsRestClient {
@@ -192,6 +246,11 @@ function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {
 			confirm: ( options ) => ctx.host.confirm?.( options ) ?? Promise.resolve( false ),
 			toast: ( title, err ) => toast( ctx, title, err ),
 			announce: ( action, ids ) => ctx.host.announce?.( 'post', action, ids ),
+			rowActions: {
+				links: ( rowId ) => ui.rowLinks.get( rowId ) ?? [],
+				trash: ( ids ) => ctx.dispatch( 'trash', { ids } ),
+				restore: ( ids ) => ctx.dispatch( 'restore', { ids } ),
+			},
 			parentTitles: new Map(),
 			categories: { tree: null, pickers: new Set() },
 		};
@@ -837,12 +896,15 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				ui.table.invalidateColumns();
 			}
 			const items = ui.feed.items;
+			const rowsKey = fingerprint( items );
 			const result = ui.table.sync( {
 				// `<os-table>` exposes `data` read-only; the sync writes through
 				// its setter, which is the one the component declares.
 				table: table as unknown as ListTableLike< PostListItem >,
 				rows: items,
-				fingerprint: fingerprint( items ),
+				// The rows' plugin links are part of what the title cells
+				// show: links landing repaints the table too.
+				fingerprint: `${ rowsKey }#${ ui.rowLinksVersion }`,
 				columns: ( phone ) => {
 					ui.cellCache.clear();
 					return buildColumns( env, ui.cellCache, ui.filterData, phone, hiddenOf( ui, hiddenColumnsKey ) );
@@ -864,8 +926,14 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				// A real data change: fresh DOM for the new rows.
 				ui.cellCache.clear();
 				refreshParentTitleRoster( env, items );
-				if ( data ) {
-					fireDataLoaded( data );
+				// New rows, not just their links landing: ask for their
+				// links, and tell the plugins the data loaded.
+				if ( rowsKey !== ui.rowLinksRows ) {
+					ui.rowLinksRows = rowsKey;
+					syncRowLinks( ctx, ui, items );
+					if ( data ) {
+						fireDataLoaded( data );
+					}
 				}
 			}
 		},

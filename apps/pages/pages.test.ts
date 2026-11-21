@@ -28,7 +28,7 @@ function row( id: number, over: Partial< PostListItem > = {} ): PostListItem {
 	};
 }
 
-function mount( items: PostListItem[] ) {
+function mount( items: PostListItem[], extra: Record< string, unknown > = {} ) {
 	const root = document.createElement( 'div' );
 	document.body.appendChild( root );
 	const dispatch = vi.fn( async () => true );
@@ -48,6 +48,7 @@ function mount( items: PostListItem[] ) {
 			defaultOrder: 'asc',
 			frontPageId: 1,
 			pageTemplates: { '': 'Default template' },
+			...extra,
 		},
 		dispatch,
 		host: { fetch: ( i, init ) => globalThis.fetch( i, init ), openUrl: vi.fn(), confirm: vi.fn( async () => true ) },
@@ -69,6 +70,7 @@ beforeEach( () => {
 } );
 
 afterEach( () => {
+	vi.unstubAllGlobals();
 	document.body.replaceChildren();
 	delete ( window as unknown as { wp?: unknown } ).wp;
 } );
@@ -131,6 +133,28 @@ describe( 'the pages view', () => {
 		expect( root.querySelector( '.os-posts-desk__inspector-actions a' )?.getAttribute( 'href' ) ).toBe( 'https://example.test/home/' );
 		( root.querySelector( '[data-inspect-id="2"]' ) as HTMLElement ).click();
 		expect( root.querySelector( '.os-posts-desk__inspector-actions a' ) ).toBeNull();
+	} );
+
+	it( 'offers each row the actions its status allows, plus the links plugins add to it', async () => {
+		const fetch = vi.fn( async ( _url: unknown, _init?: RequestInit ) => new Response( JSON.stringify( {
+			success: true,
+			data: { 1: [
+				{ key: 'clone', label: 'Clone', url: 'http://x.test/wp-admin/admin.php?action=duplicate_post_clone&post=1', admin: true },
+				{ key: 'bricks', label: 'Edit with Bricks', url: 'https://x.test/home/?bricks=run', admin: false },
+			] },
+		} ) ) );
+		vi.stubGlobal( 'fetch', fetch );
+		const { root } = mount(
+			[ row( 1, { link: 'https://x.test/home/' } ), row( 2, { status: 'draft' } ), row( 3, { status: 'trash' } ) ],
+			{ ajaxUrl: 'http://x.test/wp-admin/admin-ajax.php', rowActionsNonce: 'nonce' },
+		);
+		const entries = ( id: number ): Array< string | null > =>
+			Array.from( root.querySelectorAll( `[data-story-id="${ id }"] [data-os-posts-row-actions] os-context-menu-option` ) ).map( ( o ) => o.textContent );
+		expect( entries( 1 ) ).toEqual( [ 'Edit', 'View ↗', 'Move to trash' ] );
+		await vi.waitFor( () => expect( entries( 1 ) ).toEqual( [ 'Edit', 'View ↗', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] ) );
+		expect( entries( 2 ) ).toEqual( [ 'Edit', 'Move to trash' ] );
+		expect( entries( 3 ) ).toEqual( [ 'Restore' ] );
+		expect( String( fetch.mock.calls[ 0 ][ 1 ]?.body ) ).toContain( 'ids=1%2C2%2C3' );
 	} );
 
 	it( 'says "No pages" when empty', () => {

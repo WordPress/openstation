@@ -1,7 +1,7 @@
 /**
  * Posts app — the cells both modes render: the title (with its lock,
- * status and reading-page badges and the "View" link), the
- * author, the date, and the expanded sub-row.
+ * status and reading-page badges, the "View" link and the row's
+ * actions menu), the author, the date, and the expanded sub-row.
  *
  * @public
  */
@@ -21,6 +21,7 @@ import {
 	titleOf,
 	type CellEnv,
 } from './env';
+import { buildRowActionsMenu } from '../row-actions';
 import type { PostListItem } from '../types';
 
 function dashicon( name: string, size = 13 ): HTMLElement {
@@ -119,6 +120,11 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 		view.addEventListener( 'click', ( e ) => e.stopPropagation() );
 		underlineOnHover( view );
 		titleRow.appendChild( view );
+	}
+
+	// The row's actions menu, last on the title row (no column of its own).
+	if ( env.rowActions ) {
+		titleRow.appendChild( buildRowActionsMenu( row, env, env.rowActions ) );
 	}
 
 	cell.appendChild( titleRow );

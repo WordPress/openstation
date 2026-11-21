@@ -6,9 +6,10 @@
  * reach: inline styles are the working contract. What a cell needs
  * from the app arrives as one {@link CellEnv} — the config extra, the
  * REST client, the shell doors (`openUrl`, `confirm`, `toast`,
- * `announce`), and the per-window caches (the parent-title roster,
- * the category tree and its live pickers) that used to be module
- * singletons and now die with the window.
+ * `announce`), the row actions menu's links and verbs, and the
+ * per-window caches (the parent-title roster, the category tree and
+ * its live pickers) that used to be module singletons and now die
+ * with the window.
  *
  * The cell cache ({@link memoCell}) keeps a row stable across the
  * table's own repaints: `<os-table>` rebuilds its body on every
@@ -27,6 +28,7 @@ import type {
 	OsCategoryPicker,
 } from '../../../../src/ui/components/os-category-picker/os-category-picker';
 import type { PostsRestClient } from '../rest';
+import type { RowActions } from '../row-actions';
 import type { ListExtra, PostListItem } from '../types';
 
 /** The cells only one mode renders — Posts hands in its tag and category pickers. */
@@ -47,6 +49,8 @@ export interface CellEnv {
 	toast: ( title: string, err: unknown ) => void;
 	/** A row changed — the window's own announce (its watch skips the echo). */
 	announce: ( action: string, ids: number[] ) => void;
+	/** What a row's actions menu needs; without it the title cell offers no menu. */
+	rowActions?: RowActions;
 	/** In-page parent titles (Pages), refreshed on every data change. */
 	parentTitles: Map< number, string >;
 	/** The category tree, fetched once per window, and every live picker. */

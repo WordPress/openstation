@@ -6,6 +6,7 @@ import '../../../src/ui/components/os-stat/os-stat';
 import '../../../src/ui/components/os-select/os-select';
 import { buildColumns, pluginColumns, type ColumnFilterData } from './columns';
 import { authorOf, buildEditPostUrl, featuredMediaOf, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
+import { rowActionsMenu, type RowActionsMenuCache } from './row-actions';
 import { tableOf, type Ctx } from './window-context';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import type { PostListItem } from './types';
@@ -17,9 +18,16 @@ export interface DeskState {
 	focused: number | null;
 	inspectorKey: string;
 	fields: Array< { key: string; label: string; node: unknown } >;
+	/** The card's and the details pane's row menus, kept across repaints. */
+	menus: RowActionsMenuCache;
 }
 
-export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [] } );
+export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map() } );
+
+/** A row's actions menu on a desk surface, or nothing outside the app. */
+function rowMenu( ui: DeskState, env: CellEnv, surface: string, row: PostListItem ): HTMLElement | string {
+	return env.rowActions ? rowActionsMenu( ui.menus, surface, row, env, env.rowActions ) : '';
+}
 
 /** Excerpts are text, never executable markup from content. */
 export function excerptOf( row: PostListItem ): string {
@@ -137,7 +145,7 @@ function pluginStat( col: OsTableColumn< PostListItem >, row: PostListItem ): Te
 	return html`<div class="os-posts-desk__plugin-stat" data-column=${ col.key }><span class="os-posts-desk__plugin-stat-value">${ node }</span><span class="os-posts-desk__plugin-stat-label">${ col.label || col.key }</span></div>`;
 }
 
-function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
+function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
 	const title = titleOf( row ) || __( '(no title)' );
 	const media = featuredMediaOf( row );
@@ -192,6 +200,7 @@ function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | un
 			<span class="os-posts-desk__byline">${ authorOf( row ).name }<span aria-hidden="true"> · </span><os-relative-time datetime=${ row.modified_gmt || row.date_gmt }></os-relative-time></span>
 			<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
 			<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
+			${ rowMenu( ui, env, 'card', row ) }
 		</footer>
 	</article>`;
 }
@@ -240,6 +249,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 		</div>
 		<footer class="os-posts-desk__inspector-actions"><os-button variant="primary" @click=${ () => edit( ctx, row ) }>${ __( 'Open editor' ) }<span aria-hidden="true"> ↗</span></os-button>
 			${ row.link && row.status === 'publish' ? html`<a href=${ row.link } target="_blank" rel="noopener noreferrer">${ __( 'View on site' ) } ↗</a>` : '' }
+			${ rowMenu( ui, env, 'inspector', row ) }
 		</footer>
 	</aside>`;
 }
@@ -253,7 +263,7 @@ export function renderDesk( ctx: Ctx, ui: DeskState, env: CellEnv, filters: Colu
 	const extras = rows.length ? pluginColumns( env, filters, hidden ) : [];
 	return html`<div class="os-posts-desk__workspace ${ ui.focused !== null && focused ? 'has-detail' : '' }" ?hidden=${ ui.view !== 'desk' }>
 		<div class="os-posts-desk__feed" aria-label=${ ctx.extra.mode === 'pages' ? __( 'Page directory' ) : __( 'Stories' ) }>
-			${ rows.length ? rows.map( ( row ) => story( ctx, ui, row, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
+			${ rows.length ? rows.map( ( row ) => story( ctx, ui, env, row, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
 			${ tail ?? '' }
 		</div>
 		${ ui.peek ? inspector( ctx, ui, env, filters, hidden, focused ) : '' }

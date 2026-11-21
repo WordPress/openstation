@@ -17,6 +17,9 @@ import { decodeHTML } from '../../../src/utils';
 import type {
 	AuthorOption,
 	CategoryTerm,
+	ListExtra,
+	PostsMode,
+	RowActionLink,
 	TagOptionsPage,
 	TagTerm,
 	TermNeighbor,
@@ -405,4 +408,36 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 			return data && typeof data === 'object' ? data : {};
 		},
 	};
+}
+
+/**
+ * The plugin links of a batch of rows (at most 100 ids): what
+ * `page_row_actions` / `post_row_actions` add to them on `edit.php`,
+ * from `wp_ajax_openstation_posts_row_actions` (`parts/row-actions.php`).
+ * Keyed by post id; a row with no plugin links is absent. The URL and
+ * nonce are read off the window config at call time, so a nonce the
+ * shell refreshed in place is the one sent.
+ */
+export async function fetchRowActions(
+	restFetch: RestFetch,
+	extra: ListExtra,
+	mode: PostsMode,
+	ids: number[],
+): Promise< Record< string, RowActionLink[] > > {
+	const body = new URLSearchParams( {
+		action: 'openstation_posts_row_actions',
+		_ajax_nonce: extra.rowActionsNonce ?? '',
+		mode,
+		ids: ids.join( ',' ),
+	} );
+	const response = await restFetch( extra.ajaxUrl ?? '', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+		body,
+	} );
+	const json = ( await response.json() ) as { success?: boolean; data?: Record< string, RowActionLink[] > };
+	if ( ! response.ok || ! json?.success ) {
+		throw new Error( `${ response.status } ${ response.statusText }` );
+	}
+	return json.data && typeof json.data === 'object' ? json.data : {};
 }

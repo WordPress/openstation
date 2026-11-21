@@ -15,13 +15,14 @@
  * @public
  */
 
-import { __, _n, sprintf } from '@openstation/app';
+import { __ } from '@openstation/app';
 import '../../../src/ui/components/os-table/os-table';
 import '../../../src/ui/components/os-multiselect/os-multiselect';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import { buildAuthorCell, buildDateCell, buildTitleCell } from './cells/basic';
 import { memoCell, type CellCache, type CellEnv } from './cells/env';
 import { buildCommentsCell, buildParentCell, buildSlugCell, buildTemplateCell } from './cells/pages';
+import { trashConfirmMessage } from './row-actions';
 import type {
 	AuthorOption,
 	BulkAction,
@@ -365,18 +366,7 @@ export function defaultBulkActions(
 			label: __( 'Move to trash' ),
 			icon: 'dashicons-trash',
 			variant: 'danger',
-			confirm: ( count: number ) =>
-				mode === 'pages'
-					? sprintf(
-						/* translators: %d: row count. */
-						_n( 'Move %d page to the trash?', 'Move %d pages to the trash?', count ),
-						count,
-					)
-					: sprintf(
-						/* translators: %d: row count. */
-						_n( 'Move %d post to the trash?', 'Move %d posts to the trash?', count ),
-						count,
-					),
+			confirm: ( count: number ) => trashConfirmMessage( mode, count ),
 			run: async ( ids, ctx ): Promise< false > => {
 				const data = ctx.table.data ?? [];
 				const trashable = ids.filter( ( id ) => data.find( ( r ) => r.id === id )?.status !== 'trash' );
