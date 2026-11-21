@@ -133,6 +133,20 @@ describe( 'the pages view', () => {
 		expect( root.querySelector( '.os-posts-desk__inspector-actions a' ) ).toBeNull();
 	} );
 
+	it( 'Shift+click on a card checkbox selects every loaded card from the last one toggled', async () => {
+		const { root } = mount( [ 1, 2, 3, 4, 5, 6 ].map( ( id ) => row( id ) ) );
+		await new Promise( ( r ) => setTimeout( r, 0 ) );
+		const click = ( id: number, shiftKey = false ): void => {
+			root.querySelector( `[data-story-id="${ id }"] os-checkbox` )!.shadowRoot!.querySelector( 'input' )!
+				.dispatchEvent( new MouseEvent( 'click', { bubbles: true, composed: true, shiftKey } ) );
+		};
+		click( 2 );
+		click( 5, true );
+		const table = root.querySelector( '[data-os-posts-table]' ) as HTMLElement & { selection: ReadonlySet< number > };
+		expect( Array.from( table.selection ).sort() ).toEqual( [ 2, 3, 4, 5 ] );
+		expect( root.querySelector( '[data-os-posts-count]' )?.textContent ).toBe( '4 selected' );
+	} );
+
 	it( 'says "No pages" when empty', () => {
 		const { root } = mount( [] );
 		expect( root.querySelector( '.os-posts-desk__empty h3' )?.textContent ).toBe( 'No pages found.' );
