@@ -14,6 +14,7 @@
     "queue": "factory",
     "needs_info": "factory:needs-info",
     "needs_human": "factory:needs-human",
+    "answered": "factory:answered",
     "trusted": "factory:trusted"
   },
   "routing": {
