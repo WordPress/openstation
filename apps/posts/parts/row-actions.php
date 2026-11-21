@@ -95,6 +95,12 @@ function openstation_posts_window_core_row_actions( WP_Post $post ) {
  * `#` or `javascript:` link, a button) opens nothing outside the list
  * table and is dropped.
  *
+ * A wp-admin link carries the post type's classic list as its
+ * `_wp_http_referer`, the page the link sits on in `edit.php`. An
+ * action that redirects back to `wp_get_referer()` (Duplicate Post's
+ * Clone) would otherwise go back to the page the window was opened
+ * from, the desktop itself.
+ *
  * @param WP_Post $post The row's post.
  * @return array<int,array{key:string,label:string,url:string,admin:bool}>
  */
@@ -108,7 +114,14 @@ function openstation_posts_window_row_links( WP_Post $post ) {
 	}
 	// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
-	return openstation_plugins_window_links_from_actions( $actions, OPENSTATION_POSTS_CORE_ROW_ACTION_KEYS );
+	$links = openstation_plugins_window_links_from_actions( $actions, OPENSTATION_POSTS_CORE_ROW_ACTION_KEYS );
+	$list  = wp_make_link_relative( admin_url( 'post' === $post->post_type ? 'edit.php' : 'edit.php?post_type=' . $post->post_type ) );
+	foreach ( $links as $index => $link ) {
+		if ( $link['admin'] && false === strpos( $link['url'], '_wp_http_referer=' ) ) {
+			$links[ $index ]['url'] = add_query_arg( '_wp_http_referer', rawurlencode( $list ), $link['url'] );
+		}
+	}
+	return $links;
 }
 
 /**
@@ -136,11 +149,12 @@ function openstation_posts_window_row_actions_refuse( $code, $message ) {
  *   - mode  `pages` | `posts` — whose window gate applies
  *   - ids   post ids, comma-separated or as an array; the first 100 count
  *
- * Gated on the endpoint's nonce, then on the window's own gate, then
- * per post on `edit_post`: the answer carries only link labels and
- * URLs plugins build for a row, and only for rows the caller could
- * edit on `edit.php`. An id that is skipped, or whose row has no
- * plugin links, is absent from the answer.
+ * Gated on the endpoint's nonce, then on the gate of the window that
+ * asks (`mode` names it; it does not limit which posts may be asked
+ * about), then per post on `edit_post`, the gate that decides: the
+ * answer carries only link labels and URLs plugins build for a row,
+ * and only for rows the caller could edit on `edit.php`. An id that is
+ * skipped, or whose row has no plugin links, is absent from the answer.
  */
 function openstation_posts_window_ajax_row_actions() {
 	if ( ! check_ajax_referer( OPENSTATION_POSTS_ROW_ACTIONS_NONCE, '_ajax_nonce', false ) ) {

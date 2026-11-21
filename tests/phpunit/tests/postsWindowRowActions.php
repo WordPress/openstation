@@ -57,7 +57,9 @@ class Tests_OpenStation_PostsWindowRowActions extends WP_Ajax_UnitTestCase {
 				array(
 					'key'   => 'clone',
 					'label' => 'Clone',
-					'url'   => admin_url( 'admin.php?action=clone&post=' . $page ),
+					// With the classic list as its referer, where Core's
+					// list table would send the browser back.
+					'url'   => admin_url( 'admin.php?action=clone&post=' . $page . '&_wp_http_referer=' . rawurlencode( wp_make_link_relative( admin_url( 'edit.php?post_type=page' ) ) ) ),
 					'admin' => true,
 				),
 				array(
@@ -124,7 +126,14 @@ class Tests_OpenStation_PostsWindowRowActions extends WP_Ajax_UnitTestCase {
 		);
 
 		wp_set_current_user( $author );
-		$response = $this->dispatch( 'posts', array( $theirs, $own, 0, -$own ) );
+		// `get_post( 0 )` would answer with the global post.
+		$GLOBALS['post'] = get_post( $own );
+		$response        = $this->dispatch( 'posts', array( $theirs, 0, -$own ) );
+		unset( $GLOBALS['post'] );
+		$this->assertTrue( $response['success'] );
+		$this->assertSame( array(), $response['data'], 'A zero id is not the global post.' );
+
+		$response = $this->dispatch( 'posts', array( $theirs, $own ) );
 
 		$this->assertTrue( $response['success'] );
 		$this->assertSame( array( $own ), array_keys( $response['data'] ) );
