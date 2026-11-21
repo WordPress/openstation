@@ -116,11 +116,20 @@ let installed = false;
  * loop on their own (their `activeElement` is `null` from outside).
  */
 export function isTextEntryFocus( doc: Document ): boolean {
+	return isTextEntryElement( focusedLeaf( doc ) );
+}
+
+/**
+ * The real focused element: `doc.activeElement`, followed down
+ * through each open shadow root's own `activeElement`. Shared with the
+ * arrow-key desktop shortcuts, which classify the same leaf.
+ */
+export function focusedLeaf( doc: Document ): Element | null {
 	let el: Element | null = doc.activeElement;
 	while ( el && el.shadowRoot && el.shadowRoot.activeElement ) {
 		el = el.shadowRoot.activeElement;
 	}
-	return isTextEntryElement( el );
+	return el;
 }
 
 /**
