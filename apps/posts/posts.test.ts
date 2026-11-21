@@ -987,6 +987,16 @@ describe( 'the writing desk', () => {
 		expect( root.querySelectorAll( '[data-story-id]' ) ).toHaveLength( 1 );
 	} );
 
+	it( 'offers no quick edit on a card, the details pane or a table row', async () => {
+		const { root, table } = mount();
+		( root.querySelector( '[data-inspect-id="1"]' ) as HTMLElement ).click();
+		await flush();
+		expect( root.querySelector( '.os-posts-desk__inspector.is-open' ) ).not.toBeNull();
+		expect( table().shadowRoot!.textContent ).toContain( 'Row 1' );
+		expect( root.querySelector( '[data-os-pages-quick-edit]' ) ).toBeNull();
+		expect( table().shadowRoot!.querySelector( '[data-os-pages-quick-edit]' ) ).toBeNull();
+	} );
+
 	it( 'sorts through the existing server action', () => {
 		const { root, dispatch } = mount();
 		root.querySelector( '.os-posts-desk__tools os-select' )!.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'modified:desc' } } ) );

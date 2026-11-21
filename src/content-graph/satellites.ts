@@ -173,6 +173,8 @@ interface SatelliteView {
 
 export class SatelliteLayer {
 	private linkGfx: PixiGraphics;
+	/** Whether `linkGfx` holds any spokes. See {@link drawLinks}. */
+	private linksDrawn = false;
 	private layer: PixiContainer;
 	private views: SatelliteView[] = [];
 	private focused: GraphNode | null = null;
@@ -212,6 +214,7 @@ export class SatelliteLayer {
 
 	clear(): void {
 		this.linkGfx.clear();
+		this.linksDrawn = false;
 		this.layer.removeChildren();
 		this.views = [];
 		this.focused = null;
@@ -220,10 +223,19 @@ export class SatelliteLayer {
 	}
 
 	drawLinks(): void {
-		this.linkGfx.clear();
 		if ( ! this.focused || this.views.length === 0 ) {
+			// Only clear what was drawn: clearing even an empty Graphics
+			// makes Pixi rebuild the render instructions of the whole
+			// board on the next frame, which on a large board is most
+			// of an otherwise idle frame.
+			if ( this.linksDrawn ) {
+				this.linkGfx.clear();
+				this.linksDrawn = false;
+			}
 			return;
 		}
+		this.linkGfx.clear();
+		this.linksDrawn = true;
 		// Trim the spoke origin from the focused node's CENTRE to its
 		// halo OUTER EDGE so lines stop at the disc boundary instead
 		// of running through it. The halo radius (`node.radius + 8`)

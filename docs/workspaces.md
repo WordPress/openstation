@@ -35,6 +35,8 @@ Everything happens **in the Workspaces top bar**, and there is **one door: the `
 
 **While the wizard is up it owns the keyboard.** The arrow keys that switch desks, open the Workspaces screen and show the desktop are all suppressed for as long as any modal is open: the wizard sits over the desk it is about to dress, and an arrow that moved the desk behind it would leave the user configuring one they are no longer standing on.
 
+**So does any focused control that uses the arrows itself.** When focus is on, or inside, a tab strip, a menu, a list box, a segmented control or radio group, a select or a slider, the same arrows are left to that control: moving through it never switches the desk, opens the Workspaces screen or shows the desktop. With focus on the wallpaper, a plain button or a link, the arrows drive the desks as usual.
+
 There used to be a dropdown beside the `+` as well. Two doors to the same room — one that created desks from templates, one that created a blank desk without asking — and a user had to know which did what. The dropdown is gone; the `+` is the obvious place to press, so it is the only one.
 
 **The Workspaces screen is the only surface that carries any of this, on purpose.** It is already the Spaces surface — it names every desk, renames them, closes them, and adds new ones — and it is where a user goes with the question "which desk?" already in mind. The desk itself belongs to the user's windows; a control parked on it would be shell chrome hovering over the thing they are working in, and would need a work-area claim or an apology for covering something. Workspaces needs neither.
