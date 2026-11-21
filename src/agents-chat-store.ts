@@ -7,10 +7,13 @@
  * bundles compile their own copy of this module; `createSharedStore`
  * guarantees they share one live state object.
  *
- * The store itself keeps nothing across a reload. Each completed
- * exchange is saved on the server as a `desktop_mode_chat` conversation
- * (`persistAgentTranscript()` in `agents-conversations.ts`), and
+ * The store itself keeps nothing across a reload. Each exchange is
+ * saved on the server as a `desktop_mode_chat` conversation
+ * (`persistAgentTranscript()` in `agents-conversations.ts`) once the
+ * server accepts its job and again when the job ends, and
  * `conversationIds` maps each live transcript to the row it saves to.
+ * A pending row saved with its `jobId` is how a reopened conversation
+ * resumes polling a job that outlived the page.
  *
  * @public
  */
@@ -55,6 +58,8 @@ export interface AgentChatMessage {
 	at: number;
 	/** True while the invocation round-trip is in flight. */
 	pending?: boolean;
+	/** The async job a pending row is waiting on; removed when the row settles. */
+	jobId?: string;
 }
 
 export interface AgentsChatState {
@@ -65,7 +70,7 @@ export interface AgentsChatState {
 	/**
 	 * Persisted-conversation id backing each agent's live transcript,
 	 * keyed by agent user id. Null/absent = an unsaved conversation
-	 * (created server-side on the first completed exchange).
+	 * (created server-side on the first save).
 	 */
 	conversationIds: Record< number, number | null >;
 	/**

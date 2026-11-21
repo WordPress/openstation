@@ -11,7 +11,9 @@
  *
  * Each send queues an async job through `/agents/:id/invoke`; short status
  * polls deliver the answer without keeping a generation request open. Transcripts live in the shared
- * store for the session only.
+ * store and are saved as conversations once a job is accepted and when it
+ * ends. Opening a conversation whose last row is still pending resumes
+ * polling that job.
  *
  * @public
  */
@@ -42,6 +44,7 @@ import {
 	describeDragEntity,
 	dispatchAgentDrop,
 	invokeAgentIntoTranscript,
+	resumeAgentJobIntoTranscript,
 } from './agents-dispatch';
 import {
 	deleteConversation,
@@ -437,10 +440,14 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 					return;
 				}
 				followOnNextPaint = true;
-				void openConversation(
-					{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
-					row.id,
-				).catch( ( err ) => {
+				const rest = { restRoot: cfg.restRoot, restNonce: cfg.restNonce };
+				void openConversation( rest, row.id ).then( () => {
+					// A job saved pending before a reload: pick its poll back up.
+					const opened = agentsChatStore.state.activeAgent;
+					if ( opened ) {
+						void resumeAgentJobIntoTranscript( opened, rest );
+					}
+				} ).catch( ( err ) => {
 					// eslint-disable-next-line no-console
 					console.warn(
 						'[desktop-mode/agents] conversation load failed:',
