@@ -83,8 +83,9 @@ export interface RowActionLink {
 
 /**
  * What plugins add to one row, from `parts/row-actions.php`: its links
- * and the labels `display_post_states` puts beside its title (plain
- * text, Core's own states left out).
+ * and the labels `display_post_states` puts beside its title, Core's own
+ * states left out. A label is decoded text (tags stripped, entities
+ * decoded), so it can hold a literal `<`: write it as text, never as HTML.
  */
 export interface RowExtras {
 	links: RowActionLink[];

@@ -142,9 +142,10 @@ function openstation_posts_window_row_links( WP_Post $post ) {
  *
  * Runs Core's `get_post_states()`, which builds Core's states and then
  * applies `display_post_states` with Core's arguments. Each label a
- * plugin added comes back as plain text, cleaned the way a row link's
- * label is; an empty or repeated label is dropped. Order is the
- * filter's.
+ * plugin added comes back as text, cleaned the way a row link's label
+ * is (tags stripped, entities decoded, so it can hold a literal `<`:
+ * the windows write it as text, never as HTML); an empty or repeated
+ * label is dropped. Order is the filter's.
  *
  * @param WP_Post $post The row's post. The caller already holds `edit_post` on it.
  * @return string[]
@@ -153,9 +154,12 @@ function openstation_posts_window_row_states( WP_Post $post ) {
 	if ( ! function_exists( 'get_post_states' ) ) {
 		require_once ABSPATH . 'wp-admin/includes/template.php';
 	}
-	// phpcs:disable WordPress.WP.I18n.MissingArgDomain -- Core's own strings, in Core's domain: the text of the state Core adds without a key.
-	$customization = array( __( 'Customization Draft' ), _x( 'Customization Draft', 'post status' ) );
-	// phpcs:enable WordPress.WP.I18n.MissingArgDomain
+	static $customization = null;
+	if ( null === $customization ) {
+		// phpcs:disable WordPress.WP.I18n.MissingArgDomain -- Core's own strings, in Core's domain: the text of the state Core adds without a key.
+		$customization = array( __( 'Customization Draft' ), _x( 'Customization Draft', 'post status' ) );
+		// phpcs:enable WordPress.WP.I18n.MissingArgDomain
+	}
 
 	$entries = get_post_states( $post );
 	$states  = array();
