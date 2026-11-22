@@ -38,6 +38,8 @@ Usage:
                                  reason (stdin) as rejection.md
   job agents <job> <json>        record the routed agent set (called by factory/bin/route)
   job sync <job>                 refresh reviews, gate, CI and cost from the job's files
+  job settle                     finish the waiting jobs whose PR was merged or closed on GitHub
+                                 (the dashboard runs it on a timer); prints one line per job moved
   job summary [<job>...]         table of jobs: issue, stage, PR, cost, time
 
 <job> is a job id (004-dark-mode) or the number of its issue or PR (12).
@@ -162,6 +164,26 @@ def load(job_id):
         _locks[job_id] = open(job_dir(job_id) / ".lock", "w")
         fcntl.flock(_locks[job_id], fcntl.LOCK_EX)
     return json.loads(path.read_text())
+
+
+def try_load(job_id):
+    """Read a job and take its lock, or None while another `job` process holds it."""
+    if job_id not in _locks:
+        lock = open(job_dir(job_id) / ".lock", "w")
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            lock.close()
+            return None
+        _locks[job_id] = lock
+    return json.loads((job_dir(job_id) / "job.json").read_text())
+
+
+def snapshot():
+    """Every job as it is on disk, read without its lock: to look at, never to write back."""
+    if not JOBS.exists():
+        return []
+    return [json.loads((p / "job.json").read_text()) for p in sorted(JOBS.iterdir()) if (p / "job.json").exists()]
 
 
 def save(job):
@@ -710,6 +732,14 @@ def stopped_upstream(job):
     if not is_pr_job(job) and fetch_issue(job["issue"])["state"] == "CLOSED":
         return True
     return LABELS["queue"] not in labels_on(job)
+
+
+def ended(job):
+    """How an unfinished job ended on GitHub, or None while it hasn't: "merged" once its
+    PR is merged (which also closes the issue), "abandoned" once someone stopped it there."""
+    if job["pr"] and pr_state(job) == "MERGED":
+        return "merged"
+    return "abandoned" if stopped_upstream(job) else None
 
 
 def contributor_pushed(job):
@@ -1470,14 +1500,10 @@ def cmd_queue():
         print(f"job: the trunk site is at {behind[0]} and origin/{BASE} is at {behind[1]}: run factory/trunk.sh "
               "before starting a job or a review, so both see today's trunk.", file=sys.stderr)
     every = all_jobs()
-    # A job ends on GitHub, at any stage: merged once its PR is merged (which also
-    # closes the issue), abandoned once someone stops it there (closes it, or
-    # removes the queue label). A running job left behind would hold a slot forever.
+    # A job ends on GitHub, at any stage. A running job left behind would hold a slot forever.
     for j in every:
-        if j["stage"] not in TERMINAL and j["pr"] and pr_state(j) == "MERGED":
-            save(advance(sync(j), "merged"))
-        elif j["stage"] not in TERMINAL and stopped_upstream(j):
-            save(advance(sync(j), "abandoned"))
+        if j["stage"] not in TERMINAL and (end := ended(j)):
+            save(advance(sync(j), end))
 
     # running: already holds a slot. restart: a waiting job the queue can pick up
     # again. new: no job yet. The last two need a free slot.
@@ -1593,13 +1619,44 @@ def cmd_queue():
         print("\t".join(str(c) for c in row))
 
 
+def cmd_settle():
+    """Finish the waiting jobs that ended on GitHub, one line per job moved.
+
+    The dashboard runs this on a timer, so a job leaves Needs human when its PR is
+    merged or closed, not at the next run. Two listings say which waiting jobs to
+    look at (the PR is no longer open, or the issue or PR is no longer open and
+    labeled), so a pass with nothing to move costs two calls. A running job is left
+    to `job queue`: the run has agents on it, and stops them first.
+    """
+    waiting = [j for j in snapshot() if j["stage"] in WAITING]
+    if not waiting:
+        return
+    open_prs = {p["number"]: {l["name"] for l in p["labels"]} for p in
+                gh_json("pr", "list", "--state", "open", "--limit", "200", "--json", "number,labels")}
+    queued = {i["number"] for i in gh_json("issue", "list", "--label", LABELS["queue"], "--state", "open",
+                                           "--limit", "200", "--json", "number")}
+    for seen in waiting:
+        if is_pr_job(seen):
+            live = LABELS["queue"] in open_prs.get(seen["pr"], ())
+        else:
+            live = seen["issue"] in queued and (not seen["pr"] or seen["pr"] in open_prs)
+        # Open and labeled, or another `job` process is on it: the next pass looks again.
+        job = None if live else try_load(seen["id"])
+        if not job or job["stage"] not in WAITING:
+            continue
+        try:
+            if end := ended(job):
+                save(advance(sync(job), end))
+                print(f"{job['id']}: {end}" + (f" (PR #{job['pr']})" if job["pr"] else ""))
+        except Refused as e:
+            print(f"job: {job['id']}: {e}", file=sys.stderr)
+
+
 def peek(arg):
     """Read a job without taking its lock, for a command that runs long and writes no job.json."""
-    for p in sorted(JOBS.iterdir()) if JOBS.exists() else []:
-        if (p / "job.json").exists():
-            job = json.loads((p / "job.json").read_text())
-            if job["id"] == arg or (arg.isdigit() and number(job) == int(arg)):
-                return job
+    for job in snapshot():
+        if job["id"] == arg or (arg.isdigit() and number(job) == int(arg)):
+            return job
     die(f"no job {arg}")
 
 
@@ -1971,6 +2028,8 @@ def main(argv):
             save(job)
             reviews = " ".join(f"{k}:{v}" for k, v in job["reviews"].items())
             print(f"{job['id']}: {job['stage']} round {job['round']} gate {job['gate'] or '-'} {reviews}".rstrip())
+        elif cmd == "settle" and not args:
+            cmd_settle()
         elif cmd == "summary":
             cmd_summary(args)
         else:

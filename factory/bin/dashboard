@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Serve the factory's dashboard and keep its board in step with GitHub.
+
+Usage:
+  dashboard [--port 8000] [--bind 127.0.0.1] [--every 60]
+
+Serves factory/ on http://localhost:<port>/dashboard.html, and every `--every`
+seconds runs `job settle`: a waiting job whose PR was merged or closed on
+GitHub (or whose issue was closed, or lost the queue label) moves to Done
+without waiting for the next `/factory run`. Each pass is its own `job`
+process, because a `job` process holds a job's lock until it exits.
+
+`--every 0` only serves the folder. The job files hold issue text and costs,
+so the server listens on this machine only unless `--bind` says otherwise.
+"""
+
+import argparse
+import functools
+import subprocess
+import sys
+import threading
+import time
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+FACTORY = Path(__file__).resolve().parents[1]
+
+
+class Handler(SimpleHTTPRequestHandler):
+    def log_message(self, *args):
+        """Say nothing: the page reads every job's files every two seconds."""
+
+
+def settle(every):
+    while True:
+        res = subprocess.run([str(FACTORY / "bin" / "job"), "settle"], capture_output=True, text=True)
+        for line in (res.stdout + res.stderr).splitlines():
+            print(f"{time.strftime('%H:%M:%S')} {line}", flush=True)
+        time.sleep(every)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--bind", default="127.0.0.1")
+    parser.add_argument("--every", type=int, default=60, help="seconds between two looks at GitHub; 0 never looks")
+    args = parser.parse_args()
+    server = ThreadingHTTPServer((args.bind, args.port), functools.partial(Handler, directory=str(FACTORY)))
+    if args.every > 0:
+        threading.Thread(target=settle, args=(args.every,), daemon=True).start()
+    print(f"dashboard: http://localhost:{args.port}/dashboard.html"
+          + (f", in step with GitHub every {args.every}s" if args.every > 0 else ""), flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
