@@ -385,6 +385,11 @@ user: a listener that stores or forwards them must keep them scoped to the run's
 owner, as the job writer does by dropping them.
 
 An atomic claim prevents duplicate execution. A failed or interrupted worker
-is never automatically replayed: tools may already have applied changes. Jobs
+is never automatically replayed: tools may already have applied changes. A
+`running` job whose worker has been silent past the
+[stale bound](./hooks-reference.md#openstation_agent_job_stale_after--experimental-filter)
+frees the one-per-human-and-agent admission slot, so a second run can start
+beside a slow first one that is still alive. The stale job keeps its claim and
+is never run again; its late finish releases only its own slot. Jobs
 and claims expire through cron after one day; see
 [storage and scheduling](./architecture.md#async-agent-jobs).

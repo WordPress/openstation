@@ -385,7 +385,6 @@ export const deskStyles = css`
 .os-posts-desk__inspector-actions {
 	display: flex;
 	align-items: center;
-	flex-wrap: wrap;
 	gap: 12px;
 	padding: 16px 20px;
 	border-block-start: 1px solid var( --os-ui-border, #dcdcde );
@@ -394,6 +393,36 @@ export const deskStyles = css`
 
 .os-posts-desk__inspector-actions a {
 	color: var( --os-ui-accent, #2271b1 );
+	white-space: nowrap;
+}
+
+/* A card's and the details pane's actions stay one row with the row's
+   menu last: a label gives way before anything wraps onto a line of its
+   own. */
+.os-posts-desk__story-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-inline-size: 0;
+	--os-ui-button-padding: 6px 10px;
+}
+
+.os-posts-desk__story-actions > os-button,
+.os-posts-desk__inspector-actions > os-button {
+	min-inline-size: 0;
+}
+
+.os-posts-desk__story-actions > os-button::part(button),
+.os-posts-desk__inspector-actions > os-button::part(button) {
+	inline-size: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-posts-desk__story-actions > os-action-menu,
+.os-posts-desk__inspector-actions > os-action-menu {
+	flex: 0 0 auto;
 }
 
 .os-posts-desk__empty {

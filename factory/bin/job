@@ -24,8 +24,9 @@ Usage:
   job push <job>                 issue jobs in build: push the job's branch for the builder
   job body <job> <file>          issue jobs in build: replace the job's PR body with a file from its worktree
   job ci <job>                   wait for the PR's CI on the round's commit → round-N/ci.md
-  job merge <job>                APPROVE → sync with the base branch, gate, merge the PR
-                                 (with auto_merge off: mark it ready and hand it to you).
+  job merge <job>                APPROVE → sync with the base branch, gate, wait for CI on the
+                                 result, merge the PR (with auto_merge off: mark it ready and
+                                 hand it to you).
                                  Also for a needs-human job a maintainer approved in a review
   job feedback <job>             needs-human → build, with your feedback (stdin) as feedback-<k>.md
   job rework <job>               needs-human → build, with what maintainers wrote on the PR
@@ -1623,6 +1624,12 @@ def cmd_ci(job):
     if job["stage"] != "review":
         die(f"{job['id']} is in {job['stage']}, not review")
     head = ci_commit(job)
+    verdict = await_ci(job, head, round_dir(job) / "ci.md")
+    print(f"{job['id']}: CI {verdict} on {head[:7]}")
+
+
+def await_ci(job, head, path):
+    """Poll the PR's checks on `head` until they settle, write them to `path`, return the verdict."""
     start = time.monotonic()
     while True:
         pr = gh_json("pr", "view", str(job["pr"]), "--json", "headRefOid,statusCheckRollup,mergeable")
@@ -1658,8 +1665,8 @@ def cmd_ci(job):
     if verdict == "FAIL" and not conflicting:
         lines += ["", "Read a failed GitHub Actions job's log with `gh run view <run-id> --log-failed`; "
                       "the run id is in its URL."]
-    (round_dir(job) / "ci.md").write_text("\n".join(lines) + "\n")
-    print(f"{job['id']}: CI {verdict} on {head[:7]} after {int(waited)}m")
+    path.write_text("\n".join(lines) + "\n")
+    return verdict
 
 
 def conflicts(job):
@@ -1760,6 +1767,15 @@ def cmd_merge(job):
                     f"See round-{job['round']}/merge-checks.md.\n\n{gate.stdout.strip()}")
     try:
         git(job, "push", "origin", job["branch"])
+        # Syncing with the base branch can add a commit CI has not seen. Nobody is told
+        # the PR is ready, and nothing is merged, until its checks are green on that commit.
+        head = git(job, "rev-parse", "HEAD").stdout.strip()
+        seen = round_dir(job) / "ci.md"
+        if not (seen.exists() and header(seen).get("COMMIT") == head and header(seen).get("CI") == "PASS"):
+            ci = await_ci(job, head, round_dir(job) / "merge-ci.md")
+            if ci != "PASS":
+                return fail(f"CI is {ci} on {head[:7]}, the commit that syncs the branch with {BASE}. "
+                            f"See round-{job['round']}/merge-ci.md.")
         if gh_json("pr", "view", str(job["pr"]), "--json", "isDraft")["isDraft"]:
             gh("pr", "ready", str(job["pr"]))
         if not CONFIG["auto_merge"]:
@@ -1767,8 +1783,8 @@ def cmd_merge(job):
             approved = (job_dir(job["id"]) / "decision.md").read_text().split("\n", 1)[1].strip()
             (job_dir(job["id"]) / "decision.md").write_text(
                 f"ESCALATE\n\n## Merge\n{job.get('approved_by') or 'The approver'} approved this PR and it passes "
-                f"the gate after syncing with {BASE}. `auto_merge` is off in factory/config.json, so merging it "
-                "is yours.\n\n" + approved + "\n")
+                f"the gate and CI after syncing with {BASE}. `auto_merge` is off in factory/config.json, so "
+                "merging it is yours.\n\n" + approved + "\n")
             save(advance(sync(job), "needs-human"))
             print(f"{job['id']}: approved, PR #{job['pr']} is ready for you to merge")
             return

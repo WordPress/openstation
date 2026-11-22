@@ -255,9 +255,11 @@ user. Then:
 **approve.** Spawn `approver` with `<paths> Final round: <N>. PR: #<pr>.`
 Then read the first line of `decision.md`:
 
-- `APPROVE`: `factory/bin/job merge <job-id>`. It syncs the branch with the
-  base branch, gates it again, and merges the PR, or, with `auto_merge` off,
-  marks it ready and hands it to the user. Any failure lands the job in
+- `APPROVE`: `factory/bin/job merge <job-id>`, as a background command: it
+  syncs the branch with the base branch, gates it again, waits for the PR's CI
+  on the synced commit, and merges the PR, or, with `auto_merge` off, marks it
+  ready and hands it to the user. The "ready to merge" notice comes only once
+  that CI is green. Any failure lands the job in
   `needs-human` with the reason posted on the PR.
 - `ESCALATE`: `factory/bin/job advance <job-id> needs-human`.
 

@@ -63,6 +63,22 @@ export interface ListExtra {
 	frontPageId?: number;
 	postsPageId?: number;
 	pageTemplates?: Record< string, string >;
+	/** `admin-ajax.php`, where the row-actions endpoint answers. */
+	ajaxUrl?: string;
+	/** That endpoint's nonce — read at call time, the shell's nonce refresh rewrites it. */
+	rowActionsNonce?: string;
+}
+
+/**
+ * A link a plugin adds to a row on `edit.php` (`page_row_actions` /
+ * `post_row_actions`), from `parts/row-actions.php`. `admin` is true
+ * when the page is in this site's wp-admin, which opens as a window.
+ */
+export interface RowActionLink {
+	key: string;
+	label: string;
+	url: string;
+	admin: boolean;
 }
 
 /**
