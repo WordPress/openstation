@@ -2,9 +2,9 @@
  * Agents — persisted chat conversations, client side.
  *
  * REST wrappers over `/desktop-mode/v1/agents/conversations` plus the
- * auto-save primitive the dispatcher calls after every completed
- * exchange. Conversations are owner-only server-side; this module
- * only ever sees the current user's rows.
+ * auto-save primitive the dispatcher calls when the server accepts a
+ * job and again when the job ends. Conversations are owner-only
+ * server-side; this module only ever sees the current user's rows.
  *
  * @public
  */
@@ -97,13 +97,14 @@ export function deleteConversation(
 	return request( rest, `${ BASE }/${ id }`, { method: 'DELETE' } );
 }
 
+/** Settled rows, plus a pending row whose job id lets a reload resume it. */
 function storableMessages( transcript: AgentChatMessage[] ): AgentChatMessage[] {
-	return transcript.filter( ( row ) => ! row.pending );
+	return transcript.filter( ( row ) => ! row.pending || !! row.jobId );
 }
 
 /**
  * Persist the agent's current transcript: create the conversation on
- * the first completed exchange, replace its messages afterwards.
+ * the first save, replace its messages afterwards.
  * Never throws — persistence must not break the chat itself.
  *
  * @public

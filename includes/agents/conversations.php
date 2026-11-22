@@ -129,6 +129,14 @@ add_action( 'init', 'openstation_agent_conversations_register_post_type', 5 );
  * still renders the clickable object card instead of only the
  * boilerplate sentence the model was handed.
  *
+ * A row still waiting on its async job keeps `pending: true` and its
+ * `jobId` (lowercased), so reopening the conversation after a reload
+ * resumes polling that job. The two are stored only together, only on
+ * an `agent` row, and only when `jobId` is a UUID: a pending row
+ * without a valid job id, or a pending `user`/`error` row, is dropped,
+ * since nothing could ever settle it. A `jobId` on a settled row is
+ * dropped and the row kept.
+ *
  * @param mixed $messages Incoming message rows.
  * @return array<int, array<string, mixed>>
  */
@@ -151,11 +159,21 @@ function openstation_agent_conversation_sanitize_messages( $messages ) {
 			continue;
 		}
 
+		$pending = ! empty( $row['pending'] );
+		$job_id  = isset( $row['jobId'] ) && is_string( $row['jobId'] ) ? strtolower( $row['jobId'] ) : '';
+		if ( $pending && ( 'agent' !== $role || ! wp_is_uuid( $job_id ) ) ) {
+			continue;
+		}
+
 		$entry = array(
 			'role' => $role,
 			'text' => mb_substr( $text, 0, OPENSTATION_AGENT_CONVERSATION_TEXT_CAP ),
 			'at'   => isset( $row['at'] ) ? (int) $row['at'] : 0,
 		);
+		if ( $pending ) {
+			$entry['pending'] = true;
+			$entry['jobId']   = $job_id;
+		}
 
 		// Call-to-action buttons survive with the message so a reopened
 		// conversation still shows them (spent ones stay disabled via

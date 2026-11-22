@@ -10,6 +10,9 @@ import type { RestAuth } from './agents-conversations';
 export interface AgentJobProgress {
 	turn: number;
 	toolCalls: Array< { name: string; args: Record< string, unknown >; error: string | null } >;
+	// Optional: an older server records no spend.
+	usage?: { prompt: number; completion: number; total: number } | null;
+	model?: { id: string; name: string } | null;
 	updatedAt: number;
 }
 
@@ -108,30 +111,57 @@ function delay( ms: number ): Promise< void > {
 	return new Promise( ( resolve ) => window.setTimeout( resolve, ms ) );
 }
 
+export type AgentJobStatusListener = (
+	status: 'queued' | 'running' | 'reconnecting',
+	progress?: AgentJobProgress | null,
+) => void;
+
 /**
  * Submit once logically, then poll until terminal. Network retries reuse the UUID.
  * Each status fetch finishes before the next timer starts; hidden tabs poll slower.
  */
-export async function runAgentJob(
+export function runAgentJob(
 	agentId: number,
 	input: AgentJobInput,
 	rest: RestAuth,
 	requestId: string,
-	onStatus: (
-		status: 'queued' | 'running' | 'reconnecting',
-		progress?: AgentJobProgress | null,
-	) => void = () => {},
+	onStatus: AgentJobStatusListener = () => {},
+): Promise< AgentInvokeResult > {
+	return pollAgentJob( agentId, input, rest, requestId, onStatus );
+}
+
+/**
+ * Poll a job submitted earlier (a pending chat row saved before a reload)
+ * until terminal. Status reads only: it never sends `POST /invoke`.
+ */
+export function resumeAgentJob(
+	agentId: number,
+	rest: RestAuth,
+	jobId: string,
+	onStatus: AgentJobStatusListener = () => {},
+): Promise< AgentInvokeResult > {
+	return pollAgentJob( agentId, null, rest, jobId, onStatus );
+}
+
+/** The one poll loop; a null input starts it already submitted. */
+async function pollAgentJob(
+	agentId: number,
+	input: AgentJobInput | null,
+	rest: RestAuth,
+	requestId: string,
+	onStatus: AgentJobStatusListener,
 ): Promise< AgentInvokeResult > {
 	const base = `desktop-mode/v1/agents/${ agentId }`;
 	const deadline = Date.now() + 2 * 60 * 60 * 1000;
-	let submitted = false;
+	let submitted = input === null;
 	let interval = 2000;
 	while ( Date.now() < deadline ) {
 		try {
+			const submission = ! submitted && input ? { ...input, async: true as const, requestId } : undefined;
 			const body = await request(
 				rest,
-				submitted ? `${ base }/jobs/${ requestId }` : `${ base }/invoke`,
-				submitted ? undefined : { ...input, async: true, requestId },
+				submission ? `${ base }/invoke` : `${ base }/jobs/${ requestId }`,
+				submission,
 			);
 			// Compatibility with an older server during a rolling upgrade.
 			if ( ! ( 'jobId' in body ) ) {

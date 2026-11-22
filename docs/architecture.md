@@ -801,19 +801,29 @@ poll sequentially from roughly 3 seconds up to 10 seconds, at least 15 seconds
 in hidden tabs, and back off to 30 seconds after transport errors. Each HTTP
 request has a 15-second client timeout. A lost submission is retried with its
 original UUID; an accepted job is only polled. Authentication failures stop
-polling. Transcripts remain in browser memory until the existing conversation
-save after completion; reloading the page does not automatically restore an
-outstanding job, though its ID can still retrieve the result.
+polling.
+
+The chat saves the transcript as soon as the server accepts the job (its first
+`queued` or `running` status), with the pending row carrying the job's UUID as
+`jobId`, and saves it again when the run ends. The conversation sanitizer keeps
+`pending` and `jobId` only together, on an `agent` row with a valid UUID. After
+a reload, opening that conversation from the chat's sidebar resumes polling
+`GET /agents/{id}/jobs/{jobId}`: status reads only, never a new `POST /invoke`.
+The row then settles as a live run's would and the conversation is saved. A job
+older than a day has been cleaned up, so its status read answers 404 and the
+row ends as an error row saying the result is no longer available and that some
+work may already have been applied.
 
 While the run works, the worker listens to `openstation_agent_turn_completed`
 for its own job only (matched by `jobId` and agent) and, after each tool round,
 saves `progress` on the job option: the tool names, arguments and errors so
-far, the last round number and an `updatedAt` time, never the tool outputs.
+far, the token usage and model so far, the last round number and an
+`updatedAt` time, never the tool outputs.
 The terminal save and the interrupted-worker shutdown keep that last
 `progress`, and status reads return it for `running` and `failed` jobs, so the
 chat lists what a run called before the answer exists and after it fails. It is
-for display only: nothing resumes or replays a run from it, and the transcript
-is still saved by the client only after the run ends.
+for display only: nothing resumes or replays a run from it, and the answer
+reaches the transcript only through the client's poll.
 
 The worker also stores an internal `heartbeat`, the Unix time of its last sign
 of life: when it starts, before each provider request (through the
