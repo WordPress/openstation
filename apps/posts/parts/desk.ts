@@ -202,7 +202,6 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index:
 		<div class="os-posts-desk__story-top">
 			${ status( row ) }
 			${ role ? html`<span class="os-posts-desk__role">${ role }</span>` : '' }
-			${ states( env, row ) }
 			${ contentId( ctx, row ) }
 			<os-checkbox aria-label=${ sprintf( /* translators: %s: content title. */ __( 'Select %s' ), title ) }
 				class="os-posts-desk__select" ?checked=${ tableOf( ctx )?.selection.has( row.id ) ?? false }
@@ -214,6 +213,7 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index:
  shift = false;
 } }></os-checkbox>
 		</div>
+		${ states( env, row ) }
 		<div class="os-posts-desk__story-content">
 			${ artwork }
 			<div class="os-posts-desk__story-copy">

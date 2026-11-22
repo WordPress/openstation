@@ -56,7 +56,12 @@ function underlineOnHover( link: HTMLAnchorElement ): void {
 	} );
 }
 
-export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
+/**
+ * The title cell. `stacked` is the phone's card-per-row table, where the
+ * title row has no room to spare: the plugin labels get a line of their
+ * own under it there.
+ */
+export function buildTitleCell( row: PostListItem, env: CellEnv, stacked = false ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'display:flex;flex-direction:column;gap:4px;min-width:0;';
 	const titleRow = document.createElement( 'span' );
@@ -110,19 +115,27 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 
 	// The labels plugins add beside the title on `edit.php` (a builder's
 	// name, a shop page), neutral and in the plugin's own casing. The table
-	// sizes this column to its widest row, so they get a capped strip: one
-	// line high, a long label ellipsizes, and the labels that do not fit
-	// wrap out of sight. It gives way with the title.
+	// sizes this column to its widest row, so in the row they get a capped
+	// strip: one line high, a long label ellipsizes, and the labels that do
+	// not fit wrap out of sight. It gives way with the title, but never
+	// below the first label's first few characters. Stacked, they wrap on
+	// their own line below.
 	const labels = env.rowStates?.( row.id ) ?? [];
+	let states: HTMLElement | null = null;
 	if ( labels.length ) {
-		const states = document.createElement( 'span' );
-		states.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;min-width:0;max-width:240px;flex-shrink:1;line-height:16px;max-height:20px;overflow:hidden;';
+		const floor = Math.min( labels[ 0 ].length + 1, 6 );
+		states = document.createElement( 'span' );
+		states.style.cssText = stacked
+			? 'display:flex;flex-wrap:wrap;gap:4px;min-width:0;line-height:16px;'
+			: `display:flex;flex-wrap:wrap;gap:4px;font-size:11px;min-width:calc(${ floor }ch + 20px);max-width:240px;flex-shrink:1;line-height:16px;max-height:20px;overflow:hidden;`;
 		for ( const label of labels ) {
 			const badge = pill( label, statusBadgeColor( '' ), { title: label, shrink: true } );
-			badge.style.maxWidth = 'min(100%, 140px)';
+			badge.style.maxWidth = stacked ? '100%' : 'min(100%, 140px)';
 			states.appendChild( badge );
 		}
-		titleRow.appendChild( states );
+		if ( ! stacked ) {
+			titleRow.appendChild( states );
+		}
 	}
 
 	// A "View" link to the public URL, in a new tab so the user
@@ -166,6 +179,9 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 	}
 
 	cell.appendChild( titleRow );
+	if ( stacked && states ) {
+		cell.appendChild( states );
+	}
 	return cell;
 }
 

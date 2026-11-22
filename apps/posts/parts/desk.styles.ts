@@ -191,10 +191,10 @@ export const deskStyles = css`
 }
 
 /* The labels plugins add beside a title (display_post_states): neutral,
-   in the status text's size. In the details pane they follow the status
-   and wrap. On the card they take only the room left before the id: the
-   ones that do not fit wrap onto a second line the row clips, and a
-   label wider than the room ellipsizes, so the row keeps its height. */
+   in the status text's size. In the details pane they follow the status;
+   on the card they have a line of their own under the top row, so they
+   read in full however crowded that row is. Both wrap, and only a label
+   wider than the whole line ellipsizes. */
 .os-posts-desk__states {
 	display: inline-flex;
 	flex-wrap: wrap;
@@ -207,16 +207,9 @@ export const deskStyles = css`
 	vertical-align: middle;
 }
 
-.os-posts-desk__story-top > .os-posts-desk__states {
+.os-posts-desk__story > .os-posts-desk__states {
 	display: flex;
-	flex: 0 1 auto;
-	max-block-size: 1.6em;
-	overflow: hidden;
-	margin-inline-start: 0;
-}
-
-.os-posts-desk__story-top .os-posts-desk__state {
-	max-inline-size: min( 100%, 14em );
+	margin: -5px 0 12px;
 }
 
 .os-posts-desk__state {

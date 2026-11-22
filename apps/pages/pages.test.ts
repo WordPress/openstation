@@ -158,9 +158,9 @@ describe( 'the pages view', () => {
 		expect( card( 2 ) ).toEqual( [ 'Quick edit', 'Move to trash' ] );
 		expect( card( 3 ) ).toEqual( [ 'Restore' ] );
 		expect( String( fetch.mock.calls[ 0 ][ 1 ]?.body ) ).toContain( 'ids=1%2C2%2C3' );
-		// The plugin's label sits on card 1's top row, and on no other card.
+		// The plugin's label has its own line under card 1's top row, and is on no other card.
 		const states = ( scope: string ): Array< string | null > => Array.from( root.querySelectorAll( `${ scope } .os-posts-desk__state` ) ).map( ( el ) => el.textContent );
-		expect( states( '[data-story-id="1"] .os-posts-desk__story-top' ) ).toEqual( [ 'Bricks' ] );
+		expect( states( '[data-story-id="1"] > .os-posts-desk__states' ) ).toEqual( [ 'Bricks' ] );
 		expect( states( '[data-story-id="2"]' ) ).toEqual( [] );
 		// The details pane has Open editor and View on site.
 		( root.querySelector( '[data-inspect-id="1"]' ) as HTMLElement ).click();

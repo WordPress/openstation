@@ -162,13 +162,13 @@ export function renderMultiSelectFilter(
 	tagged[ HOST_KEY ] = { picker, listSig: nextSig };
 }
 
-function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFilterData ): OsTableColumn< PostListItem >[] {
+function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFilterData, phone = false ): OsTableColumn< PostListItem >[] {
 	const titleCol: OsTableColumn< PostListItem > = {
 		key: 'title',
 		label: __( 'Title' ),
 		sortable: true,
 		sticky: true,
-		render: ( _v, row ) => memoCell( cache, row.id, 'title', () => buildTitleCell( row, env ) ),
+		render: ( _v, row ) => memoCell( cache, row.id, 'title', () => buildTitleCell( row, env, phone ) ),
 	};
 	const authorCol: OsTableColumn< PostListItem > = {
 		key: 'author',
@@ -264,14 +264,16 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 
 /**
  * Every column (visible AND hidden), through the columns filter —
- * what the "Show columns" menu lists.
+ * what the "Show columns" menu lists. `phone` lays the cells out for
+ * the stacked table.
  */
 export function buildAllColumns(
 	env: CellEnv,
 	cache: CellCache,
 	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
+	phone = false,
 ): OsTableColumn< PostListItem >[] {
-	const cols = buildBaseColumns( env, cache, filterData );
+	const cols = buildBaseColumns( env, cache, filterData, phone );
 	const hooks = window.wp?.hooks;
 	return hooks && typeof hooks.applyFilters === 'function'
 		? ( hooks.applyFilters( HOOK_FILTER_COLUMNS, cols, { mode: env.extra.mode ?? 'posts' } ) as OsTableColumn< PostListItem >[] )
@@ -313,7 +315,7 @@ export function buildColumns(
 	phone = false,
 	hidden: ReadonlySet< string > = new Set(),
 ): OsTableColumn< PostListItem >[] {
-	const all = buildAllColumns( env, cache, filterData );
+	const all = buildAllColumns( env, cache, filterData, phone );
 	const visible =
 		hidden.size === 0 ? all : all.filter( ( col ) => REQUIRED_COLUMN_KEYS.has( col.key ) || ! hidden.has( col.key ) );
 	return phone ? visible.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) ) : visible;
