@@ -82,6 +82,16 @@ export interface RowActionLink {
 }
 
 /**
+ * What plugins add to one row, from `parts/row-actions.php`: its links
+ * and the labels `display_post_states` puts beside its title (plain
+ * text, Core's own states left out).
+ */
+export interface RowExtras {
+	links: RowActionLink[];
+	states: string[];
+}
+
+/**
  * Active edit-lock holder for a row, surfaced via the
  * `openstation_lock` REST field registered in
  * `includes/my-wordpress/lock.php`. `null` when the row isn't

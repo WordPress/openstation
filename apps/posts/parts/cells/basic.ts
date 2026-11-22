@@ -1,8 +1,8 @@
 /**
  * Posts app — the cells both modes render: the title (with its lock,
- * status and reading-page badges, the "View" link, in Pages "Quick
- * edit", and the row's actions menu), the author, the date, and the
- * expanded sub-row.
+ * status and reading-page badges, the labels plugins add, the "View"
+ * link, in Pages "Quick edit", and the row's actions menu), the
+ * author, the date, and the expanded sub-row.
  *
  * @public
  */
@@ -106,6 +106,23 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 
 	if ( row.status && row.status !== 'publish' ) {
 		titleRow.appendChild( pill( STATUS_LABELS[ row.status ] ?? row.status, statusBadgeColor( row.status ), { uppercase: true } ) );
+	}
+
+	// The labels plugins add beside the title on `edit.php` (a builder's
+	// name, a shop page), neutral and in the plugin's own casing. The table
+	// sizes this column to its widest row, so they get a capped strip: one
+	// line high, a long label ellipsizes, and the labels that do not fit
+	// wrap out of sight. It gives way with the title.
+	const labels = env.rowStates?.( row.id ) ?? [];
+	if ( labels.length ) {
+		const states = document.createElement( 'span' );
+		states.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;min-width:0;max-width:240px;flex-shrink:1;line-height:16px;max-height:20px;overflow:hidden;';
+		for ( const label of labels ) {
+			const badge = pill( label, statusBadgeColor( '' ), { title: label, shrink: true } );
+			badge.style.maxWidth = 'min(100%, 140px)';
+			states.appendChild( badge );
+		}
+		titleRow.appendChild( states );
 	}
 
 	// A "View" link to the public URL, in a new tab so the user

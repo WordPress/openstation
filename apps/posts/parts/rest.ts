@@ -22,7 +22,7 @@ import type {
 	PageParentOption,
 	PagePatch,
 	PostsMode,
-	RowActionLink,
+	RowExtras,
 	TagOptionsPage,
 	TagTerm,
 	TermNeighbor,
@@ -461,19 +461,20 @@ export function createPostsRestClient( restFetch: RestFetch ): PostsRestClient {
 }
 
 /**
- * The plugin links of a batch of rows (at most 100 ids): what
- * `page_row_actions` / `post_row_actions` add to them on `edit.php`,
- * from `wp_ajax_openstation_posts_row_actions` (`parts/row-actions.php`).
- * Keyed by post id; a row with no plugin links is absent. The URL and
- * nonce are read off the window config at call time, so a nonce the
- * shell refreshed in place is the one sent.
+ * The plugin links and labels of a batch of rows (at most 100 ids):
+ * what `page_row_actions` / `post_row_actions` and `display_post_states`
+ * add to them on `edit.php`, from `wp_ajax_openstation_posts_row_actions`
+ * (`parts/row-actions.php`). Keyed by post id, each `{ links, states }`;
+ * a row with neither is absent. The URL and nonce are read off the
+ * window config at call time, so a nonce the shell refreshed in place
+ * is the one sent.
  */
 export async function fetchRowActions(
 	restFetch: RestFetch,
 	extra: ListExtra,
 	mode: PostsMode,
 	ids: number[],
-): Promise< Record< string, RowActionLink[] > > {
+): Promise< Record< string, RowExtras > > {
 	const body = new URLSearchParams( {
 		action: 'openstation_posts_row_actions',
 		_ajax_nonce: extra.rowActionsNonce ?? '',
@@ -485,7 +486,7 @@ export async function fetchRowActions(
 		headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
 		body,
 	} );
-	const json = ( await response.json() ) as { success?: boolean; data?: Record< string, RowActionLink[] > };
+	const json = ( await response.json() ) as { success?: boolean; data?: Record< string, RowExtras > };
 	if ( ! response.ok || ! json?.success ) {
 		throw new Error( `${ response.status } ${ response.statusText }` );
 	}

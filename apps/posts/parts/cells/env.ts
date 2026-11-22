@@ -6,10 +6,10 @@
  * reach: inline styles are the working contract. What a cell needs
  * from the app arrives as one {@link CellEnv} — the config extra, the
  * REST client, the shell doors (`openUrl`, `confirm`, `toast`,
- * `announce`), the row actions menu's links and verbs, and the
- * per-window caches (the parent-title roster, the category tree and
- * its live pickers) that used to be module singletons and now die
- * with the window.
+ * `announce`), the row actions menu's links and verbs, the labels
+ * plugins add beside a row's title, and the per-window caches (the
+ * parent-title roster, the category tree and its live pickers) that
+ * used to be module singletons and now die with the window.
  *
  * The cell cache ({@link memoCell}) keeps a row stable across the
  * table's own repaints: `<os-table>` rebuilds its body on every
@@ -49,6 +49,8 @@ export interface CellEnv {
 	toast: ( title: string, err: unknown ) => void;
 	/** A row changed — the window's own announce (its watch skips the echo). */
 	announce: ( action: string, ids: number[] ) => void;
+	/** The labels plugins add beside a row's title (`display_post_states`), as text; empty until they land. */
+	rowStates?: ( id: number ) => string[];
 	/** What a row's actions menu needs; without it the title cell offers no menu. */
 	rowActions?: RowActions;
 	/** Open the quick edit dialog on a row. Set in Pages mode only. */
@@ -160,12 +162,13 @@ export function titleOf( row: PostListItem ): string {
 /**
  * A small inline pill — the lock, status and assignment badges share
  * it. `icon` is a glyph (a dashicon class, or text for a glyph the
- * shadow root cannot style through the class).
+ * shadow root cannot style through the class). A `shrink` pill gives
+ * way when its row runs out of room, its text ending in an ellipsis.
  */
 export function pill(
 	text: string,
 	colors: { fg: string; bg: string },
-	opts: { icon?: HTMLElement; uppercase?: boolean; title?: string } = {},
+	opts: { icon?: HTMLElement; uppercase?: boolean; title?: string; shrink?: boolean } = {},
 ): HTMLElement {
 	const badge = document.createElement( 'span' );
 	badge.style.cssText = [
@@ -180,7 +183,7 @@ export function pill(
 		`background:${ colors.bg }`,
 		`color:${ colors.fg }`,
 		'white-space:nowrap',
-		'flex-shrink:0',
+		opts.shrink ? 'flex-shrink:1;min-width:0;box-sizing:border-box' : 'flex-shrink:0',
 	]
 		.filter( Boolean )
 		.join( ';' );
@@ -189,6 +192,9 @@ export function pill(
 	}
 	const label = document.createElement( 'span' );
 	label.textContent = text;
+	if ( opts.shrink ) {
+		label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;min-width:0;';
+	}
 	badge.appendChild( label );
 	if ( opts.title ) {
 		badge.title = opts.title;

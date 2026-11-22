@@ -53,6 +53,12 @@ function status( row: PostListItem ): TemplateResult {
 	return html`<span class="os-posts-desk__status" data-status=${ row.status }>${ STATUS_LABELS[ row.status ] ?? row.status }</span>`;
 }
 
+/** The labels plugins add beside the row's title (`display_post_states`), as text. */
+function states( env: CellEnv, row: PostListItem ): TemplateResult | string {
+	const labels = env.rowStates?.( row.id ) ?? [];
+	return labels.length ? html`<span class="os-posts-desk__states">${ labels.map( ( label ) => html`<span class="os-posts-desk__state" title=${ label }>${ label }</span>` ) }</span>` : '';
+}
+
 function pageRole( ctx: Ctx, row: PostListItem ): string {
 	if ( ctx.extra.frontPageId === row.id ) {
 		return __( 'Front page' );
@@ -196,6 +202,7 @@ function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index:
 		<div class="os-posts-desk__story-top">
 			${ status( row ) }
 			${ role ? html`<span class="os-posts-desk__role">${ role }</span>` : '' }
+			${ states( env, row ) }
 			${ contentId( ctx, row ) }
 			<os-checkbox aria-label=${ sprintf( /* translators: %s: content title. */ __( 'Select %s' ), title ) }
 				class="os-posts-desk__select" ?checked=${ tableOf( ctx )?.selection.has( row.id ) ?? false }
@@ -269,7 +276,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 		<header class="os-posts-desk__inspector-head"><span>${ ctx.extra.mode === 'pages' ? __( 'PAGE DETAILS' ) : __( 'STORY DETAILS' ) }</span><os-button variant="ghost" data-os-posts-inspect-close @click=${ close }>${ __( 'Close details' ) }</os-button></header>
 		<div class="os-posts-desk__inspector-scroll">
 			${ media ? html`<img class="os-posts-desk__cover" src=${ media.url } alt=${ media.alt } @error=${ ( e: Event ) => ( e.target as HTMLElement ).hidden = true }>` : '' }
-			${ status( row ) }
+			${ status( row ) }${ states( env, row ) }
 			<h2>${ titleOf( row ) || __( '(no title)' ) }</h2>
 			<p class="os-posts-desk__byline">${ authorOf( row ).name }</p>
 			${ row.openstation_lock ? html`<os-notice tone="warning">${ sprintf( /* translators: %s: person editing. */ __( '%s is currently editing' ), row.openstation_lock.userName ) }</os-notice>` : '' }
