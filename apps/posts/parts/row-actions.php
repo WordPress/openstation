@@ -1,15 +1,17 @@
 <?php
 /**
- * Posts and Pages apps — the links plugins add to a post's row.
+ * Posts and Pages apps — the links and labels plugins add to a post's row.
  *
  * Plain PHP part, required by both `posts.os.php` and `pages.os.php`.
  * A plugin's "Clone" or "Edit with <builder>" link is not part of the
  * post resource: Core builds it on `edit.php` from the
- * `page_row_actions` / `post_row_actions` filters. The windows' row
- * menus offer those links too, so this replays the filters for the
- * rows a window has loaded.
+ * `page_row_actions` / `post_row_actions` filters. Neither is the
+ * "Bricks" or "Elementor" label beside the title, which comes from
+ * `display_post_states`. The windows' row menus offer those links and
+ * their title rows show those labels too, so this replays the filters
+ * for the rows a window has loaded.
  *
- *   wp_ajax_openstation_posts_row_actions — `{ id => [ { key, label, url, admin } ] }`
+ *   wp_ajax_openstation_posts_row_actions — `{ id => { links: [ { key, label, url, admin } ], states: [ label ] } }`
  *
  * On admin-ajax, not a REST field, for the reason the Plugins window's
  * row links are: many plugins only add the filter behind `is_admin()`,
@@ -39,6 +41,16 @@ const OPENSTATION_POSTS_ROW_ACTIONS_NONCE = 'desktop-mode-posts-row-actions';
  * the filters return, along with whatever a plugin rewrote them into.
  */
 const OPENSTATION_POSTS_CORE_ROW_ACTION_KEYS = array( 'edit', 'inline hide-if-no-js', 'trash', 'untrash', 'delete', 'view' );
+
+/**
+ * Keys of the post states Core adds itself in `get_post_states()`. The
+ * windows paint a row's status, Front page and Posts page with badges
+ * of their own, so those would show twice; the other Core states
+ * (Password protected, Sticky, Scheduled, Privacy Policy Page) are left
+ * out on purpose, so a row shows only the labels a plugin added. Core's
+ * "Customization Draft" has no key and is dropped by its text instead.
+ */
+const OPENSTATION_POSTS_CORE_POST_STATE_KEYS = array( 'protected', 'private', 'draft', 'pending', 'sticky', 'scheduled', 'page_on_front', 'page_for_posts', 'page_for_privacy_policy' );
 
 /**
  * The most ids one request answers for.
@@ -125,6 +137,44 @@ function openstation_posts_window_row_links( WP_Post $post ) {
 }
 
 /**
+ * The labels a post's row shows beside its title on `edit.php`, minus
+ * Core's own.
+ *
+ * Runs Core's `get_post_states()`, which builds Core's states and then
+ * applies `display_post_states` with Core's arguments. Each label a
+ * plugin added comes back as plain text, cleaned the way a row link's
+ * label is; an empty or repeated label is dropped. Order is the
+ * filter's.
+ *
+ * @param WP_Post $post The row's post. The caller already holds `edit_post` on it.
+ * @return string[]
+ */
+function openstation_posts_window_row_states( WP_Post $post ) {
+	if ( ! function_exists( 'get_post_states' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/template.php';
+	}
+	// phpcs:disable WordPress.WP.I18n.MissingArgDomain -- Core's own strings, in Core's domain: the text of the state Core adds without a key.
+	$customization = array( __( 'Customization Draft' ), _x( 'Customization Draft', 'post status' ) );
+	// phpcs:enable WordPress.WP.I18n.MissingArgDomain
+
+	$entries = get_post_states( $post );
+	$states  = array();
+	foreach ( is_array( $entries ) ? $entries : array() as $key => $state ) {
+		if ( ! is_string( $state ) || in_array( $key, OPENSTATION_POSTS_CORE_POST_STATE_KEYS, true ) ) {
+			continue;
+		}
+		if ( is_int( $key ) && in_array( $state, $customization, true ) ) {
+			continue;
+		}
+		$label = trim( html_entity_decode( wp_strip_all_tags( $state ), ENT_QUOTES, 'UTF-8' ) );
+		if ( '' !== $label && ! in_array( $label, $states, true ) ) {
+			$states[] = $label;
+		}
+	}
+	return $states;
+}
+
+/**
  * Send a refusal as JSON with HTTP 403, then exit.
  *
  * @param string $code    Error code.
@@ -142,19 +192,24 @@ function openstation_posts_window_row_actions_refuse( $code, $message ) {
 }
 
 /**
- * `wp_ajax_openstation_posts_row_actions` — the plugin links of the
- * rows a Posts or Pages window has loaded.
+ * `wp_ajax_openstation_posts_row_actions` — the plugin links and
+ * labels of the rows a Posts or Pages window has loaded.
  *
  * Body params:
  *   - mode  `pages` | `posts` — whose window gate applies
  *   - ids   post ids, comma-separated or as an array; the first 100 count
  *
+ * Answers `{ id => { links, states } }`: the row links from
+ * `page_row_actions` / `post_row_actions` and the labels from
+ * `display_post_states`, both always present for an id in the answer.
+ *
  * Gated on the endpoint's nonce, then on the gate of the window that
  * asks (`mode` names it; it does not limit which posts may be asked
  * about), then per post on `edit_post`, the gate that decides: the
- * answer carries only link labels and URLs plugins build for a row,
- * and only for rows the caller could edit on `edit.php`. An id that is
- * skipped, or whose row has no plugin links, is absent from the answer.
+ * answer carries only the link labels, URLs and row labels plugins
+ * build for a row, and only for rows the caller could edit on
+ * `edit.php`. An id that is skipped, or whose row has neither plugin
+ * links nor plugin labels, is absent from the answer.
  */
 function openstation_posts_window_ajax_row_actions() {
 	if ( ! check_ajax_referer( OPENSTATION_POSTS_ROW_ACTIONS_NONCE, '_ajax_nonce', false ) ) {
@@ -193,9 +248,13 @@ function openstation_posts_window_ajax_row_actions() {
 		if ( ! $post instanceof WP_Post || ! current_user_can( 'edit_post', $post->ID ) ) {
 			continue;
 		}
-		$links = openstation_posts_window_row_links( $post );
-		if ( array() !== $links ) {
-			$map[ $post->ID ] = $links;
+		$links  = openstation_posts_window_row_links( $post );
+		$states = openstation_posts_window_row_states( $post );
+		if ( array() !== $links || array() !== $states ) {
+			$map[ $post->ID ] = array(
+				'links'  => $links,
+				'states' => $states,
+			);
 		}
 	}
 

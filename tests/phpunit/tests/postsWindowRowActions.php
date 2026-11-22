@@ -1,9 +1,9 @@
 <?php
 /**
- * Tests for the Posts and Pages apps' row links
+ * Tests for the Posts and Pages apps' row links and labels
  * (`apps/posts/parts/row-actions.php`): the "Clone" / "Edit with …"
  * links a plugin adds to a row on `edit.php`, offered by the windows'
- * row menus too.
+ * row menus too, and the `display_post_states` labels beside its title.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -26,6 +26,9 @@ class Tests_OpenStation_PostsWindowRowActions extends WP_Ajax_UnitTestCase {
 	public function tear_down() {
 		remove_all_filters( 'page_row_actions' );
 		remove_all_filters( 'post_row_actions' );
+		remove_all_filters( 'display_post_states' );
+		update_option( 'show_on_front', 'posts' );
+		delete_option( 'page_on_front' );
 		parent::tear_down();
 	}
 
@@ -68,6 +71,62 @@ class Tests_OpenStation_PostsWindowRowActions extends WP_Ajax_UnitTestCase {
 					'url'   => 'https://builder.example.test/edit/' . $page,
 					'admin' => false,
 				),
+			),
+			$response['data'][ $page ]['links']
+		);
+		$this->assertSame( array(), $response['data'][ $page ]['states'] );
+	}
+
+	/**
+	 * A row's `display_post_states` labels come back as text, once each,
+	 * in the filter's order, and Core's own states stay out: a draft,
+	 * password-protected front page carries only what the plugin added,
+	 * and a Customization Draft with no plugin label is absent.
+	 *
+	 * @covers ::openstation_posts_window_row_states
+	 */
+	public function test_returns_the_labels_a_plugin_adds_and_drops_cores() {
+		$page = self::factory()->post->create(
+			array(
+				'post_type'     => 'page',
+				'post_status'   => 'draft',
+				'post_password' => 'secret',
+			)
+		);
+		$changeset = self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'draft',
+			)
+		);
+		update_post_meta( $changeset, '_customize_changeset_uuid', wp_generate_uuid4() );
+		update_option( 'show_on_front', 'page' );
+		update_option( 'page_on_front', $page );
+		add_filter(
+			'display_post_states',
+			static function ( $states, $post ) use ( $page ) {
+				if ( $post->ID === $page ) {
+					$states['bricks'] = 'Bricks';
+					$states['again']  = 'Bricks';
+					$states[]         = '<strong>Elementor</strong>';
+					$states['x']      = '';
+					$states['count']  = 3;
+				}
+				return $states;
+			},
+			10,
+			2
+		);
+
+		wp_set_current_user( $this->admin_id );
+		$response = $this->dispatch( 'pages', array( $page, $changeset ) );
+
+		$this->assertTrue( $response['success'] );
+		$this->assertSame( array( $page ), array_keys( $response['data'] ) );
+		$this->assertSame(
+			array(
+				'links'  => array(),
+				'states' => array( 'Bricks', 'Elementor' ),
 			),
 			$response['data'][ $page ]
 		);
@@ -124,6 +183,13 @@ class Tests_OpenStation_PostsWindowRowActions extends WP_Ajax_UnitTestCase {
 				return $actions;
 			}
 		);
+		add_filter(
+			'display_post_states',
+			static function ( $states ) {
+				$states['bricks'] = 'Bricks';
+				return $states;
+			}
+		);
 
 		wp_set_current_user( $author );
 		// `get_post( 0 )` would answer with the global post.
@@ -137,6 +203,7 @@ class Tests_OpenStation_PostsWindowRowActions extends WP_Ajax_UnitTestCase {
 
 		$this->assertTrue( $response['success'] );
 		$this->assertSame( array( $own ), array_keys( $response['data'] ) );
+		$this->assertSame( array( 'Bricks' ), $response['data'][ $own ]['states'] );
 	}
 
 	/**
