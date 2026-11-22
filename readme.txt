@@ -4,7 +4,7 @@ Tags: admin dashboard, notes, sticky notes, dashboard notes, custom dashboard
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.20
+Stable tag: 1.1.21
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -212,6 +212,23 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.21 =
+* Prevent layout overflow in narrow windows. 
+* Pages and Posts: Shift+click a checkbox to select a range of rows or cards
+* Shell: Leave the arrow keys to a focused control that uses them
+* Pages: Quick edit a page's title, slug, status, parent, order, template and comments
+* Corkboard: Open a large site without freezing the browser
+* Agents: Show an async job's tool calls while it runs and after it fails
+* Users: Send a custom email to one user from the Users window
+* Pages: Switch the selected pages to draft from the bulk bar
+* Corkboard: Fit a large board in the window and draw it as dots when zoomed far out
+* Pages and Posts: Add a row actions menu with the links plugins add to a row
+* Agents: Report a dead background worker after minutes, not two hours
+* Agents: Report the token usage so far on a failed or running async job
+* Agents: Resume a pending chat job after a page reload
+* Pages and Posts: Show the labels plugins add next to a row's title
+* Factory: Build labeled issues and review contributor PRs end to end, run several jobs in parallel, hand decisions to maintainers on GitHub and Slack, and approve only on green CI
 
 = 1.1.20 =
 * Windows: Drag a window to the top edge to maximize it

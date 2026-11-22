@@ -2350,6 +2350,9 @@
             "The rail can move to another edge, split in two, or park itself out of the way.": [
                 ""
             ],
+            "The result of this run is no longer available. Some work may already have been applied. Check the site before submitting the task again.": [
+                ""
+            ],
             "The server answered with error %d.": [
                 ""
             ],
