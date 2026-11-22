@@ -7968,9 +7968,13 @@ States are `queued`, `running`, `completed` and `failed`. `result` is null until
 completion, then contains the usual invocation result including confirmation
 buttons. `error` is null or `{ code, message }`. `createdAt` is Unix seconds;
 `pollAfter` is a suggested delay in seconds. `progress` is what the run has
-called so far, `{ turn, toolCalls: [ { name, args, error } ], updatedAt }`,
-written after each tool round (`turn` is the last recorded round, `updatedAt`
-Unix seconds). It is set while the job is `running` and kept when it `failed`,
+called and spent so far, `{ turn, toolCalls: [ { name, args, error } ], usage,
+model, updatedAt }`, written after each tool round (`turn` is the last recorded
+round, `updatedAt` Unix seconds). `usage` is `{ prompt, completion, total }`
+summed over the turns up to the last recorded tool round, and `model` the last
+`{ id, name }` the provider resolved; both are `null` when the provider
+reported neither. For a failed run `usage` is a lower bound: it leaves out the
+turn that failed and the forced final turn at the turn cap. It is set while the job is `running` and kept when it `failed`,
 interrupted ones included; it is `null` before the first round, while `queued`
 and once `completed`, where `result.toolCalls` carries the full trace. It never
 contains tool outputs. The chat shows it as the pending row's "Tool calls"

@@ -10,6 +10,9 @@ import type { RestAuth } from './agents-conversations';
 export interface AgentJobProgress {
 	turn: number;
 	toolCalls: Array< { name: string; args: Record< string, unknown >; error: string | null } >;
+	// Optional: an older server records no spend.
+	usage?: { prompt: number; completion: number; total: number } | null;
+	model?: { id: string; name: string } | null;
 	updatedAt: number;
 }
 
