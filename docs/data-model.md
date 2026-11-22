@@ -358,7 +358,7 @@ truth for job execution.
 
 | Name | Kind | Contents / lifetime |
 |---|---|---|
-| `openstation_agent_job_{uuid}` | Option, non-autoloaded | Owner, agent, bounded message/history, source, timestamps, status, result/error, and per-round `progress` (tool names, arguments, errors, last update time; no tool outputs), and an internal `heartbeat` (the worker's last sign of life, not returned by the status route). Retained for one day. |
+| `openstation_agent_job_{uuid}` | Option, non-autoloaded | Owner, agent, bounded message/history, source, timestamps, status, result/error, and per-round `progress` (tool names, arguments, errors, token `usage` and `model` so far, last update time; no tool outputs), and an internal `heartbeat` (the worker's last sign of life, not returned by the status route). Retained for one day. |
 | `openstation_agent_job_claim_{uuid}` | Option, non-autoloaded | Atomic execution claim, retained with the job; never recycled for retries. |
 | `openstation_agent_job_active_{owner}_{agent}` | Option, non-autoloaded | Admission slot (`uuid|deadline`), released on completion/failure, expiry or cleanup, or when the job's worker has gone silent past the stale bound. |
 | `openstation_agent_job_run` | Single cron event, UUID argument | Executes a queued invocation once. |

@@ -817,7 +817,8 @@ work may already have been applied.
 While the run works, the worker listens to `openstation_agent_turn_completed`
 for its own job only (matched by `jobId` and agent) and, after each tool round,
 saves `progress` on the job option: the tool names, arguments and errors so
-far, the last round number and an `updatedAt` time, never the tool outputs.
+far, the token usage and model so far, the last round number and an
+`updatedAt` time, never the tool outputs.
 The terminal save and the interrupted-worker shutdown keep that last
 `progress`, and status reads return it for `running` and `failed` jobs, so the
 chat lists what a run called before the answer exists and after it fails. It is

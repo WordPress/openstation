@@ -5655,8 +5655,8 @@ all, and again wherever the enabled state is consulted.
 Fires after an async agent job stores a completed or failed result and releases
 its admission slot. Parameters: `string $id` (job UUID), `int $owner` (human
 invoker), `array $status` (the public job snapshot, including result/error,
-and `progress`: the tool calls a failed job had recorded, `null` on a completed
-one).
+and `progress`: the tool calls and the token usage a failed job had recorded,
+`null` on a completed one).
 A hard-killed process cannot fire this action. Status reads may report an
 interrupted job, past its deadline or silent past the
 [stale bound](#openstation_agent_job_stale_after--experimental-filter), without
@@ -5751,10 +5751,14 @@ and adds `jobId` to `$context` for that. With no listener attached a
 synchronous invoke pays nothing: nothing is stored and the result is unchanged.
 
 - **Param** `int $agent_user_id`
-- **Param** `array $turn` — `{ turn, toolCalls }`: the 1-based round number and
-  that round's trace entries, `{ callId, name, args, output, error }`, the
-  same shape as `toolCalls` in the invocation result. `output` has already
-  been through `openstation_agent_tool_result`.
+- **Param** `array $turn` — `{ turn, toolCalls, usage, model }`: the 1-based
+  round number and that round's trace entries, `{ callId, name, args, output,
+  error }`, the same shape as `toolCalls` in the invocation result. `output`
+  has already been through `openstation_agent_tool_result`. `usage` is the
+  running total `{ prompt, completion, total }` over every generation turn so
+  far, including the one that asked for this round's tools; `model` is the last
+  `{ id, name }` resolved. Both are `null` when no turn has reported them, the
+  same rule as the invocation result.
 - **Param** `array $context` — invocation context passed to
   `openstation_agent_invoke()`; the async worker adds `jobId` (the job UUID).
 

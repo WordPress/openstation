@@ -354,9 +354,22 @@ function openstation_agent_job_run( $id ) {
 				'error' => $call['error'],
 			);
 		}
+		// Spend so far: only the counts and the model's id and name.
+		$usage = isset( $turn['usage'] ) && is_array( $turn['usage'] ) ? $turn['usage'] : null;
+		$model = isset( $turn['model'] ) && is_array( $turn['model'] ) ? $turn['model'] : null;
+
 		$job['progress']  = array(
 			'turn'      => (int) $turn['turn'],
 			'toolCalls' => $calls,
+			'usage'     => null === $usage ? null : array(
+				'prompt'     => (int) ( $usage['prompt'] ?? 0 ),
+				'completion' => (int) ( $usage['completion'] ?? 0 ),
+				'total'      => (int) ( $usage['total'] ?? 0 ),
+			),
+			'model'     => null === $model ? null : array(
+				'id'   => (string) ( $model['id'] ?? '' ),
+				'name' => (string) ( $model['name'] ?? '' ),
+			),
 			'updatedAt' => time(),
 		);
 		$job['heartbeat'] = time();
