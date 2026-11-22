@@ -93,6 +93,32 @@ describe( 'persistAgentTranscript', () => {
 		expect( fetchMock ).not.toHaveBeenCalled();
 	} );
 
+	test( 'keeps a pending row that carries its job id', async () => {
+		const fetchMock: FetchMock = vi.fn( async () => ( {
+			ok: true,
+			status: 200,
+			json: async () => ( { id: 92 } ),
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		const waiting = {
+			role: 'agent' as const,
+			text: 'Queued',
+			at: 2,
+			pending: true,
+			jobId: '09a66ae0-077a-4000-8000-123456789abc',
+		};
+		agentsChatStore.state.transcripts[ 5 ] = [
+			{ role: 'user', text: 'hi', at: 1 },
+			waiting,
+		];
+		await persistAgentTranscript( AGENT, REST );
+		const [ , init ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
+		expect(
+			( JSON.parse( String( init.body ) ) as { messages: unknown[] } ).messages,
+		).toEqual( [ { role: 'user', text: 'hi', at: 1 }, waiting ] );
+	} );
+
 	test( 'swallows save failures without touching the binding', async () => {
 		const fetchMock: FetchMock = vi.fn( async () => ( {
 			ok: false,

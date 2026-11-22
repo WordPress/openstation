@@ -8034,7 +8034,7 @@ seed the cross-bundle store and open the window:
 // Both bundles share one live object via createSharedStore.
 const store = wp.os.createSharedStore( 'desktop-mode/agents-chat', () => ( {
 	activeAgent: null,    // { id, name, description, avatarUrl } | null
-	transcripts: {},      // Record<agentId, Array<{ role, text, attachment?, toolCalls?, callToActions?, ctaUsed?, at, pending? }>>
+	transcripts: {},      // Record<agentId, Array<{ role, text, attachment?, toolCalls?, callToActions?, ctaUsed?, at, pending?, jobId? }>>
 	conversationIds: {},  // Record<agentId, number | null>: the saved conversation behind each transcript
 	conversationsRev: 0,  // bumped after every conversation save or delete
 } ) );
@@ -8044,12 +8044,18 @@ wp.os.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
 ```
 
 The store keeps nothing across a reload, but conversations are not
-session-only: after every completed exchange the chat saves the
-transcript on the server (`POST /agents/conversations` the first time,
+session-only: the chat saves the transcript on the server
+(`POST /agents/conversations` the first time,
 `PUT /agents/conversations/{id}` afterwards), as a `desktop_mode_chat`
-post owned by the human. `conversationIds` records which saved
+post owned by the human, twice per exchange: when the server accepts the
+job, and again when it ends. `conversationIds` records which saved
 conversation each live transcript belongs to; `conversationsRev` is how
 the sidebar knows to refetch its list without polling.
+
+`jobId` is the async job a `pending` row is waiting on. The first save
+stores the pending row with it, so opening that conversation after a
+reload resumes polling the job (status reads only) and settles the row
+when it ends. A settled row has `pending: false` and no `jobId`.
 
 ### Drag & drop intake
 
