@@ -1,8 +1,8 @@
 /**
  * Posts app — the cells both modes render: the title (with its lock,
- * status and reading-page badges, the "View" link and, in Pages,
- * "Quick edit"), the
- * author, the date, and the expanded sub-row.
+ * status and reading-page badges, the "View" link, in Pages "Quick
+ * edit", and the row's actions menu), the author, the date, and the
+ * expanded sub-row.
  *
  * @public
  */
@@ -23,6 +23,7 @@ import {
 	titleOf,
 	type CellEnv,
 } from './env';
+import { buildRowActionsMenu } from '../row-actions';
 import type { PostListItem } from '../types';
 
 function dashicon( name: string, size = 13 ): HTMLElement {
@@ -135,6 +136,16 @@ export function buildTitleCell( row: PostListItem, env: CellEnv ): HTMLElement {
 			env.quickEdit?.( row );
 		} );
 		titleRow.appendChild( quick );
+	}
+
+	// The row's actions menu, at the end of the title row (no column of
+	// its own), so the menus line up down the column. The title link
+	// edits, and View and Quick edit sit beside it, so the menu leaves
+	// those three out.
+	if ( env.rowActions ) {
+		const menu = buildRowActionsMenu( row, env, env.rowActions, [ 'edit', 'quick-edit', 'view' ] );
+		menu.style.marginInlineStart = 'auto';
+		titleRow.appendChild( menu );
 	}
 
 	cell.appendChild( titleRow );

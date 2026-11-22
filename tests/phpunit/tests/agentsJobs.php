@@ -9,6 +9,8 @@
  * @covers ::openstation_agents_rest_job
  * @covers ::openstation_agent_job_run
  * @covers ::openstation_agent_job_status
+ * @covers ::openstation_agent_job_is_stale
+ * @covers ::openstation_agent_job_stale_bound
  * @covers ::openstation_agent_job_insert
  * @covers ::openstation_agent_job_release
  * @covers ::openstation_agent_job_finish
@@ -264,6 +266,75 @@ class Tests_OpenStation_AgentsJobs extends WP_UnitTestCase {
 		$this->assertSame( 'failed', $status['status'] );
 		$this->assertSame( 'openstation_agent_job_interrupted', $status['error']['code'] );
 		$this->assertSame( $stale['progress'], $status['progress'] );
+	}
+
+	/** Store the job as running, last heard from $ago seconds ago. */
+	private function running( $id, $ago, $progress = null ) {
+		$job              = openstation_agent_job_get( $id );
+		$job['status']    = 'running';
+		$job['heartbeat'] = time() - $ago;
+		if ( $progress ) {
+			$job['progress'] = $progress;
+		}
+		update_option( 'openstation_agent_job_' . $id, $job, false );
+		return $job;
+	}
+
+	public function test_a_silent_worker_reads_as_interrupted_without_a_write() {
+		$bound = openstation_agent_job_stale_bound( $this->agent->ID );
+		$this->assertSame( 420, $bound );
+		$id = $this->submit()->get_data()['jobId'];
+		$this->running( $id, $bound );
+		$status = $this->poll( $id )->get_data();
+		$this->assertSame( 'failed', $status['status'] );
+		$this->assertSame( 'openstation_agent_job_interrupted', $status['error']['code'] );
+		$this->assertNull( $status['progress'] );
+		$this->assertArrayNotHasKey( 'heartbeat', $status );
+		$this->assertSame( 'running', openstation_agent_job_get( $id )['status'] );
+
+		$progress = array( 'turn' => 1, 'toolCalls' => array( array( 'name' => 'lookup', 'args' => array(), 'error' => null ) ), 'updatedAt' => time() - $bound );
+		$this->running( $id, $bound, $progress );
+		$status = $this->poll( $id )->get_data();
+		$this->assertSame( 'failed', $status['status'] );
+		$this->assertSame( 'openstation_agent_job_interrupted', $status['error']['code'] );
+		$this->assertSame( $progress, $status['progress'] );
+	}
+
+	public function test_a_live_worker_reads_running_and_beats_before_the_first_request() {
+		$id   = $this->submit()->get_data()['jobId'];
+		$seen = null;
+		add_filter( 'openstation_agent_runner_generate', static function ( $result ) use ( $id, &$seen ) {
+			if ( null === $seen ) {
+				$seen = openstation_agent_job_get( $id );
+			}
+			return $result;
+		}, 20 );
+		openstation_agent_job_run( $id );
+		$this->assertSame( 'running', $seen['status'] );
+		$this->assertGreaterThanOrEqual( time() - 5, $seen['heartbeat'] );
+		$this->assertSame( 'running', openstation_agent_job_status( $seen )['status'] );
+	}
+
+	public function test_a_stale_job_frees_its_slot_and_its_late_finish_keeps_the_new_one() {
+		$id = $this->submit()->get_data()['jobId'];
+		$this->running( $id, 0 );
+		$this->assertSame( 409, $this->submit()->get_status() );
+		$old      = $this->running( $id, 1000 );
+		$response = $this->submit();
+		$this->assertSame( 202, $response->get_status() );
+		$new = openstation_agent_job_get( $response->get_data()['jobId'] );
+		// The old worker was alive after all: its answer lands, the new slot stays.
+		openstation_agent_job_finish( $old, array( 'text' => 'Late answer.', 'callToActions' => array(), 'toolCalls' => array(), 'turns' => 1 ) );
+		$this->assertSame( $new['id'] . '|' . $new['deadline'], get_option( 'openstation_agent_job_active_' . $this->owner . '_' . $this->agent->ID ) );
+		$this->assertSame( 'completed', $this->poll( $id )->get_data()['status'] );
+		$this->assertSame( 0, $this->calls );
+	}
+
+	public function test_a_stale_bound_of_zero_disables_the_check() {
+		add_filter( 'openstation_agent_job_stale_after', '__return_zero' );
+		$id = $this->submit()->get_data()['jobId'];
+		$this->running( $id, 1000 );
+		$this->assertSame( 'running', $this->poll( $id )->get_data()['status'] );
 	}
 
 	public function test_synchronous_invoke_writes_no_job_option() {
