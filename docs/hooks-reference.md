@@ -5658,7 +5658,39 @@ invoker), `array $status` (the public job snapshot, including result/error,
 and `progress`: the tool calls a failed job had recorded, `null` on a completed
 one).
 A hard-killed process cannot fire this action. Status reads may report an
-interrupted job from its deadline without dispatching actions or running work.
+interrupted job, past its deadline or silent past the
+[stale bound](#openstation_agent_job_stale_after--experimental-filter), without
+dispatching actions or running work.
+
+### `openstation_agent_job_stale_after` — Experimental *(filter)*
+
+Seconds a `running` async job's worker may go without a sign of life before
+status reads report the job as `failed` with `openstation_agent_job_interrupted`
+and the next submission to that agent frees its admission slot. The worker
+signals at start, before each provider request, after each tool call that
+returned and after each tool round. Return `0` or less to disable the check and
+leave only the two-hour job lifetime.
+
+The default covers one provider request plus one ability call as long as one,
+plus slack: `2 × max( openstation_agent_http_timeout, 180 ) + 60`, so 420
+seconds. The trade-off: a single ability call that runs longer than the bound,
+with no other sign of life during it, is reported as interrupted and its slot
+frees, so a second run can start beside it. The slow run is not stopped and
+its result is still stored. Raise the bound for an agent whose abilities run
+that long.
+
+- **Param** `int $seconds` — default `2 * max( openstation_agent_http_timeout, 180 ) + 60`.
+- **Param** `int $agent_user_id` — the agent's `wp_users.ID`.
+
+```php
+// This agent runs a slow import ability: allow 20 minutes of silence.
+add_filter(
+	'openstation_agent_job_stale_after',
+	fn( $seconds, $agent_user_id ) => 42 === $agent_user_id ? 20 * MINUTE_IN_SECONDS : $seconds,
+	10,
+	2
+);
+```
 
 `openstation_agent_job_run( $id )` and
 `openstation_agent_job_cleanup( $id )` are internal WordPress cron hooks, not

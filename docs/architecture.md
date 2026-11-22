@@ -815,10 +815,31 @@ chat lists what a run called before the answer exists and after it fails. It is
 for display only: nothing resumes or replays a run from it, and the transcript
 is still saved by the client only after the run ends.
 
+The worker also stores an internal `heartbeat`, the Unix time of its last sign
+of life: when it starts, before each provider request (through the
+`openstation_agent_runner_generate` pre-filter, the transient retry included),
+after each tool call that returned (through `openstation_agent_tool_result`)
+and after each tool round. Inside a round it writes at most once every 30
+seconds. The status route never returns it. A job stored without one falls back
+to `progress.updatedAt`, then to its creation time.
+
 The worker ignores browser disconnects and removes PHP's ordinary execution
 limit where allowed. Host-enforced process limits can still terminate it;
-exceptions and shutdown failures become stored errors. Jobs without a terminal
-result after two hours are reported as interrupted. They are never automatically
+exceptions and shutdown failures become stored errors, but a process killed from
+outside (an FPM `request_terminate_timeout`, an out-of-memory kill) never
+reaches the shutdown handler. So a job is reported as interrupted in two cases:
+a `queued` or `running` job with no terminal result two hours after it was
+created, and a `running` job whose heartbeat is older than the stale bound. The
+bound is one provider request, plus one ability call as long as one, plus slack:
+`2 × max( openstation_agent_http_timeout, 180 ) + 60` seconds, 420 by default
+(about seven minutes), filterable per agent through
+[`openstation_agent_job_stale_after`](./hooks-reference.md#openstation_agent_job_stale_after--experimental-filter).
+Both cases are decided on read, without a write: the status route reports
+`failed` with `openstation_agent_job_interrupted`, and the next submission to
+the same agent releases the stale job's admission slot. A worker that was only
+slow is not stopped. Its later writes, its answer included, are stored as
+before and later reads report them, and its finish releases only its own slot,
+never the new job's. Interrupted jobs are never automatically
 rerun because an ability might already have changed content. Input, result and
 claim are removed by `openstation_agent_job_cleanup` after one day. The job
 module remains loaded while Agents is disabled so queued work fails safely and
