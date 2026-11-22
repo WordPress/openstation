@@ -119,6 +119,22 @@ function openstation_plugins_window_action_links( $plugin_file, $plugin_data ) {
 	$actions = apply_filters( "plugin_action_links_{$plugin_file}", $actions, $plugin_file, $plugin_data, 'all' );
 	// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound, WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound
 
+	return openstation_plugins_window_links_from_actions( $actions, OPENSTATION_PLUGINS_CORE_ACTION_KEYS );
+}
+
+/**
+ * The http(s) links out of a list-table row-actions array, as a window
+ * can offer them: each entry's `href` resolved the way the browser
+ * would ({@see openstation_plugins_window_resolve_link_url()}) and its
+ * text as the label. Entries under `$skip` (Core's own verbs), entries
+ * that are not a link, and links that open nothing are dropped. The
+ * Posts and Pages windows read their rows' links through this too.
+ *
+ * @param mixed    $actions Action key => link HTML, as a row-actions filter returns it.
+ * @param string[] $skip    Keys to drop.
+ * @return array<int,array{key:string,label:string,url:string,admin:bool}>
+ */
+function openstation_plugins_window_links_from_actions( $actions, array $skip ) {
 	if ( ! is_array( $actions ) ) {
 		return array();
 	}
@@ -126,7 +142,7 @@ function openstation_plugins_window_action_links( $plugin_file, $plugin_data ) {
 	$admin = admin_url();
 	$links = array();
 	foreach ( $actions as $key => $action ) {
-		if ( ! is_string( $action ) || in_array( $key, OPENSTATION_PLUGINS_CORE_ACTION_KEYS, true ) ) {
+		if ( ! is_string( $action ) || in_array( $key, $skip, true ) ) {
 			continue;
 		}
 		if ( ! preg_match( '/<a\s[^>]*\bhref\s*=\s*(["\'])(.*?)\1/is', $action, $match ) ) {
