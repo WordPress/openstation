@@ -138,10 +138,13 @@ describe( 'the pages view', () => {
 	it( 'offers each row the actions its status allows and the links plugins add, never one its surface already shows', async () => {
 		const fetch = vi.fn( async ( _url: unknown, _init?: RequestInit ) => new Response( JSON.stringify( {
 			success: true,
-			data: { 1: [
-				{ key: 'clone', label: 'Clone', url: 'http://x.test/wp-admin/admin.php?action=duplicate_post_clone&post=1', admin: true },
-				{ key: 'bricks', label: 'Edit with Bricks', url: 'https://x.test/home/?bricks=run', admin: false },
-			] },
+			data: { 1: {
+				links: [
+					{ key: 'clone', label: 'Clone', url: 'http://x.test/wp-admin/admin.php?action=duplicate_post_clone&post=1', admin: true },
+					{ key: 'bricks', label: 'Edit with Bricks', url: 'https://x.test/home/?bricks=run', admin: false },
+				],
+				states: [ 'Bricks' ],
+			} },
 		} ) ) );
 		vi.stubGlobal( 'fetch', fetch );
 		const rows = [ row( 1, { link: 'https://x.test/home/' } ), row( 2, { status: 'draft' } ), row( 3, { status: 'trash' } ) ];
@@ -155,15 +158,24 @@ describe( 'the pages view', () => {
 		expect( card( 2 ) ).toEqual( [ 'Quick edit', 'Move to trash' ] );
 		expect( card( 3 ) ).toEqual( [ 'Restore' ] );
 		expect( String( fetch.mock.calls[ 0 ][ 1 ]?.body ) ).toContain( 'ids=1%2C2%2C3' );
+		// The plugin's label has its own line under card 1's top row, and is on no other card.
+		const states = ( scope: string ): Array< string | null > => Array.from( root.querySelectorAll( `${ scope } .os-posts-desk__state` ) ).map( ( el ) => el.textContent );
+		expect( states( '[data-story-id="1"] > .os-posts-desk__states' ) ).toEqual( [ 'Bricks' ] );
+		expect( states( '[data-story-id="2"]' ) ).toEqual( [] );
 		// The details pane has Open editor and View on site.
 		( root.querySelector( '[data-inspect-id="1"]' ) as HTMLElement ).click();
 		expect( labels( root.querySelector( '.os-posts-desk__inspector-actions [data-os-posts-row-actions]' ) ) ).toEqual( [ 'Quick edit', 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] );
+		expect( states( '.os-posts-desk__inspector-scroll' ) ).toEqual( [ 'Bricks' ] );
 		// The table's title cell: the title link edits, View and Quick edit sit beside it.
 		const title = ( root.querySelector( '[data-os-posts-table]' ) as HTMLElement & { columns: Array< { key: string; render: ( v: unknown, r: unknown, i: number ) => Element } > } )
 			.columns.find( ( col ) => col.key === 'title' )!;
 		const cell = ( item: PostListItem ): Array< string | null > => labels( title.render( item.title, item, 0 ).querySelector( '[data-os-posts-row-actions]' ) );
 		expect( cell( rows[ 0 ] ) ).toEqual( [ 'Clone', 'Edit with Bricks ↗', 'Move to trash' ] );
 		expect( cell( rows[ 1 ] ) ).toEqual( [ 'Move to trash' ] );
+		// The label's pill, apart from the menu's "Edit with Bricks" link.
+		const pill = ( item: PostListItem ): string | null | undefined => title.render( item.title, item, 0 ).querySelector( '[title="Bricks"]' )?.textContent;
+		expect( pill( rows[ 0 ] ) ).toBe( 'Bricks' );
+		expect( pill( rows[ 1 ] ) ).toBeUndefined();
 	} );
 
 	it( 'takes a row trashed from its own menu out of the bulk selection', async () => {

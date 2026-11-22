@@ -50,7 +50,7 @@ import {
 } from './columns';
 import { openQuickEdit, renderQuickEdit, type QuickEditDoors, type QuickEditState } from './quick-edit';
 import { createPostsRestClient, fetchRowActions, type PostsRestClient } from './rest';
-import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext, RowActionLink } from './types';
+import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext, RowActionLink, RowExtras } from './types';
 import { fireDataLoaded, postsContext, runBulkAction, tableOf, type Ctx } from './window-context';
 
 import { ContentFeed } from './content-feed';
@@ -118,7 +118,9 @@ interface UiState {
 	tagFetching: boolean;
 	/** Each loaded row's plugin links (`parts/row-actions.php`), by post id. */
 	rowLinks: Map< number, RowActionLink[] >;
-	/** Bumped when links land, so the table repaints its title cells. */
+	/** Each loaded row's plugin labels (`display_post_states`), by post id. */
+	rowStates: Map< number, string[] >;
+	/** Bumped when links or labels land, so the table repaints its title cells. */
 	rowLinksVersion: number;
 	/** The rows the links were last asked for, and the latest ask. */
 	rowLinksRows: string | null;
@@ -153,6 +155,7 @@ const freshUi = (): UiState => ( {
 	tagTotalPages: 1,
 	tagFetching: false,
 	rowLinks: new Map(),
+	rowStates: new Map(),
 	rowLinksVersion: 0,
 	rowLinksRows: null,
 	rowLinksTicket: 0,
@@ -176,11 +179,11 @@ function fingerprint( items: PostListItem[] ): string {
 const ROW_ACTIONS_BATCH = 100;
 
 /**
- * Ask for the loaded rows' plugin links, 100 ids a request. An answer
- * that lands after a newer ask started is dropped; a failed or refused
- * batch leaves those rows with the built-in entries only. When the
- * links land the cells rebuild, so the card, the details pane and the
- * table's title cells all show them.
+ * Ask for the loaded rows' plugin links and labels, 100 ids a request.
+ * An answer that lands after a newer ask started is dropped; a failed
+ * or refused batch leaves those rows with the built-in entries only.
+ * When the links or labels land the cells rebuild, so the card, the
+ * details pane and the table's title cells all show them.
  */
 function syncRowLinks( ctx: Ctx, ui: UiState, items: PostListItem[] ): void {
 	const ticket = ++ui.rowLinksTicket;
@@ -189,7 +192,7 @@ function syncRowLinks( ctx: Ctx, ui: UiState, items: PostListItem[] ): void {
 		return;
 	}
 	const ids = items.map( ( row ) => row.id );
-	const batches: Array< Promise< Record< string, RowActionLink[] > > > = [];
+	const batches: Array< Promise< Record< string, RowExtras > > > = [];
 	for ( let i = 0; i < ids.length; i += ROW_ACTIONS_BATCH ) {
 		batches.push( fetchRowActions( ctx.fetch, extra, modeOf( ctx.extra ), ids.slice( i, i + ROW_ACTIONS_BATCH ) ) );
 	}
@@ -198,21 +201,26 @@ function syncRowLinks( ctx: Ctx, ui: UiState, items: PostListItem[] ): void {
 			return;
 		}
 		const next = new Map< number, RowActionLink[] >();
+		const states = new Map< number, string[] >();
 		for ( const result of results ) {
 			if ( result.status !== 'fulfilled' ) {
 				continue;
 			}
-			for ( const [ id, links ] of Object.entries( result.value ) ) {
-				if ( Array.isArray( links ) ) {
-					next.set( Number( id ), links );
+			for ( const [ id, extras ] of Object.entries( result.value ) ) {
+				if ( Array.isArray( extras?.links ) ) {
+					next.set( Number( id ), extras.links );
+				}
+				if ( Array.isArray( extras?.states ) ) {
+					states.set( Number( id ), extras.states.filter( ( label ): label is string => typeof label === 'string' ) );
 				}
 			}
 		}
-		// The same links as before (none, on most sites): nothing to repaint.
-		if ( JSON.stringify( [ ...next ] ) === JSON.stringify( [ ...ui.rowLinks ] ) ) {
+		// The same links and labels as before (none, on most sites): nothing to repaint.
+		if ( JSON.stringify( [ [ ...next ], [ ...states ] ] ) === JSON.stringify( [ [ ...ui.rowLinks ], [ ...ui.rowStates ] ] ) ) {
 			return;
 		}
 		ui.rowLinks = next;
+		ui.rowStates = states;
 		++ui.rowLinksVersion;
 		ui.cellCache.clear();
 		ctx.repaint();
@@ -268,6 +276,7 @@ function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {
 			confirm: ( options ) => ctx.host.confirm?.( options ) ?? Promise.resolve( false ),
 			toast: ( title, err ) => toast( ctx, title, err ),
 			announce: ( action, ids ) => ctx.host.announce?.( 'post', action, ids ),
+			rowStates: ( rowId ) => ui.rowStates.get( rowId ) ?? [],
 			rowActions: {
 				links: ( rowId ) => ui.rowLinks.get( rowId ) ?? [],
 				trash: async ( ids ) => deselectOnSuccess( ctx, ids, await ctx.dispatch( 'trash', { ids } ) ),
