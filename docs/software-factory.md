@@ -151,6 +151,7 @@ The deterministic half of the factory is three scripts in `factory/bin/`, writte
 | `job reject <job>` | For an issue job in `needs-info` or `needs-human`: saves the operator's reason from stdin as `rejection.md` and moves the job to `rejected`. Refuses a PR job, whose PR is a contributor's. |
 | `job agents <job> <json>` | Records the routed agent set. Called by `route`. |
 | `job sync <job>` | Rederives the fields that come from files: the intake header, the round's gate and CI verdicts, each reviewer's verdict, and the cost. |
+| `job settle` | Finishes the waiting jobs (`needs-info`, `needs-human`, `reviewed`) that ended on GitHub, exactly as `job queue` would: `merged` once the PR is merged, `abandoned` once the PR or the issue is closed or the `factory` label is removed. It prints one line per job it moved. The dashboard runs it on a timer. A pass with nothing to move costs two GitHub calls. It leaves running jobs to `job queue`, because the run has agents on them, and skips a job another `job` process is working on until the next pass. |
 | `job summary [<job>...]` | A table of jobs with issue, stage, round, PR, cost and elapsed time, and the total cost. |
 
 A `<job>` argument is a job id (`004-dark-mode`) or the number of its issue or PR (`12`).
@@ -275,13 +276,15 @@ A job reaches `needs-human` when the builder is blocked, the rounds run out, CI 
 
 The review is the signal because submitting one is the moment a reviewer is done: GitHub sends the inline comments with it. Only reviews and comments from people who can push to the repository count (the factory asks GitHub for each author's permission), so a stranger cannot start a round on a public PR. One maintainer's open request for changes outweighs another's approval. An answer that arrives while a round is running is not lost: the `factory:answered` label stays on, and when the round ends the factory reads everything maintainers wrote since it last read their notes, not only what follows the latest escalation. An approval is the exception: it counts only when it follows the escalation, so it is an approval of the head that was escalated. The `factory:needs-human` label is on the PR as well as on the issue, and the factory's comment ends with these instructions.
 
-From the factory's session you can also tell it what to change with `/factory <your feedback>`, or run `/factory rework <n>` after commenting. To finish it, merge the PR: the next `job queue` records the merge and tears the job down. To drop it, tell the factory to reject it with your reason (issue jobs: the reason goes on the issue and the PR is closed), or close the PR or the issue, or remove the `factory` label.
+From the factory's session you can also tell it what to change with `/factory <your feedback>`, or run `/factory rework <n>` after commenting. To finish it, merge the PR: the dashboard's next look at GitHub, or the next `job queue`, records the merge and tears the job down. To drop it, tell the factory to reject it with your reason (issue jobs: the reason goes on the issue and the PR is closed), or close the PR or the issue, or remove the `factory` label.
 
 ## Cost and the dashboard
 
 `job sync` computes each job's API-equivalent cost from Claude Code's own subagent transcripts under the project's folder in `~/.claude/projects/`. Every factory prompt starts with `Job folder: <path>`, which ties a transcript to its job across sessions. The token usage of every assistant message in those transcripts is priced with `prices_usd_per_mtok`, cache writes and reads included. It is the price of the factory's agents at list rates, not the user's bill. A model missing from `prices_usd_per_mtok` is left out of the figure with a warning; the cost never blocks a move.
 
-`factory/dashboard.html` reads the `job.json` files and renders them. Serve the folder with `cd factory && python3 -m http.server` and open http://localhost:8000/dashboard.html.
+`factory/dashboard.html` reads the `job.json` files and renders them. Start it with `factory/bin/dashboard` and open http://localhost:8000/dashboard.html.
+
+The board only shows what is in `job.json`, and a job waiting for a person ends on GitHub, where no run is watching: you merge its PR, or close it. So the dashboard's server also runs `job settle` once a minute, and the card leaves Needs human (or Reviewed, or Intake) for Done without waiting for the next `/factory run`. That move is the same one `job queue` makes: it takes the waiting labels off, files the follow-up issues of a PR that delivered its issue in part, and tears down the job's stacks and worktree. `--every <seconds>` changes how often it looks and `--every 0` only serves the page; `--port` picks another port. The server listens on this machine only, because the job files hold issue text and costs; `--bind` opens it up.
 
 ## Design notes
 
