@@ -190,6 +190,42 @@ export const deskStyles = css`
 	padding-inline-start: 8px;
 }
 
+/* The labels plugins add beside a title (display_post_states): neutral,
+   in the status text's size. In the details pane they follow the status;
+   on the card they have a line of their own under the top row, so they
+   read in full however crowded that row is. Both wrap, and only a label
+   wider than the whole line ellipsizes. */
+.os-posts-desk__states {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	max-inline-size: 100%;
+	min-inline-size: 0;
+	margin-inline-start: 8px;
+	font-size: 10px;
+	line-height: 1.6;
+	vertical-align: middle;
+}
+
+.os-posts-desk__story > .os-posts-desk__states {
+	display: flex;
+	margin: -5px 0 12px;
+}
+
+.os-posts-desk__state {
+	flex: 0 1 auto;
+	min-inline-size: 0;
+	max-inline-size: 100%;
+	padding: 0 6px;
+	border-radius: 8px;
+	font-weight: 600;
+	color: var( --os-ui-fg-muted, #646970 );
+	background: var( --os-ui-surface-raised, #f1f1f2 );
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .os-posts-desk__story-content {
 	display: flex;
 	gap: 18px;
@@ -385,7 +421,6 @@ export const deskStyles = css`
 .os-posts-desk__inspector-actions {
 	display: flex;
 	align-items: center;
-	flex-wrap: wrap;
 	gap: 12px;
 	padding: 16px 20px;
 	border-block-start: 1px solid var( --os-ui-border, #dcdcde );
@@ -394,6 +429,36 @@ export const deskStyles = css`
 
 .os-posts-desk__inspector-actions a {
 	color: var( --os-ui-accent, #2271b1 );
+	white-space: nowrap;
+}
+
+/* A card's and the details pane's actions stay one row with the row's
+   menu last: a label gives way before anything wraps onto a line of its
+   own. */
+.os-posts-desk__story-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-inline-size: 0;
+	--os-ui-button-padding: 6px 10px;
+}
+
+.os-posts-desk__story-actions > os-button,
+.os-posts-desk__inspector-actions > os-button {
+	min-inline-size: 0;
+}
+
+.os-posts-desk__story-actions > os-button::part(button),
+.os-posts-desk__inspector-actions > os-button::part(button) {
+	inline-size: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.os-posts-desk__story-actions > os-action-menu,
+.os-posts-desk__inspector-actions > os-action-menu {
+	flex: 0 0 auto;
 }
 
 .os-posts-desk__empty {
@@ -577,6 +642,20 @@ export const deskStyles = css`
 .desktop-mode-pages .os-posts-desk__story-foot > .os-posts-desk__byline {
 	flex-basis: 100%;
 	margin-block-end: 4px;
+}
+
+/* Quick edit (Pages): one field per row, each as wide as the dialog. */
+.os-posts-quick-edit__fields {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.os-posts-quick-edit__fields > os-text-field,
+.os-posts-quick-edit__fields > os-number-field,
+.os-posts-quick-edit__fields > os-select {
+	display: block;
+	inline-size: 100%;
 }
 
 html[data-os-mode="mobile"] .desktop-mode-posts .os-app-list__toolbar-left {

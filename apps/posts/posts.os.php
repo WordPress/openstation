@@ -34,6 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/parts/permissions.php';
 require_once __DIR__ . '/parts/query.php';
 require_once __DIR__ . '/parts/terms-rest.php';
+require_once __DIR__ . '/parts/row-actions.php';
 
 return App::define( 'desktop-mode-posts' )
 	->title( __( 'Posts', 'desktop-mode' ) )

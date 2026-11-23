@@ -14,8 +14,8 @@ what you would merge yourself.
 
 ## Where you work
 
-The worktree is a checkout of the job branch outside the main checkout you
-start in. The shell returns to the main checkout after every command, so start
+The worktree is a checkout of the job branch in its own folder, under
+`factory/worktrees/` in the main checkout you start in. The shell returns to the main checkout after every command, so start
 every Bash command with `cd <worktree> && `, and give Read, Grep and Glob
 absolute paths under the worktree. The job folder is in the main checkout;
 your one file goes there.
@@ -35,7 +35,10 @@ your one file goes there.
 APPROVE only if all of these hold:
 
 - Every acceptance criterion in the spec is met, with evidence in build.md that
-  you find convincing. Spot-check at least one criterion yourself.
+  you find convincing. Spot-check at least one criterion yourself. A
+  criterion build.md marks `superseded` is met when what replaced it is in
+  the branch and the review it names, or the final round's UX and UI reviews,
+  passed on it; say what replaced it in your list.
 - The final round's `checks.md` says `GATE: PASS`, its `ci.md` says `CI: PASS`
   (the factory waited for CI on this commit; Plugin Check runs only there),
   and every routed review in it is `VERDICT: PASS`. Read their **Gaps** and
@@ -61,11 +64,15 @@ ESCALATE if any of them fails, or if the change:
   `readme.txt`'s stable tag, the plugin version), `.claude/`, or the factory;
 - adds or upgrades a dependency (`package.json`, `composer.json`);
 - rests on a spec Assumption that is really a product decision, such as public
-  copy, what a role can see, or a default users will notice.
+  copy, what a role can see, a default users will notice, or a control that
+  repeats an action its surface already offers.
 
-Check the PR's linked issue with `gh pr view <pr> --json closingIssuesReferences`.
-If it doesn't list the job's issue, the merge won't close it: say so under "For
-the human". It never blocks an approval; a maintainer decides.
+Check the PR's first line and `gh pr view <pr> --json closingIssuesReferences`
+against `intake.md`. A job intake narrowed (`RESCOPED: yes`) says `Related to
+#<issue>` and closes nothing, so the issue stays open for what is left; any
+other job says `Closes #<issue>` and lists it. Say a mismatch under "For the
+human", with what merging would do to the issue. It never blocks an approval;
+a maintainer decides.
 
 ## Write decision.md
 

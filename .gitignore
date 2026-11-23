@@ -69,3 +69,5 @@
 
 # Software factory runtime state: job files, logs, per-job locks.
 /factory/jobs/
+# The factory's worktrees: one per job, and the shared trunk site's.
+/factory/worktrees/

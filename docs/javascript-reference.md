@@ -7595,7 +7595,7 @@ otherwise go stale after a day. The server's
 ships a fresh `{ action: nonce }` map on every tick under the
 `desktop_mode_nonces` heartbeat field; the framework overwrites
 its own cached values in place. Defaults cover `wp_rest`,
-`desktop-mode-plugins`, and `updates`.
+`desktop-mode-plugins`, `updates`, and `desktop-mode-posts-row-actions`.
 
 **Out of the box**: the shell-wide `restNonce` and every
 per-window blob's `restNonce` are refreshed automatically — most
@@ -7958,7 +7958,7 @@ snapshots the transcript before appending the new message.
 ### Async invocation (Experimental)
 
 Add `async: true, requestId: '<uuid>'` to the invocation body to receive HTTP
-202 with `{ jobId, status, createdAt, pollAfter, result, error }`. The in-tree
+202 with `{ jobId, status, createdAt, pollAfter, result, error, progress }`. The in-tree
 chat, Send to, and drag intakes use this path. `requestId` is required in async
 mode; reusing it with identical input returns the same job, while different
 input returns 409. Async messages are limited to 20,000 bytes.
@@ -7967,9 +7967,34 @@ Poll `GET /agents/{id}/jobs/{jobId}` with the same user's REST authentication.
 States are `queued`, `running`, `completed` and `failed`. `result` is null until
 completion, then contains the usual invocation result including confirmation
 buttons. `error` is null or `{ code, message }`. `createdAt` is Unix seconds;
-`pollAfter` is a suggested delay in seconds. Unknown, wrong-agent, and another
+`pollAfter` is a suggested delay in seconds. `progress` is what the run has
+called and spent so far, `{ turn, toolCalls: [ { name, args, error } ], usage,
+model, updatedAt }`, written after each tool round (`turn` is the last recorded
+round, `updatedAt` Unix seconds). `usage` is `{ prompt, completion, total }`
+summed over the turns up to the last recorded tool round, and `model` the last
+`{ id, name }` the provider resolved; both are `null` when the provider
+reported neither. For a failed run `usage` is a lower bound: it leaves out the
+turn that failed and the forced final turn at the turn cap. It is set while the job is `running` and kept when it `failed`,
+interrupted ones included; it is `null` before the first round, while `queued`
+and once `completed`, where `result.toolCalls` carries the full trace. It never
+contains tool outputs. The chat shows it as the pending row's "Tool calls"
+list, and a failed run's error row keeps that list and saves it with the
+conversation. Unknown, wrong-agent, and another
 user's job IDs return 404, even for administrators. Responses use
 `Cache-Control: no-store, private`.
+
+A synchronous `POST /agents/{id}/invoke` holds the request open for the whole
+run, so on a site behind a reverse proxy that cuts long requests (Cloudflare
+answers HTTP 524 after about 100 seconds), send `async: true` and poll instead.
+
+A job reads as `failed` with the code `openstation_agent_job_interrupted` when
+its background worker stopped without storing a result. That shows two hours
+after the job was created, or sooner, while it is `running`, once the worker
+has been silent past the stale bound: about seven minutes by default, see
+[`openstation_agent_job_stale_after`](./hooks-reference.md#openstation_agent_job_stale_after--experimental-filter).
+From then on a new submission to the same agent is admitted. A worker that was
+only slow can still store its result later; a later poll of that job reports
+what it stored.
 
 Only one outstanding job per human/agent pair is admitted (409 for a different
 request while busy). The client backs off its sequential polling and uses the
@@ -8009,7 +8034,7 @@ seed the cross-bundle store and open the window:
 // Both bundles share one live object via createSharedStore.
 const store = wp.os.createSharedStore( 'desktop-mode/agents-chat', () => ( {
 	activeAgent: null,    // { id, name, description, avatarUrl } | null
-	transcripts: {},      // Record<agentId, Array<{ role, text, attachment?, toolCalls?, callToActions?, ctaUsed?, at, pending? }>>
+	transcripts: {},      // Record<agentId, Array<{ role, text, attachment?, toolCalls?, callToActions?, ctaUsed?, at, pending?, jobId? }>>
 	conversationIds: {},  // Record<agentId, number | null>: the saved conversation behind each transcript
 	conversationsRev: 0,  // bumped after every conversation save or delete
 } ) );
@@ -8019,12 +8044,18 @@ wp.os.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
 ```
 
 The store keeps nothing across a reload, but conversations are not
-session-only: after every completed exchange the chat saves the
-transcript on the server (`POST /agents/conversations` the first time,
+session-only: the chat saves the transcript on the server
+(`POST /agents/conversations` the first time,
 `PUT /agents/conversations/{id}` afterwards), as a `desktop_mode_chat`
-post owned by the human. `conversationIds` records which saved
+post owned by the human, twice per exchange: when the server accepts the
+job, and again when it ends. `conversationIds` records which saved
 conversation each live transcript belongs to; `conversationsRev` is how
 the sidebar knows to refetch its list without polling.
+
+`jobId` is the async job a `pending` row is waiting on. The first save
+stores the pending row with it, so opening that conversation after a
+reload resumes polling the job (status reads only) and settles the row
+when it ends. A settled row has `pending: false` and no `jobId`.
 
 ### Drag & drop intake
 

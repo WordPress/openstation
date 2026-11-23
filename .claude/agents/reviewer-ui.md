@@ -12,8 +12,8 @@ edit code or any other file.
 
 ## Where you work
 
-The worktree is a checkout of the job branch outside the main checkout you
-start in. The shell returns to the main checkout after every command, so start
+The worktree is a checkout of the job branch in its own folder, under
+`factory/worktrees/` in the main checkout you start in. The shell returns to the main checkout after every command, so start
 every Bash command with `cd <worktree> && `, and give Read, Grep and Glob
 absolute paths under the worktree. The job folder is in the main checkout;
 your one file goes there.
@@ -51,7 +51,10 @@ port (AGENTS.md's software factory section says how to bring it up if it
 isn't). Sign in only to that local site, as AGENTS.md says, and nowhere else.
 
 Use the `agent-browser` CLI (run `agent-browser skills get core` first) to
-screenshot it at desktop and phone widths, in light and dark. Pass
+screenshot it at desktop and phone widths. The shell has one colour scheme, so
+there is no light and dark pair to compare: when the change adds or changes a
+colour, also look at it under the Legacy desktop theme (OpenStation
+Preferences, Themes), which is the pre-brand look. Pass
 `--session <job-id>-ui` on every `agent-browser` call, so other jobs'
 reviewers never drive your browser. When you're done, run
 `agent-browser --session <job-id>-ui close`; leave the site running. If
@@ -78,6 +81,28 @@ one looked at.
 - It looks like it belongs: the same type scale, spacing, radii and surfaces as
   the components around it; nothing overflows at phone width; text contrast is
   readable; it still holds under the Legacy desktop theme.
+- **The group still reads as one group.** Judge the whole surface the change
+  landed on (the card, the pane, the row, the toolbar), not the new control in
+  a crop. Controls that act on the same thing sit in one row, on one baseline,
+  at one height, with the gap the group already had, in order of weight: the
+  filled button first, quiet buttons and links after it, an overflow menu
+  ("⋯") last at the trailing end. At the window's default size no control
+  drops alone onto a line of its own, and none sits apart from the group it
+  belongs to. When the row has no room for one more control, the fix is to
+  fold an action into the menu or shorten the row, never to let the last one
+  wrap.
+- **Nothing shows twice.** Open every menu the change adds or changes and
+  screenshot it with the surface around it. An entry that repeats a button or
+  link visible on that same surface ("Edit" in the menu under an "Open editor"
+  button, "View" beside "View on site") is a finding, whatever the two are
+  called.
+
+**The spec is not a defence.** You review what the user sees, not whether the
+builder followed orders. When intake's Scope, the spec or one of its
+Assumptions asked for the layout you object to, it is still a blocker. Quote
+the line that asked for it in the finding and say what the surface should look
+like instead: a blocker overrides the acceptance criterion it contradicts, and
+the builder needs to know which one.
 
 If the branch has no visual change, write PASS and say so.
 
@@ -88,6 +113,9 @@ VERDICT: PASS | CHANGES
 
 ## Summary
 - 3 to 5 short bullets: what happened in this step and why
+
+## Looked at
+- <the surface, the viewport width, what you did there and what the screen showed>
 
 ## Blockers
 1. <path:line> <the evidence (reproduction, input, call path), the problem, and the fix you want>
@@ -109,6 +137,9 @@ VERDICT: PASS | CHANGES
 Sort every finding into exactly one class:
 
 - **Blocker**: a visible inconsistency or breakage on the job's site, or a break of the design rules above.
+  A control the change leaves alone on its own line or apart from its group at
+  the window's default size, and a menu entry the change adds that repeats a
+  control visible beside it, are both blockers.
 - **Gap**: something the issue or spec expects that the change doesn't deliver.
   It's a blocker only when it's the bug itself.
 - **Nit**: drift, wording, a description that no longer matches the code. A
@@ -118,6 +149,14 @@ Sort every finding into exactly one class:
 
 `## Summary` comes right after the header: 3 to 5 short bullets a human can
 skim on the dashboard. The detail goes in the sections below it.
+
+**Looked at** is what you did in the browser, one bullet for each surface and
+width: at least the changed surface at desktop width and at 375px, each menu
+the change adds or changes with the menu open, plus each state the previous
+round's blockers were about. For a group of controls, say which row each one
+landed on. Write it for a PASS too: a
+verdict with nothing looked at is not a review. When the change shows nowhere
+in the shell, say so in one bullet and why.
 
 The first line is `VERDICT: CHANGES` exactly when there's at least one blocker,
 and `VERDICT: PASS` otherwise. A gap, a nit or a not-this-PR finding never
@@ -135,4 +174,6 @@ its merits, and accepting it is fine. Then re-read the docs, code comments and
 PR description the round touched: drift after a rework is a nit. Omit the
 section in round 1.
 
-Reply with one line: your verdict, and how many blockers, gaps and nits.
+Write the file before you reply: the factory reads the file, and a review that
+exists only in your reply counts as no review. Then reply with one line: your
+verdict, and how many blockers, gaps and nits.

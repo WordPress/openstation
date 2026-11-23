@@ -6,12 +6,24 @@ import { RestError, restErrorFromBody } from './core/api-client';
 import type { AgentInvokeResult } from './agents-types';
 import type { RestAuth } from './agents-conversations';
 
+/** What a running or failed job has called so far; never tool outputs. */
+export interface AgentJobProgress {
+	turn: number;
+	toolCalls: Array< { name: string; args: Record< string, unknown >; error: string | null } >;
+	// Optional: an older server records no spend.
+	usage?: { prompt: number; completion: number; total: number } | null;
+	model?: { id: string; name: string } | null;
+	updatedAt: number;
+}
+
 export interface AgentJobStatus {
 	jobId: string;
 	status: 'queued' | 'running' | 'completed' | 'failed';
 	pollAfter: number;
 	result: AgentInvokeResult | null;
 	error: { code: string; message: string } | null;
+	// Optional: an older server sends no progress at all.
+	progress?: AgentJobProgress | null;
 }
 
 export interface AgentJobInput {
@@ -29,11 +41,17 @@ export function agentRequestId(): string {
 	return `${ hex.slice( 0, 8 ) }-${ hex.slice( 8, 12 ) }-${ hex.slice( 12, 16 ) }-${ hex.slice( 16, 20 ) }-${ hex.slice( 20 ) }`;
 }
 
-/** A failed job request, plus whether the poller should try again. */
-class JobRequestError extends RestError {
+/** A failed job request, whether the poller should try again, and a failed job's progress. */
+export class JobRequestError extends RestError {
 	readonly retryable: boolean;
+	readonly progress: AgentJobProgress | null;
 
-	constructor( message: string, retryable: boolean, base: RestError = new RestError( '', { status: 0 } ) ) {
+	constructor(
+		message: string,
+		retryable: boolean,
+		base: RestError = new RestError( '', { status: 0 } ),
+		progress: AgentJobProgress | null = null,
+	) {
 		super( message, {
 			status: base.status,
 			code: base.code,
@@ -42,6 +60,7 @@ class JobRequestError extends RestError {
 		} );
 		this.name = 'JobRequestError';
 		this.retryable = retryable;
+		this.progress = progress;
 	}
 }
 
@@ -92,27 +111,57 @@ function delay( ms: number ): Promise< void > {
 	return new Promise( ( resolve ) => window.setTimeout( resolve, ms ) );
 }
 
+export type AgentJobStatusListener = (
+	status: 'queued' | 'running' | 'reconnecting',
+	progress?: AgentJobProgress | null,
+) => void;
+
 /**
  * Submit once logically, then poll until terminal. Network retries reuse the UUID.
  * Each status fetch finishes before the next timer starts; hidden tabs poll slower.
  */
-export async function runAgentJob(
+export function runAgentJob(
 	agentId: number,
 	input: AgentJobInput,
 	rest: RestAuth,
 	requestId: string,
-	onStatus: ( status: 'queued' | 'running' | 'reconnecting' ) => void = () => {},
+	onStatus: AgentJobStatusListener = () => {},
+): Promise< AgentInvokeResult > {
+	return pollAgentJob( agentId, input, rest, requestId, onStatus );
+}
+
+/**
+ * Poll a job submitted earlier (a pending chat row saved before a reload)
+ * until terminal. Status reads only: it never sends `POST /invoke`.
+ */
+export function resumeAgentJob(
+	agentId: number,
+	rest: RestAuth,
+	jobId: string,
+	onStatus: AgentJobStatusListener = () => {},
+): Promise< AgentInvokeResult > {
+	return pollAgentJob( agentId, null, rest, jobId, onStatus );
+}
+
+/** The one poll loop; a null input starts it already submitted. */
+async function pollAgentJob(
+	agentId: number,
+	input: AgentJobInput | null,
+	rest: RestAuth,
+	requestId: string,
+	onStatus: AgentJobStatusListener,
 ): Promise< AgentInvokeResult > {
 	const base = `desktop-mode/v1/agents/${ agentId }`;
 	const deadline = Date.now() + 2 * 60 * 60 * 1000;
-	let submitted = false;
+	let submitted = input === null;
 	let interval = 2000;
 	while ( Date.now() < deadline ) {
 		try {
+			const submission = ! submitted && input ? { ...input, async: true as const, requestId } : undefined;
 			const body = await request(
 				rest,
-				submitted ? `${ base }/jobs/${ requestId }` : `${ base }/invoke`,
-				submitted ? undefined : { ...input, async: true, requestId },
+				submission ? `${ base }/invoke` : `${ base }/jobs/${ requestId }`,
+				submission,
 			);
 			// Compatibility with an older server during a rolling upgrade.
 			if ( ! ( 'jobId' in body ) ) {
@@ -126,12 +175,17 @@ export async function runAgentJob(
 				return body.result;
 			}
 			if ( body.status === 'failed' ) {
-				throw new JobRequestError( body.error?.message || __( 'The agent job failed.', 'desktop-mode' ), false );
+				throw new JobRequestError(
+					body.error?.message || __( 'The agent job failed.', 'desktop-mode' ),
+					false,
+					undefined,
+					body.progress ?? null,
+				);
 			}
 			if ( body.status !== 'queued' && body.status !== 'running' ) {
 				throw new JobRequestError( __( 'The server returned an invalid job state.', 'desktop-mode' ), false );
 			}
-			onStatus( body.status );
+			onStatus( body.status, body.progress ?? null );
 			interval = Math.min( 10000, Math.max( interval * 1.25, ( body.pollAfter || 3 ) * 1000 ) );
 		} catch ( error ) {
 			if ( error instanceof JobRequestError && ! error.retryable ) {

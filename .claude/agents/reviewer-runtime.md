@@ -103,7 +103,23 @@ test at real size; responsive UIs hide controls under a width (Gutenberg's
 back button below about 782 px); coordinates move between runs, so locate
 elements again before every click; a fresh site has the shell off until the
 `desktop_mode_mode` user meta is `1`; WooCommerce sends the first login to
-wc-admin.
+wc-admin; `agent-browser` can't hold a modifier during a click (Shift+click
+arrives with `shiftKey: false`) and its mouse wheel fires at the page's corner,
+so send those through the session's CDP connection
+(`Input.dispatchMouseEvent`, `Input.dispatchMouseWheelEvent`) and confirm the
+event the page received.
+
+**Screenshots for the PR.** For each behaviour a person can see, save one
+pair in `<job folder>/round-<N>/runtime/`: `before-<name>.png` taken on trunk
+and `after-<name>.png` taken on the job's site. Both carry the same `<name>`,
+lowercase words joined by hyphens (`dock-menu-open`), and show the same
+viewport, the same seeded state and the same moment. Frame the change, not the
+whole desktop. The factory uploads every complete pair and shows them side by
+side on the PR, where anyone can see them, so a pair shows only the two local
+sites. Keep everything else you save under another name. A change nobody can
+see gets no pair. Take the pairs again in every round: the factory reads only
+this round's folder, and an earlier round's `after-` shows a build that has
+since changed.
 
 Close both browser sessions when you're done and leave both sites running.
 
@@ -183,4 +199,6 @@ its merits, and accepting it is fine. Then re-read the docs, code comments and
 PR description the round touched: drift after a rework is a nit. Omit the
 section in round 1.
 
-Reply with one line: your verdict, and how many blockers, gaps and nits.
+Write the file before you reply: the factory reads the file, and a review that
+exists only in your reply counts as no review. Then reply with one line: your
+verdict, and how many blockers, gaps and nits.

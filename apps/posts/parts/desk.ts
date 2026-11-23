@@ -6,6 +6,7 @@ import '../../../src/ui/components/os-stat/os-stat';
 import '../../../src/ui/components/os-select/os-select';
 import { buildColumns, pluginColumns, type ColumnFilterData } from './columns';
 import { authorOf, buildEditPostUrl, featuredMediaOf, STATUS_LABELS, termRecordsOf, titleOf, type CellEnv } from './cells/env';
+import { rowActionsMenu, type RowActionsMenuCache, type RowActionsShown } from './row-actions';
 import { tableOf, type Ctx } from './window-context';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import type { PostListItem } from './types';
@@ -23,14 +24,23 @@ export interface DeskState {
 	focused: number | null;
 	inspectorKey: string;
 	fields: Array< { key: string; label: string; node: unknown } >;
+	/** The cards' and the details pane's row menus, by place, kept across repaints. */
+	menus: RowActionsMenuCache;
+	/** The card whose checkbox was toggled last: where a Shift+click range starts. */
+	anchor: number | null;
 }
 
 /** A desk opening on the layout this user last picked for the window. */
 export const freshDesk = ( viewKey: DeskViewKey ): DeskState => ( {
 	viewKey,
 	view: storedListWindowView( viewKey ),
-	filters: false, peek: false, focused: null, inspectorKey: '', fields: [],
+	filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map(), anchor: null,
 } );
+
+/** A row's actions menu on a desk surface, or nothing outside the app. */
+function rowMenu( ui: DeskState, env: CellEnv, slot: string, row: PostListItem, shown: RowActionsShown ): HTMLElement | string {
+	return env.rowActions ? rowActionsMenu( ui.menus, slot, row, env, env.rowActions, shown ) : '';
+}
 
 /** Excerpts are text, never executable markup from content. */
 export function excerptOf( row: PostListItem ): string {
@@ -52,6 +62,12 @@ function edit( ctx: Ctx, row: PostListItem ): void {
 
 function status( row: PostListItem ): TemplateResult {
 	return html`<span class="os-posts-desk__status" data-status=${ row.status }>${ STATUS_LABELS[ row.status ] ?? row.status }</span>`;
+}
+
+/** The labels plugins add beside the row's title (`display_post_states`), as text. */
+function states( env: CellEnv, row: PostListItem ): TemplateResult | string {
+	const labels = env.rowStates?.( row.id ) ?? [];
+	return labels.length ? html`<span class="os-posts-desk__states">${ labels.map( ( label ) => html`<span class="os-posts-desk__state" title=${ label }>${ label }</span>` ) }</span>` : '';
 }
 
 function pageRole( ctx: Ctx, row: PostListItem ): string {
@@ -153,7 +169,31 @@ function pluginStat( col: OsTableColumn< PostListItem >, row: PostListItem ): Te
 	return html`<div class="os-posts-desk__plugin-stat" data-column=${ col.key }><span class="os-posts-desk__plugin-stat-value">${ node }</span><span class="os-posts-desk__plugin-stat-label">${ col.label || col.key }</span></div>`;
 }
 
-function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
+/** The loaded card ids from the anchor to `id`, both ends included, or null without a range. */
+function cardRange( ctx: Ctx, ui: DeskState, id: number ): number[] | null {
+	if ( ui.anchor === null || ui.anchor === id ) {
+		return null;
+	}
+	const ids = ( ctx.data?.list.items ?? [] ).map( ( row ) => row.id );
+	const from = ids.indexOf( ui.anchor );
+	const to = ids.indexOf( id );
+	return from < 0 || to < 0 ? null : ids.slice( Math.min( from, to ), Math.max( from, to ) + 1 );
+}
+
+/** A card checkbox: Shift extends from the last toggled card, the way the table's rows do. */
+function toggleCard( ctx: Ctx, ui: DeskState, id: number, checked: boolean, shift: boolean ): void {
+	const range = shift ? cardRange( ctx, ui, id ) : null;
+	ui.anchor = id;
+	if ( range ) {
+		tableOf( ctx )?.setSelected( range, checked );
+	} else if ( checked ) {
+		tableOf( ctx )?.select( id );
+	} else {
+		tableOf( ctx )?.deselect( id );
+	}
+}
+
+function story( ctx: Ctx, ui: DeskState, env: CellEnv, row: PostListItem, index: number, focused: number | undefined, extras: OsTableColumn< PostListItem >[] = [] ): TemplateResult {
 	const pages = ctx.extra.mode === 'pages';
 	const title = titleOf( row ) || __( '(no title)' );
 	const media = featuredMediaOf( row );
@@ -172,6 +212,8 @@ function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | un
 		ctx.repaint();
 		focusControl( ctx.root, '[data-os-posts-inspect-close]' );
 	};
+	// `os-checkbox-change` carries no modifier keys; the `click` before it does.
+	let shift = false;
 	return html`<article class="os-posts-desk__story ${ focused === row.id ? 'is-current' : '' }" data-story-id=${ row.id }>
 		<div class="os-posts-desk__story-top">
 			${ status( row ) }
@@ -179,14 +221,15 @@ function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | un
 			${ contentId( ctx, row ) }
 			<os-checkbox aria-label=${ sprintf( /* translators: %s: content title. */ __( 'Select %s' ), title ) }
 				class="os-posts-desk__select" ?checked=${ tableOf( ctx )?.selection.has( row.id ) ?? false }
+				@click=${ ( e: MouseEvent ) => {
+ shift = e.shiftKey;
+} }
 				@os-checkbox-change=${ ( e: Event ) => {
- if ( ( e as CustomEvent ).detail.checked ) {
- tableOf( ctx )?.select( row.id );
-} else {
- tableOf( ctx )?.deselect( row.id );
-}
+ toggleCard( ctx, ui, row.id, ( e as CustomEvent ).detail.checked, shift );
+ shift = false;
 } }></os-checkbox>
 		</div>
+		${ states( env, row ) }
 		<div class="os-posts-desk__story-content">
 			${ artwork }
 			<div class="os-posts-desk__story-copy">
@@ -206,8 +249,11 @@ function story( ctx: Ctx, ui: DeskState, row: PostListItem, focused: number | un
 		${ row.openstation_lock ? html`<p class="os-posts-desk__lock"><span class="dashicons dashicons-lock" aria-hidden="true"></span>${ sprintf( /* translators: %s: person editing. */ __( '%s is editing' ), row.openstation_lock.userName ) }</p>` : '' }
 		<footer class="os-posts-desk__story-foot">
 			<span class="os-posts-desk__byline">${ authorOf( row ).name }<span aria-hidden="true"> · </span><os-relative-time datetime=${ row.modified_gmt || row.date_gmt }></os-relative-time></span>
-			<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
-			<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
+			<span class="os-posts-desk__story-actions">
+				<os-button variant="ghost" @click=${ () => edit( ctx, row ) }>${ __( 'Edit' ) }<span aria-hidden="true"> ↗</span></os-button>
+				<os-button variant="secondary" data-inspect-id=${ row.id } @click=${ open }>${ __( 'Details' ) }</os-button>
+				${ rowMenu( ui, env, `card:${ index }`, row, [ 'edit' ] ) }
+			</span>
 		</footer>
 	</article>`;
 }
@@ -246,7 +292,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 		<header class="os-posts-desk__inspector-head"><span>${ ctx.extra.mode === 'pages' ? __( 'PAGE DETAILS' ) : __( 'STORY DETAILS' ) }</span><os-button variant="ghost" data-os-posts-inspect-close @click=${ close }>${ __( 'Close details' ) }</os-button></header>
 		<div class="os-posts-desk__inspector-scroll">
 			${ media ? html`<img class="os-posts-desk__cover" src=${ media.url } alt=${ media.alt } @error=${ ( e: Event ) => ( e.target as HTMLElement ).hidden = true }>` : '' }
-			${ status( row ) }
+			${ status( row ) }${ states( env, row ) }
 			<h2>${ titleOf( row ) || __( '(no title)' ) }</h2>
 			<p class="os-posts-desk__byline">${ authorOf( row ).name }</p>
 			${ row.openstation_lock ? html`<os-notice tone="warning">${ sprintf( /* translators: %s: person editing. */ __( '%s is currently editing' ), row.openstation_lock.userName ) }</os-notice>` : '' }
@@ -256,6 +302,7 @@ function inspector( ctx: Ctx, ui: DeskState, env: CellEnv, filters: ColumnFilter
 		</div>
 		<footer class="os-posts-desk__inspector-actions"><os-button variant="primary" @click=${ () => edit( ctx, row ) }>${ __( 'Open editor' ) }<span aria-hidden="true"> ↗</span></os-button>
 			${ row.link && row.status === 'publish' ? html`<a href=${ row.link } target="_blank" rel="noopener noreferrer">${ __( 'View on site' ) } ↗</a>` : '' }
+			${ rowMenu( ui, env, 'inspector', row, [ 'edit', 'view' ] ) }
 		</footer>
 	</aside>`;
 }
@@ -267,9 +314,15 @@ export function renderDesk( ctx: Ctx, ui: DeskState, env: CellEnv, filters: Colu
 	// Resolved once per paint, not per card: the columns filter runs on every
 	// call, and a feed of fifty cards should ask it once.
 	const extras = rows.length ? pluginColumns( env, filters, hidden ) : [];
+	// Cards past the end of the list hold no menu any more.
+	for ( const slot of ui.menus.keys() ) {
+		if ( slot.startsWith( 'card:' ) && Number( slot.slice( 5 ) ) >= rows.length ) {
+			ui.menus.delete( slot );
+		}
+	}
 	return html`<div class="os-posts-desk__workspace ${ ui.focused !== null && focused ? 'has-detail' : '' }" ?hidden=${ ui.view !== 'desk' }>
 		<div class="os-posts-desk__feed" aria-label=${ ctx.extra.mode === 'pages' ? __( 'Page directory' ) : __( 'Stories' ) }>
-			${ rows.length ? rows.map( ( row ) => story( ctx, ui, row, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
+			${ rows.length ? rows.map( ( row, index ) => story( ctx, ui, env, row, index, ui.peek ? focused?.id : undefined, extras ) ) : html`<div class="os-posts-desk__empty"><span class="dashicons dashicons-welcome-write-blog" aria-hidden="true"></span><h3>${ ctx.loading ? __( 'Opening your workspace…' ) : emptyTitle }</h3><p>${ ctx.loading ? __( 'Your content will appear here.' ) : __( 'Try a different search or change the status filter.' ) }</p></div>` }
 			${ tail ?? '' }
 		</div>
 		${ ui.peek ? inspector( ctx, ui, env, filters, hidden, focused ) : '' }

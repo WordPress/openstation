@@ -63,6 +63,33 @@ export interface ListExtra {
 	frontPageId?: number;
 	postsPageId?: number;
 	pageTemplates?: Record< string, string >;
+	/** `admin-ajax.php`, where the row-actions endpoint answers. */
+	ajaxUrl?: string;
+	/** That endpoint's nonce — read at call time, the shell's nonce refresh rewrites it. */
+	rowActionsNonce?: string;
+}
+
+/**
+ * A link a plugin adds to a row on `edit.php` (`page_row_actions` /
+ * `post_row_actions`), from `parts/row-actions.php`. `admin` is true
+ * when the page is in this site's wp-admin, which opens as a window.
+ */
+export interface RowActionLink {
+	key: string;
+	label: string;
+	url: string;
+	admin: boolean;
+}
+
+/**
+ * What plugins add to one row, from `parts/row-actions.php`: its links
+ * and the labels `display_post_states` puts beside its title, Core's own
+ * states left out. A label is decoded text (tags stripped, entities
+ * decoded), so it can hold a literal `<`: write it as text, never as HTML.
+ */
+export interface RowExtras {
+	links: RowActionLink[];
+	states: string[];
 }
 
 /**
@@ -128,6 +155,39 @@ export interface PostListItem {
 		} >;
 	};
 	[ key: string ]: unknown;
+}
+
+/** One page as the edit-context read returns it: what quick edit fills from. */
+export interface PageEditRecord {
+	id: number;
+	title: { raw: string };
+	slug: string;
+	status: string;
+	parent: number;
+	menu_order: number;
+	template: string;
+	comment_status: 'open' | 'closed';
+	/** Core's links; `wp:action-publish` is there when the user may publish. */
+	_links?: Record< string, unknown >;
+}
+
+/** A page the parent picker can offer. */
+export interface PageParentOption {
+	id: number;
+	title: string;
+	parent: number;
+	menu_order: number;
+}
+
+/** The fields quick edit writes, under their REST names. */
+export interface PagePatch {
+	title?: string;
+	slug?: string;
+	status?: string;
+	parent?: number;
+	menu_order?: number;
+	template?: string;
+	comment_status?: 'open' | 'closed';
 }
 
 /** Snapshot of the outbound query — `PostsWindowContext.getCurrentParams()`. */
@@ -248,9 +308,10 @@ export interface PostsWindowContext {
 /**
  * A bulk action that appears in the toolbar when one or more rows
  * are selected. The shipped defaults are "Move to trash" and "Restore"
- * (swapped dynamically depending on view status); plugins append/replace
- * via the `openstation.postsWindow.bulkActions` filter, whose second
- * argument is `{ mode: PostsMode }`.
+ * (swapped dynamically depending on view status), plus "Switch to draft"
+ * in the Pages window (hidden in the Trash and Drafts views); plugins
+ * append/replace via the `openstation.postsWindow.bulkActions` filter,
+ * whose second argument is `{ mode: PostsMode }`.
  */
 export interface BulkAction {
 	/** Stable id — used as a key, also the `data-os-posts-bulk-action` on the button. */

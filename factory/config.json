@@ -8,10 +8,14 @@
   "ci_timeout_minutes": 45,
   "env": "wp-env",
   "pr_changes_limit": 3,
+  "max_followups": 5,
+  "sync_waiting_prs": true,
+  "slack_channel": "openstation",
   "labels": {
     "queue": "factory",
     "needs_info": "factory:needs-info",
     "needs_human": "factory:needs-human",
+    "answered": "factory:answered",
     "trusted": "factory:trusted"
   },
   "routing": {

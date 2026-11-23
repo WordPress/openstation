@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/parts/permissions.php';
 require_once __DIR__ . '/parts/query.php';
 require_once dirname( __DIR__ ) . '/posts/parts/query.php';
+require_once dirname( __DIR__ ) . '/posts/parts/row-actions.php';
 
 return App::define( 'desktop-mode-pages' )
 	->title( __( 'Pages', 'desktop-mode' ) )
@@ -100,6 +101,12 @@ return App::define( 'desktop-mode-pages' )
 		'restore',
 		static function ( State $state, Os $os, array $args ) {
 			openstation_posts_app_restore( $os, $args, 'page' );
+		}
+	)
+	->action(
+		'draft',
+		static function ( State $state, Os $os, array $args ) {
+			openstation_posts_app_draft( $os, $args, 'page' );
 		}
 	)
 	->watch( 'page' )

@@ -3476,7 +3476,7 @@ Every JS hook below is also documented on `wp.hooks` so plugins can register wit
 |---|---|---|---|
 | `openstation.postsWindow.columns` | filter | built-in 5 columns | `OsTableColumn< PostListItem >[]` — append, replace, or remove cells. Second arg: `{ mode: 'posts' \| 'pages' }`, the window the columns are for. |
 | `openstation.postsWindow.statusSegments` | filter | All / Published / Drafts / Pending / Scheduled / Trash | `StatusSegment[]` — `{ value, label }` pairs. `value` is sent verbatim as `?status=…`; use `''` for "All" (the bundle remaps to `?status=any`). |
-| `openstation.postsWindow.bulkActions` | filter | two entries: "Move to trash" (`id: 'trash'`) and "Restore" (`id: 'restore'`) | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. `confirm` is `string \| ( count: number ) => string`; the function form is the one `_n()` can pluralize. The bulk bar dynamically displays "Restore" when viewing the Trash status and "Move to trash" otherwise. Filter out by id to remove either. Second arg: `{ mode: 'posts' \| 'pages' }` — return `actions` unchanged when the action does not belong in that window. |
+| `openstation.postsWindow.bulkActions` | filter | two entries: "Move to trash" (`id: 'trash'`) and "Restore" (`id: 'restore'`); the Pages window also ships "Switch to draft" (`id: 'draft'`) first | `BulkAction[]` — `{ id, label, icon?, variant?, confirm?, run( ids, ctx ) }`. `confirm` is `string \| ( count: number ) => string`; the function form is the one `_n()` can pluralize. The bulk bar dynamically displays "Restore" when viewing the Trash status and "Move to trash" otherwise; in the Pages window "Switch to draft" asks for confirmation and shows outside the Trash and Drafts views. Filter out by id to remove any of them. Second arg: `{ mode: 'posts' \| 'pages' }` — return `actions` unchanged when the action does not belong in that window. |
 | `openstation.postsWindow.toolbarTrailing` | filter | `[]` | `HTMLElement[]` rendered before Refresh + Add New. Receives the live `PostsWindowContext` as the second arg. |
 | `openstation.postsWindow.opened` | action | — | `( ctx: PostsWindowContext )` — fired after the first paint with a populated table. |
 | `openstation.postsWindow.dataLoaded` | action | — | `( payload: { items, total, totalPages, page } )` — fired after every successful refresh. |
@@ -3785,7 +3785,7 @@ Fires after a moderation batch finishes — from `/desktop-mode/v1/comments/bulk
 
 ## Native Users window
 
-Replaces the chromeless `users.php` iframe: role filter, bulk role change / delete / remove, "Add new user" form, per-row quick actions, and a Profile tab. An [App Framework](./app-framework.md) app — `apps/users/` — whose list is a `data()` over `openstation_app_rest_page( 'wp/v2/users', … )` and whose mutations (`bulk-role`, `bulk-delete`, `send-reset`, `resend-welcome`, `create`) are server actions sharing one PHP function each with the REST routes below. Per-user opt-in Beta (default `false`) via OpenStation Preferences → Features → Beta features → `nativeUsersEnabled`. UI-side gating is UX polish only — every action and route re-validates every capability and per-target permission before mutating anything. The registration (title, size, config extra) is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-users'`. See [`migration-list-apps.md`](./migration-list-apps.md).
+Replaces the chromeless `users.php` iframe: role filter, bulk role change / delete / remove, "Add new user" form, per-row quick actions, and a Profile tab. An [App Framework](./app-framework.md) app — `apps/users/` — whose list is a `data()` over `openstation_app_rest_page( 'wp/v2/users', … )` and whose mutations (`bulk-role`, `bulk-delete`, `send-reset`, `resend-welcome`, `send-email`, `create`) are server actions. All but `send-email` share one PHP function each with the REST routes below; `send-email`, which emails one user a plain-text subject and message from the site's normal sender, has no REST route. Per-user opt-in Beta (default `false`) via OpenStation Preferences → Features → Beta features → `nativeUsersEnabled`. UI-side gating is UX polish only — every action and route re-validates every capability and per-target permission before mutating anything. The registration (title, size, config extra) is filterable through [`openstation_app_manifest`](#openstation_app_manifest--experimental-filter) for `$id === 'desktop-mode-users'`. See [`migration-list-apps.md`](./migration-list-apps.md).
 
 The **People** directory uses permanent card checkboxes and a bottom action tray that appears only with a selection. Landscape member ID cards show a portrait, WordPress user number, joining date, email, presence, roles, published post/page counts, approved comment totals and the last recorded sign-in. An Actions dropdown provides profile and permitted account-email actions without expanding the card. A missing login is shown as unrecorded. Search, sort and the role filter are server state (`role` is a role slug, or `none` for accounts without a role on this site, as `users.php?role=none` spells it), so picking a role, or a group on the Roles tab, starts a fresh collection; continued scrolling appends batches. The presence filter applies to the loaded collection, with the scope stated explicitly. An optional details table retains the dense view.
 
@@ -4983,7 +4983,7 @@ add_filter( 'openstation_nonce_refresh_actions', function ( $actions ) {
 ```
 
 - **Param** `string[] $actions` — default set: `[ 'wp_rest',
-  'desktop-mode-plugins', 'updates' ]`.
+  'desktop-mode-plugins', 'updates', 'desktop-mode-posts-row-actions' ]`.
 - **Return** `string[]` — non-string / empty entries are
   silently dropped.
 
@@ -5654,9 +5654,43 @@ all, and again wherever the enabled state is consulted.
 
 Fires after an async agent job stores a completed or failed result and releases
 its admission slot. Parameters: `string $id` (job UUID), `int $owner` (human
-invoker), `array $status` (the public job snapshot, including result/error).
+invoker), `array $status` (the public job snapshot, including result/error,
+and `progress`: the tool calls and the token usage a failed job had recorded,
+`null` on a completed one).
 A hard-killed process cannot fire this action. Status reads may report an
-interrupted job from its deadline without dispatching actions or running work.
+interrupted job, past its deadline or silent past the
+[stale bound](#openstation_agent_job_stale_after--experimental-filter), without
+dispatching actions or running work.
+
+### `openstation_agent_job_stale_after` — Experimental *(filter)*
+
+Seconds a `running` async job's worker may go without a sign of life before
+status reads report the job as `failed` with `openstation_agent_job_interrupted`
+and the next submission to that agent frees its admission slot. The worker
+signals at start, before each provider request, after each tool call that
+returned and after each tool round. Return `0` or less to disable the check and
+leave only the two-hour job lifetime.
+
+The default covers one provider request plus one ability call as long as one,
+plus slack: `2 × max( openstation_agent_http_timeout, 180 ) + 60`, so 420
+seconds. The trade-off: a single ability call that runs longer than the bound,
+with no other sign of life during it, is reported as interrupted and its slot
+frees, so a second run can start beside it. The slow run is not stopped and
+its result is still stored. Raise the bound for an agent whose abilities run
+that long.
+
+- **Param** `int $seconds` — default `2 * max( openstation_agent_http_timeout, 180 ) + 60`.
+- **Param** `int $agent_user_id` — the agent's `wp_users.ID`.
+
+```php
+// This agent runs a slow import ability: allow 20 minutes of silence.
+add_filter(
+	'openstation_agent_job_stale_after',
+	fn( $seconds, $agent_user_id ) => 42 === $agent_user_id ? 20 * MINUTE_IN_SECONDS : $seconds,
+	10,
+	2
+);
+```
 
 `openstation_agent_job_run( $id )` and
 `openstation_agent_job_cleanup( $id )` are internal WordPress cron hooks, not
@@ -5705,6 +5739,28 @@ consumes it.
   Copilot. Both are `null` when the provider reported nothing, which is
   what tells "cost nothing" apart from "did not say".
 - **Param** `array $context` — invocation context; convention: `source` names the trigger (`chat`, `send-to`, `hook`, …).
+
+### `openstation_agent_turn_completed` — Experimental *(action)*
+
+Fires after each round in which the agent called tools, once the round's
+results are in the history and before the next generation turn. It never fires
+for the answer turn or for the forced tool-less final turn. The async job
+worker listens to it to record `progress` on the job (see
+[Async invocation](./javascript-reference.md#async-invocation-experimental)),
+and adds `jobId` to `$context` for that. With no listener attached a
+synchronous invoke pays nothing: nothing is stored and the result is unchanged.
+
+- **Param** `int $agent_user_id`
+- **Param** `array $turn` — `{ turn, toolCalls, usage, model }`: the 1-based
+  round number and that round's trace entries, `{ callId, name, args, output,
+  error }`, the same shape as `toolCalls` in the invocation result. `output`
+  has already been through `openstation_agent_tool_result`. `usage` is the
+  running total `{ prompt, completion, total }` over every generation turn so
+  far, including the one that asked for this round's tools; `model` is the last
+  `{ id, name }` resolved. Both are `null` when no turn has reported them, the
+  same rule as the invocation result.
+- **Param** `array $context` — invocation context passed to
+  `openstation_agent_invoke()`; the async worker adds `jobId` (the job UUID).
 
 ### `openstation_agent_tool_result` — Experimental *(filter)*
 

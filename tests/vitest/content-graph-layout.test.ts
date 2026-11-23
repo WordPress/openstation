@@ -13,13 +13,23 @@ import {
 	frameBounds,
 	JOIN_WARMUP_STEPS,
 	randomSeed,
+	runWarmup,
 	seedPositions,
 	SETTLE_ON_LOAD_MAX_NODES,
 	SETTLE_ON_LOAD_MAX_STEPS,
 	SMALL_BOARD_MAX_NODES,
+	WARMUP_BUDGET_MS,
 	warmupStepLimit,
 	type Point,
 } from '../../src/content-graph/layout';
+import {
+	detailAt,
+	FIT_OPTIONS,
+	FIT_ZOOM_MIN,
+	hitRadius,
+	manualZoomFloor,
+	ZOOM_MIN,
+} from '../../src/content-graph/detail';
 import { ForceSim } from '../../src/content-graph/sim';
 import type { GraphNode } from '../../src/content-graph/types';
 
@@ -134,12 +144,59 @@ describe( 'warmupStepLimit', () => {
 		);
 	} );
 
-	test( 'large boards keep the short warm-start', () => {
+	test( 'large boards cap the warm-start at 90 steps and the time budget', () => {
+		// The step count is a ceiling only: `runWarmup()` also stops a
+		// large board's warm-up once the time budget is spent.
 		expect( JOIN_WARMUP_STEPS ).toBe( 90 );
 		expect( warmupStepLimit( SETTLE_ON_LOAD_MAX_NODES + 1 ) ).toBe(
 			JOIN_WARMUP_STEPS,
 		);
-		expect( warmupStepLimit( 500 ) ).toBe( JOIN_WARMUP_STEPS );
+		expect( warmupStepLimit( 9000 ) ).toBe( JOIN_WARMUP_STEPS );
+		expect( WARMUP_BUDGET_MS ).toBeLessThanOrEqual( 50 );
+	} );
+
+	test( 'runWarmup stops a large board at the time budget, a small one never', () => {
+		const neverSettles = () => {
+			let steps = 0;
+			return {
+				sim: {
+					step: () => {
+						steps++;
+					},
+					isSettled: false,
+				},
+				steps: () => steps,
+			};
+		};
+		// A clock that moves 20 ms per reading: the budget runs out
+		// after a handful of steps.
+		const ticking = () => {
+			let t = 0;
+			return () => ( t += 20 );
+		};
+		const large = SETTLE_ON_LOAD_MAX_NODES + 1;
+
+		const slow = neverSettles();
+		const steps = runWarmup( slow.sim, large, true, ticking() );
+		expect( steps ).toBe( slow.steps() );
+		expect( steps ).toBeGreaterThan( 0 );
+		expect( steps ).toBeLessThan( JOIN_WARMUP_STEPS );
+
+		// A clock that never moves: the 90-step ceiling ends it.
+		const fast = neverSettles();
+		expect( runWarmup( fast.sim, large, true, () => 0 ) ).toBe( JOIN_WARMUP_STEPS );
+
+		// Joining nodes obey the budget whatever the board's size.
+		expect( runWarmup( neverSettles().sim, 2, false, ticking() ) ).toBeLessThan(
+			JOIN_WARMUP_STEPS,
+		);
+
+		// A small board from scratch ignores the clock and runs to rest.
+		const nodes = seedPositions( 2 ).map( ( p, i ) => makeNode( i + 1, p ) );
+		const sim = new ForceSim( nodes, [] );
+		sim.reheat( 0.12, false );
+		runWarmup( sim, nodes.length, true, ticking() );
+		expect( sim.isSettled ).toBe( true );
 	} );
 
 	test( 'the settle budget actually settles a small board', () => {
@@ -244,5 +301,46 @@ describe( 'frameBounds', () => {
 
 	test( 'refuses an empty point set', () => {
 		expect( frameBounds( [], { width: 800, height: 600 }, opts ) ).toBeNull();
+	} );
+} );
+
+describe( 'large boards', () => {
+	test( 'a fit frames a board wider than the manual floor, and the wheel can reach it', () => {
+		const fit = frameBounds(
+			[
+				{ x: -5000, y: 0 },
+				{ x: 5000, y: 0 },
+			],
+			{ width: 1000, height: 600 },
+			FIT_OPTIONS,
+		);
+		expect( fit!.scale ).toBeCloseTo( 1000 / 10200, 6 );
+		expect( fit!.scale ).toBeLessThan( ZOOM_MIN );
+		expect( fit!.scale ).toBeGreaterThanOrEqual( FIT_ZOOM_MIN );
+		expect( manualZoomFloor( fit!.scale ) ).toBe( fit!.scale );
+		expect( manualZoomFloor( 0.5 ) ).toBe( ZOOM_MIN );
+		expect( manualZoomFloor( null ) ).toBe( ZOOM_MIN );
+	} );
+
+	test( 'far out nodes are dots you can point at; from 0.35 in, nothing changes', () => {
+		const far = 0.08;
+		const overview = detailAt( far );
+		expect( overview.dots ).toBe( true );
+		expect( overview.edges ).toBe( false );
+		expect( 8 * overview.dotScale * far ).toBeGreaterThanOrEqual( 2.5 );
+		expect( hitRadius( 8, overview ) * far ).toBeGreaterThanOrEqual( 6 );
+		expect( overview.hotEdgeWidth * far ).toBeGreaterThanOrEqual( 1 );
+
+		const near = detailAt( 0.35 );
+		expect( near ).toEqual( {
+			dots: false,
+			dotScale: 1,
+			minHitRadius: expect.any( Number ),
+			edges: true,
+			edgeWidth: 0.7,
+			hotEdgeWidth: 1.2,
+		} );
+		expect( hitRadius( 8, near ) ).toBe( 18 );
+		expect( hitRadius( 16, near ) ).toBe( 24 );
 	} );
 } );

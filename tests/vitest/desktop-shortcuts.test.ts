@@ -10,16 +10,26 @@
  * bottom so we don't double up on `installDesktopArrowShortcuts`
  * idempotency.
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
 	cycleOverviewCursor,
 	exitOverviewIfActive,
 	exitShowDesktopIfActive,
+	installDesktopArrowShortcuts,
 	switchToAdjacentDesktop,
 	toggleOverview,
 	toggleShowDesktop,
 } from '../../src/window-manager/desktop-shortcuts';
+import '../../src/ui/components/os-tabs/os-tabs';
 import {
 	clearHooksStub,
 	installHooksStub,
@@ -35,6 +45,34 @@ function openConfig( id: string ) {
 	};
 }
 
+function createDesktopArea(): HTMLElement {
+	const area = document.createElement( 'div' );
+	Object.defineProperty( area, 'getBoundingClientRect', {
+		value: () =>
+			( {
+				left: 0,
+				top: 0,
+				right: 1600,
+				bottom: 900,
+				width: 1600,
+				height: 900,
+				x: 0,
+				y: 0,
+				toJSON: () => ( {} ),
+			} ) as DOMRect,
+	} );
+	Object.defineProperty( area, 'clientWidth', {
+		value: 1600,
+		configurable: true,
+	} );
+	Object.defineProperty( area, 'clientHeight', {
+		value: 900,
+		configurable: true,
+	} );
+	document.body.appendChild( area );
+	return area;
+}
+
 describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 	let hooks: FakeWpHooks;
 	let desktopArea: HTMLElement;
@@ -43,30 +81,7 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 	beforeEach( async () => {
 		hooks = installHooksStub();
 		void hooks;
-		desktopArea = document.createElement( 'div' );
-		Object.defineProperty( desktopArea, 'getBoundingClientRect', {
-			value: () =>
-				( {
-					left: 0,
-					top: 0,
-					right: 1600,
-					bottom: 900,
-					width: 1600,
-					height: 900,
-					x: 0,
-					y: 0,
-					toJSON: () => ( {} ),
-				} ) as DOMRect,
-		} );
-		Object.defineProperty( desktopArea, 'clientWidth', {
-			value: 1600,
-			configurable: true,
-		} );
-		Object.defineProperty( desktopArea, 'clientHeight', {
-			value: 900,
-			configurable: true,
-		} );
-		document.body.appendChild( desktopArea );
+		desktopArea = createDesktopArea();
 		manager = new WindowManager( desktopArea );
 	} );
 
@@ -509,5 +524,75 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 			);
 			expect( activeAfter?.dataset.desktopId ).toBe( 'desktop-2' );
 		} );
+	} );
+} );
+
+// The installer binds the first manager it is given and never installs
+// twice, so this block owns one manager and installs once for all of
+// its cases.
+describe( 'installDesktopArrowShortcuts — keydown gate', () => {
+	let desktopArea: HTMLElement;
+	let manager: WindowManager;
+	let host: HTMLElement;
+
+	const press = ( code: string ): void => {
+		document.dispatchEvent(
+			new KeyboardEvent( 'keydown', { code, bubbles: true } ),
+		);
+	};
+
+	beforeAll( async () => {
+		installHooksStub();
+		desktopArea = createDesktopArea();
+		manager = new WindowManager( desktopArea );
+		manager.createDesktop();
+		await manager.open( openConfig( 'a' ) );
+		installDesktopArrowShortcuts( manager );
+	} );
+
+	afterAll( () => {
+		manager.destroy();
+		for ( const win of manager.getAll() ) {
+			win.destroy();
+		}
+		desktopArea.remove();
+		clearHooksStub();
+	} );
+
+	beforeEach( () => {
+		manager.switchDesktop( 'desktop-1' );
+		host = document.createElement( 'div' );
+		document.body.appendChild( host );
+	} );
+
+	afterEach( () => {
+		host.remove();
+	} );
+
+	test( 'Right and Down on a focused <os-tab> leave the desktop alone', async () => {
+		host.innerHTML = `
+			<os-tabs value="a" label="Sections">
+				<os-tab value="a">A</os-tab>
+				<os-tab value="b">B</os-tab>
+			</os-tabs>
+		`;
+		await Promise.resolve();
+		const tab = host.querySelector( 'os-tab' )!;
+		tab.shadowRoot!.querySelector( 'button' )!.focus();
+		const win = manager.getAll()[ 0 ];
+
+		press( 'ArrowRight' );
+		press( 'ArrowDown' );
+
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-1' );
+		expect( win.state ).not.toBe( 'minimized' );
+	} );
+
+	test( 'Right with focus on the body switches the desktop', () => {
+		( document.activeElement as HTMLElement | null )?.blur();
+
+		press( 'ArrowRight' );
+
+		expect( manager.getActiveDesktopId() ).toBe( 'desktop-2' );
 	} );
 } );

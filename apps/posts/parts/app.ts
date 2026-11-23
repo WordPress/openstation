@@ -5,8 +5,9 @@
  * function of the state the `.os.php` declares and the page `data()`
  * returns: the toolbar (status control, search, bulk bar, plugin
  * extras, Refresh, Add New), the `<os-table>` kept in step through
- * `createListTableSync()`, continuous card browsing, and lazy canvas
- * tabs: Categories / Tags for Posts, Page atlas for Pages.
+ * `createListTableSync()`, continuous card browsing, a page's quick
+ * edit (`quick-edit.ts`, Pages only), and lazy canvas tabs: Categories
+ * / Tags for Posts, Page atlas for Pages.
  *
  * @public
  */
@@ -47,8 +48,9 @@ import {
 	type ColumnFilterData,
 	type HiddenColumnsSettingKey,
 } from './columns';
-import { createPostsRestClient, type PostsRestClient } from './rest';
-import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext } from './types';
+import { openQuickEdit, renderQuickEdit, type QuickEditDoors, type QuickEditState } from './quick-edit';
+import { createPostsRestClient, fetchRowActions, type PostsRestClient } from './rest';
+import type { BulkAction, ListData, ListExtra, ListState, PostListItem, PostsMode, PostsWindowContext, RowActionLink, RowExtras } from './types';
 import { fireDataLoaded, postsContext, runBulkAction, tableOf, type Ctx } from './window-context';
 
 import { ContentFeed } from './content-feed';
@@ -114,6 +116,17 @@ interface UiState {
 	tagPage: number;
 	tagTotalPages: number;
 	tagFetching: boolean;
+	/** Each loaded row's plugin links (`parts/row-actions.php`), by post id. */
+	rowLinks: Map< number, RowActionLink[] >;
+	/** Each loaded row's plugin labels (`display_post_states`), by post id. */
+	rowStates: Map< number, string[] >;
+	/** Bumped when links or labels land, so the table repaints its title cells. */
+	rowLinksVersion: number;
+	/** The rows the links were last asked for, and the latest ask. */
+	rowLinksRows: string | null;
+	rowLinksTicket: number;
+	quickEdit: QuickEditState | null;
+	quickEditPending: number;
 }
 
 const freshUi = ( viewKey: DeskViewKey ): UiState => ( {
@@ -141,14 +154,77 @@ const freshUi = ( viewKey: DeskViewKey ): UiState => ( {
 	tagPage: 0,
 	tagTotalPages: 1,
 	tagFetching: false,
+	rowLinks: new Map(),
+	rowStates: new Map(),
+	rowLinksVersion: 0,
+	rowLinksRows: null,
+	rowLinksTicket: 0,
+	quickEdit: null,
+	quickEditPending: 0,
 } );
 
 const modeOf = ( extra: Record< string, unknown > ): PostsMode =>
 	( extra as ListExtra ).mode === 'pages' ? 'pages' : 'posts';
 
-/** Stable key for the page — identical rows skip the table repaint. */
+/**
+ * Stable key for the page — identical rows skip the table repaint. An
+ * edit lock taken or let go repaints the row too: it changes the lock
+ * pill and whether the row offers quick edit.
+ */
 function fingerprint( items: PostListItem[] ): string {
-	return items.map( ( r ) => `${ r.id }:${ r.status }:${ r.modified_gmt }` ).join( '|' );
+	return items.map( ( r ) => `${ r.id }:${ r.status }:${ r.modified_gmt }:${ r.openstation_lock?.userId ?? 0 }` ).join( '|' );
+}
+
+/** The most ids one row-actions request answers for. */
+const ROW_ACTIONS_BATCH = 100;
+
+/**
+ * Ask for the loaded rows' plugin links and labels, 100 ids a request.
+ * An answer that lands after a newer ask started is dropped; a failed
+ * or refused batch leaves those rows with the built-in entries only.
+ * When the links or labels land the cells rebuild, so the card, the
+ * details pane and the table's title cells all show them.
+ */
+function syncRowLinks( ctx: Ctx, ui: UiState, items: PostListItem[] ): void {
+	const ticket = ++ui.rowLinksTicket;
+	const extra = ctx.extra as ListExtra;
+	if ( ! extra.ajaxUrl || items.length === 0 ) {
+		return;
+	}
+	const ids = items.map( ( row ) => row.id );
+	const batches: Array< Promise< Record< string, RowExtras > > > = [];
+	for ( let i = 0; i < ids.length; i += ROW_ACTIONS_BATCH ) {
+		batches.push( fetchRowActions( ctx.fetch, extra, modeOf( ctx.extra ), ids.slice( i, i + ROW_ACTIONS_BATCH ) ) );
+	}
+	void Promise.allSettled( batches ).then( ( results ) => {
+		if ( ui.disposed || ticket !== ui.rowLinksTicket ) {
+			return;
+		}
+		const next = new Map< number, RowActionLink[] >();
+		const states = new Map< number, string[] >();
+		for ( const result of results ) {
+			if ( result.status !== 'fulfilled' ) {
+				continue;
+			}
+			for ( const [ id, extras ] of Object.entries( result.value ) ) {
+				if ( Array.isArray( extras?.links ) ) {
+					next.set( Number( id ), extras.links );
+				}
+				if ( Array.isArray( extras?.states ) ) {
+					states.set( Number( id ), extras.states.filter( ( label ): label is string => typeof label === 'string' ) );
+				}
+			}
+		}
+		// The same links and labels as before (none, on most sites): nothing to repaint.
+		if ( JSON.stringify( [ [ ...next ], [ ...states ] ] ) === JSON.stringify( [ [ ...ui.rowLinks ], [ ...ui.rowStates ] ] ) ) {
+			return;
+		}
+		ui.rowLinks = next;
+		ui.rowStates = states;
+		++ui.rowLinksVersion;
+		ui.cellCache.clear();
+		ctx.repaint();
+	} );
 }
 
 function clientOf( ctx: Ctx, ui: UiState ): PostsRestClient {
@@ -182,6 +258,14 @@ function toast( ctx: Ctx, title: string, err: unknown ): void {
 	);
 }
 
+/** A row trashed or restored from its own menu leaves the bulk selection, as the bulk bar's rows do. */
+function deselectOnSuccess( ctx: Ctx, ids: number[], ok: boolean ): boolean {
+	if ( ok ) {
+		ids.forEach( ( id ) => tableOf( ctx )?.deselect( id ) );
+	}
+	return ok;
+}
+
 function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {
 	if ( ! ui.env ) {
 		ui.env = {
@@ -192,11 +276,22 @@ function cellEnv( ctx: Ctx, ui: UiState, cells: CellRenderers ): CellEnv {
 			confirm: ( options ) => ctx.host.confirm?.( options ) ?? Promise.resolve( false ),
 			toast: ( title, err ) => toast( ctx, title, err ),
 			announce: ( action, ids ) => ctx.host.announce?.( 'post', action, ids ),
+			rowStates: ( rowId ) => ui.rowStates.get( rowId ) ?? [],
+			rowActions: {
+				links: ( rowId ) => ui.rowLinks.get( rowId ) ?? [],
+				trash: async ( ids ) => deselectOnSuccess( ctx, ids, await ctx.dispatch( 'trash', { ids } ) ),
+				restore: async ( ids ) => deselectOnSuccess( ctx, ids, await ctx.dispatch( 'restore', { ids } ) ),
+			},
+			quickEdit: modeOf( ctx.extra ) === 'pages' ? ( row ) => void openQuickEdit( ctx, ui, quickEditDoors( ctx, ui ), row ) : undefined,
 			parentTitles: new Map(),
 			categories: { tree: null, pickers: new Set() },
 		};
 	}
 	return ui.env;
+}
+
+function quickEditDoors( ctx: Ctx, ui: UiState ): QuickEditDoors {
+	return { client: clientOf( ctx, ui ), toast: ( title, err ) => toast( ctx, title, err ) };
 }
 
 function canvasEnv( ctx: Ctx, ui: UiState ): CanvasEnv {
@@ -335,21 +430,26 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 
 	const bulkBar = ( ctx: Ctx, ui: UiState, mode: PostsMode, footer: boolean ): TemplateResult => {
 		// Resolved once, on the first paint: the registry filter sees the
-		// shipped defaults ('trash' and 'restore'), and buttons dispatch
-		// against the live selection at click time. Actions are dynamically
-		// partitioned so 'restore' renders in Trash status and 'trash' in others.
+		// shipped defaults ('trash', 'restore', and 'draft' in the Pages
+		// window), and buttons dispatch against the live selection at click
+		// time. Actions are dynamically partitioned so 'restore' renders in
+		// Trash status, 'trash' in others, and 'draft' outside Trash and Drafts.
 		if ( ! ui.bulkActions ) {
 			ui.bulkActions = resolveBulkActions(
 				defaultBulkActions(
 					mode,
 					( ids ) => ctx.dispatch( 'trash', { ids } ),
 					( ids ) => ctx.dispatch( 'restore', { ids } ),
+					( ids ) => ctx.dispatch( 'draft', { ids } ),
 				),
 				mode,
 			);
 		}
 		const isTrash = ctx.state.status === 'trash';
 		const visibleActions = ui.bulkActions.filter( ( action ) => {
+			if ( action.id === 'draft' ) {
+				return ! isTrash && ctx.state.status !== 'draft';
+			}
 			if ( action.id === 'trash' ) {
 				return ! isTrash;
 			}
@@ -647,6 +747,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			</div>
 			${ ui.desk.view === 'table' ? ui.feed.tail() : '' }
 			${ bulkBar( ctx, ui, mode, true ) }
+			${ renderQuickEdit( ctx, ui, quickEditDoors( ctx, ui ) ) }
 		`;
 	};
 
@@ -840,12 +941,15 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				ui.table.invalidateColumns();
 			}
 			const items = ui.feed.items;
+			const rowsKey = fingerprint( items );
 			const result = ui.table.sync( {
 				// `<os-table>` exposes `data` read-only; the sync writes through
 				// its setter, which is the one the component declares.
 				table: table as unknown as ListTableLike< PostListItem >,
 				rows: items,
-				fingerprint: fingerprint( items ),
+				// The rows' plugin links are part of what the title cells
+				// show: links landing repaints the table too.
+				fingerprint: `${ rowsKey }#${ ui.rowLinksVersion }`,
 				columns: ( phone ) => {
 					ui.cellCache.clear();
 					return buildColumns( env, ui.cellCache, ui.filterData, phone, hiddenOf( ui, hiddenColumnsKey ) );
@@ -867,8 +971,14 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 				// A real data change: fresh DOM for the new rows.
 				ui.cellCache.clear();
 				refreshParentTitleRoster( env, items );
-				if ( data ) {
-					fireDataLoaded( data );
+				// New rows, not just their links landing: ask for their
+				// links, and tell the plugins the data loaded.
+				if ( rowsKey !== ui.rowLinksRows ) {
+					ui.rowLinksRows = rowsKey;
+					syncRowLinks( ctx, ui, items );
+					if ( data ) {
+						fireDataLoaded( data );
+					}
 				}
 			}
 		},

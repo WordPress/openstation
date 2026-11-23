@@ -22,6 +22,7 @@ import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table
 import { buildAuthorCell, buildDateCell, buildTitleCell } from './cells/basic';
 import { memoCell, type CellCache, type CellEnv } from './cells/env';
 import { buildCommentsCell, buildParentCell, buildSlugCell, buildTemplateCell } from './cells/pages';
+import { trashConfirmMessage } from './row-actions';
 import type {
 	AuthorOption,
 	BulkAction,
@@ -161,13 +162,13 @@ export function renderMultiSelectFilter(
 	tagged[ HOST_KEY ] = { picker, listSig: nextSig };
 }
 
-function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFilterData ): OsTableColumn< PostListItem >[] {
+function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFilterData, phone = false ): OsTableColumn< PostListItem >[] {
 	const titleCol: OsTableColumn< PostListItem > = {
 		key: 'title',
 		label: __( 'Title' ),
 		sortable: true,
 		sticky: true,
-		render: ( _v, row ) => memoCell( cache, row.id, 'title', () => buildTitleCell( row, env ) ),
+		render: ( _v, row ) => memoCell( cache, row.id, 'title', () => buildTitleCell( row, env, phone ) ),
 	};
 	const authorCol: OsTableColumn< PostListItem > = {
 		key: 'author',
@@ -263,14 +264,16 @@ function buildBaseColumns( env: CellEnv, cache: CellCache, filterData: ColumnFil
 
 /**
  * Every column (visible AND hidden), through the columns filter —
- * what the "Show columns" menu lists.
+ * what the "Show columns" menu lists. `phone` lays the cells out for
+ * the stacked table.
  */
 export function buildAllColumns(
 	env: CellEnv,
 	cache: CellCache,
 	filterData: ColumnFilterData = EMPTY_FILTER_DATA,
+	phone = false,
 ): OsTableColumn< PostListItem >[] {
-	const cols = buildBaseColumns( env, cache, filterData );
+	const cols = buildBaseColumns( env, cache, filterData, phone );
 	const hooks = window.wp?.hooks;
 	return hooks && typeof hooks.applyFilters === 'function'
 		? ( hooks.applyFilters( HOOK_FILTER_COLUMNS, cols, { mode: env.extra.mode ?? 'posts' } ) as OsTableColumn< PostListItem >[] )
@@ -312,7 +315,7 @@ export function buildColumns(
 	phone = false,
 	hidden: ReadonlySet< string > = new Set(),
 ): OsTableColumn< PostListItem >[] {
-	const all = buildAllColumns( env, cache, filterData );
+	const all = buildAllColumns( env, cache, filterData, phone );
 	const visible =
 		hidden.size === 0 ? all : all.filter( ( col ) => REQUIRED_COLUMN_KEYS.has( col.key ) || ! hidden.has( col.key ) );
 	return phone ? visible.filter( ( col ) => MOBILE_COLUMN_KEYS.has( col.key ) ) : visible;
@@ -346,37 +349,58 @@ export function resolveStatusSegments(): StatusSegment[] {
 }
 
 /**
- * The shipped bulk actions: "Move to trash" and "Restore". `trash` runs the
- * window's server action over the ids not already in the trash (a second
- * delete would remove them for good); `restore` runs over the ids in the
- * trash. Both return `false` — the action's own dispatch already refreshed
- * the list. A selection survives search and filter changes, so an id picked
- * under an earlier query may have no row loaded: it is sent anyway, and the
- * server skips it if it is gone or in the wrong state.
+ * The shipped bulk actions: "Move to trash" and "Restore", plus "Switch to
+ * draft" in the Pages window. `trash` runs the window's server action over
+ * the ids not already in the trash (a second delete would remove them for
+ * good); `restore` runs over the ids in the trash; `draft` runs over the ids
+ * not already in draft or the trash. All return `false` — the action's own
+ * dispatch already refreshed the list. A selection survives search and
+ * filter changes, so an id picked under an earlier query may have no row
+ * loaded: it is sent anyway, and the server skips it if it is gone or in
+ * the wrong state.
  */
 export function defaultBulkActions(
 	mode: 'posts' | 'pages',
 	trash: ( ids: number[] ) => Promise< boolean >,
 	restore?: ( ids: number[] ) => Promise< boolean >,
+	draft?: ( ids: number[] ) => Promise< boolean >,
 ): BulkAction[] {
+	const draftAction: BulkAction = {
+		id: 'draft',
+		label: __( 'Switch to draft' ),
+		icon: 'dashicons-edit',
+		variant: 'secondary',
+		confirm: ( count: number ) =>
+			sprintf(
+				/* translators: %d: row count. */
+				_n(
+					'Switch %d page to draft? If it is published, it will no longer be visible on the site.',
+					'Switch %d pages to draft? Published pages will no longer be visible on the site.',
+					count,
+				),
+				count,
+			),
+		run: async ( ids, ctx ): Promise< false > => {
+			const data = ctx.table.data ?? [];
+			const draftable = ids.filter( ( id ) => {
+				const status = data.find( ( r ) => r.id === id )?.status;
+				return status !== 'draft' && status !== 'trash';
+			} );
+			if ( draftable.length > 0 && draft ) {
+				await draft( draftable );
+			}
+			ctx.table.clearSelection();
+			return false;
+		},
+	};
 	return [
+		...( mode === 'pages' ? [ draftAction ] : [] ),
 		{
 			id: 'trash',
 			label: __( 'Move to trash' ),
 			icon: 'dashicons-trash',
 			variant: 'danger',
-			confirm: ( count: number ) =>
-				mode === 'pages'
-					? sprintf(
-						/* translators: %d: row count. */
-						_n( 'Move %d page to the trash?', 'Move %d pages to the trash?', count ),
-						count,
-					)
-					: sprintf(
-						/* translators: %d: row count. */
-						_n( 'Move %d post to the trash?', 'Move %d posts to the trash?', count ),
-						count,
-					),
+			confirm: ( count: number ) => trashConfirmMessage( mode, count ),
 			run: async ( ids, ctx ): Promise< false > => {
 				const data = ctx.table.data ?? [];
 				const trashable = ids.filter( ( id ) => data.find( ( r ) => r.id === id )?.status !== 'trash' );

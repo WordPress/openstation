@@ -11,7 +11,9 @@
  *
  * Each send queues an async job through `/agents/:id/invoke`; short status
  * polls deliver the answer without keeping a generation request open. Transcripts live in the shared
- * store for the session only.
+ * store and are saved as conversations once a job is accepted and when it
+ * ends. Opening a conversation whose last row is still pending resumes
+ * polling that job.
  *
  * @public
  */
@@ -42,6 +44,7 @@ import {
 	describeDragEntity,
 	dispatchAgentDrop,
 	invokeAgentIntoTranscript,
+	resumeAgentJobIntoTranscript,
 } from './agents-dispatch';
 import {
 	deleteConversation,
@@ -265,6 +268,10 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	/** The last list load failed: the sidebar says so instead of "no conversations". */
 	let conversationsFailed = false;
 	let seenRev = -1;
+	// Rows whose "Tool calls" list the user opened. Every store change
+	// repaints from scratch, so without this a poll would close the list.
+	// Window memory only: never written onto the row or persisted.
+	const openToolLists = new WeakSet< AgentChatMessage >();
 
 	const refreshConversations = (): void => {
 		const cfg = getRunConfig();
@@ -433,10 +440,14 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 					return;
 				}
 				followOnNextPaint = true;
-				void openConversation(
-					{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
-					row.id,
-				).catch( ( err ) => {
+				const rest = { restRoot: cfg.restRoot, restNonce: cfg.restNonce };
+				void openConversation( rest, row.id ).then( () => {
+					// A job saved pending before a reload: pick its poll back up.
+					const opened = agentsChatStore.state.activeAgent;
+					if ( opened ) {
+						void resumeAgentJobIntoTranscript( opened, rest );
+					}
+				} ).catch( ( err ) => {
 					// eslint-disable-next-line no-console
 					console.warn(
 						'[desktop-mode/agents] conversation load failed:',
@@ -726,11 +737,17 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			// the inline preset is the one arc that stays legible at
 			// text size (the WordPress mark's rings collapse into a
 			// static disc below 40px, which is what the bubble used to
-			// show), and it tints from the text it sits beside.
+			// show), and it tints from the text it sits beside. The two
+			// share their own line, so a running job's tool calls stack
+			// under them as they do under a finished answer.
+			let textHost: HTMLElement = row;
 			if ( message.pending ) {
+				textHost = document.createElement( 'div' );
+				textHost.className = 'dm-agent-chat__msg-status';
+				row.appendChild( textHost );
 				const spinner = document.createElement( 'os-spinner' );
 				spinner.setAttribute( 'preset', 'inline' );
-				row.appendChild( spinner );
+				textHost.appendChild( spinner );
 			}
 			const text = document.createElement( 'div' );
 			text.className = 'dm-agent-chat__msg-text';
@@ -742,11 +759,19 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			} else {
 				text.textContent = message.text;
 			}
-			row.appendChild( text );
+			textHost.appendChild( text );
 		}
 		if ( message.toolCalls && message.toolCalls.length > 0 ) {
 			const tools = document.createElement( 'details' );
 			tools.className = 'dm-agent-chat__tools';
+			tools.open = openToolLists.has( message );
+			tools.addEventListener( 'toggle', () => {
+				if ( tools.open ) {
+					openToolLists.add( message );
+				} else {
+					openToolLists.delete( message );
+				}
+			} );
 			const summary = document.createElement( 'summary' );
 			summary.textContent = `${ __( 'Tool calls', 'desktop-mode' ) } (${
 				message.toolCalls.length

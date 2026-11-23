@@ -1,0 +1,260 @@
+<?php
+/**
+ * Tests for the Posts and Pages apps' row links and labels
+ * (`apps/posts/parts/row-actions.php`): the "Clone" / "Edit with …"
+ * links a plugin adds to a row on `edit.php`, offered by the windows'
+ * row menus too, and the `display_post_states` labels beside its title.
+ *
+ * @package WordPress
+ * @subpackage UnitTests
+ *
+ * @group openstation
+ * @group os-posts-window
+ * @group ajax
+ */
+require_once ABSPATH . 'wp-admin/includes/ajax-actions.php';
+
+class Tests_OpenStation_PostsWindowRowActions extends WP_Ajax_UnitTestCase {
+
+	private $admin_id;
+
+	public function set_up() {
+		parent::set_up();
+		$this->admin_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+	}
+
+	public function tear_down() {
+		remove_all_filters( 'page_row_actions' );
+		remove_all_filters( 'post_row_actions' );
+		remove_all_filters( 'display_post_states' );
+		update_option( 'show_on_front', 'posts' );
+		delete_option( 'page_on_front' );
+		parent::tear_down();
+	}
+
+	/**
+	 * A page's row runs `page_row_actions`: a relative wp-admin link comes
+	 * back resolved and flagged as admin, an outside page as not.
+	 *
+	 * @covers ::openstation_posts_window_ajax_row_actions
+	 */
+	public function test_returns_the_links_a_plugin_adds_to_a_page_row() {
+		$page = self::factory()->post->create( array( 'post_type' => 'page' ) );
+		add_filter(
+			'page_row_actions',
+			static function ( $actions, $post ) {
+				$actions['clone']  = '<a href="admin.php?action=clone&amp;post=' . $post->ID . '">Clone</a>';
+				$actions['bricks'] = '<a href="https://builder.example.test/edit/' . $post->ID . '">Edit with Bricks</a>';
+				return $actions;
+			},
+			10,
+			2
+		);
+
+		wp_set_current_user( $this->admin_id );
+		$response = $this->dispatch( 'pages', array( $page ) );
+
+		$this->assertTrue( $response['success'] );
+		$this->assertSame(
+			array(
+				array(
+					'key'   => 'clone',
+					'label' => 'Clone',
+					// With the classic list as its referer, where Core's
+					// list table would send the browser back.
+					'url'   => admin_url( 'admin.php?action=clone&post=' . $page . '&_wp_http_referer=' . rawurlencode( wp_make_link_relative( admin_url( 'edit.php?post_type=page' ) ) ) ),
+					'admin' => true,
+				),
+				array(
+					'key'   => 'bricks',
+					'label' => 'Edit with Bricks',
+					'url'   => 'https://builder.example.test/edit/' . $page,
+					'admin' => false,
+				),
+			),
+			$response['data'][ $page ]['links']
+		);
+		$this->assertSame( array(), $response['data'][ $page ]['states'] );
+	}
+
+	/**
+	 * A row's `display_post_states` labels come back as text, once each,
+	 * in the filter's order, and Core's own states stay out: a draft,
+	 * password-protected front page carries only what the plugin added,
+	 * and a Customization Draft with no plugin label is absent.
+	 *
+	 * @covers ::openstation_posts_window_row_states
+	 */
+	public function test_returns_the_labels_a_plugin_adds_and_drops_cores() {
+		$page = self::factory()->post->create(
+			array(
+				'post_type'     => 'page',
+				'post_status'   => 'draft',
+				'post_password' => 'secret',
+			)
+		);
+		$changeset = self::factory()->post->create(
+			array(
+				'post_type'   => 'page',
+				'post_status' => 'draft',
+			)
+		);
+		update_post_meta( $changeset, '_customize_changeset_uuid', wp_generate_uuid4() );
+		update_option( 'show_on_front', 'page' );
+		update_option( 'page_on_front', $page );
+		add_filter(
+			'display_post_states',
+			static function ( $states, $post ) use ( $page ) {
+				if ( $post->ID === $page ) {
+					$states['bricks'] = 'Bricks';
+					$states['again']  = 'Bricks';
+					$states[]         = '<strong>Elementor</strong>';
+					$states['x']      = '';
+					$states['count']  = 3;
+				}
+				return $states;
+			},
+			10,
+			2
+		);
+
+		wp_set_current_user( $this->admin_id );
+		$response = $this->dispatch( 'pages', array( $page, $changeset ) );
+
+		$this->assertTrue( $response['success'] );
+		$this->assertSame( array( $page ), array_keys( $response['data'] ) );
+		$this->assertSame(
+			array(
+				'links'  => array(),
+				'states' => array( 'Bricks', 'Elementor' ),
+			),
+			$response['data'][ $page ]
+		);
+	}
+
+	/**
+	 * Core's own verbs, and entries that open nothing outside the list
+	 * table (a `#` or `javascript:` link, a button), stay out. A row left
+	 * with no plugin links is absent from the answer.
+	 *
+	 * @covers ::openstation_posts_window_row_links
+	 */
+	public function test_drops_core_actions_and_script_links() {
+		$page  = self::factory()->post->create( array( 'post_type' => 'page' ) );
+		$other = self::factory()->post->create( array( 'post_type' => 'page' ) );
+		$seen  = array();
+		add_filter(
+			'page_row_actions',
+			static function ( $actions, $post ) use ( &$seen, $page ) {
+				$seen = array_keys( $actions );
+				if ( $post->ID === $page ) {
+					$actions['survey'] = '<a href="#" onclick="return false">Feedback</a>';
+					$actions['script'] = '<a href="javascript:void(0)">Run</a>';
+					$actions['edit']   = '<a href="https://elsewhere.example.test/">Edit</a>';
+				}
+				return $actions;
+			},
+			10,
+			2
+		);
+
+		wp_set_current_user( $this->admin_id );
+		$response = $this->dispatch( 'pages', array( $page, $other ) );
+
+		$this->assertTrue( $response['success'] );
+		$this->assertSame( array(), $response['data'] );
+		$this->assertSame( array( 'edit', 'inline hide-if-no-js', 'trash', 'view' ), $seen, 'The filter is seeded with the actions Core gives a published row.' );
+	}
+
+	/**
+	 * A user who may use the window but cannot edit a given post gets
+	 * nothing for that post, while their own post still answers.
+	 *
+	 * @covers ::openstation_posts_window_ajax_row_actions
+	 */
+	public function test_skips_posts_the_caller_cannot_edit() {
+		$author = self::factory()->user->create( array( 'role' => 'author' ) );
+		$theirs = self::factory()->post->create( array( 'post_author' => $this->admin_id ) );
+		$own    = self::factory()->post->create( array( 'post_author' => $author ) );
+		add_filter(
+			'post_row_actions',
+			static function ( $actions ) {
+				$actions['clone'] = '<a href="admin.php?action=clone">Clone</a>';
+				return $actions;
+			}
+		);
+		add_filter(
+			'display_post_states',
+			static function ( $states ) {
+				$states['bricks'] = 'Bricks';
+				return $states;
+			}
+		);
+
+		wp_set_current_user( $author );
+		// `get_post( 0 )` would answer with the global post.
+		$GLOBALS['post'] = get_post( $own );
+		$response        = $this->dispatch( 'posts', array( $theirs, 0, -$own ) );
+		unset( $GLOBALS['post'] );
+		$this->assertTrue( $response['success'] );
+		$this->assertSame( array(), $response['data'], 'A zero id is not the global post.' );
+
+		$response = $this->dispatch( 'posts', array( $theirs, $own ) );
+
+		$this->assertTrue( $response['success'] );
+		$this->assertSame( array( $own ), array_keys( $response['data'] ) );
+		$this->assertSame( array( 'Bricks' ), $response['data'][ $own ]['states'] );
+	}
+
+	/**
+	 * A Subscriber holds a valid nonce but fails the window's gate.
+	 *
+	 * @covers ::openstation_posts_window_ajax_row_actions
+	 */
+	public function test_refuses_a_user_the_window_does_not_admit() {
+		$page = self::factory()->post->create( array( 'post_type' => 'page' ) );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+
+		$response = $this->dispatch( 'pages', array( $page ) );
+
+		$this->assertFalse( $response['success'] );
+		$this->assertSame( 'openstation_posts_forbidden', $response['data']['code'] );
+	}
+
+	/**
+	 * @covers ::openstation_posts_window_ajax_row_actions
+	 */
+	public function test_refuses_a_bad_nonce() {
+		$page = self::factory()->post->create( array( 'post_type' => 'page' ) );
+		wp_set_current_user( $this->admin_id );
+
+		$response = $this->dispatch( 'pages', array( $page ), 'x' );
+
+		$this->assertFalse( $response['success'] );
+		$this->assertSame( 'openstation_posts_bad_nonce', $response['data']['code'] );
+	}
+
+	/**
+	 * Dispatch the row-actions AJAX action and return the decoded body.
+	 *
+	 * @param string      $mode  `pages` | `posts`.
+	 * @param int[]       $ids   Post ids.
+	 * @param string|null $nonce Nonce to send; a valid one when null.
+	 */
+	private function dispatch( $mode, array $ids, $nonce = null ) {
+		$_POST                = array(
+			'_ajax_nonce' => null === $nonce ? wp_create_nonce( 'desktop-mode-posts-row-actions' ) : $nonce,
+			'mode'        => $mode,
+			'ids'         => implode( ',', $ids ),
+		);
+		$this->_last_response = '';
+		try {
+			$this->_handleAjax( 'openstation_posts_row_actions' );
+		} catch ( WPAjaxDieContinueException $e ) {
+			// Expected — wp_send_json_* throws this in tests.
+		} catch ( WPAjaxDieStopException $e ) {
+			// Some Core paths throw this variant instead.
+		}
+		return json_decode( $this->_last_response, true );
+	}
+}

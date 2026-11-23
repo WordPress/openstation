@@ -51,7 +51,7 @@
 
   /* Board */
   .board {
-    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px;
+    display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px;
     padding: 20px 32px 40px; align-items: start;
   }
   .col { min-width: 0; }
@@ -291,6 +291,7 @@ const COLUMNS = [
   { label: 'Build', who: 'builder · update · gate', stages: ['build', 'update', 'gate'] },
   { label: 'Review', who: 'routed reviewers', stages: ['review'] },
   { label: 'Approve', who: 'approver · reporter', stages: ['approve', 'merging', 'report'] },
+  { label: 'Reviewed', who: 'contributor · you merge', stages: ['reviewed'] },
   { label: 'Needs human', who: 'you', stages: ['needs-human'], cls: 'human' },
   { label: 'Done', who: 'merged · rejected · abandoned', stages: ['merged', 'rejected', 'abandoned'], cls: 'merged-col' },
 ]

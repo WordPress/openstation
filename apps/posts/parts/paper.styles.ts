@@ -80,6 +80,7 @@ export const paperStyles = css`
 	.desktop-mode-posts:not(.desktop-mode-pages) .os-posts-desk__story { padding-inline-start: 24px; }
 	.desktop-mode-posts:not(.desktop-mode-pages) .os-posts-desk__story::before { inset-inline-start: 14px; }
 	.os-posts-desk__story-top { margin-block-end: 3px; min-block-size: 18px; }
+	.os-posts-desk__story > .os-posts-desk__states { margin-block: 0 4px; }
 	.os-posts-desk__story-content, .desktop-mode-pages .os-posts-desk__story-content { flex-direction: row; gap: 10px; }
 	.os-posts-desk__page-mark, .os-posts-desk__kicker { display: none; }
 	.os-posts-desk__story h3, .desktop-mode-pages .os-posts-desk__story h3 { font-size: 18px; margin-block-end: 2px; line-height: 1.2; }

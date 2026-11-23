@@ -18,13 +18,24 @@ exactly one factory file, `<job folder>/build.md`.
 
 ## Where you work
 
-The worktree is a checkout of the job branch outside the main checkout you
-start in. All code changes happen there. The shell returns to the main checkout
+The worktree is a checkout of the job branch in its own folder, under
+`factory/worktrees/` in the main checkout you start in. All code changes happen there. The shell returns to the main checkout
 after every command, so start every Bash command with `cd <worktree> && `, and
 give Read, Edit, Write, Grep and Glob absolute paths under the worktree. The
 job folder is in the main checkout; `build.md` is the only file you write
 there. Never edit anything else in the main checkout: it belongs to the user
 and to other jobs.
+
+Keep every scratch file (a PR body draft, a log, a downloaded screenshot, a
+helper script) in `<worktree>/.scratch/`, which is gitignored. Other jobs'
+agents run beside you in the same session, and a shared temporary folder is
+where one job's PR body or log overwrites another's.
+
+Git is the one exception to the `cd`. Run every git command as
+`git -C <worktree> <subcommand> …`, in a Bash command of its own with no `cd`
+anywhere in it: a `cd` into another checkout followed by `git` stops for the
+user's approval, whatever the command is, and the run stalls. Paths you give
+it are relative to the worktree.
 
 ## Read first
 
@@ -46,7 +57,10 @@ and to other jobs.
    names. Fix every **Blocker**. A **Gap** is yours only when the spec asks
    for it; **Nits** are optional; leave **Not this PR** alone. Answer each
    blocker in this round's Log, because the next round's reviewers map every
-   one to the commit and line that fixed it.
+   one to the commit and line that fixed it. A blocker comes before the spec
+   where they disagree: fix it, and write the acceptance criterion it
+   overrides as `[x] superseded by round-<N>/review-<lens>.md blocker <n>`,
+   with what the branch does instead and the evidence for that.
 6. When the prompt names a `feedback-*.md` or `rework-*.md` file, read it: the
    user's feedback after the job escalated, typed to the factory or left as
    comments on the PR. Read the existing `build.md`, `decision.md` and every
@@ -73,7 +87,7 @@ observed.
 
 ## Build
 
-- Run `cd <worktree> && git branch --show-current` first. It must print the
+- Run `git -C <worktree> branch --show-current` first. It must print the
   branch from your prompt. If it doesn't, stop and write a BLOCKED build.md.
 - Match the surrounding code: its idioms, formatting, naming and imports. Keep
   comment density like the neighbouring code.
@@ -112,9 +126,24 @@ of the code.
   Pass `--session <job-id>-builder` on every `agent-browser` call, so other
   jobs never drive your browser, and close it with
   `agent-browser --session <job-id>-builder close` when you're done. Record
-  what you did and what the page showed. Leave the site running for the
+  what you did and what the page showed. `agent-browser` can't hold a
+  modifier during a click (Shift+click arrives with `shiftKey: false`) and its
+  mouse wheel fires at the page's corner: send those through the same
+  session's CDP connection (`Input.dispatchMouseEvent`,
+  `Input.dispatchMouseWheelEvent`) and confirm the event the page received.
+  Leave the site running for the
   reviewers. If `agent-browser` or Docker isn't available, write BLOCKED: the
   job can't be verified.
+- **Look at the whole surface, not only your control.** When you added a
+  control to a surface that already had some (a card, a pane's footer, a table
+  row), screenshot that surface at the window's default size, with every menu
+  on it open, and Read the screenshot. Each action is offered once there: a
+  menu entry never repeats a button or link beside it, whatever the two are
+  called. The new control sits in the row of the controls it belongs with, not
+  alone on a line under them. The UX and UI reviewers block on both, so fix it
+  now. If a criterion asks for the repeat, build the surface without it and
+  write that criterion as
+  `[x] superseded: <the control that already offers the action>`.
 
 ## Commit, push, PR
 
@@ -122,16 +151,33 @@ of the code.
   `git log --oneline`. One commit per distinct piece of work. No
   `Co-Authored-By` trailers and no tool attribution in commits or the PR.
 - Stage explicit paths, never `git add -A`. Leave the tree clean:
-  `git status --porcelain` should print nothing when you finish.
-- Push the branch every round: `git push -u origin <branch>`. Push only this
-  branch, never force-push, and never push anything else.
+  `git -C <worktree> status --porcelain` should print nothing when you finish.
+- Push the branch every round with `factory/bin/job push <job-id>`, typed
+  exactly like that and run from the main checkout, with no `cd` in front. It
+  pushes this job's branch and nothing else, and never forces. Never run
+  `git push` yourself: if the script refuses, write BLOCKED with what it said.
+  The one refusal you fix yourself is a conflict with the base branch, which
+  another PR merged while you worked: `git -C <worktree> merge origin/<base>`,
+  resolve the files it names keeping both changes' behaviour, run the checks
+  again, commit the merge and push.
 - If the branch has no PR yet (`gh pr view <branch>` fails), open a draft PR
   against the base branch in `config.json`, with
   `gh pr create --draft --base <base_branch> --head <branch>`. Its title
   follows the repo's PR titles (`gh pr list --state merged --limit 10`). Write
   the body from `.github/pull_request_template.md`, keeping its headings and
-  deleting its comments, and make its first line `Closes #<issue>`. Once it
-  exists, just push to it; never open a second one.
+  deleting its comments, and make its first line `Closes #<issue>`. When
+  `intake.md` says `RESCOPED: yes`, the branch builds only part of the issue,
+  so make that line `Related to #<issue>` instead: merging must not close an issue
+  that still has work in it. Once the PR exists, just push to it; never open a
+  second one.
+- When a round changes what the PR says (what it does, how to test it), write
+  the whole new body to `<worktree>/.scratch/pr-body.md`, starting from
+  `gh pr view <branch> --json body --jq .body`, and run
+  `factory/bin/job body <job-id> <worktree>/.scratch/pr-body.md`, typed exactly
+  like that from the main checkout. It keeps the first line's `Closes` or `Related to`
+  honest and carries over the Screenshots and Playground preview blocks if you
+  left them out. Never run `gh pr edit` yourself: it stops the run to ask the
+  operator.
 
 ## Write build.md
 

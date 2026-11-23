@@ -38,6 +38,7 @@ import { peopleStyles } from './parts/people.styles';
 import { isMobileStamped } from '../../src/mode/stamp';
 import type { OsTable } from '../../src/ui/components/os-table/os-table';
 import { addUserForm, syncAddUserForm, type AddUserFormSync } from './parts/add-user';
+import { composeModal, openCompose, type ComposeDraft } from './parts/compose-email';
 import type { OsUserProfile } from './profile/index';
 import {
 	SORT_KEYS,
@@ -78,6 +79,8 @@ interface UiState {
 	reassign: { id: number; name: string } | null;
 	/** The Add User form's last painted answer. */
 	addForm: AddUserFormSync;
+	/** The "Send email" modal's draft, while it is open. */
+	compose: ComposeDraft | null;
 	profileWired: boolean;
 }
 
@@ -95,6 +98,7 @@ const freshUi = (): UiState => ( {
 	bulkRole: '',
 	reassign: null,
 	addForm: { created: 0, error: '', field: '' },
+	compose: null,
 	profileWired: false,
 } );
 
@@ -287,7 +291,7 @@ function bulkActions( ctx: Ctx, ui: UiState, phone: boolean ): TemplateResult {
 }
 
 function actionsOf( ctx: Ctx ): RowActions {
-	return { onSendReset: ( row ) => sendReset( ctx, row ), onResendWelcome: ( row ) => resendWelcome( ctx, row ), toast: ( message ) => say( ctx, message ) };
+	return { onSendReset: ( row ) => sendReset( ctx, row ), onResendWelcome: ( row ) => resendWelcome( ctx, row ), onSendEmail: ( row ) => openCompose( ctx, ctx.ui( freshUi ), row ), toast: ( message ) => say( ctx, message ) };
 }
 
 /** The presence slice over the loaded collection; the role is the server's, so the collection already answers it. */
@@ -416,6 +420,7 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 					user-id=${ state.tab === 'edit' && cfg.currentUserId ? String( cfg.currentUserId ) : null }
 				></os-user-profile>
 			</os-tabpanel>
+			${ composeModal( ctx, ui ) }
 		</div>`;
 	},
 
@@ -474,6 +479,7 @@ export default defineApp< UsersState, UsersData >( APP_ID, {
 		const actions: RowActions = {
 			onSendReset: ( row ) => sendReset( ctx, row ),
 			onResendWelcome: ( row ) => resendWelcome( ctx, row ),
+			onSendEmail: ( row ) => openCompose( ctx, ui, row ),
 			toast: ( message ) => say( ctx, message ),
 		};
 		// The frame before the first answer paints the table's skeleton.

@@ -184,7 +184,7 @@ describe( 'agent chat window', () => {
 		expect( line ).not.toBeNull();
 		const row = line!.querySelector( '.dm-agent-chat__msg--pending' );
 		expect( row ).not.toBeNull();
-		const [ first, second ] = [ ...row!.children ];
+		const [ first, second ] = [ ...row!.querySelector( '.dm-agent-chat__msg-status' )!.children ];
 		expect( first.tagName.toLowerCase() ).toBe( 'os-spinner' );
 		expect( first.getAttribute( 'preset' ) ).toBe( 'inline' );
 		expect( second.className ).toBe( 'dm-agent-chat__msg-text' );
@@ -673,6 +673,82 @@ describe( 'agent chat window', () => {
 		expect( agentsChatStore.state.conversationIds[ 9 ] ).toBe( 77 );
 		expect( body.textContent ).toContain( 'Historian' );
 		expect( body.textContent ).toContain( 'Done — here it is.' );
+		// A settled conversation never reads a job.
+		expect(
+			fetchMock.mock.calls.some( ( c ) => String( c[ 0 ] ).includes( '/jobs/' ) ),
+		).toBe( false );
+
+		if ( typeof cleanup === 'function' ) {
+			cleanup();
+		}
+	} );
+
+	test( 'opening a conversation saved mid-run resumes its job without submitting it again', async () => {
+		const jobId = '09a66ae0-077a-4000-8000-123456789abc';
+		const summary = {
+			id: 78,
+			agentId: 9,
+			agentName: 'Historian',
+			agentDescription: '',
+			agentAvatarUrl: 'https://example.test/bot.svg',
+			title: 'Summarize post 12',
+			preview: 'Queued — waiting for a WordPress worker…',
+			lastRole: 'agent',
+			messageCount: 2,
+			createdAt: '2026-07-30T10:00:00Z',
+			updatedAt: '2026-07-30T10:05:00Z',
+		};
+		const reply = ( json: unknown ): Response =>
+			( { ok: true, status: 200, json: async () => json } ) as unknown as Response;
+		const fetchMock: FetchMock = vi.fn( async ( input: unknown ) => {
+			const url = String( input );
+			if ( url.endsWith( '/agents/conversations' ) ) {
+				return reply( [ summary ] );
+			}
+			if ( url.endsWith( '/agents/conversations/78' ) ) {
+				return reply( {
+					...summary,
+					messages: [
+						{ role: 'user', text: 'Summarize post 12', at: 1 },
+						{ role: 'agent', text: summary.preview, at: 2, pending: true, jobId },
+					],
+				} );
+			}
+			if ( url.includes( `/jobs/${ jobId }` ) ) {
+				return reply( {
+					jobId,
+					status: 'completed',
+					pollAfter: 3,
+					result: { text: 'Here is the summary.', toolCalls: [], turns: 1 },
+					error: null,
+				} );
+			}
+			return reply( {} );
+		} );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		await flush();
+		body.querySelector< HTMLElement >( '.dm-agent-chat__conv' )!.click();
+		await flush();
+		await flush();
+
+		const calls = fetchMock.mock.calls.map( ( c ) => [
+			( c[ 1 ] as RequestInit | undefined )?.method ?? 'GET',
+			String( c[ 0 ] ),
+		] );
+		expect( calls ).toContainEqual( [
+			'GET',
+			`https://example.test/wp-json/desktop-mode/v1/agents/9/jobs/${ jobId }`,
+		] );
+		expect( calls.some( ( [ , url ] ) => url.includes( '/invoke' ) ) ).toBe( false );
+		expect( body.textContent ).toContain( 'Here is the summary.' );
+		expect( body.querySelector( 'os-spinner' ) ).toBeNull();
+		expect( calls ).toContainEqual( [
+			'PUT',
+			'https://example.test/wp-json/desktop-mode/v1/agents/conversations/78',
+		] );
 
 		if ( typeof cleanup === 'function' ) {
 			cleanup();

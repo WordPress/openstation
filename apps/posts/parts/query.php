@@ -94,10 +94,13 @@ function openstation_posts_app_allowed_orderby() {
 }
 
 /**
- * The static facts the client view reads through `ctx.extra`: the
- * mode, the editor URLs and the declared default sort — what the
- * client returns to when a column sort is cleared. The Pages app
- * layers its own facts on top in `openstation_pages_app_config()`.
+ * The facts the client view reads through `ctx.extra`: the mode, the
+ * editor URLs, the declared default sort — what the client returns to
+ * when a column sort is cleared — and the admin-ajax URL and per-viewer
+ * nonce of the row-actions endpoint (`parts/row-actions.php`). The
+ * client reads the nonce at call time: the shell's nonce refresh
+ * rewrites it in place. The Pages app layers its own facts on top in
+ * `openstation_pages_app_config()`.
  *
  * @param string $mode    `posts` | `pages`.
  * @param string $orderby Default sort column.
@@ -113,6 +116,8 @@ function openstation_posts_app_config( $mode, $orderby = 'date', $order = 'desc'
 			: esc_url_raw( admin_url( 'post-new.php' ) ),
 		'defaultOrderby'  => (string) $orderby,
 		'defaultOrder'    => 'asc' === $order ? 'asc' : 'desc',
+		'ajaxUrl'         => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
+		'rowActionsNonce' => wp_create_nonce( OPENSTATION_POSTS_ROW_ACTIONS_NONCE ),
 	);
 }
 
@@ -379,6 +384,58 @@ function openstation_posts_app_restore( Os $os, array $args, $type ) {
 			sprintf(
 				/* translators: %d: number of rows that could not be restored. */
 				_n( '%d item could not be restored.', '%d items could not be restored.', $failed, 'desktop-mode' ),
+				$failed
+			)
+		);
+	}
+}
+
+/**
+ * `draft` — switch the selected rows back to draft. Rows of another
+ * type, and rows already in draft, auto-draft or the trash, are
+ * skipped; every id is checked against `edit_post`, the survivors are
+ * announced as one content change (what every window showing the type
+ * repaints on), and failures become a toast.
+ *
+ * @param Os                  $os   Host handle.
+ * @param array<string,mixed> $args `ids`.
+ * @param string              $type Content type switched and announced (`page`).
+ * @return void
+ */
+function openstation_posts_app_draft( Os $os, array $args, $type ) {
+	$ids    = openstation_posts_app_ids( isset( $args['ids'] ) ? $args['ids'] : array() );
+	$ok     = array();
+	$failed = 0;
+	foreach ( $ids as $id ) {
+		$post = get_post( $id );
+		if ( ! $post || $type !== $post->post_type || in_array( $post->post_status, array( 'draft', 'auto-draft', 'trash' ), true ) ) {
+			continue;
+		}
+		if ( ! $os->can( 'edit_post', $id ) ) {
+			++$failed;
+			continue;
+		}
+		$updated = wp_update_post(
+			array(
+				'ID'          => $id,
+				'post_status' => 'draft',
+			),
+			true
+		);
+		if ( is_wp_error( $updated ) ) {
+			++$failed;
+			continue;
+		}
+		$ok[] = $id;
+	}
+	if ( array() !== $ok ) {
+		$os->announce( $type, 'updated', $ok );
+	}
+	if ( $failed > 0 ) {
+		$os->toast(
+			sprintf(
+				/* translators: %d: number of rows that could not be switched to draft. */
+				_n( '%d item could not be switched to draft.', '%d items could not be switched to draft.', $failed, 'desktop-mode' ),
 				$failed
 			)
 		);

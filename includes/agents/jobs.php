@@ -67,6 +67,55 @@ function openstation_agent_job_insert( $key, $value ) {
 }
 
 /**
+ * Seconds a running job's worker may stay silent before it counts as gone.
+ *
+ * @access private
+ * @param int $agent_user_id Agent's `wp_users.ID`.
+ * @return int
+ */
+function openstation_agent_job_stale_bound( $agent_user_id ) {
+	// One provider request, one ability call as long as one, and slack.
+	$timeout = max( (int) apply_filters( 'openstation_agent_http_timeout', OPENSTATION_AGENT_HTTP_TIMEOUT ), OPENSTATION_AGENT_HTTP_TIMEOUT );
+	/**
+	 * Filters how long a running async job's worker may go without a sign
+	 * of life before status reads report the job as interrupted and its
+	 * admission slot frees. Return 0 or less to disable the check and
+	 * leave only the job lifetime.
+	 *
+	 * @param int $seconds       Seconds of silence allowed. Default
+	 *                           `2 * max( openstation_agent_http_timeout, 180 ) + 60`.
+	 * @param int $agent_user_id Agent's `wp_users.ID`.
+	 */
+	return (int) apply_filters( 'openstation_agent_job_stale_after', 2 * $timeout + 60, (int) $agent_user_id );
+}
+
+/**
+ * Whether a running job's worker has been silent past the stale bound.
+ *
+ * @access private
+ * @param array $job Stored job.
+ * @return bool
+ */
+function openstation_agent_job_is_stale( array $job ) {
+	if ( 'running' !== $job['status'] ) {
+		return false;
+	}
+	$bound = openstation_agent_job_stale_bound( $job['agent'] );
+	if ( $bound <= 0 ) {
+		return false;
+	}
+	// A job stored before heartbeats falls back to its last round, then its creation.
+	if ( isset( $job['heartbeat'] ) ) {
+		$last = (int) $job['heartbeat'];
+	} elseif ( isset( $job['progress']['updatedAt'] ) ) {
+		$last = (int) $job['progress']['updatedAt'];
+	} else {
+		$last = (int) $job['created'];
+	}
+	return time() - $last >= $bound;
+}
+
+/**
  * Build the public status without exposing input, history or ownership data.
  *
  * @access private
@@ -76,7 +125,8 @@ function openstation_agent_job_insert( $key, $value ) {
 function openstation_agent_job_status( array $job ) {
 	$status = $job['status'];
 	$error  = isset( $job['error'] ) ? $job['error'] : null;
-	if ( in_array( $status, array( 'queued', 'running' ), true ) && time() >= $job['deadline'] ) {
+	// A read never writes: a worker that was alive after all still stores what it finishes.
+	if ( ( in_array( $status, array( 'queued', 'running' ), true ) && time() >= $job['deadline'] ) || openstation_agent_job_is_stale( $job ) ) {
 		$status = 'failed';
 		$error  = array(
 			'code'    => 'openstation_agent_job_interrupted',
@@ -90,6 +140,8 @@ function openstation_agent_job_status( array $job ) {
 		'pollAfter' => 3,
 		'result'    => 'completed' === $status ? $job['result'] : null,
 		'error'     => $error,
+		// A completed job carries the full trace in its result instead.
+		'progress'  => in_array( $status, array( 'running', 'failed' ), true ) && isset( $job['progress'] ) ? $job['progress'] : null,
 	);
 }
 
@@ -179,7 +231,7 @@ function openstation_agents_rest_enqueue_job( WP_REST_Request $request ) {
 			)
 		);
 	}
-	if ( $previous && ( time() >= $previous['deadline'] || in_array( $previous['status'], array( 'completed', 'failed' ), true ) ) ) {
+	if ( $previous && ( time() >= $previous['deadline'] || in_array( $previous['status'], array( 'completed', 'failed' ), true ) || openstation_agent_job_is_stale( $previous ) ) ) {
 		openstation_agent_job_release( $previous );
 	}
 	if ( ! openstation_agent_job_insert( $slot, $id . '|' . $job['deadline'] ) ) {
@@ -250,7 +302,8 @@ function openstation_agent_job_finish( array $job, $result ) {
 	 *
 	 * @param string $id     Job UUID.
 	 * @param int    $owner  Requesting human user id.
-	 * @param array  $status Public job status, including result or error.
+	 * @param array  $status Public job status, including result or error,
+	 *                       and the recorded progress of a failed job.
 	 */
 	do_action( 'openstation_agent_job_finished', $job['id'], $job['owner'], openstation_agent_job_status( $job ) );
 }
@@ -270,11 +323,13 @@ function openstation_agent_job_run( $id ) {
 		openstation_agent_job_finish( $job, new WP_Error( 'openstation_agent_job_expired', __( 'The queued job expired before a worker could start it.', 'desktop-mode' ) ) );
 		return;
 	}
-	$job['status'] = 'running';
+	$job['status']    = 'running';
+	$job['heartbeat'] = time();
 	update_option( 'openstation_agent_job_' . $id, $job, false );
 	$finished = false;
+	// By reference: an interrupted finish must keep the last recorded progress.
 	register_shutdown_function(
-		static function () use ( &$finished, $job ) {
+		static function () use ( &$finished, &$job ) {
 			if ( ! $finished ) {
 				openstation_agent_job_finish( $job, new WP_Error( 'openstation_agent_job_interrupted', __( 'The background worker stopped unexpectedly. Some work may already have been applied. Check the site before submitting again.', 'desktop-mode' ) ) );
 			}
@@ -285,11 +340,66 @@ function openstation_agent_job_run( $id ) {
 		set_time_limit( 0 );
 	}
 	$previous = get_current_user_id();
+	// Record each tool round of this run only, never a nested or chained one.
+	// Outputs stay out: a poll shows what was called, not what came back.
+	$record = static function ( $agent_user_id, $turn, $context ) use ( &$job ) {
+		if ( ! isset( $context['jobId'] ) || $job['id'] !== $context['jobId'] || $job['agent'] !== (int) $agent_user_id ) {
+			return;
+		}
+		$calls = isset( $job['progress']['toolCalls'] ) ? $job['progress']['toolCalls'] : array();
+		foreach ( $turn['toolCalls'] as $call ) {
+			$calls[] = array(
+				'name'  => $call['name'],
+				'args'  => $call['args'],
+				'error' => $call['error'],
+			);
+		}
+		// Spend so far: only the counts and the model's id and name.
+		$usage = isset( $turn['usage'] ) && is_array( $turn['usage'] ) ? $turn['usage'] : null;
+		$model = isset( $turn['model'] ) && is_array( $turn['model'] ) ? $turn['model'] : null;
+
+		$job['progress']  = array(
+			'turn'      => (int) $turn['turn'],
+			'toolCalls' => $calls,
+			'usage'     => null === $usage ? null : array(
+				'prompt'     => (int) ( $usage['prompt'] ?? 0 ),
+				'completion' => (int) ( $usage['completion'] ?? 0 ),
+				'total'      => (int) ( $usage['total'] ?? 0 ),
+			),
+			'model'     => null === $model ? null : array(
+				'id'   => (string) ( $model['id'] ?? '' ),
+				'name' => (string) ( $model['name'] ?? '' ),
+			),
+			'updatedAt' => time(),
+		);
+		$job['heartbeat'] = time();
+		update_option( 'openstation_agent_job_' . $job['id'], $job, false );
+	};
+	// Signs of life inside a round: before each provider request and after
+	// each tool call that returned, at most one write every 30 seconds.
+	$beat = static function ( $value ) use ( &$job ) {
+		if ( time() - $job['heartbeat'] >= 30 ) {
+			$job['heartbeat'] = time();
+			update_option( 'openstation_agent_job_' . $job['id'], $job, false );
+		}
+		return $value;
+	};
 	try {
 		wp_set_current_user( $job['owner'] );
 		if ( ! get_userdata( $job['owner'] ) || ! openstation_agents_enabled() || ! openstation_agents_user_can_invoke() || ! openstation_agent_user_can_invoke_agent( $job['agent'], $job['source'] ) ) {
 			$result = new WP_Error( 'openstation_agents_forbidden', __( 'You no longer have permission to run this agent.', 'desktop-mode' ) );
+		} elseif ( ! openstation_agent_runner_available() ) {
+			// Checked before the taps go on: the generate tap alone would make the runner look available.
+			$result = new WP_Error(
+				'openstation_agent_ai_unavailable',
+				__( 'The WordPress AI Client is not available on this site. Configure an AI connector to run agents.', 'desktop-mode' ),
+				array( 'status' => 503 )
+			);
 		} else {
+			add_action( 'openstation_agent_turn_completed', $record, 10, 3 );
+			// Ahead of the default priority, so a blocking generator cannot delay it.
+			add_filter( 'openstation_agent_runner_generate', $beat, 1 );
+			add_filter( 'openstation_agent_tool_result', $beat, 1 );
 			$result = openstation_agent_invoke(
 				$job['agent'],
 				$job['message'],
@@ -297,12 +407,16 @@ function openstation_agent_job_run( $id ) {
 					'source'  => $job['source'],
 					'invoker' => $job['owner'],
 					'history' => $job['history'],
+					'jobId'   => $id,
 				)
 			);
 		}
 	} catch ( Throwable $error ) {
 		$result = new WP_Error( 'openstation_agent_job_failed', __( 'The background agent encountered an unexpected error. Check the site before submitting again.', 'desktop-mode' ) );
 	} finally {
+		remove_action( 'openstation_agent_turn_completed', $record, 10 );
+		remove_filter( 'openstation_agent_runner_generate', $beat, 1 );
+		remove_filter( 'openstation_agent_tool_result', $beat, 1 );
 		wp_set_current_user( $previous );
 	}
 	openstation_agent_job_finish( $job, $result );

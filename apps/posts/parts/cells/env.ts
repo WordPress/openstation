@@ -6,9 +6,10 @@
  * reach: inline styles are the working contract. What a cell needs
  * from the app arrives as one {@link CellEnv} — the config extra, the
  * REST client, the shell doors (`openUrl`, `confirm`, `toast`,
- * `announce`), and the per-window caches (the parent-title roster,
- * the category tree and its live pickers) that used to be module
- * singletons and now die with the window.
+ * `announce`), the row actions menu's links and verbs, the labels
+ * plugins add beside a row's title, and the per-window caches (the
+ * parent-title roster, the category tree and its live pickers) that
+ * used to be module singletons and now die with the window.
  *
  * The cell cache ({@link memoCell}) keeps a row stable across the
  * table's own repaints: `<os-table>` rebuilds its body on every
@@ -27,6 +28,7 @@ import type {
 	OsCategoryPicker,
 } from '../../../../src/ui/components/os-category-picker/os-category-picker';
 import type { PostsRestClient } from '../rest';
+import type { RowActions } from '../row-actions';
 import type { ListExtra, PostListItem } from '../types';
 
 /** The cells only one mode renders — Posts hands in its tag and category pickers. */
@@ -47,6 +49,12 @@ export interface CellEnv {
 	toast: ( title: string, err: unknown ) => void;
 	/** A row changed — the window's own announce (its watch skips the echo). */
 	announce: ( action: string, ids: number[] ) => void;
+	/** The labels plugins add beside a row's title (`display_post_states`), as text; empty until they land. */
+	rowStates?: ( id: number ) => string[];
+	/** What a row's actions menu needs; without it the title cell offers no menu. */
+	rowActions?: RowActions;
+	/** Open the quick edit dialog on a row. Set in Pages mode only. */
+	quickEdit?: ( row: PostListItem ) => void;
 	/** In-page parent titles (Pages), refreshed on every data change. */
 	parentTitles: Map< number, string >;
 	/** The category tree, fetched once per window, and every live picker. */
@@ -94,6 +102,15 @@ export function statusBadgeColor( status: string ): { bg: string; fg: string } {
 		default:
 			return { bg: 'var(--os-ui-surface-raised, #f1f1f2)', fg: 'var(--os-ui-fg-muted, #50575e)' };
 	}
+}
+
+/**
+ * Whether a row offers quick edit: only where the window set the door
+ * (Pages), never on a trashed row, and never on a row another user is
+ * editing — wp-admin hides it there too.
+ */
+export function offersQuickEdit( row: PostListItem, env: CellEnv ): boolean {
+	return !! env.quickEdit && row.status !== 'trash' && ! row.openstation_lock;
 }
 
 /** The editor URL for a row — `post.php?post=<id>&action=edit`. */
@@ -145,12 +162,13 @@ export function titleOf( row: PostListItem ): string {
 /**
  * A small inline pill — the lock, status and assignment badges share
  * it. `icon` is a glyph (a dashicon class, or text for a glyph the
- * shadow root cannot style through the class).
+ * shadow root cannot style through the class). A `shrink` pill gives
+ * way when its row runs out of room, its text ending in an ellipsis.
  */
 export function pill(
 	text: string,
 	colors: { fg: string; bg: string },
-	opts: { icon?: HTMLElement; uppercase?: boolean; title?: string } = {},
+	opts: { icon?: HTMLElement; uppercase?: boolean; title?: string; shrink?: boolean } = {},
 ): HTMLElement {
 	const badge = document.createElement( 'span' );
 	badge.style.cssText = [
@@ -165,7 +183,7 @@ export function pill(
 		`background:${ colors.bg }`,
 		`color:${ colors.fg }`,
 		'white-space:nowrap',
-		'flex-shrink:0',
+		opts.shrink ? 'flex-shrink:1;min-width:0;box-sizing:border-box' : 'flex-shrink:0',
 	]
 		.filter( Boolean )
 		.join( ';' );
@@ -174,6 +192,9 @@ export function pill(
 	}
 	const label = document.createElement( 'span' );
 	label.textContent = text;
+	if ( opts.shrink ) {
+		label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;min-width:0;';
+	}
 	badge.appendChild( label );
 	if ( opts.title ) {
 		badge.title = opts.title;

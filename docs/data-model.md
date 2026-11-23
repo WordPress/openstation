@@ -324,6 +324,7 @@ truth; every one regenerates.
 | `desktop_mode_agent_user_rate_{invoker}_{YmdH}`, `openstation_agent_rate_{agent}_{YmdH}` | Agents | Hourly invocation counters, one per human invoker and one per agent, bucketed by the UTC hour. They expire after an hour. |
 | `openstation_shell_build` | PWA | Hash of the shell bundles, used to detect a deploy. |
 | `dm_pwsz_map` | Plugins | On-disk size of each plugin. |
+| `_dm_{kind}_throttle_{requester}_{target}` | Users | One-per-minute throttle for the Users window's per-user emails; `kind` is `pw_reset`, `welcome` or `custom`. Expires after a minute. |
 | `openstation_plugins_handoff_{user_id}` | Windows | The screen a plugin redirected a plugins window to, held for the plugins screen the window went back to, which opens it in a window of its own. Expires after a minute. |
 
 The Plugins app also uses the `desktop-mode-plugins` object-cache group for
@@ -357,8 +358,8 @@ truth for job execution.
 
 | Name | Kind | Contents / lifetime |
 |---|---|---|
-| `openstation_agent_job_{uuid}` | Option, non-autoloaded | Owner, agent, bounded message/history, source, timestamps, status, result/error. Retained for one day. |
+| `openstation_agent_job_{uuid}` | Option, non-autoloaded | Owner, agent, bounded message/history, source, timestamps, status, result/error, and per-round `progress` (tool names, arguments, errors, token `usage` and `model` so far, last update time; no tool outputs), and an internal `heartbeat` (the worker's last sign of life, not returned by the status route). Retained for one day. |
 | `openstation_agent_job_claim_{uuid}` | Option, non-autoloaded | Atomic execution claim, retained with the job; never recycled for retries. |
-| `openstation_agent_job_active_{owner}_{agent}` | Option, non-autoloaded | Admission slot (`uuid|deadline`), released on completion/failure, expiry or cleanup. |
+| `openstation_agent_job_active_{owner}_{agent}` | Option, non-autoloaded | Admission slot (`uuid|deadline`), released on completion/failure, expiry or cleanup, or when the job's worker has gone silent past the stale bound. |
 | `openstation_agent_job_run` | Single cron event, UUID argument | Executes a queued invocation once. |
 | `openstation_agent_job_cleanup` | Single cron event, UUID argument | Deletes job input/result and its claim after one day. |

@@ -19,7 +19,14 @@
  */
 
 import { __, sprintf } from './i18n';
-import { agentRequestId, runAgentJob } from './agents-jobs';
+import {
+	agentRequestId,
+	JobRequestError,
+	resumeAgentJob,
+	runAgentJob,
+	type AgentJobProgress,
+	type AgentJobStatusListener,
+} from './agents-jobs';
 import {
 	agentsChatStore,
 	openAgentChat,
@@ -28,6 +35,7 @@ import {
 	type AgentChatMessage,
 } from './agents-chat-store';
 import { persistAgentTranscript } from './agents-conversations';
+import type { AgentInvokeResult, AgentToolCall } from './agents-types';
 
 /** Entity kinds agents understand — mirrors the trigger config enum. */
 export type DroppedEntityKind = 'post' | 'page' | 'media' | 'user' | 'comment';
@@ -255,9 +263,105 @@ export function openAgentChatWindow(
 }
 
 /**
+ * A job's progress as chat tool calls. Progress never carries outputs,
+ * and the renderer and the transcript store already accept a call
+ * without them.
+ */
+function progressToolCalls(
+	progress: AgentJobProgress | null | undefined,
+): AgentToolCall[] {
+	return ( progress?.toolCalls ?? [] ).map( ( call ) => ( {
+		callId: '',
+		name: call.name,
+		args: call.args,
+		output: null,
+		error: call.error,
+	} ) );
+}
+
+/** The row text of a run that ended without answer text. */
+function noTextAnswerText(): string {
+	return __( 'The agent finished without a text answer.', 'desktop-mode' );
+}
+
+/** A thrown run error as row text. */
+function runErrorText( err: unknown ): string {
+	return err instanceof Error ? err.message : String( err );
+}
+
+/**
+ * Paint one non-terminal job status onto the pending row: the status
+ * label, then the tool calls the job has made so far.
+ */
+function applyJobStatus(
+	row: AgentChatMessage,
+	status: Parameters< AgentJobStatusListener >[ 0 ],
+	progress?: AgentJobProgress | null,
+): void {
+	const labels = {
+		queued: __( 'Queued — waiting for a WordPress worker…', 'desktop-mode' ),
+		reconnecting: __( 'Reconnecting to the background job…', 'desktop-mode' ),
+		running: __( 'Working in the background…', 'desktop-mode' ),
+	};
+	row.text = labels[ status ];
+	const calls = progressToolCalls( progress );
+	if ( calls.length > 0 ) {
+		row.toolCalls = calls;
+	}
+	agentsChatStore.notify();
+}
+
+/**
+ * Wait for a run and settle its pending row on the outcome: the answer
+ * (with its call-to-action buttons), the no-text error, or the error
+ * the run threw. The row stops being pending and drops its job id.
+ */
+async function settleJobRow(
+	row: AgentChatMessage,
+	run: Promise< AgentInvokeResult >,
+	errorText: ( err: unknown ) => string = runErrorText,
+): Promise< void > {
+	try {
+		const result = await run;
+		if ( result.text?.trim() ) {
+			row.text = result.text;
+		} else {
+			row.role = 'error';
+			row.text = noTextAnswerText();
+		}
+		row.toolCalls = result.toolCalls;
+		if (
+			Array.isArray( result.callToActions ) &&
+			result.callToActions.length > 0
+		) {
+			row.callToActions = result.callToActions;
+		}
+	} catch ( err ) {
+		row.role = 'error';
+		row.text = errorText( err );
+		// Keep what the run called. Without the failed job's progress
+		// (a client-side timeout), the last progress seen stays on the row.
+		const calls = progressToolCalls(
+			err instanceof JobRequestError ? err.progress : null,
+		);
+		if ( calls.length > 0 ) {
+			row.toolCalls = calls;
+		}
+	}
+	row.pending = false;
+	delete row.jobId;
+	agentsChatStore.notify();
+}
+
+/**
  * Run one invocation with the message appended to the agent's chat
  * transcript — the chat window (already subscribed to the store)
  * paints the run live.
+ *
+ * The transcript is saved twice: once the server has accepted the job
+ * (its first `queued` or `running` status), with the pending row and
+ * its job id, so a reload can resume the poll; and again when the run
+ * ends.
  *
  * @public
  */
@@ -279,10 +383,7 @@ export async function invokeAgentIntoTranscript(
 	// would tell the model it once answered with a UI placeholder.
 	// An `agent` row whose text is exactly the placeholder is legacy
 	// data from the same situation, so it is skipped by text.
-	const noTextAnswer = __(
-		'The agent finished without a text answer.',
-		'desktop-mode',
-	);
+	const noTextAnswer = noTextAnswerText();
 	const history = transcript
 		.filter(
 			( row ) =>
@@ -295,54 +396,77 @@ export async function invokeAgentIntoTranscript(
 	// instead of it: the model keeps reading the same prose it always
 	// did, the chat gains an object it can open.
 	transcript.push( { role: 'user', text: message, at: Date.now(), attachment } );
+	const jobId = agentRequestId();
 	const pending: AgentChatMessage = {
 		role: 'agent',
 		text: __( 'Working…', 'desktop-mode' ),
 		at: Date.now(),
 		pending: true,
+		jobId,
 	};
 	transcript.push( pending );
 	agentsChatStore.notify();
 
-	try {
-		const result = await runAgentJob(
+	let acceptedSave: Promise< void > | null = null;
+	await settleJobRow(
+		pending,
+		runAgentJob(
 			agent.id,
 			{ message, source, history },
 			rest,
-			agentRequestId(),
-			( status ) => {
-				const labels = {
-					queued: __( 'Queued — waiting for a WordPress worker…', 'desktop-mode' ),
-					reconnecting: __( 'Reconnecting to the background job…', 'desktop-mode' ),
-					running: __( 'Working in the background…', 'desktop-mode' ),
-				};
-				pending.text = labels[ status ];
-				agentsChatStore.notify();
+			jobId,
+			( status, progress ) => {
+				applyJobStatus( pending, status, progress );
+				if ( ! acceptedSave && status !== 'reconnecting' ) {
+					acceptedSave = persistAgentTranscript( agent, rest );
+				}
 			},
-		);
-		if ( result.text?.trim() ) {
-			pending.text = result.text;
-		} else {
-			pending.role = 'error';
-			pending.text = noTextAnswer;
-		}
-		pending.toolCalls = result.toolCalls;
-		if (
-			Array.isArray( result.callToActions ) &&
-			result.callToActions.length > 0
-		) {
-			pending.callToActions = result.callToActions;
-		}
-	} catch ( err ) {
-		pending.role = 'error';
-		pending.text = err instanceof Error ? err.message : String( err );
-	}
-	pending.pending = false;
-	agentsChatStore.notify();
+		),
+	);
 
 	// Persist the exchange (create on first save, replace afterwards).
 	// Fire-and-forget by design: the chat already painted the answer,
-	// and the persist helper swallows its own failures.
+	// and the persist helper swallows its own failures. It waits for
+	// the accepted-job save, which may still be creating the
+	// conversation: two overlapping first saves would create two.
+	void Promise.resolve( acceptedSave ).then( () =>
+		persistAgentTranscript( agent, rest ),
+	);
+}
+
+/**
+ * Resume the job a pending row in `agent`'s transcript is waiting on —
+ * a conversation saved before a reload and opened again. Status reads
+ * only: it sends no message and never submits the job again. The row
+ * updates the way a live run's does, then the transcript is saved.
+ *
+ * @public
+ */
+export async function resumeAgentJobIntoTranscript(
+	agent: AgentChatAgent,
+	rest: { restRoot: string; restNonce: string },
+): Promise< void > {
+	const row = ( agentsChatStore.state.transcripts[ agent.id ] ?? [] ).find(
+		( message ) => message.pending && message.jobId,
+	);
+	if ( ! row?.jobId ) {
+		return;
+	}
+	await settleJobRow(
+		row,
+		resumeAgentJob( agent.id, rest, row.jobId, ( status, progress ) =>
+			applyJobStatus( row, status, progress ),
+		),
+		( err ) =>
+			// Jobs are deleted a day after they start, and a job the
+			// server never stored answers the same way.
+			err instanceof JobRequestError && err.status === 404
+				? __(
+					'The result of this run is no longer available. Some work may already have been applied. Check the site before submitting the task again.',
+					'desktop-mode',
+				)
+				: runErrorText( err ),
+	);
 	void persistAgentTranscript( agent, rest );
 }
 

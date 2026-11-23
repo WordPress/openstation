@@ -4,7 +4,11 @@ A `<os-table>`-driven replacement for the chromeless `edit.php` iframe. Server-p
 
 The window is an [App Framework](../app-framework.md) app — `apps/posts/` (and `apps/pages/` for Pages, which reuses its parts). Its list is a `data()` over `openstation_app_rest_page( 'wp/v2/posts', … )`, so every REST field, `_embed` and the query-args filter below reach the rows exactly as they reached the old bundle; paging, filtering and sorting are the app's state; "Move to trash" is a server action. See [`migration-list-apps.md`](../migration-list-apps.md) for what the port removed.
 
+The Pages window has a per-page **Quick edit**, offered in the row's `⋯` menu on each card and in the details pane, and as a button in the Details table's title cell (never on a trashed page or one another user is editing). It changes the title, slug, status, parent, order, template and whether comments are allowed. It reads the page with `GET /wp/v2/pages/<id>?context=edit` and saves with `POST /wp/v2/pages/<id>`, sending only the fields that changed, so Core decides who may edit and publish, and a plugin's REST hooks for pages (for example `rest_pre_insert_page` and `rest_after_insert_page`) apply to it as they do to the block editor. Published and Private are offered only when that read carries Core's `wp:action-publish` link. The Posts window does not offer quick edit.
+
 > Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
+
+Each row has a `⋯` actions menu (on the card, in the details pane and in the Details table's title cell): Edit, Quick edit (Pages), View, Move to trash or Restore, plus the links plugins add to that row on `edit.php` through `page_row_actions` / `post_row_actions`. Edit, Quick edit and View appear only where the surface has no button or link of its own for them, so the table's menu, beside the title link, View and Quick edit, holds only the plugin links and Move to trash or Restore. A plugin that already adds a row link there needs nothing else; see [Row links in the native Posts and Pages windows](../plugin-compat-layer.md#row-links-in-the-native-posts-and-pages-windows) for which links come through. The labels a plugin adds beside a title through `display_post_states` (a builder's "Bricks", a shop page) show next to the title too, on the card, in the details pane and in the Details table's title cell; the [same section](../plugin-compat-layer.md#row-links-in-the-native-posts-and-pages-windows) says which ones.
 
 ## How the swap works
 
@@ -140,7 +144,7 @@ That's it. The column appears in every Posts window load and never makes a secon
 
 ## Add a bulk action
 
-The shipped bulk actions are "Move to trash" (`id: 'trash'`, destructive, requires confirmation) and "Restore" (`id: 'restore'`, neutral, instant execution). The bulk bar dynamically displays "Restore" when viewing the Trash status and "Move to trash" in all other views. Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The filter's second argument is `{ mode }`, `'posts'` or `'pages'`: the Posts and Pages windows share the filter, so an action that only makes sense for posts returns `actions` unchanged in pages mode. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
+The shipped bulk actions are "Move to trash" (`id: 'trash'`, destructive, requires confirmation) and "Restore" (`id: 'restore'`, neutral, instant execution). The bulk bar dynamically displays "Restore" when viewing the Trash status and "Move to trash" in all other views. The Pages window also ships "Switch to draft" (`id: 'draft'`, requires confirmation) before "Move to trash", hidden in the Trash and Drafts views. Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The filter's second argument is `{ mode }`, `'posts'` or `'pages'`: the Posts and Pages windows share the filter, so an action that only makes sense for posts returns `actions` unchanged in pages mode. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
 
 ```js
 wp.hooks.addFilter(
@@ -190,7 +194,7 @@ To remove default actions (e.g. for read-only views or custom workflows), filter
 wp.hooks.addFilter(
     'openstation.postsWindow.bulkActions',
     'myplugin/no-trash',
-    ( actions ) => actions.filter( ( a ) => a.id !== 'trash' && a.id !== 'restore' ),
+    ( actions ) => actions.filter( ( a ) => ! [ 'trash', 'restore', 'draft' ].includes( a.id ) ),
 );
 ```
 

@@ -161,6 +161,10 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 	let postTypes: PostTypeDescriptor[] = cfg.postTypes;
 	let scene: GraphScene | null = null;
 	let detailRequestId = 0;
+	// Bumped by every `loadGraph()`: a load that is no longer the
+	// latest drops its result instead of writing its status, notice
+	// or fit over the newer one's.
+	let loadId = 0;
 	let aborted = false;
 
 	const loadingOverlay = createLoadingOverlay( loading );
@@ -260,14 +264,36 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		if ( aborted ) {
 			return;
 		}
+		const myLoad = ++loadId;
+		const isCurrent = (): boolean => ! aborted && myLoad === loadId;
 		loadingOverlay.show();
 		toolbar.setStatus( __( 'Loading graph…' ) );
 		try {
 			const payload = await fetchGraph( cfg, activeTypes );
-			if ( aborted ) {
+			if ( ! isCurrent() || ! scene ) {
 				return;
 			}
-			scene?.setData( payload );
+			// The board is laid out by the time `setData()` returns; its
+			// sprites may still be building. Framing it and dropping the
+			// old focus happen now, so a node the user picks from the
+			// search while it builds stays focused when it is done.
+			const built = scene.setData( payload );
+			scene.fitToView();
+			scene.clearFocus();
+			panel.hide();
+			// "Loading graph…" and the overlay stay up until the board is
+			// on screen.
+			if ( ! ( await built ) || ! isCurrent() ) {
+				return;
+			}
+			// A large board kept spreading on screen while it built, and
+			// keeps spreading as it settles: keep it framed — unless the
+			// user has picked a node meanwhile, whose camera this would
+			// take away.
+			if ( scene.getFocusedId() === null ) {
+				scene.fitToView();
+				scene.followLayout();
+			}
 			toolbar.setStatus(
 				sprintf(
 					/* translators: 1: number of nodes (posts/pages) in the graph. 2: number of links between them. */
@@ -284,11 +310,8 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 					activeTypes,
 				} ),
 			);
-			scene?.fitToView();
-			scene?.clearFocus();
-			panel.hide();
 		} catch ( err ) {
-			if ( aborted ) {
+			if ( ! isCurrent() ) {
 				return;
 			}
 			notice.set( { kind: 'none' } );
@@ -296,7 +319,9 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			// eslint-disable-next-line no-console
 			console.warn( '[content-graph] graph fetch failed', err );
 		} finally {
-			loadingOverlay.hide();
+			if ( myLoad === loadId ) {
+				loadingOverlay.hide();
+			}
 		}
 	};
 

@@ -32,6 +32,11 @@
 		scanned nothing.
 	-->
 	<exclude-pattern type="relative">^\.claude/</exclude-pattern>
+	<!--
+		The factory's job worktrees are whole checkouts inside this one. Relative
+		for the same reason: phpcs run inside one of them must still scan it.
+	-->
+	<exclude-pattern type="relative">^factory/worktrees/</exclude-pattern>
 	<!-- House sniff sources — PHPCS-convention code, not plugin code. -->
 	<exclude-pattern>/tools/phpcs/</exclude-pattern>
 
