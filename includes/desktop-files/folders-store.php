@@ -17,6 +17,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Largest `share_meta` a folder may store, in bytes of encoded JSON.
+ * The column is diagnostic (visibility never reads it), and the row
+ * rides the boot payload and the folder heartbeat.
+ */
+const OPENSTATION_FILES_SHARE_META_MAX_BYTES = 4096;
+
 /** Allowed share-mode values. */
 function openstation_files_share_modes() {
 	$modes = array( 'private', 'users', 'roles', 'all' );
@@ -28,6 +35,50 @@ function openstation_files_share_modes() {
 	 * @param string[] $modes Default modes.
 	 */
 	return (array) apply_filters( 'openstation_files_share_modes', $modes );
+}
+
+/**
+ * Whether `$user_id` may put a folder in `$mode`.
+ *
+ * `private` is always allowed. Every other mode is sharing, and
+ * `all` hands the folder to every user with no invite and no accept,
+ * so it is held to the gates the share routes apply: the
+ * folder-sharing kill switch ({@see openstation_files_sharing_enabled_for()})
+ * and `edit_posts`, the capability the share picker requires of the
+ * sharer and the invite routes require of every recipient.
+ *
+ * @param int    $user_id Acting user (the folder's owner).
+ * @param string $mode    Requested share mode.
+ * @return bool
+ */
+function openstation_files_user_can_set_share_mode( $user_id, $mode ) {
+	if ( 'private' === (string) $mode ) {
+		return true;
+	}
+	$user_id = (int) $user_id;
+	return $user_id > 0
+		&& user_can( $user_id, 'edit_posts' )
+		&& openstation_files_sharing_enabled_for( $user_id );
+}
+
+/**
+ * Encode a folder's `share_meta` for storage, refusing anything past
+ * `OPENSTATION_FILES_SHARE_META_MAX_BYTES`.
+ *
+ * @internal
+ *
+ * @param mixed $meta Decoded meta; null clears it.
+ * @return string|null|WP_Error
+ */
+function openstation_files_encode_share_meta( $meta ) {
+	if ( null === $meta ) {
+		return null;
+	}
+	$json = wp_json_encode( $meta );
+	if ( false === $json || strlen( $json ) > OPENSTATION_FILES_SHARE_META_MAX_BYTES ) {
+		return new WP_Error( 'openstation_files_share_meta_too_large', __( 'Share metadata is too large.', 'desktop-mode' ), array( 'status' => 400 ) );
+	}
+	return $json;
 }
 
 /**
@@ -72,17 +123,25 @@ function openstation_files_create_folder( $owner_id, $args = array() ) {
 		);
 	}
 
-	$tables = openstation_files_table_names();
-	$now    = openstation_files_now_ms();
-	$row    = array(
+	if ( ! openstation_files_user_can_set_share_mode( $owner_id, $mode ) ) {
+		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot share this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
+	}
+	$meta = openstation_files_encode_share_meta( $args['share_meta'] );
+	if ( is_wp_error( $meta ) ) {
+		return $meta;
+	}
+
+	$now = openstation_files_now_ms();
+	$row = array(
 		'owner_id'      => $owner_id,
 		'name'          => $name,
 		'share_mode'    => $mode,
-		'share_meta'    => null === $args['share_meta'] ? null : wp_json_encode( $args['share_meta'] ),
+		'share_meta'    => $meta,
 		'updated_at_ms' => $now,
 	);
 
-	$ok = $wpdb->insert( $tables['folders'], $row, array( '%d', '%s', '%s', '%s', '%d' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table; WordPress has no API for it.
+	$ok = $wpdb->insert( $wpdb->desktop_mode_folders, $row, array( '%d', '%s', '%s', '%s', '%d' ) );
 	if ( false === $ok ) {
 		return new WP_Error( 'openstation_files_insert_failed', __( 'Failed to create folder.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
@@ -139,11 +198,18 @@ function openstation_files_update_folder( $folder_id, $user_id, $changes = array
 		if ( ! in_array( $mode, $modes, true ) ) {
 			return new WP_Error( 'openstation_files_invalid_share_mode', __( 'Invalid share mode.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
+		if ( $mode !== $prev['share_mode'] && ! openstation_files_user_can_set_share_mode( $user_id, $mode ) ) {
+			return new WP_Error( 'openstation_files_forbidden', __( 'You cannot share this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
+		}
 		$set['share_mode'] = $mode;
 		$fmt[]             = '%s';
 	}
 	if ( array_key_exists( 'share_meta', $changes ) ) {
-		$set['share_meta'] = null === $changes['share_meta'] ? null : wp_json_encode( $changes['share_meta'] );
+		$meta = openstation_files_encode_share_meta( $changes['share_meta'] );
+		if ( is_wp_error( $meta ) ) {
+			return $meta;
+		}
+		$set['share_meta'] = $meta;
 		$fmt[]             = '%s';
 	}
 	if ( empty( $set ) ) {
@@ -154,8 +220,8 @@ function openstation_files_update_folder( $folder_id, $user_id, $changes = array
 	$set['updated_at_ms'] = $now;
 	$fmt[]                = '%d';
 
-	$tables = openstation_files_table_names();
-	$ok     = $wpdb->update( $tables['folders'], $set, array( 'id' => $folder_id ), $fmt, array( '%d' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
+	$ok = $wpdb->update( $wpdb->desktop_mode_folders, $set, array( 'id' => $folder_id ), $fmt, array( '%d' ) );
 	if ( false === $ok ) {
 		return new WP_Error( 'openstation_files_update_failed', __( 'Failed to update folder.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
@@ -196,13 +262,14 @@ function openstation_files_update_folder( $folder_id, $user_id, $changes = array
 			$user_id
 		);
 		if ( '' !== $where ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- $where is the documented SQL-fragment contract of openstation_folder_rename_bump_where, prepared by whoever built it; a write to a plugin-owned table.
 			$wpdb->query(
 				$wpdb->prepare(
-					"UPDATE {$tables['placements']} SET updated_at_ms = %d WHERE {$where}",
+					"UPDATE {$wpdb->desktop_mode_file_placements} SET updated_at_ms = %d WHERE {$where}",
 					$now
 				)
 			);
+			// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		}
 
 		/**
@@ -414,7 +481,6 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 		return true;
 	}
 
-	$tables = openstation_files_table_names();
 	if ( null === $summary || ! is_array( $summary ) ) {
 		$summary = array(
 			'folders_deleted'     => array(),
@@ -430,9 +496,10 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	// deleting the parent only severs the containment for the
 	// owner; the sub-folder's owner can still reach it through
 	// their own placements.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh inside a delete cascade.
 	$sub_folder_refs = (array) $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT DISTINCT file_ref FROM {$tables['placements']}
+			"SELECT DISTINCT file_ref FROM {$wpdb->desktop_mode_file_placements}
 			WHERE parent_id = %d
 				AND file_type = 'folder'",
 			$folder_id
@@ -457,9 +524,10 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	// STORED-FILE id on `target_type='file'` rows — without the
 	// predicate this cascade would revoke an unrelated user's file
 	// share whose id collides with the deleted folder's.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh inside a delete cascade.
 	$share_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
+			"SELECT * FROM {$wpdb->desktop_mode_folder_shares} WHERE target_type = 'folder' AND folder_id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -469,18 +537,17 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 		$share_ids[] = (int) $share_row['id'];
 	}
 	if ( ! empty( $share_ids ) ) {
-		$placeholders = implode( ',', array_fill( 0, count( $share_ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$tables['decisions']} WHERE share_id IN ($placeholders)",
+				"DELETE FROM {$wpdb->desktop_mode_share_user_decisions} WHERE share_id IN (" . implode( ',', array_fill( 0, count( $share_ids ), '%d' ) ) . ')',
 				$share_ids
 			)
 		);
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$tables['shares']} WHERE id IN ($placeholders)",
+				"DELETE FROM {$wpdb->desktop_mode_folder_shares} WHERE id IN (" . implode( ',', array_fill( 0, count( $share_ids ), '%d' ) ) . ')',
 				$share_ids
 			)
 		);
@@ -506,9 +573,10 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 
 	// 3) Placements POINTING AT this folder (every recipient's
 	// accept-created root placement, plus the owner's own).
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh inside a delete cascade.
 	$pointing_ids = (array) $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['placements']}
+			"SELECT id FROM {$wpdb->desktop_mode_file_placements}
 			WHERE file_type = 'folder' AND file_ref = %s",
 			(string) $folder_id
 		)
@@ -517,11 +585,10 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 		openstation_files_write_tombstone( 'placement', (int) $pid );
 	}
 	if ( ! empty( $pointing_ids ) ) {
-		$placeholders = implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$tables['placements']} WHERE id IN ($placeholders)",
+				"DELETE FROM {$wpdb->desktop_mode_file_placements} WHERE id IN (" . implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) ) . ')',
 				$pointing_ids
 			)
 		);
@@ -537,9 +604,10 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	// user / etc. placements, plus orphan folder placements
 	// whose folder we did NOT recurse into because someone else
 	// owns it) gets deleted with a tombstone each.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh inside a delete cascade.
 	$inside_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['placements']} WHERE parent_id = %d",
+			"SELECT * FROM {$wpdb->desktop_mode_file_placements} WHERE parent_id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -550,7 +618,8 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 		openstation_files_write_tombstone( 'placement', (int) $inside_row['id'] );
 	}
 	if ( ! empty( $inside_ids ) ) {
-		$wpdb->delete( $tables['placements'], array( 'parent_id' => $folder_id ), array( '%d' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
+		$wpdb->delete( $wpdb->desktop_mode_file_placements, array( 'parent_id' => $folder_id ), array( '%d' ) );
 		// Upload placements carry real bytes — run the stored-files
 		// deletion contract now that the rows are gone. Direct
 		// guarded call (not the public unplaced action) so cascade
@@ -572,7 +641,8 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
 	}
 
 	// 5) The folder row itself + its tombstone.
-	$ok = $wpdb->delete( $tables['folders'], array( 'id' => $folder_id ), array( '%d' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
+	$ok = $wpdb->delete( $wpdb->desktop_mode_folders, array( 'id' => $folder_id ), array( '%d' ) );
 	if ( false === $ok ) {
 		return new WP_Error( 'openstation_files_delete_failed', __( 'Failed to delete folder.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
@@ -605,9 +675,9 @@ function openstation_files_delete_folder_recursive( $folder_id, $user_id, &$visi
  */
 function openstation_files_get_folder( $folder_id, $include_trashed = false ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$row    = $wpdb->get_row(
-		$wpdb->prepare( "SELECT * FROM {$tables['folders']} WHERE id = %d", (int) $folder_id ),
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides ownership and trash state.
+	$row = $wpdb->get_row(
+		$wpdb->prepare( "SELECT * FROM {$wpdb->desktop_mode_folders} WHERE id = %d", (int) $folder_id ),
 		ARRAY_A
 	);
 	if ( ! $row ) {
@@ -636,16 +706,16 @@ function openstation_files_get_visible_folders( $user_id ) {
 		return array();
 	}
 
-	$tables = openstation_files_table_names();
-	$rows   = $wpdb->get_results(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides what the viewer can see.
+	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['folders']}
+			"SELECT * FROM {$wpdb->desktop_mode_folders}
 			WHERE owner_id = %d AND trashed_at_ms IS NULL",
 			$user_id
 		),
 		ARRAY_A
 	);
-	$out    = array();
+	$out  = array();
 	foreach ( (array) $rows as $row ) {
 		$out[] = openstation_files_normalize_folder_row( $row );
 	}

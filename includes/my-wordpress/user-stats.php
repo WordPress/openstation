@@ -12,11 +12,17 @@
  * Permissions: the My WordPress module's gate,
  * `openstation_my_wordpress_user_can_use()` (`edit_posts` unless a site
  * filters it), so a site that narrows WP Explorer narrows this data
- * with it. Past that gate, anyone with `list_users` (or the subject
- * user viewing their own dossier) sees full data; everyone else sees
- * the public subset (display name, avatar, post archive link,
- * published-only counts and recent posts). Sensitive fields (email,
- * registered date, role) are gated on the cap.
+ * with it. Past that gate the subject must be one the caller may read,
+ * as Core's users controller decides it
+ * (`openstation_get_readable_user()`): a member of this site (a `404`
+ * otherwise, on a network), and, unless the caller is the subject or
+ * holds `list_users` or `edit_user` on them, someone with a post of a
+ * `show_in_rest` type the caller can see. Then anyone with
+ * `list_users` (or the subject user viewing their own dossier) sees
+ * full data; everyone else sees the public subset (display name,
+ * avatar, post archive link, published-only counts and recent posts).
+ * Sensitive fields (email, registered date, role) are gated on the
+ * cap.
  *
  * For the unprivileged subset, `publish` alone is not the test for
  * the counts that reach beyond the subject's own posts and pages
@@ -116,13 +122,12 @@ function openstation_my_wordpress_user_stats_readable_comment_count( $rows, arra
 function openstation_my_wordpress_user_stats_callback( $request ) {
 	global $wpdb;
 	$user_id = (int) $request->get_param( 'id' );
-	$user    = get_userdata( $user_id );
-	if ( ! $user ) {
-		return new WP_Error(
-			'openstation_user_not_found',
-			__( 'User not found.', 'desktop-mode' ),
-			array( 'status' => 404 )
-		);
+	// A member of this site the caller may read, as Core's users
+	// controller decides it — not any account on the network, and
+	// not a person with nothing published.
+	$user = openstation_get_readable_user( $user_id );
+	if ( is_wp_error( $user ) ) {
+		return $user;
 	}
 
 	$can_see_private = current_user_can( 'list_users' )
@@ -156,6 +161,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 
 	// ----- Counts ------------------------------------------------------
 	// Posts (the post type) by status.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$post_status_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_status, COUNT(*) AS n
@@ -186,6 +192,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	}
 
 	// Pages by status.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$page_status_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_status, COUNT(*) AS n
@@ -243,13 +250,13 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	// openstation_my_wordpress_user_stats_readable_comment_count().
 	// Privileged viewers keep every count whole.
 	$viewable_types = array_values( array_filter( get_post_types(), 'is_post_type_viewable' ) );
-	$viewable_list  = implode( ', ', array_fill( 0, count( $viewable_types ), '%s' ) );
 
 	// Gate answers per parent post, shared by both comment counts.
 	$comment_verdicts = array();
 
 	// Comments received on posts authored by this user, approved only.
 	if ( $can_see_private ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 		$comments_received = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(c.comment_ID)
@@ -262,6 +269,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 			)
 		);
 	} elseif ( $viewable_types ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-post GROUP BY count no WP API returns; a per-viewer payload, read fresh, each parent gated below.
 		$received_rows     = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT p.ID AS post_id, COUNT(c.comment_ID) AS n
@@ -271,8 +279,8 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 					AND c.comment_approved = '1'
 					AND p.post_status = 'publish'
 					AND p.post_password = ''
-					AND p.post_type IN ( {$viewable_list} )
-				GROUP BY p.ID",
+					AND p.post_type IN ( " . implode( ', ', array_fill( 0, count( $viewable_types ), '%s' ) ) . ' )
+				GROUP BY p.ID',
 				array_merge( array( $user_id ), $viewable_types )
 			),
 			ARRAY_A
@@ -284,6 +292,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 
 	// Comments left BY this user (regardless of post author).
 	if ( $can_see_private ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 		$comments_left = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*)
@@ -294,6 +303,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 			)
 		);
 	} elseif ( $viewable_types ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-post GROUP BY count no WP API returns; a per-viewer payload, read fresh, each parent gated below.
 		$left_rows     = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT p.ID AS post_id, COUNT(c.comment_ID) AS n
@@ -303,8 +313,8 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 					AND c.comment_approved = '1'
 					AND p.post_status = 'publish'
 					AND p.post_password = ''
-					AND p.post_type IN ( {$viewable_list} )
-				GROUP BY p.ID",
+					AND p.post_type IN ( " . implode( ', ', array_fill( 0, count( $viewable_types ), '%s' ) ) . ' )
+				GROUP BY p.ID',
 				array_merge( array( $user_id ), $viewable_types )
 			),
 			ARRAY_A
@@ -323,13 +333,13 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	// not name.
 	$builtin_types = array_values( get_post_types( array( '_builtin' => true ) ) );
 	if ( $can_see_private ) {
-		$builtin_list = implode( ', ', array_fill( 0, count( $builtin_types ), '%s' ) );
-		$cpt_count    = (int) $wpdb->get_var(
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
+		$cpt_count = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*)
 				FROM {$wpdb->posts}
 				WHERE post_author = %d
-					AND post_type NOT IN ( {$builtin_list} )
+					AND post_type NOT IN ( " . implode( ', ', array_fill( 0, count( $builtin_types ), '%s' ) ) . " )
 					AND post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )",
 				array_merge( array( $user_id ), $builtin_types )
 			)
@@ -337,13 +347,13 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	} else {
 		$cpt_types = array_values( array_diff( $viewable_types, $builtin_types ) );
 		if ( $cpt_types ) {
-			$cpt_list  = implode( ', ', array_fill( 0, count( $cpt_types ), '%s' ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 			$cpt_count = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*)
 					FROM {$wpdb->posts}
 					WHERE post_author = %d
-						AND post_type IN ( {$cpt_list} )
+						AND post_type IN ( " . implode( ', ', array_fill( 0, count( $cpt_types ), '%s' ) ) . " )
 						AND post_status = 'publish'",
 					array_merge( array( $user_id ), $cpt_types )
 				)
@@ -393,6 +403,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	}
 
 	// ----- Top categories (most used by this author) -------------------
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$top_term_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT t.term_id, t.name, t.slug, tt.taxonomy, COUNT(*) AS n
@@ -425,6 +436,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 	// ----- Activity (posts published per month, last 12 months) --------
 	// Lightweight sparkline source. Exclude trash + auto-draft, group by
 	// year-month so the JS can fill gaps.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$activity_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE_FORMAT( post_date_gmt, '%%Y-%%m' ) AS ym, COUNT(*) AS n
@@ -449,6 +461,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 
 	// ----- First & last published --------------------------------------
 	// (Streak math lives in the separate user-footprint endpoint.)
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$first_post = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MIN(post_date_gmt) FROM {$wpdb->posts}
@@ -456,6 +469,7 @@ function openstation_my_wordpress_user_stats_callback( $request ) {
 			$user_id
 		)
 	);
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$last_post  = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MAX(post_date_gmt) FROM {$wpdb->posts}

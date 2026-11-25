@@ -118,6 +118,41 @@ class Tests_OpenStation_UserEditWindowRestAppPasswords extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Each route asks Core's meta capability for its operation, as
+	 * `WP_REST_Application_Passwords_Controller` does: a site that
+	 * withholds `create_app_password` for another user, while leaving
+	 * `edit_user`, is not stepped around by this window.
+	 *
+	 * @covers ::openstation_user_edit_window_app_pw_permission
+	 */
+	public function test_routes_ask_the_application_password_meta_caps() {
+		add_filter( 'wp_is_application_passwords_available', '__return_true' );
+		add_filter( 'wp_is_application_passwords_available_for_user', '__return_true' );
+		add_filter(
+			'map_meta_cap',
+			static function ( $caps, $cap ) {
+				return in_array( $cap, array( 'create_app_password', 'list_app_passwords' ), true ) ? array( 'do_not_allow' ) : $caps;
+			},
+			10,
+			2
+		);
+		if ( is_multisite() ) {
+			// Editing another user takes the network's admin there.
+			grant_super_admin( $this->admin_id );
+		}
+		$this->assertTrue( current_user_can( 'edit_user', $this->target_id ) );
+		do_action( 'rest_api_init' );
+
+		$create = new WP_REST_Request( 'POST', '/desktop-mode/v1/users/' . $this->target_id . '/application-passwords' );
+		$create->set_param( 'name', 'CLI tool' );
+		$this->assertSame( 403, rest_get_server()->dispatch( $create )->get_status() );
+		$this->assertSame( array(), WP_Application_Passwords::get_user_application_passwords( $this->target_id ) );
+
+		$list = new WP_REST_Request( 'GET', '/desktop-mode/v1/users/' . $this->target_id . '/application-passwords' );
+		$this->assertSame( 403, rest_get_server()->dispatch( $list )->get_status() );
+	}
+
+	/**
 	 * When the policy allows the feature, creation still works.
 	 *
 	 * @covers ::openstation_user_edit_window_rest_app_pw_create

@@ -55,7 +55,10 @@ add_action( 'wp_abilities_api_categories_init', 'openstation_ai_register_ability
  * Only read-only abilities are advertised on purpose: a search turn can be
  * driven by attacker-controlled content (comment / post text that lands in a
  * tool result), so the model is never handed an ability that could change the
- * site.
+ * site. For the same reason `desktop-mode/analyze-comment` is withheld though
+ * it is read-only: it spends provider tokens on whichever comment it is
+ * pointed at, and injected comment text could point a moderator's turn at any
+ * number of them. It stays an on-demand ability for callers that name it.
  *
  * @return string[] Fully-namespaced ability names.
  */
@@ -64,14 +67,15 @@ function openstation_ai_search_ability_names() {
 		return array();
 	}
 
-	$names = array();
+	$withheld = array( 'desktop-mode/analyze-comment' );
+	$names    = array();
 	foreach ( wp_get_abilities() as $ability ) {
 		if ( ! $ability instanceof WP_Ability ) {
 			continue;
 		}
 		$meta        = (array) $ability->get_meta();
 		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
-		if ( empty( $annotations['readonly'] ) ) {
+		if ( empty( $annotations['readonly'] ) || in_array( $ability->get_name(), $withheld, true ) ) {
 			continue;
 		}
 		$names[] = (string) $ability->get_name();
@@ -429,9 +433,10 @@ function openstation_ai_register_abilities() {
 			'execute_callback'    => static function ( $input ) {
 				return openstation_ai_search_dispatch_tool( 'get_php_error_log', (array) $input );
 			},
-			// Admin-only — mirrors the previous in-dispatcher manage_options gate.
+			// Admin-only, and network admin on a network: the log is one
+			// file shared by every site.
 			'permission_callback' => static function () {
-				return current_user_can( 'manage_options' );
+				return openstation_ai_user_can_read_error_log();
 			},
 			'meta'                => $readonly_private_meta,
 		)

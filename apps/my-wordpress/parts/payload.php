@@ -61,8 +61,8 @@ function payload( State $state, Os $os ) {
 	}
 	$relation = (string) $state->get( 'relation' );
 	$fp       = (int) $state->get( 'footprint' );
-	if ( $fp > 0 && false === get_userdata( $fp ) ) {
-		// The person vanished — fall back to the list, not a dead end.
+	if ( $fp > 0 && is_wp_error( openstation_get_readable_user( $fp ) ) ) {
+		// Gone, or not one this caller may read: back to the list, not a dead end.
 		$state->set( 'footprint', 0 )->set( 'fpName', '' );
 		$fp = 0;
 	}

@@ -646,6 +646,40 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Every `show_ui` type is a section, and `read_post` on a published
+	 * row of one with no readable front end is plain `read`. Its body,
+	 * excerpt, dossier and folder follow `edit_post` instead.
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\can_read
+	 */
+	public function test_a_non_viewable_type_keeps_other_authors_rows_from_a_contributor() {
+		register_post_type(
+			'unit_book',
+			array(
+				'label'        => 'Orders',
+				'public'       => false,
+				'show_ui'      => true,
+				'show_in_rest' => false,
+			)
+		);
+		$order = self::factory()->post->create(
+			array(
+				'post_type'    => 'unit_book',
+				'post_status'  => 'publish',
+				'post_author'  => self::$admin_id,
+				'post_content' => 'Ship to 1 Private Lane',
+			)
+		);
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'contributor' ) ) );
+		$state = array( 'section' => 'cpt-unit_book' );
+
+		$this->assertNull( $this->dispatch( 'open', $state, array( 'item' => $order ) )['data']['detail'] );
+		$this->assertNull( $this->dispatch( 'into', $state, array( 'item' => $order ) )['data']['folder'] );
+		$rows = array_column( $this->dispatch( 'refresh', $state )['data']['list']['items'], null, 'id' );
+		$this->assertSame( '', $rows[ $order ]['excerpt'], 'The row still lists by title, as edit.php does.' );
+	}
+
+	/**
 	 * @covers \OpenStation\Apps\MyWordPress\detail
 	 */
 	public function test_user_dossier_carries_role_email_and_footprint() {
@@ -672,6 +706,30 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertArrayHasKey( 'activity', $detail['stats'] );
 		$this->assertArrayHasKey( 'milestones', $detail['stats'] );
 		$this->assertArrayHasKey( 'registered', $detail['stats']['profile'], 'An admin viewer sees the private profile half.' );
+	}
+
+	/**
+	 * `item` and the footprint's user ride up with the client's state, so
+	 * a site administrator can name any account on the network. One that
+	 * is not a member of this site has no dossier here — no email, role
+	 * or registration date — and opens no footprint.
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\detail
+	 * @covers \OpenStation\Apps\MyWordPress\open_footprint
+	 */
+	public function test_a_non_member_of_this_site_has_no_dossier_or_footprint() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite only.' );
+		}
+		$outsider = self::factory()->user->create( array( 'role' => 'editor' ) );
+		remove_user_from_blog( $outsider, get_current_blog_id() );
+		add_user_to_blog( self::factory()->blog->create(), $outsider, 'editor' );
+
+		$opened = $this->dispatch( 'open', array( 'section' => 'users' ), array( 'item' => $outsider ) );
+		$this->assertNull( $opened['data']['detail'] );
+
+		$footprint = $this->dispatch( 'footprint', array(), array( 'user' => $outsider ) );
+		$this->assertSame( 0, $footprint['state']['footprint'] );
 	}
 
 	/**
@@ -1012,6 +1070,41 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$this->assertContains( 'Field notes', array_column( $response['data']['categories'], 'name' ) );
 	}
 
+	/**
+	 * A site can withhold a taxonomy's `assign_terms` from a role that
+	 * edits posts; Core's posts controller then refuses the terms. The
+	 * term picks are dropped, the rest still apply.
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\quick_edit_action
+	 */
+	public function test_quick_edit_drops_terms_without_assign_terms() {
+		$victim = self::factory()->post->create( array( 'post_author' => self::$author_id ) );
+		$cat    = self::factory()->category->create();
+		$caps   = array( get_taxonomy( 'category' )->cap, get_taxonomy( 'post_tag' )->cap );
+		foreach ( $caps as $cap ) {
+			$cap->assign_terms = 'manage_options';
+		}
+		wp_set_current_user( self::$author_id );
+
+		$this->dispatch(
+			'quick-edit',
+			array( 'section' => 'posts' ),
+			array(
+				'items'      => array( $victim ),
+				'comments'   => 'closed',
+				'categories' => array( $cat ),
+				'tags'       => 'smuggled',
+			)
+		);
+		foreach ( $caps as $cap ) {
+			$cap->assign_terms = 'edit_posts';
+		}
+
+		$this->assertSame( 'closed', get_post( $victim )->comment_status );
+		$this->assertNotContains( $cat, wp_get_post_categories( $victim ) );
+		$this->assertFalse( get_the_terms( $victim, 'post_tag' ) );
+	}
+
 	// --------------------------------------------------- preview actions
 
 	/**
@@ -1106,6 +1199,27 @@ class Tests_OpenStation_MyWordPressApp extends WP_UnitTestCase {
 		$toasts = $this->effects_of( $response, 'toast' );
 		$this->assertCount( 1, $toasts );
 		$this->assertStringContainsString( 'cannot', $toasts[0]['message'] );
+	}
+
+	/**
+	 * `delete_post` does not ask the type: an Editor holds it on an
+	 * Administrator's desktop note. A section trashes only its own rows.
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\allowed
+	 */
+	public function test_trash_refuses_a_row_of_another_type() {
+		$note = self::factory()->post->create(
+			array(
+				'post_type'   => 'wpd_note',
+				'post_author' => self::$admin_id,
+			)
+		);
+		wp_set_current_user( self::$editor_id );
+
+		$this->dispatch( 'trash', array( 'section' => 'posts' ), array( 'item' => $note ) );
+		$this->dispatch( 'bulk-trash', array( 'section' => 'posts', 'selected' => array( $note ) ) );
+
+		$this->assertSame( 'publish', get_post_status( $note ) );
 	}
 
 	/**

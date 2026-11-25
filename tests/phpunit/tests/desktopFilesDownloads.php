@@ -81,10 +81,28 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 		$id  = $this->make_stored_file( self::$owner_id, 'a.txt', 'file contents' );
 		$res = $this->download_request( $id );
 		$this->assertNotWPError( $res );
-		$stream = $res->get_data()['__openstation_stream'];
+		$stream = openstation_files_download_stream( $res );
 		$this->assertSame( 'a.txt', $stream['name'] );
 		$this->assertSame( 'text/plain', $stream['mime'] );
 		$this->assertFalse( $stream['delete_after'] );
+		$this->assertSame( 'file contents', file_get_contents( $stream['path'] ) );
+	}
+
+	/**
+	 * `?_envelope` wraps the response data before `rest_pre_serve_request`
+	 * runs, so whatever the data carries reaches the caller as JSON
+	 * whenever the serve filter does not take the response over. The
+	 * stream descriptor stays server-side, and the filter still finds
+	 * it through the envelope.
+	 */
+	public function test_enveloped_download_carries_no_path_and_still_streams() {
+		$id     = $this->make_stored_file( self::$owner_id, 'a.txt', 'file contents' );
+		$server = rest_get_server();
+		$res    = $server->envelope_response( $this->download_request( $id ), false );
+		$json   = wp_json_encode( $server->response_to_data( $res, false ), JSON_UNESCAPED_SLASHES );
+		$this->assertStringNotContainsString( openstation_stored_files_dir(), $json );
+
+		$stream = openstation_files_download_stream( $res );
 		$this->assertSame( 'file contents', file_get_contents( $stream['path'] ) );
 	}
 
@@ -141,7 +159,7 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 
 		$res = $this->zip_request( (int) $root_id );
 		$this->assertNotWPError( $res );
-		$stream = $res->get_data()['__openstation_stream'];
+		$stream = openstation_files_download_stream( $res );
 		$this->assertSame( 'Root.zip', $stream['name'] );
 		$this->assertSame( 'application/zip', $stream['mime'] );
 		$this->assertTrue( $stream['delete_after'] );
@@ -175,7 +193,7 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 
 		$res = $this->zip_request( (int) $root_id );
 		$this->assertNotWPError( $res );
-		$path = $res->get_data()['__openstation_stream']['path'];
+		$path = openstation_files_download_stream( $res )['path'];
 
 		$zip = new ZipArchive();
 		$this->assertTrue( $zip->open( $path ) );
@@ -194,7 +212,7 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 
 		$res    = $this->zip_request( (int) $root_id );
 		$this->assertNotWPError( $res );
-		$stream = $res->get_data()['__openstation_stream'];
+		$stream = openstation_files_download_stream( $res );
 		$zip    = new ZipArchive();
 		$zip->open( $stream['path'] );
 		$names = array();
@@ -244,7 +262,7 @@ class Tests_OpenStation_Downloads extends WP_UnitTestCase {
 		wp_set_current_user( self::$reader_id );
 		$res = $this->zip_request( (int) $root_id );
 		$this->assertNotWPError( $res );
-		wp_delete_file( $res->get_data()['__openstation_stream']['path'] );
+		wp_delete_file( openstation_files_download_stream( $res )['path'] );
 	}
 
 	public function test_serve_filter_ignores_foreign_routes_and_errors() {

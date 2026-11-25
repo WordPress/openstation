@@ -81,16 +81,26 @@ function openstation_comments_window_register_rest_fields() {
 	// `moderate_comments` — the context the Comments window asks in.
 	$moderation = array( 'context' => array( 'edit' ) );
 
+	// The parent post, when the requester may read it. Core's collection
+	// still lists a comment to its own author after the post went private
+	// or back to draft, so the row being readable says nothing about its
+	// post: the title and the permalink (whose slug is the title) ask the
+	// comment dossier's parent gate, Core's single-comment read.
+	$readable_post = static function ( $row ) {
+		$post_id = isset( $row['post'] ) ? (int) $row['post'] : 0;
+		if ( $post_id <= 0 ) {
+			return null;
+		}
+		$post = get_post( $post_id );
+		return $post && openstation_my_wordpress_can_read_comment_post( $post ) ? $post : null;
+	};
+
 	register_rest_field(
 		'comment',
 		'openstation_post_title',
 		array(
-			'get_callback' => static function ( $row ) {
-				$post_id = isset( $row['post'] ) ? (int) $row['post'] : 0;
-				if ( $post_id <= 0 ) {
-					return '';
-				}
-				$post = get_post( $post_id );
+			'get_callback' => static function ( $row ) use ( $readable_post ) {
+				$post = $readable_post( $row );
 				return $post ? (string) get_the_title( $post ) : '';
 			},
 			'schema'       => $readonly( __( 'Title of the post the comment is attached to.', 'desktop-mode' ), 'string' ),
@@ -101,9 +111,9 @@ function openstation_comments_window_register_rest_fields() {
 		'comment',
 		'openstation_post_link',
 		array(
-			'get_callback' => static function ( $row ) {
-				$post_id = isset( $row['post'] ) ? (int) $row['post'] : 0;
-				return $post_id > 0 ? (string) get_permalink( $post_id ) : '';
+			'get_callback' => static function ( $row ) use ( $readable_post ) {
+				$post = $readable_post( $row );
+				return $post ? (string) get_permalink( $post ) : '';
 			},
 			'schema'       => $readonly( __( 'Permalink of the post the comment is attached to.', 'desktop-mode' ), 'string', array( 'format' => 'uri' ) ),
 		)

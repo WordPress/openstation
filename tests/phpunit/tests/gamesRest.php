@@ -246,12 +246,52 @@ class Tests_OpenStation_GamesRest extends WP_UnitTestCase {
 	 * @covers ::openstation_games_rest_search_users
 	 */
 	public function test_users_search_excludes_viewer() {
-		$resp  = openstation_games_rest_search_users(
-			$this->request( 'GET', '/desktop-mode/v1/games/users/search', array( 'q' => '', 'exclude' => '' ) )
+		// An author, so a caller without `list_users` may find them.
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$recipient,
+				'post_status' => 'publish',
+			)
 		);
-		$users = $resp->get_data()['users'];
-		$ids   = wp_list_pluck( $users, 'id' );
+		$ids = $this->search_ids();
 		$this->assertNotContains( self::$challenger, $ids );
 		$this->assertContains( self::$recipient, $ids );
+	}
+
+	/**
+	 * The picker lists what Core's users collection would: a caller
+	 * without `list_users` finds the site's authors, not every member,
+	 * so a subscriber cannot page through the roster. `list_users`
+	 * searches everyone.
+	 *
+	 * @covers ::openstation_games_rest_search_users
+	 */
+	public function test_users_search_lists_only_authors_without_list_users() {
+		self::factory()->post->create(
+			array(
+				'post_author' => self::$recipient,
+				'post_status' => 'publish',
+			)
+		);
+		$quiet = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+
+		$ids = $this->search_ids();
+		$this->assertContains( self::$recipient, $ids );
+		$this->assertNotContains( $quiet, $ids );
+
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$this->assertContains( $quiet, $this->search_ids() );
+	}
+
+	/**
+	 * The ids an empty opponent search returns to the current user.
+	 *
+	 * @return int[]
+	 */
+	private function search_ids() {
+		$resp = openstation_games_rest_search_users(
+			$this->request( 'GET', '/desktop-mode/v1/games/users/search', array( 'q' => '', 'exclude' => '' ) )
+		);
+		return wp_list_pluck( $resp->get_data()['users'], 'id' );
 	}
 }

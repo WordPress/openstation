@@ -477,6 +477,7 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		wp_mkdir_p( $base . '/icons' );
 		file_put_contents( $base . '/icons/ok.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>' );
 		file_put_contents( $base . '/notes.txt', 'nope' );
+		file_put_contents( $base . '/icons/x.php.png', '<?php echo 1;' );
 
 		$resolve = openstation_desktop_theme_staging_asset_resolver( $base );
 
@@ -486,6 +487,7 @@ class Tests_OpenStation_DesktopThemesManifest extends WP_UnitTestCase {
 		$this->assertFalse( $resolve( 'icons\\ok.svg' ), 'Backslash rejected.' );
 		$this->assertFalse( $resolve( "icons/ok.svg\0.php" ), 'NUL byte rejected.' );
 		$this->assertFalse( $resolve( 'notes.txt' ), 'Non-image extension rejected.' );
+		$this->assertFalse( $resolve( 'icons/x.php.png' ), 'Executable dot-segment rejected.' );
 		$this->assertFalse( $resolve( 'icons/missing.png' ), 'Missing file rejected.' );
 		$this->assertFalse( $resolve( '' ), 'Empty path rejected.' );
 

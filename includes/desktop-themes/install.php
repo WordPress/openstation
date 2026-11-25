@@ -104,8 +104,11 @@ function openstation_desktop_theme_zip_entry_ignored( $name ) {
 /**
  * Whether a ZIP entry is something a web server would run or obey.
  *
- * Applied to ignored entries, which bypass the extension allowlist but
- * are still unpacked into the (web-served) staging directory.
+ * Asks every dot-segment of the name, not only the last: Apache's
+ * `AddHandler` runs `icons/x.php.png` as PHP, and the extension
+ * allowlist only ever sees the `png`. Applied to every entry, and to
+ * every asset path a manifest names
+ * ({@see openstation_desktop_theme_staging_asset_resolver()}).
  *
  * @internal
  *
@@ -114,7 +117,9 @@ function openstation_desktop_theme_zip_entry_ignored( $name ) {
  */
 function openstation_desktop_theme_zip_entry_executable( $name ) {
 	$base = strtolower( wp_basename( $name ) );
-	if ( in_array( $base, array( '.htaccess', '.user.ini', 'web.config' ), true ) ) {
+	// `.htaccess` and friends, then every dot-segment against the
+	// stored-files denylist.
+	if ( openstation_stored_files_is_denied_filename( $base ) ) {
 		return true;
 	}
 	return (bool) preg_match( '/\.(php\d*|phtml|phar|pht|phps|cgi|pl|py|sh|shtml|asp|aspx|jsp)$/', $base );
@@ -260,7 +265,7 @@ function openstation_desktop_theme_validate_zip( $zip_path ) {
 		}
 
 		$ext = strtolower( (string) pathinfo( $name, PATHINFO_EXTENSION ) );
-		if ( ! isset( $extensions[ $ext ] ) ) {
+		if ( ! isset( $extensions[ $ext ] ) || openstation_desktop_theme_zip_entry_executable( $name ) ) {
 			$zip->close();
 			return new WP_Error(
 				'openstation_desktop_theme_bad_extension',

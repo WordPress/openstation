@@ -247,7 +247,7 @@ function openstation_games_register_rest_routes() {
 					'type'    => 'string',
 					'default' => '',
 				),
-				'exclude' => array(
+				'exclude' => array( // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude -- The route's argument schema, not a query; the name is the public REST parameter.
 					'type'    => 'string',
 					'default' => '',
 				),
@@ -525,6 +525,11 @@ function openstation_games_rest_complete_challenge( WP_REST_Request $req ) {
  * GET /games/users/search?q=<>&exclude=<csv> — autocomplete for the
  * opponent picker. Thin sibling of the folder-share picker, gated on
  * `read` instead of `edit_posts` so subscribers can be challenged.
+ *
+ * Who it lists follows Core's users collection: a caller with
+ * `list_users` searches every member of the site, anyone else only the
+ * people with a published post of a `show_in_rest` type — the people
+ * `/wp/v2/users` already shows them.
  */
 function openstation_games_rest_search_users( WP_REST_Request $req ) {
 	$q       = trim( (string) $req->get_param( 'q' ) );
@@ -539,9 +544,14 @@ function openstation_games_rest_search_users( WP_REST_Request $req ) {
 		'number'  => 20,
 		'orderby' => 'display_name',
 		'order'   => 'ASC',
-		'exclude' => $exclude,
+		'exclude' => $exclude, // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude -- The page is 20 rows: excluding in PHP would let already-picked users use up the page.
 		'fields'  => 'all',
 	);
+	if ( ! current_user_can( 'list_users' ) ) {
+		// `WP_REST_Users_Controller::get_items()` draws the same line: a
+		// subscriber's roster of the site is its authors, not its members.
+		$args['has_published_posts'] = get_post_types( array( 'show_in_rest' => true ), 'names' );
+	}
 	if ( '' !== $q ) {
 		$args['search'] = '*' . $q . '*';
 		// The email column only for callers who may list users. A

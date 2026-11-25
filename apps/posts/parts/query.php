@@ -306,16 +306,19 @@ function openstation_posts_app_sort( State $state, array $args, $default_orderby
 }
 
 /**
- * `trash` — move the selected rows to the trash. Rows already in the
- * trash are skipped (a second delete would remove them for good),
- * every id is checked against `delete_post`, the survivors are
+ * `trash` — move the selected rows to the trash. Rows of another type
+ * are skipped (`ids` ride up from the client, and `delete_post` alone
+ * lets an Editor trash any author's row of any `post`-capped type, an
+ * Administrator's desktop note included), and so are rows already in
+ * the trash (a second delete would remove them for good); every id is
+ * checked against `delete_post`, the survivors are
  * announced as one content change (what the Recycle Bin, WP Explorer
  * and every other window showing the type repaint on), and failures
  * become a toast.
  *
  * @param Os                  $os   Host handle.
  * @param array<string,mixed> $args `ids`.
- * @param string              $type Content type announced (`post` | `page`).
+ * @param string              $type Content type trashed and announced (`post` | `page`).
  * @return void
  */
 function openstation_posts_app_trash( Os $os, array $args, $type ) {
@@ -324,7 +327,7 @@ function openstation_posts_app_trash( Os $os, array $args, $type ) {
 	$failed = 0;
 	foreach ( $ids as $id ) {
 		$post = get_post( $id );
-		if ( ! $post || 'trash' === $post->post_status ) {
+		if ( ! $post || $type !== $post->post_type || 'trash' === $post->post_status ) {
 			continue;
 		}
 		if ( ! $os->can( 'delete_post', $id ) || ! wp_trash_post( $id ) ) {
@@ -348,15 +351,16 @@ function openstation_posts_app_trash( Os $os, array $args, $type ) {
 }
 
 /**
- * `restore` — restore the selected rows from the trash. Rows not in the
- * trash are skipped, every id is checked against `delete_post`, the
+ * `restore` — restore the selected rows from the trash. Rows of another
+ * type, and rows not in the trash, are skipped; every id is checked
+ * against `delete_post`, the
  * survivors are untrashed, their trash metadata cleared, and announced
  * as one content change (what the Recycle Bin and list windows repaint
  * on), and failures become a toast.
  *
  * @param Os                  $os   Host handle.
  * @param array<string,mixed> $args `ids`.
- * @param string              $type Content type announced (`post` | `page`).
+ * @param string              $type Content type restored and announced (`post` | `page`).
  * @return void
  */
 function openstation_posts_app_restore( Os $os, array $args, $type ) {
@@ -365,7 +369,7 @@ function openstation_posts_app_restore( Os $os, array $args, $type ) {
 	$failed = 0;
 	foreach ( $ids as $id ) {
 		$post = get_post( $id );
-		if ( ! $post || 'trash' !== $post->post_status ) {
+		if ( ! $post || $type !== $post->post_type || 'trash' !== $post->post_status ) {
 			continue;
 		}
 		if ( ! $os->can( 'delete_post', $id ) || ! wp_untrash_post( $id ) ) {

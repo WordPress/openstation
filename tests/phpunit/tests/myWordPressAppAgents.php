@@ -501,4 +501,35 @@ class Tests_OpenStation_MyWordPressAppAgents extends WP_UnitTestCase {
 		$this->assertInstanceOf( 'WP_User', get_userdata( $victim ), 'Only agents can be deleted here.' );
 		$this->assertNotSame( '', $response['state']['agentNotice'] );
 	}
+
+	/**
+	 * Agents are users, and users are network-global: an id the client
+	 * sends must name an agent of THIS site, as on every `/agents/{id}`
+	 * route, or another site's agent is rewritten and deleted from here.
+	 *
+	 * @covers \OpenStation\Apps\MyWordPress\agent_update_action
+	 * @covers \OpenStation\Apps\MyWordPress\agent_delete_action
+	 */
+	public function test_another_sites_agent_is_neither_updated_nor_deleted() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Agents are scoped per site only on a network.' );
+		}
+		$agent = $this->make_agent( 'Elsewhere' );
+		remove_user_from_blog( (int) $agent->ID, get_current_blog_id() );
+		add_user_to_blog( self::factory()->blog->create(), (int) $agent->ID, 'author' );
+
+		$updated = $this->dispatch(
+			'agent-update',
+			array(),
+			array(
+				'id'   => (int) $agent->ID,
+				'name' => 'Renamed',
+			)
+		);
+		$this->assertSame( 'Elsewhere', get_userdata( (int) $agent->ID )->display_name );
+		$this->assertSame( 'Agent not found.', $updated['state']['agentNotice'] );
+
+		$this->dispatch( 'agent-delete', array(), array( 'id' => (int) $agent->ID ) );
+		$this->assertInstanceOf( 'WP_User', get_userdata( (int) $agent->ID ), 'Another site\'s agent survives.' );
+	}
 }

@@ -310,6 +310,77 @@ function openstation_strip_all_tags( $html ) {
 }
 
 /**
+ * The user a client-supplied id names, when that person belongs to this
+ * site.
+ *
+ * Users are network-global on multisite, so `get_userdata()` resolves
+ * every account on the network, from any site. This asks what
+ * `WP_REST_Users_Controller::get_user()` asks before it shows a user:
+ * the account exists and, on a network, `is_user_member_of_blog()`.
+ * A non-member answers like a missing id.
+ *
+ * @param int $user_id User id.
+ * @return WP_User|null
+ */
+function openstation_get_site_user( $user_id ) {
+	$user_id = (int) $user_id;
+	if ( $user_id <= 0 ) {
+		return null;
+	}
+	$user = get_userdata( $user_id );
+	if ( ! $user || ! $user->exists() ) {
+		return null;
+	}
+	if ( is_multisite() && ! is_user_member_of_blog( $user_id ) ) {
+		return null;
+	}
+	return $user;
+}
+
+/**
+ * The user a client-supplied id names, when the current user may read
+ * that person's profile.
+ *
+ * Core's single-user read, `WP_REST_Users_Controller::get_item()`: the
+ * person must belong to this site (`openstation_get_site_user()`, a
+ * `404` otherwise), and past that a caller reads themselves, anyone
+ * they may `edit_user`, anyone at all with `list_users`, and otherwise
+ * only an author: someone with a post of a `show_in_rest` type the
+ * caller can see (`count_user_posts()`). A Contributor who can open a
+ * dossier therefore cannot read the name, bio, website or avatar of a
+ * subscriber who never published.
+ *
+ * Every surface that shapes a person from an id the client sent goes
+ * through this before it reads a field.
+ *
+ * @param int $user_id User id.
+ * @return WP_User|WP_Error The user, or a `404` / `401`-`403` error.
+ */
+function openstation_get_readable_user( $user_id ) {
+	$user = openstation_get_site_user( $user_id );
+	if ( ! $user ) {
+		return new WP_Error(
+			'openstation_user_not_found',
+			__( 'User not found.', 'desktop-mode' ),
+			array( 'status' => 404 )
+		);
+	}
+	if (
+		get_current_user_id() === (int) $user->ID
+		|| current_user_can( 'list_users' )
+		|| current_user_can( 'edit_user', $user->ID )
+		|| (int) count_user_posts( $user->ID, get_post_types( array( 'show_in_rest' => true ), 'names' ) ) > 0
+	) {
+		return $user;
+	}
+	return new WP_Error(
+		'openstation_user_forbidden',
+		__( 'Sorry, you are not allowed to view this user.', 'desktop-mode' ),
+		array( 'status' => rest_authorization_required_code() )
+	);
+}
+
+/**
  * Build a `WP_Error` for a openstation registration failure.
  *
  * Centralises the error-code vocabulary used by every

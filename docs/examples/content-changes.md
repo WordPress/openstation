@@ -42,6 +42,13 @@ chromeless-footer broadcast (survives the form-POST → redirect via a
 per-user buffer) and the Heartbeat catch-all (other tabs, other
 users, REST/WP-CLI, ≤ one tick).
 
+The Heartbeat log reaches every user with `edit_posts`. Posts,
+comments and plugin events are narrowed to what each user could see;
+a type of your own is not, because only your plugin knows who may see
+its rows. If an id or the fact of a change is not for every editor,
+keep the type out of the log with
+`openstation_content_changes_should_record` (below).
+
 ## Consumer — a list screen on a custom admin URL
 
 The generic soft-reload matcher only understands `edit.php` /

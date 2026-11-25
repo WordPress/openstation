@@ -458,6 +458,56 @@ class Tests_OpenStation_MyWordpressUserStats extends WP_UnitTestCase {
 		$this->assertContains( $this->draft_post_id, $ids );
 	}
 	/**
+	 * Core's users controller shows a person to a caller without
+	 * `list_users` only when they have published something: a
+	 * Contributor, who passes the module's gate, cannot read the name,
+	 * bio, website or avatar of a subscriber who never published, nor
+	 * their footprint. A caller with `list_users` still can.
+	 *
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_get_readable_user
+	 */
+	public function test_contributor_cannot_read_a_person_with_nothing_published() {
+		wp_set_current_user( self::$contributor_id );
+		$this->assertSame( 403, $this->dispatch( self::$subscriber_id )->get_status() );
+		$footprint = rest_get_server()->dispatch( new WP_REST_Request( 'GET', '/desktop-mode/v1/user-footprint/' . self::$subscriber_id ) );
+		$this->assertSame( 403, $footprint->get_status() );
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 200, $this->dispatch( self::$subscriber_id )->get_status() );
+	}
+
+	/**
+	 * Users are network-global: on multisite an account that is not a
+	 * member of this site is not found here, for a site administrator
+	 * holding `list_users` too, whatever it published elsewhere.
+	 *
+	 * @covers ::openstation_my_wordpress_user_stats_callback
+	 * @covers ::openstation_my_wordpress_user_footprint_callback
+	 * @covers ::openstation_get_site_user
+	 */
+	public function test_a_non_member_of_this_site_is_not_found() {
+		if ( ! is_multisite() ) {
+			$this->markTestSkipped( 'Multisite only.' );
+		}
+		$outsider = self::factory()->user->create( array( 'role' => 'author' ) );
+		self::factory()->post->create(
+			array(
+				'post_author' => $outsider,
+				'post_status' => 'publish',
+			)
+		);
+		remove_user_from_blog( $outsider, get_current_blog_id() );
+		add_user_to_blog( self::factory()->blog->create(), $outsider, 'author' );
+
+		wp_set_current_user( self::$admin_id );
+		$this->assertSame( 404, $this->dispatch( $outsider )->get_status() );
+		$footprint = rest_get_server()->dispatch( new WP_REST_Request( 'GET', '/desktop-mode/v1/user-footprint/' . $outsider ) );
+		$this->assertSame( 404, $footprint->get_status() );
+	}
+
+	/**
 	 * The route wears the My WordPress module's gate: a Subscriber, who
 	 * cannot open WP Explorer, cannot read this dossier either.
 	 *

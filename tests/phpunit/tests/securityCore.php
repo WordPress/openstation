@@ -72,7 +72,8 @@ class Tests_OpenStation_SecurityCore extends WP_UnitTestCase {
 
 	/**
 	 * The files and recycle-bin routes keep their own base gates; both
-	 * carry the same per-site `read` floor as the shared one.
+	 * carry the same per-site `read` floor as the shared one, and the
+	 * bin's routes the gate its window and heartbeat use.
 	 *
 	 * @covers ::openstation_files_rest_permission
 	 * @covers ::openstation_recycle_bin_rest_permission
@@ -87,6 +88,9 @@ class Tests_OpenStation_SecurityCore extends WP_UnitTestCase {
 
 		wp_set_current_user( self::$subscriber_id );
 		$this->assertTrue( openstation_files_rest_permission() );
+		$this->assertWPError( openstation_recycle_bin_rest_permission() );
+
+		wp_set_current_user( self::$contributor_id );
 		$this->assertTrue( openstation_recycle_bin_rest_permission() );
 	}
 

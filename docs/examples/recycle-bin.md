@@ -40,7 +40,7 @@ add_filter( 'openstation_recycle_bin_user_can_use', function () {
 } );
 ```
 
-The window + icon registrations are skipped entirely when the gate returns false — there's no hidden UI footprint.
+The window + icon registrations are skipped entirely when the gate returns false — there's no hidden UI footprint. The same gate guards the bin's REST routes and its heartbeat channel, so narrowing who sees the window narrows the data with it.
 
 ## Bypass the bin for a specific deletion
 

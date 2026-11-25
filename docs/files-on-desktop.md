@@ -296,8 +296,8 @@ All under `/wp-json/desktop-mode/v1/files`. Permission gate: logged-in + OpenSta
 | `PATCH` | `/placements/<id>` | `{ parentId?, x?, y?, sortOrder?, meta? }`. The response is shaped like a listing row: `accessGated` with a redacted `file` when the caller cannot read the entity (a writer moving the owner's tile). |
 | `DELETE` | `/placements/<id>` | Soft-trash to the recycle bin (restorable). Pass `?force=1` to permanently purge. |
 | `GET` | `/folders` | List folders the viewer owns (Phase 6 expands to shared folders). |
-| `POST` | `/folders` | `{ name, shareMode?, shareMeta? }` |
-| `PATCH` | `/folders/<id>` | `{ name?, shareMode?, shareMeta? }` |
+| `POST` | `/folders` | `{ name, shareMode?, shareMeta? }`. A `shareMode` other than `private` needs the share gate (see [Setting share mode](#setting-share-mode)), and `shareMeta` is capped at 4 KB of JSON (400 past it). |
+| `PATCH` | `/folders/<id>` | `{ name?, shareMode?, shareMeta? }`. Owner only; same share-mode gate and `shareMeta` cap as `POST`. |
 | `DELETE` | `/folders/<id>` | Soft-trash the folder + cascades child placements (restorable). `?force=1` permanently deletes the folder and the cascaded placements. |
 | `PUT` | `/associations` | Replace the viewer's `{ type → openerId }` map (Phase 5 settings tab writer). |
 
@@ -864,7 +864,7 @@ doAction( 'os.wallpaper-context-menu.activated', { id: string, callbackId: strin
 
 - Folders owned by `$user_id`.
 - Folders not owned by them whose `share_mode` resolves true for them:
-  - `'all'` — every OpenStation user.
+  - `'all'` — every OpenStation user. Only an owner with `edit_posts` and folder sharing on can set it (see [Setting share mode](#setting-share-mode)).
   - `'users'` / `'roles'` — resolved through the shares + decisions tables via `openstation_folder_share_user_capability()`: an accepted user-principal share, or an accepted per-user decision on a role-principal share (see [folder-sharing.md](folder-sharing.md)). `share_meta` on the folders row is diagnostic only — it is never consulted for visibility.
 
 Plugins can register a custom share mode by adding it to `openstation_files_share_modes` and computing the per-folder decision via `openstation_files_user_can_see_folder`.
@@ -913,6 +913,10 @@ PATCH /wp-json/desktop-mode/v1/files/folders/<id>
     "shareMeta": { "roles": [ "editor" ] }
 }
 ```
+
+Any mode other than `private` is sharing, and `all` hands the folder to every OpenStation user with no invite and no accept, so setting one (on create, or on update when the mode changes) is held to the share routes' gates: the owner must hold `edit_posts` (what the share picker requires of a sharer, and the invite routes of every recipient) and have folder sharing on (`openstation_files_sharing_enabled_for()`). Otherwise the store answers 403 `openstation_files_forbidden`; `openstation_files_user_can_set_share_mode( $user_id, $mode )` asks the same question. A restore that recreates a folder from its trash snapshot brings it back `private` when the restoring user could not set the snapshot's mode.
+
+`shareMeta` is diagnostic and capped at `OPENSTATION_FILES_SHARE_META_MAX_BYTES` (4 KB of encoded JSON); a larger value is refused with 400 `openstation_files_share_meta_too_large`. The folder shape carries it to the owner only — every other viewer gets `shareMeta: null`.
 
 The `openstation_folder_shared` action fires whenever `share_mode` or `share_meta` changes, giving plugins a single signal to subscribe to.
 

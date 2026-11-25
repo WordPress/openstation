@@ -545,14 +545,68 @@ function openstation_content_changes_on_shutdown() {
 }
 
 /**
+ * The ids of one changelog entry the current user may hear about.
+ *
+ * The log is site-wide — every author's drafts and private posts,
+ * held and spam comments, orders, plugin installs — so each entry is
+ * narrowed to what the user could see in the screen that lists it:
+ *
+ *   - a post type: every id with the type's `edit_others_posts`,
+ *     otherwise the ids they may `edit_post` (a deleted post has no
+ *     row to ask, so only the first group hears of it);
+ *   - `comment`: every id with `moderate_comments`, otherwise the ids
+ *     they may `edit_comment` (comments on their own posts);
+ *   - `plugin`: every id with `activate_plugins`, none otherwise.
+ *
+ * Any other type is a third party's own storage, recorded through
+ * `openstation_content_changes_record()`; it reaches every user past
+ * the channel's `edit_posts` gate, and a plugin that wants it narrower
+ * keeps it out with `openstation_content_changes_should_record`.
+ *
+ * @param string $type Content type slug.
+ * @param int[]  $ids  Recorded ids.
+ * @return int[]
+ */
+function openstation_content_changes_visible_ids( $type, array $ids ) {
+	$ids = array_map( 'intval', $ids );
+	if ( 'plugin' === $type ) {
+		return current_user_can( 'activate_plugins' ) ? $ids : array();
+	}
+	if ( 'comment' === $type ) {
+		if ( current_user_can( 'moderate_comments' ) ) {
+			return $ids;
+		}
+		$cap = 'edit_comment';
+	} else {
+		$post_type = get_post_type_object( $type );
+		if ( ! $post_type ) {
+			return $ids;
+		}
+		if ( current_user_can( $post_type->cap->edit_others_posts ) ) {
+			return $ids;
+		}
+		$cap = 'edit_post';
+	}
+	return array_values(
+		array_filter(
+			$ids,
+			static function ( $id ) use ( $cap ) {
+				return $id > 0 && current_user_can( $cap, $id );
+			}
+		)
+	);
+}
+
+/**
  * Heartbeat handler — answers "which content changed since you last
  * heard from me?".
  *
  * Opt-in via the client-sent `openstation_content_changes_seen_ts`
  * key; requests without it early-return so non-desktop tabs pay zero
  * per tick. The response carries the server high-water mark plus the
- * entries newer than the client's seen ts; the shell re-broadcasts
- * each as `os.<type>.changed`.
+ * entries newer than the client's seen ts, each narrowed to the ids
+ * the user may see (`openstation_content_changes_visible_ids()`); the
+ * shell re-broadcasts each as `os.<type>.changed`.
  *
  * @param array $response Heartbeat response.
  * @param array $data     Client-sent payload.
@@ -565,10 +619,11 @@ function openstation_content_changes_heartbeat_received( $response, $data ) {
 	if ( ! isset( $data['openstation_content_changes_seen_ts'] ) ) {
 		return $response;
 	}
-	// The same floor as the notes and presence heartbeats: only the
-	// shell consumes this log, and a multisite user with no role on
-	// this site has no business reading what changed on it.
-	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() || ! current_user_can( 'read' ) ) {
+	// Only the shell consumes this log, and only its list windows act
+	// on it: a user who cannot edit content (a Subscriber, a multisite
+	// user with no role on this site) has nothing it refreshes, and the
+	// log describes content they cannot see.
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() || ! current_user_can( 'edit_posts' ) ) {
 		return $response;
 	}
 
@@ -580,7 +635,13 @@ function openstation_content_changes_heartbeat_received( $response, $data ) {
 
 	$fresh = array();
 	foreach ( $entries as $entry ) {
-		if ( isset( $entry['ts'] ) && (int) $entry['ts'] > $seen ) {
+		if ( ! isset( $entry['ts'], $entry['type'] ) || (int) $entry['ts'] <= $seen ) {
+			continue;
+		}
+		// An entry left with no id the user may see is dropped whole:
+		// its type and verb alone say "someone changed an order".
+		$entry['ids'] = openstation_content_changes_visible_ids( (string) $entry['type'], (array) ( $entry['ids'] ?? array() ) );
+		if ( array() !== $entry['ids'] ) {
 			$fresh[] = $entry;
 		}
 	}

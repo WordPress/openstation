@@ -133,6 +133,31 @@ class Tests_OpenStation_GamesStore extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A recipient is a player of THIS site, and the challenge names them
+	 * back. An account with no role here is refused like a missing id;
+	 * on a network so is a non-member, even one (a super admin) who
+	 * would pass `read` everywhere.
+	 *
+	 * @covers ::openstation_games_create_challenge
+	 */
+	public function test_create_challenge_refuses_a_recipient_who_is_not_a_player_here() {
+		$roleless = self::factory()->user->create( array( 'role' => '' ) );
+		$result   = openstation_games_create_challenge( 'test-game', self::$player_a, $roleless, 10 );
+		$this->assertWPError( $result );
+		$this->assertSame( 'openstation_invalid_recipient', $result->get_error_code() );
+
+		if ( is_multisite() ) {
+			$outsider = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+			remove_user_from_blog( $outsider, get_current_blog_id() );
+			add_user_to_blog( self::factory()->blog->create(), $outsider, 'subscriber' );
+			grant_super_admin( $outsider );
+			$result = openstation_games_create_challenge( 'test-game', self::$player_a, $outsider, 10 );
+			$this->assertWPError( $result );
+			$this->assertSame( 'openstation_invalid_recipient', $result->get_error_code() );
+		}
+	}
+
+	/**
 	 * @covers ::openstation_games_set_challenge_state
 	 * @covers ::openstation_games_complete_challenge
 	 */

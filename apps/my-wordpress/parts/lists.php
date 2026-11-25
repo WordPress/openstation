@@ -41,6 +41,11 @@ function allowed( Os $os, array $section, $id, $verb ) {
 	if ( 'user' === $section['kind'] ) {
 		return 'edit' === $verb && $os->can( 'edit_user', (int) $id );
 	}
+	// Ids ride up from the client and the meta cap ignores the type: only this section's rows.
+	$post = (int) $id > 0 ? get_post( (int) $id ) : null;
+	if ( ! $post || $post->post_type !== $section['post_type'] ) {
+		return false;
+	}
 	return $os->can( $verb . '_post', (int) $id );
 }
 
@@ -48,16 +53,16 @@ function allowed( Os $os, array $section, $id, $verb ) {
  * Whether the acting user may read one post at all. A section's gate
  * is the type's `edit_posts`, which every Contributor holds, so it
  * says nothing about another author's private post or draft; the
- * object's own `read_post` does. A list still shows every draft's
- * title, as Core's `edit.php` does — what needs this is anything that
- * reads past the title: the body, the excerpt, the meta.
+ * object's own read rule does (`openstation_my_wordpress_can_read_post()`,
+ * shared with the bridge). A list still shows every draft's title, as
+ * `edit.php` does; this gates the body, the excerpt, the meta.
  *
  * @param Os       $os   Host handle.
  * @param \WP_Post $post Post.
  * @return bool
  */
 function can_read( Os $os, \WP_Post $post ) {
-	return $os->can( 'read_post', (int) $post->ID );
+	return openstation_my_wordpress_can_read_post( $post );
 }
 
 /**
@@ -496,8 +501,9 @@ function detail( Os $os, array $section, $id ) {
 		return woo_detail( $section, $id );
 	}
 	if ( 'user' === $section['kind'] ) {
-		$user = get_userdata( $id );
-		if ( ! $user ) {
+		// Any id rides up with the state: only a member the caller may read, as Core decides.
+		$user = openstation_get_readable_user( $id );
+		if ( is_wp_error( $user ) ) {
 			return null;
 		}
 		// The third element tags each fact with WP Explorer's dossier

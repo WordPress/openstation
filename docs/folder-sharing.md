@@ -238,7 +238,12 @@ functions.
 returns the union of:
 
 1. **Owned folders** (`$owned` is the seed — owner-side).
-2. **share_mode='all'** folders the viewer doesn't own.
+2. **share_mode='all'** folders the viewer doesn't own. Setting a
+   folder's mode to anything but `private` goes through the folders
+   store, which holds it to this page's gates: the owner needs
+   `edit_posts` and folder sharing on
+   (`openstation_files_user_can_set_share_mode()`), because `all`
+   reaches every user with no invite and no accept.
 3. **Accepted shares** matching the viewer — direct user grant OR
    any role the viewer holds.
 

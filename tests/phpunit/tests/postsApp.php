@@ -489,6 +489,37 @@ class Tests_OpenStation_PostsApp extends WP_UnitTestCase {
 		$this->assertSame( '1 item could not be restored.', $toast['message'] );
 	}
 
+	/**
+	 * `delete_post` does not ask the type: an Editor holds it on an
+	 * Administrator's desktop note, which the notes REST keeps to its
+	 * author. The Posts window trashes and restores only posts.
+	 *
+	 * @covers ::openstation_posts_app_trash
+	 * @covers ::openstation_posts_app_restore
+	 */
+	public function test_trash_and_restore_skip_rows_of_another_type() {
+		$note    = self::factory()->post->create(
+			array(
+				'post_type'   => 'wpd_note',
+				'post_author' => $this->admin_id,
+			)
+		);
+		$trashed = self::factory()->post->create(
+			array(
+				'post_type'   => 'wpd_note',
+				'post_author' => $this->admin_id,
+				'post_status' => 'trash',
+			)
+		);
+		wp_set_current_user( $this->editor_id );
+
+		$this->dispatch( 'trash', array(), array( 'ids' => array( $note ) ) );
+		$this->dispatch( 'restore', array(), array( 'ids' => array( $trashed ) ) );
+
+		$this->assertSame( 'publish', get_post_status( $note ) );
+		$this->assertSame( 'trash', get_post_status( $trashed ) );
+	}
+
 	// ------------------------------------------------------- terms REST
 
 	/**

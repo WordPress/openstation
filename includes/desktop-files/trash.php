@@ -201,15 +201,15 @@ function openstation_files_user_can_purge_folder( $user_id, $row ) {
  */
 function openstation_files_capture_ancestry( $parent_id ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
 	$chain  = array();
 	$cursor = (int) $parent_id;
 	$guard  = 0; // depth-bound — defends against accidental cycles.
 	while ( $cursor > 0 && $guard < 32 ) {
 		++$guard;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 		$folder = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$tables['folders']} WHERE id = %d",
+				"SELECT * FROM {$wpdb->desktop_mode_folders} WHERE id = %d",
 				$cursor
 			),
 			ARRAY_A
@@ -220,9 +220,10 @@ function openstation_files_capture_ancestry( $parent_id ) {
 		// The folder's "where I sit on the desktop tree" lives on
 		// its placement row. Pick any active or trashed placement
 		// of this folder — we just need its parent_id + (x, y).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 		$placement      = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT parent_id, x, y FROM {$tables['placements']}
+				"SELECT parent_id, x, y FROM {$wpdb->desktop_mode_file_placements}
 				WHERE file_type = 'folder' AND file_ref = %s
 				ORDER BY id ASC LIMIT 1",
 				(string) $folder['id']
@@ -299,11 +300,15 @@ function openstation_files_resurrect_ancestry( $user_id, $ancestry ) {
 		// account (an owned folder with no placement is auto-placed
 		// on its owner's desktop).
 		$owner_id = $user_id;
-		$new_id   = openstation_files_create_folder(
+		// The snapshot's share mode may be one the acting user is
+		// not allowed to set; the folder comes back private then.
+		$mode   = (string) $entry['folder_share_mode'];
+		$mode   = openstation_files_user_can_set_share_mode( $owner_id, $mode ) ? $mode : 'private';
+		$new_id = openstation_files_create_folder(
 			$owner_id,
 			array(
 				'name'       => (string) $entry['folder_name'],
-				'share_mode' => (string) $entry['folder_share_mode'],
+				'share_mode' => $mode,
 				'share_meta' => $entry['folder_share_meta'],
 			)
 		);
@@ -352,11 +357,11 @@ function openstation_files_trash_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
 	$placement_id = (int) $placement_id;
-	$tables       = openstation_files_table_names();
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides ownership and trash state.
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['placements']} WHERE id = %d",
+			"SELECT * FROM {$wpdb->desktop_mode_file_placements} WHERE id = %d",
 			$placement_id
 		),
 		ARRAY_A
@@ -391,8 +396,9 @@ function openstation_files_trash_placement( $user_id, $placement_id ) {
 	$now      = openstation_files_now_ms();
 	$ancestry = openstation_files_capture_ancestry( (int) $row['parent_id'] );
 	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
-	$result   = $wpdb->update(
-		$tables['placements'],
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
+	$result = $wpdb->update(
+		$wpdb->desktop_mode_file_placements,
 		array(
 			'trashed_at_ms' => $now,
 			'trashed_by'    => $user_id,
@@ -440,11 +446,11 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
 	$placement_id = (int) $placement_id;
-	$tables       = openstation_files_table_names();
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides ownership and trash state.
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['placements']} WHERE id = %d",
+			"SELECT * FROM {$wpdb->desktop_mode_file_placements} WHERE id = %d",
 			$placement_id
 		),
 		ARRAY_A
@@ -534,8 +540,9 @@ function openstation_files_restore_placement( $user_id, $placement_id ) {
 	 */
 	do_action( 'openstation_files_before_restore_placement', $placement_id, $user_id, $row );
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 	$wpdb->update(
-		$tables['placements'],
+		$wpdb->desktop_mode_file_placements,
 		array(
 			'parent_id'          => $resolved_parent_id,
 			'trashed_at_ms'      => null,
@@ -576,11 +583,11 @@ function openstation_files_purge_placement( $user_id, $placement_id ) {
 	global $wpdb;
 	$user_id      = (int) $user_id;
 	$placement_id = (int) $placement_id;
-	$tables       = openstation_files_table_names();
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides ownership and trash state.
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['placements']} WHERE id = %d",
+			"SELECT * FROM {$wpdb->desktop_mode_file_placements} WHERE id = %d",
 			$placement_id
 		),
 		ARRAY_A
@@ -603,7 +610,8 @@ function openstation_files_purge_placement( $user_id, $placement_id ) {
 	 */
 	do_action( 'openstation_files_before_purge_placement', $placement_id, $user_id, $row );
 
-	$wpdb->delete( $tables['placements'], array( 'id' => $placement_id ), array( '%d' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
+	$wpdb->delete( $wpdb->desktop_mode_file_placements, array( 'id' => $placement_id ), array( '%d' ) );
 
 	// Mirror `openstation_files_remove()`: a purge IS a permanent
 	// removal, so the same lifecycle action fires. Load-bearing for
@@ -647,11 +655,11 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$folder_id = (int) $folder_id;
-	$tables    = openstation_files_table_names();
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides ownership and trash state.
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['folders']} WHERE id = %d",
+			"SELECT * FROM {$wpdb->desktop_mode_folders} WHERE id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -685,9 +693,10 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 	// Capture the folder's own placement-chain ancestry so a future
 	// restore can resurrect any parent folders that got hard-deleted
 	// while this one was sitting in trash.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 	$folder_placement = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT parent_id FROM {$tables['placements']}
+			"SELECT parent_id FROM {$wpdb->desktop_mode_file_placements}
 			WHERE file_type = 'folder' AND file_ref = %s
 			ORDER BY id ASC LIMIT 1",
 			(string) $folder_id
@@ -700,8 +709,9 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 	$folder_meta      = wp_json_encode( array( 'ancestry' => $folder_ancestry ) );
 
 	// Trash the folder row.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 	$folder_update = $wpdb->update(
-		$tables['folders'],
+		$wpdb->desktop_mode_folders,
 		array(
 			'trashed_at_ms' => $now,
 			'trashed_by'    => $user_id,
@@ -732,9 +742,10 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 	// the same parent chain, so we compute once.
 	$ancestry = openstation_files_capture_ancestry( $folder_id );
 	$meta     = wp_json_encode( array( 'ancestry' => $ancestry ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 	$wpdb->query(
 		$wpdb->prepare(
-			"UPDATE {$tables['placements']}
+			"UPDATE {$wpdb->desktop_mode_file_placements}
 			SET trashed_at_ms = %d,
 				trashed_by = %d,
 				trashed_via_folder = %d,
@@ -752,10 +763,11 @@ function openstation_files_trash_folder( $user_id, $folder_id ) {
 	);
 	// Cascade trash to nested folders too. Recurses one level via
 	// IDs; deep folder trees iterate.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 	$child_folder_ids = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT f.id FROM {$tables['folders']} f
-			INNER JOIN {$tables['placements']} p ON p.file_type = 'folder' AND p.file_ref = CAST( f.id AS CHAR )
+			"SELECT f.id FROM {$wpdb->desktop_mode_folders} f
+			INNER JOIN {$wpdb->desktop_mode_file_placements} p ON p.file_type = 'folder' AND p.file_ref = CAST( f.id AS CHAR )
 			WHERE p.parent_id = %d AND f.trashed_at_ms IS NULL",
 			$folder_id
 		)
@@ -787,11 +799,11 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$folder_id = (int) $folder_id;
-	$tables    = openstation_files_table_names();
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides ownership and trash state.
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['folders']} WHERE id = %d",
+			"SELECT * FROM {$wpdb->desktop_mode_folders} WHERE id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -825,10 +837,11 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 	// Snapshot nested folder ids BEFORE we null `trashed_via_folder`
 	// on the placements — that column is the only stable link from
 	// a child folder's placement back to the parent cascade.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 	$nested_ids = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT DISTINCT CAST( p.file_ref AS UNSIGNED ) AS fid
-			FROM {$tables['placements']} p
+			FROM {$wpdb->desktop_mode_file_placements} p
 			WHERE p.file_type = 'folder'
 				AND p.parent_id = %d
 				AND p.trashed_via_folder = %d",
@@ -837,8 +850,9 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 		)
 	);
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 	$wpdb->update(
-		$tables['folders'],
+		$wpdb->desktop_mode_folders,
 		array(
 			'trashed_at_ms' => null,
 			'trashed_by'    => null,
@@ -858,9 +872,10 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 		? $decoded['ancestry']
 		: array();
 	if ( ! empty( $ancestry ) ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 		$folder_placement_row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, parent_id FROM {$tables['placements']}
+				"SELECT id, parent_id FROM {$wpdb->desktop_mode_file_placements}
 				WHERE file_type = 'folder' AND file_ref = %s
 				ORDER BY id ASC LIMIT 1",
 				(string) $folder_id
@@ -874,8 +889,9 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 				: null;
 			if ( $origin_parent > 0 && ! $alive ) {
 				$resolved = openstation_files_resurrect_ancestry( $user_id, $ancestry );
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 				$wpdb->update(
-					$tables['placements'],
+					$wpdb->desktop_mode_file_placements,
 					array(
 						'parent_id'     => $resolved,
 						'updated_at_ms' => $now,
@@ -888,9 +904,10 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 		}
 	}
 	// Restore placements that this folder's trash had cascaded.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 	$wpdb->query(
 		$wpdb->prepare(
-			"UPDATE {$tables['placements']}
+			"UPDATE {$wpdb->desktop_mode_file_placements}
 			SET trashed_at_ms = NULL,
 				trashed_by = NULL,
 				trashed_via_folder = NULL,
@@ -914,9 +931,10 @@ function openstation_files_restore_folder( $user_id, $folder_id ) {
 	// restored placement so a fresh heartbeat tick can't surface
 	// them as `removed.*` against the now-alive rows.
 	openstation_files_clear_tombstones_for( 'folder', $folder_id );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 	$restored_placement_ids = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['placements']}
+			"SELECT id FROM {$wpdb->desktop_mode_file_placements}
 			WHERE trashed_via_folder IS NULL
 				AND ( parent_id = %d OR ( file_type = 'folder' AND file_ref = %s ) )",
 			$folder_id,
@@ -949,11 +967,11 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$folder_id = (int) $folder_id;
-	$tables    = openstation_files_table_names();
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides ownership and trash state.
 	$row = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['folders']} WHERE id = %d",
+			"SELECT * FROM {$wpdb->desktop_mode_folders} WHERE id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -989,25 +1007,25 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	// sequences are independent — without the predicate a folder
 	// purge wipes an unrelated user's file share that happens to
 	// collide numerically.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 	$share_ids = (array) $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
+			"SELECT id FROM {$wpdb->desktop_mode_folder_shares} WHERE target_type = 'folder' AND folder_id = %d",
 			$folder_id
 		)
 	);
 	if ( ! empty( $share_ids ) ) {
-		$placeholders = implode( ',', array_fill( 0, count( $share_ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$tables['decisions']} WHERE share_id IN ($placeholders)",
+				"DELETE FROM {$wpdb->desktop_mode_share_user_decisions} WHERE share_id IN (" . implode( ',', array_fill( 0, count( $share_ids ), '%d' ) ) . ')',
 				$share_ids
 			)
 		);
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$tables['shares']} WHERE id IN ($placeholders)",
+				"DELETE FROM {$wpdb->desktop_mode_folder_shares} WHERE id IN (" . implode( ',', array_fill( 0, count( $share_ids ), '%d' ) ) . ')',
 				$share_ids
 			)
 		);
@@ -1016,9 +1034,10 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	// Drop every placement that points AT this folder (recipients'
 	// root tiles + the owner's own), with tombstones so connected
 	// clients scrub the tile via the heartbeat.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 	$pointing_ids = (array) $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['placements']}
+			"SELECT id FROM {$wpdb->desktop_mode_file_placements}
 			WHERE file_type = 'folder' AND file_ref = %s",
 			(string) $folder_id
 		)
@@ -1027,11 +1046,10 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 		openstation_files_write_tombstone( 'placement', (int) $pid );
 	}
 	if ( ! empty( $pointing_ids ) ) {
-		$placeholders = implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$tables['placements']} WHERE id IN ($placeholders)",
+				"DELETE FROM {$wpdb->desktop_mode_file_placements} WHERE id IN (" . implode( ',', array_fill( 0, count( $pointing_ids ), '%d' ) ) . ')',
 				$pointing_ids
 			)
 		);
@@ -1042,16 +1060,18 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 	// after the rows go. Direct guarded call (not the public
 	// `openstation_file_unplaced` action) so cascade hook semantics
 	// for every other type stay unchanged.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh mid-write on the trash path.
 	$cascade_upload_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['placements']}
+			"SELECT * FROM {$wpdb->desktop_mode_file_placements}
 			WHERE trashed_via_folder = %d AND file_type = 'upload'",
 			$folder_id
 		),
 		ARRAY_A
 	);
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 	$wpdb->delete(
-		$tables['placements'],
+		$wpdb->desktop_mode_file_placements,
 		array( 'trashed_via_folder' => $folder_id ),
 		array( '%d' )
 	);
@@ -1063,7 +1083,8 @@ function openstation_files_purge_folder( $user_id, $folder_id ) {
 			);
 		}
 	}
-	$wpdb->delete( $tables['folders'], array( 'id' => $folder_id ), array( '%d' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
+	$wpdb->delete( $wpdb->desktop_mode_folders, array( 'id' => $folder_id ), array( '%d' ) );
 
 	/**
 	 * @param int $folder_id
@@ -1094,20 +1115,21 @@ function openstation_files_count_trashed_for_recycle_bin( $user_id ) {
 	if ( $user_id <= 0 ) {
 		return 0;
 	}
-	$tables = openstation_files_table_names();
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; the recycle bin must show trash state fresh.
 	$placements = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM {$tables['placements']}
+			"SELECT COUNT(*) FROM {$wpdb->desktop_mode_file_placements}
 			WHERE owner_id = %d
 				AND trashed_at_ms IS NOT NULL
 				AND trashed_via_folder IS NULL",
 			$user_id
 		)
 	);
-	$folders    = (int) $wpdb->get_var(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; the recycle bin must show trash state fresh.
+	$folders = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM {$tables['folders']}
+			"SELECT COUNT(*) FROM {$wpdb->desktop_mode_folders}
 			WHERE owner_id = %d AND trashed_at_ms IS NOT NULL",
 			$user_id
 		)
@@ -1126,13 +1148,13 @@ function openstation_files_count_trashed_for_recycle_bin( $user_id ) {
 function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 	global $wpdb;
 	$user_id = (int) $user_id;
-	$tables  = openstation_files_table_names();
 	$out     = array();
 
 	// Trashed placements owned by this user.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; the recycle bin must show trash state fresh.
 	$placements = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['placements']}
+			"SELECT * FROM {$wpdb->desktop_mode_file_placements}
 			WHERE owner_id = %d AND trashed_at_ms IS NOT NULL
 			ORDER BY trashed_at_ms DESC",
 			$user_id
@@ -1145,12 +1167,13 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		if ( ! empty( $row['trashed_via_folder'] ) ) {
 			continue;
 		}
-		$file  = function_exists( 'openstation_resolve_file' )
+		$file = function_exists( 'openstation_resolve_file' )
 			? openstation_resolve_file( $row['file_type'], $row['file_ref'] )
 			: null;
 		// The viewer's own placement, but the entity behind it may have
 		// gone private or draft since; the active listing re-asks
-		// `can_read()` per row, and so does the bin.
+		// `can_read()` per row, and so does the bin, for the title,
+		// the icon and the preview alike.
 		$readable = $file && $file->can_read( $user_id );
 		$title    = $file
 			? ( $readable ? openstation_plain_text_title( $file->title() ) : __( 'Restricted item', 'desktop-mode' ) )
@@ -1184,7 +1207,7 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 			'title'         => $title,
 			'subtitle'      => $subtitle,
 			'mime'          => '',
-			'preview'       => $file ? (string) $file->preview_url() : '',
+			'preview'       => $file && $readable ? (string) $file->preview_url() : '',
 			'icon'          => $icon,
 			'deleted_at'    => gmdate( 'c', (int) round( (int) $row['trashed_at_ms'] / 1000 ) ),
 			'deleted_by'    => '',
@@ -1200,9 +1223,10 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 	}
 
 	// Trashed folders owned by this user.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; the recycle bin must show trash state fresh.
 	$folders = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['folders']}
+			"SELECT * FROM {$wpdb->desktop_mode_folders}
 			WHERE owner_id = %d AND trashed_at_ms IS NOT NULL
 			ORDER BY trashed_at_ms DESC",
 			$user_id
@@ -1210,9 +1234,10 @@ function openstation_files_list_trashed_for_recycle_bin( $user_id ) {
 		ARRAY_A
 	);
 	foreach ( (array) $folders as $row ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; the recycle bin must show trash state fresh.
 		$child_count = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$tables['placements']}
+				"SELECT COUNT(*) FROM {$wpdb->desktop_mode_file_placements}
 				WHERE trashed_via_folder = %d",
 				(int) $row['id']
 			)

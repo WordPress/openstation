@@ -354,7 +354,7 @@ function openstation_ai_search_dispatch_tool( $tool_name, array $args ) {
 			$q = isset( $args['query'] ) ? sanitize_text_field( (string) $args['query'] ) : '';
 			return openstation_ai_fetch_wporg_plugins( $q );
 		case 'get_php_error_log':
-			if ( ! current_user_can( 'manage_options' ) ) {
+			if ( ! openstation_ai_user_can_read_error_log() ) {
 				return array(
 					'tool'          => 'get_php_error_log',
 					'log_available' => false,
@@ -2522,8 +2522,23 @@ function openstation_ai_fetch_wporg_plugins( $query ) {
 // Tool: get_php_error_log — reads the tail of the site's error log.
 // Admin-only; the capability check is performed in the dispatcher
 // BEFORE this function runs, so by the time we get here the caller is
-// known to hold manage_options.
+// known to pass openstation_ai_user_can_read_error_log().
 // ---------------------------------------------------------------------------
+
+/**
+ * Whether the current user may read the PHP error log.
+ *
+ * `manage_options`, and `manage_network_options` on a network: the log
+ * (`WP_CONTENT_DIR/debug.log`, or PHP's `error_log`) is one file for
+ * every site, carrying other sites' paths, queries and data, so a
+ * subsite administrator is not its reader. Code Blue draws the same
+ * line for the same files.
+ *
+ * @return bool
+ */
+function openstation_ai_user_can_read_error_log() {
+	return current_user_can( is_multisite() ? 'manage_network_options' : 'manage_options' );
+}
 
 /**
  * Read and parse the tail of the site's PHP error log.

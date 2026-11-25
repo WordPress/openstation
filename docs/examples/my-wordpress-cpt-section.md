@@ -55,7 +55,12 @@ collection, so OpenStation serves it from
 `desktop-mode/v1/post-type/<slug>` instead. That route is **read and
 trash only** — no create, no update — and requires the type's
 `edit_posts` capability in every context, so it is never publicly
-readable.
+readable. When the type has no readable front end (`public => false`,
+or `publicly_queryable => false`), a row reads only for someone who may
+`edit_post` it: holding `edit_posts` lets a Contributor see that the
+section exists, not read another author's published rows in it. The
+same rule decides who sees a row's excerpt, meta and detail pane in
+the WP Explorer window.
 
 If your type holds something that should have no REST endpoint at all,
 opt out:

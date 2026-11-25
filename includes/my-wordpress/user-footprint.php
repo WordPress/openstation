@@ -13,10 +13,14 @@
  * Permission: the My WordPress module's gate,
  * `openstation_my_wordpress_user_can_use()` (`edit_posts` unless a site
  * filters it), so a site that narrows WP Explorer narrows this data
- * with it. Past that gate, `list_users` (or the subject viewing their
- * own footprint) only decides the profile fields (`roleLabels`,
- * `registered`), the same split `user-stats.php` uses. Sensitive
- * fields (email, IP) are NOT returned from this endpoint:
+ * with it. Past that gate the subject must be one the caller may read,
+ * the dossier's rule (`openstation_get_readable_user()`): a member of
+ * this site, and an author of something the caller can see unless the
+ * caller is the subject or holds `list_users` or `edit_user` on them.
+ * Then `list_users` (or the subject viewing their own footprint) only
+ * decides the profile fields (`roleLabels`, `registered`), the same
+ * split `user-stats.php` uses. Sensitive fields (email, IP) are NOT
+ * returned from this endpoint:
  * `user-stats.php` carries those for the preview pane, and the
  * footprint focuses on activity patterns.
  *
@@ -233,13 +237,10 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	global $wpdb;
 
 	$user_id = (int) $request->get_param( 'id' );
-	$user    = get_userdata( $user_id );
-	if ( ! $user ) {
-		return new WP_Error(
-			'openstation_user_not_found',
-			__( 'User not found.', 'desktop-mode' ),
-			array( 'status' => 404 )
-		);
+	// The dossier's rule: a member of this site the caller may read.
+	$user = openstation_get_readable_user( $user_id );
+	if ( is_wp_error( $user ) ) {
+		return $user;
 	}
 
 	$viewer_id       = get_current_user_id();
@@ -292,10 +293,8 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		// then goes through the gate.
 		$open_types = array( '' );
 	}
-	$open_stati_in = implode( ', ', array_fill( 0, count( $open_stati ), '%s' ) );
-	$open_types_in = implode( ', ', array_fill( 0, count( $open_types ), '%s' ) );
-	$open_args     = array_merge( $open_stati, $open_types );
-	$verdicts      = array();
+	$open_args = array_merge( $open_stati, $open_types );
+	$verdicts  = array();
 
 	// ---- Daily counts (posts published, comments LEFT, updates saved) ----
 	// One query per kind, each grouped by `DATE(post_date_gmt)` /
@@ -308,6 +307,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// decide, and the rows it refuses are dropped: a heatmap cell
 	// must not report "this user commented on, or edited, something
 	// private on Tuesday" when the timeline withholds the row saying so.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$post_rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE(post_date_gmt) AS d, COUNT(*) AS n
@@ -328,6 +328,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		$post_by_day[ (string) $row['d'] ] = (int) $row['n'];
 	}
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-post GROUP BY count no WP API returns; a per-viewer payload, read fresh, each post gated after.
 	$comment_rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE(c.comment_date_gmt) AS d, p.ID AS post_id, COUNT(*) AS n
@@ -362,10 +363,11 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// post that never had a revision is edited later. The lifetime count
 	// and the timeline query below carry the same clause; keep the three
 	// in step.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-post GROUP BY count no WP API returns; a per-viewer payload, read fresh, each post gated after.
 	$update_rows   = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT DATE(r.post_date_gmt) AS d,
-				CASE WHEN p.post_status IN ( {$open_stati_in} ) AND p.post_type IN ( {$open_types_in} ) THEN 0 ELSE p.ID END AS post_id,
+			'SELECT DATE(r.post_date_gmt) AS d,
+				CASE WHEN p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $open_stati ), '%s' ) ) . ' ) AND p.post_type IN ( ' . implode( ', ', array_fill( 0, count( $open_types ), '%s' ) ) . " ) THEN 0 ELSE p.ID END AS post_id,
 				COUNT(*) AS n
 			FROM {$wpdb->posts} r
 			INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
@@ -402,6 +404,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 
 	// ---- Weekday distribution (Sunday-indexed) ---------------------------
 	// `DAYOFWEEK` returns 1=Sunday through 7=Saturday in MySQL.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$weekday_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DAYOFWEEK(post_date_gmt) AS dow, COUNT(*) AS n
@@ -426,6 +429,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// `post_date` is already in site timezone — that's the timestamp
 	// the author saw when they hit Publish. Using GMT here would shift
 	// the bars by the offset and feel wrong to anyone in a non-UTC tz.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$hour_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT HOUR(post_date) AS h, COUNT(*) AS n
@@ -504,7 +508,8 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// One query per kind, then merge + sort + slice in PHP. Smaller and
 	// simpler than a SQL `UNION ALL`, and each branch already has the
 	// right index.
-	$timeline_posts    = $wpdb->get_results(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Four columns of 30 rows, gated per row below; WP_Query would load and filter whole posts.
+	$timeline_posts = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT ID, post_title, post_status, post_date_gmt, post_type
 			FROM {$wpdb->posts}
@@ -517,6 +522,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A comments-to-posts join WP_Comment_Query cannot select; gated per row below.
 	$timeline_comments = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT c.comment_ID, c.comment_post_ID, c.comment_date_gmt, c.comment_approved,
@@ -537,6 +543,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// list (otherwise an editor polishing a single article would push
 	// every other event off the screen). The MAX(r.post_date_gmt)
 	// surfaces the most recent save as the row's timestamp.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
 	$timeline_updates = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT r.post_parent AS parent_id, MAX(r.post_date_gmt) AS last_save, p.post_title, p.post_status, p.post_type
@@ -641,10 +648,11 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// drafts, pending, private and scheduled posts another user is sitting
 	// on (or watch that number move), while an Editor, whose timeline
 	// lists those drafts, gets them counted too.
-	$content_rows    = $wpdb->get_results(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-post GROUP BY count no WP API returns; a per-viewer payload, read fresh, each post gated after.
+	$content_rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT post_type,
-				CASE WHEN post_status IN ( {$open_stati_in} ) AND post_type IN ( {$open_types_in} ) THEN 0 ELSE ID END AS post_id,
+			'SELECT post_type,
+				CASE WHEN post_status IN ( ' . implode( ', ', array_fill( 0, count( $open_stati ), '%s' ) ) . ' ) AND post_type IN ( ' . implode( ', ', array_fill( 0, count( $open_types ), '%s' ) ) . " ) THEN 0 ELSE ID END AS post_id,
 				COUNT(*) AS n
 			FROM {$wpdb->posts}
 			WHERE post_author = %d
@@ -655,16 +663,17 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$totals_posts    = openstation_my_wordpress_footprint_visible_counts(
+	$totals_posts = openstation_my_wordpress_footprint_visible_counts(
 		wp_list_filter( (array) $content_rows, array( 'post_type' => 'post' ) ),
 		false,
 		$verdicts
 	)['total'];
-	$totals_pages    = openstation_my_wordpress_footprint_visible_counts(
+	$totals_pages = openstation_my_wordpress_footprint_visible_counts(
 		wp_list_filter( (array) $content_rows, array( 'post_type' => 'page' ) ),
 		false,
 		$verdicts
 	)['total'];
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-post GROUP BY count no WP API returns; a per-viewer payload, read fresh, each post gated after.
 	$comment_totals  = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT p.ID AS post_id, COUNT(*) AS n
@@ -681,9 +690,10 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 	// Lifetime updates = revisions this user saved after the initial
 	// creation of the parent post. Matches the per-day `updates`
 	// definition so the hero stat and heatmap rollups agree.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-post GROUP BY count no WP API returns; a per-viewer payload, read fresh, each post gated after.
 	$update_totals  = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT CASE WHEN p.post_status IN ( {$open_stati_in} ) AND p.post_type IN ( {$open_types_in} ) THEN 0 ELSE p.ID END AS post_id,
+			'SELECT CASE WHEN p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $open_stati ), '%s' ) ) . ' ) AND p.post_type IN ( ' . implode( ', ', array_fill( 0, count( $open_types ), '%s' ) ) . " ) THEN 0 ELSE p.ID END AS post_id,
 				COUNT(*) AS n
 			FROM {$wpdb->posts} r
 			INNER JOIN {$wpdb->posts} p ON r.post_parent = p.ID
@@ -703,7 +713,8 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		ARRAY_A
 	);
 	$totals_updates = openstation_my_wordpress_footprint_visible_counts( $update_totals, false, $verdicts )['total'];
-	$month_row      = $wpdb->get_row(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- An aggregate per-author count no WP API returns; a per-viewer payload, read fresh.
+	$month_row = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT DATE_FORMAT(post_date_gmt, '%%Y-%%m') AS ym, COUNT(*) AS n
 			FROM {$wpdb->posts}
@@ -717,7 +728,7 @@ function openstation_my_wordpress_user_footprint_callback( $request ) {
 		),
 		ARRAY_A
 	);
-	$totals         = array(
+	$totals    = array(
 		'posts'    => $totals_posts,
 		'pages'    => $totals_pages,
 		'comments' => $totals_comments,

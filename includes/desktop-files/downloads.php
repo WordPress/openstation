@@ -23,6 +23,10 @@
  * by dispatch time, and `header()` replacement inside the filter is
  * the sanctioned way to take over the response (the same route
  * still keeps `permission_callback`, error JSON, and logging).
+ * The response data carries only an opaque token; what to stream
+ * (the absolute path among it) stays in a server-side registry,
+ * because any response the filter does not take over is serialized
+ * to the caller as JSON.
  *
  * Not-found and no-access are both 404 — a download probe must not
  * reveal that a file exists (the Drive behavior).
@@ -339,9 +343,22 @@ function openstation_files_zip_unique_name( $name, &$used_names ) {
 }
 
 /**
+ * Stream descriptors resolved during this request, keyed by the
+ * opaque token their marker response carries.
+ *
+ * @var array<string, array{path:string,name:string,mime:string,delete_after:bool}>
+ */
+$GLOBALS['openstation_files_download_streams'] = array();
+
+/**
  * Build the marker response the `rest_pre_serve_request` filter
- * streams. The marker payload never reaches the client — the
- * filter takes over the output entirely.
+ * streams.
+ *
+ * The data holds a random token and nothing else. `?_envelope`
+ * wraps the data BEFORE `rest_pre_serve_request` runs, so whatever
+ * it carries goes out as JSON whenever the filter does not take the
+ * response over. The descriptor, an absolute disk path among it,
+ * therefore lives in a server-side registry the token points into.
  *
  * @internal
  *
@@ -352,17 +369,49 @@ function openstation_files_zip_unique_name( $name, &$used_names ) {
  * @return WP_REST_Response
  */
 function openstation_files_download_stream_response( $path, $name, $mime, $delete_after ) {
-	return new WP_REST_Response(
-		array(
-			'__openstation_stream' => array(
-				'path'         => (string) $path,
-				'name'         => (string) $name,
-				'mime'         => (string) $mime,
-				'delete_after' => (bool) $delete_after,
-			),
-		),
-		200
+	$token = wp_generate_uuid4();
+
+	$GLOBALS['openstation_files_download_streams'][ $token ] = array(
+		'path'         => (string) $path,
+		'name'         => (string) $name,
+		'mime'         => (string) $mime,
+		'delete_after' => (bool) $delete_after,
 	);
+
+	return new WP_REST_Response( array( '__openstation_stream' => $token ), 200 );
+}
+
+/**
+ * The stream descriptor a download response stands for.
+ *
+ * Reads the token off the response data — or off its `body` when
+ * `?_envelope` has wrapped it — and looks it up in the server-side
+ * registry, so a token this request did not mint resolves to
+ * nothing.
+ *
+ * @internal
+ *
+ * @param WP_HTTP_Response $result Response about to be served.
+ * @return array|null `{ path, name, mime, delete_after }`, or null.
+ */
+function openstation_files_download_stream( $result ) {
+	if ( ! $result instanceof WP_HTTP_Response ) {
+		return null;
+	}
+	$data   = $result->get_data();
+	$status = $result->get_status();
+	// `_envelope` turns the data into `{ body, status, headers }`.
+	if ( is_array( $data ) && isset( $data['body'], $data['status'] ) ) {
+		$status = (int) $data['status'];
+		$data   = $data['body'];
+	}
+	if ( 200 !== $status || ! is_array( $data ) || ! isset( $data['__openstation_stream'] ) || ! is_string( $data['__openstation_stream'] ) ) {
+		return null;
+	}
+	$token = $data['__openstation_stream'];
+	return isset( $GLOBALS['openstation_files_download_streams'][ $token ] )
+		? $GLOBALS['openstation_files_download_streams'][ $token ]
+		: null;
 }
 
 /**
@@ -383,12 +432,11 @@ function openstation_files_serve_download( $served, $result, $request ) {
 	if ( ! preg_match( '#^/desktop-mode/v1/files/(uploads|folders)/\d+/download$#', $route ) ) {
 		return $served;
 	}
-	$data = $result->get_data();
-	if ( ! is_array( $data ) || empty( $data['__openstation_stream'] ) || 200 !== $result->get_status() ) {
+	$stream = openstation_files_download_stream( $result );
+	if ( ! $stream ) {
 		return $served; // Error shapes serialize as normal JSON.
 	}
-	$stream = $data['__openstation_stream'];
-	$path   = (string) $stream['path'];
+	$path = (string) $stream['path'];
 	if ( '' === $path || ! file_exists( $path ) || ! is_readable( $path ) ) {
 		return $served;
 	}
@@ -426,8 +474,8 @@ function openstation_files_emit_download( $path, $name, $mime ) {
 		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		@apache_setenv( 'no-gzip', '1' );
 	}
-	// phpcs:ignore WordPress.PHP.IniSet.Risky
-	@ini_set( 'zlib.output_compression', 'Off' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+	// phpcs:ignore WordPress.PHP.IniSet.Risky, Squiz.PHP.DiscouragedFunctions.Discouraged, WordPress.PHP.NoSilencedErrors.Discouraged -- Keeps PHP's own gzip layer off so the Content-Length below stays exact; silenced because a host that disables ini_set() only loses that.
+	@ini_set( 'zlib.output_compression', 'Off' );
 
 	nocache_headers();
 	header( 'X-Content-Type-Options: nosniff' );

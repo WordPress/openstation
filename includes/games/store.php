@@ -101,9 +101,9 @@ function openstation_games_save_score( $game, $user_id, $score, $meta = array() 
 		return $pre;
 	}
 
-	$tables = openstation_games_table_names();
-	$ok     = $wpdb->insert(
-		$tables['scores'],
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table; WordPress has no API for it.
+	$ok = $wpdb->insert(
+		$wpdb->desktop_mode_game_scores,
 		array(
 			'game'          => $game,
 			'user_id'       => $user_id,
@@ -157,33 +157,32 @@ function openstation_games_get_scores( $game, $args = array() ) {
 	$per_page = min( 100, max( 1, (int) ( $args['per_page'] ?? 25 ) ) );
 	$orderby  = ( 'created' === ( $args['orderby'] ?? '' ) ) ? 'created_at_ms' : 'score';
 	$order    = ( 'asc' === strtolower( (string) ( $args['order'] ?? 'desc' ) ) ) ? 'ASC' : 'DESC';
-	$user_id  = (int) ( $args['user_id'] ?? 0 );
+	$user_id  = max( 0, (int) ( $args['user_id'] ?? 0 ) );
 
-	$tables = openstation_games_table_names();
-	$where  = 'game = %s';
-	$params = array( $game );
-	if ( $user_id > 0 ) {
-		$where   .= ' AND user_id = %d';
-		$params[] = $user_id;
-	}
-
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	// `( %d = 0 OR user_id = %d )`: a user id of 0 means every player.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; every saved score changes the leaderboard.
 	$total = (int) $wpdb->get_var(
-		$wpdb->prepare( "SELECT COUNT(*) FROM {$tables['scores']} WHERE {$where}", $params )
+		$wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->desktop_mode_game_scores} WHERE game = %s AND ( %d = 0 OR user_id = %d )",
+			$game,
+			$user_id,
+			$user_id
+		)
 	);
 
-	$params[] = $per_page;
-	$params[] = ( $page - 1 ) * $per_page;
-	// `$orderby` / `$order` are clamped to fixed identifiers above —
-	// safe to interpolate.
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Plugin-owned table with no WP API; every saved score changes the leaderboard. The ORDER BY identifiers are clamped above.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['scores']}
-			WHERE {$where}
-			ORDER BY {$orderby} {$order}, id ASC
-			LIMIT %d OFFSET %d",
-			$params
+			"SELECT * FROM {$wpdb->desktop_mode_game_scores}
+			WHERE game = %s AND ( %d = 0 OR user_id = %d )
+			ORDER BY "
+			. $orderby . ' ' . $order // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Clamped to fixed identifiers above; an identifier cannot be a placeholder.
+			. ', id ASC LIMIT %d OFFSET %d',
+			$game,
+			$user_id,
+			$user_id,
+			$per_page,
+			( $page - 1 ) * $per_page
 		),
 		ARRAY_A
 	);
@@ -241,7 +240,11 @@ function openstation_games_create_challenge( $game, $challenger_id, $recipient_i
 			array( 'status' => 404 )
 		);
 	}
-	if ( $recipient_id <= 0 || ! get_userdata( $recipient_id ) ) {
+	// A player of THIS site: a member (users are network-global) who may
+	// `read` here. The response names the recipient, so an account with
+	// no role on the site answers like a missing id.
+	$recipient = openstation_get_site_user( $recipient_id );
+	if ( ! $recipient || ! user_can( $recipient, 'read' ) ) {
 		return new WP_Error(
 			'openstation_invalid_recipient',
 			__( 'The challenged user does not exist.', 'desktop-mode' ),
@@ -256,10 +259,10 @@ function openstation_games_create_challenge( $game, $challenger_id, $recipient_i
 		);
 	}
 
-	$now    = openstation_games_now_ms();
-	$tables = openstation_games_table_names();
-	$ok     = $wpdb->insert(
-		$tables['challenges'],
+	$now = openstation_games_now_ms();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table; WordPress has no API for it.
+	$ok = $wpdb->insert(
+		$wpdb->desktop_mode_game_challenges,
 		array(
 			'game'          => $game,
 			'challenger_id' => $challenger_id,
@@ -300,9 +303,9 @@ function openstation_games_create_challenge( $game, $challenger_id, $recipient_i
  */
 function openstation_games_get_challenge( $id ) {
 	global $wpdb;
-	$tables = openstation_games_table_names();
-	$row    = $wpdb->get_row(
-		$wpdb->prepare( "SELECT * FROM {$tables['challenges']} WHERE id = %d", (int) $id ),
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; read fresh, it decides who may act on the challenge and from which state.
+	$row = $wpdb->get_row(
+		$wpdb->prepare( "SELECT * FROM {$wpdb->desktop_mode_game_challenges} WHERE id = %d", (int) $id ),
 		ARRAY_A
 	);
 	return is_array( $row ) ? $row : null;
@@ -345,10 +348,10 @@ function openstation_games_set_challenge_state( $id, $state ) {
 	// Monotonic bump: a transition landing in the same millisecond as
 	// the previous write must still move `updated_at_ms` forward, or
 	// version-gated Heartbeat clients would never see the change.
-	$now    = max( openstation_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
-	$tables = openstation_games_table_names();
+	$now = max( openstation_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 	$wpdb->update(
-		$tables['challenges'],
+		$wpdb->desktop_mode_game_challenges,
 		array(
 			'state'         => $state,
 			'decided_at_ms' => $now,
@@ -421,10 +424,10 @@ function openstation_games_complete_challenge( $id, $score, $meta = array() ) {
 	}
 
 	// Same monotonic-bump rule as `set_challenge_state()` — see there.
-	$now    = max( openstation_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
-	$tables = openstation_games_table_names();
+	$now = max( openstation_games_now_ms(), (int) $row['updated_at_ms'] + 1 );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; a write, and nothing caches this table.
 	$wpdb->update(
-		$tables['challenges'],
+		$wpdb->desktop_mode_game_challenges,
 		array(
 			'state'           => 'completed',
 			'result'          => $result,
@@ -464,10 +467,10 @@ function openstation_games_complete_challenge( $id, $score, $meta = array() ) {
  */
 function openstation_games_get_challenges_for_user( $user_id, $since_ms = 0, $cap = 50 ) {
 	global $wpdb;
-	$tables = openstation_games_table_names();
-	$rows   = $wpdb->get_results(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table with no WP API; the Heartbeat delta must read fresh.
+	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['challenges']}
+			"SELECT * FROM {$wpdb->desktop_mode_game_challenges}
 			WHERE ( challenger_id = %d OR recipient_id = %d )
 				AND updated_at_ms > %d
 			ORDER BY updated_at_ms ASC

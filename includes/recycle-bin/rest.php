@@ -11,8 +11,9 @@
  *   GET    /count             — total items in the bin (badge polling)
  *
  * Permission gating delegates to `openstation_recycle_bin_user_can_*` per item;
- * the route-level callback only checks "are you logged in and in
- * OpenStation at all?" via `openstation_is_enabled()`.
+ * the route-level callback checks "are you logged in, in OpenStation,
+ * and allowed the bin at all?" (`openstation_is_enabled()` plus
+ * `openstation_recycle_bin_user_can_use()`).
  *
  * @package OpenStation
  */
@@ -132,9 +133,12 @@ add_action( 'rest_api_init', 'openstation_recycle_bin_register_rest_routes' );
  * Route-level permission gate.
  *
  * Per-item capability checks happen inside the store layer; here we
- * only enforce "logged-in user with OpenStation opted in and `read`
- * on this site" — same baseline as every other desktop REST surface
- * (the opt-in is network-wide user meta; `read` is the per-site floor).
+ * enforce "logged-in user with OpenStation opted in and `read` on
+ * this site" — same baseline as every other desktop REST surface
+ * (the opt-in is network-wide user meta; `read` is the per-site
+ * floor) — plus the gate the bin window and its heartbeat use,
+ * `openstation_recycle_bin_user_can_use()`, so narrowing the window
+ * narrows the data with it.
  *
  * @return bool|WP_Error
  */
@@ -153,7 +157,7 @@ function openstation_recycle_bin_rest_permission() {
 			array( 'status' => 403 )
 		);
 	}
-	if ( ! current_user_can( 'read' ) ) {
+	if ( ! current_user_can( 'read' ) || ! openstation_recycle_bin_user_can_use() ) {
 		return new WP_Error(
 			'rest_forbidden',
 			__( 'Sorry, you are not allowed to use the recycle bin on this site.', 'desktop-mode' ),

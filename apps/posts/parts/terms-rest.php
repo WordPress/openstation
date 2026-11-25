@@ -25,6 +25,101 @@ function openstation_posts_window_rest_permission() {
 }
 
 /**
+ * Whether the current user may read counts over a taxonomy: one with a
+ * public front end, or one whose edit screen they may open
+ * (`manage_terms`). A hidden taxonomy (`nav_menu`, a plugin's internal
+ * one) answers as if it were not registered, as `/term-stats` does.
+ *
+ * @param WP_Taxonomy $tax_obj Taxonomy.
+ * @return bool
+ */
+function openstation_posts_window_taxonomy_is_countable( WP_Taxonomy $tax_obj ) {
+	return is_taxonomy_viewable( $tax_obj ) || current_user_can( $tax_obj->cap->manage_terms );
+}
+
+/**
+ * The post statuses the current user may count inside a term — the
+ * scoping `/term-stats` applies, resolved from each status's registered
+ * visibility flags and the post types' cap maps.
+ *
+ * Public statuses count for everyone. Private-flagged ones need
+ * `read_private_posts`; the remaining non-internal ones (draft,
+ * pending, future, a plugin's workflow status) need
+ * `edit_others_posts`, plus `edit_published_posts` for a scheduled
+ * post, mirroring `map_meta_cap()`. A cap counts only when the caller
+ * holds it on every type the taxonomy is attached to. The caller's own
+ * posts count in any of those statuses, since Core grants an author
+ * read on their own post. Without this, every `edit_posts` holder
+ * would learn how many of other authors' drafts and private posts sit
+ * in a term — or share one with another term.
+ *
+ * Returned as parts, not SQL, so every query keeps its condition on
+ * the `p` alias literal: `statuses` count on any post, `own` (empty
+ * when nothing extra applies) only on the caller's own, and `args`
+ * binds them in the order the condition takes them —
+ * `p.post_status IN ( statuses )`, or, when `own` is set,
+ * `( p.post_status IN ( statuses ) OR ( p.post_author = %d AND
+ * p.post_status IN ( own ) ) )`.
+ *
+ * `tier` names the readable set for a cache key: callers with the same
+ * caps share one entry, a caller whose own posts count gets their own.
+ *
+ * @param string[] $object_types Post types the counts cover.
+ * @return array{statuses:string[],own:string[],args:array,tier:string}
+ */
+function openstation_posts_window_readable_status_clause( array $object_types ) {
+	$can = static function ( $cap ) use ( $object_types ) {
+		foreach ( $object_types as $object_type ) {
+			$type = get_post_type_object( $object_type );
+			if ( ! $type || ! current_user_can( $type->cap->$cap ) ) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	$statuses      = array_values( get_post_stati( array( 'public' => true ) ) );
+	$private_stati = array_values( get_post_stati( array( 'private' => true ) ) );
+	$hidden_stati  = array_values(
+		get_post_stati(
+			array(
+				'internal' => false,
+				'public'   => false,
+				'private'  => false,
+			)
+		)
+	);
+	if ( $can( 'read_private_posts' ) ) {
+		$statuses = array_merge( $statuses, $private_stati );
+	}
+	if ( $can( 'edit_others_posts' ) ) {
+		$future = $can( 'edit_published_posts' );
+		foreach ( $hidden_stati as $status ) {
+			if ( 'future' !== $status || $future ) {
+				$statuses[] = $status;
+			}
+		}
+	}
+
+	$args    = $statuses;
+	$user_id = get_current_user_id();
+	$own     = array_values( array_diff( array_merge( $private_stati, $hidden_stati ), $statuses ) );
+	if ( $user_id > 0 && $own ) {
+		$args = array_merge( $args, array( $user_id ), $own );
+	} else {
+		$user_id = 0;
+		$own     = array();
+	}
+
+	return array(
+		'statuses' => $statuses,
+		'own'      => $own,
+		'args'     => $args,
+		'tier'     => substr( md5( implode( ',', $statuses ) . '|' . $user_id ), 0, 12 ),
+	);
+}
+
+/**
  * Surface a "non-trashed posts" count alongside core's `count` field
  * on category + post_tag REST responses.
  *
@@ -149,10 +244,15 @@ add_action( 'before_delete_post', 'openstation_posts_window_terms_cache_invalida
  * stale `_fields` whitelist) the JS calls this endpoint as a
  * defensive fallback so node labels never silently show 0.
  *
+ * Counts only the posts the caller may read, over a taxonomy the
+ * caller may see — see `openstation_posts_window_readable_status_clause()`
+ * and `openstation_posts_window_taxonomy_is_countable()`.
+ *
  * Cached: a single transient holds `{ term_id: count }` for EVERY
- * term in the taxonomy. Each call projects the caller's requested
- * IDs out of that map, so all clients hit the same cache entry
- * regardless of which subset they ask for.
+ * term in the taxonomy, per readable-status tier. Each call projects
+ * the caller's requested IDs out of that map, so all clients in a
+ * tier hit the same cache entry regardless of which subset they ask
+ * for.
  *
  * GET `/desktop-mode/v1/term-counts?taxonomy=category&ids=1,4,7`
  */
@@ -193,7 +293,7 @@ function openstation_posts_window_term_counts_callback( $request ) {
 	global $wpdb;
 	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
 	$tax_obj  = get_taxonomy( $taxonomy );
-	if ( ! $tax_obj ) {
+	if ( ! $tax_obj || ! openstation_posts_window_taxonomy_is_countable( $tax_obj ) ) {
 		return new WP_Error(
 			'openstation_invalid_taxonomy',
 			__( 'Unknown taxonomy.', 'desktop-mode' ),
@@ -217,50 +317,74 @@ function openstation_posts_window_term_counts_callback( $request ) {
 	// the param. 500 is far above any plausible category/tag count.
 	$ids = array_slice( $ids, 0, 500 );
 
+	// Limit to the taxonomy's `object_type` (e.g. `post` for
+	// category), like WP core's `_update_post_term_count`, and to the
+	// statuses the caller may read: drafts, pending, future and
+	// private posts count where the caller could open them, so the
+	// user sees a "real" post count, not WP's publish-only
+	// term_taxonomy.count, without learning about posts they cannot
+	// see. The internal statuses (trash, auto-draft, attachment-only
+	// inherit) never count.
+	$object_types = array_map(
+		'sanitize_key',
+		(array) $tax_obj->object_type
+	);
+	$object_types = array_values( array_filter( $object_types, 'post_type_exists' ) );
+	if ( empty( $object_types ) ) {
+		$object_types = array( 'post' );
+	}
+	$readable = openstation_posts_window_readable_status_clause( $object_types );
+
 	// Cache strategy: one transient holds the FULL taxonomy's
-	// { term_id => count } map. All clients project their requested
-	// ID subset out of the same cached map, so a window that asks
-	// for IDs [1, 4, 7] and one that asks for [4, 11, 22] share the
-	// same cache hit. Key shape: `dmtcnt_v<version>_<taxonomy>`.
+	// { term_id => count } map for one readable-status tier. All
+	// clients in that tier project their requested ID subset out of
+	// the same cached map, so a window that asks for IDs [1, 4, 7] and
+	// one that asks for [4, 11, 22] share the same cache hit. Key
+	// shape: `dmtcnt_v<version>_<taxonomy>_<tier>`.
 	$cache_version = openstation_posts_window_terms_cache_version();
-	$cache_key     = sprintf( 'dmtcnt_v%d_%s', $cache_version, $taxonomy );
+	$cache_key     = sprintf( 'dmtcnt_v%d_%s_%s', $cache_version, $taxonomy, $readable['tier'] );
 	$counts        = get_transient( $cache_key );
 	if ( ! is_array( $counts ) ) {
-		// Mirror WP core's `_update_post_term_count` filtering —
-		// limit to the taxonomy's `object_type` (e.g. `post` for
-		// category) and exclude statuses core treats as non-counting:
-		// - 'trash' + 'auto-draft' → user-not-published-and-never-will-be
-		// - 'inherit' → attachment-only status; excluded so attachments
-		// aren't double-counted via parent inheritance
-		// Everything else (publish, draft, pending, future, private)
-		// is included so the user sees a "real" post count, not
-		// WP's publish-only term_taxonomy.count.
-		$object_types = array_map(
-			'sanitize_key',
-			(array) $tax_obj->object_type
-		);
-		$object_types = array_filter( $object_types, 'post_type_exists' );
-		if ( empty( $object_types ) ) {
-			$object_types = array( 'post' );
+		// One literal query per readable tier (see the clause helper).
+		if ( $readable['own'] ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-term GROUP BY count no WP API returns; cached in the transient above.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT tt.term_id, COUNT(p.ID) AS cnt
+					 FROM {$wpdb->term_taxonomy} tt
+					 LEFT JOIN {$wpdb->term_relationships} tr
+					   ON tr.term_taxonomy_id = tt.term_taxonomy_id
+					 LEFT JOIN {$wpdb->posts} p
+					   ON p.ID = tr.object_id
+					   AND p.post_type IN ( " . implode( ',', array_fill( 0, count( $object_types ), '%s' ) ) . ' )
+					   AND ( p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['statuses'] ), '%s' ) ) . ' )
+					     OR ( p.post_author = %d AND p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['own'] ), '%s' ) ) . ' ) ) )
+					 WHERE tt.taxonomy = %s
+					 GROUP BY tt.term_id',
+					array_merge( $object_types, $readable['args'], array( $taxonomy ) )
+				),
+				ARRAY_A
+			);
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-term GROUP BY count no WP API returns; cached in the transient above.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT tt.term_id, COUNT(p.ID) AS cnt
+					 FROM {$wpdb->term_taxonomy} tt
+					 LEFT JOIN {$wpdb->term_relationships} tr
+					   ON tr.term_taxonomy_id = tt.term_taxonomy_id
+					 LEFT JOIN {$wpdb->posts} p
+					   ON p.ID = tr.object_id
+					   AND p.post_type IN ( " . implode( ',', array_fill( 0, count( $object_types ), '%s' ) ) . ' )
+					   AND p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['statuses'] ), '%s' ) ) . ' )
+					 WHERE tt.taxonomy = %s
+					 GROUP BY tt.term_id',
+					array_merge( $object_types, $readable['args'], array( $taxonomy ) )
+				),
+				ARRAY_A
+			);
 		}
-		$type_placeholders = implode( ',', array_fill( 0, count( $object_types ), '%s' ) );
-		$rows              = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT tt.term_id, COUNT(p.ID) AS cnt
-				 FROM {$wpdb->term_taxonomy} tt
-				 LEFT JOIN {$wpdb->term_relationships} tr
-				   ON tr.term_taxonomy_id = tt.term_taxonomy_id
-				 LEFT JOIN {$wpdb->posts} p
-				   ON p.ID = tr.object_id
-				   AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )
-				   AND p.post_type IN ( $type_placeholders )
-				 WHERE tt.taxonomy = %s
-				 GROUP BY tt.term_id",
-				array_merge( $object_types, array( $taxonomy ) )
-			),
-			ARRAY_A
-		);
-		$counts            = array();
+		$counts = array();
 		foreach ( (array) $rows as $row ) {
 			$counts[ (string) (int) $row['term_id'] ] = (int) $row['cnt'];
 		}
@@ -291,9 +415,9 @@ function openstation_posts_window_term_counts_callback( $request ) {
  * Response:
  *   { "pairs": { "<tagId>": [ { "id": <neighborId>, "shared": N }, … ] } }
  *
- * Status filtering mirrors `_update_post_term_count` (exclude
- * trash, auto-draft, inherit). Post type is bounded to the
- * taxonomy's declared `object_type` so e.g. page-attached terms
+ * Only posts the caller may read are paired, as in `/term-counts`;
+ * trash, auto-draft and inherit never are. Post type is bounded to
+ * the taxonomy's declared `object_type` so e.g. page-attached terms
  * don't bleed into the post-tag graph.
  */
 function openstation_posts_window_register_tag_cooccurrence_route() {
@@ -335,7 +459,7 @@ function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 
 	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
 	$tax_obj  = get_taxonomy( $taxonomy );
-	if ( ! $tax_obj ) {
+	if ( ! $tax_obj || ! openstation_posts_window_taxonomy_is_countable( $tax_obj ) ) {
 		return new WP_Error(
 			'openstation_invalid_taxonomy',
 			__( 'Unknown taxonomy.', 'desktop-mode' ),
@@ -351,51 +475,79 @@ function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 	// far more neighbors than any layout pass actually consumes.
 	$limit = min( 24, $limit );
 
+	$object_types = array_map(
+		'sanitize_key',
+		(array) $tax_obj->object_type
+	);
+	$object_types = array_values( array_filter( $object_types, 'post_type_exists' ) );
+	if ( empty( $object_types ) ) {
+		$object_types = array( 'post' );
+	}
+	// Pairs are counted over the posts the caller may read, like
+	// `/term-counts`: a shared count is otherwise an oracle for other
+	// authors' drafts and private posts.
+	$readable = openstation_posts_window_readable_status_clause( $object_types );
+
 	// Cache lookup. The key bakes in the current version so a single
 	// option bump makes every old entry unreachable without us
 	// having to enumerate keys. Taxonomy + limit are part of the key
-	// because they change the response shape.
+	// because they change the response shape, the readable-status
+	// tier because it changes what is counted.
 	$cache_version = openstation_posts_window_terms_cache_version();
 	$cache_key     = sprintf(
-		'dmwco_v%d_%s_l%d',
+		'dmwco_v%d_%s_l%d_%s',
 		$cache_version,
 		$taxonomy,
-		$limit
+		$limit,
+		$readable['tier']
 	);
 	$cached        = get_transient( $cache_key );
 	if ( is_array( $cached ) && isset( $cached['pairs'] ) ) {
 		return rest_ensure_response( $cached );
 	}
 
-	$object_types = array_map(
-		'sanitize_key',
-		(array) $tax_obj->object_type
-	);
-	$object_types = array_filter( $object_types, 'post_type_exists' );
-	if ( empty( $object_types ) ) {
-		$object_types = array( 'post' );
+	// One scan: every (post, term) row in the taxonomy on a readable
+	// post of the right type. Sorted by post so we can walk in O(n)
+	// and emit pairs per post. One literal query per readable tier
+	// (see the clause helper).
+	if ( $readable['own'] ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A taxonomy-wide (post, term) scan no WP API returns in one query; cached in the transient above.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT tr.object_id, tt.term_id
+				 FROM {$wpdb->term_relationships} tr
+				 INNER JOIN {$wpdb->term_taxonomy} tt
+				   ON tr.term_taxonomy_id = tt.term_taxonomy_id
+				 INNER JOIN {$wpdb->posts} p
+				   ON p.ID = tr.object_id
+				   AND p.post_type IN ( " . implode( ',', array_fill( 0, count( $object_types ), '%s' ) ) . ' )
+				   AND ( p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['statuses'] ), '%s' ) ) . ' )
+				     OR ( p.post_author = %d AND p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['own'] ), '%s' ) ) . ' ) ) )
+				 WHERE tt.taxonomy = %s
+				 ORDER BY tr.object_id',
+				array_merge( $object_types, $readable['args'], array( $taxonomy ) )
+			),
+			ARRAY_A
+		);
+	} else {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A taxonomy-wide (post, term) scan no WP API returns in one query; cached in the transient above.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT tr.object_id, tt.term_id
+				 FROM {$wpdb->term_relationships} tr
+				 INNER JOIN {$wpdb->term_taxonomy} tt
+				   ON tr.term_taxonomy_id = tt.term_taxonomy_id
+				 INNER JOIN {$wpdb->posts} p
+				   ON p.ID = tr.object_id
+				   AND p.post_type IN ( " . implode( ',', array_fill( 0, count( $object_types ), '%s' ) ) . ' )
+				   AND p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['statuses'] ), '%s' ) ) . ' )
+				 WHERE tt.taxonomy = %s
+				 ORDER BY tr.object_id',
+				array_merge( $object_types, $readable['args'], array( $taxonomy ) )
+			),
+			ARRAY_A
+		);
 	}
-	$type_placeholders = implode( ',', array_fill( 0, count( $object_types ), '%s' ) );
-
-	// One scan: every (post, term) row in the taxonomy on a
-	// non-trashed, non-attachment-inherited post of the right type.
-	// Sorted by post so we can walk in O(n) and emit pairs per post.
-	$rows = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT tr.object_id, tt.term_id
-			 FROM {$wpdb->term_relationships} tr
-			 INNER JOIN {$wpdb->term_taxonomy} tt
-			   ON tr.term_taxonomy_id = tt.term_taxonomy_id
-			 INNER JOIN {$wpdb->posts} p
-			   ON p.ID = tr.object_id
-			   AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )
-			   AND p.post_type IN ( $type_placeholders )
-			 WHERE tt.taxonomy = %s
-			 ORDER BY tr.object_id",
-			array_merge( $object_types, array( $taxonomy ) )
-		),
-		ARRAY_A
-	);
 
 	// Group term ids per post, then emit pair counts. Sort each
 	// post's term list so we can walk i<j and double-write into the
@@ -489,10 +641,12 @@ function openstation_posts_window_term_is_default( $term ) {
  * conceptually mean by "posts in this category").
  *
  * The draft / pending / private rows are counted only for a caller
- * holding the Posts window's gate (`edit_posts`). The field rides every
- * `category` / `post_tag` response, logged-out ones included, and to
- * anyone else it would answer "does an unpublished post sit in this
- * term?" — they get Core's own published-only `count` instead.
+ * holding the Posts window's gate (`edit_posts`), and only those the
+ * caller may read (`openstation_posts_window_readable_status_clause()`).
+ * The field rides every `category` / `post_tag` response, logged-out
+ * ones included, and to anyone else it would answer "does an
+ * unpublished post sit in this term?" — they get Core's own
+ * published-only `count` instead.
  *
  * @param array $term Term array as serialized by core's REST term controller.
  * @return int
@@ -507,13 +661,8 @@ function openstation_posts_window_term_count_any( $term ) {
 	}
 	$tt_id = isset( $term['term_taxonomy_id'] ) ? (int) $term['term_taxonomy_id'] : 0;
 	if ( $tt_id <= 0 && $term_id > 0 && '' !== $taxonomy ) {
-		$tt_id = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT term_taxonomy_id FROM {$wpdb->term_taxonomy} WHERE term_id = %d AND taxonomy = %s LIMIT 1",
-				$term_id,
-				$taxonomy
-			)
-		);
+		$term_obj = get_term( $term_id, $taxonomy );
+		$tt_id    = $term_obj instanceof WP_Term ? (int) $term_obj->term_taxonomy_id : 0;
 	}
 	if ( $tt_id <= 0 ) {
 		return 0;
@@ -528,15 +677,32 @@ function openstation_posts_window_term_count_any( $term ) {
 	if ( empty( $object_types ) ) {
 		$object_types = array( 'post' );
 	}
-	$type_placeholders = implode( ',', array_fill( 0, count( $object_types ), '%s' ) );
+	$object_types = array_values( $object_types );
+	$readable     = openstation_posts_window_readable_status_clause( $object_types );
+	// One literal query per readable tier (see the clause helper).
+	if ( $readable['own'] ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-caller COUNT(*) for each term in a response, read fresh; WP_Query cannot express the own-posts OR.
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->term_relationships} tr
+				 JOIN {$wpdb->posts} p ON p.ID = tr.object_id
+				 WHERE tr.term_taxonomy_id = %d
+				 AND p.post_type IN ( " . implode( ',', array_fill( 0, count( $object_types ), '%s' ) ) . ' )
+				 AND ( p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['statuses'] ), '%s' ) ) . ' )
+				   OR ( p.post_author = %d AND p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['own'] ), '%s' ) ) . ' ) ) )',
+				array_merge( array( $tt_id ), $object_types, $readable['args'] )
+			)
+		);
+	}
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- A per-caller COUNT(*) for each term in a response, read fresh; one light query where WP_Query would add a found-rows pass.
 	return (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM {$wpdb->term_relationships} tr
 			 JOIN {$wpdb->posts} p ON p.ID = tr.object_id
 			 WHERE tr.term_taxonomy_id = %d
-			 AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )
-			 AND p.post_type IN ( $type_placeholders )",
-			array_merge( array( $tt_id ), $object_types )
+			 AND p.post_type IN ( " . implode( ',', array_fill( 0, count( $object_types ), '%s' ) ) . ' )
+			 AND p.post_status IN ( ' . implode( ', ', array_fill( 0, count( $readable['statuses'] ), '%s' ) ) . ' )',
+			array_merge( array( $tt_id ), $object_types, $readable['args'] )
 		)
 	);
 }

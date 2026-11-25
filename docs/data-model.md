@@ -328,6 +328,7 @@ truth; every one regenerates.
 | `desktop_mode_oauth_state_*` | Auth | State of an OAuth flow in progress. |
 | `desktop_mode_woo_customer_plan`, `_customer_spend`, `_product_total`, `_product_plan`, `_coupon_plan` | WooCommerce | Customer, product and coupon aggregates read from Woo's `wc_orders`, `woocommerce_order_items` and `woocommerce_order_itemmeta`. |
 | `dm_user_insights_{id}` | User edit | Computed insights for one user; cleared when the account is edited. |
+| `dmtcnt_v{version}_{taxonomy}_{tier}`, `dmwco_v{version}_{taxonomy}_l{limit}_{tier}` | Posts | The `/term-counts` map and the `/tag-cooccurrence` pairs. `version` is `desktop_mode_terms_cache_version`, bumped whenever the post→term graph changes; `tier` hashes the statuses the caller may read, and the caller's id when their own posts count. |
 | `desktop_mode_about_feed_v1`, `_failure_v1`, `_stale_v1` | About | The news feed and its failure / stale states. |
 | `desktop_mode_living_tree_snapshot` | Living Tree | Wallpaper snapshot. |
 | `desktop_mode_site_views_meta` | Stats | Site views metadata. |

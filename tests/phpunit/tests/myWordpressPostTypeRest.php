@@ -18,13 +18,15 @@
 class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 
 	protected static $admin_id;
+	protected static $contributor_id;
 	protected static $subscriber_id;
 
 	protected $post_ids = array();
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
-		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
-		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
+		self::$admin_id       = $factory->user->create( array( 'role' => 'administrator' ) );
+		self::$contributor_id = $factory->user->create( array( 'role' => 'contributor' ) );
+		self::$subscriber_id  = $factory->user->create( array( 'role' => 'subscriber' ) );
 	}
 
 	public function set_up() {
@@ -40,6 +42,18 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 				'show_ui'      => true,
 				'show_in_rest' => false,
 				'supports'     => array( 'title', 'editor', 'thumbnail' ),
+			)
+		);
+
+		// No readable front end: an order, a submission log. Its caps
+		// are `post`'s, so every Contributor holds its `edit_posts`.
+		register_post_type(
+			'dm_order',
+			array(
+				'label'        => 'Orders',
+				'public'       => false,
+				'show_ui'      => true,
+				'show_in_rest' => false,
 			)
 		);
 
@@ -70,7 +84,7 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		foreach ( array( 'dm_coupon', 'dm_book' ) as $type ) {
+		foreach ( array( 'dm_coupon', 'dm_order', 'dm_book' ) as $type ) {
 			if ( post_type_exists( $type ) ) {
 				unregister_post_type( $type );
 			}
@@ -221,6 +235,40 @@ class Tests_OpenStation_MyWordpressPostTypeRest extends WP_UnitTestCase {
 		wp_set_current_user( 0 );
 		$denied = $this->dispatch( 'GET', '/desktop-mode/v1/post-type/dm_coupon/' . $id );
 		$this->assertSame( 401, $denied->get_status() );
+	}
+
+	/**
+	 * `read_post` on a published row maps to plain `read`, so on a type
+	 * with no readable front end the type's `edit_posts` would hand a
+	 * Contributor every author's published rows. Only rows they may
+	 * edit read, single or in a collection.
+	 *
+	 * @covers OpenStation_My_WordPress_Post_Type_Controller::check_read_permission
+	 */
+	public function test_contributor_reads_only_editable_rows_of_a_non_viewable_type() {
+		$theirs = self::factory()->post->create(
+			array(
+				'post_type'    => 'dm_order',
+				'post_status'  => 'publish',
+				'post_author'  => self::$admin_id,
+				'post_content' => 'Ship to 1 Private Lane',
+			)
+		);
+		$own    = self::factory()->post->create(
+			array(
+				'post_type'   => 'dm_order',
+				'post_status' => 'draft',
+				'post_author' => self::$contributor_id,
+			)
+		);
+		wp_set_current_user( self::$contributor_id );
+
+		$this->assertSame( 403, $this->dispatch( 'GET', '/desktop-mode/v1/post-type/dm_order/' . $theirs )->get_status() );
+		$this->assertSame( 200, $this->dispatch( 'GET', '/desktop-mode/v1/post-type/dm_order/' . $own )->get_status() );
+
+		$list = $this->dispatch( 'GET', '/desktop-mode/v1/post-type/dm_order' );
+		$this->assertSame( 200, $list->get_status() );
+		$this->assertNotContains( $theirs, wp_list_pluck( $list->get_data(), 'id' ) );
 	}
 
 	/**

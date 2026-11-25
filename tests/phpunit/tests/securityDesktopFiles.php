@@ -355,6 +355,65 @@ class Tests_OpenStation_SecurityDesktopFiles extends WP_UnitTestCase {
 	}
 
 	// ---------------------------------------------------------------
+	// Folder share mode: `all` is sharing, and gated like it
+	// ---------------------------------------------------------------
+
+	/**
+	 * `share_mode='all'` shows a folder to every user with no invite
+	 * and no accept, so the folder routes may not hand it out below
+	 * the share routes' gates.
+	 *
+	 * @covers ::openstation_files_create_folder
+	 * @covers ::openstation_files_update_folder
+	 * @covers ::openstation_files_user_can_set_share_mode
+	 */
+	public function test_subscriber_cannot_share_a_folder_with_everyone() {
+		wp_set_current_user( self::$subscriber_id );
+		$req = new WP_REST_Request( 'POST', '/desktop-mode/v1/files/folders' );
+		$req->set_param( 'name', 'Everyone' );
+		$req->set_param( 'shareMode', 'all' );
+		$this->assertWPError( openstation_files_rest_create_folder( $req ) );
+
+		$folder = openstation_files_create_folder( self::$subscriber_id, array( 'name' => 'Mine' ) );
+		$this->assertWPError( openstation_files_update_folder( $folder, self::$subscriber_id, array( 'share_mode' => 'all' ) ) );
+		$this->assertNotContains( $folder, wp_list_pluck( openstation_files_get_visible_folders( self::$owner_id ), 'id' ) );
+
+		// An editor is held to the sharing kill switch.
+		add_filter( 'openstation_files_sharing_enabled_for', '__return_false' );
+		$this->assertWPError( openstation_files_create_folder( self::$owner_id, array( 'name' => 'Team', 'share_mode' => 'all' ) ) );
+		$team = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Team' ) );
+		$this->assertWPError( openstation_files_update_folder( $team, self::$owner_id, array( 'share_mode' => 'all' ) ) );
+	}
+
+	/**
+	 * `share_meta` is free-form JSON stored in LONGTEXT and shipped to
+	 * every user who can see the folder.
+	 *
+	 * @covers ::openstation_files_encode_share_meta
+	 * @covers ::openstation_files_shape_folder
+	 */
+	public function test_share_meta_is_capped_and_stays_with_the_owner() {
+		$big = array( 'users' => range( 1, 2000 ) );
+		$res = openstation_files_create_folder( self::$owner_id, array( 'name' => 'Big', 'share_meta' => $big ) );
+		$this->assertWPError( $res );
+		$this->assertSame( 400, $res->get_error_data()['status'] );
+
+		$folder = openstation_files_create_folder(
+			self::$owner_id,
+			array(
+				'name'       => 'Everyone',
+				'share_mode' => 'all',
+				'share_meta' => array( 'note' => 'owner only' ),
+			)
+		);
+		$this->assertIsInt( $folder );
+		$this->assertWPError( openstation_files_update_folder( $folder, self::$owner_id, array( 'share_meta' => $big ) ) );
+
+		wp_set_current_user( self::$subscriber_id );
+		$this->assertNull( openstation_files_shape_folder( openstation_files_get_folder( $folder ) )['shareMeta'] );
+	}
+
+	// ---------------------------------------------------------------
 	// Stored files: no laundering read access through own folders
 	// ---------------------------------------------------------------
 
@@ -675,6 +734,10 @@ class Tests_OpenStation_SecurityDesktopFiles extends WP_UnitTestCase {
 				'post_title'  => 'Quarterly numbers',
 			)
 		);
+		$thumb = self::factory()->attachment->create_object( 'quarterly-cover.jpg', $post, array( 'post_mime_type' => 'image/jpeg' ) );
+		set_post_thumbnail( $post, $thumb );
+		$this->assertNotSame( '', openstation_resolve_file( 'post', (string) $post )->preview_url() );
+
 		$tile = openstation_files_place( self::$writer_id, 0, 'post', (string) $post );
 		$this->assertTrue( openstation_files_trash_placement( self::$writer_id, $tile ) );
 		wp_update_post(
@@ -688,5 +751,6 @@ class Tests_OpenStation_SecurityDesktopFiles extends WP_UnitTestCase {
 		$rows = openstation_files_list_trashed_for_recycle_bin( self::$writer_id );
 		$this->assertCount( 1, $rows );
 		$this->assertStringNotContainsString( 'Quarterly numbers', wp_json_encode( $rows ) );
+		$this->assertSame( '', $rows[0]['preview'] );
 	}
 }

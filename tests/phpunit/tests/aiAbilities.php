@@ -24,7 +24,8 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 
 	/**
 	 * The Copilot offers every registered read-only ability (its own plus any
-	 * Core/third-party read-only ability), and nothing that isn't read-only.
+	 * Core/third-party read-only ability) but the comment analysis, and
+	 * nothing that isn't read-only.
 	 *
 	 * @covers ::openstation_ai_search_ability_names
 	 */
@@ -32,6 +33,9 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 		$names = openstation_ai_search_ability_names();
 
 		$this->assertContains( 'desktop-mode/search-posts', $names );
+		// Read-only, but it spends provider tokens on whatever comment
+		// injected text points it at.
+		$this->assertNotContains( 'desktop-mode/analyze-comment', $names );
 
 		foreach ( $names as $name ) {
 			$meta = (array) wp_get_ability( $name )->get_meta();
@@ -152,17 +156,28 @@ class Tests_OpenStation_AiAbilities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The error-log ability is gated on manage_options: a subscriber is
-	 * cleanly refused (WP_Error, no fatal), an admin is allowed.
+	 * The error-log ability is gated on manage_options, and on
+	 * manage_network_options on a network, where the log is one file
+	 * for every site: a subscriber is cleanly refused (WP_Error, no
+	 * fatal), and so is a subsite administrator on a network; a site
+	 * (network) administrator is allowed.
 	 *
 	 * @covers ::openstation_ai_register_abilities
+	 * @covers ::openstation_ai_user_can_read_error_log
 	 */
 	public function test_error_log_ability_permission_gate() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 		$denied = wp_get_ability( 'desktop-mode/get-php-error-log' )->execute( array( 'lines' => 10 ) );
 		$this->assertWPError( $denied );
 
-		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		$admin = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $admin );
+		if ( is_multisite() ) {
+			$this->assertWPError( wp_get_ability( 'desktop-mode/get-php-error-log' )->execute( array( 'lines' => 10 ) ) );
+			// The dispatcher refuses too, whether or not a log exists.
+			$this->assertArrayHasKey( 'error', openstation_ai_search_dispatch_tool( 'get_php_error_log', array( 'lines' => 10 ) ) );
+			grant_super_admin( $admin );
+		}
 		$allowed = wp_get_ability( 'desktop-mode/get-php-error-log' )->execute( array( 'lines' => 10 ) );
 		$this->assertNotWPError( $allowed );
 		$this->assertArrayHasKey( 'log_available', $allowed );

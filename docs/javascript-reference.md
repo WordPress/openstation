@@ -2842,7 +2842,7 @@ await apiDelete( `/my-plugin/v1/things/${ id }` );
 wp.os.announceContentChange( 'my_thing', 'trashed', id, 'my-plugin' );
 ```
 
-**Heartbeat fields** — the shell contributes `openstation_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `openstation_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
+**Heartbeat fields** — the shell contributes `openstation_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `openstation_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. The server sends the field only to a user with `edit_posts`, and only the ids that user could see in the screen listing them (see [hooks-reference.md → Heartbeat contract](./hooks-reference.md#heartbeat-contract)). Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
 
 ---
 

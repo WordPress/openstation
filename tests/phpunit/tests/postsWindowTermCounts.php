@@ -5,9 +5,10 @@
  * Bulk count endpoint that returns `{ term_id: count }` for every
  * requested term, mirroring core's `_update_post_term_count` status
  * filtering (trash + auto-draft + inherit excluded; drafts, pending,
- * future, private all included). The endpoint caches
- * the WHOLE taxonomy's count map under one transient — clients with
- * different ID subsets all project out of the same cached map.
+ * future, private included where the caller may read them). The
+ * endpoint caches the WHOLE taxonomy's count map under one transient
+ * per readable-status tier — clients with different ID subsets all
+ * project out of the same cached map.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -30,6 +31,17 @@ class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 
 		// Clear the shared cache version so each test starts clean.
 		delete_option( 'desktop_mode_terms_cache_version' );
+	}
+
+	/**
+	 * The current user's cache key for the post_tag count map.
+	 *
+	 * @param int $version Cache version.
+	 * @return string
+	 */
+	private function cache_key( $version ) {
+		$tier = openstation_posts_window_readable_status_clause( array( 'post' ) )['tier'];
+		return sprintf( 'dmtcnt_v%d_%s_%s', $version, 'post_tag', $tier );
 	}
 
 	private function dispatch_with_ids( array $ids, $taxonomy = 'post_tag' ) {
@@ -68,6 +80,20 @@ class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 			'openstation_invalid_taxonomy',
 			$response->get_data()['code']
 		);
+	}
+
+	/**
+	 * A taxonomy with no front end is not public-facing data: it reads
+	 * as unregistered unless the caller can manage its terms.
+	 */
+	public function test_hidden_taxonomy_returns_400_without_manage_terms() {
+		register_taxonomy( 'unit_hidden', 'post', array( 'public' => false ) );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+
+		$response = $this->dispatch_with_ids( array( 1 ), 'unit_hidden' );
+		unregister_taxonomy( 'unit_hidden' );
+
+		$this->assertSame( 400, $response->get_status() );
 	}
 
 	// ----------------------------------------------------------------
@@ -173,6 +199,31 @@ class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * An Author holds the route's `edit_posts` gate but may not read
+	 * another author's draft: it must not count, and an Editor's
+	 * cached map must not answer for them.
+	 */
+	public function test_author_counts_exclude_another_authors_draft() {
+		$author = self::factory()->user->create( array( 'role' => 'author' ) );
+		$tag    = self::factory()->tag->create();
+		foreach ( array( $this->admin_id, $author ) as $owner ) {
+			$draft = self::factory()->post->create(
+				array(
+					'post_status' => 'draft',
+					'post_author' => $owner,
+				)
+			);
+			wp_set_object_terms( $draft, array( $tag ), 'post_tag' );
+		}
+
+		wp_set_current_user( $this->admin_id );
+		$this->assertSame( 2, $this->dispatch_with_ids( array( $tag ) )->get_data()[ (string) $tag ] );
+
+		wp_set_current_user( $author );
+		$this->assertSame( 1, $this->dispatch_with_ids( array( $tag ) )->get_data()[ (string) $tag ], 'Only their own draft.' );
+	}
+
 	// ----------------------------------------------------------------
 	// Caching
 	// ----------------------------------------------------------------
@@ -188,7 +239,7 @@ class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 		// Cache version moves on every fixture call; read it AFTER
 		// fixtures are set up.
 		$version   = openstation_posts_window_terms_cache_version();
-		$cache_key = sprintf( 'dmtcnt_v%d_%s', $version, 'post_tag' );
+		$cache_key = $this->cache_key( $version );
 
 		// Caller only asks for t1, but the cache should still
 		// contain BOTH terms (the endpoint computes the whole
@@ -211,7 +262,7 @@ class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 		wp_set_current_user( $this->admin_id );
 
 		$version   = openstation_posts_window_terms_cache_version();
-		$cache_key = sprintf( 'dmtcnt_v%d_%s', $version, 'post_tag' );
+		$cache_key = $this->cache_key( $version );
 
 		// Plant a sentinel map; the dispatcher must read this
 		// instead of running the SQL aggregation.
@@ -230,7 +281,7 @@ class Tests_OpenStation_PostsWindowTermCounts extends WP_UnitTestCase {
 		wp_set_current_user( $this->admin_id );
 
 		$version_a = openstation_posts_window_terms_cache_version();
-		$key_a     = sprintf( 'dmtcnt_v%d_%s', $version_a, 'post_tag' );
+		$key_a     = $this->cache_key( $version_a );
 
 		// Plant a sentinel under the current version's key.
 		$sentinel = array( '4242' => 1234 );

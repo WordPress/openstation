@@ -276,7 +276,12 @@ function agent_update_action( State $state, Os $os, array $args ) {
 	if ( ! agents_enabled() || ! agents_can_manage() || ! function_exists( 'openstation_agent_update' ) ) {
 		return;
 	}
-	$id     = (int) ( $args['id'] ?? 0 );
+	$id = (int) ( $args['id'] ?? 0 );
+	// An agent of THIS site: users are network-global.
+	if ( ! openstation_agent_get_site_agent( $id ) ) {
+		$state->set( 'agentNotice', __( 'Agent not found.', 'desktop-mode' ) );
+		return;
+	}
 	$fields = array();
 	foreach ( array( 'name', 'role', 'description', 'instructions', 'abilities', 'triggers', 'vibes', 'face', 'faceSeed' ) as $field ) {
 		if ( array_key_exists( $field, $args ) ) {
@@ -313,7 +318,11 @@ function agent_delete_action( State $state, Os $os, array $args ) {
 	if ( ! agents_enabled() || ! agents_can_manage() || ! function_exists( 'openstation_agent_delete' ) ) {
 		return;
 	}
-	$id     = (int) ( $args['id'] ?? 0 );
+	$id = (int) ( $args['id'] ?? 0 );
+	if ( ! openstation_agent_get_site_agent( $id ) ) {
+		$state->set( 'agentNotice', __( 'Agent not found.', 'desktop-mode' ) );
+		return;
+	}
 	$result = openstation_agent_delete( $id );
 	if ( is_wp_error( $result ) ) {
 		$state->set( 'agentNotice', $result->get_error_message() );

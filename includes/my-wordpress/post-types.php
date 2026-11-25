@@ -146,6 +146,34 @@ function openstation_my_wordpress_post_type_is_bridged( $post_type ) {
 }
 
 /**
+ * Whether the current user may read one post past its title — its
+ * body, excerpt, meta and dossier — in the site window.
+ *
+ * Core's `read_post` for a type with a readable front end, and
+ * `edit_post` for one without. `map_meta_cap()` resolves `read_post` on
+ * a *published* post to the type's `read` capability, which is plain
+ * `read` on any type registered with `map_meta_cap`: every logged-in
+ * user holds it. Every `show_ui` type becomes a section (bridged when
+ * it has no REST route), so without the second branch a Contributor
+ * would read another author's published order, submission or queue
+ * entry as if it were a public post. The same position as
+ * `openstation_my_wordpress_can_read_comment_post()`.
+ *
+ * The password is not asked here: a sealed post's title and facts are
+ * not its body. Callers that return the body gate it separately.
+ *
+ * @param WP_Post $post Post.
+ * @return bool
+ */
+function openstation_my_wordpress_can_read_post( WP_Post $post ) {
+	$post_type = get_post_type_object( $post->post_type );
+	if ( ! $post_type || ! is_post_type_viewable( $post_type ) ) {
+		return current_user_can( 'edit_post', $post->ID );
+	}
+	return current_user_can( 'read_post', $post->ID );
+}
+
+/**
  * REST path a section should read from, relative to the REST root.
  *
  * @param WP_Post_Type $post_type Post type object.

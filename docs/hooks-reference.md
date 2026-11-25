@@ -369,7 +369,7 @@ apply_filters( 'openstation_folder_share_user_capability', string $cap, int $fol
 apply_filters( 'openstation_files_share_all_default_capability', string $cap, int $folder_id, int $user_id ); // default 'read' for share_mode='all'
 apply_filters( 'openstation_files_share_user_query_args', array $args, array $request_params ); // WP_User_Query args for /files/users/search; default `search_columns` include `user_email` only for `list_users`
 apply_filters( 'openstation_folder_share_accept_default_parent', int $parent_id, int $folder_id, int $user_id, array $share_row ); // where the recipient's placement lands
-apply_filters( 'openstation_files_sharing_enabled_for', bool $enabled, int $user_id ); // per-user kill switch; default reads `foldersSharingEnabled` from OpenStation Preferences
+apply_filters( 'openstation_files_sharing_enabled_for', bool $enabled, int $user_id ); // per-user kill switch; default reads `foldersSharingEnabled` from OpenStation Preferences. Also gates setting a folder's `share_mode` to anything but `private`
 apply_filters( 'openstation_files_user_can_see_folder', bool $can, array $folder, int $user_id, string[] $roles ); // per-folder visibility decision (owner / share_mode / shares table)
 apply_filters( 'openstation_files_sharing_tables_for_purge', string[] $tables ); // tables dropped by "Delete folder sharing data"; default shares + decisions
 
@@ -1952,7 +1952,9 @@ apply_filters( 'openstation_games_rest_permission', true, int $user_id );
 apply_filters( 'openstation_game_score_pre_save', null, string $game, int $user_id, int $score, array $meta );
 
 // Whether $challenger may challenge $recipient at $game. Return
-// `false` or a `WP_Error` to block (do-not-disturb, role policy).
+// `false` or a `WP_Error` to block (do-not-disturb, role policy). It
+// narrows, never widens: the store still refuses a recipient who is
+// not a member of the current site with `read` there.
 apply_filters( 'openstation_games_can_challenge', true, int $challenger_id, int $recipient_id, string $game );
 
 // Veto / short-circuit for play-time increments — same contract as
@@ -1970,7 +1972,9 @@ apply_filters( 'openstation_games_playtime_max_increment', 900, string $game, in
 apply_filters( 'openstation_games_playtime_history_days', 30 );
 
 // WP_User_Query args for the opponent-picker autocomplete. The default
-// `search_columns` include `user_email` only for a `list_users` holder.
+// `search_columns` include `user_email` only for a `list_users` holder,
+// and without `list_users` the default `has_published_posts` limits the
+// list to authors of a `show_in_rest` type, as `/wp/v2/users` does.
 apply_filters( 'openstation_games_user_query_args', array $args, array $request_params );
 
 // Per-tick row cap for the challenges Heartbeat channel. Default 50;
@@ -2432,7 +2436,7 @@ apply_filters( 'openstation_ai_admin_page_catalog', array $catalog );
 
 ### `openstation_ai_error_log_candidates` — Experimental
 
-Filter the ordered list of log-file paths the `get_php_error_log` AI tool probes. Defaults to `WP_CONTENT_DIR . '/debug.log'`, then the PHP `error_log` ini value (omitted when empty or `'syslog'`). Return `string[]` file paths in probe order — the first readable file wins. Plugins that redirect PHP errors to a non-standard location can prepend their path here.
+Filter the ordered list of log-file paths the `get_php_error_log` AI tool probes. The tool (`desktop-mode/get-php-error-log`) answers only `manage_options`, raised to `manage_network_options` on multisite — the log is one file for every site of the network, the line Code Blue draws too. Defaults to `WP_CONTENT_DIR . '/debug.log'`, then the PHP `error_log` ini value (omitted when empty or `'syslog'`). Return `string[]` file paths in probe order — the first readable file wins. Plugins that redirect PHP errors to a non-standard location can prepend their path here.
 
 ```php
 apply_filters( 'openstation_ai_error_log_candidates', string[] $candidates );
@@ -2698,7 +2702,7 @@ On an ability-execution failure the payload is `{ stage: 'tool_execute', tool_na
 
 The Copilot's tools are [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/) — its own search/navigation abilities (`search_posts`, `search_comments`, `list_admin_pages`, …) plus **any read-only ability registered on the site** (Core's, or another plugin's), listed at `GET /wp-abilities/v1/abilities`. To give the assistant a new tool, just register a read-only ability with `wp_register_ability()` on `wp_abilities_api_init` — no opt-in step. The agent loop advertises every read-only ability and dispatches calls through `wp_get_ability()->execute()`, so its `permission_callback` and input/output schemas are enforced by Core.
 
-Only read-only abilities are offered on purpose: a search turn can be steered by attacker-controlled content (comment / post text in a tool result), so the model is never handed an ability that can change the site. See [`examples/ai-ask.md`](examples/ai-ask.md) for a full ability recipe.
+Only read-only abilities are offered on purpose: a search turn can be steered by attacker-controlled content (comment / post text in a tool result), so the model is never handed an ability that can change the site. The same reason keeps one read-only ability out: `desktop-mode/analyze-comment` spends provider tokens on whichever comment it is pointed at, so injected text could make a moderator's turn analyse any number of them. It runs only when a caller names it (an agent that lists it, or a REST `run`). See [`examples/ai-ask.md`](examples/ai-ask.md) for a full ability recipe.
 
 ---
 
@@ -3142,8 +3146,21 @@ unsaved state to a background refresh.
 | client → server | `openstation_content_changes_seen_ts` | `int` server-ms high-water mark; `0` on the first (handshake) tick. |
 | server → client | `openstation_content_changes` | `{ ts: int, entries: [ { ts, type, action, ids } ] }` — entries newer than the client's seen ts. |
 
-The server answers only a user with OpenStation enabled and `read` on
-the site; anyone else's tick gets no `openstation_content_changes` field.
+The server answers only a user with OpenStation enabled and
+`edit_posts` on the site; anyone else's tick gets no
+`openstation_content_changes` field. The log is site-wide, so each entry
+is narrowed to the ids that user could see in the screen listing them,
+and an entry left with none is dropped:
+
+| Type | Every id with | Otherwise |
+|---|---|---|
+| A post type (`post`, `page`, a CPT, `shop_order`, …) | the type's `edit_others_posts` | the ids they may `edit_post` (a deleted post has no row left to ask) |
+| `comment` | `moderate_comments` | the ids they may `edit_comment` — comments on posts they can edit |
+| `plugin` | `activate_plugins` | none |
+| Any other (your own storage) | — | every id, for anyone past the `edit_posts` gate |
+
+A third-party type that must reach fewer people than that stays out of
+the log with `openstation_content_changes_should_record`.
 
 The shell's first tick is a pure handshake (adopts the server clock,
 broadcasts nothing) so client/server clock skew can never drop
@@ -3427,7 +3444,7 @@ Cards use continuous scrolling: the next server batch appends as the bottom appr
 
 Word counts read the complete rendered content through Core REST, and comment counts read the approved total from the comment collection header. Metrics load for cards near the viewport, with two cards in flight at most. A denied/unavailable metric stays unknown (`—`); no view counts are inferred without an analytics source.
 
-Category and tag rows carry the `openstation_count` REST field: posts in the term across every status but trash and auto-draft, for a caller who passes the window's `edit_posts` gate. Anyone else, logged-out callers included, gets Core's published-only `count` in that field.
+Category and tag rows carry the `openstation_count` REST field: posts in the term across every status but trash and auto-draft that the caller may read, for a caller who passes the window's `edit_posts` gate — published posts, their own posts in any status, other authors' private posts with `read_private_posts`, and other authors' drafts, pending and scheduled posts with `edit_others_posts`. Anyone else, logged-out callers included, gets Core's published-only `count` in that field. The `/term-counts` and `/tag-cooccurrence` routes the canvases read count over the same set, and answer 400 for a taxonomy with no public front end unless the caller can manage its terms.
 
 ### `openstation_posts_window_user_can_register` — Stable *(filter)*
 
@@ -3762,6 +3779,8 @@ apply_filters( 'openstation_comments_window_query_args', array $args ): array
 ```
 
 Filters the `wp/v2/comments` query args the app's `data()` runs for the rail. Use to whitelist additional `_fields`, override `per_page` (the page size is this filter's alone), or scope the default tab. The default `_fields` no longer request `openstation_replies_count` and `openstation_can_moderate`: the app computes the reply counts for the page in one grouped query and ships the moderation cap in its config extra. Both fields stay registered for REST consumers — add them back here if you read them off the rows.
+
+`openstation_post_title` and `openstation_post_link` describe the comment's parent post, so they are filled only when the requester may read that post (the comment dossier's gate, `openstation_my_wordpress_can_read_comment_post()`) and are empty strings otherwise: Core's comments collection still lists a comment to its own author after the post went private or back to draft.
 
 ### `openstation_comments_window_spam_score` — Experimental *(filter)*
 
@@ -4247,7 +4266,7 @@ apply_filters( 'openstation_my_wordpress_user_stats', array $payload, int $user_
 
 The aggregated per-user dossier payload returned by `GET /desktop-mode/v1/user-stats/<id>` — drives the right-pane preview for a selected user (Author / Contributors sub-folders, and the Users folder root). Plugins can drop additional sections (badges, milestones, contribution streaks) without forking the JS render.
 
-The payload is permission-shaped before this filter runs: viewers without `list_users` (who are not the subject user) receive a published-only dossier. The recent-posts list is restricted to `publish`, `counts.posts` / `counts.pages` collapse to published-only totals, `counts.cpt`, `counts.commentsReceived` and `counts.commentsLeft` only count published rows of a viewable post type (`is_post_type_viewable()`), the comment counts also skipping password-protected and deleted parents and any parent the comment dossier's gate (`openstation_my_wordpress_can_read_comment_post()`) refuses the viewer, so a plugin's per-post `read_post` filter moves them too, and sensitive profile fields (email, username, registered date, roles) are withheld. For every viewer, `counts.cpt` leaves out the post types Core registers (`_builtin`). The payload is viewer-dependent, so never cache it under a subject-only key.
+The route answers only for a subject the viewer may read (`openstation_get_readable_user()`, Core's single-user read): a member of the current site, and someone with a published post unless the viewer is the subject or holds `list_users` or `edit_user` on them. The payload is permission-shaped before this filter runs: viewers without `list_users` (who are not the subject user) receive a published-only dossier. The recent-posts list is restricted to `publish`, `counts.posts` / `counts.pages` collapse to published-only totals, `counts.cpt`, `counts.commentsReceived` and `counts.commentsLeft` only count published rows of a viewable post type (`is_post_type_viewable()`), the comment counts also skipping password-protected and deleted parents and any parent the comment dossier's gate (`openstation_my_wordpress_can_read_comment_post()`) refuses the viewer, so a plugin's per-post `read_post` filter moves them too, and sensitive profile fields (email, username, registered date, roles) are withheld. For every viewer, `counts.cpt` leaves out the post types Core registers (`_builtin`). The payload is viewer-dependent, so never cache it under a subject-only key.
 
 ### `openstation_my_wordpress_user_footprint` — Experimental (filter)
 
@@ -4257,7 +4276,7 @@ apply_filters( 'openstation_my_wordpress_user_footprint', array $payload, int $u
 
 The per-user activity-footprint payload returned by `GET /desktop-mode/v1/user-footprint/<id>` — drives the full-body "View activity footprint" surface (right-click on a user tile → footprint). Carries a year of day-by-day activity, weekday + hour-of-day distribution, streak math, recent-events timeline, and totals. Plugins can extend the timeline with their own activity rows (deploys, badges earned, etc.) or replace the streak math with a domain-specific definition.
 
-The payload is permission-shaped before this filter runs, per post rather than per viewer tier. A timeline row is only emitted when the viewer may see its post: a public status of a viewable post type for everyone, `current_user_can( 'read_post' )` for any other status, `edit_post` for a post type with no readable front end, and, for comment rows, the comment dossier's parent gate (`edit_post` while the parent is still sealed by a password, though a viewer who has already entered it reads on `read_post` like anyone else, and `moderate_comments` once the parent is deleted). Every count that can reach those posts (`totals.posts`, `totals.pages`, `totals.comments`, `totals.updates`, and each day's `comments` / `updates`, which `streak` is computed from) applies the same gate to each post it counts, so a count never reports activity the timeline withholds, a plugin's per-post capability filter included: a Contributor gets published work only, and an Editor's totals include the drafts their timeline lists. `profile.roleLabels` and `profile.registered` stay gated on `list_users` or the subject viewing themselves. The payload is viewer-dependent, so never cache it under a subject-only key.
+The route answers only for a subject the viewer may read, the same rule as `openstation_my_wordpress_user_stats`. The payload is permission-shaped before this filter runs, per post rather than per viewer tier. A timeline row is only emitted when the viewer may see its post: a public status of a viewable post type for everyone, `current_user_can( 'read_post' )` for any other status, `edit_post` for a post type with no readable front end, and, for comment rows, the comment dossier's parent gate (`edit_post` while the parent is still sealed by a password, though a viewer who has already entered it reads on `read_post` like anyone else, and `moderate_comments` once the parent is deleted). Every count that can reach those posts (`totals.posts`, `totals.pages`, `totals.comments`, `totals.updates`, and each day's `comments` / `updates`, which `streak` is computed from) applies the same gate to each post it counts, so a count never reports activity the timeline withholds, a plugin's per-post capability filter included: a Contributor gets published work only, and an Editor's totals include the drafts their timeline lists. `profile.roleLabels` and `profile.registered` stay gated on `list_users` or the subject viewing themselves. The payload is viewer-dependent, so never cache it under a subject-only key.
 
 ### `openstation_user_footprint_row_action` — Stable (filter)
 
@@ -4547,7 +4566,7 @@ Fires after the `clear` action truncates a log file.
 
 The content explorer app — `apps/my-wordpress/my-wordpress.os.php` + `my-wordpress.os.ts`, an [App Framework](./app-framework.md) app in the framework's two halves. The PHP half is the truth: a root folder grid (Posts, Pages, Media, Users, plus every eligible custom post type folded into plugin-group folders), `WP_Query`-backed searchable/sortable lists, per-item dossiers (rendered post preview, media usage scan, user footprint, edit-lock holder), per-item authorization, and the trash / bulk-trash / open-in-editor actions. The client half makes it instant: click / Ctrl / Shift / **marquee selection**, **infinite scroll**, **drag rows out to the desktop** (`wp.os.dragManager`), the per-row context menu, media **zoom**, and the copy-links clipboard action — none of which leaves the tab. Registered as the native window `my-wordpress` behind `edit_posts`, with a desktop icon, and repainted live by `watch( '*' )` whenever any window changes any content.
 
-**What each caller sees.** The section gate (`edit_posts` on the type) admits every Contributor, so object-level reads are checked per item. Lists query with `perm => 'readable'`, and section counts use `wp_count_posts( …, 'readable' )`, so another author's private posts reach only a caller with the type's `read_private_posts`. A row the caller cannot read past the title (another author's draft, or a post sealed by a password they have not entered) lists by title, as on `edit.php`, without its excerpt, word count or meta. Dossiers, folders and relation panes require `read_post`, and the rendered body is withheld while the post is password-sealed for a caller without `edit_post`. A relation row opens only when it belongs to the post (its author, a contributor, an attached media item, one of its revisions). Account facts (email, role, registration date, and an author's email in relation rows) need `list_users` or the person themselves. Comment rows follow Core's REST read rule: approved, or written by the caller, or editable by them. Revisions need `edit_post`. Quick edit treats `private` like `publish` (both need `publish_post`), reassigning the author needs the type's `edit_others_posts`, and stickiness needs both the type's `edit_others_posts` and `publish_posts`; a sticky pick from anyone else is dropped while the rest of the edit still applies.
+**What each caller sees.** The section gate (`edit_posts` on the type) admits every Contributor, so object-level reads are checked per item. Lists query with `perm => 'readable'`, and section counts use `wp_count_posts( …, 'readable' )`, so another author's private posts reach only a caller with the type's `read_private_posts`. A row the caller cannot read past the title (another author's draft, a published row of a type with no readable front end that they cannot edit, or a post sealed by a password they have not entered) lists by title, as on `edit.php`, without its excerpt, word count or meta. Dossiers, folders and relation panes require `read_post` — or `edit_post` when `is_post_type_viewable()` is false for the type, because `read_post` passes any published row of one (`openstation_my_wordpress_can_read_post()`, which the non-REST bridge route asks too) — and the rendered body is withheld while the post is password-sealed for a caller without `edit_post`. A relation row opens only when it belongs to the post (its author, a contributor, an attached media item, one of its revisions). Account facts (email, role, registration date, and an author's email in relation rows) need `list_users` or the person themselves. Comment rows follow Core's REST read rule: approved, or written by the caller, or editable by them. Revisions need `edit_post`. Quick edit treats `private` like `publish` (both need `publish_post`), reassigning the author needs the type's `edit_others_posts`, and stickiness needs both the type's `edit_others_posts` and `publish_posts`; categories and tags need their taxonomy's `assign_terms`; a sticky or term pick from anyone else is dropped while the rest of the edit still applies. Open, quick edit, trash and bulk trash act only on rows of the section's own post type, whatever id the client sends.
 
 It discovers custom post types through the **same helpers WP Explorer uses** — `openstation_my_wordpress_eligible_post_types()`, `openstation_my_wordpress_post_type_icon()`, `openstation_my_wordpress_post_type_group()`, `openstation_my_wordpress_collect_groups()` — so the `openstation_my_wordpress_post_types`, `openstation_my_wordpress_post_type_entity` (icon/group only) and `openstation_my_wordpress_post_type_groups` filters above shape both windows. **Preview actions are shared too**: descriptors collected by `openstation_my_wordpress_preview_actions` and refined by the `os.my-wordpress.preview-actions` JS filter appear in this window's pane and context menu exactly as they do in WP Explorer — one registration, two surfaces. It is a sibling of WP Explorer (`desktop-mode-my-wordpress`), not a replacement — WP Explorer keeps its id, icon and every filter.
 
@@ -4555,7 +4574,7 @@ The app consumes WP Explorer's **JS extension seams** too, unchanged: `os.my-wor
 
 Every section also has a **list view** — an Icons / List control in the search band switches the tile canvas for a sortable table: the ID (a chip that copies itself), title with status and lock, slug, author, status, date, modified, comment count, parent (hierarchical types), word count for posts and custom post types; file name, MIME type, size, dimensions and the attached post for media; username, email, role, published-post count and registration date for users; and a per-row action cluster (edit, copy link, copy the `?p=` shortlink, more). Column headers sort through the same server orders the icon view's "Sort by" menu offers — `sort_options()` grew ID, modified, slug and comment-count orders for posts, and ID, username, email and post-count orders for users — and the rows drag, select, marquee and infinite-scroll exactly like the tiles. Selection and the open item are one state for both views — what is picked among the icons is picked among the rows, scrolled into sight — and entering the list with no order chosen lists the highest id first. Both views' context menus carry **Copy ID** and **Copy shortlink** beside Copy link, all three over a selection. The view mode and each section's hidden columns are remembered **per user** through the app's own storage (`$os->stored( 'view' )` / `'hidden-columns'`, namespaced by app id — user meta on WordPress). Plugins add columns with the [`os.my-wordpress.list-columns`](./javascript-reference.md#filter--osmy-wordpresslist-columns) JS filter.
 
-The app also carries the **Agents section** (see [AI Agents](#ai-agents)) as a root tile, listed for every user who may read agents even while the framework is off — WP Explorer's design, 1:1, including the create wizard (Describe → Meet → Powers → Summon → Launch), the face picker, the off-state preview cast, drag & drop onto the cast cards and drag-out to the desktop. The mutations run as app actions (`agent-draft` / `agent-create` / `agent-update` / `agent-delete`) through the same `openstation_agent_*` store, draft and identity functions the `/desktop-mode/v1/agents` routes wrap, behind the same read/manage/invoke gates. After a roster change the client fires the `os.agents.roster-changed` JS action (on `wp.hooks`), which the "Send to" menus listen for — WP Explorer's tile menus and the desktop and folder tile menus — so trigger edits made in the app reach them without a reload.
+The app also carries the **Agents section** (see [AI Agents](#ai-agents)) as a root tile, listed for every user who may read agents even while the framework is off — WP Explorer's design, 1:1, including the create wizard (Describe → Meet → Powers → Summon → Launch), the face picker, the off-state preview cast, drag & drop onto the cast cards and drag-out to the desktop. The mutations run as app actions (`agent-draft` / `agent-create` / `agent-update` / `agent-delete`) through the same `openstation_agent_*` store, draft and identity functions the `/desktop-mode/v1/agents` routes wrap, behind the same read/manage/invoke gates; an id the client sends resolves through `openstation_agent_get_site_agent()`, as on the routes, so on a network another site's agent is not found. After a roster change the client fires the `os.agents.roster-changed` JS action (on `wp.hooks`), which the "Send to" menus listen for — WP Explorer's tile menus and the desktop and folder tile menus — so trigger edits made in the app reach them without a reload.
 
 ### `openstation_my_wordpress_app_sections` — Experimental (filter)
 

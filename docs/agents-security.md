@@ -127,7 +127,8 @@ creator never had.
 On a network, users are global but agents are not: an agent is a user
 of the site it was created on, and every path that takes an agent id
 from a client (`GET`/`POST`/`DELETE /agents/{id}`, `/agents/{id}/invoke`,
-`POST /agents/conversations`) and the runner itself resolve it through
+`POST /agents/conversations`, WP Explorer's `agent-update` and
+`agent-delete` app actions) and the runner itself resolve it through
 `openstation_agent_get_site_agent()`, which asks
 `is_user_member_of_blog()` after the marker meta. Without that question
 the marker alone let an `edit_posts` holder on one site read another
@@ -303,7 +304,7 @@ Adding a REST route or an app action that READS content:
 
 The same checklist applies — an ability is only one dispatch shape, and
 the leaks that were plain REST routes were leaks for the same reasons.
-Four additions specific to a route:
+Five additions specific to a route:
 
 - [ ] Is the `permission_callback` the **module's own gate**, not
       `is_user_logged_in()`? A window gated at `edit_posts` whose route
@@ -319,6 +320,16 @@ Four additions specific to a route:
       about the objects *inside* the container, and the container being
       public says nothing about them. A viewer-dependent payload must
       never be cached under a container-only key.
+- [ ] Does a **person** named by a client-supplied id (a route
+      parameter, an app's `item` or open-time param) go through
+      `openstation_get_readable_user()` before any of their fields is
+      read? `get_userdata()` resolves every account on a network, and
+      the module's gate says nothing about whom the caller may look
+      up. The helper is Core's single-user read: a member of the
+      current site, and someone with a published post unless the
+      caller is the subject or holds `list_users` or `edit_user` on
+      them. The user dossier routes and WP Explorer's user panes are
+      the worked examples.
 - [ ] Is the route's real gate written into the table in
       [`includes/rest/README.md`](../includes/rest/README.md)?
 

@@ -258,8 +258,13 @@ neon-glass.zip
 `__MACOSX/` folders and dotfiles are ignored, not rejected, but they
 still count toward the size caps, and a file a web server would run or
 obey (`.htaccess`, `.user.ini`, `web.config`, `.php*`, `.phtml`,
-`.phar`, `.cgi`, `.sh`, …) rejects the archive wherever it sits. The
-archive must contain **exactly one** `theme.json`.
+`.phar`, `.cgi`, `.sh`, …) rejects the archive wherever it sits. Every
+dot-segment of a name counts, not just the last: `icons/x.php.png`
+passes the image allowlist on its `png` but runs as PHP under Apache's
+`AddHandler`, so it rejects the archive too (the segments are checked
+against the stored-files denylist, `openstation_stored_files_denied_extensions`),
+and a manifest cannot reference such a file either. The archive must
+contain **exactly one** `theme.json`.
 
 **Re-uploading a theme with the same `id` is an update**, not an
 error: the old directory is dropped wholesale so removed assets don't

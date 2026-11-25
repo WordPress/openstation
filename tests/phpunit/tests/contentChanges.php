@@ -404,6 +404,48 @@ class Tests_OpenStation_ContentChanges extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The log is site-wide. A Subscriber has no list window it could
+	 * refresh, and an Author hears only about what they could edit:
+	 * not another author's draft, not a plugin activation.
+	 *
+	 * @covers ::openstation_content_changes_visible_ids
+	 * @covers ::openstation_content_changes_heartbeat_received
+	 */
+	public function test_heartbeat_scopes_the_log_to_what_the_user_may_see() {
+		$author     = self::factory()->user->create( array( 'role' => 'author' ) );
+		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$theirs     = self::factory()->post->create(
+			array(
+				'post_status' => 'draft',
+				'post_author' => self::$admin_id,
+			)
+		);
+		$own        = self::factory()->post->create(
+			array(
+				'post_status' => 'draft',
+				'post_author' => $author,
+			)
+		);
+		openstation_content_changes_reset();
+		openstation_content_changes_record( 'post', $theirs, 'updated' );
+		openstation_content_changes_record( 'post', $own, 'updated' );
+		openstation_content_changes_record( 'plugin', 7, 'activated' );
+		openstation_content_changes_on_shutdown();
+		$data = array( 'openstation_content_changes_seen_ts' => 0 );
+
+		update_user_meta( $subscriber, 'desktop_mode_mode', '1' );
+		wp_set_current_user( $subscriber );
+		$response = openstation_content_changes_heartbeat_received( array(), $data );
+		$this->assertArrayNotHasKey( 'openstation_content_changes', $response, 'A Subscriber reads nothing.' );
+
+		update_user_meta( $author, 'desktop_mode_mode', '1' );
+		wp_set_current_user( $author );
+		$entries = openstation_content_changes_heartbeat_received( array(), $data )['openstation_content_changes']['entries'];
+		$this->assertSame( array( 'post' ), array_column( $entries, 'type' ) );
+		$this->assertSame( array( $own ), $entries[0]['ids'] );
+	}
+
+	/**
 	 * @covers ::openstation_content_changes_on_shutdown
 	 * @covers ::openstation_content_changes_heartbeat_received
 	 */

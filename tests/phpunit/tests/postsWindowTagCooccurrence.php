@@ -357,7 +357,7 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		);
 		$payload = $response->get_data();
 
-		$cache_key = sprintf( 'dmwco_v%d_%s_l%d', $version, 'post_tag', 8 );
+		$cache_key = sprintf( 'dmwco_v%d_%s_l%d_%s', $version, 'post_tag', 8, openstation_posts_window_readable_status_clause( array( 'post' ) )['tier'] );
 		$cached    = get_transient( $cache_key );
 		$this->assertIsArray( $cached );
 		$this->assertSame( $payload, $cached );
@@ -374,7 +374,7 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		wp_set_current_user( $this->admin_id );
 
 		$version   = openstation_posts_window_terms_cache_version();
-		$cache_key = sprintf( 'dmwco_v%d_%s_l%d', $version, 'post_tag', 8 );
+		$cache_key = sprintf( 'dmwco_v%d_%s_l%d_%s', $version, 'post_tag', 8, openstation_posts_window_readable_status_clause( array( 'post' ) )['tier'] );
 
 		// Stuff a sentinel payload into the cache; if the endpoint
 		// short-circuits on hit we should see this verbatim instead
@@ -406,7 +406,7 @@ class Tests_OpenStation_PostsWindowTagCooccurrence extends WP_UnitTestCase {
 		wp_set_current_user( $this->admin_id );
 
 		$version_a = openstation_posts_window_terms_cache_version();
-		$key_a     = sprintf( 'dmwco_v%d_%s_l%d', $version_a, 'post_tag', 8 );
+		$key_a     = sprintf( 'dmwco_v%d_%s_l%d_%s', $version_a, 'post_tag', 8, openstation_posts_window_readable_status_clause( array( 'post' ) )['tier'] );
 
 		// Plant a sentinel under the current version's key.
 		$sentinel = array(

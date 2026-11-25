@@ -360,7 +360,7 @@ function openstation_files_register_rest_routes() {
 					'type'    => 'string',
 					'default' => '',
 				),
-				'exclude' => array(
+				'exclude' => array( // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude -- The route's argument schema, not a query; the name is the public REST parameter.
 					'type'    => 'string',
 					'default' => '',
 				),
@@ -772,12 +772,16 @@ function openstation_files_shape_folder( $row ) {
 	if ( ! is_array( $row ) ) {
 		return array();
 	}
-	$shape = array(
+	// `shareMeta` is the owner's diagnostic note; a folder shared
+	// with everyone would otherwise hand it to every user's boot
+	// payload and heartbeat.
+	$is_owner = (int) get_current_user_id() === (int) $row['owner_id'];
+	$shape    = array(
 		'id'          => (int) $row['id'],
 		'ownerId'     => (int) $row['owner_id'],
 		'name'        => (string) $row['name'],
 		'shareMode'   => (string) $row['share_mode'],
-		'shareMeta'   => isset( $row['share_meta'] ) ? $row['share_meta'] : null,
+		'shareMeta'   => $is_owner && isset( $row['share_meta'] ) ? $row['share_meta'] : null,
 		'updatedAtMs' => (int) $row['updated_at_ms'],
 	);
 	// Same summary `OpenStation_Folder_File::serialize()` puts on a
@@ -1137,7 +1141,7 @@ function openstation_files_rest_purge_sharing_tables() {
 			continue;
 		}
 		$prev_suppress = $wpdb->suppress_errors( true );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- The admin purge drops plugin-owned tables; an identifier cannot be a placeholder, so $tbl is validated above.
 		$wpdb->query( "DROP TABLE IF EXISTS `{$tbl}`" );
 		$wpdb->suppress_errors( $prev_suppress );
 		$dropped[] = $tbl;
@@ -1208,7 +1212,7 @@ function openstation_files_rest_search_users( WP_REST_Request $req ) {
 		'number'     => 20,
 		'orderby'    => 'display_name',
 		'order'      => 'ASC',
-		'exclude'    => $exclude,
+		'exclude'    => $exclude, // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude -- The page is 20 rows: excluding in PHP would let already-picked users use up the page.
 		'capability' => 'edit_posts',
 		'meta_query' => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- agents are excluded in SQL so they cannot use up the page.
 			array(

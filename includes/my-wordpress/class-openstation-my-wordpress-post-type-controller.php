@@ -142,6 +142,25 @@ class OpenStation_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contro
 	}
 
 	/**
+	 * Whether the current user may read one row.
+	 *
+	 * Core admits any `publish` row to anyone, because a `wp/v2` type
+	 * chose to be public over REST. A type served here chose not to,
+	 * and one with no readable front end (an order, a submission log)
+	 * keeps its rows to those who may `edit_post` them — the rule
+	 * `openstation_my_wordpress_can_read_post()` gives the site window.
+	 * Both the single read and every row of a collection come through
+	 * here; a collection's `X-WP-Total` still counts the rows it
+	 * withholds, as Core's does for any row this check drops.
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return bool
+	 */
+	public function check_read_permission( $post ) {
+		return parent::check_read_permission( $post ) && openstation_my_wordpress_can_read_post( $post );
+	}
+
+	/**
 	 * Treat this controller's own post type as REST-visible.
 	 *
 	 * Core uses `check_is_post_type_allowed()` as the "does this type

@@ -303,15 +303,22 @@ class Tests_OpenStation_DesktopThemesInstall extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Every dot-segment counts, not just the last: Apache's
+	 * `AddHandler` runs `x.php.png` as PHP.
+	 *
 	 * @covers ::openstation_desktop_theme_validate_zip
 	 */
 	public function test_forbidden_extension_rejects_the_archive() {
-		$error = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
-			'theme.json' => $this->manifest_json(),
-			'shell.php'  => '<?php echo 1;',
-		) ) );
-		$this->assertWPError( $error );
-		$this->assertSame( 'openstation_desktop_theme_bad_extension', $error->get_error_code() );
+		foreach ( array( 'shell.php', 'icons/x.php.png' ) as $name ) {
+			$error = openstation_desktop_theme_install_from_zip( $this->make_zip( array(
+				'theme.json' => $this->manifest_json( array(
+					'icons' => array( 'OS_SETTINGS' => array( 'type' => 'image', 'path' => 'icons/x.php.png' ) ),
+				) ),
+				$name        => '<?php echo 1;',
+			) ) );
+			$this->assertWPError( $error, $name );
+			$this->assertSame( 'openstation_desktop_theme_bad_extension', $error->get_error_code(), $name );
+		}
 	}
 
 	/**

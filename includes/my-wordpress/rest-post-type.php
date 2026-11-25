@@ -23,6 +23,10 @@
  *     non-`edit` context, i.e. public read. We override it (and the
  *     single-item check) to require the type's `edit_posts` capability
  *     in **every** context. Never anonymous, never subscriber-readable.
+ *   - Core reads any `publish` row to anyone. Here a row of a type with
+ *     no readable front end needs `edit_post` on that row
+ *     (`openstation_my_wordpress_can_read_post()`), so a Contributor
+ *     does not read another author's published order or submission.
  *   - Only `GET` collection, `GET` item, and `DELETE` item (trash, for
  *     recycle-bin parity) are registered. No create, no update — a
  *     write schema the type's author never vetted is a footgun.

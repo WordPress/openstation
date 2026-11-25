@@ -76,17 +76,16 @@ function footprint_from_params( State $state, Os $os ) {
 }
 
 /**
- * Put one person's footprint over the body. The id is validated (the
- * payload route re-checks the viewer); the name is only ever breadcrumb
- * text, so the entities the sanitiser writes for a `<` are decoded.
+ * Put one person's footprint over the body: a member of this site the
+ * caller may read. The name is only breadcrumb text, so its entities are decoded.
  *
  * @param State  $state State.
- * @param int    $user  User id; 0 or unknown opens nothing.
+ * @param int    $user  User id; 0, unknown or unreadable opens nothing.
  * @param string $name  Display name, or ''.
  * @return void
  */
 function open_footprint( State $state, $user, $name ) {
-	if ( $user <= 0 || false === get_userdata( $user ) ) {
+	if ( $user <= 0 || is_wp_error( openstation_get_readable_user( $user ) ) ) {
 		return;
 	}
 	$state->set( 'footprint', $user )
@@ -436,6 +435,13 @@ function quick_edit_action( State $state, Os $os, array $args ) {
 	if ( ! ( $os->can( $type_object->cap->edit_others_posts ) && $os->can( $type_object->cap->publish_posts ) ) ) {
 		$sticky = '';
 	}
+	// Terms take the taxonomy's `assign_terms`, as Core's posts controller asks.
+	$assigns  = static function ( $taxonomy ) use ( $os ) {
+		$tax = get_taxonomy( $taxonomy );
+		return $tax && $os->can( $tax->cap->assign_terms );
+	};
+	$add_cats = $assigns( 'category' ) ? $add_cats : array();
+	$add_tags = $assigns( 'post_tag' ) ? $add_tags : array();
 	if ( '' === $status && '' === $comments && 0 === $author && '' === $sticky
 		&& array() === $add_cats && array() === $add_tags ) {
 		$os->toast( __( 'Nothing could be updated.', 'desktop-mode' ) );

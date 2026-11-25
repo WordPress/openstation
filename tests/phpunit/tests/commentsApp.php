@@ -183,6 +183,45 @@ class Tests_OpenStation_CommentsApp extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Core's comments collection still lists a comment to its own author
+	 * after the post went private, so the computed post fields ask the
+	 * parent's readability themselves: a Subscriber's own comment carries
+	 * neither the title nor the permalink of a post they can no longer
+	 * read.
+	 *
+	 * @covers ::openstation_comments_window_register_rest_fields
+	 */
+	public function test_post_fields_are_withheld_when_the_parent_becomes_unreadable() {
+		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$post       = self::factory()->post->create(
+			array(
+				'post_status' => 'publish',
+				'post_title'  => 'Members only',
+				'post_author' => self::$admin_id,
+			)
+		);
+		$comment    = $this->comment( $post, '1', 0, array( 'user_id' => $subscriber ) );
+		wp_update_post(
+			array(
+				'ID'          => $post,
+				'post_status' => 'private',
+			)
+		);
+
+		wp_set_current_user( $subscriber );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/comments' );
+		$request->set_param( 'include', array( $comment ) );
+		$rows = rest_get_server()->dispatch( $request )->get_data();
+		$this->assertCount( 1, $rows, 'Core still lists the comment to its author.' );
+		$this->assertSame( '', $rows[0]['openstation_post_title'] );
+		$this->assertSame( '', $rows[0]['openstation_post_link'] );
+
+		wp_set_current_user( self::$admin_id );
+		$rows = rest_get_server()->dispatch( $request )->get_data();
+		$this->assertStringContainsString( 'Members only', $rows[0]['openstation_post_title'] );
+	}
+
+	/**
 	 * The reply counts come from one grouped query, not one per row.
 	 *
 	 * @covers \OpenStation\Apps\Comments\reply_counts

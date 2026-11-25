@@ -1187,10 +1187,11 @@ function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
  * Build an asset resolver that validates paths inside a staging
  * directory and returns the theme-relative path.
  *
- * Rejects absolute paths, traversal, backslashes, NUL bytes, and
+ * Rejects absolute paths, traversal, backslashes, NUL bytes,
  * anything whose extension isn't allowed for the requested asset
- * kind. Uses `realpath()` containment as the final gate so a symlink
- * planted inside the ZIP can't point outward.
+ * kind, and any name a web server would execute through an earlier
+ * dot-segment (`x.php.png`). Uses `realpath()` containment as the
+ * final gate so a symlink planted inside the ZIP can't point outward.
  *
  * @param string $staging_dir Absolute path of the extracted ZIP.
  * @return callable `fn( string $path, string $kind = 'image' ): string|false`
@@ -1218,6 +1219,9 @@ function openstation_desktop_theme_staging_asset_resolver( $staging_dir ) {
 		}
 		$ext = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
 		if ( ! in_array( $ext, openstation_desktop_theme_asset_extensions( $kind ), true ) ) {
+			return false;
+		}
+		if ( openstation_desktop_theme_zip_entry_executable( $path ) ) {
 			return false;
 		}
 		$full = realpath( $base . '/' . $path );

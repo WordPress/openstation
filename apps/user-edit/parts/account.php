@@ -11,8 +11,10 @@
  *     and `DELETE …/application-passwords/<uuid>` — thin wrappers over
  *     `WP_Application_Passwords`.
  *
- * Every route re-checks `edit_user` on the target
- * ({@see openstation_user_edit_window_can_edit()}).
+ * The sessions route re-checks `edit_user` on the target
+ * ({@see openstation_user_edit_window_can_edit()}); each
+ * application-password route asks Core's own meta capability for its
+ * operation ({@see openstation_user_edit_window_app_pw_permission()}).
  *
  * @package OpenStation
  */
@@ -81,6 +83,29 @@ function openstation_user_edit_window_rest_permission( $req ) {
 }
 
 /**
+ * The `permission_callback` of one application-password operation:
+ * the meta capability `WP_REST_Application_Passwords_Controller` asks
+ * for it. Each maps to `edit_user` by default, but a site or security
+ * plugin can narrow one through `map_meta_cap` (no listing, or no
+ * minting, for another user), and an `edit_user` check would step
+ * around that.
+ *
+ * @param WP_REST_Request $req Request with `id`, and `uuid` for one password.
+ * @param string          $cap `list_app_passwords`, `create_app_password` or `delete_app_password`.
+ * @return bool
+ */
+function openstation_user_edit_window_app_pw_permission( $req, $cap ) {
+	$id = (int) $req->get_param( 'id' );
+	if ( $id <= 0 || ! is_user_logged_in() ) {
+		return false;
+	}
+	if ( 'delete_app_password' === $cap ) {
+		return current_user_can( $cap, $id, (string) $req->get_param( 'uuid' ) );
+	}
+	return current_user_can( $cap, $id );
+}
+
+/**
  * Register the sessions and application-password routes.
  */
 function openstation_user_edit_window_account_routes() {
@@ -110,12 +135,16 @@ function openstation_user_edit_window_account_routes() {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => 'openstation_user_edit_window_rest_app_pw_list',
-				'permission_callback' => 'openstation_user_edit_window_rest_permission',
+				'permission_callback' => static function ( $req ) {
+					return openstation_user_edit_window_app_pw_permission( $req, 'list_app_passwords' );
+				},
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => 'openstation_user_edit_window_rest_app_pw_create',
-				'permission_callback' => 'openstation_user_edit_window_rest_permission',
+				'permission_callback' => static function ( $req ) {
+					return openstation_user_edit_window_app_pw_permission( $req, 'create_app_password' );
+				},
 				'args'                => array(
 					'name' => array(
 						'required' => true,
@@ -131,7 +160,9 @@ function openstation_user_edit_window_account_routes() {
 		array(
 			'methods'             => WP_REST_Server::DELETABLE,
 			'callback'            => 'openstation_user_edit_window_rest_app_pw_revoke',
-			'permission_callback' => 'openstation_user_edit_window_rest_permission',
+			'permission_callback' => static function ( $req ) {
+				return openstation_user_edit_window_app_pw_permission( $req, 'delete_app_password' );
+			},
 		)
 	);
 }
