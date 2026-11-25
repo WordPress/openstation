@@ -4,6 +4,8 @@ $config = json_decode( stream_get_contents( STDIN ), true );
 require $config['bootstrap'];
 defined( 'ABSPATH' ) || exit;
 $wpdb = new wpdb( $config['user'], $config['password'], $config['database'], $config['host'] );
+// A bare instance has none of the tables the plugin names on $wpdb.
+$wpdb->tables = array_merge( $wpdb->tables, array( 'desktop_mode_stored_files', 'openstation_presence' ) );
 $wpdb->set_prefix( $config['prefix'] );
 $wpdb->set_blog_id( 1 );
 require_once dirname( __DIR__, 3 ) . '/includes/presence-store.php';
