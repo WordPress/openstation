@@ -369,9 +369,9 @@ function openstation_presence_cron_prune() {
 	if ( ! openstation_presence_migrate_storage() ) {
 		return;
 	}
-	$table  = openstation_presence_table();
 	$cutoff = (int) round( microtime( true ) * 1000 ) - 14 * DAY_IN_SECONDS * 1000;
-	$wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE last_seen_ms < %d", $cutoff ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table; the request snapshot is invalidated below.
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->openstation_presence} WHERE last_seen_ms < %d", $cutoff ) );
 	openstation_presence_invalidate_records();
 }
 add_action( 'desktop_mode_presence_daily_prune', 'openstation_presence_cron_prune' );

@@ -85,9 +85,7 @@ function openstation_my_wordpress_user_summary_prime( $user_ids ) {
 		return;
 	}
 
-	$types      = openstation_my_wordpress_user_summary_post_types();
-	$id_slots   = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-	$type_slots = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+	$types = openstation_my_wordpress_user_summary_post_types();
 
 	$rows = array();
 	foreach ( $ids as $user_id ) {
@@ -101,29 +99,29 @@ function openstation_my_wordpress_user_summary_prime( $user_ids ) {
 	// for every id at once. Its `$public_only = true` resolves — via
 	// `get_posts_by_author_sql()` — to exactly `post_status =
 	// 'publish'`, so that is what this reproduces.
-	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder lists are built from counts, values are passed through prepare().
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Grouped count_user_posts() for a whole page, which Core has no API for; memoised for the request.
 	$counts = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_author, COUNT(*) AS total FROM {$wpdb->posts}
-			WHERE post_author IN ( {$id_slots} )
-				AND post_type IN ( {$type_slots} )
-				AND post_status = 'publish'
-			GROUP BY post_author",
+			WHERE post_status = 'publish'
+				AND post_author IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')
+				AND post_type IN (' . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ')
+			GROUP BY post_author',
 			array_merge( $ids, $types )
 		)
 	);
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Grouped MAX aggregate with no WordPress API equivalent; memoised for the request.
 	$actives = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_author, MAX(post_date_gmt) AS latest FROM {$wpdb->posts}
-			WHERE post_author IN ( {$id_slots} )
-				AND post_status = 'publish'
-				AND post_type IN ( {$type_slots} )
-			GROUP BY post_author",
+			WHERE post_status = 'publish'
+				AND post_author IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')
+				AND post_type IN (' . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ')
+			GROUP BY post_author',
 			array_merge( $ids, $types )
 		)
 	);
-	// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 	foreach ( (array) $counts as $row ) {
 		$user_id = (int) $row->post_author;
@@ -211,14 +209,13 @@ function openstation_my_wordpress_user_summary_payload( $user_id ) {
 	} else {
 		global $wpdb;
 
-		$type_slots      = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MAX aggregate on post_date_gmt, which WP_Query cannot order by; the single-row fallback of the memoised batch above.
 		$last_active_raw = $wpdb->get_var(
 			$wpdb->prepare(
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder list is built from a count, values pass through prepare().
 				"SELECT MAX(post_date_gmt) FROM {$wpdb->posts}
 				WHERE post_author = %d
 					AND post_status = 'publish'
-					AND post_type IN ( {$type_slots} )",
+					AND post_type IN (" . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ')',
 				array_merge( array( $user_id ), $types )
 			)
 		);

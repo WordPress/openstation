@@ -266,9 +266,9 @@ function openstation_plugins_window_field_wporg_slug( $row ) {
  *
  *   - `enabled`   bool      — the file is in the `auto_update_plugins`
  *                             site option, or a filter forced it on.
- *   - `forced`    bool|null — `true`/`false` when the `auto_update_plugin`
- *                             filter pinned the state, `null` when the
- *                             user is free to toggle.
+ *   - `forced`    bool|null — `true`/`false` when Core's per-plugin
+ *                             auto-update filter pinned the state, `null`
+ *                             when the user is free to toggle.
  *   - `supported` bool      — the `update_plugins` transient knows the
  *                             plugin (`response` or `no_update`). Core
  *                             hides the toggle otherwise — premium /
@@ -295,12 +295,12 @@ function openstation_plugins_window_field_auto_update( $row ) {
 	$enabled      = in_array( $plugin_file, $auto_updates, true );
 	$supported    = null !== openstation_plugins_window_update_entry( $plugin_file );
 
-	// The payload Core's filter expects (its `$filter_payload`).
-	// `wp_is_auto_update_forced_for_item()` is admin-only, so the filter
-	// runs directly — it is a single `apply_filters()` underneath.
+	// The payload Core's filter expects (its `$filter_payload`), asked
+	// through Core's own `wp_is_auto_update_forced_for_item()`, which
+	// lives in an admin include a REST request has not loaded.
 	// `wp_parse_args( $row, $defaults )` lets `$row` win, and Core's REST
-	// row spells `plugin` without `.php` while every `auto_update_plugin`
-	// callback reads `$item->plugin` as the FULL filename — the
+	// row spells `plugin` without `.php` while every callback of that
+	// filter reads `$item->plugin` as the FULL filename — the
 	// normalised file is layered on last so it always wins.
 	$filter_payload           = wp_parse_args(
 		$row,
@@ -322,8 +322,10 @@ function openstation_plugins_window_field_auto_update( $row ) {
 	$filter_payload['plugin'] = $plugin_file;
 	$filter_payload['id']     = $plugin_file;
 	$filter_payload           = (object) $filter_payload;
-	/** This filter is documented in wp-admin/includes/class-wp-automatic-updater.php */
-	$forced = apply_filters( 'auto_update_plugin', null, $filter_payload ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter; the effective auto-update state has to come from the same source Core reads.
+	if ( ! function_exists( 'wp_is_auto_update_forced_for_item' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/update.php';
+	}
+	$forced = wp_is_auto_update_forced_for_item( 'plugin', null, $filter_payload );
 	if ( null !== $forced ) {
 		$forced = (bool) $forced;
 		// A forced state is the effective state regardless of the

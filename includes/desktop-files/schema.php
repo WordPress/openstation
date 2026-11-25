@@ -82,7 +82,6 @@ function openstation_files_install_schema() {
 
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-	$tables          = openstation_files_table_names();
 	$charset_collate = $wpdb->get_charset_collate();
 
 	// Schema v2: adds trash columns to both placements
@@ -94,7 +93,7 @@ function openstation_files_install_schema() {
 	// id of the folder whose trash cascaded the placement, so a
 	// folder restore knows exactly which children to bring back —
 	// precise round-trip with no time-window heuristics.
-	$placements_sql = "CREATE TABLE {$tables['placements']} (
+	$placements_sql = "CREATE TABLE {$wpdb->desktop_mode_file_placements} (
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 		owner_id BIGINT UNSIGNED NOT NULL,
 		parent_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -116,7 +115,7 @@ function openstation_files_install_schema() {
 		KEY trashed_at_ms (trashed_at_ms)
 	) $charset_collate;";
 
-	$folders_sql = "CREATE TABLE {$tables['folders']} (
+	$folders_sql = "CREATE TABLE {$wpdb->desktop_mode_folders} (
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 		owner_id BIGINT UNSIGNED NOT NULL,
 		name VARCHAR(255) NOT NULL DEFAULT '',
@@ -133,7 +132,7 @@ function openstation_files_install_schema() {
 		KEY trashed_at_ms (trashed_at_ms)
 	) $charset_collate;";
 
-	$tombstones_sql = "CREATE TABLE {$tables['tombstones']} (
+	$tombstones_sql = "CREATE TABLE {$wpdb->desktop_mode_file_tombstones} (
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 		kind VARCHAR(16) NOT NULL,
 		ref_id BIGINT UNSIGNED NOT NULL,
@@ -152,7 +151,7 @@ function openstation_files_install_schema() {
 	// quirks (see the shares-table comment below) don't apply, and
 	// disk_name uniqueness is guaranteed by the UUID generator plus
 	// a collision check at write time.
-	$stored_files_sql = "CREATE TABLE {$tables['stored_files']} (
+	$stored_files_sql = "CREATE TABLE {$wpdb->desktop_mode_stored_files} (
 		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 		owner_id BIGINT UNSIGNED NOT NULL,
 		display_name VARCHAR(255) NOT NULL DEFAULT '',
@@ -260,7 +259,6 @@ function openstation_files_install_schema() {
  */
 function openstation_files_ensure_trash_columns() {
 	global $wpdb;
-	$tables = openstation_files_table_names();
 
 	// Two-worker race protection: between the INFORMATION_SCHEMA
 	// check and the ALTER, a concurrent worker (cron + admin-init,
@@ -273,6 +271,7 @@ function openstation_files_ensure_trash_columns() {
 	// column is genuinely missing after the attempt.
 	$ensure = static function ( $table, $column, $definition ) use ( $wpdb ) {
 		$col_exists = static function () use ( $wpdb, $table, $column ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 			return (int) $wpdb->get_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
@@ -287,29 +286,34 @@ function openstation_files_ensure_trash_columns() {
 		if ( $col_exists() > 0 ) {
 			return;
 		}
+		$add_column = static function () use ( $wpdb, $table, $column, $definition ) {
+			// Identifiers can't be placeholders before WP 6.2 (`%i`); all
+			// three values are the literals passed to `$ensure` below.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Versioned schema migration; literal identifiers.
+			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}" );
+		};
+
 		$prev_suppress = $wpdb->suppress_errors( true );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}" );
+		$add_column();
 		$wpdb->suppress_errors( $prev_suppress );
 		// Belt-and-suspenders: if the column STILL isn't there
 		// after the ALTER (real schema error, not a race), retry
 		// once unsuppressed so WP_DEBUG users see the cause.
 		if ( $col_exists() === 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN `{$column}` {$definition}" );
+			$add_column();
 		}
 	};
 
-	$ensure( $tables['placements'], 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['placements'], 'trashed_by', 'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['placements'], 'trashed_via_folder', 'BIGINT UNSIGNED NULL' );
+	$ensure( $wpdb->desktop_mode_file_placements, 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
+	$ensure( $wpdb->desktop_mode_file_placements, 'trashed_by', 'BIGINT UNSIGNED NULL' );
+	$ensure( $wpdb->desktop_mode_file_placements, 'trashed_via_folder', 'BIGINT UNSIGNED NULL' );
 	// v6: ancestry snapshot — JSON capturing every folder in the
 	// parent chain at trash time so a restore can resurrect the
 	// chain even when a folder was hard-deleted in the meantime.
-	$ensure( $tables['placements'], 'trashed_meta', 'LONGTEXT NULL' );
-	$ensure( $tables['folders'], 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['folders'], 'trashed_by', 'BIGINT UNSIGNED NULL' );
-	$ensure( $tables['folders'], 'trashed_meta', 'LONGTEXT NULL' );
+	$ensure( $wpdb->desktop_mode_file_placements, 'trashed_meta', 'LONGTEXT NULL' );
+	$ensure( $wpdb->desktop_mode_folders, 'trashed_at_ms', 'BIGINT UNSIGNED NULL' );
+	$ensure( $wpdb->desktop_mode_folders, 'trashed_by', 'BIGINT UNSIGNED NULL' );
+	$ensure( $wpdb->desktop_mode_folders, 'trashed_meta', 'LONGTEXT NULL' );
 }
 
 /**
@@ -329,21 +333,20 @@ function openstation_files_ensure_trash_columns() {
  */
 function openstation_files_dedupe_placements() {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$tbl    = $tables['placements'];
 
 	// Once the unique index exists, MySQL prevents duplicate
 	// inserts at the DB level — dedupe is a no-op and the
 	// table-scanning DELETE is pure waste on every install_schema
 	// call. Skip in that case so the cost is paid exactly once,
 	// during the v4 → v5 migration.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 	$has_unique = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME   = %s
 				AND INDEX_NAME   = %s',
-			$tbl,
+			$wpdb->desktop_mode_file_placements,
 			'placement_unique'
 		)
 	);
@@ -355,10 +358,10 @@ function openstation_files_dedupe_placements() {
 	// file_type, file_ref) and deletes everything else. Restricted
 	// to shortcut + folder placements, where duplicates are never
 	// intentional.
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration.
 	$wpdb->query(
-		"DELETE p1 FROM `{$tbl}` p1
-		INNER JOIN `{$tbl}` p2
+		"DELETE p1 FROM `{$wpdb->desktop_mode_file_placements}` p1
+		INNER JOIN `{$wpdb->desktop_mode_file_placements}` p2
 			ON p1.owner_id  = p2.owner_id
 			AND p1.parent_id = p2.parent_id
 			AND p1.file_type = p2.file_type
@@ -382,16 +385,15 @@ function openstation_files_dedupe_placements() {
  */
 function openstation_files_ensure_unique_placement_index() {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$tbl    = $tables['placements'];
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME   = %s
 				AND INDEX_NAME   = %s',
-			$tbl,
+			$wpdb->desktop_mode_file_placements,
 			'placement_unique'
 		)
 	);
@@ -401,12 +403,13 @@ function openstation_files_ensure_unique_placement_index() {
 		// name"). The index ends up present either way; the
 		// check-then-add pattern is benign under contention.
 		$prev_suppress = $wpdb->suppress_errors( true );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Versioned schema migration.
 		$wpdb->query(
-			"ALTER TABLE `{$tbl}`
+			"ALTER TABLE `{$wpdb->desktop_mode_file_placements}`
 			ADD UNIQUE KEY `placement_unique`
 				(owner_id, parent_id, file_type, file_ref)"
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 		$wpdb->suppress_errors( $prev_suppress );
 	}
 }
@@ -428,15 +431,14 @@ function openstation_files_ensure_unique_placement_index() {
  */
 function openstation_files_ensure_updated_by_column() {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$tbl    = $tables['placements'];
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME = %s
 				AND COLUMN_NAME = %s',
-			$tbl,
+			$wpdb->desktop_mode_file_placements,
 			'updated_by'
 		)
 	);
@@ -446,8 +448,8 @@ function openstation_files_ensure_updated_by_column() {
 		// ("Duplicate column"). The column ends up present either
 		// way.
 		$prev_suppress = $wpdb->suppress_errors( true );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `updated_by` BIGINT UNSIGNED NULL AFTER `owner_id`" );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Versioned schema migration.
+		$wpdb->query( "ALTER TABLE `{$wpdb->desktop_mode_file_placements}` ADD COLUMN `updated_by` BIGINT UNSIGNED NULL AFTER `owner_id`" );
 		$wpdb->suppress_errors( $prev_suppress );
 	}
 }
@@ -481,29 +483,29 @@ function openstation_files_ensure_updated_by_column() {
  */
 function openstation_files_rename_user_id_to_owner_id() {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$tbl    = $tables['placements'];
 
 	// Fresh install — the table doesn't exist yet; dbDelta creates
 	// it with `owner_id` directly. Nothing to migrate.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 	$table_exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
 			WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s',
-			$tbl
+			$wpdb->desktop_mode_file_placements
 		)
 	);
 	if ( 0 === $table_exists ) {
 		return;
 	}
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 	$has_user_id = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME = %s
 				AND COLUMN_NAME = 'user_id'",
-			$tbl
+			$wpdb->desktop_mode_file_placements
 		)
 	);
 	if ( 0 === $has_user_id ) {
@@ -519,27 +521,29 @@ function openstation_files_rename_user_id_to_owner_id() {
 	// never landed, so every later placements query 500'd silently.
 	// Let any wpdb error surface to `debug.log` so the failure is
 	// visible the next time this code runs.
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Versioned schema migration.
 	$wpdb->query(
-		"ALTER TABLE `{$tbl}` CHANGE COLUMN `user_id` `owner_id` BIGINT UNSIGNED NOT NULL"
+		"ALTER TABLE `{$wpdb->desktop_mode_file_placements}` CHANGE COLUMN `user_id` `owner_id` BIGINT UNSIGNED NOT NULL"
 	);
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 
 	// MySQL/MariaDB auto-update index column references on CHANGE
 	// COLUMN, but the index NAMES are baked in. Rename them too so
 	// `EXPLAIN`/`SHOW INDEX` output reads consistently with the
 	// column.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 	$has_user_parent = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME = %s
 				AND INDEX_NAME = 'user_parent'",
-			$tbl
+			$wpdb->desktop_mode_file_placements
 		)
 	);
 	if ( 0 < $has_user_parent ) {
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query( "ALTER TABLE `{$tbl}` RENAME INDEX `user_parent` TO `owner_parent`" );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Versioned schema migration.
+		$wpdb->query( "ALTER TABLE `{$wpdb->desktop_mode_file_placements}` RENAME INDEX `user_parent` TO `owner_parent`" );
 	}
 }
 
@@ -554,22 +558,20 @@ function openstation_files_rename_user_id_to_owner_id() {
  */
 function openstation_files_ensure_shares_table() {
 	global $wpdb;
-	$tables          = openstation_files_table_names();
-	$charset_collate = $wpdb->get_charset_collate();
-	$tbl             = $tables['shares'];
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME   = %s',
-			$tbl
+			$wpdb->desktop_mode_folder_shares
 		)
 	);
 	if ( 0 === $exists ) {
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Versioned schema migration.
 		$wpdb->query(
-			"CREATE TABLE IF NOT EXISTS `{$tbl}` (
+			"CREATE TABLE IF NOT EXISTS `{$wpdb->desktop_mode_folder_shares}` (
 				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 				target_type VARCHAR(32) NOT NULL DEFAULT 'folder',
 				folder_id BIGINT UNSIGNED NOT NULL,
@@ -584,18 +586,20 @@ function openstation_files_ensure_shares_table() {
 				UNIQUE KEY uniq_principal (target_type, folder_id, principal_type, principal_ref),
 				KEY by_principal (principal_type, principal_ref, state),
 				KEY target (target_type, folder_id)
-			) $charset_collate"
+			) {$wpdb->get_charset_collate()}"
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 	} else {
 		// Existing table — make sure `target_type` is there for
 		// installs that ran a pre-target_type build of v8.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 		$has_col = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
 				WHERE TABLE_SCHEMA = DATABASE()
 					AND TABLE_NAME = %s
 					AND COLUMN_NAME = %s',
-				$tbl,
+				$wpdb->desktop_mode_folder_shares,
 				'target_type'
 			)
 		);
@@ -604,8 +608,8 @@ function openstation_files_ensure_shares_table() {
 			// — concurrent worker that already added the column
 			// surfaces a benign MySQL 1060 we should swallow.
 			$prev_suppress = $wpdb->suppress_errors( true );
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->query( "ALTER TABLE `{$tbl}` ADD COLUMN `target_type` VARCHAR(32) NOT NULL DEFAULT 'folder' AFTER `id`" );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Versioned schema migration.
+			$wpdb->query( "ALTER TABLE `{$wpdb->desktop_mode_folder_shares}` ADD COLUMN `target_type` VARCHAR(32) NOT NULL DEFAULT 'folder' AFTER `id`" );
 			$wpdb->suppress_errors( $prev_suppress );
 		}
 	}
@@ -618,22 +622,20 @@ function openstation_files_ensure_shares_table() {
  */
 function openstation_files_ensure_decisions_table() {
 	global $wpdb;
-	$tables          = openstation_files_table_names();
-	$charset_collate = $wpdb->get_charset_collate();
-	$tbl             = $tables['decisions'];
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned schema migration; reads INFORMATION_SCHEMA fresh.
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
 			WHERE TABLE_SCHEMA = DATABASE()
 				AND TABLE_NAME   = %s',
-			$tbl
+			$wpdb->desktop_mode_share_user_decisions
 		)
 	);
 	if ( 0 === $exists ) {
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Versioned schema migration.
 		$wpdb->query(
-			"CREATE TABLE IF NOT EXISTS `{$tbl}` (
+			"CREATE TABLE IF NOT EXISTS `{$wpdb->desktop_mode_share_user_decisions}` (
 				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 				share_id BIGINT UNSIGNED NOT NULL,
 				user_id BIGINT UNSIGNED NOT NULL,
@@ -642,8 +644,9 @@ function openstation_files_ensure_decisions_table() {
 				PRIMARY KEY  (id),
 				UNIQUE KEY uniq_share_user (share_id, user_id),
 				KEY by_user (user_id, state)
-			) $charset_collate"
+			) {$wpdb->get_charset_collate()}"
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 	}
 }
 

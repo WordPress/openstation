@@ -145,45 +145,47 @@ function openstation_my_wordpress_woo_customer_spend_map() {
 
 	global $wpdb;
 
-	$statuses     = openstation_my_wordpress_woo_paid_statuses();
-	$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+	$statuses = openstation_my_wordpress_woo_paid_statuses();
 
-	if ( openstation_my_wordpress_woo_hpos_enabled() ) {
-		$table = $wpdb->prefix . 'wc_orders';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name and the placeholder list are structural; every value is prepared.
-		$sql = $wpdb->prepare(
-			"SELECT customer_id AS uid,
-				COUNT(*) AS orders,
-				SUM(total_amount) AS spend,
-				MIN(date_created_gmt) AS first_order,
-				MAX(date_created_gmt) AS last_order
-			FROM {$table}
-			WHERE type = 'shop_order' AND status IN ( {$placeholders} )
-			GROUP BY customer_id",
-			$statuses
+	if ( ! $statuses ) {
+		// No paid status (a filter emptied the list): nothing is paid.
+		$rows = array();
+	} elseif ( openstation_my_wordpress_woo_hpos_enabled() ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One grouped aggregate with no WooCommerce API equivalent; cached in the transient below.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT customer_id AS uid,
+					COUNT(*) AS orders,
+					SUM(total_amount) AS spend,
+					MIN(date_created_gmt) AS first_order,
+					MAX(date_created_gmt) AS last_order
+				FROM {$wpdb->prefix}wc_orders
+				WHERE type = 'shop_order' AND status IN (" . implode( ', ', array_fill( 0, count( $statuses ), '%s' ) ) . ')
+				GROUP BY customer_id',
+				$statuses
+			)
 		);
 	} else {
 		// Legacy storage: `_customer_user` is the account id (0 for a
 		// guest) and `_order_total` the gross. `+0` casts the meta
 		// strings so SUM/comparison behave numerically.
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ditto.
-		$sql = $wpdb->prepare(
-			"SELECT cu.meta_value + 0 AS uid,
-				COUNT(*) AS orders,
-				SUM( tot.meta_value + 0 ) AS spend,
-				MIN(p.post_date_gmt) AS first_order,
-				MAX(p.post_date_gmt) AS last_order
-			FROM {$wpdb->posts} p
-			INNER JOIN {$wpdb->postmeta} cu ON cu.post_id = p.ID AND cu.meta_key = '_customer_user'
-			LEFT JOIN {$wpdb->postmeta} tot ON tot.post_id = p.ID AND tot.meta_key = '_order_total'
-			WHERE p.post_type = 'shop_order' AND p.post_status IN ( {$placeholders} )
-			GROUP BY cu.meta_value",
-			$statuses
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One grouped aggregate with no WooCommerce API equivalent; cached in the transient below.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT cu.meta_value + 0 AS uid,
+					COUNT(*) AS orders,
+					SUM( tot.meta_value + 0 ) AS spend,
+					MIN(p.post_date_gmt) AS first_order,
+					MAX(p.post_date_gmt) AS last_order
+				FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->postmeta} cu ON cu.post_id = p.ID AND cu.meta_key = '_customer_user'
+				LEFT JOIN {$wpdb->postmeta} tot ON tot.post_id = p.ID AND tot.meta_key = '_order_total'
+				WHERE p.post_type = 'shop_order' AND p.post_status IN (" . implode( ', ', array_fill( 0, count( $statuses ), '%s' ) ) . ')
+				GROUP BY cu.meta_value',
+				$statuses
+			)
 		);
 	}
-
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- one grouped aggregate with no core API equivalent; $sql came out of $wpdb->prepare() above, and the result is cached in the transient below.
-	$rows = $wpdb->get_results( $sql );
 
 	$map = array();
 	foreach ( (array) $rows as $row ) {

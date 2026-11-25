@@ -13,20 +13,22 @@ function openstation_users_window_activity_summary() {
 	if ( ! current_user_can( 'list_users' ) ) {
 		return new WP_Error( 'openstation_users_forbidden', __( 'You are not allowed to list users.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
-	$scope = is_multisite() ? $wpdb->prepare( "EXISTS (SELECT 1 FROM {$wpdb->usermeta} membership WHERE membership.user_id = u.ID AND membership.meta_key = %s)", $wpdb->get_blog_prefix() . 'capabilities' ) : '1=1';
-	// The only interpolated identifiers belong to wpdb. Scope is prepared above.
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Trusted identifiers and a prepared membership predicate.
-	$sql = $wpdb->prepare(
-		"SELECT u.ID, u.display_name, u.user_registered, COALESCE(l.login, 0) AS login, COALESCE(p.posts, 0) AS posts, COALESCE(p.pages, 0) AS pages, COALESCE(c.comments, 0) AS comments
-		FROM {$wpdb->users} u
-		LEFT JOIN (SELECT user_id, MAX(CAST(meta_value AS UNSIGNED)) AS login FROM {$wpdb->usermeta} WHERE meta_key = %s GROUP BY user_id) l ON l.user_id = u.ID
-		LEFT JOIN (SELECT post_author, SUM(CASE WHEN post_type = 'post' THEN 1 ELSE 0 END) AS posts, SUM(CASE WHEN post_type = 'page' THEN 1 ELSE 0 END) AS pages FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN ('post', 'page') GROUP BY post_author) p ON p.post_author = u.ID
-		LEFT JOIN (SELECT user_id, COUNT(*) AS comments FROM {$wpdb->comments} WHERE comment_approved = '1' AND user_id > 0 GROUP BY user_id) c ON c.user_id = u.ID
-		WHERE {$scope}",
-		OPENSTATION_LAST_LOGIN_META_KEY
+	// On a network, only this site's members: the users table is shared.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-pass aggregate over users, usermeta, posts and comments with no WordPress API equivalent; read fresh for the dashboard.
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT u.ID, u.display_name, u.user_registered, COALESCE(l.login, 0) AS login, COALESCE(p.posts, 0) AS posts, COALESCE(p.pages, 0) AS pages, COALESCE(c.comments, 0) AS comments
+			FROM {$wpdb->users} u
+			LEFT JOIN (SELECT user_id, MAX(CAST(meta_value AS UNSIGNED)) AS login FROM {$wpdb->usermeta} WHERE meta_key = %s GROUP BY user_id) l ON l.user_id = u.ID
+			LEFT JOIN (SELECT post_author, SUM(CASE WHEN post_type = 'post' THEN 1 ELSE 0 END) AS posts, SUM(CASE WHEN post_type = 'page' THEN 1 ELSE 0 END) AS pages FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN ('post', 'page') GROUP BY post_author) p ON p.post_author = u.ID
+			LEFT JOIN (SELECT user_id, COUNT(*) AS comments FROM {$wpdb->comments} WHERE comment_approved = '1' AND user_id > 0 GROUP BY user_id) c ON c.user_id = u.ID
+			WHERE ( %d = 0 OR EXISTS (SELECT 1 FROM {$wpdb->usermeta} membership WHERE membership.user_id = u.ID AND membership.meta_key = %s) )",
+			OPENSTATION_LAST_LOGIN_META_KEY,
+			is_multisite() ? 1 : 0,
+			$wpdb->get_blog_prefix() . 'capabilities'
+		),
+		ARRAY_A
 	);
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared immediately above.
-	$rows = $wpdb->get_results( $sql, ARRAY_A );
 	if ( null === $rows || $wpdb->last_error ) {
 		return new WP_Error( 'openstation_users_activity_failed', __( 'Activity could not be loaded.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}

@@ -55,15 +55,15 @@ function openstation_stored_files_share_can_manage( $file_id, $user_id ) {
  */
 function openstation_stored_files_get_file_shares( $file_id ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$rows   = $wpdb->get_results(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; share rows decide access, so they are read fresh.
+	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']} WHERE target_type = 'file' AND folder_id = %d ORDER BY invited_at_ms ASC, id ASC",
+			"SELECT * FROM {$wpdb->desktop_mode_folder_shares} WHERE target_type = 'file' AND folder_id = %d ORDER BY invited_at_ms ASC, id ASC",
 			(int) $file_id
 		),
 		ARRAY_A
 	);
-	$out    = array();
+	$out  = array();
 	foreach ( (array) $rows as $row ) {
 		$out[] = openstation_files_normalize_share_row( $row );
 	}
@@ -80,10 +80,10 @@ function openstation_stored_files_get_file_shares( $file_id ) {
  */
 function openstation_stored_file_share_state( $file_id, $user_id ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$state  = $wpdb->get_var(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; share rows decide access, so they are read fresh.
+	$state = $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT state FROM {$tables['shares']}
+			"SELECT state FROM {$wpdb->desktop_mode_folder_shares}
 			WHERE target_type = 'file' AND folder_id = %d
 				AND principal_type = 'user' AND principal_ref = %s",
 			(int) $file_id,
@@ -128,15 +128,15 @@ function openstation_stored_file_share_invite( $file_id, $actor_id, $recipient_u
 		return new WP_Error( 'openstation_files_ineligible_principal', __( 'This user is not eligible.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
-	$tables = openstation_files_table_names();
-	$now    = openstation_files_now_ms();
+	$now = openstation_files_now_ms();
 
 	// Idempotent invite, mirroring the folder rules: denied →
 	// pending again; pending/accepted keep their state. Capability
 	// stays 'read' unconditionally.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; read-before-write on share rows, so it reads fresh.
 	$existing = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']}
+			"SELECT * FROM {$wpdb->desktop_mode_folder_shares}
 			WHERE target_type = 'file' AND folder_id = %d
 				AND principal_type = 'user' AND principal_ref = %s",
 			$file_id,
@@ -158,10 +158,12 @@ function openstation_stored_file_share_invite( $file_id, $actor_id, $recipient_u
 			$set['decided_at_ms'] = null;
 			$fmt[]                = '%s';
 		}
-		$wpdb->update( $tables['shares'], $set, array( 'id' => $id ), $fmt, array( '%d' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches it.
+		$wpdb->update( $wpdb->desktop_mode_folder_shares, $set, array( 'id' => $id ), $fmt, array( '%d' ) );
 	} else {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table, no WP API.
 		$ok = $wpdb->insert(
-			$tables['shares'],
+			$wpdb->desktop_mode_folder_shares,
 			array(
 				'target_type'    => 'file',
 				'folder_id'      => $file_id,
@@ -210,8 +212,8 @@ function openstation_stored_file_share_accept( $share_id, $user_id ) {
 	if ( 'accepted' === $row['state'] ) {
 		// A previous attempt may have accepted the invite but failed to plant
 		// its tile (for example, a busy upload lock). Allow that step to retry.
-		$tables = openstation_files_table_names();
-		$placed = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$tables['placements']} WHERE owner_id = %d AND file_type = 'upload' AND file_ref = %s LIMIT 1", $user_id, (string) $row['folder_id'] ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; read-before-write on the recipient's tile, so it reads fresh.
+		$placed = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->desktop_mode_file_placements} WHERE owner_id = %d AND file_type = 'upload' AND file_ref = %s LIMIT 1", $user_id, (string) $row['folder_id'] ) );
 		if ( $placed ) {
 			return $row;
 		}
@@ -220,9 +222,9 @@ function openstation_stored_file_share_accept( $share_id, $user_id ) {
 		return new WP_Error( 'openstation_files_share_already_denied', __( 'This invite was denied.', 'desktop-mode' ), array( 'status' => 410 ) );
 	}
 
-	$tables = openstation_files_table_names();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches it.
 	$wpdb->update(
-		$tables['shares'],
+		$wpdb->desktop_mode_folder_shares,
 		array(
 			'state'         => 'accepted',
 			'decided_at_ms' => openstation_files_now_ms(),
@@ -273,9 +275,9 @@ function openstation_stored_file_share_deny( $share_id, $user_id ) {
 	}
 	$was_accepted = 'accepted' === $row['state'];
 
-	$tables = openstation_files_table_names();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches it.
 	$wpdb->update(
-		$tables['shares'],
+		$wpdb->desktop_mode_folder_shares,
 		array(
 			'state'         => 'denied',
 			'decided_at_ms' => openstation_files_now_ms(),
@@ -315,10 +317,10 @@ function openstation_stored_file_share_leave( $file_id, $user_id ) {
 		return new WP_Error( 'openstation_files_owner_cannot_leave', __( 'Owners cannot leave their own file.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
-	$tables = openstation_files_table_names();
-	$row    = $wpdb->get_row(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; read-before-write on share rows, so it reads fresh.
+	$row = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']}
+			"SELECT * FROM {$wpdb->desktop_mode_folder_shares}
 			WHERE target_type = 'file' AND folder_id = %d
 				AND principal_type = 'user' AND principal_ref = %s",
 			$file_id,
@@ -335,8 +337,9 @@ function openstation_stored_file_share_leave( $file_id, $user_id ) {
 		return new WP_Error( 'openstation_files_not_member', __( 'You do not have access to this file.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	$normalized = openstation_files_normalize_share_row( $row );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches it.
 	$wpdb->update(
-		$tables['shares'],
+		$wpdb->desktop_mode_folder_shares,
 		array(
 			'state'         => 'denied',
 			'decided_at_ms' => openstation_files_now_ms(),
@@ -371,9 +374,10 @@ function openstation_stored_file_share_revoke( $share_id, $actor_id ) {
 		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot manage shares for this file.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
-	$tables = openstation_files_table_names();
-	$wpdb->delete( $tables['shares'], array( 'id' => $share_id ), array( '%d' ) );
-	$wpdb->delete( $tables['decisions'], array( 'share_id' => $share_id ), array( '%d' ) );
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; write path, nothing caches them.
+	$wpdb->delete( $wpdb->desktop_mode_folder_shares, array( 'id' => $share_id ), array( '%d' ) );
+	$wpdb->delete( $wpdb->desktop_mode_share_user_decisions, array( 'share_id' => $share_id ), array( '%d' ) );
+	// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 	if ( 'accepted' === $row['state'] ) {
 		openstation_files_trash_upload_for_user( (int) $row['folder_id'], (int) $row['principal_ref'] );
@@ -404,11 +408,11 @@ function openstation_files_trash_upload_for_user( $file_id, $user_id ) {
 	if ( $file_id <= 0 || $user_id <= 0 ) {
 		return 0;
 	}
-	$tables = openstation_files_table_names();
-	$now    = openstation_files_now_ms();
-	$rows   = $wpdb->get_results(
+	$now = openstation_files_now_ms();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; picks the live rows this call trashes, so it reads fresh.
+	$rows  = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['placements']}
+			"SELECT id FROM {$wpdb->desktop_mode_file_placements}
 			WHERE owner_id = %d
 				AND file_type = 'upload'
 				AND file_ref = %s
@@ -418,10 +422,11 @@ function openstation_files_trash_upload_for_user( $file_id, $user_id ) {
 		),
 		ARRAY_A
 	);
-	$count  = 0;
+	$count = 0;
 	foreach ( (array) $rows as $row ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches it.
 		$wpdb->update(
-			$tables['placements'],
+			$wpdb->desktop_mode_file_placements,
 			array(
 				'trashed_at_ms' => $now,
 				'trashed_by'    => $user_id,
@@ -449,11 +454,11 @@ function openstation_files_get_pending_file_shares_for_user( $user_id, $since_ms
 	if ( $user_id <= 0 ) {
 		return array();
 	}
-	$tables = openstation_files_table_names();
-	$rows   = $wpdb->get_results(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; share rows decide access, so they are read fresh.
+	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT s.* FROM {$tables['shares']} s
-			INNER JOIN {$tables['stored_files']} sf ON sf.id = s.folder_id
+			"SELECT s.* FROM {$wpdb->desktop_mode_folder_shares} s
+			INNER JOIN {$wpdb->desktop_mode_stored_files} sf ON sf.id = s.folder_id
 			WHERE s.target_type = 'file'
 				AND s.state = 'pending'
 				AND s.invited_at_ms > %d
@@ -465,7 +470,7 @@ function openstation_files_get_pending_file_shares_for_user( $user_id, $since_ms
 		),
 		ARRAY_A
 	);
-	$out    = array();
+	$out  = array();
 	foreach ( (array) $rows as $row ) {
 		$out[] = openstation_files_normalize_share_row( $row );
 	}

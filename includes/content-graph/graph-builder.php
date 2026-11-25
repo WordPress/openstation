@@ -263,9 +263,9 @@ function openstation_content_graph_normalize_types( array $types ) {
 }
 
 /**
- * Build the SQL WHERE fragment (plus its `prepare()` values and a
- * cache-key signature) scoping graph rows to posts the current user
- * is allowed to read.
+ * Build the `prepare()` values (plus a cache-key signature) for the
+ * WHERE clause scoping graph rows to posts the current user is allowed
+ * to read.
  *
  * Published posts are always in scope. Private posts of a type are
  * only included when the user holds that type's `read_private_posts`
@@ -273,17 +273,26 @@ function openstation_content_graph_normalize_types( array $types ) {
  * private posts (mirroring core's `WP_Query` status semantics for
  * logged-in users).
  *
+ * Both graph queries write the clause out literally, so every value is
+ * visibly bound through `prepare()`:
+ *
+ *     post_type IN ( <types> )
+ *     AND ( post_status = 'publish'
+ *       OR ( post_status = 'private' AND post_type IN ( <priv> ) )
+ *       OR ( post_status = 'private' AND post_author = %d AND %d > 0 ) )
+ *
+ * `priv` is never empty: with no privately readable type it holds '',
+ * which no post type in scope matches. The own-posts arm binds 0 when
+ * it does not apply, and its `> 0` guard switches it off.
+ *
  * The `key` element encodes the resulting privilege tier (and, when
  * the own-author clause is active, the user id) so cached payloads
  * are never served across privilege levels.
  *
  * @param string[] $types Already normalized.
- * @return array{ where: string, values: array, key: string }
+ * @return array{ priv: string[], values: array, key: string }
  */
 function openstation_content_graph_visibility_sql( array $types ) {
-	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
-	$values       = $types;
-
 	$priv_types = array();
 	foreach ( $types as $type ) {
 		$type_obj = get_post_type_object( $type );
@@ -295,27 +304,19 @@ function openstation_content_graph_visibility_sql( array $types ) {
 		}
 	}
 
-	$status_clauses = array( "post_status = 'publish'" );
-	$key_parts      = array( 'priv=' . implode( ',', $priv_types ) );
+	$key_parts = array( 'priv=' . implode( ',', $priv_types ) );
+	$priv      = $priv_types ? $priv_types : array( '' );
 
-	if ( ! empty( $priv_types ) ) {
-		$priv_placeholders = implode( ',', array_fill( 0, count( $priv_types ), '%s' ) );
-		$status_clauses[]  = "( post_status = 'private' AND post_type IN ( {$priv_placeholders} ) )";
-		$values            = array_merge( $values, $priv_types );
-	}
-
+	$own_id  = 0;
 	$user_id = get_current_user_id();
 	if ( $user_id > 0 && count( $priv_types ) < count( $types ) ) {
-		$status_clauses[] = "( post_status = 'private' AND post_author = %d )";
-		$values[]         = $user_id;
-		$key_parts[]      = 'own=' . $user_id;
+		$own_id      = $user_id;
+		$key_parts[] = 'own=' . $user_id;
 	}
 
-	$where = "post_type IN ( {$placeholders} ) AND ( " . implode( ' OR ', $status_clauses ) . ' )';
-
 	return array(
-		'where'  => $where,
-		'values' => $values,
+		'priv'   => $priv,
+		'values' => array_merge( $types, $priv, array( $own_id, $own_id ) ),
 		'key'    => implode( '|', $key_parts ),
 	);
 }
@@ -333,16 +334,18 @@ function openstation_content_graph_visibility_sql( array $types ) {
 function openstation_content_graph_cache_key( array $types ) {
 	global $wpdb;
 	$visibility = openstation_content_graph_visibility_sql( $types );
-	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Fingerprint the transient is keyed on, so it must be read fresh; WordPress has no API for it.
 	$hash = (string) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MD5( GROUP_CONCAT( CONCAT( ID, ':', post_modified_gmt ) ORDER BY ID ) )
 			 FROM {$wpdb->posts}
-			 WHERE {$visibility['where']}",
+			 WHERE post_type IN (" . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ")
+			 AND ( post_status = 'publish'
+				OR ( post_status = 'private' AND post_type IN (" . implode( ',', array_fill( 0, count( $visibility['priv'] ), '%s' ) ) . ") )
+				OR ( post_status = 'private' AND post_author = %d AND %d > 0 ) )",
 			$visibility['values']
 		)
 	);
-	// phpcs:enable
 	if ( '' === $hash || null === $hash ) {
 		$hash = 'empty';
 	}
@@ -365,17 +368,19 @@ function openstation_content_graph_cache_key( array $types ) {
 function openstation_content_graph_fetch_rows( array $types ) {
 	global $wpdb;
 	$visibility = openstation_content_graph_visibility_sql( $types );
-	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Every in-scope post with its content in one query, which WP_Query's private-post rules cannot express; the graph is cached in a transient by the caller.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date
 			 FROM {$wpdb->posts}
-			 WHERE {$visibility['where']}
+			 WHERE post_type IN (" . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ")
+			 AND ( post_status = 'publish'
+				OR ( post_status = 'private' AND post_type IN (" . implode( ',', array_fill( 0, count( $visibility['priv'] ), '%s' ) ) . ") )
+				OR ( post_status = 'private' AND post_author = %d AND %d > 0 ) )
 			 ORDER BY post_date DESC",
 			$visibility['values']
 		)
 	);
-	// phpcs:enable
 
 	if ( ! is_array( $rows ) ) {
 		return array();
@@ -465,14 +470,13 @@ function openstation_content_graph_flush_cache() {
 	// hook doesn't update `post_modified_gmt`, so the cache key stayed
 	// identical and `get_transient` (cache hit) returned pre-retag data.
 	$prefix_like = $wpdb->esc_like( '_transient_' . OPENSTATION_CONTENT_GRAPH_TRANSIENT_PREFIX ) . '%';
-	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- WordPress cannot list transients by prefix; this finds the ones to delete.
 	$option_names = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
 			$prefix_like
 		)
 	);
-	// phpcs:enable
 	if ( ! is_array( $option_names ) || empty( $option_names ) ) {
 		return;
 	}
@@ -507,21 +511,19 @@ function openstation_content_graph_collect_post_terms( array $post_ids ) {
 		return array();
 	}
 	global $wpdb;
-	$placeholders = implode( ',', array_fill( 0, count( $post_ids ), '%d' ) );
-	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Raw term ids for every node in one query, untouched by term-query filters; the graph is cached in a transient by the caller.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT tr.object_id, tt.term_id, tt.taxonomy
 			 FROM {$wpdb->term_relationships} tr
 			 INNER JOIN {$wpdb->term_taxonomy} tt
 			   ON tr.term_taxonomy_id = tt.term_taxonomy_id
-			 WHERE tr.object_id IN ( {$placeholders} )
+			 WHERE tr.object_id IN (" . implode( ',', array_fill( 0, count( $post_ids ), '%d' ) ) . ")
 			 AND tt.taxonomy IN ( 'category', 'post_tag' )",
 			$post_ids
 		)
 	);
-	// phpcs:enable
-	$out = array();
+	$out  = array();
 	if ( ! is_array( $rows ) ) {
 		return $out;
 	}
@@ -561,21 +563,19 @@ function openstation_content_graph_collect_post_contributors( array $post_ids ) 
 		return array();
 	}
 	global $wpdb;
-	$placeholders = implode( ',', array_fill( 0, count( $post_ids ), '%d' ) );
-	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- GROUP BY over every node's revisions in one query, with no WordPress API equivalent; the graph is cached in a transient by the caller.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT post_parent AS post_id, post_author
 			 FROM {$wpdb->posts}
 			 WHERE post_type = 'revision'
-			 AND post_parent IN ( {$placeholders} )
+			 AND post_parent IN (" . implode( ',', array_fill( 0, count( $post_ids ), '%d' ) ) . ')
 			 AND post_author > 0
-			 GROUP BY post_parent, post_author",
+			 GROUP BY post_parent, post_author',
 			$post_ids
 		)
 	);
-	// phpcs:enable
-	$out = array();
+	$out  = array();
 	if ( ! is_array( $rows ) ) {
 		return $out;
 	}

@@ -373,6 +373,25 @@ function openstation_site_table_names() {
 }
 
 /**
+ * Names the plugin's per-site tables on `$wpdb`, as Core names its own
+ * (`$wpdb->posts`) and WooCommerce names its: queries read
+ * `{$wpdb->desktop_mode_file_placements}` rather than a prefix glued on
+ * by hand. Listed in `$wpdb->tables`, so `switch_to_blog()` re-prefixes
+ * them with Core's; the names are the frozen ones above, so nothing is
+ * renamed. Runs as the plugin loads, before any module queries.
+ */
+function openstation_register_wpdb_tables() {
+	global $wpdb;
+	foreach ( openstation_site_table_names() as $name ) {
+		$wpdb->$name = $wpdb->get_blog_prefix() . $name;
+		if ( ! in_array( $name, $wpdb->tables, true ) ) {
+			$wpdb->tables[] = $name;
+		}
+	}
+}
+openstation_register_wpdb_tables();
+
+/**
  * Adds the plugin's tables to the set Core drops when a site is
  * deleted. Without this, every deleted subsite left its
  * `wp_N_desktop_mode_*` tables behind forever.

@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       OpenStation
+ * Plugin Name:       OpenStation – Admin Dashboard Notes, Custom Dashboard, AI Assistant & PWA
  * Plugin URI:        https://openstation.me
  * Description:       Renders the WordPress admin as a desktop OS. Admin screens become draggable, resizable, minimizable windows floating on a desktop with a dock. Purely opt-in per user.
  * Version:           1.1.21

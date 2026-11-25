@@ -16,6 +16,8 @@ class Tests_OpenStation_PersistenceConcurrency extends WP_UnitTestCase {
 		global $wpdb;
 		$this->prefix = $wpdb->prefix . 'osrace_' . substr( md5( wp_generate_uuid4() ), 0, 8 ) . '_';
 		$this->db = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
+		// A bare instance has none of the tables the plugin names on $wpdb.
+		$this->db->tables = array_merge( $this->db->tables, array( 'desktop_mode_stored_files', 'openstation_presence' ) );
 		$this->db->set_prefix( $this->prefix );
 		$this->db->set_blog_id( 1 );
 		// Bypass WP_UnitTestCase's CREATE TEMPORARY TABLE rewrite: other

@@ -123,6 +123,7 @@ function openstation_user_edit_window_content_by_month( $id ) {
 	for ( $i = 11; $i >= 0; $i-- ) {
 		$buckets[ gmdate( 'Y-m', strtotime( "-{$i} months", $now ) ) ] = 0;
 	}
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- GROUP BY month with no WordPress API equivalent; the insights payload is cached in a transient.
 	$rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE_FORMAT( post_date_gmt, '%%Y-%%m' ) AS bucket, COUNT(*) AS cnt
@@ -219,6 +220,7 @@ function openstation_user_edit_window_compute_insights( WP_User $user ) {
 	$filled              = count( array_filter( array_map( 'trim', array_map( 'strval', $completeness_fields ) ) ) );
 	$total               = count( $completeness_fields );
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- COUNT over every comment type, which get_comments() would narrow; the insights payload is cached in a transient.
 	$received_comments = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(c.comment_ID) FROM {$wpdb->comments} c

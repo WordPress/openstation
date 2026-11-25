@@ -214,10 +214,10 @@ function openstation_stored_files_create_locked( $owner_id, $args ) {
 		$display = __( 'file', 'desktop-mode' );
 	}
 
-	$tables = openstation_files_table_names();
-	$now    = openstation_files_now_ms();
-	$ok     = $wpdb->insert(
-		$tables['stored_files'],
+	$now = openstation_files_now_ms();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table; WordPress has no API for it.
+	$ok = $wpdb->insert(
+		$wpdb->desktop_mode_stored_files,
 		array(
 			'owner_id'      => $owner_id,
 			'display_name'  => $display,
@@ -249,9 +249,9 @@ function openstation_stored_files_get( $file_id ) {
 	if ( $file_id <= 0 ) {
 		return null;
 	}
-	$tables = openstation_files_table_names();
-	$row    = $wpdb->get_row(
-		$wpdb->prepare( "SELECT * FROM {$tables['stored_files']} WHERE id = %d", $file_id ),
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; decides who owns the file, must be read fresh.
+	$row = $wpdb->get_row(
+		$wpdb->prepare( "SELECT * FROM {$wpdb->desktop_mode_stored_files} WHERE id = %d", $file_id ),
 		ARRAY_A
 	);
 	if ( ! $row ) {
@@ -300,10 +300,10 @@ function openstation_stored_files_rename( $file_id, $name ) {
 	if ( '' === $name ) {
 		return new WP_Error( 'openstation_stored_files_bad_name', __( 'A file name is required.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
-	$tables = openstation_files_table_names();
-	$now    = openstation_files_now_ms();
+	$now = openstation_files_now_ms();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
 	$wpdb->update(
-		$tables['stored_files'],
+		$wpdb->desktop_mode_stored_files,
 		array(
 			'display_name'  => $name,
 			'updated_at_ms' => $now,
@@ -317,9 +317,10 @@ function openstation_stored_files_rename( $file_id, $name ) {
 	// re-delivers each with a fresh `file.title` — same lock-step
 	// rule the folder rename uses (tile titles are captured on the
 	// placement shape, not read live).
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
 	$wpdb->query(
 		$wpdb->prepare(
-			"UPDATE {$tables['placements']} SET updated_at_ms = %d
+			"UPDATE {$wpdb->desktop_mode_file_placements} SET updated_at_ms = %d
 			WHERE file_type = %s AND file_ref = %s",
 			$now,
 			'upload',
@@ -381,8 +382,8 @@ function openstation_stored_files_delete( $file_id ) {
 	if ( $path && file_exists( $path ) ) {
 		wp_delete_file( $path );
 	}
-	$tables = openstation_files_table_names();
-	$wpdb->delete( $tables['stored_files'], array( 'id' => (int) $row['id'] ), array( '%d' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
+	$wpdb->delete( $wpdb->desktop_mode_stored_files, array( 'id' => (int) $row['id'] ), array( '%d' ) );
 
 	/**
 	 * Fires after a stored file (row + bytes) is deleted.
@@ -410,28 +411,29 @@ function openstation_stored_files_purge( $file_id ) {
 	if ( ! $row ) {
 		return new WP_Error( 'openstation_stored_files_not_found', __( 'Stored file not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	$tables = openstation_files_table_names();
-
 	// Remaining placements (trashed included — the file is going
 	// away for good, a recycle-bin restore must not resurrect a
 	// tile pointing at deleted bytes).
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; feeds the deletes below, must be read fresh.
 	$placement_ids = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['placements']}
+			"SELECT id FROM {$wpdb->desktop_mode_file_placements}
 			WHERE file_type = %s AND file_ref = %s",
 			'upload',
 			(string) $file_id
 		)
 	);
 	foreach ( (array) $placement_ids as $pid ) {
-		$wpdb->delete( $tables['placements'], array( 'id' => (int) $pid ), array( '%d' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
+		$wpdb->delete( $wpdb->desktop_mode_file_placements, array( 'id' => (int) $pid ), array( '%d' ) );
 		openstation_files_write_tombstone( 'placement', (int) $pid );
 	}
 
 	// File shares (target_type='file'). The shares table keys the
 	// target id on the historically-named `folder_id` column.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
 	$wpdb->delete(
-		$tables['shares'],
+		$wpdb->desktop_mode_folder_shares,
 		array(
 			'target_type' => 'file',
 			'folder_id'   => $file_id,
@@ -450,10 +452,10 @@ function openstation_stored_files_purge( $file_id ) {
  */
 function openstation_stored_files_total_bytes( $owner_id ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; enforces the upload quota, must be read fresh.
 	return (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COALESCE( SUM( size_bytes ), 0 ) FROM {$tables['stored_files']} WHERE owner_id = %d",
+			"SELECT COALESCE( SUM( size_bytes ), 0 ) FROM {$wpdb->desktop_mode_stored_files} WHERE owner_id = %d",
 			(int) $owner_id
 		)
 	);
@@ -540,10 +542,10 @@ function openstation_stored_file_user_can_read( $file_id, $user_id ) {
 	// Nobody else can move the owner's upload placements (see
 	// `openstation_files_upload_owner_lock()`), so this set is exactly
 	// the owner's intent.
-	$tables  = openstation_files_table_names();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; decides who can read the file, must be read fresh.
 	$parents = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT DISTINCT parent_id FROM {$tables['placements']}
+			"SELECT DISTINCT parent_id FROM {$wpdb->desktop_mode_file_placements}
 			WHERE file_type = %s AND file_ref = %s
 				AND owner_id = %d
 				AND parent_id > 0
@@ -606,10 +608,10 @@ function openstation_stored_files_handle_unplaced( $placement_id, $row ) {
 	if ( (int) $row['owner_id'] !== (int) $file['owner_id'] ) {
 		return; // A recipient's tile went away; bytes stay.
 	}
-	$tables    = openstation_files_table_names();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; decides whether the file is purged, must be read fresh.
 	$remaining = (int) $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT COUNT(*) FROM {$tables['placements']}
+			"SELECT COUNT(*) FROM {$wpdb->desktop_mode_file_placements}
 			WHERE file_type = %s AND file_ref = %s AND owner_id = %d",
 			'upload',
 			(string) $file_id,
@@ -637,9 +639,9 @@ function openstation_stored_files_handle_deleted_user( $user_id ) {
 	if ( $user_id <= 0 ) {
 		return;
 	}
-	$tables = openstation_files_table_names();
-	$ids    = $wpdb->get_col(
-		$wpdb->prepare( "SELECT id FROM {$tables['stored_files']} WHERE owner_id = %d", $user_id )
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; feeds the purge below, must be read fresh.
+	$ids = $wpdb->get_col(
+		$wpdb->prepare( "SELECT id FROM {$wpdb->desktop_mode_stored_files} WHERE owner_id = %d", $user_id )
 	);
 	foreach ( (array) $ids as $file_id ) {
 		openstation_stored_files_purge( (int) $file_id );

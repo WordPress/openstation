@@ -220,6 +220,13 @@ created on activation and, if missing, lazily on `init`, `admin_init` and
 constant (`includes/desktop-files/schema.php`, `includes/games/schema.php`).
 Timestamps are epoch milliseconds in `BIGINT` columns, not `DATETIME`.
 
+Every per-site table, `openstation_presence` included, is also named on
+`$wpdb` (`openstation_register_wpdb_tables()` in `includes/multisite.php`),
+as Core names its own: SQL reads `{$wpdb->desktop_mode_file_placements}`,
+never a prefix glued on by hand, and `switch_to_blog()` re-prefixes it with
+Core's tables. A query on these tables that has no WordPress API carries a
+scoped `phpcs:ignore` that says so.
+
 | Table | Module | What it holds | Created by |
 |---|---|---|---|
 | `desktop_mode_stored_files` | Files | One uploaded file per row. The bytes live at `uploads/desktop-mode-files/{owner_id}/{disk_name}`; the table is the only source of name, size and MIME. | `dbDelta` |

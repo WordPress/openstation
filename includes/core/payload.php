@@ -1496,6 +1496,7 @@ function openstation_registrant_file_from_backtrace() {
 		return null;
 	}
 
+	// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace -- Not debugging: the call stack is the only record of which extension's file called register_post_type() / register_taxonomy().
 	$bt = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 20 );
 	foreach ( $bt as $frame ) {
 		if ( empty( $frame['file'] ) ) {

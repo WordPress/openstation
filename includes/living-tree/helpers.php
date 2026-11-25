@@ -26,9 +26,11 @@ defined( 'ABSPATH' ) || exit;
 function openstation_living_tree_install_epoch() {
 	global $wpdb;
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MIN aggregate with no WordPress API equivalent; the snapshot is cached in a transient.
 	$oldest_user = $wpdb->get_var(
 		"SELECT MIN( user_registered ) FROM {$wpdb->users}"
 	);
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MIN aggregate with no WordPress API equivalent; the snapshot is cached in a transient.
 	$oldest_post = $wpdb->get_var(
 		"SELECT MIN( post_date_gmt ) FROM {$wpdb->posts}
 		WHERE post_status = 'publish' AND post_date_gmt > '1970-01-01 00:00:01'"
@@ -133,7 +135,8 @@ function openstation_living_tree_meta_views() {
 	for ( $i = 0; $i < 14; $i++ ) {
 		$date     = gmdate( 'Y-m-d', strtotime( $today . ' -' . $i . ' days' ) );
 		$meta_key = '_post_views_' . $date;
-		$total   += (int) $wpdb->get_var(
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- SUM over one meta key site-wide, with no WordPress API equivalent; the snapshot is cached in a transient.
+		$total += (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COALESCE( SUM( CAST( meta_value AS UNSIGNED ) ), 0 )
 				FROM {$wpdb->postmeta}
@@ -278,6 +281,7 @@ function openstation_living_tree_site_health_performance() {
 function openstation_living_tree_branch_dna() {
 	global $wpdb;
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- GROUP BY year with no WordPress API equivalent; the snapshot is cached in a transient.
 	$rows = $wpdb->get_results(
 		"SELECT YEAR( post_date_gmt ) AS y, COUNT(*) AS n
 		FROM {$wpdb->posts}

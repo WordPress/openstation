@@ -643,7 +643,6 @@ function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $re
 		return new WP_Error( 'openstation_stored_files_path_too_deep', __( 'That folder tree is nested too deeply.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
-	$tables = openstation_files_table_names();
 	foreach ( $segments as $segment ) {
 		if ( '.' === $segment || '..' === $segment ) {
 			return new WP_Error( 'openstation_stored_files_bad_path', __( 'Invalid path.', 'desktop-mode' ), array( 'status' => 400 ) );
@@ -655,10 +654,11 @@ function openstation_files_resolve_relative_path( $user_id, $base_parent_id, $re
 
 		// Dedupe: a live folder of this name, placed in this parent,
 		// owned by the acting user.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; dedupes against folders created moments ago, must be read fresh.
 		$existing = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT f.id FROM {$tables['folders']} f
-				INNER JOIN {$tables['placements']} p
+				"SELECT f.id FROM {$wpdb->desktop_mode_folders} f
+				INNER JOIN {$wpdb->desktop_mode_file_placements} p
 					ON p.file_type = 'folder'
 					AND p.file_ref = CAST( f.id AS CHAR )
 					AND p.trashed_at_ms IS NULL

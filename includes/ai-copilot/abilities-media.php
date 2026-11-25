@@ -162,8 +162,9 @@ function openstation_ai_search_media( $input ) {
 function openstation_ai_find_unused_media( $input ) {
 	global $wpdb;
 
-	$offset  = max( 0, (int) $input['offset'] );
-	$type    = $input['type'] ?? 'image';
+	$offset = max( 0, (int) $input['offset'] );
+	$type   = $input['type'] ?? 'image';
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The whole library with each file path in one query, untouched by query filters; read fresh so in-use media is never reported unused.
 	$library = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT p.*, m.meta_value AS file FROM {$wpdb->posts} p
@@ -202,10 +203,12 @@ function openstation_ai_media_references() {
 	global $wpdb;
 
 	$refs = array_fill_keys( array( (int) get_option( 'site_icon' ), (int) get_theme_mod( 'custom_logo' ) ), true );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Every value of two meta keys site-wide, which no WordPress API lists; read fresh so in-use media is never reported unused.
 	foreach ( $wpdb->get_col( "SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key IN ( '_thumbnail_id', '_product_image_gallery' )" ) as $ids ) {
 		$refs += array_fill_keys( array_map( 'intval', explode( ',', $ids ) ), true );
 	}
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- WordPress cannot list options by prefix; read fresh so in-use media is never reported unused.
 	$texts   = $wpdb->get_col( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name LIKE %s", 'widget\_%' ) );
 	$texts[] = get_theme_mod( 'header_image' ) . ' ' . get_theme_mod( 'background_image' );
 	foreach ( $texts as $text ) {
@@ -214,6 +217,7 @@ function openstation_ai_media_references() {
 
 	$last = 0;
 	do {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Keyset scan of every post's content in batches, untouched by query filters; read fresh so in-use media is never reported unused.
 		$posts = $wpdb->get_results( $wpdb->prepare( "SELECT ID, post_content FROM {$wpdb->posts} WHERE ID > %d AND post_type NOT IN ( 'attachment', 'revision' ) AND post_status <> 'auto-draft' ORDER BY ID LIMIT 500", $last ) );
 		foreach ( $posts as $post ) {
 			$last = (int) $post->ID;

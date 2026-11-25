@@ -137,11 +137,10 @@ function reply_counts( array $ids ) {
 	if ( array() === $ids ) {
 		return $out;
 	}
-	$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-	$rows         = $wpdb->get_results(
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$placeholders` is a list of `%d`; the values are bound below.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One grouped COUNT for a whole page, where get_comments() counts one parent per query; memoised with the rail page.
+	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT comment_parent, COUNT(*) AS n FROM {$wpdb->comments} WHERE comment_parent IN ( $placeholders ) AND comment_approved IN ( '1', '0' ) GROUP BY comment_parent",
+			"SELECT comment_parent, COUNT(*) AS n FROM {$wpdb->comments} WHERE comment_approved IN ( '1', '0' ) AND comment_parent IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') GROUP BY comment_parent',
 			$ids
 		),
 		ARRAY_A

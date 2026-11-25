@@ -100,7 +100,10 @@ function openstation_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
 		}
 	}
 
-	$builder = wp_ai_client_prompt( $prompt );
+	$builder = openstation_ai_client_prompt( $prompt );
+	if ( is_wp_error( $builder ) ) {
+		return $builder;
+	}
 	if ( '' !== $system ) {
 		$builder = $builder->using_system_instruction( $system );
 	}

@@ -25,6 +25,7 @@ function openstation_stored_files_locked( $callback, $cleanup = false ) {
 	global $wpdb;
 	openstation_storage_use_primary();
 	$name = 'os-files-' . md5( $wpdb->dbname . ':' . $wpdb->prefix );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MySQL advisory lock; WordPress has no API for it, and a lock is never cached.
 	$lock = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 5)', $name ) );
 	// SQLite translates GET_LOCK to a successful no-op. Keep intake working,
 	// but never run destructive reconciliation without mutual exclusion.
@@ -37,6 +38,7 @@ function openstation_stored_files_locked( $callback, $cleanup = false ) {
 	try {
 		return $callback();
 	} finally {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MySQL advisory lock; WordPress has no API for it, and a lock is never cached.
 		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) );
 	}
 }
@@ -54,8 +56,8 @@ function openstation_stored_files_place_insert( $ref, $insert ) {
 	return openstation_stored_files_locked(
 		static function () use ( $ref, $insert ) {
 			global $wpdb;
-			$tables = openstation_files_table_names();
-			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$tables['stored_files']} WHERE id = %d FOR UPDATE", (int) $ref ) );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; locking read under the storage lock, must be read fresh.
+			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->desktop_mode_stored_files} WHERE id = %d FOR UPDATE", (int) $ref ) );
 			if ( '' !== $wpdb->last_error ) {
 				return new WP_Error( 'openstation_storage_unavailable', __( 'File storage is unavailable. Please try again.', 'desktop-mode' ), array( 'status' => 503 ) );
 			}
@@ -100,12 +102,12 @@ function openstation_stored_files_reconcile_failed( $stage ) {
  */
 function openstation_stored_files_reconcile_row( $id, $cutoff_ms ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$row    = $wpdb->get_row(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; rechecked under the storage lock, must be read fresh.
+	$row = $wpdb->get_row(
 		$wpdb->prepare(
-			"SELECT sf.* FROM {$tables['stored_files']} sf
+			"SELECT sf.* FROM {$wpdb->desktop_mode_stored_files} sf
 			WHERE sf.id = %d AND sf.created_at_ms < %d
-			AND NOT EXISTS (SELECT 1 FROM {$tables['placements']} p
+			AND NOT EXISTS (SELECT 1 FROM {$wpdb->desktop_mode_file_placements} p
 				WHERE p.file_type = 'upload' AND p.file_ref = CAST(sf.id AS CHAR))",
 			$id,
 			$cutoff_ms
@@ -118,11 +120,12 @@ function openstation_stored_files_reconcile_row( $id, $cutoff_ms ) {
 	if ( ! $row ) {
 		return true;
 	}
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; write path, nothing caches these tables.
 	$deleted = $wpdb->query(
 		$wpdb->prepare(
-			"DELETE sf FROM {$tables['stored_files']} sf
+			"DELETE sf FROM {$wpdb->desktop_mode_stored_files} sf
 			WHERE sf.id = %d AND sf.created_at_ms < %d
-			AND NOT EXISTS (SELECT 1 FROM {$tables['placements']} p
+			AND NOT EXISTS (SELECT 1 FROM {$wpdb->desktop_mode_file_placements} p
 				WHERE p.file_type = 'upload' AND p.file_ref = CAST(sf.id AS CHAR))",
 			$id,
 			$cutoff_ms
@@ -158,13 +161,13 @@ function openstation_stored_files_reconcile_row( $id, $cutoff_ms ) {
  */
 function openstation_stored_files_reconcile_bytes( $owner_id, $entry, $cutoff ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
 	// A locking read sees current committed rows even inside a caller's
 	// REPEATABLE READ transaction, rather than an earlier empty snapshot.
 	// Engines that reject the changed snapshot take the failure path below.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; locking read under the storage lock, must be read fresh.
 	$known = $wpdb->get_var(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['stored_files']} WHERE owner_id = %d AND disk_name = %s LIMIT 1 FOR UPDATE",
+			"SELECT id FROM {$wpdb->desktop_mode_stored_files} WHERE owner_id = %d AND disk_name = %s LIMIT 1 FOR UPDATE",
 			$owner_id,
 			basename( $entry )
 		)
@@ -197,12 +200,12 @@ function openstation_stored_files_reconcile_bytes( $owner_id, $entry, $cutoff ) 
  */
 function openstation_stored_files_reconcile() {
 	global $wpdb;
-	$tables    = openstation_files_table_names();
 	$cutoff_ms = openstation_files_now_ms() - DAY_IN_SECONDS * 1000;
-	$orphans   = $wpdb->get_col(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; picks rows to delete, must be read fresh.
+	$orphans = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT sf.id FROM {$tables['stored_files']} sf
-			LEFT JOIN {$tables['placements']} p ON p.file_type = 'upload' AND p.file_ref = CAST(sf.id AS CHAR)
+			"SELECT sf.id FROM {$wpdb->desktop_mode_stored_files} sf
+			LEFT JOIN {$wpdb->desktop_mode_file_placements} p ON p.file_type = 'upload' AND p.file_ref = CAST(sf.id AS CHAR)
 			WHERE p.id IS NULL AND sf.created_at_ms < %d",
 			$cutoff_ms
 		)
@@ -233,7 +236,8 @@ function openstation_stored_files_reconcile() {
 		if ( $owner_id <= 0 || basename( $user_dir ) !== (string) $owner_id || is_link( $user_dir ) ) {
 			continue;
 		}
-		$known = $wpdb->get_col( $wpdb->prepare( "SELECT disk_name FROM {$tables['stored_files']} WHERE owner_id = %d", $owner_id ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; picks bytes to delete, must be read fresh.
+		$known = $wpdb->get_col( $wpdb->prepare( "SELECT disk_name FROM {$wpdb->desktop_mode_stored_files} WHERE owner_id = %d", $owner_id ) );
 		if ( '' !== $wpdb->last_error ) {
 			openstation_stored_files_reconcile_failed( 'known_bytes' );
 			return;

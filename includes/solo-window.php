@@ -59,10 +59,11 @@ function openstation_solo_window_id() {
 	// `is_scalar` before unslashing, because a `?openstation_solo[]=x`
 	// would otherwise reach `sanitize_text_field()` as an array and
 	// warn on the way to being rejected anyway.
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only rendering mode, no state change.
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only rendering mode, no state change.
 	$raw = ( isset( $_GET[ OPENSTATION_SOLO_FLAG ] ) && is_scalar( $_GET[ OPENSTATION_SOLO_FLAG ] ) )
 		? sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_SOLO_FLAG ] ) )
 		: '';
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	if ( '' === $raw ) {
 		return '';
 	}
