@@ -48,9 +48,6 @@
             "%1$s did not beat your score: %2$s vs your %3$s.": [
                 ""
             ],
-            "%1$s just switched here from %2$s while you were logged in. Link that account to yours, and a switch from there logs you in as you. You can undo this in the Network window.": [
-                ""
-            ],
             "%1$s will open like this — %2$d windows, where they are.": [
                 ""
             ],
@@ -1268,6 +1265,9 @@
                 ""
             ],
             "Linked to “%s”": [
+                ""
+            ],
+            "Linked with your account on %s.": [
                 ""
             ],
             "Listening to — the whole site": [
@@ -2735,6 +2735,9 @@
                 ""
             ],
             "You have unsent answers. Close again to discard them.": [
+                ""
+            ],
+            "You just switched here from %1$s while you were logged in. Link your account there to this one, and a switch from there logs you in here. You will pass through %1$s for a moment to confirm it is your account. You can undo this in the Network window.": [
                 ""
             ],
             "You missed the %1$s challenge: %2$s vs %3$s.": [

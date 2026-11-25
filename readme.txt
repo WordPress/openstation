@@ -4,7 +4,7 @@ Tags: admin dashboard, notes, sticky notes, dashboard notes, custom dashboard
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.21
+Stable tag: 1.1.22
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -212,6 +212,11 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 1.1.22 =
+* Security: Fix a stored cross-site scripting issue in pinned notes: a logged-in user could pin a public note whose Markdown ran script on other users' desktops. Sharing a note with everyone now takes the Contributor role or higher. See [GHSA-pf2p-cw9p-37rj](https://github.com/WordPress/openstation/security/advisories/GHSA-pf2p-cw9p-37rj). Update now.
+* Security: Fix account linking across an OpenStation Network: a link to another install could plant an account-link offer that let a user of a peer install log in as the victim. Only sites with the OpenStation Network option on are affected. See [GHSA-q7wm-pg45-vwvg](https://github.com/WordPress/openstation/security/advisories/GHSA-q7wm-pg45-vwvg). Update now.
+* Security: Fix authorization and file-handling gaps found in a security review: download paths, theme package file types, user and content read paths, folder sharing and games. See [GHSA-6675-4v72-vqrj](https://github.com/WordPress/openstation/security/advisories/GHSA-6675-4v72-vqrj).
 
 = 1.1.21 =
 * Prevent layout overflow in narrow windows. 
@@ -660,6 +665,9 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 Earlier releases are on the [GitHub releases page](https://github.com/WordPress/openstation/releases).
 
 == Upgrade Notice ==
+
+= 1.1.22 =
+Security release. Fixes a stored cross-site scripting issue in pinned notes, an account-linking issue in the OpenStation Network, and several authorization gaps. See GHSA-pf2p-cw9p-37rj, GHSA-q7wm-pg45-vwvg and GHSA-6675-4v72-vqrj. Update now.
 
 = 1.1.18 =
 Security release. Fixes four authorization gaps for logged-in users (agent conversations, cross-site agents on multisite, placement responses, WooCommerce stock field). See GHSA-2chh-6p94-3c3r. Update now.
