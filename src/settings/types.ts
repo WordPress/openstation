@@ -8,6 +8,7 @@
 
 import type { NavPlacement } from '../nav/types';
 import type { MioLook } from '../mio/types';
+import type { ListWindowView } from './list-window-views';
 import type {
 	ADMIN_BAR_MODES,
 	DOCK_BEHAVIORS,
@@ -296,6 +297,26 @@ export interface OsSettingsState {
 	 * (all columns visible).
 	 */
 	nativePagesHiddenColumns: string[];
+	/**
+	 * Per-user layout the native Posts window opens on: `'desk'` (the
+	 * Writing desk cards) or `'table'` (the Details table). Written
+	 * when the user picks a layout, read on every open, so a Reload or
+	 * a close-and-reopen keeps the layout they chose. Default `'desk'`.
+	 */
+	nativePostsView: ListWindowView< 'nativePostsView' >;
+	/**
+	 * Per-user layout the native Pages window opens on: `'desk'` (the
+	 * Page directory) or `'table'` (the Details table). Separate from
+	 * {@link nativePostsView} although both windows share one app, so
+	 * each keeps its own choice. Default `'desk'`.
+	 */
+	nativePagesView: ListWindowView< 'nativePagesView' >;
+	/**
+	 * Per-user layout the native Users window opens on: `'people'`
+	 * (People cards) or `'table'` (the Details table). Default
+	 * `'people'`.
+	 */
+	nativeUsersView: ListWindowView< 'nativeUsersView' >;
 	/**
 	 * Per-user opt-in for the native Pages window. When true, clicking
 	 * the Pages dock tile (or any link to `edit.php?post_type=page`)

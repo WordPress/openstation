@@ -964,6 +964,17 @@ describe( 'the writing desk', () => {
 		expect( root.querySelector( 'style' )?.textContent ).toContain( '.os-posts-desk__workspace' );
 	} );
 
+	it( 'remembers the picked layout: a switch saves it and the next open starts on it', () => {
+		const os = ( window as unknown as { wp: { os: { getOsSettings: unknown; updateOsSettings: ReturnType< typeof vi.fn > } } } ).wp.os;
+		const first = mount();
+		first.root.querySelector( '[data-os-posts-view]' )!.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'table' } } ) );
+		expect( os.updateOsSettings ).toHaveBeenCalledWith( { nativePostsView: 'table' }, { windowId: 'test-window' } );
+		os.getOsSettings = () => ( { nativePostsHiddenColumns: [], nativePostsView: 'table' } );
+		const { root } = mount();
+		expect( root.querySelector( '[data-os-posts-body]' )?.hasAttribute( 'hidden' ) ).toBe( false );
+		expect( root.querySelector( '.os-posts-desk__workspace' )?.hasAttribute( 'hidden' ) ).toBe( true );
+	} );
+
 	it( 'shares selection and bulk actions across the desk and details table', async () => {
 		const { root, table } = mount();
 		await flush();

@@ -10,9 +10,15 @@ import { rowActionsMenu, type RowActionsMenuCache, type RowActionsShown } from '
 import { tableOf, type Ctx } from './window-context';
 import type { OsTableColumn } from '../../../src/ui/components/os-table/os-table';
 import type { PostListItem } from './types';
+import { saveListWindowView, storedListWindowView, toListWindowView, type ListWindowView } from '../../../src/settings/list-window-views';
+
+/** The settings key holding the layout: Posts and Pages share this code, not their choice. */
+export type DeskViewKey = 'nativePostsView' | 'nativePagesView';
 
 export interface DeskState {
-	view: 'desk' | 'table';
+	/** Where {@link view} is read from and saved to. */
+	viewKey: DeskViewKey;
+	view: ListWindowView< DeskViewKey >;
 	filters: boolean;
 	peek: boolean;
 	focused: number | null;
@@ -24,7 +30,12 @@ export interface DeskState {
 	anchor: number | null;
 }
 
-export const freshDesk = (): DeskState => ( { view: 'desk', filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map(), anchor: null } );
+/** A desk opening on the layout this user last picked for the window. */
+export const freshDesk = ( viewKey: DeskViewKey ): DeskState => ( {
+	viewKey,
+	view: storedListWindowView( viewKey ),
+	filters: false, peek: false, focused: null, inspectorKey: '', fields: [], menus: new Map(), anchor: null,
+} );
 
 /** A row's actions menu on a desk surface, or nothing outside the app. */
 function rowMenu( ui: DeskState, env: CellEnv, slot: string, row: PostListItem, shown: RowActionsShown ): HTMLElement | string {
@@ -77,7 +88,12 @@ export function deskTools( ctx: Ctx, ui: DeskState ): TemplateResult {
 	const selected = tableOf( ctx )?.selection ?? new Set();
 	const all = items.length > 0 && items.every( ( row ) => selected.has( row.id ) );
 	const changeView = ( e: Event ): void => {
-		ui.view = ( e as CustomEvent ).detail.value === 'table' ? 'table' : 'desk';
+		const view = toListWindowView( ui.viewKey, ( e as CustomEvent ).detail.value );
+		if ( view === ui.view ) {
+			return;
+		}
+		ui.view = view;
+		saveListWindowView( ui.viewKey, view, ctx.windowId );
 		ctx.repaint();
 	};
 	const sort = ( e: Event ): void => {

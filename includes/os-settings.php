@@ -35,6 +35,16 @@ const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' 
 const OPENSTATION_OS_SETTINGS_OPEN_WINDOWS_AS = array( 'default', 'maximized', 'focused' );
 
 /**
+ * The layouts each native list window can open on; the first is the
+ * window's default. Mirrors the TS `LIST_WINDOW_VIEWS` constant.
+ */
+const OPENSTATION_OS_SETTINGS_LIST_VIEWS = array(
+	'nativePostsView' => array( 'desk', 'table' ),
+	'nativePagesView' => array( 'desk', 'table' ),
+	'nativeUsersView' => array( 'people', 'table' ),
+);
+
+/**
  * Valid admin-bar mode IDs — mirrors the TS `ADMIN_BAR_MODES` constant.
  *
  * `static` keeps the WordPress admin bar pinned above the shell (the
@@ -224,6 +234,11 @@ function openstation_default_os_settings() {
 		// every column is visible. The sticky 'title' column is always
 		// shown — the UI prevents toggling it.
 		'nativePagesHiddenColumns'    => array(),
+		// The layout each native list window opens on, remembered per
+		// user so a Reload or a reopen keeps the one they picked.
+		'nativePostsView'             => OPENSTATION_OS_SETTINGS_LIST_VIEWS['nativePostsView'][0],
+		'nativePagesView'             => OPENSTATION_OS_SETTINGS_LIST_VIEWS['nativePagesView'][0],
+		'nativeUsersView'             => OPENSTATION_OS_SETTINGS_LIST_VIEWS['nativeUsersView'][0],
 		// Per-user opt-IN for the native Pages window. Same posture as
 		// nativePostsEnabled — defaults OFF (Beta), users opt in to swap
 		// the classic `edit.php?post_type=page` iframe for the native UI.
@@ -822,6 +837,15 @@ function openstation_sanitize_os_settings( $raw ) {
 		$native_pages_hidden_columns = array_slice( array_values( array_unique( $native_pages_hidden_columns ) ), 0, 32 );
 	}
 
+	// Each list window's layout: one of its known layouts, anything
+	// else falls back to that window's default.
+	$native_list_views = array();
+	foreach ( OPENSTATION_OS_SETTINGS_LIST_VIEWS as $view_key => $allowed_views ) {
+		$native_list_views[ $view_key ] = isset( $raw[ $view_key ] ) && in_array( $raw[ $view_key ], $allowed_views, true )
+			? $raw[ $view_key ]
+			: $defaults[ $view_key ];
+	}
+
 	$native_pages_enabled = isset( $raw['nativePagesEnabled'] )
 		? (bool) $raw['nativePagesEnabled']
 		: $defaults['nativePagesEnabled'];
@@ -1048,6 +1072,9 @@ function openstation_sanitize_os_settings( $raw ) {
 		'nativePostsHiddenColumns'    => $native_posts_hidden_columns,
 		'nativePagesEnabled'          => $native_pages_enabled,
 		'nativePagesHiddenColumns'    => $native_pages_hidden_columns,
+		'nativePostsView'             => $native_list_views['nativePostsView'],
+		'nativePagesView'             => $native_list_views['nativePagesView'],
+		'nativeUsersView'             => $native_list_views['nativeUsersView'],
 		'nativeUsersEnabled'          => $native_users_enabled,
 		'nativePluginsEnabled'        => $native_plugins_enabled,
 		'nativeCommentsEnabled'       => $native_comments_enabled,

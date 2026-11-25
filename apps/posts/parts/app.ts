@@ -57,7 +57,7 @@ import { ContentFeed } from './content-feed';
 import { createDeskStats } from './desk-stats';
 import { paperStyles } from './paper.styles';
 import { deskStyles } from './desk.styles';
-import { deskTools, freshDesk, renderDesk, syncDeskControls, type DeskState } from './desk';
+import { deskTools, freshDesk, renderDesk, syncDeskControls, type DeskState, type DeskViewKey } from './desk';
 
 const LOG = '[openstation:desktop-mode-posts]';
 
@@ -129,8 +129,8 @@ interface UiState {
 	quickEditPending: number;
 }
 
-const freshUi = (): UiState => ( {
-	desk: freshDesk(),
+const freshUi = ( viewKey: DeskViewKey ): UiState => ( {
+	desk: freshDesk( viewKey ),
 	feed: new ContentFeed(),
 	client: null,
 	env: null,
@@ -397,8 +397,11 @@ function wireTable( ctx: Ctx, ui: UiState, table: OsTable< PostListItem > ): voi
 export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 	const terms = options.terms;
 	const cells: CellRenderers = options.cells ?? {};
-	const hiddenColumnsKey: HiddenColumnsSettingKey =
-		id === 'desktop-mode-pages' ? 'nativePagesHiddenColumns' : 'nativePostsHiddenColumns';
+	// Pages runs this same app; each window keeps its own preferences.
+	const pages = id === 'desktop-mode-pages';
+	const hiddenColumnsKey: HiddenColumnsSettingKey = pages ? 'nativePagesHiddenColumns' : 'nativePostsHiddenColumns';
+	const viewKey: DeskViewKey = pages ? 'nativePagesView' : 'nativePostsView';
+	const windowUi = (): UiState => freshUi( viewKey );
 
 	const mountCanvas = ( ctx: Ctx, ui: UiState, which: 'categories' | 'tags' ): void => {
 		if ( ! terms || ui.canvases[ which ] || ui.canvasPending.has( which ) ) {
@@ -764,7 +767,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 		} ),
 
 		view: ( ctx ) => {
-			const ui = ctx.ui( freshUi );
+			const ui = ctx.ui( windowUi );
 			const mode = modeOf( ctx.extra );
 			const phone = isMobileStamped();
 			const panel = listPanel( ctx, ui, mode, phone );
@@ -802,7 +805,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 		},
 
 		mounted: ( ctx ) => {
-			const ui = ctx.ui( freshUi );
+			const ui = ctx.ui( windowUi );
 			const teardowns: Array< () => void > = [];
 			ui.stats = createDeskStats( ctx.root, ctx.fetch, modeOf( ctx.extra ) );
 			ui.stats.sync();
@@ -914,7 +917,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 
 		updated: ( ctx ) => {
 			syncDeskControls( ctx.root );
-			adoptServerTab( ctx, ctx.ui( freshUi ) );
+			adoptServerTab( ctx, ctx.ui( windowUi ) );
 			const table = tableOf( ctx );
 			if ( ! table ) {
 				return;
@@ -924,7 +927,7 @@ export function createPostsApp( id: string, options: PostsAppOptions = {} ) {
 			if ( ctx.loading ) {
 				table.setAttribute( 'loading', '' );
 			}
-			const ui = ctx.ui( freshUi );
+			const ui = ctx.ui( windowUi );
 			ui.stats?.sync();
 			ui.feed.observe( ctx.root );
 			const { data } = ctx;

@@ -28,6 +28,7 @@ import type { ListTableLike } from '@openstation/app';
 import { ActivitySummary } from './parts/activity-summary';
 import { RolesSummary } from './parts/roles-summary';
 import { PeopleFeed } from './parts/people-feed';
+import { saveListWindowView, storedListWindowView, toListWindowView, type ListWindowView } from '../../src/settings/list-window-views';
 import { peopleCards, rolesView, syncPeopleControls } from './parts/people';
 import '../../src/ui/components/os-progress-bar/os-progress-bar';
 import { activityView } from './parts/activity';
@@ -63,7 +64,7 @@ interface UiState {
 	feed: PeopleFeed;
 	roles: RolesSummary;
 	activity: ActivitySummary;
-	view: string;
+	view: ListWindowView< typeof VIEW_KEY >;
 	contribution: ContributionKind;
 	options: boolean;
 	cache: UserCellCache;
@@ -83,9 +84,12 @@ interface UiState {
 	profileWired: boolean;
 }
 
+/** Where the People cards / Details table choice is remembered. */
+const VIEW_KEY = 'nativeUsersView';
+
 const freshUi = (): UiState => ( {
 	feed: new PeopleFeed(), roles: new RolesSummary(), activity: new ActivitySummary(),
-	view: 'people', contribution: 'posts',
+	view: storedListWindowView( VIEW_KEY ), contribution: 'posts',
 	options: false,
 	cache: new Map(),
 	sync: createListTableSync< UserListItem >(),
@@ -317,7 +321,10 @@ function listPanel( ctx: Ctx, ui: UiState, phone: boolean, rows: UserListItem[] 
 				<os-option .value=${ '' }>${ __( 'Every role' ) }</os-option><os-option value="none">${ __( 'No role' ) }</os-option>${ Object.entries( cfg.allRoles || {} ).map( ( [ role, label ] ) => html`<os-option value=${ role }>${ label }</os-option>` ) }
 			</os-select>
 			<os-select class="os-people__extra" aria-label=${ __( 'Directory view' ) } value=${ ui.view } @os-pick=${ ( e: Event ) => {
- ui.view = String( ( e as CustomEvent ).detail.value ); ctx.repaint();
+ const view = toListWindowView( VIEW_KEY, ( e as CustomEvent ).detail.value );
+ if ( view !== ui.view ) {
+ ui.view = view; saveListWindowView( VIEW_KEY, view, ctx.windowId ); ctx.repaint();
+ }
 } }><os-option value="people">${ __( 'People cards' ) }</os-option><os-option value="table">${ __( 'Details table' ) }</os-option></os-select>
 			<os-select class="os-people__extra" aria-label=${ __( 'Sort people' ) } value=${ `${ state.orderby }:${ state.order }` } @os-pick=${ ( e: Event ) => {
  const [ orderby, order ] = String( ( e as CustomEvent ).detail.value ).split( ':' ); void ctx.dispatch( 'sort', { orderby, order } );

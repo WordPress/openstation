@@ -164,6 +164,25 @@ class Tests_OpenStation_PostsWindowSettings extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A stored layout must be one of its window's two values; anything
+	 * else (including another window's value) falls back to the default.
+	 *
+	 * @covers ::openstation_sanitize_os_settings
+	 */
+	public function test_sanitize_list_views() {
+		$clean = openstation_sanitize_os_settings(
+			array(
+				'nativePostsView' => 'table',
+				'nativePagesView' => 'people',
+				'nativeUsersView' => '<script>',
+			)
+		);
+		$this->assertSame( 'table', $clean['nativePostsView'] );
+		$this->assertSame( 'desk', $clean['nativePagesView'] );
+		$this->assertSame( 'people', $clean['nativeUsersView'] );
+	}
+
+	/**
 	 * @covers ::openstation_save_os_settings
 	 * @covers ::openstation_get_os_settings
 	 */

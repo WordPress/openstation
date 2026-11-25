@@ -282,6 +282,15 @@ describe( 'the pages view', () => {
 		expect( ( table.columns ?? [] ).map( ( c ) => c.key ) ).toContain( 'author' );
 	} );
 
+	it( 'keeps its own layout: opens on the Page directory when only Posts chose the table, and saves to the Pages key', () => {
+		const os = ( window as unknown as { wp: { os: { getOsSettings: unknown; updateOsSettings: ReturnType< typeof vi.fn > } } } ).wp.os;
+		os.getOsSettings = () => ( { nativePostsHiddenColumns: [], nativePagesHiddenColumns: [], nativePostsView: 'table' } );
+		const { root } = mount( [ row( 1 ) ] );
+		expect( root.querySelector( '.os-posts-desk__workspace' )?.hasAttribute( 'hidden' ) ).toBe( false );
+		root.querySelector( '[data-os-posts-view]' )!.dispatchEvent( new CustomEvent( 'os-pick', { detail: { value: 'table' } } ) );
+		expect( os.updateOsSettings ).toHaveBeenCalledWith( { nativePagesView: 'table' }, { windowId: 'test-window' } );
+	} );
+
 	it( 'the Pages column menu shows Author checked when only Posts hid it', () => {
 		( window as unknown as { wp: { os: { getOsSettings: unknown } } } ).wp.os.getOsSettings = () => ( {
 			nativePostsHiddenColumns: [ 'author' ],
