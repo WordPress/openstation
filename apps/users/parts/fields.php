@@ -139,12 +139,11 @@ function openstation_users_window_stats_for( array $ids ) {
 	if ( array() === $ids ) {
 		return $out;
 	}
-	$in    = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 	$types = post_type_exists( 'page' ) ? array( 'post', 'page' ) : array( 'post' );
-	$rows  = $wpdb->get_results(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One grouped COUNT for a page of users, where count_user_posts() costs a query per user and type.
+	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$in` is a list of `%d` placeholders.
-			"SELECT post_author, post_type, COUNT(*) AS cnt FROM {$wpdb->posts} WHERE post_author IN ( $in ) AND post_status = 'publish' AND post_type IN ( " . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ' ) GROUP BY post_author, post_type',
+			"SELECT post_author, post_type, COUNT(*) AS cnt FROM {$wpdb->posts} WHERE post_author IN ( " . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . " ) AND post_status = 'publish' AND post_type IN ( " . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ' ) GROUP BY post_author, post_type',
 			array_merge( $ids, $types )
 		),
 		ARRAY_A
@@ -156,10 +155,10 @@ function openstation_users_window_stats_for( array $ids ) {
 			$out[ $author ][ $key ] = (int) $row['cnt'];
 		}
 	}
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One grouped COUNT for a page of users, where get_comments() costs a query per user.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- `$in` is a list of `%d` placeholders.
-			"SELECT user_id, COUNT(*) AS cnt FROM {$wpdb->comments} WHERE user_id IN ( $in ) AND comment_approved = '1' GROUP BY user_id",
+			"SELECT user_id, COUNT(*) AS cnt FROM {$wpdb->comments} WHERE user_id IN ( " . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . " ) AND comment_approved = '1' GROUP BY user_id",
 			$ids
 		),
 		ARRAY_A

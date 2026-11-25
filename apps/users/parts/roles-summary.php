@@ -63,7 +63,7 @@ function openstation_users_window_roles_summary() {
 		++$sample;
 	}
 	$sql = implode( ' UNION ALL ', $branches );
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- All values are prepared above; identifiers are trusted wpdb table names.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- One column and one branch per registered role, so no literal can hold it: every value went through prepare() above, the rest is $wpdb table names and r<n> aliases. Read fresh for the dashboard.
 	$rows = $wpdb->get_results( $sql, ARRAY_A );
 	if ( null === $rows || $wpdb->last_error ) {
 		return new WP_Error( 'openstation_users_roles_failed', __( 'Role groups could not be loaded. Please try again.', 'desktop-mode' ), array( 'status' => 500 ) );
