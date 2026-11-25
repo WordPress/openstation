@@ -43,7 +43,7 @@ function openstation_presence_invalidate_records() {
  */
 function openstation_presence_table() {
 	global $wpdb;
-	return $wpdb->prefix . 'openstation_presence';
+	return $wpdb->openstation_presence;
 }
 
 /**
@@ -54,6 +54,7 @@ function openstation_presence_table() {
  */
 function openstation_presence_legacy_records() {
 	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Reads the row past the options cache on purpose; another worker may have written it.
 	$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s", OPENSTATION_PRESENCE_OPTION ) );
 	if ( '' !== $wpdb->last_error ) {
 		return new WP_Error( 'openstation_presence_read_failed', __( 'Could not read presence.', 'desktop-mode' ) );
@@ -88,10 +89,10 @@ function openstation_presence_legacy_records() {
 function openstation_presence_upsert( $user_id, $record, $away = false ) {
 	global $wpdb;
 	openstation_storage_use_primary();
-	$table = openstation_presence_table();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table and an atomic merge; the request snapshot is invalidated below.
 	$result = false !== $wpdb->query(
 		$wpdb->prepare(
-			"INSERT INTO $table (user_id, last_seen_ms, last_active_ms, inactive_at_ms)
+			"INSERT INTO {$wpdb->openstation_presence} (user_id, last_seen_ms, last_active_ms, inactive_at_ms)
 			VALUES (%d, %d, %d, %d)
 			ON DUPLICATE KEY UPDATE
 			last_seen_ms = GREATEST(last_seen_ms, VALUES(last_seen_ms)),
@@ -133,7 +134,7 @@ function openstation_presence_migrate_storage() {
 	openstation_storage_use_primary();
 	$table = openstation_presence_table();
 	$name  = 'os-presence-' . md5( $wpdb->dbname . ':' . $table );
-	$lock  = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $name ) );
+	$lock  = $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock; WordPress has no API for it.
 	// SQLite's compatibility shim is a no-op; the import is idempotent.
 	if ( ! in_array( (string) $lock, array( '1', '1=1' ), true ) ) {
 		return false;
@@ -150,18 +151,19 @@ function openstation_presence_migrate_storage() {
 		if ( ! empty( $state['ready'] ) ) {
 			return true;
 		}
-		$collate  = $wpdb->get_charset_collate();
 		$suppress = $wpdb->suppress_errors( true );
-		$created  = $wpdb->query(
-			"CREATE TABLE IF NOT EXISTS $table (
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Versioned schema migration of a plugin-owned table.
+		$created = $wpdb->query(
+			"CREATE TABLE IF NOT EXISTS {$wpdb->openstation_presence} (
 				user_id BIGINT UNSIGNED NOT NULL,
 				last_seen_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
 				last_active_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
 				inactive_at_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
 				PRIMARY KEY (user_id),
 				KEY last_seen_ms (last_seen_ms)
-			) $collate"
+			) {$wpdb->get_charset_collate()}"
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
 		$wpdb->suppress_errors( $suppress );
 		if ( false === $created ) {
 			return false;
@@ -176,7 +178,7 @@ function openstation_presence_migrate_storage() {
 			}
 		}
 		// Verify even an empty import against all required columns.
-		$rows = $wpdb->get_results( "SELECT user_id, last_seen_ms, last_active_ms, inactive_at_ms FROM $table", OBJECT_K );
+		$rows = $wpdb->get_results( "SELECT user_id, last_seen_ms, last_active_ms, inactive_at_ms FROM {$wpdb->openstation_presence}", OBJECT_K ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table; WordPress has no API for it.
 		if ( '' !== $wpdb->last_error ) {
 			return false;
 		}
@@ -197,7 +199,7 @@ function openstation_presence_migrate_storage() {
 		}
 		return $ready;
 	} finally {
-		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) );
+		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Named lock; WordPress has no API for it.
 	}
 }
 
@@ -262,10 +264,8 @@ function openstation_presence_read_records( $user_id = null ) {
 		return isset( $records[ $user_id ] ) ? array( $user_id => $records[ $user_id ] ) : array();
 	}
 	openstation_storage_use_primary();
-	$table = openstation_presence_table();
-	$sql   = "SELECT user_id, last_seen_ms, last_active_ms, inactive_at_ms FROM $table";
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Table is internal; reuse this request snapshot for user lists.
-	$rows = $wpdb->get_results( $sql, ARRAY_A );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table; WordPress has no API for it. Cached per request below.
+	$rows = $wpdb->get_results( "SELECT user_id, last_seen_ms, last_active_ms, inactive_at_ms FROM {$wpdb->openstation_presence}", ARRAY_A );
 	if ( '' !== $wpdb->last_error ) {
 		return new WP_Error( 'openstation_presence_read_failed', __( 'Could not read presence.', 'desktop-mode' ) );
 	}
