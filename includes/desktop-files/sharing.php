@@ -38,15 +38,15 @@ function openstation_files_compute_visible_folders( $owned, $user_id ) {
 		return is_array( $owned ) ? $owned : array();
 	}
 
-	$tables = openstation_files_table_names();
-	$user   = get_userdata( $user_id );
-	$roles  = $user ? array_values( (array) $user->roles ) : array();
+	$user  = get_userdata( $user_id );
+	$roles = $user ? array_values( (array) $user->roles ) : array();
 
 	// Source 1 — `share_mode='all'`. Pull straight from the folders
 	// table; the shares table never carries 'all' rows.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; decides which folders the viewer can see, so it reads fresh.
 	$all_rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['folders']}
+			"SELECT * FROM {$wpdb->desktop_mode_folders}
 			WHERE owner_id <> %d
 				AND share_mode = 'all'
 				AND trashed_at_ms IS NULL",
@@ -58,11 +58,11 @@ function openstation_files_compute_visible_folders( $owned, $user_id ) {
 	// Source 2 — accepted user-principal shares. State lives on the
 	// shares row: once the recipient clicks Accept we flip
 	// `state='accepted'` directly.
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; decides which folders the viewer can see, so it reads fresh.
 	$user_share_rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT DISTINCT f.* FROM {$tables['folders']} f
-			INNER JOIN {$tables['shares']} s ON s.folder_id = f.id
+			"SELECT DISTINCT f.* FROM {$wpdb->desktop_mode_folders} f
+			INNER JOIN {$wpdb->desktop_mode_folder_shares} s ON s.folder_id = f.id
 			WHERE f.owner_id <> %d
 				AND f.trashed_at_ms IS NULL
 				AND s.state = 'accepted'
@@ -91,21 +91,20 @@ function openstation_files_compute_visible_folders( $owned, $user_id ) {
 	// files the owner added invisible until F5.
 	$role_share_rows = array();
 	if ( ! empty( $roles ) ) {
-		$placeholders = implode( ',', array_fill( 0, count( $roles ), '%s' ) );
-		$role_args    = array_merge( array( $user_id, $user_id ), array_map( 'strval', $roles ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		$role_args = array_merge( array( $user_id, $user_id ), array_map( 'strval', $roles ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; decides which folders the viewer can see, so it reads fresh.
 		$role_share_rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT DISTINCT f.* FROM {$tables['folders']} f
-				INNER JOIN {$tables['shares']} s ON s.folder_id = f.id
-				INNER JOIN {$tables['decisions']} d
+				"SELECT DISTINCT f.* FROM {$wpdb->desktop_mode_folders} f
+				INNER JOIN {$wpdb->desktop_mode_folder_shares} s ON s.folder_id = f.id
+				INNER JOIN {$wpdb->desktop_mode_share_user_decisions} d
 					ON d.share_id = s.id
 					AND d.user_id = %d
 					AND d.state = 'accepted'
 				WHERE f.owner_id <> %d
 					AND f.trashed_at_ms IS NULL
 					AND s.principal_type = 'role'
-					AND s.principal_ref IN ($placeholders)",
+					AND s.principal_ref IN (" . implode( ',', array_fill( 0, count( $roles ), '%s' ) ) . ')',
 				$role_args
 			),
 			ARRAY_A
