@@ -156,6 +156,12 @@ class Tests_OpenStation_Multisite extends WP_UnitTestCase {
 
 		foreach ( $unprefixed as $name ) {
 			$this->assertContains( $name, openstation_site_table_names() );
+			$this->assertSame( $wpdb->prefix . $name, $wpdb->$name, 'Queries read the table off $wpdb, so it must name the same table the helpers do.' );
+		}
+		if ( is_multisite() ) {
+			switch_to_blog( self::factory()->blog->create() );
+			$this->assertSame( $wpdb->prefix . 'desktop_mode_file_placements', $wpdb->desktop_mode_file_placements, 'switch_to_blog() re-prefixes it with Core\'s own tables.' );
+			restore_current_blog();
 		}
 	}
 
