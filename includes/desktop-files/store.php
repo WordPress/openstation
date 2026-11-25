@@ -107,9 +107,8 @@ function openstation_files_place( $user_id, $parent_id, $type, $ref, $args = arr
 		)
 	);
 
-	$tables = openstation_files_table_names();
-	$now    = openstation_files_now_ms();
-	$row    = array(
+	$now = openstation_files_now_ms();
+	$row = array(
 		'owner_id'      => $user_id,
 		'updated_by'    => $user_id,
 		'parent_id'     => max( 0, $parent_id ),
@@ -129,10 +128,11 @@ function openstation_files_place( $user_id, $parent_id, $type, $ref, $args = arr
 	// break `await response.json()` on the client. `$wpdb->last_error`
 	// still holds the message, so genuine DB failures surface via the
 	// `WP_Error` we return when no existing row is found.
-	$insert = static function () use ( $tables, $row ) {
+	$insert = static function () use ( $row ) {
 		global $wpdb;
 		$prev_suppress = $wpdb->suppress_errors( true );
-		$ok            = $wpdb->insert( $tables['placements'], $row, array( '%d', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%d', '%s' ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table; WordPress has no API for it.
+		$ok = $wpdb->insert( $wpdb->desktop_mode_file_placements, $row, array( '%d', '%d', '%d', '%s', '%s', '%d', '%d', '%d', '%d', '%s' ) );
 		$wpdb->suppress_errors( $prev_suppress );
 		return array( $ok, (int) $wpdb->insert_id );
 	};
@@ -154,9 +154,10 @@ function openstation_files_place( $user_id, $parent_id, $type, $ref, $args = arr
 		// We treat (a) idempotently: restore if trashed, then apply
 		// the caller's coords / meta so the new placement lands
 		// where the user clicked. Reported as #167.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path recovering a key collision, must be read fresh.
 		$existing = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$tables['placements']}
+				"SELECT * FROM {$wpdb->desktop_mode_file_placements}
 				WHERE owner_id = %d
 					AND parent_id = %d
 					AND file_type = %s
@@ -393,9 +394,8 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 		}
 	}
 
-	$tables = openstation_files_table_names();
-	$set    = array();
-	$fmt    = array();
+	$set = array();
+	$fmt = array();
 
 	if ( isset( $changes['parent_id'] ) ) {
 		$set['parent_id'] = max( 0, (int) $changes['parent_id'] );
@@ -423,7 +423,8 @@ function openstation_files_move( $placement_id, $user_id, $changes = array() ) {
 	$set['updated_by'] = $user_id;
 	$fmt[]             = '%d';
 
-	$ok = $wpdb->update( $tables['placements'], $set, array( 'id' => $placement_id ), $fmt, array( '%d' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
+	$ok = $wpdb->update( $wpdb->desktop_mode_file_placements, $set, array( 'id' => $placement_id ), $fmt, array( '%d' ) );
 	if ( false === $ok ) {
 		return new WP_Error( 'openstation_files_update_failed', __( 'Failed to update placement.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
@@ -478,8 +479,8 @@ function openstation_files_remove( $placement_id, $user_id ) {
 		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot remove this placement.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
-	$tables = openstation_files_table_names();
-	$ok     = $wpdb->delete( $tables['placements'], array( 'id' => $placement_id ), array( '%d' ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
+	$ok = $wpdb->delete( $wpdb->desktop_mode_file_placements, array( 'id' => $placement_id ), array( '%d' ) );
 	if ( false === $ok ) {
 		return new WP_Error( 'openstation_files_delete_failed', __( 'Failed to remove placement.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
@@ -540,9 +541,9 @@ function openstation_files_upload_owner_lock( $row, $user_id ) {
  */
 function openstation_files_get_placement( $placement_id ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
-	$row    = $wpdb->get_row(
-		$wpdb->prepare( "SELECT * FROM {$tables['placements']} WHERE id = %d", (int) $placement_id ),
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; decides ownership and trash state, must be read fresh.
+	$row = $wpdb->get_row(
+		$wpdb->prepare( "SELECT * FROM {$wpdb->desktop_mode_file_placements} WHERE id = %d", (int) $placement_id ),
 		ARRAY_A
 	);
 	if ( ! $row ) {
@@ -596,8 +597,6 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 		return array();
 	}
 
-	$tables = openstation_files_table_names();
-
 	// Access gate + shared-namespace decision for non-root folders.
 	// Desktop root (parent_id = 0) is always per-user. For sub-
 	// folders, the contents of a SHARED folder are visible to every
@@ -642,9 +641,10 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 		// so the owner of a shared folder sees what a writer added.
 		// The icons are part of the folder; the owner_id column is
 		// audit info, not a permission gate.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; listing follows access and trash state, must be read fresh.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$tables['placements']}
+				"SELECT * FROM {$wpdb->desktop_mode_file_placements}
 				WHERE parent_id = %d
 					AND trashed_at_ms IS NULL
 				ORDER BY sort_order ASC, id ASC",
@@ -653,9 +653,10 @@ function openstation_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 			ARRAY_A
 		);
 	} else {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; listing follows access and trash state, must be read fresh.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$tables['placements']}
+				"SELECT * FROM {$wpdb->desktop_mode_file_placements}
 				WHERE owner_id = %d
 					AND parent_id = %d
 					AND trashed_at_ms IS NULL
@@ -729,15 +730,14 @@ function openstation_files_auto_place_orphans( $user_id ) {
 		return 0;
 	}
 
-	$tables = openstation_files_table_names();
-
 	// 1) Owned folders without any placement. Skip trashed folders
 	// and trashed placement rows so a recycled folder doesn't get
 	// auto-placed back on the desktop on next hydrate.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned tables, no WP API; feeds the writes below, must be read fresh.
 	$folder_rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT f.id FROM {$tables['folders']} f
-				LEFT JOIN {$tables['placements']} p
+			"SELECT f.id FROM {$wpdb->desktop_mode_folders} f
+				LEFT JOIN {$wpdb->desktop_mode_file_placements} p
 					ON p.file_type = 'folder'
 					AND p.file_ref = CAST( f.id AS CHAR )
 					AND p.trashed_at_ms IS NULL
@@ -765,19 +765,19 @@ function openstation_files_auto_place_orphans( $user_id ) {
 	}
 	if ( is_array( $registry ) && ! empty( $registry ) ) {
 		$registered_ids = array_map( 'strval', array_keys( $registry ) );
-		$placeholders   = implode( ',', array_fill( 0, count( $registered_ids ), '%s' ) );
 		$args           = array_merge( array( $user_id ), $registered_ids );
-		$placed_ids     = $wpdb->get_col(
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; feeds the writes below, must be read fresh.
+		$placed_ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT file_ref FROM {$tables['placements']}
+				"SELECT file_ref FROM {$wpdb->desktop_mode_file_placements}
 				WHERE owner_id = %d
 					AND file_type = 'shortcut'
 					AND trashed_at_ms IS NULL
-					AND file_ref IN ($placeholders)",
+					AND file_ref IN (" . implode( ',', array_fill( 0, count( $registered_ids ), '%s' ) ) . ')',
 				$args
 			)
 		);
-		$placed_set     = array_flip( array_map( 'strval', (array) $placed_ids ) );
+		$placed_set = array_flip( array_map( 'strval', (array) $placed_ids ) );
 		foreach ( $registered_ids as $id ) {
 			if ( ! isset( $placed_set[ $id ] ) ) {
 				$shortcut_ids[] = $id;
@@ -794,9 +794,10 @@ function openstation_files_auto_place_orphans( $user_id ) {
 	// already has. Cell math lives in
 	// `includes/desktop-files/grid.php`, the mirror of
 	// `src/desktop-files/grid.ts`.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; feeds the writes below, must be read fresh.
 	$existing = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT x, y FROM {$tables['placements']}
+			"SELECT x, y FROM {$wpdb->desktop_mode_file_placements}
 			WHERE owner_id = %d
 				AND parent_id = 0
 				AND trashed_at_ms IS NULL",
@@ -936,9 +937,9 @@ function openstation_files_normalize_placement_row( $row ) {
  */
 function openstation_files_write_tombstone( $kind, $ref ) {
 	global $wpdb;
-	$tables = openstation_files_table_names();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Plugin-owned table; WordPress has no API for it.
 	$wpdb->insert(
-		$tables['tombstones'],
+		$wpdb->desktop_mode_file_tombstones,
 		array(
 			'kind'          => (string) $kind,
 			'ref_id'        => (int) $ref,
@@ -965,9 +966,9 @@ function openstation_files_clear_tombstones_for( $kind, $ref_id ) {
 	if ( $ref_id <= 0 ) {
 		return;
 	}
-	$tables = openstation_files_table_names();
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
 	$wpdb->delete(
-		$tables['tombstones'],
+		$wpdb->desktop_mode_file_tombstones,
 		array(
 			'kind'   => (string) $kind,
 			'ref_id' => $ref_id,
@@ -983,9 +984,9 @@ function openstation_files_clear_tombstones_for( $kind, $ref_id ) {
  */
 function openstation_files_prune_tombstones() {
 	global $wpdb;
-	$tables = openstation_files_table_names();
 	$cutoff = openstation_files_now_ms() - ( 7 * DAY_IN_SECONDS * 1000 );
-	$wpdb->query( $wpdb->prepare( "DELETE FROM {$tables['tombstones']} WHERE removed_at_ms < %d", $cutoff ) );
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches this table.
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->desktop_mode_file_tombstones} WHERE removed_at_ms < %d", $cutoff ) );
 }
 add_action( 'desktop_mode_files_daily_prune', 'openstation_files_prune_tombstones' );
 
@@ -1035,7 +1036,6 @@ function openstation_files_would_create_folder_cycle( $user_id, $moving_folder_i
 		return true;
 	}
 	global $wpdb;
-	$tables  = openstation_files_table_names();
 	$visited = array();
 	$cursor  = $target_parent_id;
 	// Hard cap to defend against catastrophically deep trees too —
@@ -1055,9 +1055,10 @@ function openstation_files_would_create_folder_cycle( $user_id, $moving_folder_i
 		// `LIMIT 1` is enough — any upward chain that reaches the
 		// moving folder flags the cycle. Trashed rows excluded so a
 		// recycled-then-recovered ancestor doesn't poison the check.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; guards a move against folder cycles, must be read fresh.
 		$parent_of_cursor = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT parent_id FROM {$tables['placements']}
+				"SELECT parent_id FROM {$wpdb->desktop_mode_file_placements}
 				WHERE owner_id = %d
 					AND file_type = 'folder'
 					AND file_ref = %s
