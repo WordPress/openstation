@@ -15,13 +15,18 @@
  * The link is the whole point. An email is not proof of anything: on
  * the issuing install a user can set their own email to whatever they
  * like, an administrator's on the target included, so a token can only
- * ever name a source account, never claim a target one. A target
- * account is claimed once, by the person who holds it: arriving with a
- * token while logged in on the target offers to link the two, and the
- * accept is a nonced request from that logged-in session. From then on
- * a token from that source account logs that target account in. The
- * link is a row of user meta the target owns and can undo in the
- * Network window.
+ * ever name a source account, never claim a target one. And a token
+ * that simply ARRIVES proves nothing about the person logged in here:
+ * anyone on the issuer can mint one for their own account and send
+ * anybody's browser to this shell with it. So the target starts every
+ * link itself. An arrival only offers to link "your account on <the
+ * issuer>"; a yes, a nonced request from the logged-in session, makes
+ * a single-use link request for that user and sends the browser to the
+ * issuer, where that browser's OWN session mints a token carrying the
+ * request back. The target links the account that token names only
+ * when the request is the logged-in user's. From then on a token from
+ * that source account logs that target account in. The link is a row
+ * of user meta the target owns and can undo in the Network window.
  *
  * A site of the same install needs none of this and never mints one;
  * a separate install on the same origin does, since it shares nothing
@@ -47,8 +52,14 @@ const OPENSTATION_NETWORK_LINK_LABELS_META = 'openstation_network_link_labels';
 /** User meta: link keys the user declined, so they are not asked again. */
 const OPENSTATION_NETWORK_LINK_DECLINED_META = 'openstation_network_link_declined';
 
-/** How long an offer to link waits for the user's answer, in seconds. */
+/** How long an offer to link waits for the user's answer, and a link request for its return, in seconds. */
 const OPENSTATION_NETWORK_LINK_OFFER_TTL = 10 * MINUTE_IN_SECONDS;
+
+/** Query arg on the issuer's shell: the link request a token should carry back. */
+const OPENSTATION_NETWORK_LINK_REQUEST_ARG = 'openstation_hop_link';
+
+/** Query arg on the issuer's shell: the target shell to carry it back to. */
+const OPENSTATION_NETWORK_LINK_RETURN_ARG = 'openstation_hop_return';
 
 /**
  * URL-safe base64, no padding.
@@ -140,11 +151,17 @@ function openstation_network_hop_targets() {
 /**
  * Mint a token for the current user towards a target shell.
  *
+ * The token also names the shell it was minted from (`src`), so a
+ * target that offers a link knows where to send the user to confirm it,
+ * and, when the mint answers a link request from the target, carries
+ * that request back (`ln`).
+ *
  * @param string $target    The target's shell URL, as the switcher carries it.
  * @param string $direction `next`, `prev`, or ''.
+ * @param string $link      A link request id the target issued, or ''.
  * @return array{token:string,url:string}|WP_Error
  */
-function openstation_network_mint_hop( $target, $direction = '' ) {
+function openstation_network_mint_hop( $target, $direction = '', $link = '' ) {
 	$target  = (string) $target;
 	$targets = openstation_network_hop_targets();
 	if ( ! isset( $targets[ $target ] ) ) {
@@ -166,10 +183,14 @@ function openstation_network_mint_hop( $target, $direction = '' ) {
 		'email' => (string) $user->user_email,
 		'name'  => (string) $user->display_name,
 		'dir'   => in_array( $direction, array( 'next', 'prev' ), true ) ? $direction : '',
+		'src'   => esc_url_raw( admin_url( 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG ) ),
 		'iat'   => $now,
 		'exp'   => $now + OPENSTATION_NETWORK_HOP_TTL,
 		'jti'   => bin2hex( random_bytes( 16 ) ),
 	);
+	if ( '' !== $link ) {
+		$payload['ln'] = (string) $link;
+	}
 	$json    = wp_json_encode( $payload );
 	$token   = openstation_network_hop_encode( $json ) . '.' . openstation_network_hop_encode(
 		sodium_crypto_sign_detached( $json, sodium_base642bin( openstation_network_keypair()['secret'], SODIUM_BASE64_VARIANT_ORIGINAL ) )
@@ -441,27 +462,82 @@ function openstation_network_unlink( $user_id, $key ) {
 }
 
 /**
- * Offer a logged-in user the link a token could not use yet: kept for
- * a few minutes, for the shell to ask about and the link route to act
- * on. Not offered again once declined.
+ * The shell of an issuer this install would send a user to: the one the
+ * token says it was minted from, when that is a shell of the issuing
+ * install in this install's own list, or else the first one the list
+ * has for that install. Never a URL the token merely names: a token is
+ * anyone's to mint, and this is where a browser gets sent.
+ *
+ * @param string $iss Issuer identity URL.
+ * @param string $src The shell the token names, or ''.
+ * @return string Shell URL, or '' when this install knows none.
+ */
+function openstation_network_issuer_shell( $iss, $src = '' ) {
+	$id      = openstation_network_member_id( (string) $iss );
+	$targets = openstation_network_hop_targets();
+	if ( '' !== $src && isset( $targets[ $src ] ) && openstation_network_member_id( $targets[ $src ] ) === $id ) {
+		return (string) $src;
+	}
+	foreach ( $targets as $shell => $install ) {
+		if ( openstation_network_member_id( $install ) === $id ) {
+			return (string) $shell;
+		}
+	}
+	return '';
+}
+
+/**
+ * Whether a user already linked some account of an issuer. An arrival
+ * from there then offers nothing: the request it would start can only
+ * link the account that browser is logged in to over there, which is
+ * the one the user linked already, or another one they hold.
+ *
+ * @param int    $user_id Local user.
+ * @param string $iss     Issuer identity URL.
+ * @return bool
+ */
+function openstation_network_has_link_from( $user_id, $iss ) {
+	$prefix = openstation_network_member_id( (string) $iss ) . '|';
+	foreach ( openstation_network_links( $user_id ) as $key ) {
+		if ( 0 === strpos( $key, $prefix ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Offer a logged-in user to link their account on the install a token
+ * came from: kept for a few minutes, for the shell to ask about. The
+ * offer names the issuer by the name this install pinned for it and
+ * nothing else; who the token was minted for is not who will be linked
+ * (see {@see openstation_network_answer_link()}), and its name and email
+ * are the minter's to choose. Not offered again once declined.
  *
  * @param int                 $user_id The user logged in here.
  * @param array<string,mixed> $payload Verified payload.
+ * @param string              $back    This shell's URL, where the link request returns.
  */
-function openstation_network_offer_link( $user_id, array $payload ) {
-	$key      = openstation_network_link_key( (string) $payload['iss'], (string) $payload['sub'] );
+function openstation_network_offer_link( $user_id, array $payload, $back ) {
+	$iss      = (string) $payload['iss'];
 	$declined = get_user_meta( $user_id, OPENSTATION_NETWORK_LINK_DECLINED_META, true );
-	if ( is_array( $declined ) && in_array( $key, $declined, true ) ) {
+	if ( is_array( $declined ) && in_array( openstation_network_member_id( $iss ), $declined, true ) ) {
+		return;
+	}
+	if ( openstation_network_has_link_from( $user_id, $iss ) ) {
+		return;
+	}
+	$shell = openstation_network_issuer_shell( $iss, isset( $payload['src'] ) ? (string) $payload['src'] : '' );
+	if ( '' === $shell || '' === (string) $back ) {
 		return;
 	}
 	set_transient(
 		'openstation_hop_offer_' . (int) $user_id,
 		array(
-			'iss'   => (string) $payload['iss'],
-			'sub'   => (string) $payload['sub'],
-			'name'  => isset( $payload['name'] ) ? sanitize_text_field( (string) $payload['name'] ) : '',
-			'email' => isset( $payload['email'] ) ? sanitize_email( (string) $payload['email'] ) : '',
-			'site'  => openstation_network_issuer_name( (string) $payload['iss'] ),
+			'iss'   => $iss,
+			'site'  => openstation_network_issuer_name( $iss ),
+			'shell' => $shell,
+			'back'  => (string) $back,
 		),
 		OPENSTATION_NETWORK_LINK_OFFER_TTL
 	);
@@ -469,50 +545,184 @@ function openstation_network_offer_link( $user_id, array $payload ) {
 
 /**
  * The offer waiting for the current user, as the shell config carries
- * it: what to show, and where to answer. Null when there is none.
+ * it: the issuer to name, and where to answer. Null when there is none.
  *
- * @return array{site:string,name:string,email:string,url:string}|null
+ * @return array{site:string,url:string}|null
  */
 function openstation_network_link_offer() {
 	if ( ! is_user_logged_in() ) {
 		return null;
 	}
 	$offer = get_transient( 'openstation_hop_offer_' . get_current_user_id() );
-	if ( ! is_array( $offer ) || empty( $offer['iss'] ) || empty( $offer['sub'] ) ) {
+	if ( ! is_array( $offer ) || empty( $offer['iss'] ) || empty( $offer['shell'] ) ) {
 		return null;
 	}
 	return array(
-		'site'  => (string) $offer['site'],
-		'name'  => openstation_plain_text_title( $offer['name'] ),
-		'email' => (string) $offer['email'],
-		'url'   => esc_url_raw( rest_url( 'desktop-mode/v1/network/link' ) ),
+		'site' => (string) $offer['site'],
+		'url'  => esc_url_raw( rest_url( 'desktop-mode/v1/network/link' ) ),
 	);
 }
 
 /**
- * Answer the offer: link, or decline for good. The nonced request from
- * the logged-in session is the proof the link needs.
+ * Answer the offer. A no is remembered for that issuer. A yes links
+ * nothing yet: it makes a single-use link request for this user and
+ * this issuer and answers with the issuer's shell URL that carries it,
+ * for the browser to go to. There, that browser's own session mints a
+ * token carrying the request back, and the account linked is the one
+ * that token names ({@see openstation_network_complete_link()}).
  *
  * @param int  $user_id The user answering.
  * @param bool $accept  Yes or no.
- * @return array{linked:bool}|WP_Error
+ * @return array{linked:bool,url?:string}|WP_Error
  */
 function openstation_network_answer_link( $user_id, $accept ) {
 	$name  = 'openstation_hop_offer_' . (int) $user_id;
 	$offer = get_transient( $name );
-	if ( ! is_array( $offer ) || empty( $offer['iss'] ) || empty( $offer['sub'] ) ) {
+	if ( ! is_array( $offer ) || empty( $offer['iss'] ) || empty( $offer['shell'] ) || empty( $offer['back'] ) ) {
 		return new WP_Error( 'openstation_hop_no_offer', __( 'There is nothing to link right now.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	delete_transient( $name );
-	if ( $accept ) {
-		openstation_network_link( $user_id, $offer );
-		return array( 'linked' => true );
+	if ( ! $accept ) {
+		$declined   = get_user_meta( $user_id, OPENSTATION_NETWORK_LINK_DECLINED_META, true );
+		$declined   = is_array( $declined ) ? $declined : array();
+		$declined[] = openstation_network_member_id( (string) $offer['iss'] );
+		update_user_meta( $user_id, OPENSTATION_NETWORK_LINK_DECLINED_META, array_values( array_unique( $declined ) ) );
+		return array( 'linked' => false );
 	}
-	$declined   = get_user_meta( $user_id, OPENSTATION_NETWORK_LINK_DECLINED_META, true );
-	$declined   = is_array( $declined ) ? $declined : array();
-	$declined[] = openstation_network_link_key( (string) $offer['iss'], (string) $offer['sub'] );
-	update_user_meta( $user_id, OPENSTATION_NETWORK_LINK_DECLINED_META, array_values( array_unique( $declined ) ) );
-	return array( 'linked' => false );
+	$request = wp_generate_password( 32, false );
+	set_transient(
+		'openstation_hop_link_' . (int) $user_id,
+		array(
+			'id'  => $request,
+			'iss' => (string) $offer['iss'],
+		),
+		OPENSTATION_NETWORK_LINK_OFFER_TTL
+	);
+	return array(
+		'linked' => false,
+		'url'    => add_query_arg(
+			array(
+				OPENSTATION_NETWORK_LINK_REQUEST_ARG => $request,
+				OPENSTATION_NETWORK_LINK_RETURN_ARG  => rawurlencode( (string) $offer['back'] ),
+			),
+			(string) $offer['shell']
+		),
+	);
+}
+
+/**
+ * On the issuer: where a link request goes back to — a token for the
+ * logged-in user, carrying the request, towards the target shell that
+ * issued it. The target must be one this install would mint for anyway.
+ *
+ * @param string $request The link request id.
+ * @param string $back    The target shell to return to.
+ * @return string|WP_Error The URL to send the browser to.
+ */
+function openstation_network_link_return_url( $request, $back ) {
+	if ( ! preg_match( '/^[A-Za-z0-9]{32}$/', (string) $request ) ) {
+		return new WP_Error( 'openstation_hop_link_request', __( 'That is not a link request.', 'desktop-mode' ), array( 'status' => 400 ) );
+	}
+	$minted = openstation_network_mint_hop( (string) $back, '', (string) $request );
+	return is_wp_error( $minted ) ? $minted : $minted['url'];
+}
+
+/**
+ * On the issuer's shell screen, a link request from a target: send the
+ * browser back with a token for whoever is logged in here. On
+ * `admin_init`, after `auth_redirect()` has made sure somebody is; a
+ * request that fails lands on this shell without its args.
+ */
+function openstation_network_answer_link_request() {
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- The target's single-use request id is the check, and it is checked there; this only mints for the logged-in user.
+	if ( empty( $_GET[ OPENSTATION_NETWORK_LINK_REQUEST_ARG ] ) || empty( $_GET[ OPENSTATION_NETWORK_LINK_RETURN_ARG ] ) ) {
+		return;
+	}
+	$page = isset( $_GET['page'] ) && is_scalar( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+	if ( OPENSTATION_SHELL_PAGE_SLUG !== $page || ! is_user_logged_in() ) {
+		return;
+	}
+	$request = is_scalar( $_GET[ OPENSTATION_NETWORK_LINK_REQUEST_ARG ] ) ? sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_NETWORK_LINK_REQUEST_ARG ] ) ) : '';
+	$back    = is_scalar( $_GET[ OPENSTATION_NETWORK_LINK_RETURN_ARG ] ) ? esc_url_raw( wp_unslash( $_GET[ OPENSTATION_NETWORK_LINK_RETURN_ARG ] ) ) : '';
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+	$url = openstation_network_link_return_url( $request, $back );
+	if ( is_wp_error( $url ) ) {
+		wp_safe_redirect( remove_query_arg( array( OPENSTATION_NETWORK_LINK_REQUEST_ARG, OPENSTATION_NETWORK_LINK_RETURN_ARG ) ) );
+		exit;
+	}
+	// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Another install of this network: the mint refuses any URL outside the pinned list.
+	wp_redirect( $url );
+	exit;
+}
+add_action( 'admin_init', 'openstation_network_answer_link_request' );
+
+/**
+ * On the target: link the account a returning token names, when it
+ * carries the logged-in user's own pending link request for that
+ * issuer. The request is spent either way.
+ *
+ * @param int                 $user_id The user logged in here.
+ * @param array<string,mixed> $payload Verified payload carrying `ln`.
+ * @return bool Whether a link was made.
+ */
+function openstation_network_complete_link( $user_id, array $payload ) {
+	$name    = 'openstation_hop_link_' . (int) $user_id;
+	$pending = get_transient( $name );
+	if ( ! is_array( $pending ) || empty( $pending['id'] ) || empty( $pending['iss'] ) ) {
+		return false;
+	}
+	if ( ! hash_equals( (string) $pending['id'], (string) $payload['ln'] ) ) {
+		return false;
+	}
+	delete_transient( $name );
+	if ( openstation_network_member_id( (string) $pending['iss'] ) !== openstation_network_member_id( (string) $payload['iss'] ) ) {
+		return false;
+	}
+	$site = openstation_network_issuer_name( (string) $payload['iss'] );
+	openstation_network_link(
+		$user_id,
+		array(
+			'iss'   => (string) $payload['iss'],
+			'sub'   => (string) $payload['sub'],
+			'name'  => isset( $payload['name'] ) ? sanitize_text_field( (string) $payload['name'] ) : '',
+			'email' => isset( $payload['email'] ) ? sanitize_email( (string) $payload['email'] ) : '',
+			'site'  => $site,
+		)
+	);
+	set_transient( 'openstation_hop_linked_' . (int) $user_id, $site, MINUTE_IN_SECONDS );
+	return true;
+}
+
+/**
+ * The issuer a link was just made with, once, for the shell to say so.
+ *
+ * @return string Issuer name, or ''.
+ */
+function openstation_network_link_made() {
+	if ( ! is_user_logged_in() ) {
+		return '';
+	}
+	$name = 'openstation_hop_linked_' . get_current_user_id();
+	$site = get_transient( $name );
+	if ( false === $site ) {
+		return '';
+	}
+	delete_transient( $name );
+	return (string) $site;
+}
+
+/**
+ * Log in the user a token's linked account resolves to, as a login:
+ * `wp_login` fires, so a two-factor or login-limiting plugin on this
+ * install runs on a hop exactly as on its own login screen.
+ *
+ * @param WP_User $user The linked local user.
+ */
+function openstation_network_hop_login( WP_User $user ) {
+	wp_set_auth_cookie( $user->ID, false );
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's own login action, fired for a login that did not go through wp_signon().
+	do_action( 'wp_login', $user->user_login, $user );
 }
 
 /**
@@ -561,11 +771,20 @@ function openstation_network_redeem_hop() {
 	$direction = '';
 	if ( ! is_wp_error( $payload ) ) {
 		$direction = isset( $payload['dir'] ) ? (string) $payload['dir'] : '';
-		$linked    = openstation_network_hop_user( $payload );
-		if ( $linked && ! is_user_logged_in() ) {
-			wp_set_auth_cookie( $linked->ID, false );
-		} elseif ( ! $linked && is_user_logged_in() ) {
-			openstation_network_offer_link( get_current_user_id(), $payload );
+		if ( ! empty( $payload['ln'] ) ) {
+			// The return leg of a link this user started: it links, or
+			// does nothing. It never logs anyone in.
+			if ( is_user_logged_in() ) {
+				openstation_network_complete_link( get_current_user_id(), $payload );
+			}
+		} else {
+			$linked = openstation_network_hop_user( $payload );
+			if ( $linked && ! is_user_logged_in() ) {
+				openstation_network_hop_login( $linked );
+			} elseif ( ! $linked && is_user_logged_in() ) {
+				$screen = 'admin.php?page=' . OPENSTATION_SHELL_PAGE_SLUG;
+				openstation_network_offer_link( get_current_user_id(), $payload, esc_url_raw( is_network_admin() ? network_admin_url( $screen ) : admin_url( $screen ) ) );
+			}
 		}
 	}
 	wp_safe_redirect( openstation_network_hop_landing( $direction ) );
@@ -628,7 +847,8 @@ function openstation_rest_network_hop( WP_REST_Request $request ) {
 
 /**
  * POST /desktop-mode/v1/network/link — answer the offer waiting for
- * the current user.
+ * the current user: a no is remembered, a yes answers with the issuer
+ * URL that starts the link.
  *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error

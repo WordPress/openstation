@@ -556,53 +556,118 @@ class Tests_OpenStation_Network extends WP_UnitTestCase {
 		$this->assertIsArray( openstation_network_verify_hop( $own ) );
 	}
 
-	public function test_a_link_is_offered_to_the_user_logged_in_here_and_answered_from_that_session() {
+	/**
+	 * An arriving token is anyone's to mint and send, so it must not
+	 * decide who gets linked: the offer names the install only, a yes
+	 * starts a single-use request, and only a token carrying this user's
+	 * own request back links, naming the account the issuer's session
+	 * holds. Before this, an offer quoted the token's name and email and
+	 * a yes linked whoever minted it.
+	 */
+	public function test_a_link_is_started_by_the_target_and_links_the_account_that_returns() {
 		$pair         = self::remote_keypair();
 		$this->remote = static function () use ( $pair ) {
 			return self::json_response( self::member_identity( $pair['public'] ) );
 		};
-		openstation_network_add_member( 'https://member.test' );
-		$payload = openstation_network_verify_hop( self::foreign_token( $pair, array( 'sub' => '78', 'name' => 'Visitor', 'email' => 'visitor@example.org' ) ) );
+		$member  = openstation_network_add_member( 'https://member.test' );
+		$back    = admin_url( 'admin.php?page=openstation' );
+		$planted = openstation_network_verify_hop(
+			self::foreign_token(
+				$pair,
+				array(
+					'sub'   => '78',
+					'name'  => 'Site Admin',
+					'email' => get_userdata( self::$admin_id )->user_email,
+					'src'   => $member['shellUrl'],
+				)
+			)
+		);
 
-		// Nobody logged in: no offer to anyone, and nothing in the config.
-		$this->assertNull( openstation_network_link_offer() );
+		$this->assertNull( openstation_network_link_offer(), 'Nobody logged in: nothing to ask.' );
 
 		wp_set_current_user( self::$admin_id );
-		openstation_network_offer_link( self::$admin_id, $payload );
+		openstation_network_offer_link( self::$admin_id, $planted, $back );
 		$offer = openstation_network_link_offer();
-		$this->assertSame( array( 'site' => 'Member', 'name' => 'Visitor', 'email' => 'visitor@example.org' ), array_intersect_key( $offer, array_flip( array( 'site', 'name', 'email' ) ) ) );
-		$this->assertStringContainsString( '/desktop-mode/v1/network/link', $offer['url'] );
+		$this->assertSame( array( 'site', 'url' ), array_keys( $offer ), 'The install by its pinned name, and nothing the token says about who minted it.' );
+		$this->assertSame( 'Member', $offer['site'] );
 
-		// No, and not asked again for that account.
+		// No: remembered for that install.
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/network/link' );
 		$request->set_param( 'accept', false );
 		$this->assertSame( array( 'linked' => false ), rest_do_request( $request )->get_data() );
-		$this->assertNull( openstation_network_link_offer(), 'Answered.' );
-		openstation_network_offer_link( self::$admin_id, $payload );
+		openstation_network_offer_link( self::$admin_id, $planted, $back );
 		$this->assertNull( openstation_network_link_offer(), 'Declined once, not offered again.' );
-		$this->assertNull( openstation_network_hop_user( $payload ) );
+		delete_user_meta( self::$admin_id, OPENSTATION_NETWORK_LINK_DECLINED_META );
 
-		// Yes, for another source account: from then on its token logs this user in.
-		$other = openstation_network_verify_hop( self::foreign_token( $pair, array( 'sub' => '79', 'name' => 'Visitor', 'email' => 'visitor@example.org' ) ) );
-		openstation_network_offer_link( self::$admin_id, $other );
+		// Yes links nothing: it answers with the issuer's shell, carrying a request.
+		openstation_network_offer_link( self::$admin_id, $planted, $back );
 		$request->set_param( 'accept', true );
-		$this->assertSame( array( 'linked' => true ), rest_do_request( $request )->get_data() );
-		$this->assertSame( self::$admin_id, openstation_network_hop_user( $other )->ID );
+		$answer = rest_do_request( $request )->get_data();
+		$this->assertFalse( $answer['linked'] );
+		$this->assertStringStartsWith( $member['shellUrl'], $answer['url'] );
+		wp_parse_str( (string) wp_parse_url( $answer['url'], PHP_URL_QUERY ), $args );
+		$id = $args[ OPENSTATION_NETWORK_LINK_REQUEST_ARG ];
+		$this->assertSame( $back, $args[ OPENSTATION_NETWORK_LINK_RETURN_ARG ] );
+		$this->assertNull( openstation_network_hop_user( $planted ), 'The token that arrived is not who gets linked.' );
+
+		// The return leg: only this user's own request links.
+		$mine  = openstation_network_verify_hop( self::foreign_token( $pair, array( 'sub' => '91', 'name' => 'Me There', 'email' => 'me@member.test', 'ln' => $id ) ) );
+		$other = self::factory()->user->create();
+		$this->assertFalse( openstation_network_complete_link( $other, $mine ), 'Another user here has no such request.' );
+		$this->assertFalse( openstation_network_complete_link( self::$admin_id, openstation_network_verify_hop( self::foreign_token( $pair, array( 'sub' => '90', 'ln' => str_repeat( 'a', 32 ) ) ) ) ), 'A request id this user was never given.' );
+		$this->assertTrue( openstation_network_complete_link( self::$admin_id, $mine ) );
+		$this->assertSame( self::$admin_id, openstation_network_hop_user( $mine )->ID, 'The account the issuer\'s session minted for is linked.' );
+		$this->assertNull( openstation_network_hop_user( $planted ) );
+		$this->assertSame( 'Member', openstation_network_link_made() );
+		$this->assertSame( '', openstation_network_link_made(), 'Said once.' );
+		$this->assertFalse( openstation_network_complete_link( self::$admin_id, openstation_network_verify_hop( self::foreign_token( $pair, array( 'sub' => '92', 'ln' => $id ) ) ) ), 'Spent.' );
+		openstation_network_offer_link( self::$admin_id, $planted, $back );
+		$this->assertNull( openstation_network_link_offer(), 'Linked to that install already: nothing more to offer.' );
 		$this->assertSame( 404, rest_do_request( $request )->get_status(), 'Nothing left to answer.' );
-		$links = openstation_network_linked_accounts( self::$admin_id );
-		$this->assertCount( 1, $links );
-		$this->assertSame( array( 'site' => 'Member', 'name' => 'Visitor', 'email' => 'visitor@example.org' ), array_values( $links )[0] );
 
 		// The Network window lists it and undoes it.
+		$links = openstation_network_linked_accounts( self::$admin_id );
+		$this->assertSame( array( 'site' => 'Member', 'name' => 'Me There', 'email' => 'me@member.test' ), array_values( $links )[0] );
 		$html = openstation_apps_runtime()->dispatch( 'openstation-network', array( 'action' => 'mount', 'state' => array(), 'args' => array() ), openstation_apps_os() )['html'];
 		$this->assertStringContainsString( 'Linked accounts', $html );
-		$this->assertStringContainsString( 'visitor@example.org', $html );
+		$this->assertStringContainsString( 'me@member.test', $html );
 		$response = openstation_apps_runtime()->dispatch( 'openstation-network', array( 'action' => 'unlink', 'state' => array(), 'args' => array( 'key' => array_keys( $links )[0] ) ), openstation_apps_os() );
 		$this->assertStringContainsString( 'Unlinked', $response['state']['notice'] );
-		$this->assertNull( openstation_network_hop_user( $other ), 'And the token logs nobody in again.' );
+		$this->assertNull( openstation_network_hop_user( $mine ), 'And the token logs nobody in again.' );
 
 		wp_set_current_user( 0 );
 		$this->assertSame( 401, rest_do_request( $request )->get_status(), 'Only a logged-in session answers.' );
+	}
+
+	/**
+	 * The issuer's half of a link: it mints for whoever is logged in
+	 * there, only towards a shell it would mint for anyway. And a hop
+	 * login is a login, so two-factor plugins on `wp_login` see it.
+	 */
+	public function test_the_issuer_returns_a_link_request_only_to_a_known_target_and_hop_logins_fire_wp_login() {
+		$pair         = self::remote_keypair();
+		$this->remote = static function () use ( $pair ) {
+			return self::json_response( self::member_identity( $pair['public'] ) );
+		};
+		$member = openstation_network_add_member( 'https://member.test' );
+		wp_set_current_user( self::$admin_id );
+
+		$id  = str_repeat( 'b', 32 );
+		$url = openstation_network_link_return_url( $id, $member['shellUrl'] );
+		$this->assertIsString( $url );
+		$this->assertStringStartsWith( $member['shellUrl'], $url );
+		wp_parse_str( (string) wp_parse_url( $url, PHP_URL_QUERY ), $args );
+		$payload = json_decode( openstation_network_hop_decode( explode( '.', $args[ OPENSTATION_NETWORK_HOP_ARG ] )[0] ), true );
+		$this->assertSame( $id, $payload['ln'] );
+		$this->assertSame( (string) self::$admin_id, $payload['sub'] );
+		$this->assertSame( 'openstation_hop_target', openstation_network_link_return_url( $id, 'https://stranger.test/wp-admin/admin.php?page=openstation' )->get_error_code(), 'Never a redirect to a URL the request names.' );
+		$this->assertSame( 'openstation_hop_link_request', openstation_network_link_return_url( 'short', $member['shellUrl'] )->get_error_code() );
+
+		$logins = did_action( 'wp_login' );
+		add_filter( 'send_auth_cookies', '__return_false' );
+		openstation_network_hop_login( get_userdata( self::$admin_id ) );
+		remove_filter( 'send_auth_cookies', '__return_false' );
+		$this->assertSame( $logins + 1, did_action( 'wp_login' ) );
 	}
 
 	public function test_landing_drops_the_token_and_keeps_the_direction() {

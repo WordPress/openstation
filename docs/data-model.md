@@ -274,6 +274,9 @@ profile screen). AI agents are ordinary `wp_users` rows flagged with
 | `openstation_station_home_card_preferences` | Station Home | Which home cards are shown or hidden. |
 | `openstation_app_store` | App Framework | The `Store` contract with `user` scope, a key → value map. Plugins stores `desktop-mode-plugins:installed-view` here (`cards` or `table`, default `cards`). The same name with `site` scope is an option. |
 | `_desktop_mode_last_login_at` | Users | Last login time. |
+| `openstation_network_link` | Network | One row per account on another install linked to this user, `<issuer id>|<source user id>`; a hop token from that account logs this user in. Written only when a link request this user started comes back (see [network.md](./network.md#login-on-arrival)). |
+| `openstation_network_link_labels` | Network | The site, name and email of each linked account, keyed like the links, for the Network window. |
+| `openstation_network_link_declined` | Network | Issuer ids the user declined to link, so the offer is not asked again. |
 | `_desktop_mode_has_notes` | Notes | Cache `{rev}:{0|1}` of whether the user has notes; `rev` comes from the `desktop_mode_notes_rev` option. |
 | `_desktop_mode_agent` | Agents | `1` marks this `wp_users` row as an AI agent rather than a person. |
 | `_desktop_mode_agent_abilities`, `_desktop_mode_agent_created_by` (→ `wp_users.ID`), `_desktop_mode_agent_description`, `_desktop_mode_agent_face`, `_desktop_mode_agent_face_seed`, `_desktop_mode_agent_instructions`, `_desktop_mode_agent_model`, `_desktop_mode_agent_rate_limit`, `_desktop_mode_agent_runs`, `_desktop_mode_agent_triggers`, `_desktop_mode_agent_vibes` | Agents | The agent's profile and run log, on its own user row. `includes/agents/store.php` owns every key. |
@@ -332,6 +335,9 @@ truth; every one regenerates.
 | `openstation_shell_build` | PWA | Hash of the shell bundles, used to detect a deploy. |
 | `dm_pwsz_map` | Plugins | On-disk size of each plugin. |
 | `_dm_{kind}_throttle_{requester}_{target}` | Users | One-per-minute throttle for the Users window's per-user emails; `kind` is `pw_reset`, `welcome` or `custom`. Expires after a minute. |
+| `openstation_hop_offer_{user_id}` | Network | The offer to link the user's account on an install a switch just arrived from: that install and its shell. Ten minutes. |
+| `openstation_hop_link_{user_id}` | Network | The single-use link request the user started, `{ id, iss }`, until a token carrying it returns. Ten minutes. |
+| `openstation_hop_linked_{user_id}` | Network | The install a link was just made with, for the shell to say so once. A minute. |
 | `openstation_plugins_handoff_{user_id}` | Windows | The screen a plugin redirected a plugins window to, held for the plugins screen the window went back to, which opens it in a window of its own. Expires after a minute. |
 
 The Plugins app also uses the `desktop-mode-plugins` object-cache group for

@@ -230,7 +230,7 @@ on every one. No `wp.os.network` namespace: the shell reads it all from
 | Surface | Where | Status |
 |---|---|---|
 | Pairing, the registry, keys, the list, login on arrival | [`network.md`](./network.md) | Experimental |
-| `GET desktop-mode/v1/network/identity` (public), `GET desktop-mode/v1/network` (signed by a pinned member, or an administrator), `POST desktop-mode/v1/network/hop` (a logged-in user, towards another install's switcher entry), `POST desktop-mode/v1/network/link` (a logged-in user answering the offer to link a source account) | [`network.md` → Developer surface](./network.md#developer-surface) | Experimental |
+| `GET desktop-mode/v1/network/identity` (public), `GET desktop-mode/v1/network` (signed by a pinned member, or an administrator), `POST desktop-mode/v1/network/hop` (a logged-in user, towards another install's switcher entry), `POST desktop-mode/v1/network/link` (a logged-in user answering the offer to link their account on another install) | [`network.md` → Developer surface](./network.md#developer-surface) | Experimental |
 | `openstation_network_request_url`, `openstation_multisite_sites` filters | [`hooks-reference.md`](./hooks-reference.md#openstation_network_request_url--experimental) | Experimental |
 | `openstation_hop` / `openstation_hop_from` / `openstation_overview` shell boot args, the `hop` app effect, `MultisiteConfig` | [`multisite.md`](./multisite.md#site-instances), [`javascript-reference.md`](./javascript-reference.md) | Experimental |
 | The Network window | `apps/network/network.os.php` | Experimental |

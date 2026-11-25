@@ -28,7 +28,9 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/notes/{id}/restore` | POST | `includes/notes/rest.php` | same notes gate + note author |
 | `/notes/{id}/convert` | POST | `includes/notes/rest.php` | same notes gate + note author + `edit_posts` |
 | `/content-identity` | GET | `includes/window-links.php` | logged-in + OpenStation enabled + `read` + `edit_post` on `post`. Linked posts and media in `links` and in the related items are filtered per item on the caller's `read_post` |
-| `/network/link` | POST | `includes/network/hop.php` | logged-in + OpenStation enabled + `read` |
+| `/network` | GET | `includes/network/hub.php` | `manage_network` (multisite) / `manage_options`, or a request signed by a member with the key this install pinned for it |
+| `/network/identity` | GET | `includes/network/identity.php` | public: this install's public key and shell URL, which a pairing install pins |
+| `/network/link` | POST | `includes/network/hop.php` | logged-in + OpenStation enabled + `read`; acts only on the caller's own pending offer, and links nothing by itself (see `docs/network.md`) |
 | `/network/hop` | POST | `includes/network/hop.php` | logged-in + OpenStation enabled + `read` |
 | `/desktop-themes` | GET | `includes/desktop-themes/rest.php` | logged-in + OpenStation enabled + `read`. The same entries the boot payload carries |
 | `/desktop-themes` | POST | `includes/desktop-themes/rest.php` | logged-in + OpenStation enabled + `read` + `openstation_desktop_theme_upload_capability` (`manage_options` by default) |

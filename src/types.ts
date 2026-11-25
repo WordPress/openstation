@@ -2505,11 +2505,17 @@ export interface DesktopConfig {
 	arrivalDirection?: 'next' | 'prev' | '';
 	/**
 	 * A switch from another install arrived with a login token while
-	 * this user was logged in, and no account is linked to it yet: who
-	 * arrived, from where, and the route that records the answer. The
-	 * shell asks once; null when there is nothing to ask.
+	 * this user was logged in, and none of their accounts there is
+	 * linked yet: the install, by the name this one pinned for it, and
+	 * the route that records the answer. The shell asks once; null when
+	 * there is nothing to ask.
 	 */
-	hopLinkOffer?: { site: string; name: string; email: string; url: string } | null;
+	hopLinkOffer?: { site: string; url: string } | null;
+	/**
+	 * The install a link was just made with, once, for the shell to say
+	 * so; '' when there is none.
+	 */
+	hopLinked?: string;
 	/**
 	 * Progressive-web-app config — endpoint URLs and the per-user
 	 * installable-pill state. Always present in shell-mode requests.

@@ -768,6 +768,7 @@ function openstation_enqueue_assets() {
 			'landInOverview'                => openstation_shell_lands_in_overview(),
 			'arrivalDirection'              => openstation_shell_arrival_direction(),
 			'hopLinkOffer'                  => function_exists( 'openstation_network_link_offer' ) ? openstation_network_link_offer() : null,
+			'hopLinked'                     => function_exists( 'openstation_network_link_made' ) ? openstation_network_link_made() : '',
 			'pwa'                           => array(
 				'manifestUrl'    => esc_url_raw( openstation_pwa_manifest_url() ),
 				'swUrl'          => esc_url_raw( openstation_pwa_sw_url() ),

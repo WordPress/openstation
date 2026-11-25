@@ -139,21 +139,43 @@ without it, the login screen included.
 issuing install a user can set their own email to anything, an
 administrator's on the target included (Core's REST users endpoint
 applies it without confirmation), so an email in a token proves nothing
-about who holds an account on the target. A token can only ever name
-a source account; a target account is claimed once, by the person who
-holds it. The first time a switch arrives with a token while the user
-is **logged in on the target**, the target keeps the offer for ten
-minutes (`config.hopLinkOffer`, with who arrived and from where) and
-the shell asks once: *link that account to yours, and a switch from
-there logs you in as you?* The answer is a nonced request from that
-logged-in session (`POST /desktop-mode/v1/network/link`, `accept`),
-which is the proof: the token proved the source account, the session
-proves the target one. A yes is a row of user meta,
-`openstation_network_link` = `<issuer id>|<source user id>`; a no is
-remembered so the same account is not offered again. From then on a
-token from that source account logs that target account in when nobody
-is logged in there. The Network window lists a user's linked accounts
-under **Linked accounts**, each with Unlink.
+about who holds an account on the target. Nor does a token that simply
+**arrives**: anyone on the issuer can mint one for their own account and
+send anybody's browser to the target's shell with it. So the target
+starts every link itself.
+
+1. The first time a switch arrives with a token while the user is
+   **logged in on the target** and none of their accounts on that
+   issuer is linked yet, the target keeps an offer for ten minutes
+   (`config.hopLinkOffer`, `{ site, url }`) and the shell asks once:
+   *link your account on* <issuer> *to this one?* The offer names the
+   issuer by the name the target pinned for it, never by the name or
+   email the token carries. A no is remembered for that issuer.
+2. A yes is a nonced request from that logged-in session (`POST
+   /desktop-mode/v1/network/link`, `accept`). It links nothing: it makes a
+   single-use **link request** for this user and this issuer (ten
+   minutes), and answers with the issuer's shell URL carrying it
+   (`openstation_hop_link`, plus `openstation_hop_return`, the target
+   shell to come back to). The shell navigates there.
+3. On the issuer, after `auth_redirect()` (a logged-out browser logs in
+   first), `openstation_network_answer_link_request()` mints a token for
+   whoever is logged in **there**, carrying the request as `ln`, towards
+   the return shell, which must be one of the issuer's own switcher
+   targets, and redirects.
+4. The target spends that token like any other, but a token with `ln`
+   never logs anyone in: it links the account it names to the logged-in
+   user only when `ln` is that user's own pending request for that
+   issuer, then says so once (`config.hopLinked`).
+
+So the account linked is always the one that browser holds on the
+issuer, never one an arriving token chose. A link is a row of user meta,
+`openstation_network_link` = `<issuer id>|<source user id>`. From then
+on a token from that source account logs that target account in when
+nobody is logged in there, as a login: `wp_login` fires, so two-factor
+and login-limiting plugins on the target run on it. The Network window
+lists a user's linked accounts under **Linked accounts**, each with
+Unlink. Both installs need this version for a link to complete; with an
+older issuer the request returns nothing and the offer simply lapses.
 
 What the token cannot do: create an account, log in an account nobody
 linked to it (an unknown or unlinked source lands on the login screen),
@@ -202,8 +224,11 @@ ignoring any value the row does not offer.
   token towards one of the switcher's foreign entries; `openstation_hop`
   and `openstation_hop_from` are one-shot boot args of the shell screen.
 - `POST /desktop-mode/v1/network/link`, a logged-in user answering the
-  offer to link a source account to theirs (`accept`); the links are
-  user meta, `openstation_network_link`.
+  offer to link their account on another install (`accept`); a yes
+  answers with the issuer URL that confirms it, and the links are user
+  meta, `openstation_network_link`. `openstation_hop_link` and
+  `openstation_hop_return` are the issuer shell's args for that return
+  leg.
 - `openstation_network_request_url` (filter): the URL one install
   reaches another by, for proxies, internal hostnames and containers.
   See [hooks-reference.md](./hooks-reference.md#openstation_network_request_url--experimental).

@@ -3078,12 +3078,19 @@ function init(): void {
 		mint: hopMinter,
 	} );
 	// A switch from another install arrived with a login token while
-	// this user was logged in, and no account is linked to it yet: ask
-	// once whether to link the two.
+	// this user was logged in, and none of their accounts there is
+	// linked yet: ask once whether to link theirs.
 	if ( config.hopLinkOffer ) {
 		void offerAccountLink( config.hopLinkOffer, {
 			confirm: ( options ) => osConfirm( options ),
 			post: createLinkPoster( config.restNonce ),
+			navigate: ( url ) => window.location.assign( url ),
+		} );
+	}
+	if ( config.hopLinked ) {
+		showToast( {
+			// translators: %s: the site the account was linked with.
+			message: sprintf( __( 'Linked with your account on %s.' ), config.hopLinked ),
 		} );
 	}
 
