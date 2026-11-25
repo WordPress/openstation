@@ -71,17 +71,16 @@ function openstation_files_cascade_trash_placements_for_entity( $file_type, $fil
 	if ( '' === $file_type || '' === $file_ref ) {
 		return 0;
 	}
-	$tables = openstation_files_table_names();
-
 	// SELECT the affected rows up front so we can fire a per-row
 	// action without a second roundtrip. Restrict to live (not yet
 	// trashed) placements — the cascade is idempotent and we don't
 	// want to re-stamp `trashed_at_ms` on rows the user trashed
 	// individually before the source entity was trashed.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; picks the live rows this call trashes, so it reads fresh.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, owner_id, parent_id
-			FROM {$tables['placements']}
+			FROM {$wpdb->desktop_mode_file_placements}
 			WHERE file_type = %s
 				AND file_ref = %s
 				AND trashed_at_ms IS NULL",
@@ -115,8 +114,9 @@ function openstation_files_cascade_trash_placements_for_entity( $file_type, $fil
 				),
 			)
 		);
-		$ok   = $wpdb->update(
-			$tables['placements'],
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches it.
+		$ok = $wpdb->update(
+			$wpdb->desktop_mode_file_placements,
 			array(
 				'trashed_at_ms' => $now,
 				'trashed_by'    => $owner_id,

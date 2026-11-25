@@ -112,7 +112,6 @@ add_filter( 'heartbeat_received', 'openstation_files_heartbeat_received', 5, 2 )
 function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, $placements_version, $cap, $shares_version = 0 ) {
 	global $wpdb;
 
-	$tables    = openstation_files_table_names();
 	$truncated = false;
 
 	// 1) Visible folders the viewer should know about. We send
@@ -164,9 +163,10 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 		// fired right after a soft-trash would resurrect the tile in
 		// the client store.
 		if ( empty( $visible_folder_ids ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; a live delta poll scoped to what the viewer can see, so it reads fresh.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM {$tables['placements']}
+					"SELECT * FROM {$wpdb->desktop_mode_file_placements}
 					WHERE owner_id = %d
 						AND updated_at_ms > %d
 						AND trashed_at_ms IS NULL
@@ -179,21 +179,20 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 				ARRAY_A
 			);
 		} else {
-			$placeholders = implode( ',', array_fill( 0, count( $visible_folder_ids ), '%d' ) );
-			$args         = array_merge(
+			$args = array_merge(
 				array( $user_id ),
 				array_map( 'intval', $visible_folder_ids ),
 				array( $placements_version, $cap )
 			);
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; a live delta poll scoped to what the viewer can see, so it reads fresh.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM {$tables['placements']}
-					WHERE ( owner_id = %d OR parent_id IN ($placeholders) )
+					"SELECT * FROM {$wpdb->desktop_mode_file_placements}
+					WHERE ( owner_id = %d OR parent_id IN (" . implode( ',', array_fill( 0, count( $visible_folder_ids ), '%d' ) ) . ') )
 						AND updated_at_ms > %d
 						AND trashed_at_ms IS NULL
 					ORDER BY updated_at_ms ASC
-					LIMIT %d",
+					LIMIT %d',
 					$args
 				),
 				ARRAY_A
@@ -216,9 +215,10 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 
 	// 3) Tombstones since the last placements_version — gives the
 	// client the "this row is gone" signal.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; a live delta poll, so it reads fresh.
 	$tomb_rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT kind, ref_id FROM {$tables['tombstones']} WHERE removed_at_ms > %d ORDER BY removed_at_ms ASC LIMIT %d",
+			"SELECT kind, ref_id FROM {$wpdb->desktop_mode_file_tombstones} WHERE removed_at_ms > %d ORDER BY removed_at_ms ASC LIMIT %d",
 			$placements_version,
 			$cap
 		),
@@ -243,9 +243,10 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	// mark as a `removed.*` entry. Restoring (clearing
 	// `trashed_at_ms`) bumps `updated_at_ms` and the row will
 	// flow back through `placements` / `folders` upserts above.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; a live delta poll over trash state, so it reads fresh.
 	$trashed_placements = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['placements']}
+			"SELECT id FROM {$wpdb->desktop_mode_file_placements}
 			WHERE trashed_at_ms IS NOT NULL
 				AND trashed_at_ms > %d
 			ORDER BY trashed_at_ms ASC
@@ -257,9 +258,10 @@ function openstation_files_compute_heartbeat_delta( $user_id, $folder_versions, 
 	foreach ( (array) $trashed_placements as $id ) {
 		$removed['placements'][] = (int) $id;
 	}
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; a live delta poll over trash state, so it reads fresh.
 	$trashed_folders = $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['folders']}
+			"SELECT id FROM {$wpdb->desktop_mode_folders}
 			WHERE trashed_at_ms IS NOT NULL
 				AND trashed_at_ms > %d
 			ORDER BY trashed_at_ms ASC
@@ -390,14 +392,12 @@ function openstation_files_purge_stale_tombstones( $kind, $ids ) {
 		return;
 	}
 	global $wpdb;
-	$tables       = openstation_files_table_names();
-	$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Plugin-owned table, no WP API; write path, nothing caches it.
 	$wpdb->query(
 		$wpdb->prepare(
-			"DELETE FROM {$tables['tombstones']}
+			"DELETE FROM {$wpdb->desktop_mode_file_tombstones}
 			WHERE kind = %s
-				AND ref_id IN ($placeholders)",
+				AND ref_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')',
 			array_merge( array( (string) $kind ), array_map( 'intval', $ids ) )
 		)
 	);
