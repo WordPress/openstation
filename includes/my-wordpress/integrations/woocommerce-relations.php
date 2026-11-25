@@ -629,25 +629,21 @@ function openstation_my_wordpress_woo_orders_with_product( $product_id, $limit =
 		return array();
 	}
 
-	$items    = $wpdb->prefix . 'woocommerce_order_items';
-	$itemmeta = $wpdb->prefix . 'woocommerce_order_itemmeta';
-
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names are structural; every value is prepared.
-	$sql = $wpdb->prepare(
-		"SELECT DISTINCT oi.order_id
-		FROM {$items} oi
-		INNER JOIN {$itemmeta} oim ON oim.order_item_id = oi.order_item_id
-		WHERE oi.order_item_type = 'line_item'
-			AND oim.meta_key IN ( '_product_id', '_variation_id' )
-			AND oim.meta_value = %d
-		ORDER BY oi.order_id DESC
-		LIMIT %d",
-		$product_id,
-		$limit
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- No WooCommerce API answers "orders containing product X"; the result feeds one menu render.
+	$ids = $wpdb->get_col(
+		$wpdb->prepare(
+			"SELECT DISTINCT oi.order_id
+			FROM {$wpdb->prefix}woocommerce_order_items oi
+			INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oim.order_item_id = oi.order_item_id
+			WHERE oi.order_item_type = 'line_item'
+				AND oim.meta_key IN ( '_product_id', '_variation_id' )
+				AND oim.meta_value = %d
+			ORDER BY oi.order_id DESC
+			LIMIT %d",
+			$product_id,
+			$limit
+		)
 	);
-
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- no core API answers "orders containing product X"; $sql came out of prepare() above, and the result feeds one menu render.
-	$ids = $wpdb->get_col( $sql );
 
 	return array_map( 'intval', (array) $ids );
 }
@@ -926,21 +922,18 @@ function openstation_my_wordpress_woo_orders_with_coupon( $code, $limit = 10 ) {
 		return array();
 	}
 
-	$items = $wpdb->prefix . 'woocommerce_order_items';
-
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is structural; every value is prepared.
-	$sql = $wpdb->prepare(
-		"SELECT DISTINCT order_id
-		FROM {$items}
-		WHERE order_item_type = 'coupon' AND LOWER( order_item_name ) = %s
-		ORDER BY order_id DESC
-		LIMIT %d",
-		$code,
-		max( 1, (int) $limit )
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- No WooCommerce API answers "orders that used coupon X"; the result feeds one menu render.
+	$ids = $wpdb->get_col(
+		$wpdb->prepare(
+			"SELECT DISTINCT order_id
+			FROM {$wpdb->prefix}woocommerce_order_items
+			WHERE order_item_type = 'coupon' AND LOWER( order_item_name ) = %s
+			ORDER BY order_id DESC
+			LIMIT %d",
+			$code,
+			max( 1, (int) $limit )
+		)
 	);
-
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- no core API answers "orders that used coupon X"; $sql came out of prepare() above, and the result feeds one menu render.
-	$ids = $wpdb->get_col( $sql );
 
 	return array_map( 'intval', (array) $ids );
 }
