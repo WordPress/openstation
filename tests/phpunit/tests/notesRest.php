@@ -397,6 +397,73 @@ class Tests_OpenStation_NotesRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A public note lands on every desktop unreviewed, so sharing takes
+	 * `edit_posts`: a Subscriber keeps private notes only, cannot flip one
+	 * public, and a note they shared before the gate comes down on their
+	 * next edit, or on migration 11 if they never make one.
+	 *
+	 * @covers ::openstation_notes_user_can_share
+	 * @covers ::openstation_notes_rest_create
+	 * @covers ::openstation_notes_rest_update
+	 * @covers ::openstation_migrate_unshare_notes
+	 */
+	public function test_a_subscriber_cannot_share_a_note() {
+		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		update_user_meta( $subscriber, 'desktop_mode_mode', '1' );
+		$shared_by  = static function ( $author ) {
+			return self::factory()->post->create(
+				array(
+					'post_type'    => OPENSTATION_NOTES_POST_TYPE,
+					'post_status'  => 'publish',
+					'post_author'  => $author,
+					'post_content' => 'shared before the gate',
+				)
+			);
+		};
+		$editor_note = $shared_by( self::$owner_id );
+		$untouched   = $shared_by( $subscriber );
+		$edited      = $shared_by( $subscriber );
+
+		wp_set_current_user( $subscriber );
+		$refused = openstation_notes_rest_create( $this->create_request( array( 'public' => true ) ) );
+		$this->assertWPError( $refused );
+		$this->assertSame( 'openstation_notes_cannot_share', $refused->get_error_code() );
+
+		$private = $this->create_note();
+		$flip    = openstation_notes_rest_update( $this->update_request( $private['id'], array( 'public' => true ) ) );
+		$this->assertWPError( $flip );
+		$this->assertSame( 'private', get_post_status( $private['id'] ) );
+
+		$moved = openstation_notes_rest_update( $this->update_request( $edited, array( 'x' => 0.5 ) ) )->get_data();
+		$this->assertFalse( $moved['public'] );
+		$this->assertSame( 'shared before the gate', get_post_field( 'post_content', $edited, 'raw' ) );
+
+		openstation_migrate_unshare_notes();
+		$this->assertSame( 'private', get_post_status( $untouched ) );
+		$this->assertSame( 'publish', get_post_status( $editor_note ) );
+	}
+
+	/**
+	 * Both Markdown renderers mark set-aside spans with U+E000. A typed one
+	 * forged a placeholder: link 0's URL named link 1's, and the restore
+	 * pasted link 1's markup into link 0's href, its quote ending the
+	 * attribute. Storage drops the character and the renderer ignores it.
+	 *
+	 * @covers ::openstation_notes_sanitize_text
+	 * @covers ::openstation_notes_markdown_inline
+	 */
+	public function test_a_typed_placeholder_is_dropped_and_forges_nothing() {
+		$text = "[o](https://a/\u{E000}1\u{E000}) [i](https://b/autofocus/onfocus=alert//)";
+		$note = $this->create_note( array( 'text' => $text ) );
+		$this->assertSame( '[o](https://a/1) [i](https://b/autofocus/onfocus=alert//)', get_post_field( 'post_content', $note['id'], 'raw' ) );
+
+		$this->assertSame(
+			'<a href="https://a/1">o</a> <a href="https://b/autofocus/onfocus=alert//">i</a>',
+			openstation_notes_markdown_inline( $text )
+		);
+	}
+
+	/**
 	 * A Markdown note becomes real blocks, not its source in paragraphs:
 	 * the title loses its markers, `#` steps down to h2 under the post
 	 * title, a checklist keeps its state as ☐ / ☑, and markup typed into

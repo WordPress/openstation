@@ -580,6 +580,9 @@ function openstation_enqueue_assets() {
 			// route (and its dock drop target) only make sense for users
 			// who can author posts.
 			'canCreatePosts'                => current_user_can( 'edit_posts' ),
+			// Gates the note's share toggle: the notes REST routes refuse
+			// a public note from anyone else.
+			'canShareNotes'                 => function_exists( 'openstation_notes_user_can_share' ) && openstation_notes_user_can_share(),
 			'serverWallpaperMenuItems'      => $server_wallpaper_menu_items,
 			'accentColors'                  => openstation_get_accent_colors(),
 			'toastTypes'                    => openstation_get_toast_types(),

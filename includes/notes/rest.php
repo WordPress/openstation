@@ -20,6 +20,10 @@
  * notes are a read-only broadcast surface; "manage other users'
  * notes" is not a supported operation through this controller.
  *
+ * Sharing: making a note public takes `edit_posts`
+ * ({@see openstation_notes_user_can_share()}), so a Subscriber keeps
+ * private notes only.
+ *
  * Optimistic concurrency: PATCH accepts an `updatedAtMs` field
  * carrying the client's last-seen modified timestamp; a mismatch
  * returns 409 `openstation_notes_conflict` with the server copy in
@@ -273,6 +277,46 @@ function openstation_notes_derive_title( $text ) {
 }
 
 /**
+ * Sanitize note text for storage.
+ *
+ * Drops U+E000 on top of `sanitize_textarea_field()`: both Markdown
+ * renderers mark the spans they set aside with it, so a note that kept
+ * one could forge a placeholder. The renderers drop it too; this keeps
+ * it out of what every other reader of the note gets.
+ *
+ * @param mixed $text Raw note text.
+ * @return string
+ */
+function openstation_notes_sanitize_text( $text ) {
+	return str_replace( "\u{E000}", '', sanitize_textarea_field( (string) $text ) );
+}
+
+/**
+ * Whether a user may share a note with every other OpenStation user.
+ *
+ * A public note lands on every other desktop, administrators' included,
+ * without anyone reviewing it, so it takes `edit_posts`: a Subscriber
+ * keeps private notes only. A note stays public only while its author
+ * passes this check (see {@see openstation_notes_rest_update()} and
+ * migration 11).
+ *
+ * @param int $user_id User id. Default: the current user.
+ * @return bool
+ */
+function openstation_notes_user_can_share( $user_id = 0 ) {
+	return user_can( $user_id ? (int) $user_id : get_current_user_id(), 'edit_posts' );
+}
+
+/**
+ * The 403 for a share the caller may not make.
+ *
+ * @return WP_Error
+ */
+function openstation_notes_share_forbidden() {
+	return new WP_Error( 'openstation_notes_cannot_share', __( 'You are not allowed to share notes with other users.', 'desktop-mode' ), array( 'status' => 403 ) );
+}
+
+/**
  * GET /notes — own notes (private + publish) ∪ others' publish.
  *
  * @return WP_REST_Response
@@ -328,10 +372,10 @@ function openstation_notes_rest_create( $request ) {
 	/**
 	 * Filters whether the current user may create a note.
 	 *
-	 * Notes default to any logged-in openstation user — including
-	 * publishing PUBLIC notes onto every other user's wallpaper.
-	 * Sites that want to restrict that (by role, capability, or the
-	 * request's `public` flag) hook here.
+	 * Notes default to any logged-in openstation user. Sharing one with
+	 * everyone also takes `edit_posts` (openstation_notes_user_can_share());
+	 * sites that want to restrict notes further (by role, capability,
+	 * or the request itself) hook here.
 	 *
 	 * @param bool            $can_create Whether creation is allowed. Default true.
 	 * @param int             $user_id    Current user id.
@@ -341,8 +385,11 @@ function openstation_notes_rest_create( $request ) {
 	if ( ! $can_create ) {
 		return new WP_Error( 'openstation_notes_forbidden', __( 'You are not allowed to create notes.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
+	if ( $request['public'] && ! openstation_notes_user_can_share() ) {
+		return openstation_notes_share_forbidden();
+	}
 
-	$text = sanitize_textarea_field( (string) $request['text'] );
+	$text = openstation_notes_sanitize_text( $request['text'] );
 
 	add_filter( 'wp_insert_post_data', 'openstation_notes_preserve_text', 5, 3 );
 	$post_id = wp_insert_post(
@@ -435,15 +482,25 @@ function openstation_notes_rest_update( $request ) {
 		);
 	}
 
+	$can_share = openstation_notes_user_can_share();
+	if ( null !== $request['public'] && rest_sanitize_boolean( $request['public'] ) && ! $can_share ) {
+		return openstation_notes_share_forbidden();
+	}
+
 	$update = array( 'ID' => $post->ID );
 
 	if ( null !== $request['text'] ) {
-		$text                   = sanitize_textarea_field( (string) $request['text'] );
+		$text                   = openstation_notes_sanitize_text( $request['text'] );
 		$update['post_content'] = wp_slash( $text );
 		$update['post_title']   = openstation_notes_derive_title( $text );
 	}
 	if ( null !== $request['public'] ) {
 		$update['post_status'] = rest_sanitize_boolean( $request['public'] ) ? 'publish' : 'private';
+	}
+	// A note stays public only while its author may share it: any edit
+	// by an author who no longer may takes it down.
+	if ( ! $can_share && 'publish' === $post->post_status ) {
+		$update['post_status'] = 'private';
 	}
 
 	if ( null !== $request['color'] ) {

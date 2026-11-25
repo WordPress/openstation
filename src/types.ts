@@ -2345,6 +2345,13 @@ export interface DesktopConfig {
 	 */
 	canCreatePosts?: boolean;
 	/**
+	 * Whether the current user may share a note with every other
+	 * OpenStation user (`edit_posts`, see
+	 * `openstation_notes_user_can_share()`). Gates the note's share
+	 * toggle. Absent → false.
+	 */
+	canShareNotes?: boolean;
+	/**
 	 * Roles eligible to appear in the folder Share Settings role
 	 * picker. Server applies `openstation_files_share_eligible_roles`
 	 * before serializing — default = roles with `edit_posts`.

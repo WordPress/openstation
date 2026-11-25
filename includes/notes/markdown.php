@@ -33,14 +33,30 @@ const OPENSTATION_NOTES_MD_FENCE = '/^(`{3,}|~{3,})/';
  * @return string HTML.
  */
 function openstation_notes_markdown_inline( $text ) {
+	// U+E000 marks the spans set aside below. Note text is user input, so
+	// it never keeps one: a typed one would forge a placeholder and paste
+	// one link's markup inside another link's href.
+	$text  = str_replace( "\u{E000}", '', (string) $text );
 	$stash = array();
 	$keep  = static function ( $html ) use ( &$stash ) {
 		$stash[] = $html;
 		return "\u{E000}" . ( count( $stash ) - 1 ) . "\u{E000}";
 	};
-	$link  = static function ( $label, $url ) {
+	// One pass, never recursive: every fragment is stored complete (a
+	// link's label has its code spans put back before the link is kept),
+	// so restored markup is never read again as a placeholder.
+	$restore = static function ( $html ) use ( &$stash ) {
+		return preg_replace_callback(
+			'/\x{E000}(\d+)\x{E000}/u',
+			static function ( $m ) use ( &$stash ) {
+				return isset( $stash[ (int) $m[1] ] ) ? $stash[ (int) $m[1] ] : '';
+			},
+			$html
+		);
+	};
+	$link    = static function ( $label, $url ) {
 		$url = html_entity_decode( trim( $url ), ENT_QUOTES, 'UTF-8' );
-		if ( ! preg_match( '#^https?://#i', $url ) ) {
+		if ( ! preg_match( '#^https?://#i', $url ) || false !== strpos( $url, "\u{E000}" ) ) {
 			return $label;
 		}
 		return '<a href="' . esc_url( $url ) . '">' . $label . '</a>';
@@ -59,8 +75,8 @@ function openstation_notes_markdown_inline( $text ) {
 	);
 	$html = preg_replace_callback(
 		'/\[([^\]]+)\]\(([^)\s]+)\)/',
-		static function ( $m ) use ( $keep, $link ) {
-			return $keep( $link( openstation_notes_markdown_emphasis( $m[1] ), $m[2] ) );
+		static function ( $m ) use ( $keep, $link, $restore ) {
+			return $keep( $link( $restore( openstation_notes_markdown_emphasis( $m[1] ) ), $m[2] ) );
 		},
 		$html
 	);
@@ -75,17 +91,6 @@ function openstation_notes_markdown_inline( $text ) {
 		$html
 	);
 
-	// A link's label can hold a code span, so a restored span can carry
-	// another placeholder; each index is earlier than its container's.
-	$restore = static function ( $html ) use ( &$stash, &$restore ) {
-		return preg_replace_callback(
-			'/\x{E000}(\d+)\x{E000}/u',
-			static function ( $m ) use ( &$stash, $restore ) {
-				return isset( $stash[ (int) $m[1] ] ) ? $restore( $stash[ (int) $m[1] ] ) : '';
-			},
-			$html
-		);
-	};
 	return $restore( openstation_notes_markdown_emphasis( $html ) );
 }
 

@@ -3,8 +3,8 @@
  *
  * Extracted from the AI assistant so every surface that shows
  * Markdown-ish text (the assistant overlay, the Agent chat window,
- * pinned notes) formats it the same way. Pure string → safe-HTML; no
- * dependencies.
+ * pinned notes) formats it the same way. String → safe HTML; no
+ * dependencies beyond the DOM.
  */
 
 // ---------------------------------------------------------------------------
@@ -21,10 +21,18 @@
 // Safety: every input passes through HTML escaping FIRST, then markdown
 // tokens are re-interpreted into safe HTML. URLs are filtered to
 // http/https only — no javascript:, data:, or vbscript: links reach
-// the DOM. Result is safe to set as innerHTML. Inline tokens are
-// applied per line, so a stray `*` can never pair up across lines, and
-// code spans and link URLs are set aside before emphasis runs, so an
-// underscore in a URL or an asterisk in `code` stays literal.
+// the DOM. Inline tokens are applied per line, so a stray `*` can never
+// pair up across lines, and code spans and link URLs are set aside
+// before emphasis runs, so an underscore in a URL or an asterisk in
+// `code` stays literal. The result then passes an allowlist of the
+// elements and attributes this file emits before it is returned, so a
+// slip in the token layer still cannot put a handler on the page. It is
+// safe to set as innerHTML.
+//
+// The set-aside spans are marked with a private-use code point (STASH).
+// Input text is user and model text, so that code point is removed from
+// it before anything else: a typed one would forge a placeholder and
+// paste one link's markup inside another link's href attribute.
 //
 // Intentionally NOT supported (to keep it minimal):
 //   - tables, images, nested lists (indentation is flattened)
@@ -42,10 +50,28 @@ function escapeHtmlForMd( s: string ): string {
 
 /**
  * Placeholder delimiter for spans set aside during inline rendering: a
- * private-use code point, which no keyboard types and no model emits,
- * so it never collides with content.
+ * private-use code point. It is stripped from the input (see
+ * {@link renderMarkdown}), so every one left in the text is ours.
  */
 const STASH = '\uE000';
+
+/** Every STASH in a string, for stripping it from input. */
+const STASH_ALL = /\uE000/g;
+
+/**
+ * An href this renderer will write. The URL arrives HTML-escaped, so a
+ * quote or an angle bracket in it can only come from a set-aside span,
+ * and neither may reach the attribute.
+ */
+const SAFE_HREF = /^https?:\/\/[^\s"<>\uE000]+$/i;
+
+/**
+ * The scheme an href must carry once parsed. A parsed attribute value
+ * holds decoded text (a URL typed with `"` reads `"` here, `&quot;` in
+ * the markup), and the serializer escapes it again, so only the scheme
+ * is at stake.
+ */
+const HTTP_URL = /^https?:\/\//i;
 
 /** Characters a bare URL must not end on (sentence punctuation). */
 const URL_TRAILING_PUNCT = /[.,;:!?)\]'*_~]+$/;
@@ -53,10 +79,65 @@ const URL_TRAILING_PUNCT = /[.,;:!?)\]'*_~]+$/;
 /** Render `[label](url)` as an anchor, or just the label when unsafe. */
 function linkHtml( label: string, url: string ): string {
 	const href = url.trim();
-	if ( ! /^https?:\/\//i.test( href ) ) {
+	if ( ! SAFE_HREF.test( href ) ) {
 		return label;
 	}
 	return `<a href="${ href }" target="_blank" rel="noopener noreferrer">${ label }</a>`;
+}
+
+/** The elements {@link renderMarkdown} emits, each with the attributes it may carry. */
+const ALLOWED_MARKUP: Readonly< Record< string, readonly string[] > > = {
+	p: [],
+	br: [],
+	strong: [],
+	em: [],
+	del: [],
+	code: [],
+	pre: [],
+	h3: [],
+	h4: [],
+	h5: [],
+	h6: [],
+	hr: [],
+	blockquote: [],
+	ul: [],
+	ol: [],
+	li: [ 'class' ],
+	span: [],
+	a: [ 'href', 'target', 'rel' ],
+	'os-checkbox': [ 'value', 'checked', 'disabled' ],
+};
+
+/**
+ * Hold rendered Markdown to the markup this file emits: any other
+ * element becomes its text, any other attribute is dropped, and an href
+ * must be http(s).
+ *
+ * The renderer's own output passes untouched and is returned as the
+ * same string; only a slip in the token layer changes anything.
+ *
+ * @param html Rendered Markdown.
+ * @return The same HTML, or a sanitized serialization of it.
+ */
+export function sanitizeMarkdownHtml( html: string ): string {
+	const template = document.createElement( 'template' );
+	template.innerHTML = html;
+	let changed = false;
+	for ( const el of Array.from( template.content.querySelectorAll( '*' ) ) ) {
+		const allowed = ALLOWED_MARKUP[ el.localName ];
+		if ( ! allowed ) {
+			el.replaceWith( el.textContent ?? '' );
+			changed = true;
+			continue;
+		}
+		for ( const { name, value } of Array.from( el.attributes ) ) {
+			if ( ! allowed.includes( name ) || ( name === 'href' && ! HTTP_URL.test( value ) ) ) {
+				el.removeAttribute( name );
+				changed = true;
+			}
+		}
+	}
+	return changed ? template.innerHTML : html;
 }
 
 /** Emphasis tokens on an already-escaped string with no links or code. */
@@ -79,6 +160,12 @@ function renderInlineMd( s: string ): string {
 		stash.push( htmlFragment );
 		return `${ STASH }${ stash.length - 1 }${ STASH }`;
 	};
+	// One pass, never recursive: every fragment is stored complete (a
+	// link's label has its code spans put back before the link is kept),
+	// so restored markup is never read again as a placeholder.
+	const placeholder = new RegExp( `${ STASH }(\\d+)${ STASH }`, 'g' );
+	const restore = ( text: string ): string =>
+		text.replace( placeholder, ( _m, index: string ) => stash[ Number( index ) ] ?? '' );
 
 	const out = s
 		// Inline code `snippet` first: nothing inside it is markdown.
@@ -87,7 +174,7 @@ function renderInlineMd( s: string ): string {
 		// never does.
 		.replace(
 			/\[([^\]]+)\]\(([^)\s]+)\)/g,
-			( _m, label: string, url: string ) => keep( linkHtml( renderEmphasis( label ), url ) ),
+			( _m, label: string, url: string ) => keep( linkHtml( restore( renderEmphasis( label ) ), url ) ),
 		)
 		// Bare http(s) URLs. `&amp;` is the only entity a URL may carry
 		// (a query string); any other escaped character ends it.
@@ -100,13 +187,6 @@ function renderInlineMd( s: string ): string {
 			},
 		);
 
-	// A link's label can hold a code span, so a restored span can carry
-	// another placeholder; each index is earlier than its container's.
-	const placeholder = new RegExp( `${ STASH }(\\d+)${ STASH }`, 'g' );
-	const restore = ( htmlFragment: string ): string =>
-		htmlFragment.replace( placeholder, ( _m, index: string ) =>
-			restore( stash[ Number( index ) ] ?? '' ),
-		);
 	return restore( renderEmphasis( out ) );
 }
 
@@ -143,10 +223,11 @@ export function renderMarkdown( md: string, options: RenderMarkdownOptions = {} 
 		return '';
 	}
 
-	// Escape first so user / model text can't inject markup. Escaping
-	// never adds or removes a newline, so line N here is line N of the
-	// source — the task boxes depend on that.
-	const safe = escapeHtmlForMd( md );
+	// Escape first so user / model text can't inject markup, and drop
+	// STASH so it can't forge a placeholder. Neither adds or removes a
+	// newline, so line N here is line N of the source — the task boxes
+	// depend on that.
+	const safe = escapeHtmlForMd( md.replace( STASH_ALL, '' ) );
 
 	// Line-stream state machine rather than blank-line block splitting:
 	// model output routinely packs a heading, bullets, and prose into
@@ -278,7 +359,7 @@ export function renderMarkdown( md: string, options: RenderMarkdownOptions = {} 
 	}
 	flushBlocks();
 
-	return out.join( '' );
+	return sanitizeMarkdownHtml( out.join( '' ) );
 }
 
 /**

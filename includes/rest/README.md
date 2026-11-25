@@ -23,8 +23,8 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/feedback/usage` | POST | `includes/feedback/usage.php` | logged-in + OpenStation enabled + `read` + `openstation_usage_feedback_enabled()`. No object-level checks: the route stores nothing on the site but the caller's own `usage-feedback` seen-intro flag, forwards the typed answers (and an email only when one was typed) to the intake on openstation.blog and answers `{ sent }` (`400` for an empty form or a malformed address, `502` when the forward failed) |
 | `/debug` | GET | `includes/devtools.php` | `manage_options` (filterable via `openstation_debug_rest_permission`) |
 | `/presence` | GET / POST | `includes/presence.php` | logged-in + OpenStation enabled + `read` |
-| `/notes` | GET / POST | `includes/notes/rest.php` | logged-in + OpenStation enabled + `read` (`openstation_notes_rest_permission()`). GET lists the caller's own notes plus every public one |
-| `/notes/{id}` | PATCH / DELETE | `includes/notes/rest.php` | same notes gate + the caller is the note's author (administrators included) |
+| `/notes` | GET / POST | `includes/notes/rest.php` | logged-in + OpenStation enabled + `read` (`openstation_notes_rest_permission()`). GET lists the caller's own notes plus every public one. POST with `public: true` also needs `edit_posts` (`openstation_notes_user_can_share()`) |
+| `/notes/{id}` | PATCH / DELETE | `includes/notes/rest.php` | same notes gate + the caller is the note's author (administrators included). Making a note public also needs `openstation_notes_user_can_share()` |
 | `/notes/{id}/restore` | POST | `includes/notes/rest.php` | same notes gate + note author |
 | `/notes/{id}/convert` | POST | `includes/notes/rest.php` | same notes gate + note author + `edit_posts` |
 | `/content-identity` | GET | `includes/window-links.php` | logged-in + OpenStation enabled + `read` + `edit_post` on `post`. Linked posts and media in `links` and in the related items are filtered per item on the caller's `read_post` |

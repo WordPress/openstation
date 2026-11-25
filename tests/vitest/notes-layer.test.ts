@@ -252,6 +252,14 @@ describe( 'NotesLayer', () => {
 
 
 
+	test( 'without the right to share, the toggle only takes a public note down', () => {
+		const layer = makeLayer();
+		const toggle = ( note: Note ) =>
+			layer.upsertNote( note ).element.querySelector< HTMLElement >( '.os-pinned-note__visibility' );
+		expect( toggle( makeNote( { id: 1 } ) )?.hidden ).toBe( true );
+		expect( toggle( makeNote( { id: 2, public: true } ) )?.hidden ).toBe( false );
+	} );
+
 	test( 'createNoteAt pins optimistically and POSTs', async () => {
 		const fetchSpy = vi.fn( async () =>
 			new Response(
@@ -263,8 +271,10 @@ describe( 'NotesLayer', () => {
 		);
 		vi.stubGlobal( 'fetch', fetchSpy );
 
+		// A viewer who may not share asks for a public note and gets a
+		// private one: the server would refuse the share.
 		const layer = makeLayer();
-		const controller = layer.createNoteAt( { x: 0.4, y: 0.6, focus: true } );
+		const controller = layer.createNoteAt( { x: 0.4, y: 0.6, focus: true, isPublic: true } );
 
 		// Paper is on the wall before the network answers.
 		expect( controller.element.isConnected ).toBe( true );
@@ -277,6 +287,7 @@ describe( 'NotesLayer', () => {
 		expect( post ).toBeDefined();
 		const body = JSON.parse( String( ( post?.[ 1 ] as RequestInit ).body ) );
 		expect( body.x ).toBeCloseTo( 0.4 );
+		expect( body.public ).toBe( false );
 		// The temp id gave way to the server's.
 		expect( layer.has( 77 ) ).toBe( true );
 	} );

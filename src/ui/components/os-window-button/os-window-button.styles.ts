@@ -15,6 +15,9 @@ export const styles = css`
 	:host {
 		display: inline-flex;
 	}
+	:host( [hidden] ) {
+		display: none;
+	}
 	button {
 		display: flex;
 		align-items: center;

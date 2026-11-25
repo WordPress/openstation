@@ -5017,7 +5017,9 @@ OpenStation user's wallpaper). Only the owner can edit, move, recolor,
 or delete a note; administrators do not bypass ownership through this
 controller. The REST routes and the notes Heartbeat channel both
 require a logged-in user with OpenStation enabled and `read` on the
-site.
+site. Making a note public takes more: `edit_posts`, so a Subscriber
+keeps private notes only, and a note stays public only while its author
+holds it (any edit by an author who no longer does makes it private).
 
 A note's text is stored as typed, and read as **Markdown**: the pinned
 note renders it (escaped first, so a public note can carry no markup
@@ -5031,10 +5033,10 @@ the shell's own headings) and becomes an `h2` in a converted post
 ### `openstation_notes_user_can_create` — Experimental *(filter)*
 
 Filters whether the current user may create a note. Defaults to
-`true` for every logged-in OpenStation user, which includes
-publishing PUBLIC notes onto every other user's wallpaper. Sites
-that want to restrict that gate here — by role, capability, or the
-request itself (e.g. only restrict `public: true` creates).
+`true` for every logged-in OpenStation user. Making the note public
+also takes `edit_posts`, whatever this returns; sites that want to
+restrict notes further gate here, by role, capability, or the request
+itself.
 
 ```php
 apply_filters( 'openstation_notes_user_can_create', bool $can_create, int $user_id, WP_REST_Request $request );

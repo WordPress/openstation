@@ -41,6 +41,7 @@ export function bootNotes( options: BootNotesOptions ): NotesLayer | null {
 		host: options.host,
 		pluginUrl: options.config.pluginUrl ?? '',
 		canCreatePosts: options.config.canCreatePosts ?? false,
+		canShare: options.config.canShareNotes ?? false,
 		onError: options.onError,
 	} );
 	installNoteDropHandlers( layer );

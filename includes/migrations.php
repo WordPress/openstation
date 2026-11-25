@@ -65,8 +65,11 @@ defined( 'ABSPATH' ) || exit;
  *   existed (`openstation_first_enabled_at` with `at: 0, via: backfill`)
  *   and marks the `shell-tour` intro seen for every prior user, so an
  *   update never greets a veteran with a first-boot tour.
+ * - 11: sharing a note takes `edit_posts`. Makes private every public
+ *   note whose author no longer passes that check, so a note a
+ *   Subscriber shared before leaves every other desktop.
  */
-const OPENSTATION_MIGRATION_VERSION = 10;
+const OPENSTATION_MIGRATION_VERSION = 11;
 
 /**
  * Option storing the highest migration version that has run. autoload=no.
@@ -182,6 +185,48 @@ function openstation_run_pending_migrations( $from ) {
 	if ( $from < 10 ) {
 		openstation_migrate_first_run_stamps();
 	}
+
+	if ( $from < 11 ) {
+		openstation_migrate_unshare_notes();
+	}
+}
+
+/**
+ * Migration 11 — take down the public notes their authors may not share.
+ *
+ * Sharing a note with every desktop user takes `edit_posts`
+ * ({@see openstation_notes_user_can_share()}). A note shared before that
+ * gate existed stays on every other desktop until its author edits it,
+ * so each one whose author fails the check goes back to private: still
+ * the author's note, no longer anyone else's.
+ *
+ * Through `wp_update_post()` so `post_modified` advances and open
+ * desktops drop the note on their next Heartbeat; the note's text is
+ * kept as stored, the way the notes REST controller keeps it.
+ *
+ * @return void
+ */
+function openstation_migrate_unshare_notes() {
+	$notes = get_posts(
+		array(
+			'post_type'   => OPENSTATION_NOTES_POST_TYPE,
+			'post_status' => 'publish',
+			'numberposts' => -1,
+		)
+	);
+
+	add_filter( 'wp_insert_post_data', 'openstation_notes_preserve_text', 5, 3 );
+	foreach ( $notes as $note ) {
+		if ( ! openstation_notes_user_can_share( (int) $note->post_author ) ) {
+			wp_update_post(
+				array(
+					'ID'          => $note->ID,
+					'post_status' => 'private',
+				)
+			);
+		}
+	}
+	remove_filter( 'wp_insert_post_data', 'openstation_notes_preserve_text', 5 );
 }
 
 /**

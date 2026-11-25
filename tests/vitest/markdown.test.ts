@@ -3,7 +3,7 @@
  * by the AI assistant overlay, the Agent chat window and pinned notes.
  */
 import { describe, expect, test } from 'vitest';
-import { renderMarkdown, setTaskChecked } from '../../src/markdown';
+import { renderMarkdown, sanitizeMarkdownHtml, setTaskChecked } from '../../src/markdown';
 
 describe( 'renderMarkdown', () => {
 	test( 'escapes HTML before interpreting tokens', () => {
@@ -93,6 +93,29 @@ describe( 'renderMarkdown', () => {
 				'<li class="os-md-task"><os-checkbox value="2" checked disabled><span><strong>eggs</strong></span></os-checkbox></li>' +
 				'</ul>',
 		);
+	} );
+
+	test( 'a typed placeholder cannot paste one link inside another link\'s href', () => {
+		// The reported stored XSS: link 0's URL names link 1's
+		// placeholder, and a recursive restore pasted link 1's markup
+		// into link 0's href, its quote ending the attribute.
+		const box = document.createElement( 'div' );
+		box.innerHTML = renderMarkdown(
+			'[o](https://a/\uE0001\uE000) [i](https://b/autofocus/onfocus=window.x="y"//)\n- [ ] \uE0000\uE000',
+			{ tasks: {} },
+		);
+		expect( box.querySelectorAll( '[onfocus], [autofocus]' ) ).toHaveLength( 0 );
+		expect( [ ...box.querySelectorAll( 'a' ) ].map( ( a ) => a.getAttribute( 'href' ) ) ).toEqual( [
+			'https://a/1',
+			'https://b/autofocus/onfocus=window.x="y"//',
+		] );
+		expect( box.innerHTML ).not.toContain( '\uE000' );
+	} );
+
+	test( 'the output allowlist drops markup the renderer never emits', () => {
+		expect(
+			sanitizeMarkdownHtml( '<p><a href="https://a" onfocus="x" autofocus>a</a><a href="javascript:x">b</a><img src=x onerror=y>c</p>' ),
+		).toBe( '<p><a href="https://a">a</a><a>b</a>c</p>' );
 	} );
 
 	test( 'setTaskChecked rewrites only that line, and refuses a line that is not a task', () => {

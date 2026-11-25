@@ -64,7 +64,7 @@ Build the custom dashboard you actually want. Dark mode by default, with a light
 
 = Sticky notes on the admin dashboard =
 
-Write notes in the Note Pad widget or straight on the wallpaper and pin them to the admin dashboard like sticky notes. Keep a note private or share it with everyone who uses OpenStation, and turn a note into a draft post when it grows up.
+Write notes in the Note Pad widget or straight on the wallpaper and pin them to the admin dashboard like sticky notes. Keep a note private or, from Contributor up, share it with everyone who uses OpenStation, and turn a note into a draft post when it grows up.
 
 = A multisite dashboard =
 

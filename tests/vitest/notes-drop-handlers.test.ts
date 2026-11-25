@@ -69,7 +69,7 @@ function makeLayer(): NotesLayer {
 	host.getBoundingClientRect = () =>
 		( { left: 0, top: 0, width: 1000, height: 500, right: 1000, bottom: 500, x: 0, y: 0, toJSON: () => ( {} ) } ) as DOMRect;
 	document.body.appendChild( host );
-	return new NotesLayer( { host, pluginUrl: 'https://example.test/plugin' } );
+	return new NotesLayer( { host, pluginUrl: 'https://example.test/plugin', canShare: true } );
 }
 
 describe( 'note drop handlers', () => {

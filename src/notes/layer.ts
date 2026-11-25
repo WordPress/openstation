@@ -115,6 +115,12 @@ export interface NotesLayerOptions {
 	 * affordance on owned notes (inline button + Posts dock drop target).
 	 */
 	canCreatePosts?: boolean;
+	/**
+	 * Whether the viewer may share a note with everyone. Without it the
+	 * share toggle only appears on a note that is already public, to
+	 * take it down.
+	 */
+	canShare?: boolean;
 	onError?: ( toast: ToastOptions ) => void;
 }
 
@@ -122,6 +128,7 @@ export class NotesLayer {
 	readonly host: HTMLElement;
 	readonly pluginUrl: string;
 	readonly canCreatePosts: boolean;
+	readonly canShare: boolean;
 	private onError?: ( toast: ToastOptions ) => void;
 	private root: HTMLElement | null = null;
 	private liveRegion: HTMLElement | null = null;
@@ -134,6 +141,7 @@ export class NotesLayer {
 		this.host = options.host;
 		this.pluginUrl = options.pluginUrl;
 		this.canCreatePosts = options.canCreatePosts ?? false;
+		this.canShare = options.canShare ?? false;
 		this.onError = options.onError;
 	}
 
@@ -297,7 +305,7 @@ export class NotesLayer {
 	} ): NoteController {
 		const text = options.text ?? '';
 		const color = sanitizeNoteColorSlug( options.color ?? NOTE_COLORS[ 0 ] );
-		const isPublic = options.isPublic === true;
+		const isPublic = options.isPublic === true && this.canShare;
 		const { x, y } = this.clampPosition( options.x, options.y );
 		// Hashed client-side so the optimistic paper and every later
 		// render share a tilt. Position is the fallback because
@@ -878,6 +886,9 @@ export class NoteController {
 				: __( 'Private note. Click to share with every desktop user.', 'desktop-mode' ),
 		);
 		this.visibilityBtn.classList.toggle( 'is-public', isPublic );
+		// Without the right to share, the toggle exists only to take a
+		// public note down.
+		this.visibilityBtn.hidden = ! isPublic && ! this.layer.canShare;
 	}
 
 	// ------------------------------------------------------------------
@@ -1084,6 +1095,9 @@ export class NoteController {
 
 	private togglePublic(): void {
 		const isPublic = ! this.note.public;
+		if ( isPublic && ! this.layer.canShare ) {
+			return;
+		}
 		this.note = { ...this.note, public: isPublic };
 		this.refreshVisibility();
 		if ( isPublic && ! prefersReducedMotion() && this.visibilityBtn ) {
