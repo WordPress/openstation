@@ -293,19 +293,17 @@ jobs:
 
       - name: Run Plugin Check
         run: |
-          # --ignore-warnings: only ERROR-severity findings fail the build.
-          # --ignore-codes: wp_enqueue_command_palette_assets() (WP 6.9) is called
-          #   behind a function_exists() guard in includes/render/assets.php, which
-          #   is the correct pattern for using a newer function while keeping the
-          #   6.0 minimum. Plugin Check's static rule doesn't credit the guard, so
-          #   this code is a false positive for us.
+          # The same run WordPress.org asks for before a review: the release
+          # build, under the plugin's slug, with nothing ignored. Every finding
+          # fails the build, warnings included, so CI sees what wp.org sees.
+          # A finding with no fix gets a phpcs:ignore with its reason on the
+          # line, never a flag here.
           # wp-env's spinner writes to stderr; the container command's output is
           # on stdout. Plugin Check prefixes each file's findings with a "FILE: …"
           # line, so strip those and slurp the per-file JSON arrays.
           set +e
           npx wp-env run --config .wp-env.plugin-check.json cli \
-            wp plugin check desktop-mode --format=json --ignore-warnings \
-            --ignore-codes=wp_function_not_compatible_with_requires_wp \
+            wp plugin check desktop-mode --slug=desktop-mode --format=json \
             > pc-results.json 2> pc-stderr.log
           rc=$?
           set -e
@@ -317,13 +315,20 @@ jobs:
             echo "::error::Could not parse Plugin Check output (see raw stdout above)"
             exit 1
           fi
-          echo "Plugin Check error findings: $findings"
+          echo "Plugin Check findings: $findings"
           if [ "$findings" != "0" ]; then
-            echo "::error::Plugin Check reported $findings error finding(s)"
-            { grep '^\[' pc-results.json || true; } | jq -s -r 'add // [] | .[] | "[\(.code)] line \(.line // "?"): \(.message)"' || true
+            echo "::error::Plugin Check reported $findings finding(s)"
+            # Each JSON array follows the "FILE: …" line it belongs to.
+            file=""
+            while IFS= read -r line; do
+              case "$line" in
+                FILE:*) file="${line#FILE: }" ;;
+                \[*) printf '%s' "$line" | jq -r --arg f "$file" '.[] | "\(.type) [\(.code)] \($f):\(.line // "?"): \(.message)"' || true ;;
+              esac
+            done < pc-results.json
             exit 1
           fi
-          echo "Plugin Check passed (no errors)."
+          echo "Plugin Check passed (no findings)."
 
       - name: Run Plugin Check for Popup Siege
         run: |
