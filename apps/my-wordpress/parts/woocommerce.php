@@ -487,9 +487,9 @@ function woo_query_args( array $args, array $section, State $state ) {
 			$args['orderby']  = 'post__in';
 			unset( $args['order'] );
 		} else {
-			$args['meta_key'] = '_stock_status'; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+			$args['meta_key'] = '_stock_status'; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Ordering by stock status is the point; Woo keeps it only in post meta.
 			$args['orderby']  = array(
-				'meta_value' => 'DESC',
+				'meta_value' => 'DESC', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Ordering by stock status is the point; Woo keeps it only in post meta.
 				'date'       => 'DESC',
 			);
 		}

@@ -22,13 +22,13 @@ final class Hooks implements HooksContract {
 
 	/** {@inheritDoc} */
 	public function filter( $hook, $value, ...$args ) {
-		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- The app names the hook; the adapter only relays it.
+		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores, WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- The app names the hook; the adapter only relays it.
 		return apply_filters( (string) $hook, $value, ...$args );
 	}
 
 	/** {@inheritDoc} */
 	public function action( $hook, ...$args ) {
-		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores -- The app names the hook; the adapter only relays it.
+		// phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores, WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- The app names the hook; the adapter only relays it.
 		do_action( (string) $hook, ...$args );
 	}
 }

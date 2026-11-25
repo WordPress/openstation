@@ -299,6 +299,24 @@ function openstation_ai_apply_model_config( $builder, array $context ) {
 }
 
 /**
+ * Start a prompt on WordPress's AI client.
+ *
+ * The client is WordPress 7.0's and the plugin supports older releases,
+ * where it does not exist. Every AI surface is gated on
+ * `openstation_ai_is_available()`; this refuses by itself too, so the
+ * client is never called on a site that cannot answer.
+ *
+ * @param mixed $prompt What `wp_ai_client_prompt()` takes: text or messages.
+ * @return object|WP_Error The prompt builder.
+ */
+function openstation_ai_client_prompt( $prompt ) {
+	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+		return new WP_Error( 'openstation_ai_unavailable', __( 'AI is not available on this site.', 'desktop-mode' ), array( 'status' => 501 ) );
+	}
+	return wp_ai_client_prompt( $prompt );
+}
+
+/**
  * Runs one generation turn through the AI Client.
  *
  * Rebuilds the prompt from the full ordered message list each turn (the
@@ -318,7 +336,10 @@ function openstation_ai_apply_model_config( $builder, array $context ) {
  * @return array{ text: ?string, function_calls: array, message: mixed, usage: ?array, model: ?array }|WP_Error
  */
 function openstation_ai_client_generate( $user_id, array $messages, array $tool_defs, $answer_schema, $instructions, array $context = array() ) {
-	$builder = wp_ai_client_prompt( $messages );
+	$builder = openstation_ai_client_prompt( $messages );
+	if ( is_wp_error( $builder ) ) {
+		return $builder;
+	}
 
 	if ( is_string( $instructions ) && '' !== $instructions ) {
 		$builder = $builder->using_system_instruction( $instructions );

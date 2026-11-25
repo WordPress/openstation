@@ -689,9 +689,9 @@ function openstation_my_wordpress_woo_order_products( $args, $request ) {
 	if ( empty( $plan['ids'] ) ) {
 		// Catalogue too large to order this way — fall back to stock
 		// status, which at least floats empty shelves to the top.
-		$args['meta_key'] = '_stock_status'; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		$args['meta_key'] = '_stock_status'; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Ordering by stock status is the point; Woo keeps it only in post meta.
 		$args['orderby']  = array(
-			'meta_value' => 'DESC',
+			'meta_value' => 'DESC', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Ordering by stock status is the point; Woo keeps it only in post meta.
 			'date'       => 'DESC',
 		);
 		return $args;

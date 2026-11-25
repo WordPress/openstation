@@ -60,6 +60,7 @@ function openstation_agent_job_get( $id ) {
  */
 function openstation_agent_job_insert( $key, $value ) {
 	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Insert-if-absent must be one atomic statement; the options API has none. The caches are cleared below.
 	$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $key, maybe_serialize( $value ) ) );
 	wp_cache_delete( $key, 'options' );
 	wp_cache_delete( 'notoptions', 'options' );
@@ -172,6 +173,7 @@ function openstation_agent_job_release( array $job ) {
 	global $wpdb;
 	$key = 'openstation_agent_job_active_' . $job['owner'] . '_' . $job['agent'];
 	// A compare-and-delete protects a replacement slot from a late worker.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Compare-and-delete must be one atomic statement; the options API has none. The cache is cleared below.
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", $key, $job['id'] . '|' . $job['deadline'] ) );
 	wp_cache_delete( $key, 'options' );
 }
@@ -337,7 +339,7 @@ function openstation_agent_job_run( $id ) {
 	);
 	ignore_user_abort( true );
 	if ( function_exists( 'set_time_limit' ) ) {
-		set_time_limit( 0 );
+		set_time_limit( 0 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- A background worker running a whole agent job: the request's time limit would stop it mid-run.
 	}
 	$previous = get_current_user_id();
 	// Record each tool round of this run only, never a nested or chained one.
