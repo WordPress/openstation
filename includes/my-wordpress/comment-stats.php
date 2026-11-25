@@ -306,30 +306,26 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 	// Scoped to the authorized post for the same reason as the parent
 	// above: `comment_parent` alone would pull in a comment stored
 	// against a post the caller cannot read. A reply on another post is
-	// not a reply to this thread anyway.
-	//
-	// Static SQL literal — must not go through a %s placeholder, which
-	// would quote it into an adjacent string literal and break the clause.
-	$reply_status_sql = $can_moderate
-		? "comment_approved IN ( '0', '1' )"
-		: "comment_approved = '1'";
-	$reply_rows       = $wpdb->get_results(
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $reply_status_sql is a fixed literal chosen above; no user input.
+	// not a reply to this thread anyway. Approved replies only, plus the
+	// pending ones for a moderator.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Core comments table; the thread is scoped to the authorized post and status in SQL and read fresh.
+	$reply_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT comment_ID, comment_author, comment_author_email,
 				comment_date_gmt, comment_content, comment_approved, user_id
 			FROM {$wpdb->comments}
 			WHERE comment_parent = %d
 				AND comment_post_ID = %d
-				AND {$reply_status_sql}
+				AND comment_approved IN ( '1', %s )
 			ORDER BY comment_date_gmt ASC
 			LIMIT 20",
 			$comment->comment_ID,
-			$comment->comment_post_ID
+			$comment->comment_post_ID,
+			$can_moderate ? '0' : '1'
 		),
 		ARRAY_A
 	);
-	$replies = array();
+	$replies    = array();
 	foreach ( (array) $reply_rows as $row ) {
 		$replies[] = array(
 			'id'         => (int) $row['comment_ID'],
@@ -353,6 +349,7 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 	// comments by this email (or user_id when logged in).
 	$author_total = 0;
 	if ( $author['userId'] > 0 ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate COUNT on a core table over every comment type, which get_comments() would narrow.
 		$author_total = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$wpdb->comments}
@@ -361,6 +358,7 @@ function openstation_my_wordpress_comment_stats_callback( $request ) {
 			)
 		);
 	} elseif ( ! empty( $comment->comment_author_email ) ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Aggregate COUNT on a core table over every comment type, which get_comments() would narrow.
 		$author_total = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$wpdb->comments}

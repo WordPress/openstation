@@ -145,9 +145,11 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	// on their own post whatever its status. The clause is a close
 	// approximation of read_post used where a per-row gate is
 	// impossible (the counts); the recent list re-checks read_post per
-	// row as the authoritative gate. It is built inline, from literal
-	// %s/%d placeholder lists only, so its values are visibly bound
-	// through prepare() at both use sites.
+	// row as the authoritative gate. It is written inline at both use
+	// sites as literal SQL with generated %s lists, so every value is
+	// bound through prepare(). When the caller has no own-post branch,
+	// that branch repeats the readable set, which makes it a no-op
+	// rather than an empty IN () list.
 	$type          = get_post_type_object( 'post' );
 	$statuses      = array_values( get_post_stati( array( 'public' => true ) ) );
 	$private_stati = array_values( get_post_stati( array( 'private' => true ) ) );
@@ -172,21 +174,17 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 		}
 	}
 
-	$placeholders  = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
-	$status_clause = "p.post_status IN ( {$placeholders} )";
-	$status_args   = $statuses;
-
 	$user_id = get_current_user_id();
 	$own     = array_values( array_diff( array_merge( $private_stati, $hidden_stati ), $statuses ) );
-	if ( $user_id > 0 && $own ) {
-		$own_ph        = implode( ', ', array_fill( 0, count( $own ), '%s' ) );
-		$status_clause = "( {$status_clause} OR ( p.post_author = %d AND p.post_status IN ( {$own_ph} ) ) )";
-		$status_args   = array_merge( $status_args, array( $user_id ), $own );
+	if ( $user_id <= 0 || ! $own ) {
+		$own = $statuses;
 	}
+	$status_args = array_merge( array( $tt_id ), $statuses, array( $user_id ), $own );
 
 	// ----- Counts ------------------------------------------------------
 	// Post-status breakdown, restricted to the readable set so the
 	// counts never reveal how many hidden posts a term holds.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- GROUP BY aggregate with no WordPress API equivalent; scoped to the caller's readable statuses, so never shared.
 	$status_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT p.post_status, COUNT(DISTINCT p.ID) AS n
@@ -194,9 +192,10 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 			INNER JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID
 			WHERE tr.term_taxonomy_id = %d
 				AND p.post_type = 'post'
-				AND {$status_clause}
-			GROUP BY p.post_status",
-			array_merge( array( $tt_id ), $status_args )
+				AND ( p.post_status IN (" . implode( ', ', array_fill( 0, count( $statuses ), '%s' ) ) . ')
+					OR ( p.post_author = %d AND p.post_status IN (' . implode( ', ', array_fill( 0, count( $own ), '%s' ) ) . ') ) )
+			GROUP BY p.post_status',
+			$status_args
 		),
 		ARRAY_A
 	);
@@ -218,6 +217,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	}
 
 	// Comments on posts in this term (approved only).
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- COUNT across a JOIN with no WordPress API equivalent; computed on demand for the stats window.
 	$comments_received = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT(c.comment_ID)
@@ -232,6 +232,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	);
 
 	// Distinct authors using this term.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- COUNT DISTINCT with no WordPress API equivalent; computed on demand for the stats window.
 	$distinct_authors = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT COUNT( DISTINCT p.post_author )
@@ -254,18 +255,21 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	// read_post gate below is authoritative (it resolves the exact meta
 	// cap per post, and it is the hook where membership plugins restrict
 	// even published posts). Fetch headroom past 5 because the gate may
-	// drop rows the coarse clause admitted.
+	// drop rows the coarse clause admitted. WP_Query cannot express the
+	// own-post branch of the clause.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Scoped to the caller's readable statuses, so never shared; the read_post gate below must see fresh rows.
 	$recent_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DISTINCT p.ID, p.post_title, p.post_date_gmt, p.post_status, p.post_type, p.post_author
 			FROM {$wpdb->posts} p
 			INNER JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID
 			WHERE tr.term_taxonomy_id = %d
-				AND {$status_clause}
 				AND p.post_type = 'post'
+				AND ( p.post_status IN (" . implode( ', ', array_fill( 0, count( $statuses ), '%s' ) ) . ')
+					OR ( p.post_author = %d AND p.post_status IN (' . implode( ', ', array_fill( 0, count( $own ), '%s' ) ) . ') ) )
 			ORDER BY p.post_date_gmt DESC
-			LIMIT 15",
-			array_merge( array( $tt_id ), $status_args )
+			LIMIT 15',
+			$status_args
 		),
 		ARRAY_A
 	);
@@ -304,6 +308,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	}
 
 	// ----- Top authors (most posts in this term) -----------------------
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- GROUP BY aggregate with no WordPress API equivalent; computed on demand for the stats window.
 	$top_author_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT p.post_author, COUNT( DISTINCT p.ID ) AS n
@@ -335,6 +340,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	}
 
 	// ----- Co-occurring terms (most frequent siblings in same tax) -----
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- GROUP BY aggregate with no WordPress API equivalent; computed on demand for the stats window.
 	$co_term_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT t.term_id, t.name, t.slug, COUNT(*) AS n
@@ -367,6 +373,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	}
 
 	// ----- 12-month activity sparkline ---------------------------------
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- GROUP BY aggregate with no WordPress API equivalent; computed on demand for the stats window.
 	$activity_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT DATE_FORMAT( p.post_date_gmt, '%%Y-%%m' ) AS ym, COUNT( DISTINCT p.ID ) AS n
@@ -391,6 +398,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 	}
 
 	// ----- First & last post in this term ------------------------------
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MIN aggregate with no WordPress API equivalent; computed on demand for the stats window.
 	$first_post_date = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MIN( p.post_date_gmt )
@@ -402,7 +410,8 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 			$tt_id
 		)
 	);
-	$last_post_date  = $wpdb->get_var(
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MAX aggregate with no WordPress API equivalent; computed on demand for the stats window.
+	$last_post_date = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MAX( p.post_date_gmt )
 			FROM {$wpdb->posts} p
@@ -413,7 +422,7 @@ function openstation_my_wordpress_term_stats_callback( $request ) {
 			$tt_id
 		)
 	);
-	$milestones      = array(
+	$milestones     = array(
 		'firstPosted' => $first_post_date ? mysql2date( 'c', $first_post_date, false ) : null,
 		'lastPosted'  => $last_post_date ? mysql2date( 'c', $last_post_date, false ) : null,
 	);

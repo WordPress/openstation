@@ -210,6 +210,9 @@ function openstation_my_wordpress_media_usage_collect( $attachment ) {
 	$rows_by_post = array();
 
 	// --- Featured image references --------------------------------------
+	// Every post carrying the meta, whatever its type or status, which
+	// get_posts() cannot express.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Cached in a transient by openstation_my_wordpress_media_usage_callback().
 	$thumb_post_ids = $wpdb->get_col(
 		$wpdb->prepare(
 			"SELECT post_id FROM {$wpdb->postmeta}
@@ -243,20 +246,19 @@ function openstation_my_wordpress_media_usage_collect( $attachment ) {
 			$url_patterns[] = '%' . $wpdb->esc_like( $variant ) . '%';
 		}
 
-		// Build the OR-arms — one for class, N for URL variants.
-		$pattern_args   = array_merge( array( $class_pattern ), $url_patterns );
-		$pattern_clause = implode( ' OR ', array_fill( 0, count( $pattern_args ), 'post_content LIKE %s' ) );
-		$type_holders   = implode( ',', array_fill( 0, count( $public_types ), '%s' ) );
-		$query_args     = array_merge( $pattern_args, $public_types );
+		// The OR-arms: one for the class, two for the URL variants. A
+		// file with a single variant fills both URL arms with it, which
+		// matches the same rows.
+		$url_patterns = array_pad( $url_patterns, 2, $url_patterns[0] );
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- LIKE scan of post content with no WordPress API equivalent; cached in a transient by openstation_my_wordpress_media_usage_callback().
 		$content_rows = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT ID FROM {$wpdb->posts}
-				 WHERE ( {$pattern_clause} )
+				 WHERE ( post_content LIKE %s OR post_content LIKE %s OR post_content LIKE %s )
 				   AND post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )
-				   AND post_type IN ( {$type_holders} )",
-				$query_args
+				   AND post_type IN (" . implode( ',', array_fill( 0, count( $public_types ), '%s' ) ) . ')',
+				array_merge( array( $class_pattern ), $url_patterns, $public_types )
 			)
 		);
 
