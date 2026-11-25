@@ -395,6 +395,7 @@ function openstation_migrate_close_recycle_bin_icon_gap() {
 
 	// The files schema installs lazily, so a site that never opened
 	// the desktop has no table to migrate.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema check before a versioned migration; must be read fresh.
 	$table_exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
@@ -414,12 +415,12 @@ function openstation_migrate_close_recycle_bin_icon_gap() {
 	// The UNIQUE index on (owner_id, parent_id, file_type, file_ref)
 	// guarantees at most one bin row per owner, so no row can be
 	// shifted twice.
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned migration of a plugin-owned table.
 	$wpdb->query(
 		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name, not user input.
-			"UPDATE `{$tbl}` AS p
+			"UPDATE `{$wpdb->desktop_mode_file_placements}` AS p
 			INNER JOIN (
-				SELECT owner_id, x, y FROM `{$tbl}`
+				SELECT owner_id, x, y FROM `{$wpdb->desktop_mode_file_placements}`
 				WHERE parent_id = 0
 					AND file_type = 'shortcut'
 					AND file_ref  = %s
@@ -435,6 +436,7 @@ function openstation_migrate_close_recycle_bin_icon_gap() {
 		)
 	);
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Versioned migration of a plugin-owned table.
 	$wpdb->delete(
 		$tbl,
 		array(

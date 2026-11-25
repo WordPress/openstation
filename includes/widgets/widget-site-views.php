@@ -229,7 +229,8 @@ function openstation_site_views_meta_callback( $request ) {
 	for ( $i = 0; $i < 14; $i++ ) {
 		$date     = gmdate( 'Y-m-d', strtotime( $today . ' -' . $i . ' days' ) );
 		$meta_key = '_post_views_' . $date;
-		$total    = (int) $wpdb->get_var(
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- SUM over one meta key site-wide, with no WordPress API equivalent; cached in the transient above.
+		$total  = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COALESCE( SUM( CAST( meta_value AS UNSIGNED ) ), 0 )
 				FROM {$wpdb->postmeta}
@@ -237,7 +238,7 @@ function openstation_site_views_meta_callback( $request ) {
 				$meta_key
 			)
 		);
-		$rows[]   = array(
+		$rows[] = array(
 			'date'  => $date,
 			'views' => $total,
 		);

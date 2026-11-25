@@ -391,6 +391,7 @@ function openstation_notes_rest_create( $request ) {
  */
 function openstation_notes_next_z() {
 	global $wpdb;
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- MAX over a meta value with no WordPress API equivalent; read fresh so a new note lands on top.
 	$max = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MAX( CAST( pm.meta_value AS UNSIGNED ) )

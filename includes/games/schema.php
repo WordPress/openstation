@@ -135,6 +135,7 @@ function openstation_games_install_schema() {
 function openstation_games_ensure_table( $table, $sql ) {
 	global $wpdb;
 
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Schema check before a CREATE; must be read fresh.
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
 			'SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
@@ -147,7 +148,7 @@ function openstation_games_ensure_table( $table, $sql ) {
 	}
 	$create        = str_replace( 'CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ', $sql );
 	$prev_suppress = $wpdb->suppress_errors( true );
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Versioned schema migration; $create is this file's own CREATE TABLE statement.
 	$wpdb->query( $create );
 	$wpdb->suppress_errors( $prev_suppress );
 }
