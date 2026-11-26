@@ -334,17 +334,18 @@ Five additions specific to a route:
       [`includes/rest/README.md`](../includes/rest/README.md)?
 
 Rendering text someone else wrote as HTML (a note, a chat message, a
-model answer):
+model answer), see [below](#rendering-untrusted-text-as-html):
 
 - [ ] Does it go through `renderMarkdown()` (`src/markdown.ts`), or set
       `textContent`, rather than a renderer of its own?
 - [ ] If it sets spans aside behind a placeholder, does it strip the
       placeholder character from the input first, and restore in one
-      pass rather than recursively? Pinned notes' stored XSS was a typed
-      `U+E000` naming another link's placeholder, pasted into an href.
+      pass rather than recursively?
 - [ ] Is every href checked where it is written (http(s), no quote,
       angle bracket or placeholder), and does the output still pass
       `sanitizeMarkdownHtml()`?
+- [ ] Does a new token get a case in `tests/vitest/markdown.test.ts`
+      that tries to break out of it?
 
 Adding a trigger intake:
 
@@ -366,6 +367,50 @@ Touching guard.php:
 - [ ] Keep it out of the `agents` feature flag.
 - [ ] Keep both the `authenticate` and `determine_current_user` halves.
       They cover different things and neither is redundant.
+
+## Rendering untrusted text as HTML
+
+Pinned notes, the AI assistant, the Agent chat window and Mio all show
+text that someone other than the viewer wrote, and all of them set it
+as `innerHTML`. One renderer, `renderMarkdown()` in `src/markdown.ts`,
+produces that HTML, and the PHP "Convert to post" path mirrors it in
+`includes/notes/markdown.php`. A public note lands on every other
+desktop, administrators' included, with no click, so a hole in that
+renderer is a stored XSS against the whole site.
+
+**What went wrong once.** The renderer set links and code spans aside
+behind `U+E000` placeholders (`\uE000<n>\uE000`) so emphasis would not
+run inside them, and restored them recursively at the end. `U+E000` is
+a character anyone can paste. A link URL that named another link's
+placeholder got that link's whole markup pasted into its `href`, and
+the inner link's `"` ended the attribute, leaving `autofocus onfocus=…`
+on the element. Escaping the input first did not help: the markup that
+broke out was the renderer's own.
+
+**The guarantees the renderer keeps**, each of which closes part of that
+path:
+
+1. **Escape first.** User and model text is HTML-escaped before any
+   token is interpreted.
+2. **An internal marker is user text.** Every sentinel the renderer uses
+   is stripped from the input before anything else, and notes are
+   stored without it (`openstation_notes_sanitize_text()`). A
+   private-use code point is not a secret.
+3. **Restore in one pass.** Every set-aside fragment is stored complete
+   (a link's label gets its code spans back before the link is kept),
+   so restored markup is never scanned again as a placeholder.
+4. **Check a value where it lands.** An `href` is written only when it
+   is http(s) and holds no quote, angle bracket or sentinel
+   (`SAFE_HREF`), even though its source was escaped.
+5. **Allowlist the output.** `sanitizeMarkdownHtml()` reduces the result
+   to the elements and attributes in `ALLOWED_MARKUP` and drops any
+   non-http(s) `href`, so a slip in the token layer cannot put a handler
+   on the page. A new element or attribute gets its own line there,
+   nothing wider.
+
+A second renderer starts without any of this, which is why there is
+one. The guard is the "typed placeholder" case in
+`tests/vitest/markdown.test.ts`, which renders the original payload.
 
 ## Tests
 
