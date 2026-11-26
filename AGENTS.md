@@ -171,6 +171,10 @@ Then five follow-ons, each of which shipped as its own leak:
 
 Before writing any read path over posts, comments, terms or users, work the checklist in [`docs/agents-security.md`](docs/agents-security.md#checklist-for-new-work), and record the route's real gate in the table in [`includes/rest/README.md`](includes/rest/README.md) — a row that reads "logged-in" is a review flag, not a description. The guards are `tests/phpunit/tests/aiNativeSearch.php`, `agentsAbilities.php`, `myWordpressCommentStats.php` and `myWordpressTermStats.php`; a new read path gets a Subscriber-versus-restricted-object test in the same shape.
 
+### Untrusted text becomes HTML through one renderer
+
+**Text someone else wrote (a note, a chat message, a model answer) reaches `innerHTML` only through `renderMarkdown()` (`src/markdown.ts`), or as `textContent`.** Never write a second renderer. When you change that renderer, keep its guarantees: escape the input first, treat any internal marker as text the user can type, check every value where it is written into the markup, and keep the output allowlist as the last step. The reasoning, the incident it came from, and the checklist are in [`docs/agents-security.md`](docs/agents-security.md#rendering-untrusted-text-as-html).
+
 ### Use `wp.os.fetch` (or `trackedFetch`), never raw `fetch()`
 
 **Every HTTP call from the shell must route through the framework helper** so the request feeds the active window's loading spinner + the activity bus. Two equivalent entry points:
