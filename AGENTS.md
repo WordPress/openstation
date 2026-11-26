@@ -171,6 +171,19 @@ Then five follow-ons, each of which shipped as its own leak:
 
 Before writing any read path over posts, comments, terms or users, work the checklist in [`docs/agents-security.md`](docs/agents-security.md#checklist-for-new-work), and record the route's real gate in the table in [`includes/rest/README.md`](includes/rest/README.md) — a row that reads "logged-in" is a review flag, not a description. The guards are `tests/phpunit/tests/aiNativeSearch.php`, `agentsAbilities.php`, `myWordpressCommentStats.php` and `myWordpressTermStats.php`; a new read path gets a Subscriber-versus-restricted-object test in the same shape.
 
+### User and model text reaches the DOM through `renderMarkdown()`, never a hand-rolled renderer
+
+**A note, a chat message, a model answer: any text someone else typed that ends up as `innerHTML` goes through `renderMarkdown()` (`src/markdown.ts`), or a component that sets `textContent`.** That renderer escapes first, writes only http(s) hrefs, and passes its output through `sanitizeMarkdownHtml()`, an allowlist of the elements and attributes it emits. A second renderer starts without any of that.
+
+Pinned notes shipped a stored XSS that every other desktop ran, administrators' included, with no click. The renderer set links and code spans aside behind `U+E000` placeholders and restored them recursively. `U+E000` is a character anyone can paste, so a link URL could name another link's placeholder, and the restore pasted that link's markup inside the first one's href, where its quote ended the attribute. Escaping first did not help, because the markup was the renderer's own. So, when you change `src/markdown.ts` or `includes/notes/markdown.php`, or write anything that sets text aside and puts it back:
+
+1. **Strip the sentinel from the input** before anything else. A private-use code point is not a secret; it is text.
+2. **Restore in one pass, never recursively.** Store every fragment complete (a link's label gets its code spans back before the link is stashed), so restored markup is never read again as a placeholder.
+3. **Check a value where it lands, not where it came from.** An href that holds a quote, an angle bracket or a sentinel is refused, even though the source was escaped.
+4. **Keep the output allowlist as the last step.** It is what makes a slip in the token layer harmless; a new element or attribute the renderer emits gets its line in `ALLOWED_MARKUP`, nothing wider.
+
+The guard is the "typed placeholder" case in `tests/vitest/markdown.test.ts`; a new token gets a case in that file that tries to break out of it. The checklist is in [`docs/agents-security.md`](docs/agents-security.md#checklist-for-new-work).
+
 ### Use `wp.os.fetch` (or `trackedFetch`), never raw `fetch()`
 
 **Every HTTP call from the shell must route through the framework helper** so the request feeds the active window's loading spinner + the activity bus. Two equivalent entry points:

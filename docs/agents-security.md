@@ -333,6 +333,19 @@ Five additions specific to a route:
 - [ ] Is the route's real gate written into the table in
       [`includes/rest/README.md`](../includes/rest/README.md)?
 
+Rendering text someone else wrote as HTML (a note, a chat message, a
+model answer):
+
+- [ ] Does it go through `renderMarkdown()` (`src/markdown.ts`), or set
+      `textContent`, rather than a renderer of its own?
+- [ ] If it sets spans aside behind a placeholder, does it strip the
+      placeholder character from the input first, and restore in one
+      pass rather than recursively? Pinned notes' stored XSS was a typed
+      `U+E000` naming another link's placeholder, pasted into an href.
+- [ ] Is every href checked where it is written (http(s), no quote,
+      angle bracket or placeholder), and does the output still pass
+      `sanitizeMarkdownHtml()`?
+
 Adding a trigger intake:
 
 - [ ] Call `openstation_agent_user_can_invoke_agent()` before
