@@ -2907,6 +2907,17 @@ html[data-os-mode="mobile"] .os-features__danger-row {
 	opacity: 1;
 }
 
+/*
+ * Only the card's hover reveals the delete overlay, so on touch it
+ * never appears and an uploaded theme cannot be removed at all. Rest
+ * it at the 0.7 the widget close button uses there.
+ */
+@media ( hover: none ) {
+	.os-settings__theme-delete {
+		opacity: 0.7;
+	}
+}
+
 .os-settings__theme-delete:hover {
 	background: var( --os-ui-danger, #d63638 );
 }

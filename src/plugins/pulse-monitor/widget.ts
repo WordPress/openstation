@@ -52,6 +52,11 @@ function ensureStyle(): void {
 .os-widget-pulse__gear svg { display: block; }
 .os-widget-pulse:hover .os-widget-pulse__gear,
 .os-widget-pulse__gear:focus-within { opacity: 1; }
+/* Touch has no hover, so the gear would never appear and the settings
+   could not be opened. Rest it at the widget close button's 0.7. */
+@media (hover: none) {
+	.os-widget-pulse__gear { opacity: 0.7; }
+}
 .os-widget-pulse__form { display: flex; flex-direction: column; gap: 12px; }
 @media (prefers-reduced-motion: reduce) {
 	.os-widget-pulse__gear { transition: none; }
