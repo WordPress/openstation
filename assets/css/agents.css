@@ -149,6 +149,13 @@
 	opacity: 1;
 }
 
+/* No hover on touch; full opacity because the grey glyph drops below 3:1 contrast at 0.7. */
+@media ( hover: none ) {
+	.dm-agent-chat__conv-delete {
+		opacity: 1;
+	}
+}
+
 /* Conversation column. */
 .dm-agent-chat__main {
 	flex: 1;

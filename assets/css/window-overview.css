@@ -581,6 +581,18 @@
 	opacity: 1;
 }
 
+/*
+ * A tap does not hover the wrapper, so on touch the corner buttons
+ * never appear and a desk can be neither edited nor closed from
+ * Overview. Rest them at the 0.7 the widget close button uses there.
+ */
+@media ( hover: none ) {
+	.os-overview-top-bar__tile-close,
+	.os-overview-top-bar__tile-edit {
+		opacity: 0.7;
+	}
+}
+
 .os-overview-top-bar__tile-close:hover {
 	background: var( --os-ui-danger, #d63638 );
 	color: var( --os-ui-fg-on-accent, #fff );
